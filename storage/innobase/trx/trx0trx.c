@@ -151,18 +151,15 @@ trx_create(
 	trx->que_state = TRX_QUE_RUNNING;
 	trx->n_active_thrs = 0;
 
-	trx->handling_signals = FALSE;
-
-	UT_LIST_INIT(trx->signals);
-	UT_LIST_INIT(trx->reply_signals);
-
 	trx->graph = NULL;
 
 	trx->wait_lock = NULL;
 	trx->was_chosen_as_deadlock_victim = FALSE;
-	UT_LIST_INIT(trx->wait_thrs);
+
+	trx->wait_thr = NULL;
 
 	trx->lock_heap = mem_heap_create_in_buffer(256);
+
 	UT_LIST_INIT(trx->trx_locks);
 
 	UT_LIST_INIT(trx->trx_savepoints);
@@ -187,6 +184,8 @@ trx_create(
 	/* Remember to free the vector explicitly. */
 	trx->autoinc_locks = ib_vector_create(
 		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
+
+	memset(&trx->sig, 0x0, sizeof(trx->sig));
 
 	return(trx);
 }
@@ -299,11 +298,8 @@ trx_free(
 		trx_undo_arr_free(trx->undo_no_arr);
 	}
 
-	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
-	ut_a(UT_LIST_GET_LEN(trx->reply_signals) == 0);
-
 	ut_a(trx->wait_lock == NULL);
-	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
+	ut_a(trx->wait_thr == NULL);
 
 	ut_a(!trx->has_search_latch);
 
@@ -941,7 +937,7 @@ trx_commit_off_kernel(
 	trx->undo_no = ut_dulint_zero;
 	trx->last_sql_stat_start.least_undo_no = ut_dulint_zero;
 
-	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
+	ut_ad(trx->wait_thr == NULL);
 	ut_ad(UT_LIST_GET_LEN(trx->trx_locks) == 0);
 
 	trx_sys_mutex_enter();
@@ -1022,39 +1018,21 @@ static
 void
 trx_handle_commit_sig_off_kernel(
 /*=============================*/
-	trx_t*		trx,		/*!< in: transaction */
-	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
+	trx_t*		trx)		/*!< in: transaction */
 {
-	trx_sig_t*	sig;
-	trx_sig_t*	next_sig;
-
 	ut_ad(mutex_own(&kernel_mutex));
 
 	trx->que_state = TRX_QUE_COMMITTING;
 
 	trx_commit_off_kernel(trx);
 
-	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
+	ut_ad(trx->wait_thr == NULL);
 
-	/* Remove all TRX_SIG_COMMIT signals from the signal queue and send
-	reply messages to them */
+	/* Send reply messages to signal sender. */
 
-	sig = UT_LIST_GET_FIRST(trx->signals);
+	if (trx->sig.type == TRX_SIG_COMMIT) {
 
-	while (sig != NULL) {
-		next_sig = UT_LIST_GET_NEXT(signals, sig);
-
-		if (sig->type == TRX_SIG_COMMIT) {
-
-			trx_sig_reply(sig, next_thr);
-			trx_sig_remove(trx, sig);
-		}
-
-		sig = next_sig;
+		trx->sig.type = TRX_SIG_NO_SIGNAL;
 	}
 
 	trx->que_state = TRX_QUE_RUNNING;
@@ -1062,427 +1040,74 @@ trx_handle_commit_sig_off_kernel(
 
 /***********************************************************//**
 The transaction must be in the TRX_QUE_LOCK_WAIT state. Puts it to
-the TRX_QUE_RUNNING state and releases query threads which were
-waiting for a lock in the wait_thrs list. */
+the TRX_QUE_RUNNING state. */
 UNIV_INTERN
 void
 trx_end_lock_wait(
 /*==============*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	que_thr_t*	thr;
-
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
 
-	thr = UT_LIST_GET_FIRST(trx->wait_thrs);
-
-	while (thr != NULL) {
-		que_thr_end_wait_no_next_thr(thr);
-
-		UT_LIST_REMOVE(trx_thrs, trx->wait_thrs, thr);
-
-		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
-	}
+	que_thr_end_wait_no_next_thr(trx->wait_thr);
+	trx->wait_thr = NULL;
 
 	trx->que_state = TRX_QUE_RUNNING;
 }
 
-/***********************************************************//**
-Moves the query threads in the lock wait list to the SUSPENDED state and puts
-the transaction to the TRX_QUE_RUNNING state. */
-static
-void
-trx_lock_wait_to_suspended(
-/*=======================*/
-	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
-{
-	que_thr_t*	thr;
-
-	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-
-	thr = UT_LIST_GET_FIRST(trx->wait_thrs);
-
-	while (thr != NULL) {
-		thr->state = QUE_THR_SUSPENDED;
-
-		UT_LIST_REMOVE(trx_thrs, trx->wait_thrs, thr);
-
-		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
-	}
-
-	trx->que_state = TRX_QUE_RUNNING;
-}
-
-/***********************************************************//**
-Moves the query threads in the sig reply wait list of trx to the SUSPENDED
-state. */
-static
-void
-trx_sig_reply_wait_to_suspended(
-/*============================*/
-	trx_t*	trx)	/*!< in: transaction */
-{
-	trx_sig_t*	sig;
-	que_thr_t*	thr;
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	sig = UT_LIST_GET_FIRST(trx->reply_signals);
-
-	while (sig != NULL) {
-		thr = sig->receiver;
-
-		ut_ad(thr->state == QUE_THR_SIG_REPLY_WAIT);
-
-		thr->state = QUE_THR_SUSPENDED;
-
-		sig->receiver = NULL;
-
-		UT_LIST_REMOVE(reply_signals, trx->reply_signals, sig);
-
-		sig = UT_LIST_GET_FIRST(trx->reply_signals);
-	}
-}
-
-/*****************************************************************//**
-Checks the compatibility of a new signal with the other signals in the
-queue.
-@return	TRUE if the signal can be queued */
-static
-ibool
-trx_sig_is_compatible(
-/*==================*/
-	trx_t*	trx,	/*!< in: trx handle */
-	ulint	type,	/*!< in: signal type */
-	ulint	sender)	/*!< in: TRX_SIG_SELF or TRX_SIG_OTHER_SESS */
-{
-	trx_sig_t*	sig;
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	if (UT_LIST_GET_LEN(trx->signals) == 0) {
-
-		return(TRUE);
-	}
-
-	if (sender == TRX_SIG_SELF) {
-		if (type == TRX_SIG_ERROR_OCCURRED) {
-
-			return(TRUE);
-
-		} else if (type == TRX_SIG_BREAK_EXECUTION) {
-
-			return(TRUE);
-		} else {
-			return(FALSE);
-		}
-	}
-
-	ut_ad(sender == TRX_SIG_OTHER_SESS);
-
-	sig = UT_LIST_GET_FIRST(trx->signals);
-
-	if (type == TRX_SIG_COMMIT) {
-		while (sig != NULL) {
-
-			if (sig->type == TRX_SIG_TOTAL_ROLLBACK) {
-
-				return(FALSE);
-			}
-
-			sig = UT_LIST_GET_NEXT(signals, sig);
-		}
-
-		return(TRUE);
-
-	} else if (type == TRX_SIG_TOTAL_ROLLBACK) {
-		while (sig != NULL) {
-
-			if (sig->type == TRX_SIG_COMMIT) {
-
-				return(FALSE);
-			}
-
-			sig = UT_LIST_GET_NEXT(signals, sig);
-		}
-
-		return(TRUE);
-
-	} else if (type == TRX_SIG_BREAK_EXECUTION) {
-
-		return(TRUE);
-	} else {
-		ut_error;
-
-		return(FALSE);
-	}
-}
-
 /****************************************************************//**
-Sends a signal to a trx object. */
+Starts handling of a trx signal.
+@return the query thread that will do the UNDO or NULL */
 UNIV_INTERN
-void
-trx_sig_send(
-/*=========*/
-	trx_t*		trx,		/*!< in: trx handle */
-	ulint		type,		/*!< in: signal type */
-	ulint		sender,		/*!< in: TRX_SIG_SELF or
-					TRX_SIG_OTHER_SESS */
-	que_thr_t*	receiver_thr,	/*!< in: query thread which wants the
-					reply, or NULL; if type is
-					TRX_SIG_END_WAIT, this must be NULL */
-	trx_savept_t*	savept,		/*!< in: possible rollback savepoint, or
-					NULL */
-	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread; if the parameter
-					is NULL, it is ignored */
-{
-	trx_sig_t*	sig;
-	trx_t*		receiver_trx;
-
-	ut_ad(trx);
-	ut_ad(mutex_own(&kernel_mutex));
-
-	if (!trx_sig_is_compatible(trx, type, sender)) {
-		/* The signal is not compatible with the other signals in
-		the queue: die */
-
-		ut_error;
-	}
-
-	/* Queue the signal object */
-
-	if (UT_LIST_GET_LEN(trx->signals) == 0) {
-
-		/* The signal list is empty: the 'sig' slot must be unused
-		(we improve performance a bit by avoiding mem_alloc) */
-		sig = &(trx->sig);
-	} else {
-		/* It might be that the 'sig' slot is unused also in this
-		case, but we choose the easy way of using mem_alloc */
-
-		sig = mem_alloc(sizeof(trx_sig_t));
-	}
-
-	UT_LIST_ADD_LAST(signals, trx->signals, sig);
-
-	sig->type = type;
-	sig->sender = sender;
-	sig->receiver = receiver_thr;
-
-	if (savept) {
-		sig->savept = *savept;
-	}
-
-	if (receiver_thr) {
-		receiver_trx = thr_get_trx(receiver_thr);
-
-		UT_LIST_ADD_LAST(reply_signals, receiver_trx->reply_signals,
-				 sig);
-	}
-
-	if (trx->sess->state == SESS_ERROR) {
-
-		trx_sig_reply_wait_to_suspended(trx);
-	}
-
-	if ((sender != TRX_SIG_SELF) || (type == TRX_SIG_BREAK_EXECUTION)) {
-		ut_error;
-	}
-
-	/* If there were no other signals ahead in the queue, try to start
-	handling of the signal */
-
-	if (UT_LIST_GET_FIRST(trx->signals) == sig) {
-
-		trx_sig_start_handle(trx, next_thr);
-	}
-}
-
-/****************************************************************//**
-Ends signal handling. If the session is in the error state, and
-trx->graph_before_signal_handling != NULL, then returns control to the error
-handling routine of the graph (currently just returns the control to the
-graph root which then will send an error message to the client). */
-UNIV_INTERN
-void
-trx_end_signal_handling(
-/*====================*/
-	trx_t*	trx)	/*!< in: trx */
-{
-	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad(trx->handling_signals == TRUE);
-
-	trx->handling_signals = FALSE;
-
-	trx->graph = trx->graph_before_signal_handling;
-}
-
-/****************************************************************//**
-Starts handling of a trx signal. */
-UNIV_INTERN
-void
+que_thr_t*
 trx_sig_start_handle(
 /*=================*/
 	trx_t*		trx,		/*!< in: trx handle */
-	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread; if the parameter
-					is NULL, it is ignored */
+	ulint		sig_type,	/*!< in: signal type */
+	dulint		roll_limit) 	/*!< in: rollback to undo no
+					for partial rollbacks or 
+					ut_dulint_zero */
 {
-	trx_sig_t*	sig;
-	ulint		type;
-loop:
-	/* We loop in this function body as long as there are queued signals
-	we can process immediately */
+	que_thr_t*	thr = NULL;
 
 	ut_ad(trx);
 	ut_ad(mutex_own(&kernel_mutex));
-
-	if (trx->handling_signals && (UT_LIST_GET_LEN(trx->signals) == 0)) {
-
-		trx_end_signal_handling(trx);
-
-		return;
-	}
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 
 		trx_start_low(trx, ULINT_UNDEFINED);
 	}
 
-	/* If the trx is in a lock wait state, moves the waiting query threads
-	to the suspended state */
+	/* If the trx is in a lock wait state, moves the waiting
+       	query thread to the suspended state */
 
 	if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 
-		trx_lock_wait_to_suspended(trx);
+		ut_a(trx->wait_thr != NULL);
+		trx->wait_thr->state = QUE_THR_SUSPENDED;
+		trx->wait_thr = NULL;
+
+		trx->que_state = TRX_QUE_RUNNING;
 	}
 
-	/* If the session is in the error state and this trx has threads
-	waiting for reply from signals, moves these threads to the suspended
-	state, canceling wait reservations; note that if the transaction has
-	sent a commit or rollback signal to itself, and its session is not in
-	the error state, then nothing is done here. */
+	ut_a(trx->n_active_thrs == 1);
 
-	if (trx->sess->state == SESS_ERROR) {
-		trx_sig_reply_wait_to_suspended(trx);
-	}
+	switch (sig_type) {
+	case TRX_SIG_COMMIT:
+		trx_handle_commit_sig_off_kernel(trx);
+		break;
 
-	/* If there are no running query threads, we can start processing of a
-	signal, otherwise we have to wait until all query threads of this
-	transaction are aware of the arrival of the signal. */
+	case TRX_SIG_TOTAL_ROLLBACK:
+	case TRX_SIG_ROLLBACK_TO_SAVEPT:
+		thr = trx_rollback(trx, roll_limit);
+		break;
 
-	if (trx->n_active_thrs > 0) {
-
-		return;
-	}
-
-	if (trx->handling_signals == FALSE) {
-		trx->graph_before_signal_handling = trx->graph;
-
-		trx->handling_signals = TRUE;
-	}
-
-	sig = UT_LIST_GET_FIRST(trx->signals);
-	type = sig->type;
-
-	if (type == TRX_SIG_COMMIT) {
-
-		trx_handle_commit_sig_off_kernel(trx, next_thr);
-
-	} else if ((type == TRX_SIG_TOTAL_ROLLBACK)
-		   || (type == TRX_SIG_ROLLBACK_TO_SAVEPT)) {
-
-		trx_rollback(trx, sig, next_thr);
-
-		/* No further signals can be handled until the rollback
-		completes, therefore we return */
-
-		return;
-
-	} else if (type == TRX_SIG_ERROR_OCCURRED) {
-
-		trx_rollback(trx, sig, next_thr);
-
-		/* No further signals can be handled until the rollback
-		completes, therefore we return */
-
-		return;
-
-	} else if (type == TRX_SIG_BREAK_EXECUTION) {
-
-		trx_sig_reply(sig, next_thr);
-		trx_sig_remove(trx, sig);
-	} else {
+	default:
 		ut_error;
 	}
 
-	goto loop;
-}
-
-/****************************************************************//**
-Send the reply message when a signal in the queue of the trx has been
-handled. */
-UNIV_INTERN
-void
-trx_sig_reply(
-/*==========*/
-	trx_sig_t*	sig,		/*!< in: signal */
-	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
-{
-	trx_t*	receiver_trx;
-
-	ut_ad(sig);
-	ut_ad(mutex_own(&kernel_mutex));
-
-	if (sig->receiver != NULL) {
-		ut_ad((sig->receiver)->state == QUE_THR_SIG_REPLY_WAIT);
-
-		receiver_trx = thr_get_trx(sig->receiver);
-
-		UT_LIST_REMOVE(reply_signals, receiver_trx->reply_signals,
-			       sig);
-		ut_ad(receiver_trx->sess->state != SESS_ERROR);
-
-		que_thr_end_wait(sig->receiver, next_thr);
-
-		sig->receiver = NULL;
-
-	}
-}
-
-/****************************************************************//**
-Removes a signal object from the trx signal queue. */
-UNIV_INTERN
-void
-trx_sig_remove(
-/*===========*/
-	trx_t*		trx,	/*!< in: trx handle */
-	trx_sig_t*	sig)	/*!< in, own: signal */
-{
-	ut_ad(trx && sig);
-	ut_ad(mutex_own(&kernel_mutex));
-
-	ut_ad(sig->receiver == NULL);
-
-	UT_LIST_REMOVE(signals, trx->signals, sig);
-	sig->type = 0;	/* reset the field to catch possible bugs */
-
-	if (sig != &(trx->sig)) {
-		mem_free(sig);
-	}
+	return(thr);
 }
 
 /*********************************************************************//**
@@ -1496,7 +1121,7 @@ commit_node_create(
 {
 	commit_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(commit_node_t));
+	node = mem_heap_alloc(heap, sizeof(*node));
 	node->common.type  = QUE_NODE_COMMIT;
 	node->state = COMMIT_NODE_SEND;
 
@@ -1524,29 +1149,33 @@ trx_commit_step(
 	}
 
 	if (node->state == COMMIT_NODE_SEND) {
+		trx_t*	trx;
+
 		mutex_enter(&kernel_mutex);
 
 		node->state = COMMIT_NODE_WAIT;
 
 		next_thr = NULL;
 
-		thr->state = QUE_THR_SIG_REPLY_WAIT;
+		trx = thr_get_trx(thr);
+
+		thr->state = QUE_THR_SUSPENDED;
 
 		/* Send the commit signal to the transaction */
 
-		trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT, TRX_SIG_SELF,
-			     thr, NULL, &next_thr);
+		trx_sig_start_handle(
+			trx, TRX_SIG_COMMIT, ut_dulint_zero);
 
 		mutex_exit(&kernel_mutex);
 
-		return(next_thr);
+		thr = NULL;
+	} else {
+		ut_ad(node->state == COMMIT_NODE_WAIT);
+
+		node->state = COMMIT_NODE_SEND;
+
+		thr->run_node = que_node_get_parent(node);
 	}
-
-	ut_ad(node->state == COMMIT_NODE_WAIT);
-
-	node->state = COMMIT_NODE_SEND;
-
-	thr->run_node = que_node_get_parent(node);
 
 	return(thr);
 }

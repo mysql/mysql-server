@@ -169,15 +169,10 @@ UNIV_INTERN
 void
 que_thr_end_wait(
 /*=============*/
-	que_thr_t*	thr,		/*!< in: query thread in the
+	que_thr_t*	thr);		/*!< in: query thread in the
 					QUE_THR_LOCK_WAIT,
 					or QUE_THR_PROCEDURE_WAIT, or
 					QUE_THR_SIG_REPLY_WAIT state */
-	que_thr_t**	next_thr);	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
 /**********************************************************************//**
 Same as que_thr_end_wait, but no parameter next_thr available. */
 UNIV_INTERN
@@ -526,7 +521,6 @@ struct que_fork_struct{
 					thread has done its task */
 #define QUE_THR_COMMAND_WAIT	4
 #define QUE_THR_LOCK_WAIT	5
-#define QUE_THR_SIG_REPLY_WAIT	6
 #define QUE_THR_SUSPENDED	7
 #define QUE_THR_ERROR		8
 

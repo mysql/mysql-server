@@ -470,6 +470,12 @@ trx_rollback_active(
 	}
 
 	que_run_threads(thr);
+	ut_a(roll_node->undo_thr != NULL);
+	que_run_threads(roll_node->undo_thr);
+
+	/* Free the memory reserved by the undo graph */
+	que_graph_free(roll_node->undo_thr->common.parent);
+	trx_finish_rollback_off_kernel(thr_get_trx(roll_node->undo_thr));
 
 	mutex_enter(&kernel_mutex);
 
@@ -1060,51 +1066,62 @@ trx_undo_rec_release(
 	mutex_exit(&(trx->undo_mutex));
 }
 
+/****************************************************************//**
+Builds an undo 'query' graph for a transaction. The actual rollback is
+performed by executing this query graph like a query subprocedure call.
+The reply about the completion of the rollback will be sent by this
+graph.
+@return	own: the query graph */
+static
+que_t*
+trx_roll_graph_build(
+/*=================*/
+	trx_t*	trx)	/*!< in: trx handle */
+{
+	mem_heap_t*	heap;
+	que_fork_t*	fork;
+	que_thr_t*	thr;
+
+	ut_ad(mutex_own(&kernel_mutex));
+
+	heap = mem_heap_create(512);
+	fork = que_fork_create(NULL, NULL, QUE_FORK_ROLLBACK, heap);
+	fork->trx = trx;
+
+	thr = que_thr_create(fork, heap);
+
+	thr->child = row_undo_node_create(trx, thr, heap);
+
+	return(fork);
+}
+
 /*********************************************************************//**
-Starts a rollback operation. */
+Starts a rollback operation.
+@return query graph that will perform the UNDO operations. */
 UNIV_INTERN
-void
+que_thr_t*
 trx_rollback(
 /*=========*/
 	trx_t*		trx,	/*!< in: transaction */
-	trx_sig_t*	sig,	/*!< in: signal starting the rollback */
-	que_thr_t**	next_thr)/*!< in/out: next query thread to run;
-				if the value which is passed in is
-				a pointer to a NULL pointer, then the
-				calling function can start running
-				a new query thread; if the passed value is
-				NULL, the parameter is ignored */
+	dulint		roll_limit) /*!< in: rollback to undo no */
 {
-	que_t*		roll_graph;
 	que_thr_t*	thr;
-	/*	que_thr_t*	thr2; */
+	que_t*		roll_graph;
 
 	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad((trx->undo_no_arr == NULL) || ((trx->undo_no_arr)->n_used == 0));
+	ut_ad(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
 
 	/* Initialize the rollback field in the transaction */
 
-	if (sig->type == TRX_SIG_TOTAL_ROLLBACK) {
-
-		trx->roll_limit = ut_dulint_zero;
-
-	} else if (sig->type == TRX_SIG_ROLLBACK_TO_SAVEPT) {
-
-		trx->roll_limit = (sig->savept).least_undo_no;
-
-	} else if (sig->type == TRX_SIG_ERROR_OCCURRED) {
-
-		trx->roll_limit = trx->last_sql_stat_start.least_undo_no;
-	} else {
-		ut_error;
-	}
+	trx->roll_limit = roll_limit;
 
 	ut_a(ut_dulint_cmp(trx->roll_limit, trx->undo_no) <= 0);
 
 	trx->pages_undone = 0;
 
 	if (trx->undo_no_arr == NULL) {
-		trx->undo_no_arr = trx_undo_arr_create(UNIV_MAX_PARALLELISM);
+		/* Single query thread -> 1 */
+		trx->undo_no_arr = trx_undo_arr_create(1);
 	}
 
 	/* Build a 'query' graph which will perform the undo operations */
@@ -1115,111 +1132,9 @@ trx_rollback(
 	trx->que_state = TRX_QUE_ROLLING_BACK;
 
 	thr = que_fork_start_command(roll_graph);
-
 	ut_ad(thr);
 
-	/*	thr2 = que_fork_start_command(roll_graph);
-
-	ut_ad(thr2); */
-
-	if (next_thr && (*next_thr == NULL)) {
-		*next_thr = thr;
-		/*		srv_que_task_enqueue_low(thr2); */
-	} else {
-		ut_error;
-		srv_que_task_enqueue_low(thr);
-		/*		srv_que_task_enqueue_low(thr2); */
-	}
-}
-
-/****************************************************************//**
-Builds an undo 'query' graph for a transaction. The actual rollback is
-performed by executing this query graph like a query subprocedure call.
-The reply about the completion of the rollback will be sent by this
-graph.
-@return	own: the query graph */
-UNIV_INTERN
-que_t*
-trx_roll_graph_build(
-/*=================*/
-	trx_t*	trx)	/*!< in: trx handle */
-{
-	mem_heap_t*	heap;
-	que_fork_t*	fork;
-	que_thr_t*	thr;
-	/*	que_thr_t*	thr2; */
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	heap = mem_heap_create(512);
-	fork = que_fork_create(NULL, NULL, QUE_FORK_ROLLBACK, heap);
-	fork->trx = trx;
-
-	thr = que_thr_create(fork, heap);
-	/*	thr2 = que_thr_create(fork, heap); */
-
-	thr->child = row_undo_node_create(trx, thr, heap);
-	/*	thr2->child = row_undo_node_create(trx, thr2, heap); */
-
-	return(fork);
-}
-
-/*********************************************************************//**
-Finishes error processing after the necessary partial rollback has been
-done. */
-static
-void
-trx_finish_error_processing(
-/*========================*/
-	trx_t*	trx)	/*!< in: transaction */
-{
-	trx_sig_t*	sig;
-	trx_sig_t*	next_sig;
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	sig = UT_LIST_GET_FIRST(trx->signals);
-
-	while (sig != NULL) {
-		next_sig = UT_LIST_GET_NEXT(signals, sig);
-
-		if (sig->type == TRX_SIG_ERROR_OCCURRED) {
-
-			trx_sig_remove(trx, sig);
-		}
-
-		sig = next_sig;
-	}
-
-	trx->que_state = TRX_QUE_RUNNING;
-}
-
-/*********************************************************************//**
-Finishes a partial rollback operation. */
-static
-void
-trx_finish_partial_rollback_off_kernel(
-/*===================================*/
-	trx_t*		trx,	/*!< in: transaction */
-	que_thr_t**	next_thr)/*!< in/out: next query thread to run;
-				if the value which is passed in is a pointer
-				to a NULL pointer, then the calling function
-				can start running a new query thread; if this
-				parameter is NULL, it is ignored */
-{
-	trx_sig_t*	sig;
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	sig = UT_LIST_GET_FIRST(trx->signals);
-
-	/* Remove the signal from the signal queue and send reply message
-	to it */
-
-	trx_sig_reply(sig, next_thr);
-	trx_sig_remove(trx, sig);
-
-	trx->que_state = TRX_QUE_RUNNING;
+	return(thr);
 }
 
 /****************************************************************//**
@@ -1228,66 +1143,29 @@ UNIV_INTERN
 void
 trx_finish_rollback_off_kernel(
 /*===========================*/
-	que_t*		graph,	/*!< in: undo graph which can now be freed */
-	trx_t*		trx,	/*!< in: transaction */
-	que_thr_t**	next_thr)/*!< in/out: next query thread to run;
-				if the value which is passed in is
-				a pointer to a NULL pointer, then the
-				calling function can start running
-				a new query thread; if this parameter is
-				NULL, it is ignored */
+	trx_t*		trx)	/*!< in: transaction */
 {
-	trx_sig_t*	sig;
-	trx_sig_t*	next_sig;
-
-	ut_ad(mutex_own(&kernel_mutex));
+	mutex_enter(&kernel_mutex);
 
 	ut_a(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
 
-	/* Free the memory reserved by the undo graph */
-	que_graph_free(graph);
+	if (trx->sig.type == TRX_SIG_ROLLBACK_TO_SAVEPT) {
 
-	sig = UT_LIST_GET_FIRST(trx->signals);
-
-	if (sig->type == TRX_SIG_ROLLBACK_TO_SAVEPT) {
-
-		trx_finish_partial_rollback_off_kernel(trx, next_thr);
-
-		return;
-
-	} else if (sig->type == TRX_SIG_ERROR_OCCURRED) {
-
-		trx_finish_error_processing(trx);
-
-		return;
-	}
-
+		que_thr_end_wait(trx->sig.receiver);
+	} else { 
 #ifdef UNIV_DEBUG
-	if (lock_print_waits) {
-		fprintf(stderr, "Trx %lu rollback finished\n",
-			(ulong) ut_dulint_get_low(trx->id));
-	}
+		if (lock_print_waits) {
+			fprintf(stderr, "Trx %lu rollback finished\n",
+				(ulong) ut_dulint_get_low(trx->id));
+		}
 #endif /* UNIV_DEBUG */
 
-	trx_commit_off_kernel(trx);
-
-	/* Remove all TRX_SIG_TOTAL_ROLLBACK signals from the signal queue and
-	send reply messages to them */
+		trx_commit_off_kernel(trx);
+	}
 
 	trx->que_state = TRX_QUE_RUNNING;
 
-	while (sig != NULL) {
-		next_sig = UT_LIST_GET_NEXT(signals, sig);
-
-		if (sig->type == TRX_SIG_TOTAL_ROLLBACK) {
-
-			trx_sig_reply(sig, next_thr);
-
-			trx_sig_remove(trx, sig);
-		}
-
-		sig = next_sig;
-	}
+	mutex_exit(&kernel_mutex);
 }
 
 /*********************************************************************//**
@@ -1301,11 +1179,11 @@ roll_node_create(
 {
 	roll_node_t*	node;
 
-	node = mem_heap_alloc(heap, sizeof(roll_node_t));
-	node->common.type = QUE_NODE_ROLLBACK;
+	node = mem_heap_zalloc(heap, sizeof(*node));
+
 	node->state = ROLL_NODE_SEND;
 
-	node->partial = FALSE;
+	node->common.type = QUE_NODE_ROLLBACK;
 
 	return(node);
 }
@@ -1320,8 +1198,6 @@ trx_rollback_step(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	roll_node_t*	node;
-	ulint		sig_no;
-	trx_savept_t*	savept;
 
 	node = thr->run_node;
 
@@ -1332,33 +1208,34 @@ trx_rollback_step(
 	}
 
 	if (node->state == ROLL_NODE_SEND) {
+		trx_t*		trx;
+		dulint		roll_limit = ut_dulint_zero;
+
 		mutex_enter(&kernel_mutex);
+
+		trx = thr_get_trx(thr);
 
 		node->state = ROLL_NODE_WAIT;
 
+		ut_a(node->undo_thr == NULL);
+
 		if (node->partial) {
-			sig_no = TRX_SIG_ROLLBACK_TO_SAVEPT;
-			savept = &(node->savept);
+
+			roll_limit = node->savept.least_undo_no;
+
+			node->undo_thr = trx_sig_start_handle(
+				trx, TRX_SIG_ROLLBACK_TO_SAVEPT, roll_limit);
 		} else {
-			sig_no = TRX_SIG_TOTAL_ROLLBACK;
-			savept = NULL;
+			node->undo_thr = trx_sig_start_handle(
+				trx, TRX_SIG_TOTAL_ROLLBACK, roll_limit);
 		}
 
-		/* Send a rollback signal to the transaction */
-
-		trx_sig_send(thr_get_trx(thr), sig_no, TRX_SIG_SELF, thr,
-			     savept, NULL);
-
-		thr->state = QUE_THR_SIG_REPLY_WAIT;
-
 		mutex_exit(&kernel_mutex);
+	} else {
+		ut_ad(node->state == ROLL_NODE_WAIT);
 
-		return(NULL);
+		thr->run_node = que_node_get_parent(node);
 	}
-
-	ut_ad(node->state == ROLL_NODE_WAIT);
-
-	thr->run_node = que_node_get_parent(node);
 
 	return(thr);
 }

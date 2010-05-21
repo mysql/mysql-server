@@ -233,24 +233,17 @@ UNIV_INTERN
 void
 que_thr_end_wait(
 /*=============*/
-	que_thr_t*	thr,		/*!< in: query thread in the
+	que_thr_t*	thr)		/*!< in: query thread in the
 					QUE_THR_LOCK_WAIT,
-					or QUE_THR_PROCEDURE_WAIT, or
-					QUE_THR_SIG_REPLY_WAIT state */
-	que_thr_t**	next_thr)	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread; if NULL is passed
-					as the parameter, it is ignored */
+					or QUE_THR_PROCEDURE_WAIT */
 {
 	ibool	was_active;
 
-	ut_ad(query_mutex_own());
+	query_mutex_enter();
+
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
-	      || (thr->state == QUE_THR_SIG_REPLY_WAIT));
+	      || (thr->state == QUE_THR_PROCEDURE_WAIT));
 	ut_ad(thr->run_node);
 
 	thr->prev_node = thr->run_node;
@@ -259,17 +252,7 @@ que_thr_end_wait(
 
 	que_thr_move_to_run_state(thr);
 
-	if (was_active) {
-
-		return;
-	}
-
-	if (next_thr && *next_thr == NULL) {
-		*next_thr = thr;
-	} else {
-		ut_error;
-		srv_que_task_enqueue_low(thr);
-	}
+	query_mutex_exit();
 }
 
 /**********************************************************************//**
@@ -279,36 +262,30 @@ void
 que_thr_end_wait_no_next_thr(
 /*=========================*/
 	que_thr_t*	thr)	/*!< in: query thread in the QUE_THR_LOCK_WAIT,
-				or QUE_THR_PROCEDURE_WAIT, or
-				QUE_THR_SIG_REPLY_WAIT state */
+				or QUE_THR_PROCEDURE_WAIT */
 {
 	ibool	was_active;
 
 	ut_a(thr->state == QUE_THR_LOCK_WAIT);	/* In MySQL this is the
 						only possible state here */
-	ut_ad(query_mutex_own());
+	query_mutex_enter();
+
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
-	      || (thr->state == QUE_THR_SIG_REPLY_WAIT));
+	      || (thr->state == QUE_THR_PROCEDURE_WAIT));
 
 	was_active = thr->is_active;
 
 	que_thr_move_to_run_state(thr);
 
-	if (was_active) {
-
-		return;
-	}
+	query_mutex_exit();
 
 	/* In MySQL we let the OS thread (not just the query thread) to wait
 	for the lock to be released: */
 
-	if (thr != NULL) {
+	if (!was_active && thr != NULL) {
 		srv_release_mysql_thread_if_suspended(thr);
 	}
-
-	/* srv_que_task_enqueue_low(thr); */
 }
 
 /**********************************************************************//**
@@ -771,10 +748,56 @@ que_thr_move_to_run_state(
 		trx->n_active_thrs++;
 
 		thr->is_active = TRUE;
-
 	}
 
 	thr->state = QUE_THR_RUNNING;
+}
+
+/**********************************************************************//**
+Stops a query thread if graph or trx is in a state requiring it. The
+conditions are tested in the order (1) graph, (2) trx. The kernel mutex has
+to be reserved.
+@return	TRUE if stopped */
+static
+ibool
+que_thr_stop_low(
+/*=============*/
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	trx_t*	trx;
+	que_t*	graph;
+	ibool	ret	= TRUE;
+
+	ut_ad(query_mutex_own());
+
+	graph = thr->graph;
+	trx = graph->trx;
+
+	if (graph->state == QUE_FORK_COMMAND_WAIT) {
+		thr->state = QUE_THR_SUSPENDED;
+
+	} else if (trx->que_state == TRX_QUE_LOCK_WAIT) {
+
+		trx->wait_thr = thr;
+		thr->state = QUE_THR_LOCK_WAIT;
+
+	} else if (trx->error_state != DB_SUCCESS
+		   && trx->error_state != DB_LOCK_WAIT) {
+
+		/* Error handling built for the MySQL interface */
+		thr->state = QUE_THR_COMPLETED;
+
+	} else if (trx->sig.type != TRX_SIG_NO_SIGNAL
+		   && graph->fork_type != QUE_FORK_ROLLBACK) {
+
+		thr->state = QUE_THR_SUSPENDED;
+	} else {
+		ut_ad(graph->state == QUE_FORK_ACTIVE);
+
+		ret = FALSE;
+	}
+
+	return(ret);
 }
 
 /**********************************************************************//**
@@ -796,21 +819,20 @@ que_thr_dec_refer_count(
 					calling function can start running
 					a new query thread */
 {
-	que_fork_t*	fork;
 	trx_t*		trx;
-	ulint		fork_type;
-	ibool		stopped;
+	que_fork_t*	fork;
 
-	fork = thr->common.parent;
 	trx = thr_get_trx(thr);
+	fork = thr->common.parent;
 
 	query_mutex_enter();
 
 	ut_a(thr->is_active);
 
 	if (thr->state == QUE_THR_RUNNING) {
+		ibool	stopped;
 
-		stopped = que_thr_stop(thr);
+		stopped = que_thr_stop_low(thr);
 
 		if (!stopped) {
 			/* The reason for the thr suspension or wait was
@@ -830,7 +852,6 @@ que_thr_dec_refer_count(
 				*next_thr = thr;
 			} else {
 				ut_error;
-				srv_que_task_enqueue_low(thr);
 			}
 
 			query_mutex_exit();
@@ -839,60 +860,10 @@ que_thr_dec_refer_count(
 		}
 	}
 
-	fork->n_active_thrs--;
 	trx->n_active_thrs--;
+	fork->n_active_thrs--;
 
 	thr->is_active = FALSE;
-
-	if (trx->n_active_thrs > 0) {
-
-		query_mutex_exit();
-
-		return;
-	}
-
-	fork_type = fork->fork_type;
-
-	/* Check if all query threads in the same fork are completed */
-
-	if (que_fork_all_thrs_in_state(fork, QUE_THR_COMPLETED)) {
-
-		switch (fork_type) {
-		case QUE_FORK_ROLLBACK:
-			/* This is really the undo graph used in rollback,
-			no roll_node in this graph */
-
-			ut_ad(UT_LIST_GET_LEN(trx->signals) > 0);
-			ut_ad(trx->handling_signals == TRUE);
-
-			trx_finish_rollback_off_kernel(fork, trx, next_thr);
-			break;
-
-		case QUE_FORK_PURGE:
-		case QUE_FORK_RECOVERY:
-		case QUE_FORK_MYSQL_INTERFACE:
-
-			/* Do nothing */
-			break;
-
-		default:
-			ut_error;	/*!< not used in MySQL */
-		}
-	}
-
-	if (UT_LIST_GET_LEN(trx->signals) > 0 && trx->n_active_thrs == 0) {
-
-		/* If the trx is signaled and its query thread count drops to
-		zero, then we start processing a signal; from it we may get
-		a new query thread to run */
-
-		trx_sig_start_handle(trx, next_thr);
-	}
-
-	if (trx->handling_signals && UT_LIST_GET_LEN(trx->signals) == 0) {
-
-		trx_end_signal_handling(trx);
-	}
 
 	query_mutex_exit();
 }
@@ -908,40 +879,15 @@ que_thr_stop(
 /*=========*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	trx_t*	trx;
-	que_t*	graph;
-	ibool	ret	= TRUE;
+	ibool		stopped;
 
-	ut_ad(query_mutex_own());
+	query_mutex_enter();
 
-	graph = thr->graph;
-	trx = graph->trx;
+	stopped = que_thr_stop_low(thr);
 
-	if (graph->state == QUE_FORK_COMMAND_WAIT) {
-		thr->state = QUE_THR_SUSPENDED;
+	query_mutex_exit();
 
-	} else if (trx->que_state == TRX_QUE_LOCK_WAIT) {
-
-		UT_LIST_ADD_FIRST(trx_thrs, trx->wait_thrs, thr);
-		thr->state = QUE_THR_LOCK_WAIT;
-
-	} else if (trx->error_state != DB_SUCCESS
-		   && trx->error_state != DB_LOCK_WAIT) {
-
-		/* Error handling built for the MySQL interface */
-		thr->state = QUE_THR_COMPLETED;
-
-	} else if (UT_LIST_GET_LEN(trx->signals) > 0
-		   && graph->fork_type != QUE_FORK_ROLLBACK) {
-
-		thr->state = QUE_THR_SUSPENDED;
-	} else {
-		ut_ad(graph->state == QUE_FORK_ACTIVE);
-
-		ret = FALSE;
-	}
-
-	return(ret);
+	return(stopped);
 }
 
 /**********************************************************************//**
@@ -1236,9 +1182,6 @@ que_thr_step(
 	} else if (type == QUE_NODE_LOCK) {
 
 		ut_error;
-		/*
-		thr = que_lock_step(thr);
-		*/
 	} else if (type == QUE_NODE_THR) {
 		thr = que_thr_node_step(thr);
 	} else if (type == QUE_NODE_COMMIT) {

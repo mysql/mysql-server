@@ -241,8 +241,7 @@ trx_assign_read_view(
 	trx_t*	trx);	/*!< in: active transaction */
 /***********************************************************//**
 The transaction must be in the TRX_QUE_LOCK_WAIT state. Puts it to
-the TRX_QUE_RUNNING state and releases query threads which were
-waiting for a lock in the wait_thrs list. */
+the TRX_QUE_RUNNING state. */
 UNIV_INTERN
 void
 trx_end_lock_wait(
@@ -283,35 +282,17 @@ trx_sig_reply(
 					calling function can start running
 					a new query thread */
 /****************************************************************//**
-Removes the signal object from a trx signal queue. */
+Starts handling of a trx signal. 
+@return the UNDO query graphs that will do the actual UNDO */
 UNIV_INTERN
-void
-trx_sig_remove(
-/*===========*/
-	trx_t*		trx,	/*!< in: trx handle */
-	trx_sig_t*	sig);	/*!< in, own: signal */
-/****************************************************************//**
-Starts handling of a trx signal. */
-UNIV_INTERN
-void
+que_thr_t*
 trx_sig_start_handle(
 /*=================*/
 	trx_t*		trx,		/*!< in: trx handle */
-	que_thr_t**	next_thr);	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
-/****************************************************************//**
-Ends signal handling. If the session is in the error state, and
-trx->graph_before_signal_handling != NULL, returns control to the error
-handling routine of the graph (currently only returns the control to the
-graph root which then sends an error message to the client). */
-UNIV_INTERN
-void
-trx_end_signal_handling(
-/*====================*/
-	trx_t*	trx);	/*!< in: trx */
+	ulint		sig_type,	/*!< in: commit or rollback */
+	dulint		roll_limit); 	/*!< in: rollback to undo no
+					for partial rollbacks or 
+					ut_dulint_zero */
 /*********************************************************************//**
 Creates a commit command node struct.
 @return	own: commit node struct */
@@ -444,16 +425,11 @@ struct trx_sig_struct{
 	unsigned	type:3;		/*!< signal type */
 	unsigned	sender:1;	/*!< TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	que_thr_t*	receiver;	/*!< non-NULL if the sender of the signal
-					wants reply after the operation induced
-					by the signal is completed */
+	que_thr_t*	receiver;	/*!< non-NULL if the sender of
+				       	the signal wants reply after the
+				       	operation induced by the signal
+				       	is completed */
 	trx_savept_t	savept;		/*!< possible rollback savepoint */
-	UT_LIST_NODE_T(trx_sig_t)
-			signals;	/*!< queue of pending signals to the
-					transaction */
-	UT_LIST_NODE_T(trx_sig_t)
-			reply_signals;	/*!< list of signals for which the sender
-					transaction is waiting a reply */
 };
 
 #define TRX_MAGIC_N	91118598
@@ -535,8 +511,6 @@ struct trx_struct{
 	ulint		que_state;	/*!< valid when conc_state
 					== TRX_ACTIVE: TRX_QUE_RUNNING,
 					TRX_QUE_LOCK_WAIT, ... */
-	ulint		handling_signals;/* this is TRUE as long as the trx
-					is handling signals */
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
 					TRX_ACTIVE */
@@ -621,17 +595,7 @@ struct trx_struct{
 					for this trx started: this is used to
 					return control to the original query
 					graph for error processing */
-	trx_sig_t	sig;		/*!< one signal object can be allocated
-					in this space, avoiding mem_alloc */
-	UT_LIST_BASE_NODE_T(trx_sig_t)
-			signals;	/*!< queue of processed or pending
-					signals to the trx */
-	UT_LIST_BASE_NODE_T(trx_sig_t)
-			reply_signals;	/*!< list of signals sent by the query
-					threads of this trx for which a thread
-					is waiting for a reply; if this trx is
-					killed, the reply requests in the list
-					must be canceled */
+	trx_sig_t	sig;		/*!< signal object  */
 	/*------------------------------*/
 	lock_t*		wait_lock;	/*!< if trx execution state is
 					TRX_QUE_LOCK_WAIT, this points to
@@ -644,10 +608,10 @@ struct trx_struct{
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */
 	time_t		wait_started;	/*!< lock wait started at this time */
-	UT_LIST_BASE_NODE_T(que_thr_t)
-			wait_thrs;	/*!< query threads belonging to this
-					trx that are in the QUE_THR_LOCK_WAIT
-					state */
+
+	que_thr_t*	wait_thr;	/*!< query thread beloging to this
+					trx that is in QUE_THR_LOCK_WAIT
+				       	state */
 	/*------------------------------*/
 	mem_heap_t*	lock_heap;	/*!< memory heap for the locks of the
 					transaction */
@@ -780,7 +744,6 @@ Multiple flags can be combined with bitwise OR. */
 #define TRX_SIG_TOTAL_ROLLBACK		1
 #define TRX_SIG_ROLLBACK_TO_SAVEPT	2
 #define TRX_SIG_COMMIT			3
-#define	TRX_SIG_ERROR_OCCURRED		4
 #define TRX_SIG_BREAK_EXECUTION		5
 
 /* Sender types of a signal */

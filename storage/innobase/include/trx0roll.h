@@ -118,18 +118,14 @@ trx_undo_rec_release(
 	trx_t*		trx,	/*!< in/out: transaction */
 	undo_no_t	undo_no);/*!< in: undo number */
 /*********************************************************************//**
-Starts a rollback operation. */
+Starts a rollback operation.
+@return query graph that will perform the UNDO operations. */
 UNIV_INTERN
-void
+que_thr_t*
 trx_rollback(
 /*=========*/
-	trx_t*		trx,	/*!< in: transaction */
-	trx_sig_t*	sig,	/*!< in: signal starting the rollback */
-	que_thr_t**	next_thr);/*!< in/out: next query thread to run;
-				if the value which is passed in is
-				a pointer to a NULL pointer, then the
-				calling function can start running
-				a new query thread */
+	trx_t*		trx,		/*!< in: transaction */
+	dulint		roll_limit);	/*!< in: rollback to undo no */
 /*******************************************************************//**
 Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
@@ -161,25 +157,7 @@ UNIV_INTERN
 void
 trx_finish_rollback_off_kernel(
 /*===========================*/
-	que_t*		graph,	/*!< in: undo graph which can now be freed */
-	trx_t*		trx,	/*!< in: transaction */
-	que_thr_t**	next_thr);/*!< in/out: next query thread to run;
-				if the value which is passed in is
-				a pointer to a NULL pointer, then the
-				calling function can start running
-				a new query thread; if this parameter is
-				NULL, it is ignored */
-/****************************************************************//**
-Builds an undo 'query' graph for a transaction. The actual rollback is
-performed by executing this query graph like a query subprocedure call.
-The reply about the completion of the rollback will be sent by this
-graph.
-@return	own: the query graph */
-UNIV_INTERN
-que_t*
-trx_roll_graph_build(
-/*=================*/
-	trx_t*	trx);	/*!< in: trx handle */
+	trx_t*		trx);	/*!< in: transaction */
 /*********************************************************************//**
 Creates a rollback command node struct.
 @return	own: rollback node struct */
@@ -329,6 +307,7 @@ struct roll_node_struct{
 	trx_savept_t		savept;	/*!< savepoint to which to
 					roll back, in the case of a
 					partial rollback */
+	que_thr_t*		undo_thr;/*!< undo query graph */
 };
 
 /** A savepoint set with SQL's "SAVEPOINT savepoint_id" command */
