@@ -1086,7 +1086,7 @@ que_thr_stop_for_mysql_no_error(
 	trx_t*		trx)	/*!< in: transaction */
 {
 	ut_ad(thr->state == QUE_THR_RUNNING);
-	ut_ad(!thr->is_purge);
+	ut_ad(!ut_dulint_is_zero(thr_get_trx(thr)->id));
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
