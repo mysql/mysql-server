@@ -282,6 +282,8 @@
 #cmakedefine HAVE_NETINET_IN6_H 1
 #cmakedefine HAVE_IPV6 1
 #cmakedefine ss_family @ss_family@
+#cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
+#cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
 #cmakedefine STRUCT_DIRENT_HAS_D_INO 1
 #cmakedefine STRUCT_DIRENT_HAS_D_NAMLEN 1
