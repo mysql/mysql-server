@@ -9102,7 +9102,8 @@ my_bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
       Returns a unique key (flagged with HA_NOSAME)
 
     - MULTIPLE_KEY_FLAG
-      Returns a key not unique nor PK.
+      Returns a key that is not unique (flagged with HA_NOSAME 
+      and without HA_NULL_PART_KEY) nor PK.
 
   The above flags can be used together, in which case, the
   search is conducted in the above listed order. Eg, the 
@@ -9146,8 +9147,13 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
          (key < table->s->keys) && (res == MAX_KEY);
          key++,keyinfo++)
     {
-      if (!(keyinfo->flags & HA_NOSAME) || /* skip not unique */
-          (key == table->s->primary_key))  /* skip primary */
+      /*
+        - Unique keys cannot be disabled, thence we skip the check.
+        - Skip unique keys with nullable parts
+        - Skip primary keys
+      */
+      if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
+          (key == table->s->primary_key))
         continue;
       res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ? 
            key : MAX_KEY;
@@ -9163,9 +9169,14 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
          (key < table->s->keys) && (res == MAX_KEY);
          key++,keyinfo++)
     {
-      if (!(table->s->keys_in_use.is_set(key)) || /* key is no active */
-          (keyinfo->flags & HA_NOSAME) || /* skip uniques */
-          (key == table->s->primary_key)) /* skip primary */
+      /*
+        - Skip innactive keys
+        - Skip unique keys without nullable parts
+        - Skip primary keys
+      */
+      if (!(table->s->keys_in_use.is_set(key)) ||
+          ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
+          (key == table->s->primary_key))
         continue;
 
       res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ? 
@@ -9301,8 +9312,8 @@ INDEX_SCAN:
 
     DBUG_PRINT("info",("locating record using primary key (index_read)"));
 
-    /* The 0th key is active: search the table using the index */
-    if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
+    /* The key'th key is active and usable: search the table using the index */
+    if (!table->file->inited && (error= table->file->ha_index_init(key, FALSE)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
       table->file->print_error(error, MYF(0));
