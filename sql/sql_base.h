@@ -56,9 +56,6 @@ enum enum_resolution_type {
   RESOLVED_AGAINST_ALIAS
 };
 
-enum enum_open_table_action {OT_NO_ACTION= 0, OT_BACK_OFF_AND_RETRY,
-                             OT_DISCOVER, OT_REPAIR};
-
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,
                                   IGNORE_EXCEPT_NON_UNIQUE};
@@ -123,7 +120,9 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 TABLE *find_write_locked_table(TABLE *list, const char *db,
                                const char *table_name);
-thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
+thr_lock_type read_lock_type_for_table(THD *thd,
+                                       Query_tables_list *prelocking_ctx,
+                                       TABLE_LIST *table_list);
 
 my_bool mysql_rm_tmp_tables(void);
 bool rm_temporary_table(handlerton *base, char *path);

@@ -411,6 +411,13 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       destructive changes necessary to open the trigger's table.
     */
     thd->lex->reset_n_backup_query_tables_list(&backup);
+    /*
+      Restore Query_tables_list::sql_command, which was
+      reset above, as the code that writes the query to the
+      binary log assumes that this value corresponds to the
+      statement that is being executed.
+    */
+    thd->lex->sql_command= backup.sql_command;
 
     if (add_table_for_trigger(thd, thd->lex->spname, if_exists, & tables))
       goto end;
