@@ -110,14 +110,14 @@ check_brtloader-test-open$(BINSUF): EXTRA_ARGS=dir_$@
 check_brtloader-test-writer$(BINSUF): $(patsubst %,check_brtloader-test-writer-%, 1 2)
 	true $(SUMMARIZE_CMD)
 check_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
-	$(VGRIND) ./$< -q -r 1000000 dir.$@ $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< -q -r 100000 -s dir.$@ $(SUMMARIZE_CMD)
 check_brtloader-test-writer-2: brtloader-test-writer$(BINSUF)
-	$(VGRIND) ./$< -q -r 10000000 dir.$@ $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< -q -r 1000000 -s dir.$@ $(SUMMARIZE_CMD)
 
 check_brtloader-test-writer-errors$(BINSUF): $(patsubst %,check_brtloader-test-writer-errors-%, 1 2 3)
 	true $(SUMMARIZE_CMD)
 check_brtloader-test-writer-errors-1: brtloader-test-writer-errors$(BINSUF)
-	$(VGRIND) ./$< -q -w -m -u -r 1000000 dir.$@ $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< -q -w -m -u -r 100000 dir.$@ $(SUMMARIZE_CMD)
 check_brtloader-test-writer-errors-2: brtloader-test-writer-errors$(BINSUF)
 	$(VGRIND) ./$< -q -s -w -m -u -r 10000 dir.$@ $(SUMMARIZE_CMD)
 check_brtloader-test-writer-errors-3: brtloader-test-writer-errors$(BINSUF)
@@ -142,6 +142,8 @@ brtloader_test$(BINSUF): ../brtloader-internal.h ../brtloader.o
 
 ../brtloader.$(OEXT): ../brtloader.c ../brtloader-internal.h 
 	cd $(@D) && $(MAKE) $(@F)
+
+check_brtloader-tests:  check_brtloader-test-bad-generate check_brtloader-test-extractor-errors check_brtloader-test-merge-files-dbufio check_brtloader-test-open check_brtloader-test-writer check_brtloader-test-writer-errors
 
 clean:
 	rm -rf log-test7.c.dir_*

@@ -91,9 +91,13 @@ int queue_enq (QUEUE q, void *item, u_int64_t weight, u_int64_t *total_weight_af
     }
     assert(!q->eof);
     // Go ahead and put it in, even if it's too much.
-    q->contents_weight += weight;
     struct qitem *MALLOC(qi);
-    if (qi==NULL) return errno;
+    if (qi==NULL) {
+	int r = errno;
+	toku_pthread_mutex_unlock(&q->mutex);
+	return r;
+    }
+    q->contents_weight += weight;
     qi->item = item;
     qi->weight = weight;
     qi->next   = NULL;
