@@ -28,6 +28,3 @@ DIST_SUBDIRS =	@mysql_pg_distdirs@
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(pkglibdir) $(DESTDIR)$(pkglibdir)/plugin
 	test ! -d debug || $(TAR) cf - debug | ( cd $(DESTDIR)$(pkglibdir)/plugin && $(TAR) xvf - )
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
