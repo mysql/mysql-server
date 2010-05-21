@@ -112,14 +112,14 @@ done:
 }
 
 
-static ssize_t (*t_write)(int, const void *, size_t) = 0;
-static ssize_t (*t_full_write)(int, const void *, size_t) = 0;
-static ssize_t (*t_pwrite)(int, const void *, size_t, off_t) = 0;
-static ssize_t (*t_full_pwrite)(int, const void *, size_t, off_t) = 0;
-static FILE *  (*t_fdopen)(int, const char *) = 0;
-static FILE *  (*t_fopen)(const char *, const char *) = 0;
-static int     (*t_open)(const char *, int, int) = 0;  // no implementation of variadic form until needed
-static int     (*t_fclose)(FILE *) = 0;
+static ssize_t (*t_write)(int, const void *, size_t) = NULL;
+static ssize_t (*t_full_write)(int, const void *, size_t) = NULL;
+static ssize_t (*t_pwrite)(int, const void *, size_t, toku_off_t) = NULL;
+static ssize_t (*t_full_pwrite)(int, const void *, size_t, toku_off_t) = NULL;
+static FILE *  (*t_fdopen)(int, const char *) = NULL;
+static FILE *  (*t_fopen)(const char *, const char *) = NULL;
+static int     (*t_open)(const char *, int, int) = NULL;  // no implementation of variadic form until needed
+static int     (*t_fclose)(FILE *) = NULL;
 
 int 
 toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
@@ -134,13 +134,13 @@ toku_set_func_full_write (ssize_t (*write_fun)(int, const void *, size_t)) {
 }
 
 int 
-toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
+toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, toku_off_t)) {
     t_pwrite = pwrite_fun;
     return 0;
 }
 
 int 
-toku_set_func_full_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
+toku_set_func_full_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, toku_off_t)) {
     t_full_pwrite = pwrite_fun;
     return 0;
 }
