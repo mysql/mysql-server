@@ -2926,8 +2926,10 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	ci->blocknum            = make_blocknum(subtree_info[i].block);
 	ci->have_fullhash       = FALSE;
 	ci->fullhash            = 0;
+        ci->buffer              = NULL;
 	int r = toku_fifo_create(&ci->buffer);
-	resource_assert(r==0);
+	if (r != 0)
+            result = r;
 	ci->n_bytes_in_buffer = 0;
     }
 
@@ -2959,7 +2961,10 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	toku_free(node->u.n.childkeys[i]);
     }
     for (int i=0; i<n_children; i++) {
-	toku_fifo_free(&node->u.n.childinfos[i].buffer);
+        if (node->u.n.childinfos[i].buffer) {
+            toku_fifo_free(&node->u.n.childinfos[i].buffer);
+            node->u.n.childinfos[i].buffer = NULL;
+        }
     }
     toku_free(pivots);
     toku_free(node->u.n.childinfos);
