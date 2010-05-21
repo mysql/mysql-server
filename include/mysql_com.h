@@ -197,7 +197,14 @@ enum enum_server_command
                                                & ~CLIENT_COMPRESS) \
                                                & ~CLIENT_SSL_VERIFY_SERVER_CERT)
 
-#define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
+/**
+  Is raised when a multi-statement transaction
+  has been started, either explicitly, by means
+  of BEGIN or COMMIT AND CHAIN, or
+  implicitly, by the first transactional
+  statement, when autocommit=off.
+*/
+#define SERVER_STATUS_IN_TRANS     1
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
 #define SERVER_QUERY_NO_GOOD_INDEX_USED 16

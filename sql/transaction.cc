@@ -169,7 +169,7 @@ bool trans_commit_implicit(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  if (thd->in_multi_stmt_transaction() ||
+  if (thd->in_multi_stmt_transaction_mode() ||
       (thd->variables.option_bits & OPTION_TABLE_LOCK))
   {
     /* Safety if one did "drop table" on locked tables */
@@ -305,7 +305,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   SAVEPOINT **sv, *newsv;
   DBUG_ENTER("trans_savepoint");
 
-  if (!(thd->in_multi_stmt_transaction() || thd->in_sub_stmt) ||
+  if (!(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt) ||
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
@@ -467,7 +467,7 @@ bool trans_xa_start(THD *thd)
     my_error(ER_XAER_INVAL, MYF(0));
   else if (xa_state != XA_NOTR)
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-  else if (thd->locked_tables_mode || thd->active_transaction())
+  else if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
     my_error(ER_XAER_OUTSIDE, MYF(0));
   else if (xid_cache_search(thd->lex->xid))
     my_error(ER_XAER_DUPID, MYF(0));
