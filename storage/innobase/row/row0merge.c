@@ -740,6 +740,12 @@ row_merge_write(
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset)
 		* sizeof(row_merge_block_t);
+	ibool		ret;
+
+	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
+			    (ulint) (ofs & 0xFFFFFFFF),
+			    (ulint) (ofs >> 32),
+			    sizeof(row_merge_block_t));
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {
@@ -754,10 +760,7 @@ row_merge_write(
 	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
-	return(UNIV_LIKELY(os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
-					 (ulint) (ofs & 0xFFFFFFFF),
-					 (ulint) (ofs >> 32),
-					 sizeof(row_merge_block_t))));
+	return(UNIV_LIKELY(ret));
 }
 
 /********************************************************************//**
