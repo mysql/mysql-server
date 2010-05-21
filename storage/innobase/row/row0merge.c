@@ -696,7 +696,9 @@ ibool
 row_merge_read(
 /*===========*/
 	int			fd,	/*!< in: file descriptor */
-	ulint			offset,	/*!< in: offset where to read */
+	ulint			offset,	/*!< in: offset where to read
+					in number of row_merge_block_t
+					elements */
 	row_merge_block_t*	buf)	/*!< out: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
@@ -735,17 +737,18 @@ ibool
 row_merge_write(
 /*============*/
 	int		fd,	/*!< in: file descriptor */
-	ulint		offset,	/*!< in: offset where to write */
+	ulint		offset,	/*!< in: offset where to write,
+				in number of row_merge_block_t elements */
 	const void*	buf)	/*!< in: data */
 {
-	ib_uint64_t	ofs = ((ib_uint64_t) offset)
-		* sizeof(row_merge_block_t);
+	size_t		buf_len = sizeof(row_merge_block_t);
+	ib_uint64_t	ofs = buf_len * (ib_uint64_t) offset;
 	ibool		ret;
 
 	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
 			    (ulint) (ofs & 0xFFFFFFFF),
 			    (ulint) (ofs >> 32),
-			    sizeof(row_merge_block_t));
+			    buf_len);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {
@@ -757,7 +760,7 @@ row_merge_write(
 #ifdef POSIX_FADV_DONTNEED
 	/* The block will be needed on the next merge pass,
 	but it can be evicted from the file cache meanwhile. */
-	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
+	posix_fadvise(fd, ofs, buf_len, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
 	return(UNIV_LIKELY(ret));
