@@ -2069,6 +2069,17 @@ public:
   uint32 skip_lines;
   sql_ex_info sql_ex;
   bool local_fname;
+  /**
+    Indicates that this event corresponds to LOAD DATA CONCURRENT,
+
+    @note Since Load_log_event event coming from the binary log
+          lacks information whether LOAD DATA on master was concurrent
+          or not, this flag is only set to TRUE for an auxiliary
+          Load_log_event object which is used in mysql_load() to
+          re-construct LOAD DATA statement from function parameters,
+          for logging.
+  */
+  bool is_concurrent;
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   void set_fname_outside_temp_buf(const char *afname, uint alen)
@@ -2089,7 +2100,9 @@ public:
 
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 		 const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup, bool ignore,
+		 List<Item>& fields_arg,
+                 bool is_concurrent_arg,
+                 enum enum_duplicates handle_dup, bool ignore,
 		 bool using_trans);
   void set_fields(const char* db, List<Item> &fields_arg,
                   Name_resolution_context *context);
@@ -2708,6 +2721,7 @@ public:
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			const char* table_name_arg,
 			List<Item>& fields_arg,
+                        bool is_concurrent_arg,
 			enum enum_duplicates handle_dup, bool ignore,
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
