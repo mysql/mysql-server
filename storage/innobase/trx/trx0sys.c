@@ -633,21 +633,18 @@ trx_in_trx_list(
 {
 	trx_t*	trx;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
+	trx_sys_mutex_enter();
 
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL && trx != in_trx;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-	while (trx != NULL) {
-
-		if (trx == in_trx) {
-
-			return(TRUE);
-		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
+		/* No op */
 	}
 
-	return(FALSE);
+	trx_sys_mutex_exit();
+
+	return(trx != NULL);
 }
 
 /*****************************************************************//**
