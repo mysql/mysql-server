@@ -15,6 +15,9 @@ db-scan-bdb: db-scan.c
 default: db-insert
 
 check: $(TARGETS)
+	./db-insert -x && ./db-scan --lwc --prelock --prelockflag
+
+checknox: $(TARGETS)
 	./db-insert && ./db-scan --nox --lwc --prelock --prelockflag
 
 clean:
