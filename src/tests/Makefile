@@ -681,4 +681,4 @@ loader-cleanup-test.tdbrun: $(patsubst %,loader-cleanup-test%.tdbrun, 1)
 #	./loader-cleanup-test.tdb $(SUMMARIZE_CMD)
 
 loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
-	$(VGRIND) ./loader-cleanup-test.tdb -r 1000 $(SUMMARIZE_CMD)
+	$(VGRIND) ./loader-cleanup-test.tdb -r 4000 -s $(SUMMARIZE_CMD)

@@ -4,10 +4,9 @@
 /* This version will complain if NDEBUG is set. */
 /* It evaluates the argument and then calls a function  toku_do_assert() which takes all the hits for the branches not taken. */
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+#include "c_dialects.h"
 
+C_BEGIN
 
 #ifdef NDEBUG
 #error NDEBUG should not be set
@@ -18,6 +17,8 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 
 // Define GCOV if you want to get test-coverage information that ignores the assert statements.
 // #define GCOV
+
+extern void (*do_assert_hook)(void); // Set this to a function you want called after printing the assertion failure message but before calling abort().  By default this is NULL.
 
 #if defined(GCOV) || TOKU_WINDOWS
 #define assert(expr) toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__)
@@ -37,8 +38,6 @@ void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const 
 #define invariant(a)       assert(a) // indicates a code invariant that must be true
 #define resource_assert(a) assert(a) // indicates resource must be available, otherwise unrecoverable
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
+C_END
 
 #endif

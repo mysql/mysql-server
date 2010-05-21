@@ -392,9 +392,6 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     BL_TRACE(blt_calibrate_done);
 #endif
 
-    bl->panic = FALSE;
-    bl->panic_errno = 0;
-
     bl->generate_row_for_put = g;
     bl->cachetable = cachetable;
     if (bl->cachetable)
@@ -465,8 +462,6 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
         if (r != 0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
 
-    bl->extractor_live = TRUE;
-
     *blp = bl;
 
     return 0;
@@ -509,7 +504,9 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     if (result==0) {
 	BRTLOADER bl = *blp;
         int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); 
-        if (r!=0) { 
+	if (r==0) {
+	    bl->extractor_live = TRUE;
+	} else  { 
 	    result = r;
             toku_pthread_mutex_destroy(&bl->mutex);
             toku_brtloader_internal_destroy(bl, TRUE);
@@ -519,17 +516,10 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     return result;
 }
 
-static void brt_loader_set_panic(BRTLOADER bl, int error) {
-    int r = toku_pthread_mutex_lock(&bl->mutex); resource_assert(r == 0);
-    BOOL is_panic = bl->panic;
-    if (!is_panic) {
-        bl->panic = TRUE;
-        bl->panic_errno = error;
-    }
-    r = toku_pthread_mutex_unlock(&bl->mutex); resource_assert(r == 0);
-    if (!is_panic) {
-        brt_loader_set_error(&bl->error_callback, error, NULL, 0, NULL, NULL);
-    }
+static void brt_loader_set_panic(BRTLOADER bl, int error, BOOL callback) {
+    int r = brt_loader_set_error(&bl->error_callback, error, NULL, 0, NULL, NULL);
+    if (r == 0 && callback)
+        brt_loader_call_error_function(&bl->error_callback);
 }
 
 // One of the tests uses this.
@@ -877,7 +867,7 @@ static void* extractor_thread (void *blv) {
 	{
 	    r = process_primary_rows(bl, primary_rowset);
             if (r)
-                brt_loader_set_panic(bl, r);
+                brt_loader_set_panic(bl, r, FALSE);
 	}
     }
 
@@ -885,7 +875,7 @@ static void* extractor_thread (void *blv) {
     if (r == 0) {
 	r = finish_primary_rows(bl); 
 	if (r) 
-	    brt_loader_set_panic(bl, r);
+	    brt_loader_set_panic(bl, r, FALSE);
 	
     }
     BL_TRACE(blt_extractor);
@@ -1095,7 +1085,7 @@ int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val)
  * Return value: 0 on success, an error number otherwise.
  */
 {
-    if (bl->panic || brt_loader_get_error(&bl->error_callback)) 
+    if (brt_loader_get_error(&bl->error_callback)) 
         return EINVAL; // previous panic
     bl->n_rows++;
 //    return loader_write_row(key, val, bl->fprimary_rows, &bl->fprimary_offset, bl);
@@ -1470,53 +1460,51 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     DBT keys[n_sources];
     DBT vals[n_sources];
     u_int64_t dataoff[n_sources];
-    DBT zero; memset(&zero, 0, sizeof zero);  zero.data=0; zero.flags=DB_DBT_REALLOC; zero.size=0; zero.ulen=0;
+    DBT zero = zero_dbt;  zero.flags=DB_DBT_REALLOC;
 
     for (int i=0; i<n_sources; i++) {
 	keys[i] = vals[i] = zero; // fill these all in with zero so we can delete stuff more reliably.
     }
 
-    pqueue_t      *pq;
+    pqueue_t      *pq = NULL;
     pqueue_node_t *pq_nodes = (pqueue_node_t *)toku_malloc(n_sources * sizeof(pqueue_node_t)); // freed in cleanup
-    invariant(pq_nodes != NULL);
+    if (pq_nodes == NULL) { result = errno; }
 
-    {
+    if (result==0) {
 	int r = pqueue_init(&pq, n_sources, which_db, dest_db, compare, &bl->error_callback);
-        lazy_assert(r == 0);
-        result = r;
+	if (r!=0) result = r; 
     }
 
     u_int64_t n_rows = 0;
-    if ( result == 0 ) {
+    if (result==0) {
+	// load pqueue with first value from each source
+	for (int i=0; i<n_sources; i++) {
+	    BL_TRACE_QUIET(blt_do_i);
+	    int r = loader_read_row_from_dbufio(bfs, i, &keys[i], &vals[i]);
+	    BL_TRACE_QUIET(blt_read_row);
+	    if (r==EOF) continue; // if the file is empty, don't initialize the pqueue.
+	    lazy_assert(r == 0);
+	    if (r!=0) {
+		result = r;
+		break;
+	    }
 
-        // load pqueue with first value from each source
-        for (int i=0; i<n_sources; i++) {
-            BL_TRACE_QUIET(blt_do_i);
-            int r = loader_read_row_from_dbufio(bfs, i, &keys[i], &vals[i]);
-            BL_TRACE_QUIET(blt_read_row);
-            if (r==EOF) continue; // if the file is empty, don't initialize the pqueue.
-            lazy_assert(r == 0);
-            if (r!=0) { 
-                result = r;
-                break;
-            }
+	    pq_nodes[i].key = &keys[i];
+	    pq_nodes[i].val = &vals[i];
+	    pq_nodes[i].i   = i;
+	    r = pqueue_insert(pq, &pq_nodes[i]);
+	    if (r!=0) {
+		result = r;
+		// path tested by loader-dup-test5.tdbrun
+		// printf("%s:%d returning\n", __FILE__, __LINE__);
+		break;
+	    }
 
-            pq_nodes[i].key = &keys[i];
-            pq_nodes[i].val = &vals[i];
-            pq_nodes[i].i   = i;
-            r = pqueue_insert(pq, &pq_nodes[i]);
-            if (r!=0) {
-                result = r;
-                // path tested by loader-dup-test5.tdbrun
-                // printf("%s:%d returning\n", __FILE__, __LINE__);
-                break;
-            }
-
-            dataoff[i] = 0;
-            { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert(r2==0); }
-            n_rows += bl->file_infos.file_infos[srcs_fidxs[i].idx].n_rows;
-            { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert(r2==0); }
-        }
+	    dataoff[i] = 0;
+	    { int r2 = toku_pthread_mutex_lock(&bl->file_infos.lock); resource_assert(r2==0); }
+	    n_rows += bl->file_infos.file_infos[srcs_fidxs[i].idx].n_rows;
+	    { int r2 = toku_pthread_mutex_unlock(&bl->file_infos.lock); resource_assert(r2==0); }
+	}
     }
     u_int64_t n_rows_done = 0;
 
@@ -1560,15 +1548,15 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	    r = add_row(output_rowset, &keys[mini], &vals[mini]);
             lazy_assert(r == 0);
             if (r!=0) {
-                return = r;
+                result = r;
                 break;
             }
 	} else {
             // write it to the dest file
 	    r = loader_write_row(&keys[mini], &vals[mini], dest_data, dest_stream, &dataoff[mini], bl);
-            lazy_assert(r==0);
+	    lazy_assert(r==0);
             if (r!=0) {
-                return = r;
+                result = r;
                 break;
             }
 	}
@@ -1640,7 +1628,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	destroy_rowset(output_rowset);
 	toku_free(output_rowset);
     }
-    pqueue_free(pq);
+    if (pq) { pqueue_free(pq); pq=NULL; }
     toku_free(pq_nodes);
     {
 	int r = update_progress(progress_allocation, bl, "end of merge_some_files");
@@ -1758,7 +1746,7 @@ int merge_files (struct merge_fileset *fs,
 	    }
 	    if (result==0 && !to_queue) {
 		result = extend_fileset(bl, &next_file_set,  &merged_data);
-		if (result!=0) { printf("%s:%d r=%d\n", __FILE__, __LINE__, result); break; }
+		if (result!=0) { break; }
 	    }
 
 	    if (result==0) {
@@ -1805,7 +1793,7 @@ int merge_files (struct merge_fileset *fs,
 
 	if (result!=0) break;
     }
-    if (result) brt_loader_set_panic(bl, result);
+    if (result) brt_loader_set_panic(bl, result, TRUE);
     {
 	int r = queue_eof(output_q);
 	if (r!=0 && result==0) result = r;
@@ -2191,7 +2179,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    BL_TRACE(blt_fractal_deq);
 	    if (rr == EOF) break;
 	    if (rr != 0) {
-                brt_loader_set_panic(bl, rr); // error after cilk sync
+                brt_loader_set_panic(bl, rr, TRUE); // error after cilk sync
                 break;
             }
 	}
@@ -2227,7 +2215,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 		n_pivots++;
 
 		if ((r = bl_write_dbt(&key, pivots_stream, NULL, bl))) {
-		    brt_loader_set_panic(bl, r); // error after cilk sync
+		    brt_loader_set_panic(bl, r, TRUE); // error after cilk sync
                     if (result == 0) result = r;
 		    break;
 		}
@@ -2237,7 +2225,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
 		r = allocate_block(&out, &lblock);
                 if (r != 0) {
-                    brt_loader_set_panic(bl, r);
+                    brt_loader_set_panic(bl, r, TRUE);
                     if (result == 0) result = r;
                     break;
                 }
@@ -2266,8 +2254,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     cilk_sync;
 
-    if (bl->panic) { // if there were any prior errors then exit
-        result = bl->panic_errno; goto error;
+    if (result == 0) {
+        result = brt_loader_get_error(&bl->error_callback); // if there were any prior errors then exit
+        if (result) goto error;
     }
 
     // We haven't paniced, so the sum should add up.
@@ -2579,11 +2568,7 @@ int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error)
 }
 
 int toku_brt_loader_get_error(BRTLOADER bl, int *error) {
-    *error = 0;
-    if (bl->panic)
-        *error = bl->panic_errno;
-    else if (bl->error_callback.error)
-        *error = bl->error_callback.error;
+    *error = brt_loader_get_error(&bl->error_callback);
     return 0;
 }
 
@@ -2730,12 +2715,10 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     //printf("Nodewrite %d (%.1f%%):", progress_allocation, 100.0*progress_allocation/PROGRESS_MAX);
     if (result == 0) {
         result = update_progress(progress_allocation, bl, "wrote node");
-        if (result != 0) 
-            bl->user_said_stop = result;
     }
 
     if (result)
-        brt_loader_set_panic(bl, result);
+        brt_loader_set_panic(bl, result, TRUE);
 }
 
 CILK_END
@@ -2988,7 +2971,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     blocknum_of_new_node = blocknum_of_new_node;
 
     if (result != 0)
-        brt_loader_set_panic(bl, result);
+        brt_loader_set_panic(bl, result, TRUE);
 }
 
 static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor) {
@@ -3090,8 +3073,8 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
 
         cilk_sync;
 
-        if (result == 0 && bl->panic) // pick up write_nonleaf_node errors
-            result = bl->panic_errno;
+        if (result == 0) // pick up write_nonleaf_node errors
+	    result = brt_loader_get_error(&bl->error_callback);
 
 	// Now set things up for the next iteration.
 	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); if (r != 0 && result == 0) result = r;
