@@ -144,9 +144,11 @@ bad_fclose(FILE * stream) {
 
 static int my_malloc_event = 1;
 static int my_malloc_count = 0, my_big_malloc_count = 0;
+static int my_realloc_count = 0, my_big_realloc_count = 0;
 
 static void reset_my_malloc_counts(void) {
     my_malloc_count = my_big_malloc_count = 0;
+    my_realloc_count = my_big_realloc_count = 0;
 }
 
 size_t min_malloc_error_size = 0;
@@ -173,6 +175,32 @@ static void *my_malloc(size_t n) {
  skip:
     return malloc(n);
 }
+
+static int do_realloc_errors = 1;
+
+static void *my_realloc(void *p, size_t n) {
+    void *caller = __builtin_return_address(0);
+    if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
+        goto skip;
+    my_realloc_count++;
+    if (n >= min_malloc_error_size) {
+        my_big_realloc_count++;
+        if (do_realloc_errors) {
+            caller = __builtin_return_address(1);
+            if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
+                goto skip;
+            event_count++;
+            if (event_count == event_count_trigger) {
+                event_hit();
+                errno = ENOMEM;
+                return NULL;
+            }
+        }
+    }
+ skip:
+    return realloc(p, n);
+}
+
 
 static int qsort_compare_ints (const void *a, const void *b) {
     int avalue = *(int*)a;
@@ -331,6 +359,7 @@ static void test (const char *directory, BOOL is_error) {
     }
 
     toku_set_func_malloc(my_malloc);
+    toku_set_func_realloc(my_realloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
@@ -356,6 +385,7 @@ static void test (const char *directory, BOOL is_error) {
     }
 
     toku_set_func_malloc(NULL);
+    toku_set_func_realloc(NULL);
     brtloader_set_os_fwrite(NULL);
     toku_set_func_write(NULL);
     toku_set_func_pwrite(NULL);

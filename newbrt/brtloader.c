@@ -1483,7 +1483,6 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	    int r = loader_read_row_from_dbufio(bfs, i, &keys[i], &vals[i]);
 	    BL_TRACE_QUIET(blt_read_row);
 	    if (r==EOF) continue; // if the file is empty, don't initialize the pqueue.
-	    lazy_assert(r == 0);
 	    if (r!=0) {
 		result = r;
 		break;
@@ -1547,7 +1546,6 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
                 }
 	    }
 	    r = add_row(output_rowset, &keys[mini], &vals[mini]);
-            lazy_assert(r == 0);
             if (r!=0) {
                 result = r;
                 break;
