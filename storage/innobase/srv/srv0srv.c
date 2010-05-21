@@ -1101,8 +1101,8 @@ srv_free(void)
 	mem_free(srv_conc_slots);
 	srv_conc_slots = NULL;
 
-	mutex_free(&srv_sys->mutex);
-	mutex_free(&srv_sys->tasks_mutex);
+	/* The mutexes srv_sys->mutex and srv_sys->tasks_mutex should have
+	been freed by sync_close() already. */
 	mem_free(srv_sys);
 	srv_sys = NULL;
 
