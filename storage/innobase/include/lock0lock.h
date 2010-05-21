@@ -810,12 +810,47 @@ struct lock_op_struct{
 
 /** The lock system struct */
 struct lock_sys_struct{
+	mutex_t		mutex;		/*!< Mutex protecting the locks */
 	hash_table_t*	rec_hash;	/*!< hash table of the record locks */
 };
 
 /** The lock system */
 extern lock_sys_t*	lock_sys;
 
+#if 0
+/** Test if lock_sys->mutex can be acquired without waiting. */
+#define lock_mutex_enter_nowait() mutex_enter_nowait(&lock_sys->mutex)
+
+/** Test if lock_sys->mutex is owned. */
+#define lock_mutex_own() mutex_own(&lock_sys->mutex)
+
+/** Acquire the lock_sys->mutex. */
+#define lock_mutex_enter() do {			\
+	mutex_enter(&lock_sys->mutex);		\
+} while (0)
+
+/** Release the lock_sys->mutex. */
+#define lock_mutex_exit() do {			\
+	mutex_exit(&lock_sys->mutex);		\
+} while (0)
+#else
+/** Test if kernel_mutex can be acquired without waiting. */
+#define lock_mutex_enter_nowait() mutex_enter_nowait(&kernel_mutex)
+
+/** Test if kernel_mutex is owned. */
+#define lock_mutex_own() mutex_own(&kernel_mutex)
+
+/** Acquire the kernel_mutex. */
+#define lock_mutex_enter() do {			\
+	mutex_enter(&kernel_mutex);		\
+} while (0)
+
+/** Release the kernel_mutex. */
+#define lock_mutex_exit() do {			\
+	mutex_exit(&kernel_mutex);		\
+} while (0)
+
+#endif
 
 #ifndef UNIV_NONINL
 #include "lock0lock.ic"

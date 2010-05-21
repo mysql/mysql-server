@@ -54,7 +54,8 @@ lock_queue_iterator_reset(
 	ulint			bit_no)	/*!< in: record number in the
 					heap */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	// FIXME: This is wrong!
+	ut_ad(lock_mutex_own());
 
 	iter->current_lock = lock;
 
@@ -90,7 +91,7 @@ lock_queue_iterator_get_prev(
 {
 	const lock_t*	prev_lock;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
 
 	switch (lock_get_type_low(iter->current_lock)) {
 	case LOCK_REC:
