@@ -316,7 +316,7 @@ private:
     void set_main_dict_put_flags(THD* thd, u_int32_t* put_flags);
     int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
     int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
-    int test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
+    void test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
 
  
 public:
