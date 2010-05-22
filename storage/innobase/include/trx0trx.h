@@ -239,14 +239,6 @@ read_view_t*
 trx_assign_read_view(
 /*=================*/
 	trx_t*	trx);	/*!< in: active transaction */
-/***********************************************************//**
-The transaction must be in the TRX_QUE_LOCK_WAIT state. Puts it to
-the TRX_QUE_RUNNING state. */
-UNIV_INTERN
-void
-trx_end_lock_wait(
-/*==============*/
-	trx_t*	trx);	/*!< in: transaction */
 /****************************************************************//**
 Sends a signal to a trx object. */
 UNIV_INTERN

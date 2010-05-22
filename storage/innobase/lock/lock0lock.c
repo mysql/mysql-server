@@ -2191,7 +2191,7 @@ lock_grant(
 	for it */
 
 	if (lock->trx->que_state == TRX_QUE_LOCK_WAIT) {
-		trx_end_lock_wait(lock->trx);
+		que_thr_end_wait_no_next_thr(lock->trx);
 	}
 }
 
@@ -2217,7 +2217,7 @@ lock_rec_cancel(
 
 	/* The following function releases the trx from lock wait */
 
-	trx_end_lock_wait(lock->trx);
+	que_thr_end_wait_no_next_thr(lock->trx);
 }
 
 /*************************************************************//**
@@ -4045,40 +4045,6 @@ lock_release_off_kernel(
 	lock_mutex_exit();
 }
 
-/*********************************************************************//**
-Cancels a waiting lock request and releases possible other transactions
-waiting behind it. */
-UNIV_INTERN
-void
-lock_cancel_waiting_and_release(
-/*============================*/
-	lock_t*	lock)	/*!< in: waiting lock request */
-{
-	ut_ad(lock_mutex_own());
-
-	if (lock_get_type_low(lock) == LOCK_REC) {
-
-		lock_rec_dequeue_from_page(lock);
-	} else {
-		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-
-		if (lock->trx->autoinc_locks != NULL) {
-			/* Release the transaction's AUTOINC locks/ */
-			lock_release_autoinc_locks(lock->trx);
-		}
-
-		lock_table_dequeue(lock);
-	}
-
-	/* Reset the wait flag and the back pointer to lock in trx */
-
-	lock_reset_lock_and_trx_wait(lock);
-
-	/* The following function releases the trx from lock wait */
-
-	trx_end_lock_wait(lock->trx);
-}
-
 /* True if a lock mode is S or X */
 #define IS_LOCK_S_OR_X(lock) \
 	(lock_get_mode(lock) == LOCK_S \
@@ -5724,4 +5690,38 @@ lock_rec_get_page_no(
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
 
 	return(lock->un_member.rec_lock.page_no);
+}
+
+/*********************************************************************//**
+Cancels a waiting lock request and releases possible other transactions
+waiting behind it. */
+UNIV_INTERN
+void
+lock_cancel_waiting_and_release(
+/*============================*/
+	lock_t*	lock)	/*!< in: waiting lock request */
+{
+	ut_ad(lock_mutex_own());
+
+	if (lock_get_type_low(lock) == LOCK_REC) {
+
+		lock_rec_dequeue_from_page(lock);
+	} else {
+		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+
+		if (lock->trx->autoinc_locks != NULL) {
+			/* Release the transaction's AUTOINC locks/ */
+			lock_release_autoinc_locks(lock->trx);
+		}
+
+		lock_table_dequeue(lock);
+	}
+
+	/* Reset the wait flag and the back pointer to lock in trx */
+
+	lock_reset_lock_and_trx_wait(lock);
+
+	/* The following function releases the trx from lock wait */
+
+	que_thr_end_wait_no_next_thr(lock->trx);
 }

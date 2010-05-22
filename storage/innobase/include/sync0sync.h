@@ -591,13 +591,13 @@ V
 lock_sys_mutex				Mutex protecting lock_sys_t
 |
 V
-query_thr_mutex				Mutex protecting query threads
-|
-V
 trx_sys_mutex				Mutex protecting trx_sys_t
 |
 V
-Threads mutex				Thread scheduling mutex
+Threads mutex				Background thread scheduling mutex
+|
+V
+query_thr_mutex				Mutex protecting query threads
 |
 V
 Search system mutex
@@ -671,9 +671,9 @@ or row lock! */
 /*-------------------------------*/
 #define	SYNC_KERNEL		300
 #define SYNC_LOCK_SYS		299
-#define SYNC_QUERY_THREADS	298
-#define SYNC_TRX_SYS		297
-#define SYNC_THREADS		296
+#define SYNC_TRX_SYS		298
+#define SYNC_THREADS		297
+#define SYNC_QUERY_THREADS	296
 #define SYNC_REC_LOCK		295
 #define	SYNC_TRX_LOCK_HEAP	294
 #define SYNC_TRX_SYS_HEADER	290

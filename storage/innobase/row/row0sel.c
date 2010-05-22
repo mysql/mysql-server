@@ -4068,8 +4068,13 @@ no_gap_lock:
 				goto lock_wait_or_error;
 			}
 			if (UNIV_LIKELY(trx->wait_lock != NULL)) {
+				lock_mutex_enter();
+
 				lock_cancel_waiting_and_release(
 					trx->wait_lock);
+
+				lock_mutex_exit();
+
 				prebuilt->new_rec_locks = 0;
 			} else {
 				mutex_exit(&kernel_mutex);

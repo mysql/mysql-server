@@ -96,18 +96,14 @@ trx_general_rollback_for_mysql(
 	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
 	que_run_threads(thr);
 
-	mutex_enter(&kernel_mutex);
+	ut_a(roll_node->undo_thr != NULL);
+	que_run_threads(roll_node->undo_thr);
 
-	while (trx->que_state != TRX_QUE_RUNNING) {
+	/* Free the memory reserved by the undo graph */
+	que_graph_free(roll_node->undo_thr->common.parent);
+	trx_finish_rollback_off_kernel(thr_get_trx(roll_node->undo_thr));
 
-		mutex_exit(&kernel_mutex);
-
-		os_thread_sleep(100000);
-
-		mutex_enter(&kernel_mutex);
-	}
-
-	mutex_exit(&kernel_mutex);
+	ut_a(trx->que_state == TRX_QUE_RUNNING);
 
 	mem_heap_free(heap);
 
@@ -477,21 +473,7 @@ trx_rollback_active(
 	que_graph_free(roll_node->undo_thr->common.parent);
 	trx_finish_rollback_off_kernel(thr_get_trx(roll_node->undo_thr));
 
-	mutex_enter(&kernel_mutex);
-
-	while (trx->que_state != TRX_QUE_RUNNING) {
-
-		mutex_exit(&kernel_mutex);
-
-		fprintf(stderr,
-			"InnoDB: Waiting for rollback of trx id %lu to end\n",
-			(ulong) ut_dulint_get_low(trx->id));
-		os_thread_sleep(100000);
-
-		mutex_enter(&kernel_mutex);
-	}
-
-	mutex_exit(&kernel_mutex);
+	ut_a(trx->que_state == TRX_QUE_RUNNING);
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
 	    && !ut_dulint_is_zero(trx->table_id)) {

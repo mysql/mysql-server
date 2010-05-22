@@ -179,10 +179,9 @@ UNIV_INTERN
 void
 que_thr_end_wait_no_next_thr(
 /*=========================*/
-	que_thr_t*	thr);		/*!< in: query thread in the
-					QUE_THR_LOCK_WAIT,
-					or QUE_THR_PROCEDURE_WAIT, or
-					QUE_THR_SIG_REPLY_WAIT state */
+	trx_t*		trx);		/*!< in: transaction in the
+					QUE_THR_LOCK_WAIT, or
+				       	QUE_THR_PROCEDURE_WAIT, state */
 /**********************************************************************//**
 Starts execution of a command in a query fork. Picks a query thread which
 is not in the QUE_THR_RUNNING state and moves it to that state. If none

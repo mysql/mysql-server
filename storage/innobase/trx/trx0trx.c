@@ -1038,24 +1038,6 @@ trx_handle_commit_sig_off_kernel(
 	trx->que_state = TRX_QUE_RUNNING;
 }
 
-/***********************************************************//**
-The transaction must be in the TRX_QUE_LOCK_WAIT state. Puts it to
-the TRX_QUE_RUNNING state. */
-UNIV_INTERN
-void
-trx_end_lock_wait(
-/*==============*/
-	trx_t*	trx)	/*!< in: transaction */
-{
-	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-
-	que_thr_end_wait_no_next_thr(trx->wait_thr);
-	trx->wait_thr = NULL;
-
-	trx->que_state = TRX_QUE_RUNNING;
-}
-
 /****************************************************************//**
 Starts handling of a trx signal.
 @return the query thread that will do the UNDO or NULL */
