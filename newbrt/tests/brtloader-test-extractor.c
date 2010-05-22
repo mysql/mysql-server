@@ -20,25 +20,36 @@ extern "C" {
 #endif
 #endif
 
+static int qsort_compare_ints (const void *a, const void *b) {
+    int avalue = *(int*)a;
+    int bvalue = *(int*)b;
+    if (avalue<bvalue) return -1;
+    if (avalue>bvalue) return +1;
+    return 0;
+}
+
+static int compare_int(DB *dest_db, const DBT *akey, const DBT *bkey) {
+    assert(dest_db == NULL);
+    assert(akey->size == sizeof (int));
+    assert(bkey->size == sizeof (int));
+    return qsort_compare_ints(akey->data, bkey->data);
+}
+
 static char **get_temp_files(const char *testdir) {
     int ntemp = 0;
     int maxtemp = 32;
-    char **tempfiles = toku_calloc(maxtemp, sizeof (char *));
-    assert(tempfiles);
+    char **tempfiles = toku_malloc(maxtemp * sizeof (char *)); assert(tempfiles);
 
     DIR *d = opendir(testdir);
     if (d) {
-        while (1) {
-            struct dirent *de = readdir(d);
-            if (de == NULL)
-                break;
+        struct dirent *de;
+        while ((de = readdir(d)) != NULL) {
             if (strncmp(de->d_name, "temp", 4) == 0) {
                 if (ntemp >= maxtemp-1) {
                     maxtemp = 2*maxtemp;
-                    tempfiles = toku_realloc(tempfiles, 2*maxtemp);
+                    tempfiles = toku_realloc(tempfiles, 2*maxtemp*sizeof (char *));
                     assert(tempfiles);
                 }
-                assert(ntemp < maxtemp-1);
                 tempfiles[ntemp++] = toku_strdup(de->d_name);
             }
         }
@@ -54,6 +65,42 @@ static void free_temp_files(char **tempfiles) {
     toku_free(tempfiles);
 }
 
+static int read_row(FILE *f, DBT *key, DBT *val) {
+    size_t r;
+    int len;
+    r = fread(&len, sizeof len, 1, f);
+    if (r != 1)
+        return EOF;
+    assert(key->flags == DB_DBT_REALLOC);
+    key->data = toku_realloc(key->data, len); key->size = len;
+    r = fread(key->data, len, 1, f);
+    if (r != 1)
+        return EOF;
+    r = fread(&len, sizeof len, 1, f);
+    if (r != 1)
+        return EOF;
+    assert(val->flags == DB_DBT_REALLOC);
+    val->data = toku_realloc(val->data, len); val->size = len;
+    r = fread(val->data, len, 1, f);
+    if (r != 1)
+        return EOF;
+    return 0;
+}
+
+static void write_row(FILE *f, DBT *key, DBT *val) {
+    size_t r;
+    int len = key->size;
+    r = fwrite(&len, sizeof len, 1, f);
+    assert(r == 1);
+    r = fwrite(key->data, len, 1, f);
+    assert(r == 1);
+    len = val->size;
+    r = fwrite(&len, sizeof len, 1, f);
+    assert(r == 1);
+    r = fwrite(val->data, len, 1, f);
+    assert(r == 1);
+}
+
 static void read_tempfile(const char *testdir, const char *tempfile, int **tempkeys, int *ntempkeys) {
     int maxkeys = 32;
     int nkeys = 0;
@@ -64,44 +111,102 @@ static void read_tempfile(const char *testdir, const char *tempfile, int **tempk
     sprintf(fname, "%s/%s", testdir, tempfile);
     FILE *f = fopen(fname, "r");
     if (f) {
-        void *vp = NULL;
-        while (1) {
-            size_t r;
-            int len;
-
-            // key
-            r = fread(&len, sizeof (int), 1, f);
-            if (r == 0)
-                break;
-            assert(len == sizeof (int));
-            vp = toku_realloc(vp, len);
-            r = fread(vp, len, 1, f);
-            if (r == 0)
-                break;
+        DBT key = { .flags = DB_DBT_REALLOC };
+        DBT val = { .flags = DB_DBT_REALLOC };
+        while (read_row(f, &key, &val) == 0) {
             if (nkeys >= maxkeys) {
                 maxkeys *= 2;
                 keys = toku_realloc(keys, maxkeys * sizeof (int));
             }
-            memcpy(&keys[nkeys], vp, len);
+            assert(key.size == sizeof (int));
+            memcpy(&keys[nkeys], key.data, key.size);
             nkeys++;
-            
-            // val
-            r = fread(&len, sizeof (int), 1, f);
-            if (r == 0)
-                break;
-            assert(len == sizeof (int));
-            vp = toku_realloc(vp, len);
-            r = fread(vp, len, 1, f);
-            if (r == 0)
-                break;
-
         }
-        toku_free(vp);
+        toku_free(key.data);
+        toku_free(val.data);
         fclose(f);
     }
 
     *tempkeys = keys;
     *ntempkeys = nkeys;
+}
+
+static void verify_sorted(int a[], int n) {
+    for (int i = 1; i < n; i++) 
+        assert(a[i-1] <= a[i]);
+}
+
+struct merge_file {
+    FILE *f;
+    DBT key, val;
+    BOOL row_valid;
+};
+
+static DBT zero_dbt;
+
+static void merge_file_init(struct merge_file *mf) {
+    mf->f = NULL;
+    mf->key = zero_dbt; mf->key.flags = DB_DBT_REALLOC;
+    mf->val = zero_dbt; mf->val.flags = DB_DBT_REALLOC;
+    mf->row_valid = FALSE;
+}
+
+static void merge_file_destroy(struct merge_file *mf) {
+    if (mf->f) {
+        fclose(mf->f);
+        mf->f = NULL;
+    }
+    toku_free(mf->key.data);
+    toku_free(mf->val.data);
+}
+
+static char *merge(char **tempfiles, int ntempfiles, const char *testdir) {
+    char fname[strlen(testdir) + 1 + strlen("result") + 1];
+    sprintf(fname, "%s/%s", testdir, "result");
+    FILE *mergef = fopen(fname, "w"); assert(mergef != NULL);
+
+    struct merge_file f[ntempfiles];
+    for (int i = 0; i < ntempfiles; i++) {
+        merge_file_init(&f[i]);
+        char tname[strlen(testdir) + 1 + strlen(tempfiles[i]) + 1];
+        sprintf(tname, "%s/%s", testdir, tempfiles[i]);
+        f[i].f = fopen(tname, "r"); assert(f[i].f != NULL);
+        if (read_row(f[i].f, &f[i].key, &f[i].val) == 0)
+            f[i].row_valid = TRUE;
+    }
+
+    while (1) {
+        // get min 
+        int mini = -1;
+        for (int i = 0; i < ntempfiles; i++) {
+            if (f[i].row_valid) {
+                if (mini == -1) {
+                    mini = i;
+                } else {
+                    int r = compare_int(NULL, &f[mini].key, &f[i].key);
+                    assert(r != 0);
+                    if (r > 0)
+                        mini = i;
+                }
+            }
+        }
+        if (mini == -1)
+            break;
+
+        // write min
+        write_row(mergef, &f[mini].key, &f[mini].val);
+
+        // refresh i
+        if (read_row(f[mini].f, &f[mini].key, &f[mini].val) != 0)
+            f[mini].row_valid = FALSE;
+    }
+
+    for (int i = 0; i < ntempfiles; i++) {
+        merge_file_destroy(&f[i]);
+    }
+
+    fclose(mergef);
+    return toku_strdup("result");
 }
 
 static void verify(int inkey[], int nkeys, const char *testdir) {
@@ -114,16 +219,27 @@ static void verify(int inkey[], int nkeys, const char *testdir) {
     }
 
     // verify each is sorted
-    assert(ntempfiles == 1);
-    int *tempkeys; int ntempkeys;
-    read_tempfile(testdir, tempfiles[0], &tempkeys, &ntempkeys);
+    for (int i = 0; i < ntempfiles; i++) {
+        int *tempkeys; int ntempkeys;
+        read_tempfile(testdir, tempfiles[i], &tempkeys, &ntempkeys);
+        verify_sorted(tempkeys, ntempkeys);
+        toku_free(tempkeys);
+    }
+
+    // merge
+    char *result_file = merge(tempfiles, ntempfiles, testdir);
+    assert(result_file);
+
+    int *result_keys; int n_result_keys;
+    read_tempfile(testdir, result_file, &result_keys, &n_result_keys);
+    toku_free(result_file);
 
     // compare 
-    assert(nkeys == ntempkeys);
+    assert(nkeys == n_result_keys);
     for (int i = 0; i < nkeys; i++) 
-        assert(inkey[i] == tempkeys[i]);
+        assert(inkey[i] == result_keys[i]);
 
-    toku_free(tempkeys);
+    toku_free(result_keys);
     free_temp_files(tempfiles);
 }
 
@@ -141,21 +257,6 @@ static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const
     copy_dbt(dest_val, src_val);
     
     return 0;
-}
-
-static int qsort_compare_ints (const void *a, const void *b) {
-    int avalue = *(int*)a;
-    int bvalue = *(int*)b;
-    if (avalue<bvalue) return -1;
-    if (avalue>bvalue) return +1;
-    return 0;
-}
-
-static int compare_int(DB *dest_db, const DBT *akey, const DBT *bkey) {
-    assert(dest_db == NULL);
-    assert(akey->size == sizeof (int));
-    assert(bkey->size == sizeof (int));
-    return qsort_compare_ints(akey->data, bkey->data);
 }
 
 static void populate_rowset(struct rowset *rowset, int seq, int nrows, int keys[]) {
@@ -295,6 +396,11 @@ int test_main (int argc, const char *argv[]) {
 
     assert(argc == 1);
     const char *testdir = argv[0];
+    char unlink_all[strlen(testdir)+20];
+    snprintf(unlink_all, strlen(testdir)+20, "rm -rf %s", testdir);
+    int r;
+    r = system(unlink_all); CKERR(r);
+    r = toku_os_mkdir(testdir, 0755); CKERR(r);
 
     if (ascending_keys + descending_keys + random_keys == 0)
         ascending_keys = 1;

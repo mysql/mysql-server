@@ -98,6 +98,15 @@ check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.$@
 
 check_brtloader-test-bad-generate$(BINSUF): EXTRA_ARGS=dir.$@
 
+check_brtloader-test-extractor$(BINSUF): $(patsubst %,check_brtloader-test-extractor-%, 1 2 3)
+	true $(SUMMARIZE_CMD)
+check_brtloader-test-extractor-1: brtloader-test-extractor$(BINSUF)
+	$(VGRIND) ./$< -q -s -r 1000 --rowsets 1000 --asc dir-$@ $(SUMMARIZE_CMD)
+check_brtloader-test-extractor-2: brtloader-test-extractor$(BINSUF)
+	$(VGRIND) ./$< -q -s -r 1000 --rowsets 1000 --dsc dir-$@ $(SUMMARIZE_CMD)
+check_brtloader-test-extractor-3: brtloader-test-extractor$(BINSUF)
+	$(VGRIND) ./$< -q -s -r 1000 --rowsets 1000 --random dir-$@ $(SUMMARIZE_CMD)
+
 check_brtloader-test-extractor-errors$(BINSUF): $(patsubst %,check_brtloader-test-extractor-errors-%, 1 2)
 	true $(SUMMARIZE_CMD)
 check_brtloader-test-extractor-errors-1: brtloader-test-extractor-errors$(BINSUF)
