@@ -2346,6 +2346,8 @@ srv_lock_check_wait(
 
 			mutex_enter(&kernel_mutex);
 
+			lock_mutex_enter();
+
 			srv_sys_mutex_enter();
 
 			/* If the slot has been freed and is not being reused
@@ -2379,6 +2381,8 @@ srv_lock_check_wait(
 
 				srv_sys->lock_wait_timeout = FALSE;
 			}
+
+			lock_mutex_exit();
 
 			mutex_exit(&kernel_mutex);
 		}

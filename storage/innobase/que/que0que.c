@@ -261,22 +261,32 @@ UNIV_INTERN
 void
 que_thr_end_wait_no_next_thr(
 /*=========================*/
-	que_thr_t*	thr)	/*!< in: query thread in the QUE_THR_LOCK_WAIT,
-				or QUE_THR_PROCEDURE_WAIT */
+	trx_t*		trx)	/*!< in: transaction with que_state in
+		       		QUE_THR_LOCK_WAIT, or QUE_THR_PROCEDURE_WAIT */
 {
-	ibool	was_active;
+	que_thr_t*	thr;
+	ibool		was_active;
 
-	ut_a(thr->state == QUE_THR_LOCK_WAIT);	/* In MySQL this is the
-						only possible state here */
 	query_mutex_enter();
 
-	ut_ad(thr);
-	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-	      || (thr->state == QUE_THR_PROCEDURE_WAIT));
+	thr = trx->wait_thr;
+
+	ut_ad(thr != NULL);
+
+	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
+	/* In MySQL this is the only possible state here */
+	ut_a(thr->state == QUE_THR_LOCK_WAIT);
+
+	ut_ad(thr->state == QUE_THR_LOCK_WAIT
+	      || thr->state == QUE_THR_PROCEDURE_WAIT);
 
 	was_active = thr->is_active;
 
 	que_thr_move_to_run_state(thr);
+
+	trx->que_state = TRX_QUE_RUNNING;
+
+	trx->wait_thr = NULL;
 
 	query_mutex_exit();
 
