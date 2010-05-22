@@ -3212,6 +3212,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     DBT tmp_pk_key;
     DBT tmp_pk_val;
     bool has_null;
+    int cmp;
 
     bzero(&tmp_pk_key, sizeof(DBT));
     bzero(&tmp_pk_val, sizeof(DBT));
@@ -3232,7 +3233,6 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
 
     for (uint keynr = 0; keynr < table_share->keys; keynr++) {
         u_int32_t tmp_num_bytes = 0;
-        int cmp;
         uchar* row_desc = NULL;
         u_int32_t desc_size = 0;
         
@@ -3291,6 +3291,9 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
     // copy stuff back out
     //
     error = pack_row(pk_val, (const uchar *) record, primary_key);
+    assert(pk_val->size == tmp_pk_val.size);
+    cmp = memcmp(pk_val->data, tmp_pk_val_data, pk_val->size);    
+    assert( cmp == 0);
 
     my_free(tmp_pk_key_data,MYF(MY_ALLOW_ZERO_PTR));
     my_free(tmp_pk_val_data,MYF(MY_ALLOW_ZERO_PTR));
