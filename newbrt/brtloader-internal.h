@@ -156,6 +156,7 @@ struct brtloader_s {
     BOOL *fractal_threads_live; // an array of bools indicating that fractal_threads[i] is a live thread.  (There is no NULL for a pthread_t, so we have to maintain this separately).
 
     toku_pthread_mutex_t mutex;
+    BOOL mutex_init;
 };
 
 // Set the number of rows in the loader.  Used for test.

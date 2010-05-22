@@ -121,18 +121,16 @@ static void cleanup_big_buffer(struct file_info *file) {
 }
 
 int brtloader_init_file_infos (struct file_infos *fi) {
+    int result = 0;
     int r = toku_pthread_mutex_init(&fi->lock, NULL); resource_assert(r == 0);
     fi->n_files = 0;
     fi->n_files_limit = 1;
     fi->n_files_open = 0;
     fi->n_files_extant = 0;
     MALLOC_N(fi->n_files_limit, fi->file_infos);
-    if (fi->file_infos) return 0;
-    else {
-	int result = errno;
-        toku_pthread_mutex_destroy(&fi->lock); // lazy no error check and maybe done elsewhere
-        return result;
-    }
+    if (fi->file_infos == NULL)
+	result = errno;
+    return result;
 }
 
 void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
@@ -292,6 +290,7 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 }
 
 void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
+    assert(bl->mutex_init);
     int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
@@ -460,6 +459,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     {   
         int r = toku_pthread_mutex_init(&bl->mutex, NULL); 
         if (r != 0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
+        bl->mutex_init = TRUE;
     }
 
     *blp = bl;
