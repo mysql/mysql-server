@@ -4060,24 +4060,21 @@ no_gap_lock:
 				goto lock_wait_or_error;
 			}
 
-			mutex_enter(&kernel_mutex);
+			lock_mutex_enter();
 			if (trx->was_chosen_as_deadlock_victim) {
-				mutex_exit(&kernel_mutex);
+				lock_mutex_exit();
 				err = DB_DEADLOCK;
 
 				goto lock_wait_or_error;
 			}
 			if (UNIV_LIKELY(trx->wait_lock != NULL)) {
-				lock_mutex_enter();
 
 				lock_cancel_waiting_and_release(
 					trx->wait_lock);
 
-				lock_mutex_exit();
-
 				prebuilt->new_rec_locks = 0;
 			} else {
-				mutex_exit(&kernel_mutex);
+				lock_mutex_exit();
 
 				/* The lock was granted while we were
 				searching for the last committed version.
@@ -4092,7 +4089,7 @@ no_gap_lock:
 				prebuilt->new_rec_locks = 1;
 				break;
 			}
-			mutex_exit(&kernel_mutex);
+			lock_mutex_exit();
 
 			if (old_vers == NULL) {
 				/* The row was not yet committed */
@@ -4573,7 +4570,7 @@ row_search_check_if_query_cache_permitted(
 	We do not check what type locks there are on the table, though only
 	IX type locks actually would require ret = FALSE. */
 
-	mutex_enter(&kernel_mutex);
+	lock_mutex_enter();
 
 	if (UT_LIST_GET_LEN(table->locks) == 0
 	    && ut_dulint_cmp(trx->id,
@@ -4598,7 +4595,7 @@ row_search_check_if_query_cache_permitted(
 		}
 	}
 
-	mutex_exit(&kernel_mutex);
+	lock_mutex_exit();
 
 	return(ret);
 }
