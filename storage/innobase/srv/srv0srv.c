@@ -1805,7 +1805,7 @@ srv_release_mysql_thread_if_suspended(
 	que_thr_t*	thr)	/*!< in: query thread associated with the
 				MySQL OS thread	 */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
 
 	if (!srv_sys->lock_wait_timeout) {
 		srv_sys_mutex_enter();
@@ -2344,8 +2344,6 @@ srv_lock_check_wait(
 			same thread before cancelling the wait and releasing
 		       	the locks. */
 
-			mutex_enter(&kernel_mutex);
-
 			lock_mutex_enter();
 
 			srv_sys_mutex_enter();
@@ -2383,8 +2381,6 @@ srv_lock_check_wait(
 			}
 
 			lock_mutex_exit();
-
-			mutex_exit(&kernel_mutex);
 		}
 	}
 }
