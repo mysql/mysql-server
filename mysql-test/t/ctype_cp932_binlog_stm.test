@@ -6,7 +6,7 @@
 
 call mtr.add_suppression('Error in Log_event::read_log_event()');
 --disable_query_log
-CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
 #

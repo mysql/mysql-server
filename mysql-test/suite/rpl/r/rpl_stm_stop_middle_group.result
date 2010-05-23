@@ -5,7 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 create table tm (a int auto_increment primary key) engine=myisam;
 create table ti (a int auto_increment primary key) engine=innodb;
 set @@global.debug="+d,stop_slave_middle_group";
@@ -13,7 +13,7 @@ begin;
 insert into ti set a=null;
 insert into tm set a=null;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
 SELECT "NO" AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
@@ -34,7 +34,7 @@ begin;
 insert into ti set a=null;
 insert into tm set a=null;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
 SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
@@ -53,7 +53,7 @@ set @@global.debug="+d,stop_slave_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
 Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1

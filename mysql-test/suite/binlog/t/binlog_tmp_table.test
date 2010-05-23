@@ -28,8 +28,10 @@
 source include/have_log_bin.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
 
+RESET MASTER;
+
 --disable_query_log
-CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
@@ -71,6 +73,8 @@ truncate table tmp1_foo;
 connection master1;
 truncate table tmp2_foo;
 
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+
 flush logs;
 
 connection default;
@@ -82,7 +86,7 @@ create table foo (a int);
 
 # replay from binary log
 let $MYSQLD_DATADIR= `select @@datadir`;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000002 | $MYSQL;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file | $MYSQL;
 select * from foo;
 
 # clean up

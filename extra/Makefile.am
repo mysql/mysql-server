@@ -55,6 +55,3 @@ EXTRA_DIST =		CMakeLists.txt
 
 perror.o: perror.c 
 	$(COMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

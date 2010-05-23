@@ -44,6 +44,3 @@ all-windoze-dsp: windoze
 	find . -name '*.dsp' | grep -v SCCS | xargs unix2dos
 	$(top_srcdir)/storage/ndb/config/make-win-dsw.sh | unix2dos > ndb.dsw
 	tar cvfz ndb-win-dsp.tar.gz ndb.dsw `find . -name '*.dsp' | grep -v SCCS`
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc.
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved. 
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ if NEED_THREAD
 # my_atomic-t is used to check thread functions, so it is safe to 
 # ignore the file in non-threaded builds.
 # In fact, it will not compile without thread support.
-noinst_PROGRAMS += my_atomic-t
+noinst_PROGRAMS += my_atomic-t waiting_threads-t
 endif
 
 EXTRA_DIST       = CMakeLists.txt

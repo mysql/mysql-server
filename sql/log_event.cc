@@ -3290,8 +3290,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       thd->table_map_for_update= (table_map)table_map_for_update;
       
       /* Execute the query (note that we bypass dispatch_command()) */
-      const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
+      Parser_state parser_state(thd, thd->query(), thd->query_length());
+      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
       log_slow_statement(thd);
 
       /*
@@ -7522,7 +7522,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           having severe errors which should not be skiped.
         */
         rli->report(ERROR_LEVEL, actual_error,
-                    "Error '%s' on opening tables",
+                    "Error executing row event: '%s'",
                     (actual_error ? thd->stmt_da->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;

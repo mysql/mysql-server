@@ -143,7 +143,6 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
                      int thread_mask)
 {
   int fd,error;
-  char fname[FN_REFLEN+128];
   DBUG_ENTER("init_master_info");
 
   if (mi->inited)
@@ -169,7 +168,8 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 
   mi->mysql=0;
   mi->file_id=1;
-  fn_format(fname, master_info_fname, mysql_data_home, "", 4+32);
+  fn_format(mi->info_file_name, master_info_fname, mysql_data_home, "",
+            MYF(MY_UNPACK_FILENAME|MY_RETURN_REAL_PATH));
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -181,7 +181,7 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 
   /* does master.info exist ? */
 
-  if (access(fname,F_OK))
+  if (access(mi->info_file_name, F_OK))
   {
     if (abort_if_no_master_info_file)
     {
@@ -194,18 +194,18 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
     */
     if (fd >= 0)
       mysql_file_close(fd, MYF(MY_WME));
-    if ((fd= mysql_file_open(key_file_master_info,
-                             fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+    if ((fd= mysql_file_open(key_file_master_info, mi->info_file_name,
+                             O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
     {
       sql_print_error("Failed to create a new master info file (\
-file '%s', errno %d)", fname, my_errno);
+file '%s', errno %d)", mi->info_file_name, my_errno);
       goto err;
     }
     if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
                       MYF(MY_WME)))
     {
       sql_print_error("Failed to create a cache on master info file (\
-file '%s')", fname);
+file '%s')", mi->info_file_name);
       goto err;
     }
 
@@ -220,17 +220,17 @@ file '%s')", fname);
     else
     {
       if ((fd= mysql_file_open(key_file_master_info,
-                               fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+                               mi->info_file_name, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
       {
         sql_print_error("Failed to open the existing master info file (\
-file '%s', errno %d)", fname, my_errno);
+file '%s', errno %d)", mi->info_file_name, my_errno);
         goto err;
       }
       if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
                         0, MYF(MY_WME)))
       {
         sql_print_error("Failed to create a cache on master info file (\
-file '%s')", fname);
+file '%s')", mi->info_file_name);
         goto err;
       }
     }
@@ -344,7 +344,7 @@ file '%s')", fname);
     if (ssl)
       sql_print_warning("SSL information in the master info file "
                       "('%s') are ignored because this MySQL slave was "
-                      "compiled without SSL support.", fname);
+                      "compiled without SSL support.", mi->info_file_name);
 #endif /* HAVE_OPENSSL */
 
     /*

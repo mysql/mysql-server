@@ -43,9 +43,6 @@ INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: libkernel.dsp
 
 libkernel.dsp: Makefile \

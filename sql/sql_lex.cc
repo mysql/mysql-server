@@ -142,37 +142,64 @@ st_parsing_options::reset()
   allows_derived= TRUE;
 }
 
+
+/**
+  Perform initialization of Lex_input_stream instance.
+
+  Basically, a buffer for pre-processed query. This buffer should be large
+  enough to keep multi-statement query. The allocation is done once in the
+  Lex_input_stream constructor in order to prevent memory pollution when
+  the server is processing large multi-statement queries.
+
+  @todo Check return value of THD::alloc().
+*/
+
 Lex_input_stream::Lex_input_stream(THD *thd,
                                    const char* buffer,
                                    unsigned int length)
-: m_thd(thd),
-  yylineno(1),
-  yytoklen(0),
-  yylval(NULL),
-  lookahead_token(-1),
-  lookahead_yylval(NULL),
-  m_ptr(buffer),
-  m_tok_start(NULL),
-  m_tok_end(NULL),
-  m_end_of_query(buffer + length),
-  m_tok_start_prev(NULL),
-  m_buf(buffer),
-  m_buf_length(length),
-  m_echo(TRUE),
-  m_cpp_tok_start(NULL),
-  m_cpp_tok_start_prev(NULL),
-  m_cpp_tok_end(NULL),
-  m_body_utf8(NULL),
-  m_cpp_utf8_processed_ptr(NULL),
-  next_state(MY_LEX_START),
-  found_semicolon(NULL),
-  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
-  stmt_prepare_mode(FALSE),
-  multi_statements(TRUE),
-  in_comment(NO_COMMENT),
-  m_underscore_cs(NULL)
+  :m_thd(thd)
 {
   m_cpp_buf= (char*) thd->alloc(length + 1);
+  reset(buffer, length);
+}
+
+
+/**
+  Prepare Lex_input_stream instance state for use for handling next SQL statement.
+
+  It should be called between two statements in a multi-statement query.
+  The operation resets the input stream to the beginning-of-parse state,
+  but does not reallocate m_cpp_buf.
+*/
+
+void
+Lex_input_stream::reset(const char *buffer, unsigned int length)
+{
+  yylineno= 1;
+  yytoklen= 0;
+  yylval= NULL;
+  lookahead_token= -1;
+  lookahead_yylval= NULL;
+  m_ptr= buffer;
+  m_tok_start= NULL;
+  m_tok_end= NULL;
+  m_end_of_query= buffer + length;
+  m_tok_start_prev= NULL;
+  m_buf= buffer;
+  m_buf_length= length;
+  m_echo= TRUE;
+  m_cpp_tok_start= NULL;
+  m_cpp_tok_start_prev= NULL;
+  m_cpp_tok_end= NULL;
+  m_body_utf8= NULL;
+  m_cpp_utf8_processed_ptr= NULL;
+  next_state= MY_LEX_START;
+  found_semicolon= NULL;
+  ignore_space= test(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
+  stmt_prepare_mode= FALSE;
+  multi_statements= TRUE;
+  in_comment=NO_COMMENT;
+  m_underscore_cs= NULL;
   m_cpp_ptr= m_cpp_buf;
 }
 
