@@ -392,6 +392,25 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 
 /**
+  Check if given string begins with "#mysql50#" prefix
+  
+  @param   name          string to check cut 
+  
+  @retval
+    FALSE  no prefix found
+  @retval
+    TRUE   prefix found
+*/
+
+bool check_mysql50_prefix(const char *name)
+{
+  return (name[0] == '#' && 
+         !strncmp(name, MYSQL50_TABLE_NAME_PREFIX,
+                  MYSQL50_TABLE_NAME_PREFIX_LENGTH));
+}
+
+
+/**
   Check if given string begins with "#mysql50#" prefix, cut it if so.
   
   @param   from          string to check and cut 
@@ -406,9 +425,7 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
 {
-  if (from[0] == '#' && 
-      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+  if (check_mysql50_prefix(from))
     return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
                            to_length - 1) - to);
   return 0;
