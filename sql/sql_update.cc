@@ -436,6 +436,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -482,6 +483,7 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
+        thd->examined_row_count++;
 	if (!(select && select->skip_record()))
 	{
           if (table->file->was_semi_consistent_read())
@@ -588,6 +590,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
+    thd->examined_row_count++;
     if (!(select && select->skip_record()))
     {
       if (table->file->was_semi_consistent_read())
