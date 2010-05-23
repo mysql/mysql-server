@@ -172,7 +172,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       (void)subquery_types_allow_materialization(in_subs);
 
       in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
-      in_subs->convert_to_semi_join= TRUE; //JTBM
+      in_subs->is_flattenable_semijoin= TRUE;
 
       /* Register the subquery for further processing in flatten_subqueries() */
       select_lex->
@@ -240,7 +240,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
             thd->thd_marker.emb_on_expr_nest == (TABLE_LIST*)0x1)
         {
           in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
-          in_subs->convert_to_semi_join= FALSE;
+          in_subs->is_flattenable_semijoin= FALSE;
           select_lex->outer_select()->
             join->sj_subselects.append(thd->mem_root, in_subs);
         }
@@ -358,7 +358,19 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
 }
 
 
-static bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
+/*
+  Finalize IN->EXISTS conversion in case we couldn't use materialization.
+
+  DESCRIPTION  Invoke the IN->EXISTS converter
+    Replace the Item_in_subselect with its wrapper Item_in_optimizer in WHERE.
+
+  RETURN 
+    FALSE - Ok
+    TRUE  - Fatal error
+*/
+
+static 
+bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
 {
   DBUG_ENTER("make_in_exists_conversion");
   JOIN *child_join= item->unit->first_select()->join;
@@ -381,20 +393,15 @@ static bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *i
 
   Item *substitute= item->substitution;
   bool do_fix_fields= !item->substitution->fixed;
+  /*
+    The Item_subselect has already been wrapped with Item_in_optimizer, so we
+    should search for item->optimizer, not 'item'.
+  */
+  Item *replace_me= item->optimizer;
+  DBUG_ASSERT(replace_me==substitute);
+
   Item **tree= (item->emb_on_expr_nest == (TABLE_LIST*)1)?
                  &join->conds : &(item->emb_on_expr_nest->on_expr);
-
-  Item *replace_me= item;
-  /*
-    JTBM: the subquery was already mapped with Item_in_optimizer, so we
-    should search for that, not for original Item_in_subselect.
-    TODO: what about delaying that rewrite until here?
-  */
-  if (!item->convert_to_semi_join)
-  { //psergey-jtbm-fix: this branch is always taken??
-    replace_me= item->optimizer;
-  }
-
   if (replace_where_subcondition(join, tree, replace_me, substitute, 
                                  do_fix_fields))
     DBUG_RETURN(TRUE);
@@ -528,7 +535,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
        in_subq++)
   {
     bool remove_item= TRUE;
-    if ((*in_subq)->convert_to_semi_join) 
+    if ((*in_subq)->is_flattenable_semijoin) 
     {
       if (convert_subq_to_sj(join, *in_subq))
         DBUG_RETURN(TRUE);
@@ -548,7 +555,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
         should search for that, not for original Item_in_subselect.
         TODO: what about delaying that rewrite until here?
       */
-      if (!(*in_subq)->convert_to_semi_join)
+      if (!(*in_subq)->is_flattenable_semijoin)
       {
         replace_me= (*in_subq)->optimizer;
       }
@@ -593,7 +600,7 @@ skip_conversion:
       should search for that, not for original Item_in_subselect.
       TODO: what about delaying that rewrite until here?
     */
-    if (!(*in_subq)->convert_to_semi_join)
+    if (!(*in_subq)->is_flattenable_semijoin)
     {
       replace_me= (*in_subq)->optimizer;
     }
@@ -622,9 +629,33 @@ skip_conversion:
 }
 
 
-void get_temptable_params(Item_in_subselect *item, ha_rows *out_rows,
-                          ha_rows *scan_time)
+/*
+  Get #output_rows and scan_time estimates for a "delayed" table.
+
+  SYNOPSIS
+    get_delayed_table_estimates()
+      table         IN    Table to get estimates for
+      out_rows      OUT   E(#rows in the table)
+      scan_time     OUT   E(scan_time).
+      startup_cost  OUT   cost to populate the table.
+
+  DESCRIPTION
+    Get #output_rows and scan_time estimates for a "delayed" table. By
+    "delayed" here we mean that the table is filled at the start of query
+    execution. This means that the optimizer can't use table statistics to 
+    get #rows estimate for it, it has to call this function instead.
+
+    This function is expected to make different actions depending on the nature
+    of the table. At the moment there is only one kind of delayed tables,
+    non-flattenable semi-joins.
+*/
+
+void get_delayed_table_estimates(TABLE *table,
+                                 ha_rows *out_rows, 
+                                 double *scan_time,
+                                 double *startup_cost)
 {
+  Item_in_subselect *item= table->pos_in_table_list->jtbm_subselect;
   item->optimize();
 
   DBUG_ASSERT(item->engine->engine_type() ==
@@ -644,7 +675,7 @@ void get_temptable_params(Item_in_subselect *item, ha_rows *out_rows,
     read_time += join->best_positions[i].read_time;
   }
   *out_rows= rows;
-  item->startup_cost= read_time;
+  *startup_cost= read_time;
   /* Calculate cost of scanning the temptable */
   double data_size= rows * hash_sj_engine->tmp_table->s->reclength;
   /* Do like in handler::read_time */

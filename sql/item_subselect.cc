@@ -190,10 +190,6 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
     changed= 1;
     inside_first_fix_fields= FALSE;
 
-
-    // all transformation is done (used by prepared statements)
-    changed= 1;
-
     /*
       Substitute the current item with an Item_in_optimizer that was
       created by Item_in_subselect::select_in_like_transformer and

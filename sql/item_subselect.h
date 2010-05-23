@@ -393,12 +393,12 @@ public:
     join->sj_subselects.
     jtbm-todo: option 1: let sj_subselects list pairs.
   */
-  bool convert_to_semi_join;
+  bool is_flattenable_semijoin;
   
   /*
     Cost to populate the temporary table (set on if-needed basis).
   */
-  double startup_cost;
+  //double startup_cost;
 
   bool *get_cond_guard(int i)
   {

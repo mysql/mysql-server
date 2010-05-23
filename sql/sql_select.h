@@ -210,8 +210,11 @@ typedef struct st_join_table {
     method (but not 'index' for some reason), i.e. this matches method which
     E(#records) is in found_records.
   */
-  ha_rows       read_time;
+  double        read_time;
   
+  /* Startup cost for execution */
+  double        startup_cost;
+
   table_map	dependent,key_dependent;
   uint		use_quick,index;
   uint		status;				///< Save status for cache

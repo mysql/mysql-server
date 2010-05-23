@@ -122,11 +122,11 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	SUBQUERY#2	ALL	distinct_key	#	#	#	3	100.00	#
-1	PRIMARY	t1i	ref	it1i1,it1i2,it1i3	#	#	#	1	100.00	#
+1	PRIMARY	t1i	index	it1i1,it1i2,it1i3	#	#	#	3	100.00	#
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	#	#	#	1	100.00	#
 2	SUBQUERY	t2i	range	it2i1,it2i3	#	#	#	3	100.00	#
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`,`test`.`t2i`.`b2`) join `test`.`t1i` where ((`test`.`t1i`.`a2` = `SUBQUERY#2`.`b2`) and (`test`.`t1i`.`a1` = `SUBQUERY#2`.`b1`))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`,`test`.`t2i`.`b2`) join `test`.`t1i` where ((`SUBQUERY#2`.`b2` = `test`.`t1i`.`a2`) and (`SUBQUERY#2`.`b1` = `test`.`t1i`.`a1`))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -134,11 +134,11 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	SUBQUERY#2	ALL	distinct_key	#	#	#	3	100.00	#
-1	PRIMARY	t1i	ref	it1i1,it1i2,it1i3	#	#	#	1	100.00	#
+1	PRIMARY	t1i	index	it1i1,it1i2,it1i3	#	#	#	3	100.00	#
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	#	#	#	1	100.00	#
 2	SUBQUERY	t2i	range	it2i1,it2i3	#	#	#	3	100.00	#
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,min(`test`.`t2i`.`b2`) AS `min(b2)` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`) join `test`.`t1i` where ((`test`.`t1i`.`a2` = `SUBQUERY#2`.`min(b2)`) and (`test`.`t1i`.`a1` = `SUBQUERY#2`.`b1`))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,min(`test`.`t2i`.`b2`) AS `min(b2)` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`) join `test`.`t1i` where ((`SUBQUERY#2`.`min(b2)` = `test`.`t1i`.`a2`) and (`SUBQUERY#2`.`b1` = `test`.`t1i`.`a1`))
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01

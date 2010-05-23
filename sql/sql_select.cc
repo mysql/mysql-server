@@ -2581,10 +2581,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     {
       /* s is the only inner table of an outer join */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if (!table->pos_in_table_list->jtbm_subselect &&
+      if (!table->is_filled_at_execution() &&
            (!table->file->stats.records || table->no_partitions_used) && !embedding)
 #else
-      if (!table->pos_in_table_list->jtbm_subselect &&
+      if (!table->is_filled_at_execution() &&
           !table->file->stats.records && !embedding)
 #endif
       {						// Empty table
@@ -2619,7 +2619,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 #else
     const bool no_partitions_used= FALSE;
 #endif
-    if (!table->pos_in_table_list->jtbm_subselect && 
+    if (!table->is_filled_at_execution() && 
         (table->s->system || table->file->stats.records <= 1 ||
          no_partitions_used) &&
 	!s->dependent &&
@@ -2719,7 +2719,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     {
       table=s->table;
 
-      if (table->pos_in_table_list->jtbm_subselect)
+      if (table->is_filled_at_execution())
         continue;
 
       /* 
@@ -2874,6 +2874,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 
   for (s=stat ; s < stat_end ; s++)
   {
+    s->startup_cost= 0;
     if (s->type == JT_SYSTEM || s->type == JT_CONST)
     {
       /* Only one matching row */
@@ -2882,18 +2883,17 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     }
     /* Approximate found rows and time to read them */
 
-    if (s->table->pos_in_table_list->jtbm_subselect)
+    if (s->table->is_filled_at_execution())
     {
-       get_temptable_params(s->table->pos_in_table_list->jtbm_subselect,
-                            &s->records,
-                            &s->read_time);
-       s->found_records= s->records;
-       table->quick_condition_rows=s->records;
+      get_delayed_table_estimates(s->table, &s->records, &s->read_time,
+                                  &s->startup_cost);
+      s->found_records= s->records;
+      table->quick_condition_rows=s->records;
     }
     else
     {
-      s->found_records=s->records=s->table->file->stats.records;
-      s->read_time=(ha_rows) s->table->file->scan_time();
+      s->found_records= s->records= s->table->file->stats.records;
+      s->read_time= s->table->file->scan_time();
     }
 
 
@@ -2922,7 +2922,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
         (!s->table->pos_in_table_list->embedding ||               // (2)
          (s->table->pos_in_table_list->embedding &&               // (3)
           s->table->pos_in_table_list->embedding->sj_on_expr)) && // (3)
-        !s->table->pos_in_table_list->jtbm_subselect)
+        !s->table->is_filled_at_execution())
     {
       ha_rows records;
       SQL_SELECT *select;
@@ -2960,7 +2960,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       if (records != HA_POS_ERROR)
       {
 	s->found_records=records;
-	s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
+	s->read_time= s->quick ? s->quick->read_time : 0.0;
       }
       delete select;
     }
@@ -4288,7 +4288,6 @@ best_access_path(JOIN      *join,
   ha_rows rec;
   bool best_uses_jbuf= FALSE;
   Item_in_subselect* jtbm_subselect= s->table->pos_in_table_list->jtbm_subselect;
-  bool jtbm_ref_used= FALSE;
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
@@ -4641,8 +4640,8 @@ best_access_path(JOIN      *join,
           else
             tmp= best_time;                    // Do nothing
         }
-        if (jtbm_subselect)
-          tmp += jtbm_subselect->startup_cost;
+
+        tmp += s->startup_cost;
         loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
       } /* not ft_key */
       if (tmp < best_time - records/(double) TIME_FOR_COMPARE)
@@ -4653,8 +4652,6 @@ best_access_path(JOIN      *join,
         best_key= start_key;
         best_max_key_part= max_key_part;
         best_ref_depends_map= found_ref;
-        if (jtbm_subselect)
-          jtbm_ref_used= TRUE;
       }
     } /* for each key */
     records= best_records;
@@ -4687,6 +4684,11 @@ best_access_path(JOIN      *join,
         Since we have a 'ref' access path, and FORCE INDEX instructs us to
         choose it over ALL/index, there is no need to consider a full table
         scan.
+    (5) Non-flattenable semi-joins: don't consider doing a scan of temporary
+        table if we had an option to make lookups into it. In real-world cases,
+        lookups are cheaper than full scans, but when the table is small, they
+        can be [considered to be] more expensive, which causes lookups not to 
+        be used for cases with small datasets, which is annoying.
   */
   if ((records >= s->found_records || best > s->read_time) &&            // (1)
       !(s->quick && best_key && s->quick->index == best_key->key &&      // (2)
@@ -4694,7 +4696,7 @@ best_access_path(JOIN      *join,
       !((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&   // (3)
         ! s->table->covering_keys.is_clear_all() && best_key && !s->quick) &&// (3)
       !(s->table->force_index && best_key && !s->quick) &&               // (4)
-      !jtbm_ref_used)            
+      !(best_key && jtbm_subselect))                                     // (5)
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
     /*
@@ -4741,12 +4743,19 @@ best_access_path(JOIN      *join,
     }
     else
     {
+#if 0      
       /* Estimate cost of reading table. */
-      if (jtbm_subselect)
+      if (jtbm_subselect) //psergey-jtbm-todo: why the difference?
         tmp= s->read_time;
       else
         tmp= s->table->file->scan_time();
-
+      //psergey-debug:
+      if (!jtbm_subselect && fabs(s->read_time - s->table->file->scan_time()) > 1.0)
+      {
+        fprintf(stderr, "Q:%s\n", thd->query());
+      }
+#endif
+      tmp= s->read_time;
       if ((s->table->map & join->outer_join) || disable_jbuf)     // Can't use join cache
       {
         /*
@@ -4775,8 +4784,7 @@ best_access_path(JOIN      *join,
       }
     }
 
-    if (jtbm_subselect)
-      tmp += jtbm_subselect->startup_cost;
+    tmp += s->startup_cost;
     /*
       We estimate the cost of evaluating WHERE clause for found records
       as record_count * rnd_records / TIME_FOR_COMPARE. This cost plus
@@ -4799,7 +4807,7 @@ best_access_path(JOIN      *join,
                                                join->outer_join)));
     }
   }
-  
+
   /* Update the cost information for the current partial plan */
   pos->records_read= records;
   pos->read_time=    best;
@@ -6722,12 +6730,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    the index if we are using limit and this is the first table
 	  */
 
-	  if ((cond &&
-               (!tab->keys.is_subset(tab->const_keys) && i > 0)) ||
-	      (!tab->const_keys.is_clear_all() && i == join->const_tables &&
-	       join->unit->select_limit_cnt <
-	       join->best_positions[i].records_read &&
-	       !(join->select_options & OPTION_FOUND_ROWS)))
+	  if (!tab->table->is_filled_at_execution() &&
+              ((cond && (!tab->keys.is_subset(tab->const_keys) && i > 0)) ||
+               (!tab->const_keys.is_clear_all() && i == join->const_tables &&
+                join->unit->select_limit_cnt <
+                join->best_positions[i].records_read &&
+                !(join->select_options & OPTION_FOUND_ROWS))))
 	  {
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;

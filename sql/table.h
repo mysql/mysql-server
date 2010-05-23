@@ -914,6 +914,13 @@ struct st_table {
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
   bool is_children_attached(void);
+ 
+  /*
+    If TRUE, the table is filled at execution phase (and so, the optimizer 
+    should not do things like range analysis or constant table detection on
+    it).
+  */
+  bool is_filled_at_execution();
 };
 
 enum enum_schema_table_state
