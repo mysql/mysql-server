@@ -354,7 +354,7 @@ schema probes when freeing the mutex */
 UNIV_INLINE
 void
 pfs_mutex_free_func(
-/*===================*/
+/*================*/
 	mutex_t*	mutex)	/*!< in: mutex */
 {
 	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
