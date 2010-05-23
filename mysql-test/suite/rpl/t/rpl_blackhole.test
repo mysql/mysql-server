@@ -18,7 +18,7 @@
 source include/master-slave.inc;
 source include/have_blackhole.inc;
 
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 # We start with no primary key
 CREATE TABLE t1 (a INT, b INT, c INT);

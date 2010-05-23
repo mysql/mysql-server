@@ -1,6 +1,6 @@
 source include/master-slave.inc;
 
-CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 create table t1(n int);
 # Use of get_lock gives a warning for unsafeness if binlog_format=statement

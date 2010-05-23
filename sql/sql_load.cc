@@ -696,7 +696,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     {
       if (n++)
         pfields.append(", ");
-      if (item->name)
+      if (item->type() == Item::FIELD_ITEM)
       {
         pfields.append("`");
         pfields.append(item->name);

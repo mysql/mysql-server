@@ -263,7 +263,6 @@ static void run_query(THD *thd, char *buf, char *end,
   ulonglong save_thd_options= thd->variables.option_bits;
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->variables.option_bits));
   NET save_thd_net= thd->net;
-  const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->set_query(buf, (uint) (end - buf));
@@ -277,7 +276,10 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_ASSERT(!thd->in_sub_stmt);
   DBUG_ASSERT(!thd->locked_tables_mode);
 
-  mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
+  {
+    Parser_state parser_state(thd, thd->query(), thd->query_length());
+    mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+  }
 
   if (no_print_error && thd->is_slave_error)
   {

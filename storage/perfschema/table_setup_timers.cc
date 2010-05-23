@@ -18,7 +18,8 @@
   Table SETUP_TIMERS (implementation).
 */
 
-#include "sql_priv.h"
+#include "my_global.h"
+#include "my_pthread.h"
 #include "table_setup_timers.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"

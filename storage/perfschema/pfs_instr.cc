@@ -21,12 +21,11 @@
 #include <string.h>
 
 #include "my_global.h"
-#include "sql_priv.h"
 #include "my_sys.h"
+#include "pfs.h"
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
-#include "m_string.h"                           // strmov
 
 /**
   @addtogroup Performance_schema_buffers
@@ -408,6 +407,8 @@ void cleanup_instruments(void)
   thread_instr_class_waits_array= NULL;
 }
 
+extern "C"
+{
 static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
                                     my_bool)
 {
@@ -421,6 +422,7 @@ static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
   *length= file->m_filename_length;
   result= file->m_filename;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+}
 }
 
 /**
@@ -823,7 +825,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
       - it fits into pfs->m_filename
       - it is safe to use mysys apis to normalize the file name.
     */
-    memcpy(safe_buffer, filename, FN_REFLEN - 2);
+    memcpy(safe_buffer, filename, FN_REFLEN - 1);
     safe_buffer[FN_REFLEN - 1]= 0;
     safe_filename= safe_buffer;
   }
@@ -880,9 +882,12 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 
   /* Append the unresolved file name to the resolved path */
   char *ptr= buffer + strlen(buffer);
-  *ptr++= FN_LIBCHAR;
-  ptr= strmov(ptr, safe_filename + dirlen);
-  *ptr= '\0';
+  char *buf_end= &buffer[sizeof(buffer)-1];
+  if (buf_end > ptr)
+    *ptr++= FN_LIBCHAR;
+  if (buf_end > ptr)
+    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  *buf_end= '\0';
 
   normalized_filename= buffer;
   normalized_length= strlen(normalized_filename);

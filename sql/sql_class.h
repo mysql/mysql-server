@@ -1994,7 +1994,50 @@ public:
   }
 
   ulonglong  limit_found_rows;
-  longlong   row_count_func;    /* For the ROW_COUNT() function */
+
+private:
+  /**
+    Stores the result of ROW_COUNT() function.
+
+    ROW_COUNT() function is a MySQL extention, but we try to keep it
+    similar to ROW_COUNT member of the GET DIAGNOSTICS stack of the SQL
+    standard (see SQL99, part 2, search for ROW_COUNT). It's value is
+    implementation defined for anything except INSERT, DELETE, UPDATE.
+
+    ROW_COUNT is assigned according to the following rules:
+
+      - In my_ok():
+        - for DML statements: to the number of affected rows;
+        - for DDL statements: to 0.
+
+      - In my_eof(): to -1 to indicate that there was a result set.
+
+        We derive this semantics from the JDBC specification, where int
+        java.sql.Statement.getUpdateCount() is defined to (sic) "return the
+        current result as an update count; if the result is a ResultSet
+        object or there are no more results, -1 is returned".
+
+      - In my_error(): to -1 to be compatible with the MySQL C API and
+        MySQL ODBC driver.
+
+      - For SIGNAL statements: to 0 per WL#2110 specification (see also
+        sql_signal.cc comment). Zero is used since that's the "default"
+        value of ROW_COUNT in the diagnostics area.
+  */
+
+  longlong m_row_count_func;    /* For the ROW_COUNT() function */
+
+public:
+  inline longlong get_row_count_func() const
+  {
+    return m_row_count_func;
+  }
+
+  inline void set_row_count_func(longlong row_count_func)
+  {
+    m_row_count_func= row_count_func;
+  }
+
   ha_rows    cuted_fields;
 
   /*
@@ -2781,6 +2824,7 @@ inline void
 my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
+  thd->set_row_count_func(affected_rows);
   thd->stmt_da->set_ok_status(thd, affected_rows, id, message);
 }
 
@@ -2790,6 +2834,7 @@ my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
 inline void
 my_eof(THD *thd)
 {
+  thd->set_row_count_func(-1);
   thd->stmt_da->set_eof_status(thd);
 }
 
@@ -3451,7 +3496,7 @@ public:
 /* Bits in sql_command_flags */
 
 #define CF_CHANGES_DATA           (1U << 0)
-#define CF_HAS_ROW_COUNT          (1U << 1)
+/* The 2nd bit is unused -- it used to be CF_HAS_ROW_COUNT. */
 #define CF_STATUS_COMMAND         (1U << 2)
 #define CF_SHOW_TABLE_COMMAND     (1U << 3)
 #define CF_WRITE_LOGS_COMMAND     (1U << 4)
