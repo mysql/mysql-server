@@ -337,6 +337,12 @@ NodeState::operator=(const NodeStatePOD& ns)
   startLevel = ns.startLevel;
   nodeGroup  = ns.nodeGroup;
   dynamicId  = ns.dynamicId;
+  // masterNodeId is union with dynamicId
+  starting.startPhase = ns.starting.startPhase;
+  starting.restartType = ns.starting.restartType;
+  // stopping.systemShutdown is union with starting.startPhase
+  // stopping.timeout is union with starting.restartType
+  stopping.alarmTime = ns.stopping.alarmTime;
   singleUserMode = ns.singleUserMode;
   singleUserApi  = ns.singleUserApi;
   m_connected_nodes.assign(ns.m_connected_nodes);
