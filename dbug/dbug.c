@@ -1715,10 +1715,7 @@ void _db_end_()
   while ((discard= cs->stack))
   {
     if (discard == &init_settings)
-    {
-      FreeState (cs, discard, 0);
       break;
-    }
     cs->stack= discard->next;
     FreeState(cs, discard, 1);
   }
