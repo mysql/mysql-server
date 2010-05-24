@@ -712,7 +712,8 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 }
 
 
-int run_test_count = 0;
+static int run_test_count = 0;
+static char *envdir = ENVDIR;
 
 static void run_test(enum test_type t, int trigger) 
 {
@@ -725,9 +726,10 @@ static void run_test(enum test_type t, int trigger)
 	fflush(stdout);
     }
 
-
-    r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    char rm_cmd[strlen("rm -rf ") + strlen(envdir) + 1];
+    sprintf(rm_cmd, "rm -rf %s", envdir);
+    r = system(rm_cmd);                                                                                       CKERR(r);
+    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
@@ -736,7 +738,7 @@ static void run_test(enum test_type t, int trigger)
     CKERR(r);
 
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
     r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
@@ -889,6 +891,18 @@ int test_main(int argc, char * const *argv) {
     return 0;
 }
 
+static void usage(const char *cmd) {
+    fprintf(stderr, "Usage: -h -c -s -p -d <num_dbs> -r <num_rows> -t <elow> <ehi> \n%s\n", cmd);
+    fprintf(stderr, "  where -h              print this message.\n");
+    fprintf(stderr, "        -c              check the results.\n");
+    fprintf(stderr, "        -p              LOADER_USE_PUTS.\n");
+    fprintf(stderr, "        -s              size_factor=1.\n");
+    fprintf(stderr, "        -d <num_dbs>    Number of indexes to create (default=%d).\n", default_NUM_DBS);
+    fprintf(stderr, "        -r <num_rows>   Number of rows to put (default=%d).\n", default_NUM_ROWS);
+    fprintf(stderr, "        -t <elo> <ehi>  Instrument only events <elo> to <ehi> (default: instrument all).\n");
+    fprintf(stderr, "        -e <envname>    Create a directory called <envname> for the db environment.\n");
+}
+
 static void do_args(int argc, char * const argv[]) {
     int resultcode;
     char *cmd = argv[0];
@@ -902,16 +916,8 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -s -p -d <num_dbs> -r <num_rows> -t <elow> <ehi> \n%s\n", cmd);
-	    fprintf(stderr, "  where -h              print this message.\n");
-	    fprintf(stderr, "        -c              check the results.\n");
-	    fprintf(stderr, "        -p              LOADER_USE_PUTS.\n");
-	    fprintf(stderr, "        -s              size_factor=1.\n");
-	    fprintf(stderr, "        -d <num_dbs>    Number of indexes to create (default=%d).\n", default_NUM_DBS);
-	    fprintf(stderr, "        -r <num_rows>   Number of rows to put (default=%d).\n", default_NUM_ROWS);
-	    fprintf(stderr, "        -t <elo> <ehi>  Instrument only events <elo> to <ehi> (default: instrument all).\n");
-	    exit(resultcode);
-        } else if (strcmp(argv[0], "-d")==0) {
+            usage(cmd); exit(resultcode);
+        } else if (strcmp(argv[0], "-d")==0 && argc > 1) {
             argc--; argv++;
             NUM_DBS = atoi(argv[0]);
             if ( NUM_DBS > MAX_DBS ) {
@@ -919,7 +925,7 @@ static void do_args(int argc, char * const argv[]) {
                 resultcode=1;
                 goto do_usage;
             }
-        } else if (strcmp(argv[0], "-r")==0) {
+        } else if (strcmp(argv[0], "-r")==0 && argc > 1) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
         } else if (strcmp(argv[0], "-c")==0) {
@@ -927,14 +933,16 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = LOADER_USE_PUTS;
 	    printf("Using puts\n");
-	} else if (strcmp(argv[0], "-t")==0) {
-	    assert(argc>2);
+	} else if (strcmp(argv[0], "-t")==0 && argc > 2) {
 	    argc--; argv++;
 	    event_trigger_lo = atoi(argv[0]);
 	    argc--; argv++;
 	    event_trigger_hi = atoi(argv[0]);
 	} else if (strcmp(argv[0], "-s")==0) {
 	    db_env_set_loader_size_factor(1);            
+        } else if (strcmp(argv[0],"-e") == 0 && argc > 1) {
+            argc--; argv++;
+            envdir = argv[0];
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
