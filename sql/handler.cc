@@ -4366,9 +4366,9 @@ start:
     while (!(range_res= mrr_funcs.next(mrr_iter, &mrr_cur_range)))
     {
 scan_it_again:
-      result= read_range_first(mrr_cur_range.start_key.length ?
+      result= read_range_first(mrr_cur_range.start_key.keypart_map ?
                                  &mrr_cur_range.start_key : 0,
-                               mrr_cur_range.end_key.length ?
+                               mrr_cur_range.end_key.keypart_map ?
                                  &mrr_cur_range.end_key : 0,
                                test(mrr_cur_range.range_flag & EQ_RANGE),
                                mrr_is_output_sorted);

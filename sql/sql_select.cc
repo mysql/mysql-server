@@ -108,8 +108,8 @@ static store_key *get_store_key(THD *thd,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
 static void make_outerjoin_info(JOIN *join);
-static COND *make_cond_after_sjm(Item * root_cond,Item *cond, table_map tables,
-                                 table_map sjm_tables);
+static Item*
+make_cond_after_sjm(Item * root_cond,Item *cond, table_map tables, table_map sjm_tables);
 static bool make_join_select(JOIN *join, Item *item);
 static bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
@@ -661,6 +661,7 @@ JOIN::prepare(Item ***rref_pointer_array,
              doesn't have a JOIN (TODO: We should handle this at some
              point by switching to multi-table UPDATE/DELETE)
         7. We're not in a confluent table-less subquery, like "SELECT 1".
+        8. No execution method was already chosen (by a prepared statement)
         9. Parent select is not a confluent table-less select
         10. Neither parent nor child select have STRAIGHT_JOIN option.    */
     if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
@@ -10007,6 +10008,30 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     an index. For these engines setting the value of join_cache_level to 5 or 6
     results in that no join buffer is used to join the table. 
    
+  TODO
+    Support BKA inside SJ-Materialization nests. When doing this, we'll need
+    to only store sj-inner tables in the join buffer.
+#if 0
+        JOIN_TAB *first_tab= join->join_tab+join->const_tables;
+        uint n_tables= i-join->const_tables;
+        / *
+          We normally put all preceding tables into the join buffer, except
+          for the constant tables.
+          If we're inside a semi-join materialization nest, e.g.
+
+             outer_tbl1  outer_tbl2  ( inner_tbl1, inner_tbl2 ) ...
+                                                       ^-- we're here
+
+          then we need to put into the join buffer only the tables from
+          within the nest.
+        * /
+        if (i >= first_sjm_table && i < last_sjm_table)
+        {
+          n_tables= i - first_sjm_table; // will be >0 if we got here
+          first_tab= join->join_tab + first_sjm_table;
+        }
+#endif
+
   RETURN
     cache level if cache is used, otherwise returns 0
 */
@@ -18581,8 +18606,8 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
   */
   if (((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
   {
-    Item *left_item=	((Item_func*) cond)->arguments()[0];
-    Item *right_item= ((Item_func*) cond)->arguments()[1];
+    Item *left_item=	((Item_func*) cond)->arguments()[0]->real_item();
+    Item *right_item= ((Item_func*) cond)->arguments()[1]->real_item();
     if (left_item->type() == Item::FIELD_ITEM &&
 	test_if_ref(root_cond, (Item_field*) left_item,right_item))
     {
