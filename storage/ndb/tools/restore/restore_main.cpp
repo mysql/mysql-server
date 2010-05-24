@@ -93,6 +93,7 @@ static int _no_restore_disk = 0;
 static bool _preserve_trailing_spaces = false;
 static bool ga_disable_indexes = false;
 static bool ga_rebuild_indexes = false;
+bool ga_skip_unknown_objects = false;
 BaseString g_options("ndb_restore");
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
@@ -261,6 +262,9 @@ static struct my_option my_long_options[] =
     "Rebuild indexes",
     (uchar**) &ga_rebuild_indexes,
     (uchar**) &ga_rebuild_indexes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "skip-unknown-objects", 256, "Skip unknown object when parsing backup",
+    (uchar**) &ga_skip_unknown_objects, (uchar**) &ga_skip_unknown_objects, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
