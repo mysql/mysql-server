@@ -1628,7 +1628,7 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId, Uint32 fragId, Uint32 flag,
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   
-  if (tabPtr.p->tableStatus == DEFINED)
+  if (tabPtr.p->tableStatus == DEFINED && tabPtr.p->m_no_of_disk_attributes)
   {
     jam();
     FragrecordPtr fragPtr;
@@ -1710,7 +1710,8 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   undo->m_table_ptr.i = tableId;
   ptrCheckGuard(undo->m_table_ptr, cnoOfTablerec, tablerec);
   
-  if (undo->m_table_ptr.p->tableStatus != DEFINED)
+  if (! (undo->m_table_ptr.p->tableStatus == DEFINED && 
+         undo->m_table_ptr.p->m_no_of_disk_attributes))
   {
     jam();
     if (DBG_UNDO)
@@ -1890,7 +1891,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
   FragrecordPtr fragPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-  if (tabPtr.p->tableStatus == DEFINED)
+  if (tabPtr.p->tableStatus == DEFINED && tabPtr.p->m_no_of_disk_attributes)
   {
     getFragmentrec(fragPtr, fragId, tabPtr.p);
 
@@ -1951,17 +1952,21 @@ Dbtup::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
   FragrecordPtr fragPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-  getFragmentrec(fragPtr, fragId, tabPtr.p);
-  Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
-  
-  Ptr<Extent_info> ext;
-  c_extent_pool.getPtr(ext, alloc.m_curr_extent_info_ptr_i);
-  
-  Uint32 size= alloc.calc_page_free_space(bits);  
-  
-  ext.p->m_free_page_count[bits]++;
-  update_extent_pos(alloc, ext, size); // actually only to update free_space
-  ndbassert(ext.p->m_free_matrix_pos == RNIL);
+  if (tabPtr.p->tableStatus == DEFINED && tabPtr.p->m_no_of_disk_attributes)
+  {
+    jam();
+    getFragmentrec(fragPtr, fragId, tabPtr.p);
+    Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
+    
+    Ptr<Extent_info> ext;
+    c_extent_pool.getPtr(ext, alloc.m_curr_extent_info_ptr_i);
+    
+    Uint32 size= alloc.calc_page_free_space(bits);  
+    
+    ext.p->m_free_page_count[bits]++;
+    update_extent_pos(alloc, ext, size); // actually only to update free_space
+    ndbassert(ext.p->m_free_matrix_pos == RNIL);
+  }
 }
 
 void
