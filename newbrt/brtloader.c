@@ -1744,7 +1744,6 @@ int merge_files (struct merge_fileset *fs,
 	    }
 	    if (result==0 && !to_queue) {
 		result = extend_fileset(bl, &next_file_set,  &merged_data);
-		if (result!=0) { break; }
 	    }
 
 	    if (result==0) {
