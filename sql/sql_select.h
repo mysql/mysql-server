@@ -210,8 +210,11 @@ typedef struct st_join_table {
     method (but not 'index' for some reason), i.e. this matches method which
     E(#records) is in found_records.
   */
-  ha_rows       read_time;
+  double        read_time;
   
+  /* Startup cost for execution */
+  double        startup_cost;
+
   table_map	dependent,key_dependent;
   uint		use_quick,index;
   uint		status;				///< Save status for cache
@@ -1551,8 +1554,12 @@ public:
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
 
+  /* 
+    Subqueries that will need to be converted to semi-join nests, including
+    those converted to jtbm nests. The list is emptied when conversion is done.
+  */
   Array<Item_in_subselect> sj_subselects;
-
+  
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
   List<SJ_MATERIALIZATION_INFO> sjm_info_list;

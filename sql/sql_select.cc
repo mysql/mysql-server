@@ -2445,7 +2445,7 @@ bool JOIN::setup_subquery_materialization()
       {
         Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
         if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
-            in_subs->setup_engine())
+            in_subs->setup_engine(FALSE))
           return TRUE;
       }
     }
@@ -2531,9 +2531,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   DBUG_ENTER("make_join_statistics");
 
   table_count=join->tables;
-  stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*table_count);
+
+  stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*(table_count));
   stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
+  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*((table_count)*2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
 
@@ -2542,7 +2543,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   stat_end=stat+table_count;
   found_const_table_map= all_table_map=0;
   const_count=0;
-
+  
   for (s= stat, i= 0;
        tables;
        s++, tables= tables->next_leaf, i++)
@@ -2565,7 +2566,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     table->reginfo.join_tab=s;
     table->reginfo.not_exists_optimize=0;
     bzero((char*) table->const_key_parts, sizeof(key_part_map)*table->s->keys);
-    all_table_map|= table->map;
+    all_table_map|= s->table->map;
     s->join=join;
     s->info=0;					// For describe
 
@@ -2574,15 +2575,17 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     if (tables->schema_table)
       table->file->stats.records= 2;
     table->quick_condition_rows= table->file->stats.records;
-
+    
     s->on_expr_ref= &tables->on_expr;
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((!table->file->stats.records || table->no_partitions_used) && !embedding)
+      if (!table->is_filled_at_execution() &&
+           (!table->file->stats.records || table->no_partitions_used) && !embedding)
 #else
-      if (!table->file->stats.records && !embedding)
+      if (!table->is_filled_at_execution() &&
+          !table->file->stats.records && !embedding)
 #endif
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
@@ -2616,7 +2619,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 #else
     const bool no_partitions_used= FALSE;
 #endif
-    if ((table->s->system || table->file->stats.records <= 1 ||
+    if (!table->is_filled_at_execution() && 
+        (table->s->system || table->file->stats.records <= 1 ||
          no_partitions_used) &&
 	!s->dependent &&
 	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
@@ -2626,6 +2630,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       no_rows_const_tables |= table->map;
     }
   }
+
   stat_vector[i]=0;
   join->outer_join=outer_join;
 
@@ -2713,6 +2718,9 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
       table=s->table;
+
+      if (table->is_filled_at_execution())
+        continue;
 
       /* 
         If equi-join condition by a key is null rejecting and after a
@@ -2866,6 +2874,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 
   for (s=stat ; s < stat_end ; s++)
   {
+    s->startup_cost= 0;
     if (s->type == JT_SYSTEM || s->type == JT_CONST)
     {
       /* Only one matching row */
@@ -2873,8 +2882,20 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       continue;
     }
     /* Approximate found rows and time to read them */
-    s->found_records=s->records=s->table->file->stats.records;
-    s->read_time=(ha_rows) s->table->file->scan_time();
+
+    if (s->table->is_filled_at_execution())
+    {
+      get_delayed_table_estimates(s->table, &s->records, &s->read_time,
+                                  &s->startup_cost);
+      s->found_records= s->records;
+      table->quick_condition_rows=s->records;
+    }
+    else
+    {
+      s->found_records= s->records= s->table->file->stats.records;
+      s->read_time= s->table->file->scan_time();
+    }
+
 
     /*
       Set a max range of how many seeks we can expect when using keys
@@ -2897,10 +2918,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       Don't do range analysis if we're on the inner side of an outer join (2).
       Do range analysis if we're on the inner side of a semi-join (3).
     */
-    if (!s->const_keys.is_clear_all() &&                        // (1)
-        (!s->table->pos_in_table_list->embedding ||             // (2)
-         (s->table->pos_in_table_list->embedding &&             // (3)
-          s->table->pos_in_table_list->embedding->sj_on_expr))) // (3)
+    if (!s->const_keys.is_clear_all() &&                          // (1)
+        (!s->table->pos_in_table_list->embedding ||               // (2)
+         (s->table->pos_in_table_list->embedding &&               // (3)
+          s->table->pos_in_table_list->embedding->sj_on_expr)) && // (3)
+        !s->table->is_filled_at_execution())
     {
       ha_rows records;
       SQL_SELECT *select;
@@ -2938,7 +2960,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       if (records != HA_POS_ERROR)
       {
 	s->found_records=records;
-	s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
+	s->read_time= s->quick ? s->quick->read_time : 0.0;
       }
       delete select;
     }
@@ -4265,6 +4287,7 @@ best_access_path(JOIN      *join,
   double tmp;
   ha_rows rec;
   bool best_uses_jbuf= FALSE;
+  Item_in_subselect* jtbm_subselect= s->table->pos_in_table_list->jtbm_subselect;
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
@@ -4617,8 +4640,9 @@ best_access_path(JOIN      *join,
           else
             tmp= best_time;                    // Do nothing
         }
-        loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
 
+        tmp += s->startup_cost;
+        loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
       } /* not ft_key */
       if (tmp < best_time - records/(double) TIME_FOR_COMPARE)
       {
@@ -4660,13 +4684,19 @@ best_access_path(JOIN      *join,
         Since we have a 'ref' access path, and FORCE INDEX instructs us to
         choose it over ALL/index, there is no need to consider a full table
         scan.
+    (5) Non-flattenable semi-joins: don't consider doing a scan of temporary
+        table if we had an option to make lookups into it. In real-world cases,
+        lookups are cheaper than full scans, but when the table is small, they
+        can be [considered to be] more expensive, which causes lookups not to 
+        be used for cases with small datasets, which is annoying.
   */
   if ((records >= s->found_records || best > s->read_time) &&            // (1)
       !(s->quick && best_key && s->quick->index == best_key->key &&      // (2)
         best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&// (2)
       !((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&   // (3)
         ! s->table->covering_keys.is_clear_all() && best_key && !s->quick) &&// (3)
-      !(s->table->force_index && best_key && !s->quick))                 // (4)
+      !(s->table->force_index && best_key && !s->quick) &&               // (4)
+      !(best_key && jtbm_subselect))                                     // (5)
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
     /*
@@ -4713,8 +4743,7 @@ best_access_path(JOIN      *join,
     }
     else
     {
-      /* Estimate cost of reading table. */
-      tmp= s->table->file->scan_time();
+      tmp= s->read_time;
       if ((s->table->map & join->outer_join) || disable_jbuf)     // Can't use join cache
       {
         /*
@@ -4743,6 +4772,7 @@ best_access_path(JOIN      *join,
       }
     }
 
+    tmp += s->startup_cost;
     /*
       We estimate the cost of evaluating WHERE clause for found records
       as record_count * rnd_records / TIME_FOR_COMPARE. This cost plus
@@ -4765,7 +4795,7 @@ best_access_path(JOIN      *join,
                                                join->outer_join)));
     }
   }
-  
+
   /* Update the cost information for the current partial plan */
   pos->records_read= records;
   pos->read_time=    best;
@@ -6688,12 +6718,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    the index if we are using limit and this is the first table
 	  */
 
-	  if ((cond &&
-               (!tab->keys.is_subset(tab->const_keys) && i > 0)) ||
-	      (!tab->const_keys.is_clear_all() && i == join->const_tables &&
-	       join->unit->select_limit_cnt <
-	       join->best_positions[i].records_read &&
-	       !(join->select_options & OPTION_FOUND_ROWS)))
+	  if (!tab->table->is_filled_at_execution() &&
+              ((cond && (!tab->keys.is_subset(tab->const_keys) && i > 0)) ||
+               (!tab->const_keys.is_clear_all() && i == join->const_tables &&
+                join->unit->select_limit_cnt <
+                join->best_positions[i].records_read &&
+                !(join->select_options & OPTION_FOUND_ROWS))))
 	  {
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
@@ -7684,6 +7714,12 @@ void JOIN_TAB::cleanup()
       table->file->extra(HA_EXTRA_NO_KEYREAD);
     }
     table->file->ha_index_or_rnd_end();
+
+    if (table->pos_in_table_list && 
+        table->pos_in_table_list->jtbm_subselect)
+    {
+      table->pos_in_table_list->jtbm_subselect->cleanup();
+    }
     /*
       We need to reset this for next select
       (Tested in part_of_refkey)
@@ -9861,16 +9897,10 @@ static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
-      //nested_join->n_tables= my_count_bits(nested_join->used_tables & 
-      //                                     ~join->eliminated_tables);
       nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
       if (!nested_join->n_tables)
         is_eliminated_nest= TRUE;
     }
-    //if (!table->table || (table->table->map & ~join->eliminated_tables))
-    //psergey-merge10^
-    //if (!table->table && (table->table->map & ~join->eliminated_tables))
-    //psergey-merge11^
     if ((!table->table && !is_eliminated_nest) || 
         (table->table && (table->table->map & ~join->eliminated_tables)))
       n++;
@@ -11396,6 +11426,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     share->keys=1;
     share->uniques= test(using_unique_constraint);
     table->key_info= table->s->key_info= keyinfo;
+    table->keys_in_use_for_query.set_bit(0);
+    share->keys_in_use.set_bit(0);
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME;
     keyinfo->usable_key_parts=keyinfo->key_parts= param->group_parts;
@@ -11411,6 +11443,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
+      if (cur_group == group)
+        field->key_start.set_bit(0);
       key_part_info->offset= field->offset(table->record[0]);
       key_part_info->length= (uint16) field->key_length();
       key_part_info->type=   (uint8) field->key_type();
@@ -11481,6 +11515,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                      keyinfo->key_parts * sizeof(KEY_PART_INFO))))
       goto err;
     bzero((void*) key_part_info, keyinfo->key_parts * sizeof(KEY_PART_INFO));
+    table->keys_in_use_for_query.set_bit(0);
+    share->keys_in_use.set_bit(0);
     table->key_info= table->s->key_info= keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
@@ -11519,6 +11555,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       key_part_info->null_bit=0;
       key_part_info->field=    *reg_field;
+      (*reg_field)->flags |= PART_KEY_FLAG;
+      if (key_part_info == keyinfo->key_part)
+        (*reg_field)->key_start.set_bit(0);
+      key_part_info->null_bit= (*reg_field)->null_bit;
+      key_part_info->null_offset= (uint) ((*reg_field)->null_ptr -
+                                          (uchar*) table->record[0]);
+
       key_part_info->offset=   (*reg_field)->offset(table->record[0]);
       key_part_info->length=   (uint16) (*reg_field)->pack_length();
       /* TODO:
@@ -12804,6 +12847,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       join_tab->last_inner->first_unmatched= join_tab;
     }
     join->thd->row_count= 0;
+    
+    if (do_jtbm_materialization_if_needed(join_tab))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
 
     error= (*join_tab->read_first_record)(join_tab);
 
@@ -17943,7 +17989,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         /* table */
         int len= my_snprintf(table_name_buffer, 
                              sizeof(table_name_buffer)-1,
-                             "subselect%d", 
+                             "SUBQUERY#%d", 
                              tab->emb_sj_nest->sj_subq_pred->get_identifier());
 	item_list.push_back(new Item_string(table_name_buffer, len, cs));
         /* partitions */
@@ -18169,7 +18215,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= tab->limit ? tab->limit : tab->table->file->records();
+          examined_rows= tab->limit ? tab->limit : tab->records;
         else
           examined_rows=(ha_rows)join->best_positions[i].records_read; 
  
@@ -18656,6 +18702,14 @@ void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str,
   {
     str->append('(');
     print_join(thd, eliminated_tables, str, &nested_join->join_list, query_type);
+    str->append(')');
+  }
+  else if (jtbm_subselect)
+  {
+    str->append(STRING_WITH_LEN(" <materialize> ("));
+    subselect_hash_sj_engine *hash_engine;
+    hash_engine= (subselect_hash_sj_engine*)jtbm_subselect->engine;
+    hash_engine->materialize_engine->print(str, query_type);
     str->append(')');
   }
   else
