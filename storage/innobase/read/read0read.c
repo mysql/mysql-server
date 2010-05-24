@@ -205,8 +205,6 @@ read_view_purge_open(
 	trx_id_t	creator_trx_id;
 	ulint		insert_done	= 0;
 
-	// FIXME:
-	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx_sys_mutex_own());
 
 	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
@@ -289,8 +287,6 @@ read_view_open_now(
 	trx_t*		trx;
 	ulint		n;
 
-	// FIXME:
-	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx_sys_mutex_own());
 
 	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
@@ -310,6 +306,12 @@ read_view_open_now(
 	/* No active transaction should be visible, except cr_trx */
 
 	while (trx) {
+		trx_t*	prev_trx;
+
+		trx_mutex_enter(trx);
+
+		prev_trx = trx;
+
 		if (ut_dulint_cmp(trx->id, cr_trx_id) != 0
 		    && (trx->conc_state == TRX_ACTIVE
 			|| trx->conc_state == TRX_PREPARED)) {
@@ -331,6 +333,8 @@ read_view_open_now(
 		}
 
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
+
+		trx_mutex_exit(prev_trx);
 	}
 
 	view->n_trx_ids = n;
@@ -460,9 +464,6 @@ read_cursor_view_create_for_mysql(
 	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
 	cr_trx->n_mysql_tables_in_use = 0;
 
-	// FIXME: See next FIXME
-	mutex_enter(&kernel_mutex);
-
 	trx_sys_mutex_enter();
 
 	curview->read_view = read_view_create_low(
@@ -484,12 +485,10 @@ read_cursor_view_create_for_mysql(
 	/* No active transaction should be visible */
 
 	while (trx) {
+		trx_t*	prev_trx = trx;
 
-		// FIXME: This can change behind our back, in fact this
-		// transaction change state needs careful consideration
-		// as it ties in with locking. Quick fix for now is to
-		// acquire the kernel mutex before the trx_sys->mutex
-		// but that is a sub-optimal fix.
+		trx_mutex_enter(trx);
+
 		if (trx->conc_state == TRX_ACTIVE
 		    || trx->conc_state == TRX_PREPARED) {
 
@@ -510,6 +509,8 @@ read_cursor_view_create_for_mysql(
 		}
 
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
+
+		trx_mutex_exit(prev_trx);
 	}
 
 	view->n_trx_ids = n;
@@ -524,8 +525,6 @@ read_cursor_view_create_for_mysql(
 	ut_ad(read_view_validate(view));
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
-
-	mutex_exit(&kernel_mutex);
 
 	trx_sys_mutex_exit();
 

@@ -140,9 +140,7 @@ trx_purge_sys_create(
 /*=================*/
 	ulint	n_purge_threads)	/*!< in: number of purge threads */
 {
-	ibool	success;
-
-	purge_sys = mem_zalloc(sizeof(trx_purge_t));
+	purge_sys = mem_zalloc(sizeof(*purge_sys));
 
 	rw_lock_create(trx_purge_latch_key,
 		       &purge_sys->latch, SYNC_PURGE_LATCH);
@@ -161,25 +159,25 @@ trx_purge_sys_create(
 
 	purge_sys->trx = purge_sys->sess->trx;
 
-	purge_sys->trx->is_purge = 1;
+	trx_mutex_enter(purge_sys->trx);
 
-	success = trx_start_low(purge_sys->trx, ULINT_UNDEFINED);
-	ut_a(success);
+	/* A purge transaction is not a real transaction, we use a transaction
+	here only because the query threads code requires it. It is otherwise
+	quite unnecessary. We should get rid of it eventually. */
+	purge_sys->trx->id = ut_dulint_zero;
+	purge_sys->trx->start_time = ut_time();
+	purge_sys->trx->conc_state = TRX_ACTIVE;
+
+	trx_mutex_exit(purge_sys->trx);
 
 	purge_sys->query = trx_purge_graph_build(
 		purge_sys->trx, n_purge_threads);
-
-	/* FIXME: This is not really required, we need to get rid of this
-	depenedency on the kernel mutex. */
-	mutex_enter(&kernel_mutex);
 
 	trx_sys_mutex_enter();
 
 	purge_sys->view = read_view_purge_open(purge_sys->heap);
 
 	trx_sys_mutex_exit();
-
-	mutex_exit(&kernel_mutex);
 }
 
 /************************************************************************
@@ -189,11 +187,9 @@ void
 trx_purge_sys_close(void)
 /*======================*/
 {
-	ut_ad(!mutex_own(&kernel_mutex));
-
 	que_graph_free(purge_sys->query);
 
-	ut_a(purge_sys->sess->trx->is_purge);
+	ut_a(ut_dulint_is_zero(purge_sys->trx->id));
 
 	purge_sys->sess->trx->conc_state = TRX_NOT_STARTED;
 
@@ -202,15 +198,11 @@ trx_purge_sys_close(void)
 	purge_sys->sess = NULL;
 
 	if (purge_sys->view != NULL) {
-		mutex_enter(&kernel_mutex);
-
 		trx_sys_mutex_enter();
 
 		read_view_remove(purge_sys->view);
 
 		trx_sys_mutex_exit();
-
-		mutex_exit(&kernel_mutex);
 
 		purge_sys->view = NULL;
 	}
@@ -1102,10 +1094,6 @@ trx_purge(
 
 	rw_lock_x_lock(&purge_sys->latch);
 
-	/* FIXME: This is only required because of read view create and
-	we should get rid of this dependency. */
-	mutex_enter(&kernel_mutex);
-
 	trx_sys_mutex_enter();
 
 	srv_dml_needed_delay = trx_purge_dml_delay();
@@ -1119,8 +1107,6 @@ trx_purge(
 	purge_sys->view = read_view_purge_open(purge_sys->heap);
 
 	trx_sys_mutex_exit();
-
-	mutex_exit(&kernel_mutex);
 
 	purge_sys->n_pages_handled_start = purge_sys->n_pages_handled;
 

@@ -451,13 +451,6 @@ ulint
 srv_get_n_threads(void);
 /*===================*/
 /*********************************************************************//**
-Returns the calling thread type.
-@return	SRV_COM, ... */
-
-enum srv_thread_type
-srv_get_thread_type(void);
-/*=====================*/
-/*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
@@ -695,15 +688,6 @@ srv_release_threads(
 /*================*/
 	enum srv_thread_type	type,	/*!< in: thread type */
 	ulint			n);	/*!< in: number of threads to release */
-
-/*********************************************************************//**
-Suspends the calling thread to wait for the event in its thread slot.
-NOTE! The server mutex has to be reserved by the caller!
-@return	event for the calling thread to wait */
-UNIV_INTERN
-os_event_t
-srv_suspend_thread(void);
-/*====================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{

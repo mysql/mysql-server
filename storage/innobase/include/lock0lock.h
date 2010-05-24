@@ -482,11 +482,12 @@ lock_rec_unlock(
 	enum lock_mode		lock_mode);/*!< in: LOCK_S or LOCK_X */
 /*********************************************************************//**
 Releases transaction locks, and releases possible other transactions waiting
-because of these locks. */
+because of these locks. Caller must reserve the followin locks before
+calling: lock_mutex, trx_sys_mutex and the trx mutex. */
 UNIV_INTERN
 void
-lock_release_off_kernel(
-/*====================*/
+lock_release(
+/*=========*/
 	trx_t*	trx);	/*!< in: transaction */
 /*********************************************************************//**
 Cancels a waiting lock request and releases possible other transactions
@@ -817,7 +818,6 @@ struct lock_sys_struct{
 /** The lock system */
 extern lock_sys_t*	lock_sys;
 
-#if 1
 /** Test if lock_sys->mutex can be acquired without waiting. */
 #define lock_mutex_enter_nowait() mutex_enter_nowait(&lock_sys->mutex)
 
@@ -833,24 +833,6 @@ extern lock_sys_t*	lock_sys;
 #define lock_mutex_exit() do {			\
 	mutex_exit(&lock_sys->mutex);		\
 } while (0)
-#else
-/** Test if kernel_mutex can be acquired without waiting. */
-#define lock_mutex_enter_nowait() mutex_enter_nowait(&kernel_mutex)
-
-/** Test if kernel_mutex is owned. */
-#define lock_mutex_own() mutex_own(&kernel_mutex)
-
-/** Acquire the kernel_mutex. */
-#define lock_mutex_enter() do {			\
-	mutex_enter(&kernel_mutex);		\
-} while (0)
-
-/** Release the kernel_mutex. */
-#define lock_mutex_exit() do {			\
-	mutex_exit(&kernel_mutex);		\
-} while (0)
-
-#endif
 
 #ifndef UNIV_NONINL
 #include "lock0lock.ic"

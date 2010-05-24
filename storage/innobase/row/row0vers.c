@@ -75,12 +75,13 @@ row_vers_impl_x_locked_off_kernel(
 	mtr_t		mtr;
 	ulint		comp;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
-	mutex_exit(&kernel_mutex);
+	lock_mutex_exit();
 
 	mtr_start(&mtr);
 
@@ -105,7 +106,7 @@ row_vers_impl_x_locked_off_kernel(
 		a rollback we always undo the modifications to secondary index
 		records before the clustered index record. */
 
-		mutex_enter(&kernel_mutex);
+		lock_mutex_enter();
 		mtr_commit(&mtr);
 
 		return(NULL);
@@ -116,9 +117,9 @@ row_vers_impl_x_locked_off_kernel(
 					ULINT_UNDEFINED, &heap);
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 
-	mtr_s_lock(&(purge_sys->latch), &mtr);
+	mtr_s_lock(&purge_sys->latch, &mtr);
 
-	mutex_enter(&kernel_mutex);
+	lock_mutex_enter();
 
 	trx = NULL;
 	if (!trx_is_active(trx_id)) {
@@ -158,7 +159,7 @@ row_vers_impl_x_locked_off_kernel(
 		row_ext_t*	ext;
 		trx_id_t	prev_trx_id;
 
-		mutex_exit(&kernel_mutex);
+		lock_mutex_exit();
 
 		/* While we retrieve an earlier version of clust_rec, we
 		release the kernel mutex, because it may take time to access
@@ -175,8 +176,7 @@ row_vers_impl_x_locked_off_kernel(
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version == NULL) {
-			mutex_enter(&kernel_mutex);
-
+			lock_mutex_enter();
 			if (!trx_is_active(trx_id)) {
 				/* Transaction no longer active: no
 				implicit x-lock */
@@ -211,7 +211,7 @@ row_vers_impl_x_locked_off_kernel(
 		cannot hold any implicit lock. */
 		if (vers_del && 0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
 
-			mutex_enter(&kernel_mutex);
+			lock_mutex_enter();
 			break;
 		}
 
@@ -227,7 +227,7 @@ row_vers_impl_x_locked_off_kernel(
 		prev_version should be NULL. */
 		ut_a(entry);
 
-		mutex_enter(&kernel_mutex);
+		lock_mutex_enter();
 
 		if (!trx_is_active(trx_id)) {
 			/* Transaction no longer active: no implicit x-lock */

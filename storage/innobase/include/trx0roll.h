@@ -117,15 +117,6 @@ trx_undo_rec_release(
 /*=================*/
 	trx_t*		trx,	/*!< in/out: transaction */
 	undo_no_t	undo_no);/*!< in: undo number */
-/*********************************************************************//**
-Starts a rollback operation.
-@return query graph that will perform the UNDO operations. */
-UNIV_INTERN
-que_thr_t*
-trx_rollback(
-/*=========*/
-	trx_t*		trx,		/*!< in: transaction */
-	dulint		roll_limit);	/*!< in: rollback to undo no */
 /*******************************************************************//**
 Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
@@ -151,13 +142,6 @@ trx_rollback_or_clean_all_recovered(
 	void*	arg __attribute__((unused)));
 			/*!< in: a dummy parameter required by
 			os_thread_create */
-/****************************************************************//**
-Finishes a transaction rollback. */
-UNIV_INTERN
-void
-trx_finish_rollback_off_kernel(
-/*===========================*/
-	trx_t*		trx);	/*!< in: transaction */
 /*********************************************************************//**
 Creates a rollback command node struct.
 @return	own: rollback node struct */

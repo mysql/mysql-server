@@ -45,14 +45,6 @@ extern ibool	que_trace_on;
 extern mutex_t	que_thr_mutex;
 
 /***********************************************************************//**
-Adds a query graph to the session's list of graphs. */
-UNIV_INTERN
-void
-que_graph_publish(
-/*==============*/
-	que_t*	graph,	/*!< in: graph */
-	sess_t*	sess);	/*!< in: session */
-/***********************************************************************//**
 Creates a query graph fork node.
 @return	own: fork node */
 UNIV_INTERN
@@ -533,41 +525,19 @@ struct que_fork_struct{
 #define QUE_CUR_START		2
 #define	QUE_CUR_END		3
 
+/** Test if query thr mutex is owned. */
+#define query_mutex_own(t) mutex_own(&thr_get_trx(t)->mutex)
 
-#if 1
-/** Test if query_thr_mutex can be acquired without waiting. */
-#define query_mutex_enter_nowait() mutex_enter_nowait(&que_thr_mutex)
-
-/** Test if query_thr_mutex is owned. */
-#define query_mutex_own() mutex_own(&que_thr_mutex)
-
-/** Acquire the query_thr_mutex. */
-#define query_mutex_enter() do {		\
-	mutex_enter(&que_thr_mutex);		\
+/** Acquire the query thr mutex. */
+#define query_mutex_enter(t) do {		\
+	mutex_enter(&thr_get_trx(t)->mutex);	\
 } while (0)
 
-/** Release the query_thr_mutex. */
-#define query_mutex_exit() do {			\
-	mutex_exit(&que_thr_mutex);		\
-} while (0)
-#else
-/** Test if kernel_mutex can be acquired without waiting. */
-#define query_mutex_enter_nowait() mutex_enter_nowait(&kernel_mutex)
-
-/** Test if kernel_mutex is owned. */
-#define query_mutex_own() mutex_own(&kernel_mutex)
-
-/** Acquire the kernel_mutex. */
-#define query_mutex_enter() do {		\
-	mutex_enter(&kernel_mutex);		\
+/** Release the query thr mutex. */
+#define query_mutex_exit(t) do {		\
+	mutex_exit(&thr_get_trx(t)->mutex);	\
 } while (0)
 
-/** Release the kernel_mutex. */
-#define query_mutex_exit() do {			\
-	mutex_exit(&kernel_mutex);		\
-} while (0)
-
-#endif
 #ifndef UNIV_NONINL
 #include "que0que.ic"
 #endif

@@ -442,7 +442,7 @@ fill_trx_row(
 	size_t		stmt_len;
 	const char*	s;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
 
 	row->trx_id = trx_get_id(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
@@ -1093,7 +1093,7 @@ add_trx_relevant_locks_to_cache(
 					requested lock row, or NULL or
 					undefined */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
 
 	/* If transaction is waiting we add the wait lock and all locks
 	from another transactions that are blocking the wait lock. */
@@ -1237,7 +1237,7 @@ fetch_data_into_cache(
 	i_s_trx_row_t*		trx_row;
 	i_s_locks_row_t*	requested_lock_row;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
 
 	trx_i_s_cache_clear(cache);
 
@@ -1301,11 +1301,12 @@ trx_i_s_possibly_fetch_data_into_cache(
 	}
 
 	/* We need to read trx_sys and record/table lock queues */
-	mutex_enter(&kernel_mutex);
+
+	lock_mutex_enter();
 
 	fetch_data_into_cache(cache);
 
-	mutex_exit(&kernel_mutex);
+	lock_mutex_exit();
 
 	return(0);
 }
@@ -1333,8 +1334,8 @@ trx_i_s_cache_init(
 {
 	/* The latching is done in the following order:
 	acquire trx_i_s_cache_t::rw_lock, X
-	acquire kernel_mutex
-	release kernel_mutex
+	acquire lock mutex 
+	release lock mutex
 	release trx_i_s_cache_t::rw_lock
 	acquire trx_i_s_cache_t::rw_lock, S
 	acquire trx_i_s_cache_t::last_read_mutex

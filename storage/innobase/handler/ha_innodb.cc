@@ -9878,7 +9878,9 @@ innobase_xa_prepare(
 
 		ut_ad(trx->active_trans);
 
-		error = (int) trx_prepare_for_mysql(trx);
+		trx_prepare_for_mysql(trx);
+
+		error = 0;
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction prepare */
