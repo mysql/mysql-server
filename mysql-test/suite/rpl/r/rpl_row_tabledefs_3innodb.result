@@ -118,214 +118,27 @@ a	b
 SELECT * FROM t2;
 a
 2
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	Yes
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	<Last_Error>
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	<Last_IO_Errno>
-Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	0
-Last_SQL_Error	<Last_SQL_Error>
+Checking that both slave threads are running.
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	<Last_Error>
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	<Last_IO_Errno>
-Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	1535
-Last_SQL_Error	<Last_SQL_Error>
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
+include/start_slave.inc
 INSERT INTO t9 VALUES (5);
 INSERT INTO t5 VALUES (5,10,25);
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	<Last_Error>
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	<Last_IO_Errno>
-Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	1535
-Last_SQL_Error	<Last_SQL_Error>
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
+include/start_slave.inc
 INSERT INTO t9 VALUES (6);
 INSERT INTO t6 VALUES (6,12,36);
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	<Last_Error>
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	<Last_IO_Errno>
-Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	1535
-Last_SQL_Error	<Last_SQL_Error>
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
+include/start_slave.inc
 INSERT INTO t9 VALUES (6);
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	Yes
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	<Last_Error>
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	<Last_IO_Errno>
-Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	0
-Last_SQL_Error	<Last_SQL_Error>
+Checking that both slave threads are running.
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;

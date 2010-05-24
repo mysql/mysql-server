@@ -52,18 +52,18 @@ CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 flush table t1;
-show binlog events in 'master-bin.000002' LIMIT 2,2;
+show binlog events in 'master-bin.000002' from <binlog_start> limit 1,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+master-bin.000002	#	Query	#	#	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+master-bin.000002	#	Query	#	#	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 select * from t1;
 a
 1
 On slave
-show binlog events in 'slave-bin.000002' LIMIT 2,2;
+show binlog events in 'slave-bin.000002' from <binlog_start> limit 1,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+slave-bin.000002	#	Query	#	#	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+slave-bin.000002	#	Query	#	#	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 select * from t1;
 a
 1
@@ -112,24 +112,14 @@ id	name
 USE test;
 DROP SCHEMA mysqlslap;
 use test;
-FLUSH LOGS;
-FLUSH LOGS;
 CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 flush table t1;
-show binlog events in 'master-bin.000002' LIMIT 2,2;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 select * from t1;
 a
 1
 On slave
-show binlog events in 'slave-bin.000002' LIMIT 2,2;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
-x	x	x	x	x	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 select * from t1;
 a
 1
