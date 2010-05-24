@@ -234,8 +234,8 @@ then
         if uname | grep -iq cygwin
         then
             install_dir_dos=`cygpath -w $install_dir`
-            cmd /c cscript win/configure.js WITH_NDBCLUSTER_STORAGE_ENGINE WITH_NDB_TEST --without-plugins=archive,blackhole,example,federated
-            cmd /c cmake -G "Visual Studio 9 2008" -DERROR_INSERT=1 -DCMAKE_INSTALL_PREFIX=$install_dir_dos
+            cmd /c cscript win/configure.js WITH_NDBCLUSTER_STORAGE_ENGINE --without-plugins=archive,blackhole,example,federated
+            cmd /c cmake -G "Visual Studio 9 2008" -DERROR_INSERT=1 -DWITH_NDB_TEST=1 -DCMAKE_INSTALL_PREFIX=$install_dir_dos
             cmd /c devenv.com MySql.sln /Build RelWithDebInfo
             cmd /c devenv.com MySql.sln /Project INSTALL /Build
         else
