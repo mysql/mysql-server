@@ -43,7 +43,7 @@ set global max_relay_log_size=8192-1; # mapped to 4096
 select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
-source include/show_slave_status2.inc;
+--source include/check_slave_is_running.inc
 
 --echo #
 --echo # Test 2
@@ -55,7 +55,7 @@ set global max_relay_log_size=(5*4096);
 query_vertical select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
-source include/show_slave_status2.inc;
+--source include/check_slave_is_running.inc
 
 --echo #
 --echo # Test 3: max_relay_log_size = 0
@@ -67,7 +67,7 @@ set global max_relay_log_size=0;
 query_vertical select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
-source include/show_slave_status2.inc;
+--source include/check_slave_is_running.inc
 
 --echo #
 --echo # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
@@ -78,7 +78,6 @@ reset slave;
 # test of relay log rotation when the slave is stopped
 # (to make sure it does not crash).
 flush logs;
-source include/show_slave_status2.inc;
 
 --echo #
 --echo # Test 5
@@ -93,10 +92,8 @@ flush logs;
 # log we just closed. But a trick to achieve this is do an update on the master.
 connection master;
 create table t1 (a int);
-save_master_pos;
-connection slave;
-sync_with_master;
-source include/show_slave_status2.inc;
+sync_slave_with_master;
+--source include/check_slave_is_running.inc
 
 --echo #
 --echo # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
@@ -105,10 +102,8 @@ source include/show_slave_status2.inc;
 flush logs;
 connection master;
 drop table t1;
-save_master_pos;
-connection slave;
-sync_with_master;
-source include/show_slave_status2.inc;
+sync_slave_with_master;
+--source include/check_slave_is_running.inc
 
 connection master;
 # test that the absence of relay logs does not make a master crash
