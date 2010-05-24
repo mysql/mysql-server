@@ -1168,8 +1168,6 @@ trx_rollback_start(
 
 	ut_ad(trx_mutex_own(trx));
 
-	printf("trx_rollback_start: %p\n", trx);
-
 	ut_ad(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
 
 	/* Initialize the rollback field in the transaction */
@@ -1191,8 +1189,6 @@ trx_rollback_start(
 
 	trx->graph = roll_graph;
 	trx->que_state = TRX_QUE_ROLLING_BACK;
-
-	printf("%p que_state: %lu\n", trx, (ulint) trx->que_state);
 
 	return(que_fork_start_command(roll_graph));
 }

@@ -4069,8 +4069,17 @@ no_gap_lock:
 			}
 			if (UNIV_LIKELY(trx->wait_lock != NULL)) {
 
+				trx_mutex_enter(trx);
+
 				lock_cancel_waiting_and_release(
 					trx->wait_lock);
+
+				/* The following function releases the trx
+			       	from lock wait */
+
+				que_thr_end_wait_no_next_thr(trx);
+
+				trx_mutex_exit(trx);
 
 				prebuilt->new_rec_locks = 0;
 			} else {

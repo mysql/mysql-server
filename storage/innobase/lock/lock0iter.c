@@ -32,9 +32,6 @@ Created July 16, 2007 Vasil Dimov
 #include "lock0priv.h"
 #include "ut0dbg.h"
 #include "ut0lst.h"
-#ifdef UNIV_DEBUG
-# include "srv0srv.h" /* kernel_mutex */
-#endif /* UNIV_DEBUG */
 
 /*******************************************************************//**
 Initialize lock queue iterator so that it starts to iterate from
