@@ -1557,7 +1557,7 @@ bool change_master(THD* thd, Master_info* mi)
     in-memory value at restart (thus causing errors, as the old relay log does
     not exist anymore).
   */
-  mi->rli->flush_info();
+  ret= mi->rli->flush_info();
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli->data_lock);
 

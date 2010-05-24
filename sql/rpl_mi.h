@@ -21,6 +21,9 @@
 #include <my_global.h>
 #include <mysql_priv.h>
 
+#include <my_global.h>
+#include <mysql_priv.h>
+
 #define DEFAULT_CONNECT_RETRY 60
 
 #include "rpl_rli.h"

@@ -13,30 +13,36 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef RPL_INFO_FACTORY_H
-#define RPL_INFO_FACTORY_H
+#ifndef RPL_INFO_FIELDS_H
+#define RPL_INFO_FIELDS_H
 
-#include "rpl_mi.h"
-#include "rpl_rli.h"
+#include <my_global.h>
+#include <m_string.h>
 
-#define MI_FIELD_ID 0
-
-#define MI_SCHEMA "mysql"
-#define MI_TABLE  "mi_info"
-
-#define RLI_FIELD_ID 0
-
-#define RLI_SCHEMA "mysql"
-#define RLI_TABLE  "rli_info"
-
-class Rpl_info_factory
+struct info_fields
 {
-  public:
+  LEX_STRING use;
+  LEX_STRING saved;
+  int size;
+} typedef info_fields;
 
-  bool static create(uint mi_option, Master_info **mi,
-                     uint rli_option, Relay_log_info **rli);
-  bool static create_mi(uint rli_option, Master_info **rli);
-  bool static create_rli(uint rli_option, bool is_slave_recovery,
-                         Relay_log_info **rli);
+class Rpl_info_fields
+{
+public:
+
+  Rpl_info_fields(int param_ninfo): field(0), 
+    ninfo(param_ninfo) { };
+  virtual ~Rpl_info_fields();
+
+  bool configure();
+  bool resize(int needed_size, int pos);
+
+  info_fields *field;
+
+private:
+  int ninfo;
+
+  Rpl_info_fields& operator=(const Rpl_info_fields& fields);
+  Rpl_info_fields(const Rpl_info_fields& fields);
 };
-#endif
+#endif /* RPL_INFO_FIELDS_H */

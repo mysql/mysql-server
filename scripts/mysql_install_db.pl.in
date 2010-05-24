@@ -79,6 +79,11 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
+  --engine_rep=engine  The type of the engine where the mysql.mi_info and
+                       mysql.rli_info tables will be created. By default both
+                       tables will be created in the MyIsam engine. However, a
+                       user may choose any available engine. If a crash-safe
+                       slave is desired the engine must be transactional.
 
 All other options are passed to the mysqld program
 
@@ -117,6 +122,7 @@ sub parse_arguments
              "builddir=s",      # FIXME not documented
              "srcdir=s",
              "ldata|datadir=s",
+             "engine_rep=s",
 
              # Note that the user will be passed to mysqld so that it runs
              # as 'user' (crucial e.g. if log-bin=/some_other_path/
@@ -451,6 +457,29 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
   close SQL;
 
   report_verbose($opt,"OK");
+
+  # ----------------------------------------------------------------------
+  # Pipe ALTER TABLE mysql.mi|rli_info to "mysqld --bootstrap"
+  # ----------------------------------------------------------------------
+
+  if ($engine_rep)
+  {
+    report_verbose_wait($opt,"Filling help tables...");
+    if ( open(PIPE, "| $mysqld_install_cmd_line") )
+    {
+      print PIPE "use mysql;\n";
+      print PIPE "ALTER TABLE mysql.mi_info ENGINE= " . $engine_rep . ";\n";
+      print PIPE "ALTER TABLE mysql.rli_info ENGINE= " . $engine_rep . ";\n";
+      close PIPE;
+
+      report_verbose($opt,"OK");
+    }
+    else
+    {
+      warning($opt,"CRASH-SAFE SLAVE IS NOT COMPLETELY CONFIGURED!",
+                   "The \"CRASH-SAFE SLAVE\" might not work properly.");
+    }
+  }
 
   # ----------------------------------------------------------------------
   # Pipe fill_help_tables.sql to "mysqld --bootstrap"

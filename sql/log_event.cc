@@ -5474,10 +5474,45 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  int error= 0;
+  Relay_log_info *tmp_rli= const_cast<Relay_log_info *>(rli);
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  return end_trans(thd, COMMIT);
+  /*
+    We need to update the positions in here to make it transactional.  
+  */
+  fprintf(stderr, "group master %s %lu  group relay %s %lu event %s %lu\n",
+    tmp_rli->get_group_master_log_name(),
+    (ulong) tmp_rli->get_group_master_log_pos(),
+    tmp_rli->get_group_relay_log_name(),
+    (ulong) tmp_rli->get_group_relay_log_pos(),
+    tmp_rli->get_event_relay_log_name(),
+    (ulong) tmp_rli->get_event_relay_log_pos());
+  fflush(stderr);
+
+  DBUG_EXECUTE_IF("crash_before_update_pos", abort(););
+  tmp_rli->inc_group_relay_log_pos(tmp_rli->get_group_master_log_pos());
+  tmp_rli->set_group_master_log_pos(log_pos);
+
+  if ((error= tmp_rli->flush_info(TRUE)))
+    goto err;
+
+  fprintf(stderr, "group master %s %lu  group relay %s %lu event %s %lu\n",
+    tmp_rli->get_group_master_log_name(),
+    (ulong) tmp_rli->get_group_master_log_pos(),
+    tmp_rli->get_group_relay_log_name(),
+    (ulong) tmp_rli->get_group_relay_log_pos(),
+    tmp_rli->get_event_relay_log_name(),
+    (ulong) tmp_rli->get_event_relay_log_pos());
+  fflush(stderr);
+
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", abort(););
+  if ((error= end_trans(thd, COMMIT)))
+    goto err;
+  DBUG_EXECUTE_IF("crash_after_apply", abort(););
+err:
+  return error;
 }
 
 Log_event::enum_skip_reason
@@ -5489,6 +5524,11 @@ Xid_log_event::do_shall_skip(Relay_log_info *rli)
     DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
   }
   DBUG_RETURN(Log_event::do_shall_skip(rli));
+}
+
+int Xid_log_event::do_update_pos(Relay_log_info *rli)
+{
+  return (0);
 }
 #endif /* !MYSQL_CLIENT */
 

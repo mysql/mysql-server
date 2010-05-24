@@ -17,14 +17,14 @@
 #define RPL_INFO_HANDLER_H
 
 #include <my_global.h>
+#include <server_ids.h>
+#include "rpl_info_fields.h"
 
 class Rpl_info_handler
 {
 public:
-  Rpl_info_handler(const int nparam)
-    :ninfo(nparam), cursor((my_off_t)0), prv_error(0),
-     sync_counter(0), sync_period(0) { };
-  virtual ~Rpl_info_handler() { };
+  Rpl_info_handler(const int nparam);
+  virtual ~Rpl_info_handler();
 
   /**
     After creating an object and assembling components, this method is
@@ -301,6 +301,13 @@ public:
     @param[in] period Number of events.
   */
   void set_sync_period(uint period);
+
+  /*                                                                                                                                    
+    Pre-store information before writing it to the repository and if
+    necessary after reading it from the repository. The decision is
+    delegated to the sub-classes.
+  */
+  Rpl_info_fields *field_values;
 
 protected:
   /* Number of fields to be stored in the repository. */

@@ -75,6 +75,7 @@ SET (SQL_SOURCE
                partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
                rpl_info_handler.h rpl_info_handler.cc
                rpl_info_file.h rpl_info_file.cc
+               rpl_info_table.h rpl_info_table.cc rpl_info_fields.h rpl_info_fields.cc
                rpl_info.h rpl_info.cc
                rpl_rli.h rpl_rli.cc rpl_mi.h rpl_mi.cc
                rpl_info_factory.h rpl_info_factory.cc
