@@ -507,13 +507,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
-    /*
-      We need to free what's already in init_settings, because unlike
-      the thread related stack frames there's a chance that something
-      is in these variables already.
-    */
-    if (stack == &init_settings)
-      FreeState(cs, stack, 0);
+    FreeState(cs, stack, 0);
     stack->flags= 0;
     stack->delay= 0;
     stack->maxdepth= 0;
