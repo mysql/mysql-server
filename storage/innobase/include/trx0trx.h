@@ -124,32 +124,9 @@ UNIV_INTERN
 void
 trx_lists_init_at_db_start(void);
 /*============================*/
-/****************************************************************//**
-Starts a new transaction.
-@return TRUE if success, FALSE if the rollback segment could not
-support this many transactions */
-UNIV_INTERN
-ibool
-trx_start(
-/*======*/
-	trx_t*	trx,	/*!< in: transaction */
-	ulint	rseg_id);/*!< in: rollback segment id; if ULINT_UNDEFINED
-			is passed, the system chooses the rollback segment
-			automatically in a round-robin fashion */
-/****************************************************************//**
-Starts a new transaction.
-@return	TRUE */
-UNIV_INTERN
-ibool
-trx_start_low(
-/*==========*/
-	trx_t*	trx,	/*!< in: transaction */
-	ulint	rseg_id);/*!< in: rollback segment id; if ULINT_UNDEFINED
-			is passed, the system chooses the rollback segment
-			automatically in a round-robin fashion */
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
-UNIV_INLINE
+UNIV_INTERN
 void
 trx_start_if_not_started(
 /*=====================*/
@@ -157,7 +134,7 @@ trx_start_if_not_started(
 /*************************************************************//**
 Starts the transaction if it is not yet started. Assumes we have reserved
 the kernel mutex! */
-UNIV_INLINE
+UNIV_INTERN
 void
 trx_start_if_not_started_low(
 /*=========================*/
@@ -166,8 +143,8 @@ trx_start_if_not_started_low(
 Commits a transaction. */
 UNIV_INTERN
 void
-trx_commit_off_kernel(
-/*==================*/
+trx_commit(
+/*=======*/
 	trx_t*	trx);	/*!< in: transaction */
 /****************************************************************//**
 Cleans up a transaction at database startup. The cleanup is needed if
@@ -187,10 +164,9 @@ trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx);	/*!< in: trx handle */
 /**********************************************************************//**
-Does the transaction prepare for MySQL.
-@return	0 or error number */
+Does the transaction prepare for MySQL. */
 UNIV_INTERN
-ulint
+void
 trx_prepare_for_mysql(
 /*==================*/
 	trx_t*	trx);	/*!< in: trx handle */
@@ -240,51 +216,12 @@ trx_assign_read_view(
 /*=================*/
 	trx_t*	trx);	/*!< in: active transaction */
 /****************************************************************//**
-Sends a signal to a trx object. */
+Prepares a transaction for commit/rollback. */
 UNIV_INTERN
 void
-trx_sig_send(
-/*=========*/
-	trx_t*		trx,		/*!< in: trx handle */
-	ulint		type,		/*!< in: signal type */
-	ulint		sender,		/*!< in: TRX_SIG_SELF or
-					TRX_SIG_OTHER_SESS */
-	que_thr_t*	receiver_thr,	/*!< in: query thread which wants the
-					reply, or NULL; if type is
-					TRX_SIG_END_WAIT, this must be NULL */
-	trx_savept_t*	savept,		/*!< in: possible rollback savepoint, or
-					NULL */
-	que_thr_t**	next_thr);	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread; if the parameter
-					is NULL, it is ignored */
-/****************************************************************//**
-Send the reply message when a signal in the queue of the trx has
-been handled. */
-UNIV_INTERN
-void
-trx_sig_reply(
-/*==========*/
-	trx_sig_t*	sig,		/*!< in: signal */
-	que_thr_t**	next_thr);	/*!< in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
-/****************************************************************//**
-Starts handling of a trx signal. 
-@return the UNDO query graphs that will do the actual UNDO */
-UNIV_INTERN
-que_thr_t*
-trx_sig_start_handle(
-/*=================*/
-	trx_t*		trx,		/*!< in: trx handle */
-	ulint		sig_type,	/*!< in: commit or rollback */
-	dulint		roll_limit); 	/*!< in: rollback to undo no
-					for partial rollbacks or 
-					ut_dulint_zero */
+trx_commit_or_rollback_prepare(
+/*===========================*/
+	trx_t*		trx);		/*!< in: transaction */
 /*********************************************************************//**
 Creates a commit command node struct.
 @return	own: commit node struct */
@@ -414,9 +351,6 @@ trx_get_que_state_str(
 
 /* Signal to a transaction */
 struct trx_sig_struct{
-	unsigned	type:3;		/*!< signal type */
-	unsigned	sender:1;	/*!< TRX_SIG_SELF or
-					TRX_SIG_OTHER_SESS */
 	que_thr_t*	receiver;	/*!< non-NULL if the sender of
 				       	the signal wants reply after the
 				       	operation induced by the signal
@@ -433,11 +367,14 @@ rolling back after a database recovery */
 struct trx_struct{
 	ulint		magic_n;
 
+	mutex_t		mutex;		/* Mutex protecting the conc_state
+					and que_state fields */
+
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
 					current operation, or an empty
 					string */
-	ulint		conc_state;	/*!< state of the trx from the point
+	trx_conc_t	conc_state;	/*!< state of the trx from the point
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
@@ -497,10 +434,9 @@ struct trx_struct{
 
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
-	ulint		is_purge;	/*!< 0=user transaction, 1=purge */
 	ulint		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back */
-	ulint		que_state;	/*!< valid when conc_state
+	trx_que_t	que_state;	/*!< valid when conc_state
 					== TRX_ACTIVE: TRX_QUE_RUNNING,
 					TRX_QUE_LOCK_WAIT, ... */
 	time_t		start_time;	/*!< time the trx object was created
@@ -678,17 +614,6 @@ struct trx_struct{
 					single operation of a
 					transaction, e.g., a parallel
 					query */
-/* Transaction concurrency states (trx->conc_state) */
-#define	TRX_NOT_STARTED		0
-#define	TRX_ACTIVE		1
-#define	TRX_COMMITTED_IN_MEMORY	2
-#define	TRX_PREPARED		3	/* Support for 2PC/XA */
-
-/* Transaction execution states when trx->conc_state == TRX_ACTIVE */
-#define TRX_QUE_RUNNING		0	/* transaction is running */
-#define TRX_QUE_LOCK_WAIT	1	/* transaction is waiting for a lock */
-#define TRX_QUE_ROLLING_BACK	2	/* transaction is rolling back */
-#define TRX_QUE_COMMITTING	3	/* transaction is committing */
 
 /* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	0	/* dirty read: non-locking
@@ -761,6 +686,18 @@ struct commit_node_struct{
 };
 
 
+/** Test if trx->mutex is owned. */
+#define trx_mutex_own(t) mutex_own(&t->mutex)
+
+/** Acquire the trx->mutex. */
+#define trx_mutex_enter(t) do {			\
+	mutex_enter(&t->mutex);			\
+} while (0)
+
+/** Release the trx->mutex. */
+#define trx_mutex_exit(t) do {			\
+	mutex_exit(&t->mutex);			\
+} while (0)
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

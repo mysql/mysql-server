@@ -1189,6 +1189,7 @@ sync_thread_add_level(
 			ut_error;
 		}
 		break;
+	case SYNC_TRX:
 	case SYNC_BUF_FLUSH_LIST:
 	case SYNC_BUF_POOL:
 		/* We can have multiple mutexes of this type therefore we

@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "que0que.h"
 #include "usr0sess.h"
 #include "srv0start.h"
+#include "read0read.h"
 #include "row0undo.h"
 #include "row0mysql.h"
 #include "lock0lock.h"
@@ -57,13 +58,20 @@ static ib_int64_t	trx_roll_max_undo_no;
 /** Auxiliary variable which tells the previous progress % we printed */
 static ulint		trx_roll_progress_printed_pct;
 
+/****************************************************************//**
+Finishes a transaction rollback. */
+static
+void
+trx_finish_rollback(
+/*================*/
+	trx_t*		trx);	/*!< in: transaction */
+
 /*******************************************************************//**
-Rollback a transaction used in MySQL.
-@return	error code or DB_SUCCESS */
-UNIV_INTERN
-int
-trx_general_rollback_for_mysql(
-/*===========================*/
+Rollback a transaction used in MySQL. */
+static
+void
+trx_general_rollback_for_mysql_low(
+/*===============================*/
 	trx_t*		trx,	/*!< in: transaction handle */
 	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
 				partial rollback requested, or NULL for
@@ -72,13 +80,6 @@ trx_general_rollback_for_mysql(
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
-
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
-	trx_start_if_not_started(trx);
 
 	heap = mem_heap_create(512);
 
@@ -101,13 +102,42 @@ trx_general_rollback_for_mysql(
 
 	/* Free the memory reserved by the undo graph */
 	que_graph_free(roll_node->undo_thr->common.parent);
-	trx_finish_rollback_off_kernel(thr_get_trx(roll_node->undo_thr));
 
-	ut_a(trx->que_state == TRX_QUE_RUNNING);
+	trx_finish_rollback(thr_get_trx(roll_node->undo_thr));
 
 	mem_heap_free(heap);
 
+	trx_mutex_enter(trx);
+
+	ut_a(trx->que_state == TRX_QUE_RUNNING);
+
 	ut_a(trx->error_state == DB_SUCCESS);
+
+	trx_mutex_exit(trx);
+}
+
+/*******************************************************************//**
+Rollback a transaction used in MySQL.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+int
+trx_general_rollback_for_mysql(
+/*===========================*/
+	trx_t*		trx,	/*!< in: transaction handle */
+	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
+				partial rollback requested, or NULL for
+				complete rollback */
+{
+	ut_ad(!trx_mutex_own(trx));
+
+	/* Tell Innobase server that there might be work for
+	utility threads: */
+
+	srv_active_wake_master_thread();
+
+	trx_start_if_not_started(trx);
+
+	trx_general_rollback_for_mysql_low(trx, savept);
 
 	/* Tell Innobase server that there might be work for
 	utility threads: */
@@ -126,24 +156,41 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-	int	err;
+	/* Tell Innobase server that there might be work for
+	utility threads: */
 
-	if (trx->conc_state == TRX_NOT_STARTED) {
+	srv_active_wake_master_thread();
 
-		return(DB_SUCCESS);
+	trx_mutex_enter(trx);
+
+	if (trx->conc_state != TRX_NOT_STARTED) {
+
+		trx->op_info = "rollback";
+
+		trx_mutex_exit(trx);
+
+		/* If we are doing the XA recovery of prepared transactions,
+	       	then the transaction object does not have an InnoDB session
+	       	object, and we set a dummy session that we use for all MySQL
+	       	transactions. */
+
+		trx_general_rollback_for_mysql_low(trx, NULL);
+
+		trx_mutex_enter(trx);
 	}
-
-	trx->op_info = "rollback";
-
-	/* If we are doing the XA recovery of prepared transactions, then
-	the transaction object does not have an InnoDB session object, and we
-	set a dummy session that we use for all MySQL transactions. */
-
-	err = trx_general_rollback_for_mysql(trx, NULL);
 
 	trx->op_info = "";
 
-	return(err);
+	ut_a(trx->error_state == DB_SUCCESS);
+
+	trx_mutex_exit(trx);
+
+	/* Tell Innobase server that there might be work for
+	utility threads: */
+
+	srv_active_wake_master_thread();
+
+	return((int) trx->error_state);
 }
 
 /*******************************************************************//**
@@ -165,6 +212,7 @@ trx_rollback_last_sql_stat_for_mysql(
 	trx->op_info = "rollback of SQL statement";
 
 	err = trx_general_rollback_for_mysql(trx, &trx->last_sql_stat_start);
+
 	/* The following call should not be needed, but we play safe: */
 	trx_mark_sql_stat_end(trx);
 
@@ -182,6 +230,8 @@ trx_roll_savepoint_free(
 	trx_t*			trx,	/*!< in: transaction handle */
 	trx_named_savept_t*	savep)	/*!< in: savepoint to free */
 {
+	ut_ad(trx_mutex_own(trx));
+
 	ut_a(savep != NULL);
 	ut_a(UT_LIST_GET_LEN(trx->trx_savepoints) > 0);
 
@@ -203,6 +253,8 @@ trx_roll_savepoints_free(
 					of trx */
 {
 	trx_named_savept_t*	next_savep;
+
+	ut_ad(trx_mutex_own(trx));
 
 	if (savep == NULL) {
 		savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
@@ -243,6 +295,8 @@ trx_rollback_to_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 	ulint			err;
+
+	ut_ad(trx_mutex_own(trx));
 
 	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 
@@ -432,16 +486,22 @@ trx_rollback_active(
 	thr->child = roll_node;
 	roll_node->common.parent = thr;
 
-	mutex_enter(&kernel_mutex);
-
 	trx->graph = fork;
 
 	ut_a(thr == que_fork_start_command(fork));
 
-	trx_roll_crash_recv_trx	= trx;
+	// FIXME: Document this
+	trx_sys_mutex_enter();
+
 	trx_roll_max_undo_no = ut_conv_dulint_to_longlong(trx->undo_no);
+
+	trx_roll_crash_recv_trx	= trx;
+
 	trx_roll_progress_printed_pct = 0;
+
 	rows_to_undo = trx_roll_max_undo_no;
+
+	trx_sys_mutex_exit();
 
 	if (rows_to_undo > 1000000000) {
 		rows_to_undo = rows_to_undo / 1000000;
@@ -454,7 +514,6 @@ trx_rollback_active(
 		" rows to undo\n",
 		TRX_ID_PREP_PRINTF(trx->id),
 		(ulong) rows_to_undo, unit);
-	mutex_exit(&kernel_mutex);
 
 	trx->mysql_thread_id = os_thread_get_curr_id();
 
@@ -467,11 +526,13 @@ trx_rollback_active(
 
 	que_run_threads(thr);
 	ut_a(roll_node->undo_thr != NULL);
+
 	que_run_threads(roll_node->undo_thr);
 
 	/* Free the memory reserved by the undo graph */
 	que_graph_free(roll_node->undo_thr->common.parent);
-	trx_finish_rollback_off_kernel(thr_get_trx(roll_node->undo_thr));
+
+	trx_finish_rollback(thr_get_trx(roll_node->undo_thr));
 
 	ut_a(trx->que_state == TRX_QUE_RUNNING);
 
@@ -546,29 +607,43 @@ trx_rollback_or_clean_recovered(
 loop:
 	trx_sys_mutex_enter();
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list); trx;
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		trx_mutex_enter(trx);
+
 		if (!trx->is_recovered) {
+			trx_mutex_exit(trx);
 			continue;
 		}
 
 		switch (trx->conc_state) {
 		case TRX_NOT_STARTED:
 		case TRX_PREPARED:
+			trx_mutex_exit(trx);
 			continue;
 
 		case TRX_COMMITTED_IN_MEMORY:
+
+			trx_mutex_exit(trx);
+
 			trx_sys_mutex_exit();
+
 			fprintf(stderr,
 				"InnoDB: Cleaning up trx with id "
 				TRX_ID_FMT "\n",
 				TRX_ID_PREP_PRINTF(trx->id));
+
 			trx_cleanup_at_db_startup(trx);
+
 			goto loop;
 
 		case TRX_ACTIVE:
 			if (all || trx_get_dict_operation(trx)
 			    != TRX_DICT_OP_NONE) {
+
+				trx_mutex_exit(trx);
 
 				trx_sys_mutex_exit();
 
@@ -576,6 +651,8 @@ loop:
 				goto loop;
 			}
 		}
+
+		trx_mutex_exit(trx);
 	}
 
 	if (all) {
@@ -1064,7 +1141,7 @@ trx_roll_graph_build(
 	que_fork_t*	fork;
 	que_thr_t*	thr;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(trx_mutex_own(trx));
 
 	heap = mem_heap_create(512);
 	fork = que_fork_create(NULL, NULL, QUE_FORK_ROLLBACK, heap);
@@ -1080,17 +1157,19 @@ trx_roll_graph_build(
 /*********************************************************************//**
 Starts a rollback operation.
 @return query graph that will perform the UNDO operations. */
-UNIV_INTERN
+static
 que_thr_t*
-trx_rollback(
-/*=========*/
+trx_rollback_start(
+/*===============*/
 	trx_t*		trx,	/*!< in: transaction */
 	dulint		roll_limit) /*!< in: rollback to undo no */
 {
-	que_thr_t*	thr;
 	que_t*		roll_graph;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(trx_mutex_own(trx));
+
+	printf("trx_rollback_start: %p\n", trx);
+
 	ut_ad(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
 
 	/* Initialize the rollback field in the transaction */
@@ -1113,41 +1192,32 @@ trx_rollback(
 	trx->graph = roll_graph;
 	trx->que_state = TRX_QUE_ROLLING_BACK;
 
-	thr = que_fork_start_command(roll_graph);
-	ut_ad(thr);
+	printf("%p que_state: %lu\n", trx, (ulint) trx->que_state);
 
-	return(thr);
+	return(que_fork_start_command(roll_graph));
 }
 
 /****************************************************************//**
 Finishes a transaction rollback. */
-UNIV_INTERN
+static
 void
-trx_finish_rollback_off_kernel(
-/*===========================*/
+trx_finish_rollback(
+/*================*/
 	trx_t*		trx)	/*!< in: transaction */
 {
-	mutex_enter(&kernel_mutex);
+	trx_mutex_enter(trx);
 
 	ut_a(trx->undo_no_arr == NULL || trx->undo_no_arr->n_used == 0);
 
-	if (trx->sig.type == TRX_SIG_ROLLBACK_TO_SAVEPT) {
+	trx_mutex_exit(trx);
 
-		que_thr_end_wait(trx->sig.receiver);
-	} else { 
-#ifdef UNIV_DEBUG
-		if (lock_print_waits) {
-			fprintf(stderr, "Trx %lu rollback finished\n",
-				(ulong) ut_dulint_get_low(trx->id));
-		}
-#endif /* UNIV_DEBUG */
+	trx_commit(trx);
 
-		trx_commit_off_kernel(trx);
-	}
+	trx_mutex_enter(trx);
 
 	trx->que_state = TRX_QUE_RUNNING;
 
-	mutex_exit(&kernel_mutex);
+	trx_mutex_exit(trx);
 }
 
 /*********************************************************************//**
@@ -1193,26 +1263,23 @@ trx_rollback_step(
 		trx_t*		trx;
 		dulint		roll_limit = ut_dulint_zero;
 
-		mutex_enter(&kernel_mutex);
-
 		trx = thr_get_trx(thr);
+
+		trx_mutex_enter(trx);
 
 		node->state = ROLL_NODE_WAIT;
 
 		ut_a(node->undo_thr == NULL);
 
-		if (node->partial) {
+		roll_limit = node->partial
+			? node->savept.least_undo_no : ut_dulint_zero;
 
-			roll_limit = node->savept.least_undo_no;
+		trx_commit_or_rollback_prepare(trx);
 
-			node->undo_thr = trx_sig_start_handle(
-				trx, TRX_SIG_ROLLBACK_TO_SAVEPT, roll_limit);
-		} else {
-			node->undo_thr = trx_sig_start_handle(
-				trx, TRX_SIG_TOTAL_ROLLBACK, roll_limit);
-		}
+		node->undo_thr = trx_rollback_start(trx, roll_limit);
 
-		mutex_exit(&kernel_mutex);
+		trx_mutex_exit(trx);
+
 	} else {
 		ut_ad(node->state == ROLL_NODE_WAIT);
 

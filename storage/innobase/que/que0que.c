@@ -143,20 +143,6 @@ que_thr_move_to_run_state(
 	que_thr_t*	thr);	/*!< in: an query thread */
 
 /***********************************************************************//**
-Adds a query graph to the session's list of graphs. */
-UNIV_INTERN
-void
-que_graph_publish(
-/*==============*/
-	que_t*	graph,	/*!< in: graph */
-	sess_t*	sess)	/*!< in: session */
-{
-	ut_ad(query_mutex_own());
-
-	UT_LIST_ADD_LAST(graphs, sess->graphs, graph);
-}
-
-/***********************************************************************//**
 Creates a query graph fork node.
 @return	own: fork node */
 UNIV_INTERN
@@ -239,7 +225,7 @@ que_thr_end_wait(
 {
 	ibool	was_active;
 
-	query_mutex_enter();
+	query_mutex_enter(thr);
 
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
@@ -252,7 +238,7 @@ que_thr_end_wait(
 
 	que_thr_move_to_run_state(thr);
 
-	query_mutex_exit();
+	query_mutex_exit(thr);
 }
 
 /**********************************************************************//**
@@ -267,7 +253,7 @@ que_thr_end_wait_no_next_thr(
 	que_thr_t*	thr;
 	ibool		was_active;
 
-	query_mutex_enter();
+	ut_a(trx_mutex_own(trx));
 
 	thr = trx->wait_thr;
 
@@ -287,8 +273,6 @@ que_thr_end_wait_no_next_thr(
 	trx->que_state = TRX_QUE_RUNNING;
 
 	trx->wait_thr = NULL;
-
-	query_mutex_exit();
 
 	/* In MySQL we let the OS thread (not just the query thread) to wait
 	for the lock to be released: */
@@ -324,7 +308,7 @@ que_fork_scheduler_round_robin(
 	que_fork_t*	fork,		/*!< in: a query fork */
 	que_thr_t*	thr)		/*!< in: current pos */
 {
-	query_mutex_enter();
+	trx_mutex_enter(fork->trx);
 
 	/* If no current, start first available. */
 	if (thr == NULL) {
@@ -354,7 +338,7 @@ que_fork_scheduler_round_robin(
 		}
 	}
 
-	query_mutex_exit();
+	trx_mutex_exit(fork->trx);
 
 	return(thr);
 }
@@ -715,11 +699,11 @@ que_thr_node_step(
 		return(thr);
 	}
 
-	query_mutex_enter();
+	query_mutex_enter(thr);
 
 	if (que_thr_peek_stop(thr)) {
 
-		query_mutex_exit();
+		query_mutex_exit(thr);
 
 		return(thr);
 	}
@@ -728,7 +712,7 @@ que_thr_node_step(
 
 	thr->state = QUE_THR_COMPLETED;
 
-	query_mutex_exit();
+	query_mutex_exit(thr);
 
 	return(NULL);
 }
@@ -745,13 +729,12 @@ que_thr_move_to_run_state(
 /*======================*/
 	que_thr_t*	thr)	/*!< in: an query thread */
 {
-	trx_t*	trx;
-
 	ut_ad(thr->state != QUE_THR_RUNNING);
 
-	trx = thr_get_trx(thr);
-
 	if (!thr->is_active) {
+		trx_t*	trx;
+
+		trx = thr_get_trx(thr);
 
 		thr->graph->n_active_thrs++;
 
@@ -765,8 +748,7 @@ que_thr_move_to_run_state(
 
 /**********************************************************************//**
 Stops a query thread if graph or trx is in a state requiring it. The
-conditions are tested in the order (1) graph, (2) trx. The kernel mutex has
-to be reserved.
+conditions are tested in the order (1) graph, (2) trx.
 @return	TRUE if stopped */
 static
 ibool
@@ -778,10 +760,10 @@ que_thr_stop_low(
 	que_t*	graph;
 	ibool	ret	= TRUE;
 
-	ut_ad(query_mutex_own());
-
 	graph = thr->graph;
 	trx = graph->trx;
+
+	ut_ad(trx_mutex_own(trx));
 
 	if (graph->state == QUE_FORK_COMMAND_WAIT) {
 		thr->state = QUE_THR_SUSPENDED;
@@ -797,8 +779,7 @@ que_thr_stop_low(
 		/* Error handling built for the MySQL interface */
 		thr->state = QUE_THR_COMPLETED;
 
-	} else if (trx->sig.type != TRX_SIG_NO_SIGNAL
-		   && graph->fork_type != QUE_FORK_ROLLBACK) {
+	} else if (graph->fork_type == QUE_FORK_ROLLBACK) {
 
 		thr->state = QUE_THR_SUSPENDED;
 	} else {
@@ -830,52 +811,43 @@ que_thr_dec_refer_count(
 					a new query thread */
 {
 	trx_t*		trx;
-	que_fork_t*	fork;
+
+	ut_ad(query_mutex_own(thr));
 
 	trx = thr_get_trx(thr);
-	fork = thr->common.parent;
-
-	query_mutex_enter();
 
 	ut_a(thr->is_active);
 
-	if (thr->state == QUE_THR_RUNNING) {
-		ibool	stopped;
+	if (thr->state == QUE_THR_RUNNING && !que_thr_stop_low(thr)) {
 
-		stopped = que_thr_stop_low(thr);
+		/* The reason for the thr suspension or wait was
+		already canceled before we came here: continue
+		running the thread */
 
-		if (!stopped) {
-			/* The reason for the thr suspension or wait was
-			already canceled before we came here: continue
-			running the thread */
+		fputs("!!!!!!!! Wait already ended: continue thr\n", stderr);
 
-			fputs("!!!!!!!! Wait already ended: continue thr\n",
-				stderr);
+		if (next_thr && *next_thr == NULL) {
+			/* Normally srv_suspend_mysql_thread resets
+			the state to DB_SUCCESS before waiting, but
+			in this case we have to do it here,
+			otherwise nobody does it. */
+			trx->error_state = DB_SUCCESS;
 
-			if (next_thr && *next_thr == NULL) {
-				/* Normally srv_suspend_mysql_thread resets
-				the state to DB_SUCCESS before waiting, but
-				in this case we have to do it here,
-				otherwise nobody does it. */
-				trx->error_state = DB_SUCCESS;
-
-				*next_thr = thr;
-			} else {
-				ut_error;
-			}
-
-			query_mutex_exit();
-
-			return;
+			*next_thr = thr;
+		} else {
+			ut_error;
 		}
+	} else {
+		que_fork_t*	fork;
+
+		fork = thr->common.parent;
+
+		--trx->n_active_thrs;
+
+		--fork->n_active_thrs;
+
+		thr->is_active = FALSE;
 	}
-
-	trx->n_active_thrs--;
-	fork->n_active_thrs--;
-
-	thr->is_active = FALSE;
-
-	query_mutex_exit();
 }
 
 /**********************************************************************//**
@@ -889,15 +861,7 @@ que_thr_stop(
 /*=========*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ibool		stopped;
-
-	query_mutex_enter();
-
-	stopped = que_thr_stop_low(thr);
-
-	query_mutex_exit();
-
-	return(stopped);
+	return(que_thr_stop_low(thr));
 }
 
 /**********************************************************************//**
@@ -915,9 +879,9 @@ que_thr_stop_for_mysql(
 
 	trx = thr_get_trx(thr);
 
-	ut_a(!trx->is_purge);
+	ut_a(!ut_dulint_is_zero(trx->id));
 
-	query_mutex_enter();
+	query_mutex_enter(thr);
 
 	if (thr->state == QUE_THR_RUNNING) {
 
@@ -931,7 +895,7 @@ que_thr_stop_for_mysql(
 			already released, or this transaction was chosen
 			as a victim in selective deadlock resolution */
 
-			query_mutex_exit();
+			query_mutex_exit(thr);
 
 			return;
 		}
@@ -946,7 +910,7 @@ que_thr_stop_for_mysql(
 
 	trx->n_active_thrs--;
 
-	query_mutex_exit();
+	query_mutex_exit(thr);
 }
 
 /**********************************************************************//**
@@ -1243,7 +1207,7 @@ que_run_threads_low(
 
 	ut_ad(thr->state == QUE_THR_RUNNING);
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
-	ut_ad(!query_mutex_own());
+	ut_ad(!query_mutex_own(thr));
 
 	/* cumul_resource counts how much resources the OS thread (NOT the
 	query thread) has spent in this function */
@@ -1265,6 +1229,8 @@ loop:
 	next_thr = que_thr_step(thr);
 	/*-------------------------*/
 
+	query_mutex_enter(thr);
+
 	ut_a(!next_thr || (thr_get_trx(next_thr)->error_state == DB_SUCCESS));
 
 	loop_count++;
@@ -1278,6 +1244,8 @@ loop:
 
 		if (next_thr == NULL) {
 
+			query_mutex_exit(thr);
+
 			return;
 		}
 
@@ -1285,6 +1253,8 @@ loop:
 
 		thr = next_thr;
 	}
+
+	query_mutex_exit(thr);
 
 	goto loop;
 }
@@ -1297,11 +1267,12 @@ que_run_threads(
 /*============*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
+	ut_ad(!query_mutex_own(thr));
+
 loop:
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
-	que_run_threads_low(thr);
 
-	query_mutex_enter();
+	que_run_threads_low(thr);
 
 	switch (thr->state) {
 
@@ -1309,29 +1280,28 @@ loop:
 		/* There probably was a lock wait, but it already ended
 		before we came here: continue running thr */
 
-		query_mutex_exit();
-
 		goto loop;
 
 	case QUE_THR_LOCK_WAIT:
-		query_mutex_exit();
-
 		/* The ..._mysql_... function works also for InnoDB's
 		internal threads. Let us wait that the lock wait ends. */
 
 		srv_suspend_mysql_thread(thr);
 
-		ut_a(!thr_get_trx(thr)->is_purge);
+		query_mutex_enter(thr);
+
+		ut_a(!ut_dulint_is_zero(thr_get_trx(thr)->id));
 
 		if (thr_get_trx(thr)->error_state != DB_SUCCESS) {
 			/* thr was chosen as a deadlock victim or there was
 			a lock wait timeout */
 
 			que_thr_dec_refer_count(thr, NULL);
-
-			return;
+			query_mutex_exit(thr);
+			break;
 		}
 
+		query_mutex_exit(thr);
 		goto loop;
 
 	case QUE_THR_COMPLETED:
@@ -1342,8 +1312,6 @@ loop:
 	default:
 		ut_error;
 	}
-
-	query_mutex_exit();
 }
 
 /*********************************************************************//**

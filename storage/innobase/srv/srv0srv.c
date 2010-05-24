@@ -896,7 +896,7 @@ srv_table_reserve_slot(
 Suspends the calling thread to wait for the event in its thread slot.
 NOTE! The server mutex has to be reserved by the caller!
 @return	event for the calling thread to wait */
-UNIV_INTERN
+static
 os_event_t
 srv_suspend_thread(void)
 /*====================*/
@@ -996,34 +996,6 @@ srv_release_threads(
 	srv_sys_mutex_exit();
 
 	return(count);
-}
-
-/*********************************************************************//**
-Returns the calling thread type.
-@return	SRV_COM, ... */
-UNIV_INTERN
-enum srv_thread_type
-srv_get_thread_type(void)
-/*=====================*/
-{
-	ulint			slot_no;
-	srv_slot_t*		slot;
-	enum srv_thread_type	type;
-
-	srv_sys_mutex_enter();
-
-	slot_no = thr_local_get_slot_no(os_thread_get_curr_id());
-
-	slot = srv_table_get_nth_slot(slot_no);
-
-	type = slot->type;
-
-	ut_ad(type >= SRV_WORKER);
-	ut_ad(type <= SRV_MASTER);
-
-	srv_sys_mutex_exit();
-
-	return(type);
 }
 
 /*********************************************************************//**
@@ -1645,13 +1617,11 @@ srv_suspend_mysql_thread(
 	ulint		ms;
 	ulong		lock_wait_timeout;
 
-	ut_ad(!mutex_own(&kernel_mutex));
-
 	trx = thr_get_trx(thr);
 
 	os_event_set(srv_lock_timeout_thread_event);
 
-	mutex_enter(&kernel_mutex);
+	trx_mutex_enter(trx);
 
 	trx->error_state = DB_SUCCESS;
 
@@ -1668,16 +1638,19 @@ srv_suspend_mysql_thread(
 			trx->was_chosen_as_deadlock_victim = FALSE;
 		}
 
-		mutex_exit(&kernel_mutex);
+		trx_mutex_exit(trx);
 
 		return;
 	}
 
 	ut_ad(thr->is_active == FALSE);
 
+	trx_mutex_exit(trx);
+
 	slot = srv_table_reserve_slot_for_mysql(thr);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
+		// FIXME: Use atomics/srv_sys->mutex
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
 
@@ -1690,8 +1663,6 @@ srv_suspend_mysql_thread(
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
 	os_event_set(srv_lock_timeout_thread_event);
-
-	mutex_exit(&kernel_mutex);
 
 	if (trx->declared_to_be_inside_innodb) {
 
@@ -1744,8 +1715,6 @@ srv_suspend_mysql_thread(
 
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
-	mutex_enter(&kernel_mutex);
-
 	/* Release the slot for others to use */
 
 	srv_table_release_slot_for_mysql(slot);
@@ -1769,13 +1738,13 @@ srv_suspend_mysql_thread(
 		}
 	}
 
+	trx_mutex_enter(trx);
+
 	if (trx->was_chosen_as_deadlock_victim) {
 
 		trx->error_state = DB_DEADLOCK;
 		trx->was_chosen_as_deadlock_victim = FALSE;
 	}
-
-	mutex_exit(&kernel_mutex);
 
 	/* InnoDB system transactions (such as the purge, and
 	incomplete transactions that are being rolled back after crash
@@ -1793,6 +1762,8 @@ srv_suspend_mysql_thread(
 
 		trx->error_state = DB_INTERRUPTED;
 	}
+
+	trx_mutex_exit(trx);
 }
 
 /********************************************************************//**
@@ -1861,7 +1832,7 @@ srv_printf_innodb_monitor(
 /*======================*/
 	FILE*	file,		/*!< in: output stream */
 	ibool	nowait,		/*!< in: whether to wait for kernel mutex */
-	ulint*	trx_start,	/*!< out: file position of the start of
+	ulint*	trx_start_pos,	/*!< out: file position of the start of
 				the list of active transactions */
 	ulint*	trx_end)	/*!< out: file position of the end of
 				the list of active transactions */
@@ -1925,12 +1896,12 @@ srv_printf_innodb_monitor(
 	ret = lock_print_info_summary(file, nowait);
 
 	if (ret) {
-		if (trx_start) {
+		if (trx_start_pos) {
 			long	t = ftell(file);
 			if (t < 0) {
-				*trx_start = ULINT_UNDEFINED;
+				*trx_start_pos = ULINT_UNDEFINED;
 			} else {
-				*trx_start = (ulint) t;
+				*trx_start_pos = (ulint) t;
 			}
 		}
 		lock_print_info_all_transactions(file);

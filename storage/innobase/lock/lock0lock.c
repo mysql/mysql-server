@@ -1757,16 +1757,19 @@ lock_rec_enqueue_waiting(
 
 	ut_ad(lock_mutex_own());
 
+	trx = thr_get_trx(thr);
+
+	ut_ad(trx_mutex_own(trx));
+
 	/* Test if there already is some other reason to suspend thread:
 	we do not enqueue a lock request if the query thread should be
 	stopped anyway */
 
-	if (UNIV_UNLIKELY(que_thr_stop(thr))) {
+	if (que_thr_stop(thr)) {
+		ut_error;
 
 		return(DB_QUE_THR_SUSPENDED);
 	}
-
-	trx = thr_get_trx(thr);
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
@@ -1808,8 +1811,9 @@ lock_rec_enqueue_waiting(
 	}
 
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+
 	trx->was_chosen_as_deadlock_victim = FALSE;
-	trx->wait_started = time(NULL);
+	trx->wait_started = ut_time();
 
 	ut_a(que_thr_stop(thr));
 
@@ -1945,8 +1949,9 @@ lock_rec_lock_fast(
 	dict_index_t*		index,	/*!< in: index of record */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	lock_t*	lock;
-	trx_t*	trx;
+	lock_t*			lock;
+	trx_t*			trx;
+	ibool			success;
 
 	ut_ad(lock_mutex_own());
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
@@ -1963,36 +1968,36 @@ lock_rec_lock_fast(
 
 	trx = thr_get_trx(thr);
 
+	trx_mutex_enter(trx);
+
 	if (lock == NULL) {
 		if (!impl) {
 			lock_rec_create(mode, block, heap_no, index, trx);
 		}
 
-		return(TRUE);
-	}
+		success = TRUE;
+	} else if (lock_rec_get_next_on_page(lock)) {
 
-	if (lock_rec_get_next_on_page(lock)) {
+		success = FALSE;
+	} else if (lock->trx != trx
+		   || lock->type_mode != (mode | LOCK_REC)
+		   || lock_rec_get_n_bits(lock) <= heap_no) {
 
-		return(FALSE);
-	}
-
-	if (lock->trx != trx
-	    || lock->type_mode != (mode | LOCK_REC)
-	    || lock_rec_get_n_bits(lock) <= heap_no) {
-
-		return(FALSE);
-	}
-
-	if (!impl) {
+		success = FALSE;
+	} else if (!impl) {
 		/* If the nth bit of the record lock is already set then we
 		do not set a new lock bit, otherwise we do set */
 
 		if (!lock_rec_get_nth_bit(lock, heap_no)) {
 			lock_rec_set_nth_bit(lock, heap_no);
 		}
+
+		success = TRUE;
 	}
 
-	return(TRUE);
+	trx_mutex_exit(trx);
+
+	return(success);
 }
 
 /*********************************************************************//**
@@ -2034,6 +2039,8 @@ lock_rec_lock_slow(
 
 	trx = thr_get_trx(thr);
 
+	trx_mutex_enter(trx);
+
 	if (lock_rec_has_expl(mode, block, heap_no, trx)) {
 		/* The trx already has a strong enough lock on rec: do
 		nothing */
@@ -2057,6 +2064,8 @@ lock_rec_lock_slow(
 
 		err = DB_SUCCESS;
 	}
+
+	trx_mutex_exit(trx);
 
 	return(err);
 }
@@ -2161,20 +2170,21 @@ lock_grant(
 {
 	ut_ad(lock_mutex_own());
 
+	trx_mutex_enter(lock->trx);
+
 	lock_reset_lock_and_trx_wait(lock);
 
 	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
-		trx_t*		trx = lock->trx;
 		dict_table_t*	table = lock->un_member.tab_lock.table;
 
-		if (table->autoinc_trx == trx) {
+		if (table->autoinc_trx == lock->trx) {
 			fprintf(stderr,
 				"InnoDB: Error: trx already had"
 				" an AUTO-INC lock!\n");
 		} else {
-			table->autoinc_trx = trx;
+			table->autoinc_trx = lock->trx;
 
-			ib_vector_push(trx->autoinc_locks, lock);
+			ib_vector_push(lock->trx->autoinc_locks, lock);
 		}
 	}
 
@@ -2193,6 +2203,8 @@ lock_grant(
 	if (lock->trx->que_state == TRX_QUE_LOCK_WAIT) {
 		que_thr_end_wait_no_next_thr(lock->trx);
 	}
+
+	trx_mutex_exit(lock->trx);
 }
 
 /*************************************************************//**
@@ -2208,6 +2220,8 @@ lock_rec_cancel(
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
+	trx_mutex_enter(lock->trx);
+
 	/* Reset the bit (there can be only one set bit) in the lock bitmap */
 	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
 
@@ -2218,6 +2232,8 @@ lock_rec_cancel(
 	/* The following function releases the trx from lock wait */
 
 	que_thr_end_wait_no_next_thr(lock->trx);
+
+	trx_mutex_exit(lock->trx);
 }
 
 /*************************************************************//**
@@ -3270,6 +3286,10 @@ retry:
 	does not produce a cycle. First mark all active transactions
 	with 0: */
 
+	/* To obey the latchin order. Since we have the lock mutex, this
+	transaction's state can't be changed. */
+	trx_mutex_exit(trx);
+
 	trx_sys_mutex_enter();
 
 	mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
@@ -3280,6 +3300,8 @@ retry:
 	}
 
 	trx_sys_mutex_exit();
+
+	trx_mutex_enter(trx);
 
 	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0);
 
@@ -3526,7 +3548,13 @@ lock_deadlock_recursive(
 				return(LOCK_EXCEED_MAX_DEPTH);
 			}
 
+			/* The transaction's que_state can't change since
+			we hold the lock mutex. FIXME: Confirm. */
+			//trx_mutex_enter(lock_trx);
+
 			if (lock_trx->que_state == TRX_QUE_LOCK_WAIT) {
+
+				//trx_mutex_exit(lock_trx);
 
 				/* Another trx ahead has requested lock	in an
 				incompatible mode, and is itself waiting for
@@ -3541,6 +3569,7 @@ lock_deadlock_recursive(
 					return(ret);
 				}
 			}
+			//trx_mutex_exit(lock_trx);
 		}
 		/* Get the next record lock to check. */
 		if (heap_no != ULINT_UNDEFINED) {
@@ -3689,6 +3718,9 @@ lock_table_enqueue_waiting(
 
 	ut_ad(lock_mutex_own());
 
+	trx = thr_get_trx(thr);
+	ut_ad(trx_mutex_own(trx));
+
 	/* Test if there already is some other reason to suspend thread:
 	we do not enqueue a lock request if the query thread should be
 	stopped anyway */
@@ -3698,8 +3730,6 @@ lock_table_enqueue_waiting(
 
 		return(DB_QUE_THR_SUSPENDED);
 	}
-
-	trx = thr_get_trx(thr);
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
@@ -3742,8 +3772,9 @@ lock_table_enqueue_waiting(
 	}
 
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+
+	trx->wait_started = ut_time();
 	trx->was_chosen_as_deadlock_victim = FALSE;
-	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
 
@@ -3816,9 +3847,13 @@ lock_table(
 
 	lock_mutex_enter();
 
+	trx_mutex_enter(trx);
+
 	/* Look for stronger locks the same trx already has on the table */
 
 	if (lock_table_has(trx, table, mode)) {
+
+		trx_mutex_exit(trx);
 
 		lock_mutex_exit();
 
@@ -3835,6 +3870,8 @@ lock_table(
 
 		err = lock_table_enqueue_waiting(mode | flags, table, thr);
 
+		trx_mutex_exit(trx);
+
 		lock_mutex_exit();
 
 		return(err);
@@ -3843,6 +3880,12 @@ lock_table(
 	lock_table_create(table, mode | flags, trx);
 
 	ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
+
+	if (mode == LOCK_IX) {
+		printf("acquire - trx: %p:%lu\n", trx, (ulint) mode);
+	}
+
+	trx_mutex_exit(trx);
 
 	lock_mutex_exit();
 
@@ -3945,6 +3988,8 @@ lock_rec_unlock(
 
 	lock_mutex_enter();
 
+	trx_mutex_enter(trx);
+
 	lock = lock_rec_get_first(block, heap_no);
 
 	/* Find the last lock with the same lock_mode and transaction
@@ -3964,6 +4009,8 @@ lock_rec_unlock(
 	if (UNIV_LIKELY(release_lock != NULL)) {
 		lock_rec_reset_nth_bit(release_lock, heap_no);
 	} else {
+		trx_mutex_exit(trx);
+
 		lock_mutex_exit();
 
 		ut_print_timestamp(stderr);
@@ -3990,6 +4037,8 @@ lock_rec_unlock(
 		lock = lock_rec_get_next(heap_no, lock);
 	}
 
+	trx_mutex_exit(trx);
+
 	lock_mutex_exit();
 }
 
@@ -3998,24 +4047,30 @@ Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
 UNIV_INTERN
 void
-lock_release_off_kernel(
-/*====================*/
+lock_release(
+/*=========*/
 	trx_t*	trx)	/*!< in: transaction */
 {
 	dict_table_t*	table;
 	lock_t*		lock;
 
-	lock_mutex_enter();
+	ut_ad(lock_mutex_own());
+	ut_ad(trx_mutex_own(trx));
+	ut_ad(trx_sys_mutex_own());
 
 	for (lock = UT_LIST_GET_LAST(trx->trx_locks);
 	     lock != NULL;
 	     lock = UT_LIST_GET_LAST(trx->trx_locks)) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
-
 			lock_rec_dequeue_from_page(lock);
 		} else {
 			ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+
+			if (lock_get_mode(lock) == LOCK_IX) {
+				printf("release - trx: %p:%lu\n",
+				       trx, (ulint) lock_get_mode(lock));
+			}
 
 			if (lock_get_mode(lock) != LOCK_IS
 			    && !ut_dulint_is_zero(trx->undo_no)) {
@@ -4026,12 +4081,9 @@ lock_release_off_kernel(
 
 				table = lock->un_member.tab_lock.table;
 
-				trx_sys_mutex_enter();
-
 				table->query_cache_inv_trx_id
 					= trx_sys->max_trx_id;
 
-				trx_sys_mutex_exit();
 			}
 
 			lock_table_dequeue(lock);
@@ -4041,8 +4093,6 @@ lock_release_off_kernel(
 	ut_a(ib_vector_size(trx->autoinc_locks) == 0);
 
 	mem_heap_empty(trx->lock_heap);
-
-	lock_mutex_exit();
 }
 
 /* True if a lock mode is S or X */
@@ -4404,6 +4454,8 @@ lock_print_info_all_transactions(
 
 	fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 
+	trx_sys_mutex_enter();
+
 	/* First print info on non-active transactions */
 
 	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
@@ -4422,10 +4474,11 @@ loop:
 
 	i = 0;
 
-	/* Since we temporarily release the kernel mutex when
-	reading a database page in below, variable trx may be
-	obsolete now and we must loop through the trx list to
-	get probably the same trx, or some other trx. */
+	/* Since we temporarily release the lock mutex and
+	trx_sys->mutex when reading a database page in below,
+       	variable trx may be obsolete now and we must loop
+       	through the trx list to get probably the same trx,
+       	or some other trx. */
 
 	while (trx && (i < nth_trx)) {
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
@@ -4433,12 +4486,16 @@ loop:
 	}
 
 	if (trx == NULL) {
+		trx_sys_mutex_exit();
+
 		lock_mutex_exit();
 
 		ut_ad(lock_validate());
 
 		return;
 	}
+
+	trx_mutex_enter(trx);
 
 	if (nth_lock == 0) {
 		fputs("---", file);
@@ -4456,10 +4513,11 @@ loop:
 		}
 
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
+
 			fprintf(file,
 				"------- TRX HAS BEEN WAITING %lu SEC"
 				" FOR THIS LOCK TO BE GRANTED:\n",
-				(ulong) difftime(time(NULL),
+				(ulong) difftime(ut_time(),
 						 trx->wait_started));
 
 			if (lock_get_type_low(trx->wait_lock) == LOCK_REC) {
@@ -4471,6 +4529,8 @@ loop:
 			fputs("------------------\n", file);
 		}
 	}
+
+	trx_mutex_exit(trx);
 
 	if (!srv_print_innodb_lock_monitor) {
 		nth_trx++;
@@ -4516,18 +4576,22 @@ loop:
 				goto print_rec;
 			}
 
+			trx_sys_mutex_exit();
+
 			lock_mutex_exit();
 
 			mtr_start(&mtr);
 
-			buf_page_get_with_no_latch(space, zip_size,
-						   page_no, &mtr);
+			buf_page_get_with_no_latch(
+				space, zip_size, page_no, &mtr);
 
 			mtr_commit(&mtr);
 
 			load_page_first = FALSE;
 
 			lock_mutex_enter();
+
+			trx_sys_mutex_enter();
 
 			goto loop;
 		}
@@ -4984,6 +5048,8 @@ lock_rec_insert_check_and_lock(
 
 	lock_mutex_enter();
 
+	trx_mutex_enter(trx);
+
 	/* When inserting a record into an index, the table must be at
 	least IX-locked or we must be building an index, in which case
 	the table must be at least S-locked. */
@@ -5006,6 +5072,8 @@ lock_rec_insert_check_and_lock(
 		}
 
 		*inherit = FALSE;
+
+		trx_mutex_exit(trx);
 
 		return(DB_SUCCESS);
 	}
@@ -5034,6 +5102,8 @@ lock_rec_insert_check_and_lock(
 	} else {
 		err = DB_SUCCESS;
 	}
+
+	trx_mutex_exit(trx);
 
 	lock_mutex_exit();
 
@@ -5130,6 +5200,7 @@ lock_clust_rec_modify_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
+	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(dict_index_is_clust(index));
@@ -5145,6 +5216,9 @@ lock_clust_rec_modify_check_and_lock(
 		: rec_get_heap_no_old(rec);
 
 	lock_mutex_enter();
+
+	printf("clust mod: %p: %lu:%lu\n",
+	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
@@ -5185,6 +5259,7 @@ lock_sec_rec_modify_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
+	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5202,6 +5277,9 @@ lock_sec_rec_modify_check_and_lock(
 	transaction had modified this secondary index record. */
 
 	lock_mutex_enter();
+
+	printf("sec modify: %p: %lu:%lu\n",
+	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
@@ -5264,6 +5342,7 @@ lock_sec_rec_read_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
+	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5279,6 +5358,9 @@ lock_sec_rec_read_check_and_lock(
 	heap_no = page_rec_get_heap_no(rec);
 
 	lock_mutex_enter();
+
+	printf("sec: %p: %lu:%lu\n",
+	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
@@ -5339,6 +5421,7 @@ lock_clust_rec_read_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
+	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5355,6 +5438,9 @@ lock_clust_rec_read_check_and_lock(
 	heap_no = page_rec_get_heap_no(rec);
 
 	lock_mutex_enter();
+
+	printf("clust: %p: %lu:%lu\n",
+	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
@@ -5703,6 +5789,8 @@ lock_cancel_waiting_and_release(
 {
 	ut_ad(lock_mutex_own());
 
+	trx_mutex_enter(lock->trx);
+
 	if (lock_get_type_low(lock) == LOCK_REC) {
 
 		lock_rec_dequeue_from_page(lock);
@@ -5724,4 +5812,6 @@ lock_cancel_waiting_and_release(
 	/* The following function releases the trx from lock wait */
 
 	que_thr_end_wait_no_next_thr(lock->trx);
+
+	trx_mutex_exit(lock->trx);
 }
