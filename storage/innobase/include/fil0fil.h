@@ -225,6 +225,16 @@ fil_space_create(
 				0 for uncompressed tablespaces */
 	ulint		purpose);/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 /*******************************************************************//**
+Assigns a new space id for a new single-table tablespace. This works simply by
+incrementing the global counter. If 4 billion id's is not enough, we may need
+to recycle id's.
+@return	TRUE if assigned, FALSE if not */
+UNIV_INTERN
+ibool
+fil_assign_new_space_id(
+/*====================*/
+	ulint*	space_id);	/*!< in/out: space id */
+/*******************************************************************//**
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.
 @return	space size, 0 if space not found */
@@ -427,9 +437,7 @@ UNIV_INTERN
 ulint
 fil_create_new_single_table_tablespace(
 /*===================================*/
-	ulint*		space_id,	/*!< in/out: space id; if this is != 0,
-					then this is an input parameter,
-					otherwise output */
+	ulint		space_id,	/*!< in: space id */
 	const char*	tablename,	/*!< in: the table name in the usual
 					databasename/tablename format
 					of InnoDB, or a dir path to a temp
