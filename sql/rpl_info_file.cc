@@ -228,21 +228,20 @@ bool Rpl_info_file::do_set_info(const int pos, const my_off_t value)
 bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 {
   bool error= TRUE;
+  char server_ids_buffer[(sizeof(::server_id) * 3 + 1) * 
+                         (1 + value->server_ids.elements)];
 
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
 
   /*
-    produce a line listing the total number and all the server_ids
+    This produces a line listing the total number and all the server_ids.
   */
-  const char* server_ids_buffer= const_cast<Server_ids *>(value)->pack_server_ids();
+  if (const_cast<Server_ids *>(value)->pack_server_ids(server_ids_buffer))
+    return error;
 
-  if (server_ids_buffer)
-  {
-    error= (my_b_printf(&info_file, "%s\n", server_ids_buffer) >
-            (size_t) 0 ? FALSE : TRUE);
-    my_free((void *)const_cast<const char*>(server_ids_buffer), MYF(0));
-  }
+  error= (my_b_printf(&info_file, "%s\n", server_ids_buffer) >
+          (size_t) 0 ? FALSE : TRUE);
 
   return error;
 }

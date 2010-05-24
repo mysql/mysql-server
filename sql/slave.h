@@ -257,17 +257,4 @@ extern I_List<THD> threads;
 /**
   @} (end of group Replication)
 */
-
-class Server_ids
-{
-public:
-  DYNAMIC_ARRAY server_ids;
-
-  Server_ids();
-  ~Server_ids();
-
-  const char *pack_server_ids();
-  bool unpack_server_ids(const char *param_server_ids);
-};
-
 #endif

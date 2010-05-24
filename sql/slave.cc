@@ -42,6 +42,7 @@
 #include <mysqld_error.h>
 #include <mysys_err.h>
 #include "rpl_handler.h"
+#include "server_ids.h"
 
 #ifdef HAVE_REPLICATION
 
@@ -264,6 +265,16 @@ int init_slave()
     error= 1;
     goto err;
   }
+
+ fprintf(stderr, "init group master %s %lu  group relay %s %lu event %s %lu\n",
+   rli->get_group_master_log_name(),
+   (ulong) rli->get_group_master_log_pos(),
+   rli->get_group_relay_log_name(),
+   (ulong) rli->get_group_relay_log_pos(),
+   rli->get_event_relay_log_name(),
+   (ulong) rli->get_event_relay_log_pos());
+ fflush(stderr);
+
 
   /* If server id is not set, start_slave_thread() will say it */
 
@@ -4907,28 +4918,24 @@ bool Server_ids::unpack_server_ids(const char *param_server_ids)
   DBUG_RETURN(FALSE);
 }
 
-const char *Server_ids::pack_server_ids()
+bool Server_ids::pack_server_ids(char *buffer)
 {
   DBUG_ENTER("Server_ids::pack_server_ids");
 
-  char* server_ids_buffer;
+  if (!buffer)
+    DBUG_RETURN(TRUE);
 
-  server_ids_buffer=
-    (char *) my_malloc((sizeof(::server_id) * 3 + 1) *
-                       (1 + server_ids.elements), MYF(MY_WME));
-  if (!server_ids_buffer)
-    DBUG_RETURN(NULL);
-  for (ulong i= 0, cur_len= my_sprintf(server_ids_buffer,
-                                       (server_ids_buffer, "%u",
+  for (ulong i= 0, cur_len= my_sprintf(buffer,
+                                       (buffer, "%u",
                                         server_ids.elements));
        i < server_ids.elements; i++)
   {
     ulong s_id;
     get_dynamic(&server_ids, (uchar*) &s_id, i);
-    cur_len +=my_sprintf(server_ids_buffer + cur_len,
-                         (server_ids_buffer + cur_len,
+    cur_len +=my_sprintf(buffer + cur_len,
+                         (buffer + cur_len,
                           " %lu", s_id));
   }
 
-  DBUG_RETURN(server_ids_buffer);
+  DBUG_RETURN(FALSE);
 }
