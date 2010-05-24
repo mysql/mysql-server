@@ -31,6 +31,7 @@
 
 #include "../../../../sql/ha_ndbcluster_tables.h"
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
+extern bool ga_skip_unknown_objects;
 
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
@@ -418,8 +419,17 @@ RestoreMetaData::readMetaTableDesc() {
     break;
   }
   default:
-    err << "Unsupported table type!! " << sectionInfo[2] << endl;
-    return false;
+    if (ga_skip_unknown_objects)
+    {
+      info << "Skipping schema object with unknown table type "
+           << sectionInfo[2] << endl;
+      return true;
+    }
+    else
+    {
+      err << "Unsupported table type!! " << sectionInfo[2] << endl;
+      return false;
+    }
   }
   if (errcode)
   {
