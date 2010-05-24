@@ -1159,7 +1159,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     parent_join->select_lex->where= parent_join->conds;
   }
 
-  /* Don't unlink the child, the subquery is still there and used */
+  /* Don't unlink the child subselect, as the subquery will be used. */
 
   DBUG_RETURN(FALSE);
 }

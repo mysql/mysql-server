@@ -4743,18 +4743,6 @@ best_access_path(JOIN      *join,
     }
     else
     {
-#if 0      
-      /* Estimate cost of reading table. */
-      if (jtbm_subselect) //psergey-jtbm-todo: why the difference?
-        tmp= s->read_time;
-      else
-        tmp= s->table->file->scan_time();
-      //psergey-debug:
-      if (!jtbm_subselect && fabs(s->read_time - s->table->file->scan_time()) > 1.0)
-      {
-        fprintf(stderr, "Q:%s\n", thd->query());
-      }
-#endif
       tmp= s->read_time;
       if ((s->table->map & join->outer_join) || disable_jbuf)     // Can't use join cache
       {
@@ -9909,16 +9897,10 @@ static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
-      //nested_join->n_tables= my_count_bits(nested_join->used_tables & 
-      //                                     ~join->eliminated_tables);
       nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
       if (!nested_join->n_tables)
         is_eliminated_nest= TRUE;
     }
-    //if (!table->table || (table->table->map & ~join->eliminated_tables))
-    //psergey-merge10^
-    //if (!table->table && (table->table->map & ~join->eliminated_tables))
-    //psergey-merge11^
     if ((!table->table && !is_eliminated_nest) || 
         (table->table && (table->table->map & ~join->eliminated_tables)))
       n++;

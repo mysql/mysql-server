@@ -727,9 +727,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
-  //psergey-merge: can do without that: row[i]->cache_value();
-  //psergey-backport-timours: ^ really, without that ^ 
-  //psergey-try-merge-again:
   row[i]->cache_value();
 }
 
