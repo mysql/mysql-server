@@ -5469,7 +5469,7 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
   
   jam();
 
-  if (!ERROR_INSERTED(7194))
+  if (!ERROR_INSERTED(7194) && !ERROR_INSERTED(7221))
   {
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = failedNodePtr.i;
@@ -5478,7 +5478,14 @@ void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
   }    
   else
   {
-    ndbout_c("7194 Not starting ZREMOVE_NODE_FROM_TABLE");
+    if (ERROR_INSERTED(7194))
+    {
+      ndbout_c("7194 Not starting ZREMOVE_NODE_FROM_TABLE");
+    }
+    else if (ERROR_INSERTED(7221))
+    {
+      ndbout_c("7221 Not starting ZREMOVE_NODE_FROM_TABLE");
+    }
   }
 
   setLocalNodefailHandling(signal, failedNodePtr.i, NF_REMOVE_NODE_FROM_TABLE);
@@ -11153,7 +11160,13 @@ void Dbdih::readPagesIntoFragLab(Signal* signal, RWFragment* rf)
     case TabRecord::CS_COPY_TAB_REQ:
       jam();
       rf->rwfTabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
-      if(getNodeState().getSystemRestartInProgress()){
+      if (getNodeState().getSystemRestartInProgress() && 
+          rf->rwfTabPtr.p->tabStorage == TabRecord::ST_NORMAL)
+      {
+        /**
+         * avoid overwriting own table-definition...
+         *   but this is not possible for no-logging tables
+         */
 	jam();
 	copyTabReq_complete(signal, rf->rwfTabPtr);
 	return;
