@@ -31,7 +31,9 @@ create table t2 (i int);
 # statement execution, so we don't need many rows in 't1' to make
 # this test repeatable.
 alter table t1 disable keys;
+--disable_warnings
 insert into t1 values (RAND()*1000, RAND()*1000, RAND()*1000);
+--enable_warnings
 
 # Later we use binlog to check the order in which statements are
 # executed so let us reset it first.
@@ -50,8 +52,7 @@ connection default;
 --reap
 set session debug="-d,sleep_alter_enable_indexes";
 # Check that statements were executed/binlogged in correct order.
---replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+source include/show_binlog_events.inc;
 
 # Clean up
 drop tables t1, t2;
@@ -111,8 +112,7 @@ drop table t3;
 set session debug="-d,sleep_alter_before_main_binlog";
 
 # Check that all statements were logged in correct order
---replace_column 2 # 5 #
-show binlog events in 'master-bin.000001' from 106;
+source include/show_binlog_events.inc;
 
 
 --echo End of 5.1 tests
