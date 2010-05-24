@@ -10698,6 +10698,13 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     return;
   }
 
+  if (impl_req->indexId >= c_tableRecordPool.getSize())
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    return;
+  }
+
   if (ERROR_INSERTED(6122)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
