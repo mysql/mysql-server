@@ -793,7 +793,7 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
   if (likely(req))
   {
     // Hi order allocations can always use any zone
-    alloc(NDB_ZONE_ANY, i, &req, 1); 
+    alloc(NDB_ZONE_ANY, i, &req, min); 
     * cnt = req;
     if (unlikely(req < res0)) // Got min than what was reserved :-(
     {
