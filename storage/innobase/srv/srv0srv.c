@@ -1108,6 +1108,7 @@ srv_general_init(void)
 	mem_init(srv_mem_pool_size);
 	thr_local_init();
 	que_init();
+	row_mysql_init();
 }
 
 /*======================= InnoDB Server FIFO queue =======================*/
@@ -2349,6 +2350,25 @@ srv_lock_check_wait(
 				lock_cancel_waiting_and_release(trx->wait_lock);
 
 				srv_sys->lock_wait_timeout = FALSE;
+
+				srv_sys_mutex_exit();
+
+				/* We have the lock mutex, this guarantees that
+				the transaction commit/rollback could not have
+				been completed. Therefore the transaction handle
+				should be valid. */
+				trx_mutex_enter(trx);
+
+				/* The following function releases the trx
+			       	from lock wait */
+
+				if (trx->que_state != TRX_QUE_RUNNING) {
+					que_thr_end_wait_no_next_thr(trx);
+				}
+
+				trx_mutex_exit(trx);
+
+				srv_sys_mutex_enter();
 			}
 
 			lock_mutex_exit();
@@ -3146,15 +3166,9 @@ flush_loop:
 suspend_thread:
 	srv_main_thread_op_info = "suspending";
 
-	mutex_enter(&kernel_mutex);
-
 	if (row_get_background_drop_list_len_low() > 0) {
-		mutex_exit(&kernel_mutex);
-
 		goto loop;
 	}
-
-	mutex_exit(&kernel_mutex);
 
 	event = srv_suspend_thread();
 

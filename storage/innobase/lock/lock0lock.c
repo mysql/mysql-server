@@ -342,7 +342,7 @@ equal to mode2. */
  | LK(LOCK_X, LOCK_AUTO_INC) | LK(LOCK_X, LOCK_X)
 
 #ifdef UNIV_PFS_MUTEX
-/* Key to register kernel_mutex with performance schema */
+/* Key to register mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	lock_sys_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
@@ -3521,7 +3521,16 @@ lock_deadlock_recursive(
 				wait_lock->trx->was_chosen_as_deadlock_victim
 					= TRUE;
 
+				trx_mutex_enter(wait_lock->trx);
+
 				lock_cancel_waiting_and_release(wait_lock);
+
+				/* The following function releases the trx from
+			       	lock wait */
+
+				que_thr_end_wait_no_next_thr(wait_lock->trx);
+
+				trx_mutex_exit(wait_lock->trx);
 
 				/* Since trx and wait_lock are no longer
 				in the waits-for graph, we can return FALSE;
@@ -3881,10 +3890,6 @@ lock_table(
 
 	ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
-	if (mode == LOCK_IX) {
-		printf("acquire - trx: %p:%lu\n", trx, (ulint) mode);
-	}
-
 	trx_mutex_exit(trx);
 
 	lock_mutex_exit();
@@ -4066,11 +4071,6 @@ lock_release(
 			lock_rec_dequeue_from_page(lock);
 		} else {
 			ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-
-			if (lock_get_mode(lock) == LOCK_IX) {
-				printf("release - trx: %p:%lu\n",
-				       trx, (ulint) lock_get_mode(lock));
-			}
 
 			if (lock_get_mode(lock) != LOCK_IS
 			    && !ut_dulint_is_zero(trx->undo_no)) {
@@ -5200,7 +5200,6 @@ lock_clust_rec_modify_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
-	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(dict_index_is_clust(index));
@@ -5216,9 +5215,6 @@ lock_clust_rec_modify_check_and_lock(
 		: rec_get_heap_no_old(rec);
 
 	lock_mutex_enter();
-
-	printf("clust mod: %p: %lu:%lu\n",
-	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
@@ -5259,7 +5255,6 @@ lock_sec_rec_modify_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
-	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5277,9 +5272,6 @@ lock_sec_rec_modify_check_and_lock(
 	transaction had modified this secondary index record. */
 
 	lock_mutex_enter();
-
-	printf("sec modify: %p: %lu:%lu\n",
-	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
@@ -5342,7 +5334,6 @@ lock_sec_rec_read_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
-	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5358,9 +5349,6 @@ lock_sec_rec_read_check_and_lock(
 	heap_no = page_rec_get_heap_no(rec);
 
 	lock_mutex_enter();
-
-	printf("sec: %p: %lu:%lu\n",
-	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
@@ -5421,7 +5409,6 @@ lock_clust_rec_read_check_and_lock(
 {
 	ulint	err;
 	ulint	heap_no;
-	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5438,9 +5425,6 @@ lock_clust_rec_read_check_and_lock(
 	heap_no = page_rec_get_heap_no(rec);
 
 	lock_mutex_enter();
-
-	printf("clust: %p: %lu:%lu\n",
-	       trx, (ulint) trx->que_state, (ulint) trx->conc_state);
 
 	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
@@ -5789,8 +5773,6 @@ lock_cancel_waiting_and_release(
 {
 	ut_ad(lock_mutex_own());
 
-	trx_mutex_enter(lock->trx);
-
 	if (lock_get_type_low(lock) == LOCK_REC) {
 
 		lock_rec_dequeue_from_page(lock);
@@ -5808,10 +5790,4 @@ lock_cancel_waiting_and_release(
 	/* Reset the wait flag and the back pointer to lock in trx */
 
 	lock_reset_lock_and_trx_wait(lock);
-
-	/* The following function releases the trx from lock wait */
-
-	que_thr_end_wait_no_next_thr(lock->trx);
-
-	trx_mutex_exit(lock->trx);
 }

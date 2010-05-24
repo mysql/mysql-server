@@ -662,9 +662,7 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		mutex_enter(&kernel_mutex);
 		version_trx = trx_get_on_id(version_trx_id);
-		mutex_exit(&kernel_mutex);
 
 		if (!version_trx
 		    || version_trx->conc_state == TRX_NOT_STARTED

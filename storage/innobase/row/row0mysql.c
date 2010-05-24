@@ -65,12 +65,21 @@ struct row_mysql_drop_struct{
 							/*!< list chain node */
 };
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register kernel_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	row_drop_list_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /** @brief List of tables we should drop in background.
 
 ALTER TABLE in MySQL requires that the table handler can drop the
 table in background when there are no queries to it any
-more.  Protected by kernel_mutex. */
+more.  Protected by row_drop_list_mutex. */
 static UT_LIST_BASE_NODE_T(row_mysql_drop_t)	row_mysql_drop_list;
+
+/** Mutex protecting the background table drop list. */
+static mutex_t row_drop_list_mutex;
+
 /** Flag: has row_mysql_drop_list been initialized? */
 static ibool	row_mysql_drop_list_inited	= FALSE;
 
@@ -877,11 +886,11 @@ row_unlock_table_autoinc_for_mysql(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	if (lock_trx_holds_autoinc_locks(trx)) {
-		mutex_enter(&kernel_mutex);
+		lock_mutex_enter();
 
 		lock_release_autoinc_locks(trx);
 
-		mutex_exit(&kernel_mutex);
+		lock_mutex_exit();
 	}
 }
 
@@ -911,7 +920,7 @@ row_lock_table_autoinc_for_mysql(
 
 	/* If we already hold an AUTOINC lock on the table then do nothing.
         Note: We peek at the value of the current owner without acquiring
-	the kernel mutex. **/
+	the lock mutex. **/
 	if (trx == table->autoinc_trx) {
 
 		return(DB_SUCCESS);
@@ -2167,19 +2176,15 @@ row_drop_tables_for_mysql_in_background(void)
 	ulint			n_tables;
 	ulint			n_tables_dropped = 0;
 loop:
-	mutex_enter(&kernel_mutex);
+	mutex_enter(&row_drop_list_mutex);
 
-	if (!row_mysql_drop_list_inited) {
-
-		UT_LIST_INIT(row_mysql_drop_list);
-		row_mysql_drop_list_inited = TRUE;
-	}
+	ut_a(row_mysql_drop_list_inited);
 
 	drop = UT_LIST_GET_FIRST(row_mysql_drop_list);
 
 	n_tables = UT_LIST_GET_LEN(row_mysql_drop_list);
 
-	mutex_exit(&kernel_mutex);
+	mutex_exit(&row_drop_list_mutex);
 
 	if (drop == NULL) {
 		/* All tables dropped */
@@ -2209,7 +2214,7 @@ loop:
 	n_tables_dropped++;
 
 already_dropped:
-	mutex_enter(&kernel_mutex);
+	mutex_enter(&row_drop_list_mutex);
 
 	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
 
@@ -2222,29 +2227,31 @@ already_dropped:
 
 	mem_free(drop);
 
-	mutex_exit(&kernel_mutex);
+	mutex_exit(&row_drop_list_mutex);
 
 	goto loop;
 }
 
 /*********************************************************************//**
-Get the background drop list length. NOTE: the caller must own the kernel
-mutex!
+Get the background drop list length. NOTE: the caller must own the
+drop list mutex!
 @return	how many tables in list */
 UNIV_INTERN
 ulint
 row_get_background_drop_list_len_low(void)
 /*======================================*/
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	ulint	len;
 
-	if (!row_mysql_drop_list_inited) {
+	mutex_enter(&row_drop_list_mutex);
 
-		UT_LIST_INIT(row_mysql_drop_list);
-		row_mysql_drop_list_inited = TRUE;
-	}
+	ut_a(row_mysql_drop_list_inited);
 
-	return(UT_LIST_GET_LEN(row_mysql_drop_list));
+	len = UT_LIST_GET_LEN(row_mysql_drop_list);
+
+	mutex_exit(&row_drop_list_mutex);
+
+	return(len);
 }
 
 /*********************************************************************//**
@@ -2262,27 +2269,22 @@ row_add_table_to_background_drop_list(
 {
 	row_mysql_drop_t*	drop;
 
-	mutex_enter(&kernel_mutex);
+	mutex_enter(&row_drop_list_mutex);
 
-	if (!row_mysql_drop_list_inited) {
-
-		UT_LIST_INIT(row_mysql_drop_list);
-		row_mysql_drop_list_inited = TRUE;
-	}
+	ut_a(row_mysql_drop_list_inited);
 
 	/* Look if the table already is in the drop list */
-	drop = UT_LIST_GET_FIRST(row_mysql_drop_list);
+	for (drop = UT_LIST_GET_FIRST(row_mysql_drop_list);
+	     drop != NULL;
+	     drop = UT_LIST_GET_NEXT(row_mysql_drop_list, drop)) {
 
-	while (drop != NULL) {
 		if (strcmp(drop->table_name, name) == 0) {
 			/* Already in the list */
 
-			mutex_exit(&kernel_mutex);
+			mutex_exit(&row_drop_list_mutex);
 
 			return(FALSE);
 		}
-
-		drop = UT_LIST_GET_NEXT(row_mysql_drop_list, drop);
 	}
 
 	drop = mem_alloc(sizeof(row_mysql_drop_t));
@@ -2295,7 +2297,7 @@ row_add_table_to_background_drop_list(
 	ut_print_name(stderr, trx, TRUE, drop->table_name);
 	fputs(" to background drop list\n", stderr); */
 
-	mutex_exit(&kernel_mutex);
+	mutex_exit(&row_drop_list_mutex);
 
 	return(TRUE);
 }
@@ -4177,4 +4179,34 @@ row_is_magic_monitor_table(
 	}
 
 	return(FALSE);
+}
+
+/*********************************************************************//**
+Initialize this module */
+UNIV_INTERN
+void
+row_mysql_init(void)
+/*================*/
+{
+	mutex_create(
+		row_drop_list_mutex_key,
+	       	&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
+
+	UT_LIST_INIT(row_mysql_drop_list);
+
+	row_mysql_drop_list_inited = TRUE;
+}
+
+/*********************************************************************//**
+Close this module */
+UNIV_INTERN
+void
+row_mysql_close(void)
+/*================*/
+{
+	ut_a(UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
+
+	mutex_free(&row_drop_list_mutex);
+
+	row_mysql_drop_list_inited = FALSE;
 }

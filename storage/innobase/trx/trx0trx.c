@@ -142,8 +142,6 @@ trx_create(
 	trx->autoinc_locks = ib_vector_create(
 		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
 
-	printf("trx_create: %p\n", trx);
-
 	return(trx);
 }
 
@@ -209,8 +207,6 @@ trx_free(
 	trx_t*	trx)	/*!< in, own: trx object */
 {
 	trx_mutex_enter(trx);
-
-	printf("trx_free: %p\n", trx);
 
 	if (trx->declared_to_be_inside_innodb) {
 		ut_print_timestamp(stderr);
@@ -1018,7 +1014,8 @@ trx_commit_step(
 
 		trx_mutex_enter(trx);
 
-		thr->state = QUE_THR_SUSPENDED;
+		ut_a(trx->wait_thr == NULL);
+		ut_a(trx->que_state != TRX_QUE_LOCK_WAIT);
 
 		trx_commit_or_rollback_prepare(trx);
 
@@ -1066,8 +1063,6 @@ trx_commit_for_mysql(
 	trx_start_if_not_started(trx);
 
 	trx->op_info = "committing";
-
-	printf("trx_commit_for_mysql: %p\n", trx);
 
 	trx_commit(trx);
 
@@ -1157,6 +1152,10 @@ trx_print(
 				   use the default max length */
 {
 	ibool	newline;
+
+	trx_sys_mutex_enter();
+
+	trx_mutex_enter(trx);
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, TRX_ID_PREP_PRINTF(trx->id));
 
@@ -1255,6 +1254,10 @@ trx_print(
 	if (trx->mysql_thd != NULL) {
 		innobase_mysql_print_thd(f, trx->mysql_thd, max_query_len);
 	}
+
+	trx_mutex_exit(trx);
+
+	trx_sys_mutex_exit();
 }
 
 /*******************************************************************//**

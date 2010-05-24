@@ -525,6 +525,20 @@ row_is_magic_monitor_table(
 	const char*	table_name);	/*!< in: name of the table, in the
 					form database/table_name */
 
+/*********************************************************************//**
+Initialize this module */
+UNIV_INTERN
+void
+row_mysql_init(void);
+/*================*/
+
+/*********************************************************************//**
+Close this module */
+UNIV_INTERN
+void
+row_mysql_close(void);
+/*=================*/
+
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
