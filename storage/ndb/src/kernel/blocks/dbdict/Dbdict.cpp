@@ -26364,7 +26364,6 @@ Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
   tmp.m_tableState = newEntry->m_tableState;
   tmp.m_transId = newEntry->m_transId;
   op_ptr.p->m_orig_entry_id = objectId;
-  op_ptr.p->m_orig_entry = * oldEntry;
 
   * oldEntry = tmp;
 
@@ -26390,7 +26389,14 @@ Dbdict::trans_log_schema_op_abort(SchemaOpPtr op_ptr)
     op_ptr.p->m_orig_entry_id = RNIL;
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
-    * entry = op_ptr.p->m_orig_entry;
+
+    XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+    SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
+
+    /**
+     * restore old TableEntry
+     */
+    * entry = * oldentry;
   }
 }
 
@@ -26419,6 +26425,14 @@ Dbdict::trans_log_schema_op_complete(SchemaOpPtr op_ptr)
       ndbrequire(false);
     }
     entry->m_transId = 0;
+
+    XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+    SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
+
+    /**
+     * store new TableEntry
+     */
+    * oldentry = * entry;
   }
 }
 
