@@ -1,5 +1,12 @@
 --source include/have_innodb.inc
 --source include/have_partition.inc
+
+# remove this when
+# Bug#53947 InnoDB: Assertion failure in thread 4224 in file
+#   .\sync\sync0sync.c line 324
+# is fixed
+--source include/not_windows_embedded.inc
+
 --vertical_results
 let $engine_type= 'innodb';
 

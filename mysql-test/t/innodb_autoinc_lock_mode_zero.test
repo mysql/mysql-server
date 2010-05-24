@@ -3,6 +3,12 @@
 
 -- source include/have_innodb.inc
 
+# remove this when
+# Bug#53947 InnoDB: Assertion failure in thread 4224 in file
+#   .\sync\sync0sync.c line 324
+# is fixed
+--source include/not_windows_embedded.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
