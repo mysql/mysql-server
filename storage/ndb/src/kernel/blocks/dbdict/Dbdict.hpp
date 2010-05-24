@@ -1521,7 +1521,6 @@ private:
 
     // Copy of original and current schema file entry
     Uint32 m_orig_entry_id;
-    SchemaFile::TableEntry m_orig_entry;
 
     // magic is on when record is seized
     enum { DICT_MAGIC = 0xd1c70001 };
@@ -1543,7 +1542,6 @@ private:
       m_base_op_ptr_i = RNIL;
 
       m_orig_entry_id = RNIL;
-      m_orig_entry.init();
     }
 
     SchemaOp(Uint32 the_op_key) {
