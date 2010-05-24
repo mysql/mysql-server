@@ -818,6 +818,7 @@ Ndbfs::execBUILDINDXREQ(Signal* signal)
   request->theTrace = signal->getTrace();
 
   Uint32 cnt = (req->buffer_size + 32768 - 1) / 32768;
+  Uint32 save = cnt;
   Ptr<GlobalPage> page_ptr;
   m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, cnt);
   if(cnt == 0)
@@ -828,6 +829,8 @@ Ndbfs::execBUILDINDXREQ(Signal* signal)
     ndbrequire(false); // TODO
     return;
   }
+
+  ndbrequire(cnt == save);
 
   m_shared_page_pool.getPtr(page_ptr);
   file->m_page_ptr = page_ptr;
