@@ -1,4 +1,44 @@
 drop table if exists t1;
+#
+# Bug#52815: LIST COLUMNS doesn't insert rows in correct partition
+#            if muliple columns used
+CREATE TABLE t1 (
+id INT NOT NULL,
+name VARCHAR(255),
+department VARCHAR(10),
+country VARCHAR(255)
+) PARTITION BY LIST COLUMNS (department, country) (
+PARTITION first_office VALUES IN (('dep1', 'Russia'), ('dep1', 'Croatia')),
+PARTITION second_office VALUES IN (('dep2', 'Russia'))
+);
+INSERT INTO t1 VALUES(1, 'Ann', 'dep1', 'Russia');
+INSERT INTO t1 VALUES(2, 'Bob', 'dep1', 'Croatia');
+INSERT INTO t1 VALUES(3, 'Cecil', 'dep2', 'Russia');
+INSERT INTO t1 VALUES(3, 'Dan', 'dep2', 'Croatia');
+ERROR HY000: Table has no partition for value from column_list
+SELECT PARTITION_NAME,TABLE_ROWS
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 't1';
+PARTITION_NAME	TABLE_ROWS
+first_office	2
+second_office	1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `department` varchar(10) DEFAULT NULL,
+  `country` varchar(255) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50500 PARTITION BY LIST  COLUMNS(department,country)
+(PARTITION first_office VALUES IN (('dep1','Russia'),('dep1','Croatia')) ENGINE = MyISAM,
+ PARTITION second_office VALUES IN (('dep2','Russia')) ENGINE = MyISAM) */
+SELECT * FROM t1 WHERE department = 'dep2' and country = 'Croatia';
+id	name	department	country
+SELECT * FROM t1 WHERE department = 'dep1' and country = 'Croatia';
+id	name	department	country
+2	Bob	dep1	Croatia
+DROP TABLE t1;
 CREATE TABLE t1 (a DECIMAL)
 PARTITION BY RANGE COLUMNS (a)
 (PARTITION p0 VALUES LESS THAN (0));
@@ -298,11 +338,11 @@ select * from t1 where a > 8;
 a	b
 select * from t1 where a not between 8 and 8;
 a	b
+1	NULL
 2	NULL
+1	1
 2	2
 3	NULL
-1	NULL
-1	1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
