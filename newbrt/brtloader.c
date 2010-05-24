@@ -290,8 +290,10 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 }
 
 void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
-    assert(bl->mutex_init);
-    int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
+    if (bl->mutex_init) {
+        int r = toku_pthread_mutex_destroy(&bl->mutex); resource_assert(r == 0);
+        bl->mutex_init = FALSE;
+    }
     // These frees rely on the fact that if you free a NULL pointer then nothing bad happens.
     toku_free(bl->dbs);
     toku_free(bl->descriptors);
@@ -508,8 +510,8 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 	    bl->extractor_live = TRUE;
 	} else  { 
 	    result = r;
-            toku_pthread_mutex_destroy(&bl->mutex);
-            toku_brtloader_internal_destroy(bl, TRUE);
+            (void) toku_pthread_mutex_destroy(&bl->mutex);
+            (void) toku_brtloader_internal_destroy(bl, TRUE);
         }
     }
     BL_TRACE(blt_open);
@@ -1909,9 +1911,6 @@ static void seek_align_locked(struct dbout *out) {
     out->current_off += alignment-1;
     out->current_off &= ~(alignment-1);
     toku_off_t r = lseek(out->fd, out->current_off, SEEK_SET);
-    if (r!=out->current_off) {
-	fprintf(stderr, "Seek failed %s (errno=%d)\n", strerror(errno), errno);
-    }
     invariant(r==out->current_off);
     invariant(out->current_off >= old_current_off);
     invariant(out->current_off < old_current_off+alignment);
