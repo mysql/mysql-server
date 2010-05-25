@@ -17,7 +17,7 @@ fi
 set -x
 
 if [ "x_$1" != "x_-nobuild" ]; then
-  win/configure-mariadb.sh
+  sh win/configure-mariadb.sh
 
   cmake -G "Visual Studio 9 2008"
 
@@ -27,7 +27,7 @@ fi
 
 # TODO extract version number
 VER=`cat configure.in | 
-     perl -e 'while (<>) { if (/^AM_INIT_AUTOMAKE\([a-z ]*, *([0-9a-z\.-]+)/) { print "$1\n"; exit(0)} } ; exit 1'`
+     perl -e 'while (<>) { if (/^AC_INIT\(\[[a-zA-Z ]*\], *\[([0-9a-zA-Z\.-]+)\]/) { print "$1\n"; exit(0)} } ; exit 1'`
 
 echo Version string: $VER.
 
@@ -48,28 +48,28 @@ sh -x scripts/make_win_bin_dist $ZIPCONTENT
 
 mv $ZIPCONTENT.zip $ZIPFILE
 
-rm -rf unpack
-mkdir unpack
+#rm -rf unpack
+#mkdir unpack
 
-cd unpack
-wget -O base.list.gz \
-http://askmonty.org/wiki/images/5/57/Mariadb-5.1-pre-beta-file-list-r2.txt.gz
-gunzip base.list.gz
-unzip ../$ZIPFILE
-(cd $ZIPCONTENT; /bin/find . | sort ) > new.list
+#cd unpack
+#wget -O base.list.gz \
+#http://askmonty.org/wiki/images/5/57/Mariadb-5.1-pre-beta-file-list-r2.txt.gz
+#gunzip base.list.gz
+#unzip ../$ZIPFILE
+#(cd $ZIPCONTENT; /bin/find . | sort ) > new.list
 
-diff -u base.list new.list || true
-RES=$?
+#diff -u base.list new.list || true
+#RES=$?
 
-cd ..
+#cd ..
 
-rm -rf unpack
+#rm -rf unpack
+
 ls -lah $ZIPFILE
 echo "$ZIPFILE is the Windows noinstall binary zip"
 
-if [ $RES ] ; then
-  echo "Archive contents differ from the standard file list, check the diff output above"
-else
-  echo "Archive contents match the standard list, OK"
-fi
-
+#if [ $RES ] ; then
+#  echo "Archive contents differ from the standard file list, check the diff output above"
+#else
+#  echo "Archive contents match the standard list, OK"
+#fi
