@@ -29,7 +29,7 @@ if NEED_THREAD
 # my_atomic-t is used to check thread functions, so it is safe to 
 # ignore the file in non-threaded builds.
 # In fact, it will not compile without thread support.
-noinst_PROGRAMS += my_atomic-t
+noinst_PROGRAMS += my_atomic-t waiting_threads-t
 endif
 
 EXTRA_DIST       = CMakeLists.txt

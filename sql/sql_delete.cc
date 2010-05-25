@@ -187,8 +187,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (prune_partitions(thd, table, conds))
   {
     free_underlaid_joins(thd, select_lex);
-    thd->row_count_func= 0;
-    my_ok(thd, (ha_rows) thd->row_count_func);  // No matching records
+    // No matching record
+    my_ok(thd, 0);
     DBUG_RETURN(0);
   }
 #endif
@@ -204,7 +204,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     delete select;
     free_underlaid_joins(thd, select_lex);
-    thd->row_count_func= 0;
     /* 
       Error was already created by quick select evaluation (check_quick()).
       TODO: Add error code output parameter to Item::val_xxx() methods.
@@ -213,7 +212,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     */
     if (thd->is_error())
       DBUG_RETURN(TRUE);
-    my_ok(thd, (ha_rows) thd->row_count_func);
+    my_ok(thd, 0);
     /*
       We don't need to call reset_auto_increment in this case, because
       mysql_truncate always gives a NULL conds argument, hence we never
@@ -460,8 +459,7 @@ cleanup:
       If a TRUNCATE TABLE was issued, the number of rows should be reported as
       zero since the exact number is unknown.
     */
-    thd->row_count_func= reset_auto_increment ? 0 : deleted;
-    my_ok(thd, (ha_rows) thd->row_count_func);
+    my_ok(thd, reset_auto_increment ? 0 : deleted);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
   DBUG_RETURN(error >= 0 || thd->is_error());
@@ -1058,8 +1056,7 @@ bool multi_delete::send_eof()
 
   if (!local_error)
   {
-    thd->row_count_func= deleted;
-    ::my_ok(thd, (ha_rows) thd->row_count_func);
+    ::my_ok(thd, deleted);
   }
   return 0;
 }

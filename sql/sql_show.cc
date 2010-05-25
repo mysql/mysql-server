@@ -3346,7 +3346,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
   SELECT_LEX *old_all_select_lex= lex->all_selects_list;
-  enum_sql_command save_sql_command= lex->sql_command;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
@@ -3382,6 +3381,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
+  /*
+    Restore Query_tables_list::sql_command value, which was reset
+    above, as ST_SCHEMA_TABLE::process_table() functions often rely
+    that this value reflects which SHOW statement is executed.
+  */
+  lex->sql_command= query_tables_list_backup.sql_command;
 
   /*
     We should not introduce deadlocks even if we already have some
@@ -3544,7 +3549,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                    (MYSQL_OPEN_IGNORE_FLUSH |
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                     (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
-            lex->sql_command= save_sql_command;
+            lex->sql_command= query_tables_list_backup.sql_command;
             /*
               XXX:  show_table_list has a flag i_is_requested,
               and when it's set, open_normal_and_derived_tables()
@@ -3603,7 +3608,6 @@ err:
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
   lex->view_prepare_mode= save_view_prepare_mode;
-  lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
 }
 
@@ -3751,7 +3755,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (share->db_type() == partition_hton &&
-        share->partition_info_len)
+        share->partition_info_str_len)
     {
       tmp_db_type= share->default_part_db_type;
       is_partitioned= TRUE;
@@ -5314,7 +5318,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 {
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
-  PARTITION_INFO stat_info;
+  PARTITION_STATS stat_info;
   MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[0]->store(STRING_WITH_LEN("def"), cs);

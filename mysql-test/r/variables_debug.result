@@ -10,3 +10,10 @@ set debug= '-P';
 select @@debug;
 @@debug
 T
+SELECT @@session.debug, @@global.debug;
+@@session.debug	@@global.debug
+T	
+SET SESSION debug = '';
+SELECT @@session.debug, @@global.debug;
+@@session.debug	@@global.debug
+	
