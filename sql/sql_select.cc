@@ -4287,7 +4287,6 @@ best_access_path(JOIN      *join,
   double tmp;
   ha_rows rec;
   bool best_uses_jbuf= FALSE;
-  Item_in_subselect* jtbm_subselect= s->table->pos_in_table_list->jtbm_subselect;
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
@@ -4696,7 +4695,7 @@ best_access_path(JOIN      *join,
       !((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&   // (3)
         ! s->table->covering_keys.is_clear_all() && best_key && !s->quick) &&// (3)
       !(s->table->force_index && best_key && !s->quick) &&               // (4)
-      !(best_key && jtbm_subselect))                                     // (5)
+      !(best_key && s->table->pos_in_table_list->jtbm_subselect))        // (5)
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
     /*

@@ -237,7 +237,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           with jtbm strategy
         */
         if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
-            thd->thd_marker.emb_on_expr_nest == (TABLE_LIST*)0x1)
+            thd->thd_marker.emb_on_expr_nest == (TABLE_LIST*)0x1 &&
+            optimizer_flag(thd, OPTIMIZER_SWITCH_SEMIJOIN))
         {
           in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
           in_subs->is_flattenable_semijoin= FALSE;
