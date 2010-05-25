@@ -16720,6 +16720,43 @@ static void test_bug53371()
 }
 
 
+static void test_bug53907()
+{
+  int rc;
+  char buf[] = "\x4test\x14../client_test_db/t1";
+
+  myheader("test_bug53907");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP DATABASE IF EXISTS bug53907");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP USER 'testbug'@localhost");
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE DATABASE bug53907");
+  myquery(rc);
+  rc= mysql_query(mysql, "GRANT SELECT ON bug53907.* to 'testbug'@localhost");
+  myquery(rc);
+
+  rc= mysql_change_user(mysql, "testbug", NULL, "bug53907");
+  myquery(rc);
+
+  rc= simple_command(mysql, COM_TABLE_DUMP, buf, sizeof(buf), 0);
+  DIE_UNLESS(mysql_errno(mysql) == 1103); /* ER_WRONG_TABLE_NAME */
+
+  rc= mysql_change_user(mysql, opt_user, opt_password, current_db);
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP DATABASE bug53907");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP USER 'testbug'@localhost");
+  myquery(rc);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -17024,6 +17061,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20023", test_bug20023 },
   { "test_bug45010", test_bug45010 },
   { "test_bug53371", test_bug53371 },
+  { "test_bug53907", test_bug53907 },
   { 0, 0 }
 };
 
