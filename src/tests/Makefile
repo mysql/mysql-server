@@ -380,11 +380,10 @@ ABORTCODE=137
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 .PHONY: %.loader
-# Generally these subtests cannot run in parallel until we fix #2645.
+# Generally these subtests cannot run in parallel unless they support an environment arg
 %.loader: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 	$(TDBVGRIND) ./$< $(EXTRA_ARGS) -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-loader-cleanup-test.loader: EXTRA_ARGS = -s -r 8000
 
 .PHONY: %.recover
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
@@ -651,7 +650,6 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
-
 loader-dup-test.loader loader-dup-test.tdbrun: $(patsubst %,loader-dup-test%.tdbrun, 0 1 2 3 4 5)
 	true $(SUMMARIZE_CMD) #State that this has passed.  Override the default rule.
 
@@ -673,11 +671,16 @@ loader-dup-test4.tdbrun: loader-dup-test.tdb$(BINSUF)
 loader-dup-test5.tdbrun: loader-dup-test.tdb$(BINSUF)
 	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e 5 $(SUMMARIZE_CMD)
 
-LOADER_USE_DEFAULT_TESTS = cleanup-test create-abort create-close no-puts reference-test stress-test tpch-load
+loader-cleanup-test.loader: $(patsubst %,loader-cleanup-test%.tdbrun, 0 1)
+	true
 
-## Cannot run loader-cleanup-test parallel till we fix #2645.
-#loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
-#	./loader-cleanup-test.tdb $(SUMMARIZE_CMD)
+loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
+	$(VGRIND) ./$< -s -r 8000 -e 0 $(SUMMARIZE_CMD)
+
+loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
+	$(VGRIND) ./$< -s -r 8000 -p -e 1 $(SUMMARIZE_CMD)
+
+LOADER_USE_DEFAULT_TESTS = create-abort create-close no-puts reference-test stress-test tpch-load
 
 loader-tests: $(LOADER_TESTS)
 	echo $(LOADER_TESTS)
