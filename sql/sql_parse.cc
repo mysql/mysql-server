@@ -645,7 +645,7 @@ void cleanup_items(Item *item)
 */
 
 static
-int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
+int mysql_table_dump(THD *thd, LEX_STRING *db, LEX_STRING *table_name)
 {
   TABLE* table;
   TABLE_LIST* table_list;
@@ -659,7 +659,7 @@ int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
   if (!(table_list = (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(1); // out of memory
   table_list->db= db->str;
-  table_list->table_name= table_list->alias= tbl_name;
+  table_list->table_name= table_list->alias= table_name->str;
   table_list->lock_type= TL_READ_NO_INSERT;
   table_list->prev_global= &table_list;	// can be removed after merge with 4.1
 
@@ -670,8 +670,16 @@ int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
     goto err;
     /* purecov: end */
   }
+  if (!table_name->length ||
+      check_table_name(table_name->str, table_name->length, TRUE))
+  {
+    my_error(ER_WRONG_TABLE_NAME, MYF(0),
+             table_name->str ? table_name->str : "NULL");
+    error= 1;
+    goto err;
+  }
   if (lower_case_table_names)
-    my_casedn_str(files_charset_info, tbl_name);
+    my_casedn_str(files_charset_info, table_name->str);
 
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT, 0)))
     DBUG_RETURN(1);
@@ -679,7 +687,7 @@ int mysql_table_dump(THD *thd, LEX_STRING *db, char *tbl_name)
   if (check_one_table_access(thd, SELECT_ACL, table_list))
     goto err;
   thd->free_list = 0;
-  thd->set_query(tbl_name, (uint) strlen(tbl_name));
+  thd->set_query(table_name->str, table_name->length);
   if ((error = mysqld_dump_create_info(thd, table_list, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0), my_errno);
@@ -1039,8 +1047,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_TABLE_DUMP:
   {
-    char *tbl_name;
-    LEX_STRING db;
+    LEX_STRING db, table;
     /* Safe because there is always a trailing \0 at the end of the packet */
     uint db_len= *(uchar*) packet;
     if (db_len + 1 > packet_length || db_len > NAME_LEN)
@@ -1065,9 +1072,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
     db.length= db_len;
-    tbl_name= strmake(db.str, packet + 1, db_len)+1;
-    strmake(tbl_name, packet + db_len + 2, tbl_len);
-    if (mysql_table_dump(thd, &db, tbl_name) == 0)
+    table.length= tbl_len;
+    table.str= strmake(db.str, packet + 1, db_len) + 1;
+    strmake(table.str, packet + db_len + 2, tbl_len);
+    if (mysql_table_dump(thd, &db, &table) == 0)
       thd->main_da.disable_status();
     break;
   }
