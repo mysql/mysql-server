@@ -27,7 +27,7 @@
 #include "sql_show.h"    // append_identifier
 #include "strfunc.h"     // find_type
 #include "parse_file.h"  // sql_parse_prepare, File_parser
-#include "sql_view.h"    // mysql_frm_type, mysql_make_view, VIEW_ANY_ACL
+#include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
 #include "sql_insert.h"  // kill_delayed_threads
 #include "sql_acl.h"     // *_ACL, check_grant_all_columns,
@@ -52,6 +52,7 @@
 #include <hash.h>
 #include "rpl_filter.h"
 #include "sql_table.h"                          // build_table_filename
+#include "datadict.h"   // dd_frm_type()
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -2678,7 +2679,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         during prelocking process (in this case in theory we still
         should hold shared metadata lock on it).
       */
-      if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
+      if (dd_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
                            mem_root, 0))

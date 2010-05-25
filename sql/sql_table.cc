@@ -27,8 +27,8 @@
                         // start_waiting_global_read_lock,
                         // unlock_table_names, mysql_unlock_tables
 #include "strfunc.h"    // find_type2, find_set
-#include "sql_view.h" // mysql_frm_type, view_checksum, mysql_frm_type
-#include "sql_delete.h"                         // mysql_truncate
+#include "sql_view.h" // view_checksum 
+#include "sql_truncate.h"                       // regenerate_locked_table 
 #include "sql_partition.h"                      // mem_alloc_error,
                                                 // generate_partition_syntax,
                                                 // partition_info
@@ -52,6 +52,7 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "keycaches.h"
+#include "datadict.h"  // dd_frm_type()
 
 #ifdef __WIN__
 #include <io.h>
@@ -2096,7 +2097,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         ((access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
          (!drop_view &&
-          mysql_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
+          dd_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
     {
       // Table was not found on disk and table can't be created from engine
       if (if_exists)
@@ -2116,7 +2117,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
       if (frm_db_type == DB_TYPE_UNKNOWN)
       {
-        mysql_frm_type(thd, path, &frm_db_type);
+        dd_frm_type(thd, path, &frm_db_type);
         DBUG_PRINT("info", ("frm_db_type %d from %s", frm_db_type, path));
       }
       table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
@@ -4557,12 +4558,18 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed renaming data file");
     goto end;
   }
-  if (mysql_truncate(thd, table_list, 1))
+  if (dd_recreate_table(thd, table_list->db, table_list->table_name))
   {
     error= send_check_errmsg(thd, table_list, "repair",
 			     "Failed generating table from .frm file");
     goto end;
   }
+  /*
+    'FALSE' for 'using_transactions' means don't postpone
+    invalidation till the end of a transaction, but do it
+    immediately.
+  */
+  query_cache_invalidate3(thd, table_list, FALSE);
   if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     error= send_check_errmsg(thd, table_list, "repair",
@@ -6544,7 +6551,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     into the main table list, like open_tables does).
     This code is wrong and will be removed, please do not copy.
   */
-  frm_type= mysql_frm_type(thd, new_name_buff, &table_type);
+  frm_type= dd_frm_type(thd, new_name_buff, &table_type);
   /* Rename a view */
   /* Sic: there is a race here */
   if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))

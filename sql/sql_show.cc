@@ -27,7 +27,6 @@
                                               // primary_key_name,
                                               // build_table_filename
 #include "repl_failsafe.h"
-#include "sql_view.h"                           // mysql_frm_type
 #include "sql_parse.h"             // check_access, check_table_access
 #include "sql_partition.h"         // partition_element
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
@@ -50,6 +49,8 @@
 #endif
 #include <my_dir.h>
 #include "lock.h"                           // MYSQL_LOCK_IGNORE_FLUSH
+#include "debug_sync.h"
+#include "datadict.h"   // dd_frm_type()
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -2959,6 +2960,9 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                        (can_deadlock ?
                                         MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
   lex->sql_command= save_sql_command;
+
+  DEBUG_SYNC(thd, "after_open_table_ignore_flush");
+
   /*
     get_all_tables() returns 1 on failure and 0 on success thus
     return only these and not the result code of ::process_table()
@@ -3018,7 +3022,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     char path[FN_REFLEN + 1];
     (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
-    switch (mysql_frm_type(thd, path, &not_used)) {
+    switch (dd_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
       table->field[3]->store(STRING_WITH_LEN("ERROR"),
                              system_charset_info);

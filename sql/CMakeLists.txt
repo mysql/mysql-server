@@ -75,7 +75,7 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
                sql_signal.cc rpl_handler.cc mdl.cc
-               transaction.cc sys_vars.cc
+               transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
