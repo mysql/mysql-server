@@ -3611,6 +3611,13 @@ shortcut_fails_too_big_rec:
 		trx->has_search_latch = FALSE;
 	}
 
+	ut_ad(prebuilt->sql_stat_start || trx->conc_state == TRX_ACTIVE);
+	ut_ad(trx->conc_state == TRX_NOT_STARTED
+	      || trx->conc_state == TRX_ACTIVE);
+	ut_ad(prebuilt->sql_stat_start
+	      || prebuilt->select_lock_type != LOCK_NONE
+	      || trx->read_view);
+
 	trx_start_if_not_started(trx);
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
