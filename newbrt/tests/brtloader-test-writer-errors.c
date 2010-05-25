@@ -123,9 +123,9 @@ static void *my_realloc(void *p, size_t n) {
     void *caller = __builtin_return_address(0);
     if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
         goto skip;
-    (void) __sync_fetch_and_add(&my_realloc_count, 1); // my_realloc_count++;
+    (void) __sync_add_and_fetch(&my_realloc_count, 1); // my_realloc_count++;
     if (n >= my_big_malloc_limit) {
-        (void) __sync_fetch_and_add(&my_big_realloc_count, 1); // my_big_realloc_count++;
+        (void) __sync_add_and_fetch(&my_big_realloc_count, 1); // my_big_realloc_count++;
         if (do_realloc_errors) {
             caller = __builtin_return_address(1);
             if ((void*)toku_xrealloc <= caller && caller <= (void*)toku_malloc_report)
