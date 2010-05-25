@@ -3283,12 +3283,14 @@ lock_deadlock_occurs(
 	ut_ad(trx);
 	ut_ad(lock);
 	ut_ad(lock_mutex_own());
+	ut_ad(trx_mutex_own(trx));
+
 retry:
 	/* We check that adding this trx to the waits-for graph
 	does not produce a cycle. First mark all active transactions
 	with 0: */
 
-	/* To obey the latchin order. Since we have the lock mutex, this
+	/* To obey the latching order. Since we have the lock mutex, this
 	transaction's state can't be changed. */
 	trx_mutex_exit(trx);
 
@@ -3509,6 +3511,8 @@ lock_deadlock_recursive(
 					transaction is 'smaller', let us
 					choose 'start' as the victim and roll
 					back it */
+
+					trx_mutex_exit(wait_lock->trx);
 
 					return(LOCK_VICTIM_IS_START);
 				}
@@ -4935,6 +4939,10 @@ lock_validate(void)
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx) {
+		trx_t*	prev_trx = trx;
+
+		trx_mutex_enter(trx);
+
 		lock = UT_LIST_GET_FIRST(trx->trx_locks);
 
 		while (lock) {
@@ -4948,7 +4956,11 @@ lock_validate(void)
 		}
 
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
+
+		trx_mutex_exit(prev_trx);
 	}
+
+	trx_sys_mutex_exit();
 
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
 

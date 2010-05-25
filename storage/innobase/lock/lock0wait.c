@@ -78,8 +78,6 @@ lock_wait_table_release_slot(
 	srv_slot_t*	upper = lock_sys->waiting_threads + OS_THREAD_MAX_N;
 #endif /* UNIV_DEBUG */
 
-	lock_mutex_enter();
-
 	ut_a(slot->in_use);
 	ut_a(slot->thr != NULL);
 	ut_a(slot->thr->slot != NULL);
@@ -111,8 +109,6 @@ lock_wait_table_release_slot(
 
 	ut_ad(lock_sys->last_slot >= lock_sys->waiting_threads);
 	ut_ad(lock_sys->last_slot <= upper);
-
-	lock_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -128,7 +124,7 @@ lock_wait_table_reserve_slot(
 	ulint		i;
 	srv_slot_t*	slot;
 
-	lock_mutex_enter();
+	ut_ad(lock_mutex_own());
 
 	slot = lock_sys->waiting_threads;
 
@@ -182,8 +178,6 @@ lock_wait_table_reserve_slot(
 
 	ut_ad(lock_sys->last_slot <= lock_sys->waiting_threads+ OS_THREAD_MAX_N);
 
-	lock_mutex_exit();
-
 	return(slot);
 }
 
@@ -216,6 +210,8 @@ lock_wait_suspend_thread(
 
 	os_event_set(srv_lock_timeout_thread_event);
 
+	lock_mutex_enter();
+
 	trx_mutex_enter(trx);
 
 	trx->error_state = DB_SUCCESS;
@@ -235,12 +231,11 @@ lock_wait_suspend_thread(
 
 		trx_mutex_exit(trx);
 
+		lock_mutex_exit();
 		return;
 	}
 
 	ut_ad(thr->is_active == FALSE);
-
-	trx_mutex_exit(trx);
 
 	slot = lock_wait_table_reserve_slot(thr);
 
@@ -255,9 +250,13 @@ lock_wait_suspend_thread(
 			start_time = (ib_int64_t) sec * 1000000 + ms;
 		}
 	}
+
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
 	os_event_set(srv_lock_timeout_thread_event);
+
+	trx_mutex_exit(trx);
+	lock_mutex_exit();
 
 	if (trx->declared_to_be_inside_innodb) {
 
@@ -287,6 +286,7 @@ lock_wait_suspend_thread(
 
 	/* Suspend this thread and wait for the event. */
 
+	ut_ad(!trx_mutex_own(trx));
 	os_event_wait(slot->event);
 
 	/* After resuming, reacquire the data dictionary latch if
@@ -312,7 +312,13 @@ lock_wait_suspend_thread(
 
 	/* Release the slot for others to use */
 
+	lock_mutex_enter();
+
+	trx_mutex_enter(trx);
+
 	lock_wait_table_release_slot(slot);
+
+	lock_mutex_exit();
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		if (ut_usectime(&sec, &ms) == -1) {
@@ -332,8 +338,6 @@ lock_wait_suspend_thread(
 			srv_n_lock_max_wait_time = diff_time;
 		}
 	}
-
-	trx_mutex_enter(trx);
 
 	if (trx->was_chosen_as_deadlock_victim) {
 
