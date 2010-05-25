@@ -29,31 +29,6 @@ enum partition_keywords
   PKW_COLUMNS
 };
 
-/*
-  PARTITION_SHARE is a structure that will be shared amoung all open handlers
-  The partition implements the minimum of what you will probably need.
-*/
-
-#ifdef NOT_USED
-typedef struct st_partition_share
-{
-  char *table_name;
-  uint table_name_length, use_count;
-  mysql_mutex_t mutex;
-  THR_LOCK lock;
-} PARTITION_SHARE;
-#endif
-
-/**
-  Partition specific ha_data struct.
-  @todo: move all partition specific data from TABLE_SHARE here.
-*/
-typedef struct st_ha_data_partition
-{
-  ulonglong next_auto_inc_val;                 /**< first non reserved value */
-  bool auto_inc_initialized;
-  pthread_mutex_t mutex;
-} HA_DATA_PARTITION;
 
 #define PARTITION_BYTES_IN_POS 2
 #define PARTITION_ENABLED_TABLE_FLAGS (HA_FILE_BASED | HA_REC_NOT_IN_SEQ)
@@ -522,7 +497,7 @@ public:
     -------------------------------------------------------------------------
   */
   virtual int info(uint);
-  void get_dynamic_partition_info(PARTITION_INFO *stat_info,
+  void get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                   uint part_id);
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
@@ -936,16 +911,16 @@ private:
     /* lock already taken */
     if (auto_increment_safe_stmt_log_lock)
       return;
-    DBUG_ASSERT(table_share->ha_data && !auto_increment_lock);
+    DBUG_ASSERT(table_share->ha_part_data && !auto_increment_lock);
     if(table_share->tmp_table == NO_TMP_TABLE)
     {
       auto_increment_lock= TRUE;
-      mysql_mutex_lock(&table_share->LOCK_ha_data);
+      mysql_mutex_lock(&table_share->ha_part_data->LOCK_auto_inc);
     }
   }
   virtual void unlock_auto_increment()
   {
-    DBUG_ASSERT(table_share->ha_data);
+    DBUG_ASSERT(table_share->ha_part_data);
     /*
       If auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
       It will be set to false and thus unlocked at the end of the statement by
@@ -953,20 +928,19 @@ private:
     */
     if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
     {
-      mysql_mutex_unlock(&table_share->LOCK_ha_data);
+      mysql_mutex_unlock(&table_share->ha_part_data->LOCK_auto_inc);
       auto_increment_lock= FALSE;
     }
   }
   virtual void set_auto_increment_if_higher(Field *field)
   {
-    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     ulonglong nr= (((Field_num*) field)->unsigned_flag ||
                    field->val_int() > 0) ? field->val_int() : 0;
     lock_auto_increment();
-    DBUG_ASSERT(ha_data->auto_inc_initialized == TRUE);
+    DBUG_ASSERT(table_share->ha_part_data->auto_inc_initialized == TRUE);
     /* must check when the mutex is taken */
-    if (nr >= ha_data->next_auto_inc_val)
-      ha_data->next_auto_inc_val= nr + 1;
+    if (nr >= table_share->ha_part_data->next_auto_inc_val)
+      table_share->ha_part_data->next_auto_inc_val= nr + 1;
     unlock_auto_increment();
   }
 

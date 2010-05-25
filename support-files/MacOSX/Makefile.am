@@ -52,6 +52,3 @@ SUFFIXES = .sh
 		-e 's!@''MYSQLD_USER''@!@MYSQLD_USER@!' \
 	$< > $@-t
 	@MV@ $@-t $@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

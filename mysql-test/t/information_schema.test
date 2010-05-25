@@ -1418,6 +1418,24 @@ DROP DATABASE db1;
 
 --echo End of 5.1 tests.
 
+#
+# WL#2003 INFORMATION_SCHEMA: PARAMETERS view
+# WL#2822 INFORMATION_SCHEMA.ROUTINES: Add missing columns
+#
+create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
+returns char(10) return null;
+create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
+create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
+select * from information_schema.parameters where specific_schema='test';
+select data_type, character_maximum_length,
+       character_octet_length, numeric_precision,
+       numeric_scale, character_set_name,
+       collation_name, dtd_identifier
+from information_schema.routines where routine_schema='test';
+drop procedure p1;
+drop procedure p2;
+drop function f1;
+
 --echo #
 --echo # Additional test for WL#3726 "DDL locking for all metadata objects"
 --echo # To avoid possible deadlocks process of filling of I_S tables should
@@ -1513,8 +1531,17 @@ DROP TABLE t1, information_schema.tables;
 LOCK TABLES t1 READ, information_schema.tables READ;
 DROP TABLE t1;
 
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
+#
+# Bug#38916 Select from I_S.ROUTINES results in "No database selected" error
+#
+create function f1() returns int return 1;
+--connect (con7,localhost,root,,*NO-ONE*)
+select routine_name, routine_type from information_schema.routines
+where routine_schema = 'test';
+connection default;
+drop function f1;
+disconnect con7;
+
 
 #
 # Bug #43834    Assertion in Natural_join_column::db_name() on an I_S query
@@ -1528,3 +1555,5 @@ WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
 
 
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

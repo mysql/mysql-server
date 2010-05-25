@@ -16,4 +16,11 @@ SET @old_general_log= @@global.general_log;
 # End of 4.1 tests
 echo ok;
 
+--echo
+--echo # cat MYSQL_TMP_DIR/test_wl4435.out.log
+--echo # ------------------------------------
+--cat_file $MYSQL_TMP_DIR/test_wl4435.out.log
+--echo # ------------------------------------
+--echo
+
 SET @@global.general_log= @old_general_log;

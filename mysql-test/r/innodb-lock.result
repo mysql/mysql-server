@@ -27,9 +27,10 @@ commit;
 drop table t1;
 #
 # Old lock method (where LOCK TABLE was ignored by InnoDB) no longer
-# works due to fix for bugs  #46272 "MySQL 5.4.4, new MDL: unnecessary
-# deadlock" and bug #37346 "innodb does not detect deadlock between
-# update and alter table".
+# works when LOCK TABLE ... WRITE is used due to fix for bugs #46272
+# "MySQL 5.4.4, new MDL: unnecessary and bug #37346 "innodb does not
+# detect deadlock between update and alter table". But it still works
+# for LOCK TABLE ... READ.
 #
 set @@innodb_table_locks=0;
 create table t1 (id integer primary key, x integer) engine=INNODB;
@@ -61,4 +62,30 @@ commit;
 # Reap LOCK TABLE.
 unlock tables;
 # Connection 'con1'.
+select * from t1 where id = 0 for update;
+id	x
+0	1
+# Connection 'con2'.
+# The below statement should not be blocked as LOCK TABLES ... READ
+# does not take strong SQL-level lock on t1. SELECTs which do not
+# conflict with transaction in the first connections should not be
+# blocked.
+lock table t1 read;
+select * from t1;
+id	x
+0	1
+1	1
+2	2
+select * from t1 where id = 1 lock in share mode;
+id	x
+1	1
+unlock tables;
+select * from t1;
+id	x
+0	1
+1	1
+2	2
+commit;
+# Connection 'con1'.
+commit;
 drop table t1;

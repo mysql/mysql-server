@@ -1709,7 +1709,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
     res= select_like_stmt_test(stmt, 0, 0);
 
-    lex->link_first_table_back(create_table, &link_to_local);
+    lex->link_first_table_back(create_table, link_to_local);
   }
   else
   {
@@ -3247,7 +3247,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     locks have already been released and our savepoint points
     to ticket which has been released as well.
   */
-  if (thd->in_multi_stmt_transaction())
+  if (thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;

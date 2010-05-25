@@ -65,6 +65,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
 select * from t1;
 n
@@ -113,6 +114,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=891;
 select * from t2;
 n
@@ -159,6 +161,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 start slave;
 [on master]
 [on slave]
@@ -205,6 +208,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 ==== Test various error conditions ====
 start slave until master_log_file='master-bin', master_log_pos=561;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL

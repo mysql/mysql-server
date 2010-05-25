@@ -6048,7 +6048,7 @@ longlong Item_func_row_count::val_int()
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
 
-  return thd->row_count_func;
+  return thd->get_row_count_func();
 }
 
 

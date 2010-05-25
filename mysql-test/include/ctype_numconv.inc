@@ -457,6 +457,8 @@ select * from t1;
 show create table t1;
 drop table t1;
 
+# Ensure that row_count() value is reset after drop table.
+select 1;
 select hex(concat(row_count()));
 create table t1 as select concat(row_count()) as c1;
 show create table t1;
