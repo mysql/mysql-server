@@ -49,6 +49,7 @@
                               // mysql_recreate_table,
                               // mysql_backup_table,
                               // mysql_restore_table
+#include "sql_truncate.h"     // mysql_truncate_table
 #include "sql_connect.h"      // check_user,
                               // decrease_user_connections,
                               // thd_init_client_charset, check_mqh,
@@ -253,7 +254,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_PROTECT_AGAINST_GRL;
@@ -3280,9 +3281,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-      goto error;
-    res= mysql_truncate(thd, first_table, 0);
+    if (! (res= mysql_truncate_table(thd, first_table)))
+      my_ok(thd);
     break;
   case SQLCOM_DELETE:
   {
@@ -3295,8 +3295,7 @@ end_with_restore_list:
     MYSQL_DELETE_START(thd->query());
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
-                       unit->select_limit_cnt, select_lex->options,
-                       FALSE);
+                       unit->select_limit_cnt, select_lex->options);
     MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
     break;
   }
