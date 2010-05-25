@@ -81,7 +81,7 @@ set @b1 = 'b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1535 ***
 ********************************************
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
@@ -106,7 +106,7 @@ START SLAVE;
 INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 (30000.22,4,'QA TESTING');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1535 ***
 ********************************************
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
@@ -131,7 +131,7 @@ START SLAVE;
 INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 (2,'JOE',300.01,0,'b2b2',1.0000009);
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1535 ***
 ********************************************
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
@@ -155,7 +155,7 @@ START SLAVE;
 INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 (2,'JOE',300.01,0);
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1535 ***
 ********************************************
 Last_SQL_Error = Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
@@ -253,7 +253,7 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1535 ***
 ********************************************
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
@@ -277,7 +277,7 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1535 ***
 ********************************************
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
@@ -593,7 +593,7 @@ START SLAVE;
 *** Master Data Insert ***
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1535 ***
 ********************************************
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2

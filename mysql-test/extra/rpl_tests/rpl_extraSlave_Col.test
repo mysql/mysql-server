@@ -145,7 +145,7 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
 --let $slave_sql_errno= 1535
@@ -188,7 +188,7 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
                         (30000.22,4,'QA TESTING');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
 --let $slave_sql_errno= 1535
@@ -231,7 +231,7 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
                         (2,'JOE',300.01,0,'b2b2',1.0000009);
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
 --let $slave_sql_errno= 1535
@@ -275,7 +275,7 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
                         (2,'JOE',300.01,0);
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
 --let $slave_sql_errno= 1535
@@ -479,7 +479,7 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
 --let $slave_sql_errno= 1535
@@ -521,7 +521,7 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
 --let $slave_sql_errno= 1535
@@ -900,7 +900,7 @@ connection master;
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 
 --echo ********************************************
---echo *** Expect slave to fail with Error 1522 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 connection slave;
 --let $slave_sql_errno= 1535
