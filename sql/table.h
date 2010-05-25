@@ -1581,20 +1581,21 @@ struct TABLE_LIST
     OPEN_STUB
   } open_strategy;
   /**
-    Indicates the locking strategy for the object being opened:
-    whether the associated metadata lock is shared or exclusive.
+    Indicates the locking strategy for the object being opened.
   */
   enum
   {
-    /* Take a shared metadata lock before the object is opened. */
-    SHARED_MDL= 0,
     /*
-       Take a exclusive metadata lock before the object is opened.
-       If opening is successful, downgrade to a shared lock.
+      Take metadata lock specified by 'mdl_request' member before
+      the object is opened. Do nothing after that.
     */
-    EXCLUSIVE_DOWNGRADABLE_MDL,
-    /* Take a exclusive metadata lock before the object is opened. */
-    EXCLUSIVE_MDL
+    OTLS_NONE= 0,
+    /*
+      Take (exclusive) metadata lock specified by 'mdl_request' member
+      before object is opened. If opening is successful, downgrade to
+      a shared lock.
+    */
+    OTLS_DOWNGRADE_IF_EXISTS
   } lock_strategy;
   /* For transactional locking. */
   int           lock_timeout;           /* NOWAIT or WAIT [X]               */

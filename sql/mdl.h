@@ -308,6 +308,10 @@ public:
   MDL_key key;
 
 public:
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  { return alloc_root(mem_root, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
+
   void init(MDL_key::enum_mdl_namespace namespace_arg,
             const char *db_arg, const char *name_arg,
             enum_mdl_type mdl_type_arg);

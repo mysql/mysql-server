@@ -4010,6 +4010,11 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
       table->trg_event_map= stab->trg_event_map;
+      /*
+        Since we don't allow DDL on base tables in prelocked mode it
+        is safe to infer the type of metadata lock from the type of
+        table lock.
+      */
       table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                               table->lock_type >= TL_WRITE_ALLOW_WRITE ?
                               MDL_SHARED_WRITE : MDL_SHARED_READ);
@@ -4040,7 +4045,8 @@ sp_head::add_used_tables_to_table_list(THD *thd,
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
-		       thr_lock_type locktype)
+                       thr_lock_type locktype,
+                       enum_mdl_type mdl_type)
 {
   TABLE_LIST *table;
 
@@ -4055,8 +4061,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                          MDL_SHARED_WRITE : MDL_SHARED_READ);
+                          mdl_type);
 
   lex->add_to_query_tables(table);
   return table;
