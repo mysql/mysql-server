@@ -2427,7 +2427,7 @@ row_discard_tablespace_for_mysql(
 		goto funct_exit;
 	}
 
-	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
+	dict_hdr_get_new_id(&new_id, NULL, NULL);
 
 	/* Remove all locks except the table-level S and X locks. */
 	lock_remove_all_on_table(table, FALSE);
@@ -2789,10 +2789,11 @@ row_truncate_table_for_mysql(
 
 			dict_index_t*	index;
 
-			space = 0;
+			dict_hdr_get_new_id(NULL, NULL, &space);
 
-			if (fil_create_new_single_table_tablespace(
-				    &space, table->name, FALSE, flags,
+			if (space == ULINT_UNDEFINED
+			    || fil_create_new_single_table_tablespace(
+				    space, table->name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -2897,7 +2898,7 @@ next_rec:
 
 	mem_heap_free(heap);
 
-	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
+	dict_hdr_get_new_id(&new_id, NULL, NULL);
 
 	info = pars_info_create();
 
