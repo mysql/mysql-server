@@ -3096,7 +3096,7 @@ int get_partition_id_list_col(partition_info *part_info,
     }
     else
     {
-      *part_id= (uint32)list_col_array[list_index].partition_id;
+      *part_id= (uint32)list_col_array[list_index*num_columns].partition_id;
       DBUG_RETURN(0);
     }
   }
@@ -4186,7 +4186,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
 
 bool mysql_unpack_partition(THD *thd,
                             const char *part_buf, uint part_info_len,
-                            const char *part_state, uint part_state_len,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type,
                             bool *work_part_info_used)
@@ -4222,8 +4221,6 @@ bool mysql_unpack_partition(THD *thd,
     goto end;
   }
   part_info= lex.part_info;
-  part_info->part_state= part_state;
-  part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
@@ -7701,7 +7698,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
   DESCRIPTION
     This implementation of PARTITION_ITERATOR::get_next() is special for 
     LIST partitioning: it enumerates partition ids in
-    part_info->list_array[i] (list_col_array[i] for COLUMNS LIST
+    part_info->list_array[i] (list_col_array[i*cols] for COLUMNS LIST
     partitioning) where i runs over [min_idx, max_idx] interval.
     The function conforms to partition_iter_func type.
 
@@ -7727,9 +7724,12 @@ uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
   {
     partition_info *part_info= part_iter->part_info;
     uint32 num_part= part_iter->part_nums.cur++;
-    return part_info->column_list ?
-           part_info->list_col_array[num_part].partition_id :
-           part_info->list_array[num_part].partition_id;
+    if (part_info->column_list)
+    {
+      uint num_columns= part_info->part_field_list.elements;
+      return part_info->list_col_array[num_part*num_columns].partition_id;
+    }
+    return part_info->list_array[num_part].partition_id;
   }
 }
 
