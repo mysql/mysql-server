@@ -3933,7 +3933,7 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
   DBUG_ASSERT(part_id < m_tot_parts);
   file= m_file[part_id];
   m_last_part= part_id;
-  DBUG_RETURN(file->rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
+  DBUG_RETURN(file->ha_rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
 }
 
 

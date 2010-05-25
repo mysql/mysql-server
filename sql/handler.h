@@ -32,7 +32,6 @@
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
-#include <mysql/psi/mysql_table.h>
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -1266,11 +1265,7 @@ public:
   /* ha_ methods: public wrappers for private virtual API */
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
-  int ha_close(void)
-  {
-    psi_close();
-    return close();
-  }
+  int ha_close(void);
   int ha_index_init(uint idx, bool sorted)
   {
     int result;
@@ -1302,15 +1297,22 @@ public:
     inited=NONE;
     DBUG_RETURN(rnd_end());
   }
-  int ha_rnd_next(uchar *buf)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
-    result= rnd_next(buf);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
+  int ha_rnd_next(uchar *buf);
+  int ha_rnd_pos(uchar * buf, uchar *pos);
+  int ha_index_read_map(uchar *buf, const uchar *key,
+                        key_part_map keypart_map,
+                        enum ha_rkey_function find_flag);
+  int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                           key_part_map keypart_map,
+                           enum ha_rkey_function find_flag);
+  int ha_index_next(uchar * buf);
+  int ha_index_prev(uchar * buf);
+  int ha_index_first(uchar * buf);
+  int ha_index_last(uchar * buf);
+  int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  int ha_index_read(uchar *buf, const uchar *key, uint key_len,
+                    enum ha_rkey_function find_flag);
+  int ha_index_read_last(uchar *buf, const uchar *key, uint key_len);
   int ha_reset();
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
@@ -1492,73 +1494,6 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
-  int ha_index_read_map(uchar *buf, const uchar *key,
-                        key_part_map keypart_map,
-                        enum ha_rkey_function find_flag)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_read_map(buf, key, keypart_map, find_flag);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
-  int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
-                           key_part_map keypart_map,
-                           enum ha_rkey_function find_flag)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0);
-    result= index_read_idx_map(buf, index, key, keypart_map, find_flag);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
-  int ha_index_next(uchar * buf)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_next(buf);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
-  int ha_index_prev(uchar * buf)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_prev(buf);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
-  int ha_index_first(uchar * buf)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_first(buf);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
-  int ha_index_last(uchar * buf)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_last(buf);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
-  int ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_next_same(buf, key, keylen);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
 protected:
   /**
      @brief
@@ -1619,8 +1554,8 @@ public:
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
   virtual int rnd_next(uchar *buf)=0;
-public:
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
+public:
   /**
     One has to use this method when to find
     random position by record as the plain
@@ -1630,7 +1565,7 @@ public:
   virtual int rnd_pos_by_record(uchar *record)
     {
       position(record);
-      return rnd_pos(record, ref);
+      return ha_rnd_pos(record, ref);
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
   /**
@@ -1941,32 +1876,6 @@ protected:
   */
   PSI_table_share *ha_table_share_psi(const TABLE_SHARE *share) const;
 
-  inline void psi_open()
-  {
-    DBUG_ASSERT(m_psi == NULL);
-    DBUG_ASSERT(table_share != NULL);
-#ifdef HAVE_PSI_INTERFACE
-    if (likely(PSI_server != NULL))
-    {
-      PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      if (likely(share_psi != NULL))
-        m_psi= PSI_server->open_table(share_psi, this);
-    }
-#endif
-  }
-
-  inline void psi_close()
-  {
-#ifdef HAVE_PSI_INTERFACE
-    if (likely(PSI_server && m_psi))
-    {
-      PSI_server->close_table(m_psi);
-      m_psi= NULL; /* instrumentation handle, invalid after close_table() */
-    }
-#endif
-    DBUG_ASSERT(m_psi == NULL);
-  }
-
   /**
     Default rename_table() and delete_table() rename/delete files with a
     given name and extensions from bas_ext().
@@ -2068,25 +1977,6 @@ private:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
-  int ha_index_read(uchar *buf, const uchar *key, uint key_len,
-                    enum ha_rkey_function find_flag)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_read(buf, key, key_len, find_flag);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
-  int ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
-  {
-    int result;
-    struct PSI_table_locker *locker;
-    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
-    result= index_read_last(buf, key, key_len);
-    MYSQL_END_TABLE_WAIT(locker);
-    return result;
-  }
 protected:
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)

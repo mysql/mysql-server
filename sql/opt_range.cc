@@ -8547,7 +8547,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
 
     /* We get here if we got the same row ref in all scans. */
     if (need_to_fetch_row)
-      error= head->file->rnd_pos(head->record[0], last_rowid);
+      error= head->file->ha_rnd_pos(head->record[0], last_rowid);
   } while (error == HA_ERR_RECORD_DELETED);
   DBUG_RETURN(error);
 }
@@ -8613,7 +8613,7 @@ int QUICK_ROR_UNION_SELECT::get_next()
     cur_rowid= prev_rowid;
     prev_rowid= tmp;
 
-    error= head->file->rnd_pos(quick->record, prev_rowid);
+    error= head->file->ha_rnd_pos(quick->record, prev_rowid);
   } while (error == HA_ERR_RECORD_DELETED);
   DBUG_RETURN(error);
 }
