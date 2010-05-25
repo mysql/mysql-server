@@ -1606,7 +1606,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     /* 'parent_lex' is used in init_query() so it must be before it. */
     schema_select_lex->parent_lex= lex;
     schema_select_lex->init_query();
-    if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
+    if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
+                                              MDL_SHARED_READ))
       DBUG_RETURN(1);
     lex->query_tables_last= query_tables_last;
     break;
@@ -2544,7 +2545,7 @@ case SQLCOM_PREPARE:
 
     /* Set strategies: reset default or 'prepared' values. */
     create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-    create_table->lock_strategy= TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL;
+    create_table->lock_strategy= TABLE_LIST::OTLS_DOWNGRADE_IF_EXISTS;
 
     /*
       Close any open handlers for the table
@@ -3502,16 +3503,13 @@ end_with_restore_list:
         thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       goto error;
 
-    init_mdl_requests(all_tables);
-
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
     thd->in_lock_tables=1;
 
     {
       Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
 
-      res= (open_and_lock_tables(thd, all_tables, FALSE,
-                                 MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+      res= (open_and_lock_tables(thd, all_tables, FALSE, 0,
                                  &lock_tables_prelocking_strategy) ||
             thd->locked_tables_list.init_locked_tables(thd));
     }
@@ -6014,6 +6012,7 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
                          - TL_OPTION_FORCE_INDEX : Force usage of index
                          - TL_OPTION_ALIAS : an alias in multi table DELETE
   @param lock_type	How table should be locked
+  @param mdl_type       Type of metadata lock to acquire on the table.
   @param use_index	List of indexed used in USE INDEX
   @param ignore_index	List of indexed used in IGNORE INDEX
 
@@ -6028,6 +6027,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     LEX_STRING *alias,
 					     ulong table_options,
 					     thr_lock_type lock_type,
+					     enum_mdl_type mdl_type,
 					     List<Index_hint> *index_hints_arg,
                                              LEX_STRING *option)
 {
@@ -6175,9 +6175,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name,
-                        (ptr->lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                        MDL_SHARED_WRITE : MDL_SHARED_READ);
+  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type);
   DBUG_RETURN(ptr);
 }
 

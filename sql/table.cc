@@ -4659,13 +4659,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
          parent_embedding->nested_join->join_list.head() == embedded);
 
   mdl_request.ticket= NULL;
-  /*
-    Since we manipulate with the metadata lock type in open_table(),
-    we need to reset it to the parser default, to restore things back
-    to first-execution state.
-  */
-  mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ);
 }
 
 /*
