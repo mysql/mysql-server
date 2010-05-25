@@ -312,7 +312,7 @@
   #define SIZEOF_CHARP   SIZEOF_LONG
   #define SIZEOF_SIZE_T  SIZEOF_LONG
 #else
-# No indentation, to fetch the lines from verification scripts
+/* No indentation, to fetch the lines from verification scripts */
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
 #cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
 #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
