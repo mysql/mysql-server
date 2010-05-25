@@ -101,6 +101,7 @@ connection con2;
 --error ER_LOCK_WAIT_TIMEOUT
 UPDATE t1 SET b = 21 WHERE a = 1;
 --disable_info
+ROLLBACK;
 
 --echo # Switch to connection con1
 connection con1;
@@ -150,6 +151,7 @@ SELECT * FROM t1;
 connection con2;
 --reap
 SELECT * FROM t1;
+COMMIT;
 
 --echo # Switch to connection con1
 connection con1;

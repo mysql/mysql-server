@@ -27,8 +27,6 @@ typedef struct st_sql_list SQL_LIST;
 
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows rows, ulonglong options,
-                  bool reset_auto_increment);
-bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
+                  SQL_LIST *order, ha_rows rows, ulonglong options);
 
 #endif /* SQL_DELETE_INCLUDED */
