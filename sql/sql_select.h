@@ -1373,8 +1373,11 @@ public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
+  /*
+    Base tables participating in the join. After join optimization is done, the
+    tables are stored in the join order.
+  */
   TABLE    **table;
-  TABLE    **all_tables;
   /**
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by

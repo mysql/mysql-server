@@ -2655,9 +2655,11 @@ bool setup_sj_materialization(JOIN_TAB *tab)
          then substitute_for_best_equal_field() will change the conditions
          according to the join order:
 
-           it1
-           it2    it1.col=it2.col
-           ot     cond(it1.col)
+         table | attached condition
+         ------+--------------------
+          it1  |
+          it2  | it1.col=it2.col
+          ot   | cond(it1.col)
 
          although we've originally had "SELECT it2.col", conditions attached 
          to subsequent outer tables will refer to it1.col, so SJM-Scan will
