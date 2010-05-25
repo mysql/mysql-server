@@ -489,8 +489,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   else
   {
     tables->table= open_n_lock_single_table(thd, tables,
-                                            TL_WRITE_ALLOW_READ,
-                                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+                                            TL_WRITE_ALLOW_READ, 0);
     if (! tables->table)
       goto end;
     tables->table->use_all_columns();
@@ -1667,7 +1666,8 @@ bool add_table_for_trigger(THD *thd,
     DBUG_RETURN(TRUE);
 
   *table= sp_add_to_query_tables(thd, lex, trg_name->m_db.str,
-                                 tbl_name.str, TL_IGNORE);
+                                 tbl_name.str, TL_IGNORE,
+                                 MDL_SHARED_NO_WRITE);
 
   DBUG_RETURN(*table ? FALSE : TRUE);
 }

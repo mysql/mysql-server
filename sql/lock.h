@@ -15,33 +15,32 @@ typedef struct st_mysql_lock MYSQL_LOCK;
 #define MYSQL_OPEN_TEMPORARY_ONLY               0x0004
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
 #define MYSQL_LOCK_LOG_TABLE                    0x0010
-#define MYSQL_OPEN_TAKE_UPGRADABLE_MDL          0x0020
 /**
   Do not try to acquire a metadata lock on the table: we
   already have one.
 */
-#define MYSQL_OPEN_HAS_MDL_LOCK                 0x0040
+#define MYSQL_OPEN_HAS_MDL_LOCK                 0x0020
 /**
   If in locked tables mode, ignore the locked tables and get
   a new instance of the table.
 */
-#define MYSQL_OPEN_GET_NEW_TABLE                0x0080
+#define MYSQL_OPEN_GET_NEW_TABLE                0x0040
 /** Don't look up the table in the list of temporary tables. */
-#define MYSQL_OPEN_SKIP_TEMPORARY               0x0100
+#define MYSQL_OPEN_SKIP_TEMPORARY               0x0080
 /** Fail instead of waiting when conficting metadata lock is discovered. */
-#define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0200
+#define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0100
 /** Open tables using MDL_SHARED lock instead of one specified in parser. */
-#define MYSQL_OPEN_FORCE_SHARED_MDL             0x0400
+#define MYSQL_OPEN_FORCE_SHARED_MDL             0x0200
 /**
   Open tables using MDL_SHARED_HIGH_PRIO lock instead of one specified
   in parser.
 */
-#define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0800
+#define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0400
 /**
   When opening or locking the table, use the maximum timeout
   (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
 */
-#define MYSQL_LOCK_IGNORE_TIMEOUT               0x1000
+#define MYSQL_LOCK_IGNORE_TIMEOUT               0x0800
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\

@@ -4656,6 +4656,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
+    /*
+      To make code safe for re-execution we need to reset type of MDL
+      request as code below may change it.
+      To allow concurrent execution of read-only operations we acquire
+      weak metadata lock for them.
+    */
+    table->mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_READ) ?
+                                MDL_SHARED_NO_READ_WRITE : MDL_SHARED_READ);
     /* open only one table from local list of command */
     {
       TABLE_LIST *save_next_global, *save_next_local;
@@ -4677,8 +4685,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
-      open_error= open_and_lock_tables(thd, table, TRUE,
-                                       MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+      open_error= open_and_lock_tables(thd, table, TRUE, 0);
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
@@ -5024,6 +5031,7 @@ send_result_message:
         /* Clear the ticket released in close_thread_tables(). */
         table->mdl_request.ticket= NULL;
         DEBUG_SYNC(thd, "ha_admin_open_ltable");
+        table->mdl_request.set_type(MDL_SHARED_WRITE);
         if ((table->table= open_ltable(thd, table, lock_type, 0)))
         {
           result_code= table->table->file->ha_analyze(thd, check_opt);
@@ -5461,6 +5469,7 @@ mysql_discard_or_import_tablespace(THD *thd,
    not complain when we lock the table
  */
   thd->tablespace_op= TRUE;
+  table_list->mdl_request.set_type(MDL_SHARED_WRITE);
   if (!(table=open_ltable(thd, table_list, TL_WRITE, 0)))
   {
     thd->tablespace_op=FALSE;
@@ -6568,6 +6577,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
     if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       DBUG_RETURN(TRUE);
+
+    /*
+      TODO/FIXME: Get rid of this code branch if possible. To add insult
+                  to injury it breaks locking protocol.
+    */
+    table_list->mdl_request.set_type(MDL_EXCLUSIVE);
     if (lock_table_names(thd, table_list))
     {
       error= 1;
@@ -6608,8 +6623,7 @@ view_err:
 
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
 
-  error= open_and_lock_tables(thd, table_list, FALSE,
-                              MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+  error= open_and_lock_tables(thd, table_list, FALSE, 0,
                               &alter_prelocking_strategy);
 
   if (error)
@@ -7904,6 +7918,10 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   table_list->table= NULL;
   /* Same applies to MDL ticket. */
   table_list->mdl_request.ticket= NULL;
+  /* Set lock type which is appropriate for ALTER TABLE. */
+  table_list->lock_type= TL_WRITE_ALLOW_READ;
+  /* Same applies to MDL request. */
+  table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
   bzero((char*) &create_info, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;

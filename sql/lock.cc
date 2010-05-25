@@ -880,6 +880,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
          before calling it. Also it cannot be called while holding
          LOCK_open mutex. Both these invariants are enforced by asserts
          in MDL_context::acquire_locks().
+   @note Initialization of MDL_request members of TABLE_LIST elements
+         is a responsibility of the caller.
 
    @retval FALSE  Success.
    @retval TRUE   Failure (OOM or thread was killed).
@@ -894,12 +896,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
-  {
-    lock_table->mdl_request.init(MDL_key::TABLE,
-                                 lock_table->db, lock_table->table_name,
-                                 MDL_EXCLUSIVE);
     mdl_requests.push_front(&lock_table->mdl_request);
-  }
 
   mdl_requests.push_front(&global_request);
 
