@@ -315,7 +315,6 @@ void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error) {
         destroy_merge_fileset(&bl->fs[i]);
     toku_free(bl->fs);
 
-    toku_free(bl->rowset_is_sorted);
     for (int i=0; i < bl->N; i++) {
 	toku_free(bl->last_key[i].data);
     }
@@ -442,7 +441,6 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 
     MY_CALLOC_N(N, bl->rows);
     MY_CALLOC_N(N, bl->fs);
-    MY_CALLOC_N(N, bl->rowset_is_sorted);
     MY_CALLOC_N(N, bl->last_key);
     for(int i=0;i<N;i++) {
         { 
@@ -450,7 +448,6 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
             if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; } 
         }
         init_merge_fileset(&bl->fs[i]);
-	bl->rowset_is_sorted[i] = TRUE; // empty rowsets are sorted.
 	bl->last_key[i].flags = DB_DBT_REALLOC; // don't really need this, but it's nice to maintain it.  We use ulen to keep track of the realloced space.
     }
     { // note : currently brt_loader_init_error_callback always returns 0
@@ -1380,6 +1377,8 @@ static int update_progress (int N,
 CILK_BEGIN
 int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare)
 /* Effect: Given a rowset, sort it and write it to a temporary file.
+ * Note:  The loader maintains for each index the most recently written-to file, as well as the DBT for the last key written into that file.
+ *   If this rowset is sorted and all greater than that dbt, then we append to the file (skipping the sort, and reducing the number of temporary files).
  * Arguments:
  *   rows    the rowset
  *   fs      the fileset into which the sorted data will be added
