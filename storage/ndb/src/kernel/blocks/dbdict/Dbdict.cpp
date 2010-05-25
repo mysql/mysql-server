@@ -26426,13 +26426,21 @@ Dbdict::trans_log_schema_op_complete(SchemaOpPtr op_ptr)
     }
     entry->m_transId = 0;
 
-    XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
-    SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
+    if (op_ptr.p->m_restart == 0)
+    {
+      /**
+       * Don't overwrite OLD_SCHEMA_FILE during restart
+       */
 
-    /**
-     * store new TableEntry
-     */
-    * oldentry = * entry;
+      jam();
+      XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+      SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
+      
+      /**
+       * store new TableEntry
+       */
+      * oldentry = * entry;
+    }
   }
 }
 
