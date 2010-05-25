@@ -1724,7 +1724,7 @@ innobase_start_or_create_for_mysql(void)
 	page_get_free_space_of_empty() / 2); */
 
 	/* Create the thread which watches the timeouts for lock waits */
-	os_thread_create(&srv_lock_timeout_thread, NULL,
+	os_thread_create(&lock_wait_timeout_thread, NULL,
 			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
 
 	/* Create the thread which warns of long semaphore waits */

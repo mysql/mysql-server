@@ -310,6 +310,12 @@ extern ulint srv_buf_pool_reads;
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 
+/** Thread slot in the thread table */
+typedef struct srv_slot_struct	srv_slot_t;
+
+/** Thread table is an array of slots */
+typedef srv_slot_t	srv_table_t;
+
 /** Status variables to be passed to MySQL */
 extern export_struc export_vars;
 
@@ -557,15 +563,6 @@ srv_release_mysql_thread_if_suspended(
 	que_thr_t*	thr);	/*!< in: query thread associated with the
 				MySQL OS thread	 */
 /*********************************************************************//**
-A thread which wakes up threads whose lock wait may have lasted too long.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_lock_timeout_thread(
-/*====================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
-/*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
 UNIV_INTERN
@@ -741,6 +738,26 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
+};
+
+/** Thread slot in the thread table.  */
+struct srv_slot_struct{
+	os_thread_id_t	id;			/*!< thread id */
+	os_thread_t	handle;			/*!< thread handle */
+	unsigned	type:3;			/*!< thread type: user,
+					       	utility etc. */
+	unsigned	in_use:1;		/*!< TRUE if this slot
+					       	is in use */
+	unsigned	suspended:1;		/*!< TRUE if the thread is
+					       	waiting for the event of this
+					       	slot */
+	ib_time_t	suspend_time;		/*!< time when the thread was
+						suspended */
+	os_event_t	event;			/*!< event used in suspending the
+						thread when it has nothing to
+					       	do */
+	que_thr_t*	thr;			/*!< suspended query thread
+					       	(only used for user threads) */
 };
 
 #else /* !UNIV_HOTBACKUP */

@@ -36,6 +36,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "lock0types.h"
 #include "read0types.h"
 #include "hash0hash.h"
+#include "srv0srv.h"
 #include "ut0vec.h"
 
 #ifdef UNIV_DEBUG
@@ -748,6 +749,38 @@ lock_rec_get_page_no(
 /*=================*/
 	const lock_t*	lock);	/*!< in: lock */
 
+/*********************************************************************//**
+A thread which wakes up threads whose lock wait may have lasted too long.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+lock_wait_timeout_thread(
+/*====================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/********************************************************************//**
+Releases a user OS thread waiting for a lock to be released, if the
+thread is already suspended. */
+UNIV_INTERN
+void
+lock_wait_release_thread_if_suspended(
+/*==================================*/
+	que_thr_t*	thr);	/*!< in: query thread associated with the
+				user OS thread	 */
+
+/***************************************************************//**
+Puts a user OS thread to wait for a lock to be released. If an error
+occurs during the wait trx->error_state associated with thr is
+!= DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
+are possible errors. DB_DEADLOCK is returned if selective deadlock
+resolution chose this transaction as a victim. */
+UNIV_INTERN
+void
+lock_wait_suspend_thread(
+/*=====================*/
+	que_thr_t*	thr);	/*!< in: query thread associated with the
+				user OS thread */
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the
@@ -811,8 +844,16 @@ struct lock_op_struct{
 
 /** The lock system struct */
 struct lock_sys_struct{
-	mutex_t		mutex;		/*!< Mutex protecting the locks */
-	hash_table_t*	rec_hash;	/*!< hash table of the record locks */
+	mutex_t		mutex;			/*!< Mutex protecting the
+					       	locks */
+	hash_table_t*	rec_hash;		/*!< hash table of the record
+					       	locks */
+	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
+						suspended while waiting for
+					       	locks within InnoDB, protected
+						by the lock mutex  */
+	srv_slot_t*	last_slot;		/*!< highest slot ever used
+						in the waiting_threads array */
 };
 
 /** The lock system */
@@ -833,6 +874,14 @@ extern lock_sys_t*	lock_sys;
 #define lock_mutex_exit() do {			\
 	mutex_exit(&lock_sys->mutex);		\
 } while (0)
+
+// FIXME: Move these to lock_sys_t
+extern	ibool		srv_lock_timeout_active;
+extern	ulint		srv_n_lock_wait_count;
+extern	ulint		srv_n_lock_wait_current_count;
+extern	ib_int64_t	srv_n_lock_wait_time;
+extern	ulint		srv_n_lock_max_wait_time;
+extern	os_event_t	srv_lock_timeout_thread_event;
 
 #ifndef UNIV_NONINL
 #include "lock0lock.ic"

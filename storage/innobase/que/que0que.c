@@ -40,11 +40,10 @@ Created 5/27/1996 Heikki Tuuri
 #include "dict0crea.h"
 #include "log0log.h"
 #include "eval0proc.h"
+#include "lock0lock.h"
 #include "eval0eval.h"
 #include "pars0types.h"
 
-#define QUE_PARALLELIZE_LIMIT	(64 * 256 * 256 * 256)
-#define QUE_ROUND_ROBIN_LIMIT	(64 * 256 * 256 * 256)
 #define QUE_MAX_LOOPS_WITHOUT_CHECK	16
 
 #ifdef UNIV_DEBUG
@@ -109,22 +108,10 @@ A = assign_node_t, W = while_node_t. */
 is executed?
 
 The commit or rollback can be seen as a subprocedure call.
-The problem is that if there are several query threads
-currently running within the transaction, their action could
-mess the commit or rollback operation. Or, at the least, the
-operation would be difficult to visualize and keep in control.
 
-Therefore the query thread requesting a commit or a rollback
-sends to the transaction a signal, which moves the transaction
-to TRX_QUE_SIGNALED state. All running query threads of the
-transaction will eventually notice that the transaction is now in
-this state and voluntarily suspend themselves. Only the last
-query thread which suspends itself will trigger handling of
-the signal.
-
-When the transaction starts to handle a rollback or commit
-signal, it builds a query graph which, when executed, will
-roll back or commit the incomplete transaction. The transaction
+When the transaction starts to handle a rollback or commit.
+It builds a query graph which, when executed, will roll back
+or commit the incomplete transaction. The transaction
 is moved to the TRX_QUE_ROLLING_BACK or TRX_QUE_COMMITTING state.
 If specified, the SQL cursors opened by the transaction are closed.
 When the execution of the graph completes, it is like returning
@@ -212,48 +199,20 @@ que_thr_create(
 
 /**********************************************************************//**
 Moves a suspended query thread to the QUE_THR_RUNNING state and may release
-a single worker thread to execute it. This function should be used to end
+a worker thread to execute it. This function should be used to end
 the wait state of a query thread waiting for a lock or a stored procedure
 completion. */
 UNIV_INTERN
 void
 que_thr_end_wait(
 /*=============*/
-	que_thr_t*	thr)		/*!< in: query thread in the
-					QUE_THR_LOCK_WAIT,
-					or QUE_THR_PROCEDURE_WAIT */
-{
-	ibool	was_active;
-
-	query_mutex_enter(thr);
-
-	ut_ad(thr);
-	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-	      || (thr->state == QUE_THR_PROCEDURE_WAIT));
-	ut_ad(thr->run_node);
-
-	thr->prev_node = thr->run_node;
-
-	was_active = thr->is_active;
-
-	que_thr_move_to_run_state(thr);
-
-	query_mutex_exit(thr);
-}
-
-/**********************************************************************//**
-Same as que_thr_end_wait, but no parameter next_thr available. */
-UNIV_INTERN
-void
-que_thr_end_wait_no_next_thr(
-/*=========================*/
 	trx_t*		trx)	/*!< in: transaction with que_state in
 		       		QUE_THR_LOCK_WAIT, or QUE_THR_PROCEDURE_WAIT */
 {
 	que_thr_t*	thr;
 	ibool		was_active;
 
-	ut_a(trx_mutex_own(trx));
+	ut_ad(trx_mutex_own(trx));
 
 	thr = trx->wait_thr;
 
@@ -278,7 +237,7 @@ que_thr_end_wait_no_next_thr(
 	for the lock to be released: */
 
 	if (!was_active && thr != NULL) {
-		srv_release_mysql_thread_if_suspended(thr);
+		lock_wait_release_thread_if_suspended(thr);
 	}
 }
 
@@ -750,22 +709,22 @@ que_thr_move_to_run_state(
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx.
 @return	TRUE if stopped */
-static
+UNIV_INTERN
 ibool
-que_thr_stop_low(
-/*=============*/
+que_thr_stop(
+/*=========*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	trx_t*	trx;
-	que_t*	graph;
-	ibool	ret	= TRUE;
+	que_t*		graph;
+	ibool		ret	= TRUE;
+	trx_t*		trx = thr_get_trx(thr);;
 
 	graph = thr->graph;
-	trx = graph->trx;
 
 	ut_ad(trx_mutex_own(trx));
 
 	if (graph->state == QUE_FORK_COMMAND_WAIT) {
+
 		thr->state = QUE_THR_SUSPENDED;
 
 	} else if (trx->que_state == TRX_QUE_LOCK_WAIT) {
@@ -793,12 +752,12 @@ que_thr_stop_low(
 
 /**********************************************************************//**
 Decrements the query thread reference counts in the query graph and the
-transaction. May start signal handling, e.g., a rollback.
+transaction.
 *** NOTE ***:
 This and que_thr_stop_for_mysql are the only functions where the reference
 count can be decremented and this function may only be called from inside
-que_run_threads or que_thr_check_if_switch! These restrictions exist to make
-the rollback code easier to maintain. */
+que_run_threads! These restrictions exist to make the rollback code easier
+to maintain. */
 static
 void
 que_thr_dec_refer_count(
@@ -818,13 +777,16 @@ que_thr_dec_refer_count(
 
 	ut_a(thr->is_active);
 
-	if (thr->state == QUE_THR_RUNNING && !que_thr_stop_low(thr)) {
+	if (thr->state == QUE_THR_RUNNING && !que_thr_stop(thr)) {
 
 		/* The reason for the thr suspension or wait was
 		already canceled before we came here: continue
 		running the thread */
 
-		fputs("!!!!!!!! Wait already ended: continue thr\n", stderr);
+		// FIXME: This is now possible because we don't have the
+		// kernel mutex covering state transactions. The question
+		// is whether it is OK or not.
+		fprintf(stderr, "Wait already ended: trx: %p\n", trx);
 
 		if (next_thr && *next_thr == NULL) {
 			/* Normally srv_suspend_mysql_thread resets
@@ -851,20 +813,6 @@ que_thr_dec_refer_count(
 }
 
 /**********************************************************************//**
-Stops a query thread if graph or trx is in a state requiring it. The
-conditions are tested in the order (1) graph, (2) trx. The kernel mutex has
-to be reserved.
-@return	TRUE if stopped */
-UNIV_INTERN
-ibool
-que_thr_stop(
-/*=========*/
-	que_thr_t*	thr)	/*!< in: query thread */
-{
-	return(que_thr_stop_low(thr));
-}
-
-/**********************************************************************//**
 A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
 query thread is stopped and made inactive, except in the case where
 it was put to the lock wait state in lock0lock.c, but the lock has already
@@ -879,6 +827,7 @@ que_thr_stop_for_mysql(
 
 	trx = thr_get_trx(thr);
 
+	/* Can't be the purge transaction. */
 	ut_a(!ut_dulint_is_zero(trx->id));
 
 	query_mutex_enter(thr);
@@ -906,7 +855,7 @@ que_thr_stop_for_mysql(
 	ut_ad(thr->graph->n_active_thrs == 1);
 
 	thr->is_active = FALSE;
-	(thr->graph)->n_active_thrs--;
+	thr->graph->n_active_thrs--;
 
 	trx->n_active_thrs--;
 
@@ -1286,7 +1235,7 @@ loop:
 		/* The ..._mysql_... function works also for InnoDB's
 		internal threads. Let us wait that the lock wait ends. */
 
-		srv_suspend_mysql_thread(thr);
+		lock_wait_suspend_thread(thr);
 
 		query_mutex_enter(thr);
 

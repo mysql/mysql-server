@@ -563,7 +563,15 @@ lock_sys_create(
 /*============*/
 	ulint	n_cells)	/*!< in: number of slots in lock hash table */
 {
-	lock_sys = mem_zalloc(sizeof(lock_sys_t));
+	ulint	lock_sys_sz;
+
+	lock_sys_sz = sizeof(*lock_sys) + (OS_THREAD_MAX_N * sizeof(srv_slot_t));
+
+	lock_sys = mem_zalloc(lock_sys_sz);
+
+	lock_sys->waiting_threads = (srv_slot_t*) &lock_sys[1];
+
+	lock_sys->last_slot = lock_sys->waiting_threads;
 
 	mutex_create(lock_sys_mutex_key, &lock_sys->mutex, SYNC_LOCK_SYS);
 
@@ -573,6 +581,8 @@ lock_sys_create(
 
 	lock_latest_err_file = os_file_create_tmpfile();
 	ut_a(lock_latest_err_file);
+
+	srv_lock_timeout_thread_event = os_event_create(NULL);
 }
 
 /*********************************************************************//**
@@ -588,8 +598,11 @@ lock_sys_close(void)
 	}
 
 	hash_table_free(lock_sys->rec_hash);
+
 	mutex_free(&lock_sys->mutex);
+
 	mem_free(lock_sys);
+
 	lock_sys = NULL;
 }
 
@@ -773,6 +786,7 @@ lock_set_lock_and_trx_wait(
 	trx_t*	trx)	/*!< in: trx */
 {
 	ut_ad(lock);
+	ut_ad(trx_mutex_own(trx));
 	ut_ad(trx->wait_lock == NULL);
 
 	trx->wait_lock = lock;
@@ -790,10 +804,11 @@ lock_reset_lock_and_trx_wait(
 {
 	ut_ad((lock->trx)->wait_lock == lock);
 	ut_ad(lock_get_wait(lock));
+	ut_ad(trx_mutex_own(lock->trx));
 
 	/* Reset the back pointer in trx to this waiting lock request */
 
-	(lock->trx)->wait_lock = NULL;
+	lock->trx->wait_lock = NULL;
 	lock->type_mode &= ~LOCK_WAIT;
 }
 
@@ -809,12 +824,7 @@ lock_rec_get_gap(
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	if (lock->type_mode & LOCK_GAP) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return((lock->type_mode & LOCK_GAP) ? TRUE : FALSE);
 }
 
 /*********************************************************************//**
@@ -829,12 +839,7 @@ lock_rec_get_rec_not_gap(
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	if (lock->type_mode & LOCK_REC_NOT_GAP) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return((lock->type_mode & LOCK_REC_NOT_GAP) ? TRUE : FALSE);
 }
 
 /*********************************************************************//**
@@ -849,12 +854,7 @@ lock_rec_get_insert_intention(
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	if (lock->type_mode & LOCK_INSERT_INTENTION) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return((lock->type_mode & LOCK_INSERT_INTENTION) ? TRUE : FALSE);
 }
 
 /*********************************************************************//**
@@ -2201,7 +2201,7 @@ lock_grant(
 	for it */
 
 	if (lock->trx->que_state == TRX_QUE_LOCK_WAIT) {
-		que_thr_end_wait_no_next_thr(lock->trx);
+		que_thr_end_wait(lock->trx);
 	}
 
 	trx_mutex_exit(lock->trx);
@@ -2231,7 +2231,7 @@ lock_rec_cancel(
 
 	/* The following function releases the trx from lock wait */
 
-	que_thr_end_wait_no_next_thr(lock->trx);
+	que_thr_end_wait(lock->trx);
 
 	trx_mutex_exit(lock->trx);
 }
@@ -2716,7 +2716,9 @@ lock_move_rec_list_end(
 				lock_rec_reset_nth_bit(lock, heap_no);
 
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
+					trx_mutex_enter(lock->trx);
 					lock_reset_lock_and_trx_wait(lock);
+					trx_mutex_exit(lock->trx);
 				}
 
 				if (comp) {
@@ -3324,7 +3326,7 @@ retry:
 		      lock_latest_err_file);
 
 		fputs("\n*** TRANSACTION:\n", lock_latest_err_file);
-		      trx_print(lock_latest_err_file, trx, 3000);
+		trx_print(lock_latest_err_file, trx, 3000);
 
 		fputs("*** WAITING FOR THIS LOCK TO BE GRANTED:\n",
 		      lock_latest_err_file);
@@ -3458,6 +3460,8 @@ lock_deadlock_recursive(
 				rewind(ef);
 				ut_print_timestamp(ef);
 
+				trx_mutex_enter(wait_lock->trx);
+
 				fputs("\n*** (1) TRANSACTION:\n", ef);
 
 				trx_print(ef, wait_lock->trx, 3000);
@@ -3521,14 +3525,7 @@ lock_deadlock_recursive(
 				wait_lock->trx->was_chosen_as_deadlock_victim
 					= TRUE;
 
-				trx_mutex_enter(wait_lock->trx);
-
 				lock_cancel_waiting_and_release(wait_lock);
-
-				/* The following function releases the trx from
-			       	lock wait */
-
-				que_thr_end_wait_no_next_thr(wait_lock->trx);
 
 				trx_mutex_exit(wait_lock->trx);
 
@@ -3862,39 +3859,32 @@ lock_table(
 
 	if (lock_table_has(trx, table, mode)) {
 
-		trx_mutex_exit(trx);
+		err = DB_SUCCESS;
 
-		lock_mutex_exit();
-
-		return(DB_SUCCESS);
-	}
+	} else if (lock_table_other_has_incompatible(
+				trx, LOCK_WAIT, table, mode)) {
 
 	/* We have to check if the new lock is compatible with any locks
 	other transactions have in the table lock queue. */
-
-	if (lock_table_other_has_incompatible(trx, LOCK_WAIT, table, mode)) {
 
 		/* Another trx has a request on the table in an incompatible
 		mode: this trx may have to wait */
 
 		err = lock_table_enqueue_waiting(mode | flags, table, thr);
+	} else {
 
-		trx_mutex_exit(trx);
+		lock_table_create(table, mode | flags, trx);
 
-		lock_mutex_exit();
+		ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
-		return(err);
+		err = DB_SUCCESS;
 	}
-
-	lock_table_create(table, mode | flags, trx);
-
-	ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
 	trx_mutex_exit(trx);
 
 	lock_mutex_exit();
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -5772,6 +5762,7 @@ lock_cancel_waiting_and_release(
 	lock_t*	lock)	/*!< in: waiting lock request */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(trx_mutex_own(lock->trx));
 
 	if (lock_get_type_low(lock) == LOCK_REC) {
 
@@ -5780,14 +5771,18 @@ lock_cancel_waiting_and_release(
 		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
 
 		if (lock->trx->autoinc_locks != NULL) {
-			/* Release the transaction's AUTOINC locks/ */
+			/* Release the transaction's AUTOINC locks. */
 			lock_release_autoinc_locks(lock->trx);
 		}
 
 		lock_table_dequeue(lock);
 	}
 
-	/* Reset the wait flag and the back pointer to lock in trx */
+	/* Reset the wait flag and the back pointer to lock in trx. */
 
 	lock_reset_lock_and_trx_wait(lock);
+
+	/* The following function releases the trx from lock wait. */
+
+	que_thr_end_wait(lock->trx);
 }

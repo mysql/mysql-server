@@ -541,7 +541,7 @@ handle_new_error:
 		/* MySQL will roll back the latest SQL statement */
 		break;
 	case DB_LOCK_WAIT:
-		srv_suspend_mysql_thread(thr);
+		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state != DB_SUCCESS) {
 			que_thr_stop_for_mysql(thr);
@@ -1151,11 +1151,13 @@ run_again:
 	if (err != DB_SUCCESS) {
 		que_thr_stop_for_mysql(thr);
 
-		/* TODO: what is this? */ thr->lock_state= QUE_THR_LOCK_ROW;
+		/* FIXME: What's this ? */
+		thr->lock_state = QUE_THR_LOCK_ROW;
 
-		was_lock_wait = row_mysql_handle_errors(&err, trx, thr,
-							&savept);
-		thr->lock_state= QUE_THR_LOCK_NOLOCK;
+		was_lock_wait = row_mysql_handle_errors(
+			&err, trx, thr, &savept);
+
+		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		if (was_lock_wait) {
 			goto run_again;
@@ -1601,7 +1603,7 @@ run_again:
 
 		que_thr_stop_for_mysql(thr);
 
-		srv_suspend_mysql_thread(thr);
+		lock_wait_suspend_thread(thr);
 
 		/* Note that a lock wait may also end in a lock wait timeout,
 		or this transaction is picked as a victim in selective

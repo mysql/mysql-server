@@ -24,7 +24,7 @@ IF(UNIX)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     CHECK_INCLUDE_FILES (libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
-    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1 -g")
+    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1 -O3 -g")
     IF(HAVE_LIBAIO_H AND HAVE_LIBAIO)
       ADD_DEFINITIONS(-DLINUX_NATIVE_AIO=1)
       LINK_LIBRARIES(aio)
@@ -223,7 +223,7 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			ha/ha0ha.c ha/hash0hash.c ha/ha0storage.c
 			ibuf/ibuf0ibuf.c
 			pars/lexyy.c pars/pars0grm.c pars/pars0opt.c pars/pars0pars.c pars/pars0sym.c
-			lock/lock0lock.c lock/lock0iter.c
+			lock/lock0lock.c lock/lock0iter.c lock/lock0wait.c
 			log/log0log.c log/log0recv.c
 			mach/mach0data.c
 			mem/mem0mem.c mem/mem0pool.c
