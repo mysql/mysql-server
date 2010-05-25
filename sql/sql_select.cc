@@ -2878,7 +2878,9 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     if (s->type == JT_SYSTEM || s->type == JT_CONST)
     {
       /* Only one matching row */
-      s->found_records=s->records=s->read_time=1; s->worst_seeks=1.0;
+      s->found_records= s->records= 1;
+      s->read_time=1.0; 
+      s->worst_seeks=1.0;
       continue;
     }
     /* Approximate found rows and time to read them */
@@ -11958,10 +11960,10 @@ bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
 
 /* Create internal MyISAM temporary table */
 
-static bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
-                                      ENGINE_COLUMNDEF *start_recinfo,
-                                      ENGINE_COLUMNDEF **recinfo,
-                                      ulonglong options)
+bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
+                               ENGINE_COLUMNDEF *start_recinfo,
+                               ENGINE_COLUMNDEF **recinfo,
+                               ulonglong options)
 {
   int error;
   MI_KEYDEF keydef;
