@@ -154,6 +154,19 @@ brtloader_test$(BINSUF): ../brtloader-internal.h ../brtloader.o
 
 check_brtloader-tests:  check_brtloader-test-bad-generate check_brtloader-test-extractor check_brtloader-test-extractor-errors check_brtloader-test-merge-files-dbufio check_brtloader-test-open check_brtloader-test-writer check_brtloader-test-writer-errors
 
+cilkscreen_brtloader-test-1: brtloader-test$(BINSUF)
+	cilkscreen ./$< dir.$@ $(SUMMARIZE_CMD)
+
+cilkscreen_brtloader-test-extractor-1: brtloader-test-extractor$(BINSUF)
+	cilkscreen ./$< -s xdir.$@ $(SUMMARIZE_CMD)
+
+cilkscreen_brtloader-test-writer-1: brtloader-test-writer$(BINSUF)
+	cilkscreen ./$< -s -r 1000 dir.$@ $(SUMMARIZE_CMD)
+cilkscreen_brtloader-test-writer-2: brtloader-test-writer$(BINSUF)
+	cilkscreen ./$< -s -r 10000 dir.$@ $(SUMMARIZE_CMD)
+cilkscreen_brtloader-test-writer-3: brtloader-test-writer$(BINSUF)
+	cilkscreen ./$< -s -r 100000 dir.$@ $(SUMMARIZE_CMD)
+
 clean:
 	rm -rf log-test7.c.dir_*
 	rm -rf *.dir dir.*
