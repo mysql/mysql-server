@@ -16,6 +16,7 @@
 #include <sql_priv.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <time.h>				// localtime_r
 #include <mysql_version.h>
 #include <mysql/plugin.h>
 #include <my_global.h>
