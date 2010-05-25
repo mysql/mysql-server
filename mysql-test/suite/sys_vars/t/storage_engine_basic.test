@@ -18,12 +18,6 @@
 --source include/have_innodb.inc
 --source include/load_sysvars.inc
 
-# remove this when
-# Bug#53947 InnoDB: Assertion failure in thread 4224 in file
-#   .\sync\sync0sync.c line 324
-# is fixed
---source include/not_windows_embedded.inc
-
 ######################################################################
 #           START OF storage_engine TESTS                            #
 ######################################################################
