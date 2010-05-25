@@ -160,7 +160,7 @@ static void prepare_record_for_error_message(int error, TABLE *table)
   /* Tell the engine about the new set. */
   table->file->column_bitmaps_signal();
   /* Read record that is identified by table->file->ref. */
-  (void) table->file->rnd_pos(table->record[1], table->file->ref);
+  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
   /* Copy the newly read columns into the new record. */
   for (field_p= table->field; (field= *field_p); field_p++)
     if (bitmap_is_set(&unique_map, field->field_index))
@@ -1969,15 +1969,15 @@ int multi_update::do_updates()
 	goto err;
       }
 
-      /* call rnd_pos() using rowids from temporary table */
+      /* call ha_rnd_pos() using rowids from temporary table */
       check_opt_it.rewind();
       TABLE *tbl= table;
       uint field_num= 0;
       do
       {
         if((local_error=
-              tbl->file->rnd_pos(tbl->record[0],
-                                (uchar *) tmp_table->field[field_num]->ptr)))
+              tbl->file->ha_rnd_pos(tbl->record[0],
+                                    (uchar *) tmp_table->field[field_num]->ptr)))
           goto err;
         field_num++;
       } while((tbl= check_opt_it++));

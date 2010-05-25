@@ -517,18 +517,18 @@ replace_record(THD *thd, TABLE *table,
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
 
-       - use rnd_pos() with a row-id (available as dupp_row) to the
+       - use ha_rnd_pos() with a row-id (available as dupp_row) to the
          offending row, if that is possible (MyISAM and Blackhole), or else
 
-       - use index_read_idx() with the key that is duplicated, to
+       - use ha_index_read_idx_map() with the key that is duplicated, to
          retrieve the offending row.
      */
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
-        DBUG_PRINT("info",("rnd_pos() returns error %d",error));
+        DBUG_PRINT("info",("ha_rnd_pos() returns error %d",error));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
@@ -557,7 +557,7 @@ replace_record(THD *thd, TABLE *table,
                                                 HA_READ_KEY_EXACT);
       if (error)
       {
-        DBUG_PRINT("info", ("index_read_idx() returns error %d", error));
+        DBUG_PRINT("info", ("ha_index_read_idx_map() returns error %d", error));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
@@ -672,9 +672,9 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
 
     */
     table->file->position(table->record[0]);
-    int error= table->file->rnd_pos(table->record[0], table->file->ref);
+    int error= table->file->ha_rnd_pos(table->record[0], table->file->ref);
     /*
-      rnd_pos() returns the record in table->record[0], so we have to
+      ha_rnd_pos() returns the record in table->record[0], so we have to
       move it to table->record[1].
      */
     bmove_align(table->record[1], table->record[0], table->s->reclength);
@@ -2022,19 +2022,19 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
 
-       - use rnd_pos() with a row-id (available as dupp_row) to the
+       - use ha_rnd_pos() with a row-id (available as dupp_row) to the
          offending row, if that is possible (MyISAM and Blackhole), or else
 
-       - use index_read_idx() with the key that is duplicated, to
+       - use ha_index_read_idx_map() with the key that is duplicated, to
          retrieve the offending row.
      */
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
-      DBUG_PRINT("info",("Locating offending record using rnd_pos()"));
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      DBUG_PRINT("info",("Locating offending record using ha_rnd_pos()"));
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
-        DBUG_PRINT("info",("rnd_pos() returns error %d",error));
+        DBUG_PRINT("info",("ha_rnd_pos() returns error %d",error));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
@@ -2069,7 +2069,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
                                                 HA_READ_KEY_EXACT);
       if (error)
       {
-        DBUG_PRINT("info",("index_read_idx() returns error %d", error));
+        DBUG_PRINT("info",("ha_index_read_idx_map() returns error %d", error));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
