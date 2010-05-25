@@ -1,3 +1,9 @@
+2010-05-24	The InnoDB Team
+
+	* dict/dict0boot.c, dict/dict0crea.c, fil/fil0fil.c,
+	include/dict0boot.h, include/fil0fil.h, row/row0mysql.c:
+	Fix Bug#53578: assert on invalid page access, in fil_io()
+
 2010-05-14	The InnoDB Team
 	* mysql-test/innodb_bug48024.test, mysql-test/innodb_bug48024.result,
 	dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
