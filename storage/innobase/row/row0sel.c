@@ -4061,28 +4061,22 @@ no_gap_lock:
 			}
 
 			lock_mutex_enter();
+                        trx_mutex_enter(trx);
 			if (trx->was_chosen_as_deadlock_victim) {
+                                trx_mutex_exit(trx);
 				lock_mutex_exit();
 				err = DB_DEADLOCK;
 
 				goto lock_wait_or_error;
 			}
-			if (UNIV_LIKELY(trx->wait_lock != NULL)) {
-
-				trx_mutex_enter(trx);
+			if (trx->wait_lock != NULL) {
 
 				lock_cancel_waiting_and_release(
 					trx->wait_lock);
 
-				/* The following function releases the trx
-			       	from lock wait */
-
-				que_thr_end_wait_no_next_thr(trx);
-
-				trx_mutex_exit(trx);
-
 				prebuilt->new_rec_locks = 0;
 			} else {
+                                trx_mutex_exit(trx);
 				lock_mutex_exit();
 
 				/* The lock was granted while we were
@@ -4098,6 +4092,7 @@ no_gap_lock:
 				prebuilt->new_rec_locks = 1;
 				break;
 			}
+                        trx_mutex_exit(trx);
 			lock_mutex_exit();
 
 			if (old_vers == NULL) {

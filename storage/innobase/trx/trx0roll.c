@@ -77,15 +77,15 @@ trx_general_rollback_for_mysql_low(
 				partial rollback requested, or NULL for
 				complete rollback */
 {
-	mem_heap_t*	heap;
 	que_thr_t*	thr;
+	mem_heap_t*	heap;
 	roll_node_t*	roll_node;
 
 	heap = mem_heap_create(512);
 
 	roll_node = roll_node_create(heap);
 
-	if (savept) {
+	if (savept != NULL) {
 		roll_node->partial = TRUE;
 		roll_node->savept = *savept;
 	}
@@ -103,17 +103,20 @@ trx_general_rollback_for_mysql_low(
 	/* Free the memory reserved by the undo graph */
 	que_graph_free(roll_node->undo_thr->common.parent);
 
-	trx_finish_rollback(thr_get_trx(roll_node->undo_thr));
+	if (savept == NULL) {
 
-	mem_heap_free(heap);
+		trx_finish_rollback(trx);
 
-	trx_mutex_enter(trx);
+		mem_heap_free(heap);
 
-	ut_a(trx->que_state == TRX_QUE_RUNNING);
+		trx_mutex_enter(trx);
 
-	ut_a(trx->error_state == DB_SUCCESS);
+		ut_a(trx->que_state == TRX_QUE_RUNNING);
 
-	trx_mutex_exit(trx);
+		ut_a(trx->error_state == DB_SUCCESS);
+
+		trx_mutex_exit(trx);
+	}
 }
 
 /*******************************************************************//**
@@ -156,6 +159,7 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
+
 	/* Tell Innobase server that there might be work for
 	utility threads: */
 

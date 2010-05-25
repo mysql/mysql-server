@@ -635,11 +635,18 @@ row_ins_foreign_report_err(
 
 	row_ins_set_detailed(trx, foreign);
 
+	trx_sys_mutex_enter();
+	trx_mutex_enter(trx);
+
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
+
 	trx_print(ef, trx, 600);
+
+	trx_mutex_exit(trx);
+	trx_sys_mutex_exit();
 
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
@@ -689,11 +696,19 @@ row_ins_foreign_report_add_err(
 
 	row_ins_set_detailed(trx, foreign);
 
+	trx_sys_mutex_enter();
+	trx_mutex_enter(trx);
+
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
+
 	trx_print(ef, trx, 600);
+
+	trx_mutex_exit(trx);
+	trx_sys_mutex_exit();
+
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 	fputs(":\n", ef);
@@ -1279,11 +1294,20 @@ run_again:
 
 			row_ins_set_detailed(trx, foreign);
 
+			trx_sys_mutex_enter();
+			trx_mutex_enter(trx);
+
 			mutex_enter(&dict_foreign_err_mutex);
 			rewind(ef);
 			ut_print_timestamp(ef);
 			fputs(" Transaction:\n", ef);
+
 			trx_print(ef, trx, 600);
+
+
+			trx_mutex_exit(trx);
+			trx_sys_mutex_exit();
+
 			fputs("Foreign key constraint fails for table ", ef);
 			ut_print_name(ef, trx, TRUE,
 				      foreign->foreign_table_name);
@@ -1485,7 +1509,7 @@ do_possible_lock_wait:
 
 		que_thr_stop_for_mysql(thr);
 
-		srv_suspend_mysql_thread(thr);
+		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state == DB_SUCCESS) {
 

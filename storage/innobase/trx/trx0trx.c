@@ -643,7 +643,6 @@ trx_commit(
 	trx_undo_t*	undo;
 	mtr_t		mtr;
 
-
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 		trx_rseg_t*	rseg;
 
@@ -777,12 +776,12 @@ trx_commit(
 		trx->global_read_view = NULL;
 	}
 
+	trx_sys_mutex_exit();
+
+	lock_mutex_exit();
+
 	if (lsn) {
 		trx_mutex_exit(trx);
-
-		trx_sys_mutex_exit();
-
-		lock_mutex_exit();
 
 		if (trx->insert_undo != NULL) {
 
@@ -843,10 +842,6 @@ trx_commit(
 			ut_error;
 		}
 
-		lock_mutex_enter();
-
-		trx_sys_mutex_enter();
-
 		trx_mutex_enter(trx);
 
 		trx->commit_lsn = lsn;
@@ -866,13 +861,13 @@ trx_commit(
 
 	trx->conc_state = TRX_NOT_STARTED;
 
-	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
-
 	trx_mutex_exit(trx);
 
-	trx_sys_mutex_exit();
+	trx_sys_mutex_enter();
 
-	lock_mutex_exit();
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	trx_sys_mutex_exit();
 }
 
 /****************************************************************//**
@@ -1153,9 +1148,7 @@ trx_print(
 {
 	ibool	newline;
 
-	trx_sys_mutex_enter();
-
-	trx_mutex_enter(trx);
+	ut_ad(trx_mutex_own(trx));
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, TRX_ID_PREP_PRINTF(trx->id));
 
@@ -1254,10 +1247,6 @@ trx_print(
 	if (trx->mysql_thd != NULL) {
 		innobase_mysql_print_thd(f, trx->mysql_thd, max_query_len);
 	}
-
-	trx_mutex_exit(trx);
-
-	trx_sys_mutex_exit();
 }
 
 /*******************************************************************//**
