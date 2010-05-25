@@ -1480,7 +1480,6 @@ bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_I
         }
     }
 exit:
-printf("replace can be fast: %d\n", ret_val);
     return ret_val;
 }
 
