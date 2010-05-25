@@ -1432,6 +1432,7 @@ void cleanup_items(Item *item)
       db            database name or an empty string. If empty,
                     the current database of the connection is used
       tbl_name      name of the table to dump
+      tbl_len       its length
 
   NOTES
     This function is written to handle one specific command only.
@@ -1442,7 +1443,7 @@ void cleanup_items(Item *item)
 */
 
 static
-int mysql_table_dump(THD* thd, char* db, char* tbl_name)
+int mysql_table_dump(THD* thd, char* db, char* tbl_name, uint tbl_len)
 {
   TABLE* table;
   TABLE_LIST* table_list;
@@ -1461,6 +1462,11 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name)
     my_error(ER_WRONG_DB_NAME ,MYF(0), db ? db : "NULL");
     goto err;
   }
+  if (!tbl_name || check_table_name(tbl_name, tbl_len))
+  {
+    my_error(ER_WRONG_TABLE_NAME , MYF(0), tbl_name ? tbl_name : "NULL");
+    goto err;
+  }
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tbl_name);
   remove_escape(table_list->table_name);
@@ -1471,7 +1477,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name)
   if (check_one_table_access(thd, SELECT_ACL, table_list))
     goto err;
   thd->free_list = 0;
-  thd->set_query(tbl_name, (uint) strlen(tbl_name));
+  thd->set_query(tbl_name, tbl_len);
   if ((error = mysqld_dump_create_info(thd, table_list, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0), my_errno);
@@ -1838,7 +1844,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     tbl_name= strmake(db, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
-    mysql_table_dump(thd, db, tbl_name);
+    mysql_table_dump(thd, db, tbl_name, tbl_len);
     break;
   }
   case COM_CHANGE_USER:
