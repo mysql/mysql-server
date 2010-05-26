@@ -566,16 +566,12 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
+#include <my_valgrind.h>
+
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_valgrind)
 #define VALGRIND_OR_LINT_INIT(var) var=0
 #else
 #define VALGRIND_OR_LINT_INIT(var)
-#endif
-
-#ifdef HAVE_valgrind
-#define IF_VALGRIND(A,B) (A)
-#else
-#define IF_VALGRIND(A,B) (B)
 #endif
 
 /* 
