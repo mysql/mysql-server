@@ -6673,7 +6673,7 @@ ha_innobase::create(
 			 (int) form->s->primary_key :
 			 -1);
 
-	/* Our function row_get_mysql_key_number_for_index assumes
+	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
 
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
@@ -7390,6 +7390,67 @@ ha_innobase::read_time(
 }
 
 /*********************************************************************//**
+Calculates the key number used inside MySQL for an Innobase index. We will
+first check the "index translation table" for a match of the index to get
+the index number. If there does not exist an "index translation table",
+or not able to find the index in the translation table, then we will fall back
+to the traditional way of looping through dict_index_t list to find a
+match. In this case, we have to take into account if we generated a
+default clustered index for the table
+@return the key number used inside MySQL */
+static
+unsigned int
+innobase_get_mysql_key_number_for_index(
+/*====================================*/
+	INNOBASE_SHARE*		share,	/*!< in: share structure for index
+					translation table. */
+	const TABLE*		table,	/*!< in: table in MySQL data
+					dictionary */
+	dict_table_t*		ib_table,/*!< in: table in Innodb data
+					dictionary */
+        const dict_index_t*     index)	/*!< in: index */
+{
+	const dict_index_t*	ind;
+	unsigned int		i;
+
+	ut_ad(index);
+	ut_ad(ib_table);
+	ut_ad(table);
+	ut_ad(share);
+
+	/* If index translation table exists, we will first check
+	the index through index translation table for a match. */
+        if (share->idx_trans_tbl.index_mapping) {
+		for (i = 0; i < share->idx_trans_tbl.index_count; i++) {
+			if (share->idx_trans_tbl.index_mapping[i] == index) {
+				return(i);
+			}
+		}
+
+		/* Print an error message if we cannot find the index
+		** in the "index translation table". */
+		sql_print_error("Cannot find index %s in InnoDB index "
+				"translation table.", index->name);
+	}
+
+	/* If we do not have an "index translation table", or not able
+	to find the index in the translation table, we'll directly find
+	matching index in the dict_index_t list */
+	for (i = 0; i < table->s->keys; i++) {
+		ind = dict_table_get_index_on_name(
+			ib_table, table->key_info[i].name);
+
+        	if (index == ind) {
+			return(i);
+		}
+        }
+
+	sql_print_error("Cannot find matching index number for index %s "
+			 "in InnoDB index list.", index->name);
+
+        return(0);
+}
+/*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 UNIV_INTERN
@@ -7658,8 +7719,8 @@ ha_innobase::info(
 		err_index = trx_get_error_info(prebuilt->trx);
 
 		if (err_index) {
-			errkey = (unsigned int)
-				row_get_mysql_key_number_for_index(err_index);
+			errkey = innobase_get_mysql_key_number_for_index(
+					share, table, ib_table, err_index);
 		} else {
 			errkey = (unsigned int) prebuilt->trx->error_key_num;
 		}
