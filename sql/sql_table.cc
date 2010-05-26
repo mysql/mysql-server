@@ -4669,7 +4669,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       To allow concurrent execution of read-only operations we acquire
       weak metadata lock for them.
     */
-    table->mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_READ) ?
+    table->mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
                                 MDL_SHARED_NO_READ_WRITE : MDL_SHARED_READ);
     /* open only one table from local list of command */
     {
@@ -7926,7 +7926,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   /* Same applies to MDL ticket. */
   table_list->mdl_request.ticket= NULL;
   /* Set lock type which is appropriate for ALTER TABLE. */
-  table_list->lock_type= TL_WRITE_ALLOW_READ;
+  table_list->lock_type= TL_READ_NO_INSERT;
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
