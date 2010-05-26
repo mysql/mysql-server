@@ -701,12 +701,11 @@ bool partition_info::check_range_constants(THD *thd)
   if (column_list)
   {
     part_column_list_val *loc_range_col_array;
-    part_column_list_val *current_largest_col_val;
+    part_column_list_val *UNINIT_VAR(current_largest_col_val);
     uint num_column_values= part_field_list.elements;
     uint size_entries= sizeof(part_column_list_val) * num_column_values;
     range_col_array= (part_column_list_val*)sql_calloc(num_parts *
                                                        size_entries);
-    LINT_INIT(current_largest_col_val);
     if (unlikely(range_col_array == NULL))
     {
       mem_alloc_error(num_parts * size_entries);
@@ -739,11 +738,9 @@ bool partition_info::check_range_constants(THD *thd)
   }
   else
   {
-    longlong current_largest;
+    longlong UNINIT_VAR(current_largest);
     longlong part_range_value;
     bool signed_flag= !part_expr->unsigned_flag;
-
-    LINT_INIT(current_largest);
 
     part_result_type= INT_RESULT;
     range_int_array= (longlong*)sql_alloc(num_parts * sizeof(longlong));
@@ -894,7 +891,8 @@ bool partition_info::check_list_constants(THD *thd)
   part_elem_value *list_value;
   bool result= TRUE;
   longlong type_add, calc_value;
-  void *curr_value, *prev_value;
+  void *curr_value;
+  void *UNINIT_VAR(prev_value);
   partition_element* part_def;
   bool found_null= FALSE;
   int (*compare_func)(const void *, const void*);
@@ -1009,7 +1007,6 @@ bool partition_info::check_list_constants(THD *thd)
              compare_func);
 
     i= 0;
-    LINT_INIT(prev_value);
     do
     {
       DBUG_ASSERT(i < num_list_values);

@@ -2723,8 +2723,8 @@ static Sys_var_mybool Sys_log_slow(
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
   bool res;
-  my_bool *newvalptr, newval, oldval;
-  uint log_type;
+  my_bool *UNINIT_VAR(newvalptr), newval, UNINIT_VAR(oldval);
+  uint UNINIT_VAR(log_type);
 
   if (self == &Sys_general_log || self == &Sys_log)
   {
