@@ -29,7 +29,6 @@
 #include "../storage/ndb/src/ndbapi/ndberror.c"
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #include "../storage/ndb/include/mgmapi/mgmapi_error.h"
-#include "../storage/ndb/src/mgmapi/mgmapi_error.c"
 #endif
 
 static my_bool verbose, print_all_codes;
