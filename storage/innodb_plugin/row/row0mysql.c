@@ -1646,37 +1646,6 @@ row_table_got_default_clust_index(
 }
 
 /*********************************************************************//**
-Calculates the key number used inside MySQL for an Innobase index. We have
-to take into account if we generated a default clustered index for the table
-@return	the key number used inside MySQL */
-UNIV_INTERN
-ulint
-row_get_mysql_key_number_for_index(
-/*===============================*/
-	const dict_index_t*	index)	/*!< in: index */
-{
-	const dict_index_t*	ind;
-	ulint			i;
-
-	ut_a(index);
-
-	i = 0;
-	ind = dict_table_get_first_index(index->table);
-
-	while (index != ind) {
-		ind = dict_table_get_next_index(ind);
-		i++;
-	}
-
-	if (row_table_got_default_clust_index(index->table)) {
-		ut_a(i > 0);
-		i--;
-	}
-
-	return(i);
-}
-
-/*********************************************************************//**
 Locks the data dictionary in shared mode from modifications, for performing
 foreign key check, rollback, or other operation invisible to MySQL. */
 UNIV_INTERN
