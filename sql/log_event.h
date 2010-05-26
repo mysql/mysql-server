@@ -3631,7 +3631,7 @@ protected:
     DBUG_ASSERT(m_table);
 
     bool first_row= (m_curr_row == m_rows_buf);
-    ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
+    ASSERT_OR_RETURN_ERROR(m_curr_row <= m_rows_end, HA_ERR_CORRUPT_EVENT);
     int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, cols,
                                    &m_curr_row_end, &m_master_reclength,
                                    abort_on_warning, first_row);
