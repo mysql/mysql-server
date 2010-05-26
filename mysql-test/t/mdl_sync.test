@@ -462,7 +462,11 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
   table_schema='test' and table_name='t1';
-select count(*) from t1;
+--echo # Disable result log to make test robust against
+--echo # effects of concurrent insert.
+--disable_result_log
+select * from t1;
+--enable_result_log
 insert into t1 values (1);
 --echo # Check that SNW lock is not compatible with SW lock.
 --echo # Again we use ALTER TABLE which fails after opening
