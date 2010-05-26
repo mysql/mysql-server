@@ -20,15 +20,15 @@
 #define ThreadConfig_H
 
 #include <kernel_types.h>
-#include <ErrorReporter.hpp>
 #include <NodeState.hpp>
+#include <portlib/NdbThread.h>
 
 class ThreadConfig
 {
 public:
   ThreadConfig();
   ~ThreadConfig();
-  void init(EmulatorData *emulatorData);
+  void init(void);
 
   void ipControlLoop(NdbThread*, Uint32 thread_index);
 
