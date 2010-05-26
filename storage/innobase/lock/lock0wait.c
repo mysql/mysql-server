@@ -78,6 +78,8 @@ lock_wait_table_release_slot(
 	srv_slot_t*	upper = lock_sys->waiting_threads + OS_THREAD_MAX_N;
 #endif /* UNIV_DEBUG */
 
+	lock_mutex_enter();
+
 	ut_a(slot->in_use);
 	ut_a(slot->thr != NULL);
 	ut_a(slot->thr->slot != NULL);
@@ -109,6 +111,8 @@ lock_wait_table_release_slot(
 
 	ut_ad(lock_sys->last_slot >= lock_sys->waiting_threads);
 	ut_ad(lock_sys->last_slot <= upper);
+
+	lock_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -201,7 +205,6 @@ lock_wait_suspend_thread(
 	ibool		was_declared_inside_innodb	= FALSE;
 	ib_int64_t	start_time			= 0;
 	ib_int64_t	finish_time;
-	ulint		diff_time;
 	ulint		sec;
 	ulint		ms;
 	ulong		lock_wait_timeout;
@@ -312,15 +315,11 @@ lock_wait_suspend_thread(
 
 	/* Release the slot for others to use */
 
-	lock_mutex_enter();
-
-	trx_mutex_enter(trx);
-
 	lock_wait_table_release_slot(slot);
 
-	lock_mutex_exit();
-
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
+		ulint	diff_time;
+
 		if (ut_usectime(&sec, &ms) == -1) {
 			finish_time = -1;
 		} else {
@@ -331,6 +330,7 @@ lock_wait_suspend_thread(
 
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
+
 		if (diff_time > srv_n_lock_max_wait_time &&
 		    /* only update the variable if we successfully
 		    retrieved the start and finish times. See Bug#36819. */

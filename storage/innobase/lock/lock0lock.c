@@ -1664,7 +1664,8 @@ lock_rec_create(
 					the record */
 	ulint			heap_no,/*!< in: heap number of the record */
 	dict_index_t*		index,	/*!< in: index of record */
-	trx_t*			trx)	/*!< in: transaction */
+	trx_t*			trx,	/*!< in: transaction */
+	ibool			append)	/*!< in: if TRUE add to wait_locks */
 {
 	lock_t*		lock;
 	ulint		page_no;
@@ -1697,8 +1698,6 @@ lock_rec_create(
 
 	lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t) + n_bytes);
 
-	UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);
-
 	lock->trx = trx;
 
 	lock->type_mode = (type_mode & ~LOCK_TYPE_MASK) | LOCK_REC;
@@ -1721,6 +1720,10 @@ lock_rec_create(
 	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
+	}
+
+	if (append) {
+		UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);
 	}
 
 	return(lock);
@@ -1788,8 +1791,8 @@ lock_rec_enqueue_waiting(
 	}
 
 	/* Enqueue the lock request that will wait to be granted */
-	lock = lock_rec_create(type_mode | LOCK_WAIT,
-			       block, heap_no, index, trx);
+	lock = lock_rec_create(
+		type_mode | LOCK_WAIT, block, heap_no, index, trx, TRUE);
 
 	/* Check if a deadlock occurs: if yes, remove the lock request and
 	return an error code */
@@ -1921,7 +1924,7 @@ lock_rec_add_to_queue(
 	}
 
 somebody_waits:
-	return(lock_rec_create(type_mode, block, heap_no, index, trx));
+	return(lock_rec_create(type_mode, block, heap_no, index, trx, TRUE));
 }
 
 /*********************************************************************//**
@@ -1968,34 +1971,44 @@ lock_rec_lock_fast(
 
 	trx = thr_get_trx(thr);
 
-	trx_mutex_enter(trx);
-
 	if (lock == NULL) {
 		if (!impl) {
-			lock_rec_create(mode, block, heap_no, index, trx);
+			lock = lock_rec_create(
+				mode, block, heap_no, index, trx, FALSE);
+
+			trx_mutex_enter(trx);
+
+			UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);
+
+			trx_mutex_exit(trx);
 		}
 
 		success = TRUE;
-	} else if (lock_rec_get_next_on_page(lock)) {
+	} else {
+		trx_mutex_enter(trx);
 
-		success = FALSE;
-	} else if (lock->trx != trx
-		   || lock->type_mode != (mode | LOCK_REC)
-		   || lock_rec_get_n_bits(lock) <= heap_no) {
+		if (lock_rec_get_next_on_page(lock)) {
 
-		success = FALSE;
-	} else if (!impl) {
-		/* If the nth bit of the record lock is already set then we
-		do not set a new lock bit, otherwise we do set */
+			success = FALSE;
+		} else if (lock->trx != trx
+		           || lock->type_mode != (mode | LOCK_REC)
+			   || lock_rec_get_n_bits(lock) <= heap_no) {
 
-		if (!lock_rec_get_nth_bit(lock, heap_no)) {
-			lock_rec_set_nth_bit(lock, heap_no);
+			success = FALSE;
+		} else if (!impl) {
+			/* If the nth bit of the record lock is already
+		       	set then we do not set a new lock bit, otherwise
+		       	we do set */
+
+			if (!lock_rec_get_nth_bit(lock, heap_no)) {
+				lock_rec_set_nth_bit(lock, heap_no);
+			}
+
+			success = TRUE;
 		}
 
-		success = TRUE;
+		trx_mutex_exit(trx);
 	}
-
-	trx_mutex_exit(trx);
 
 	return(success);
 }
@@ -2442,7 +2455,7 @@ lock_rec_inherit_to_gap_if_gap_lock(
 {
 	lock_t*	lock;
 
-	ut_ad(lock_mutex_own());
+	lock_mutex_enter();
 
 	lock = lock_rec_get_first(block, heap_no);
 
@@ -2459,6 +2472,8 @@ lock_rec_inherit_to_gap_if_gap_lock(
 
 		lock = lock_rec_get_next(heap_no, lock);
 	}
+
+	lock_mutex_exit();
 }
 
 /*************************************************************//**
@@ -3162,10 +3177,8 @@ lock_update_insert(
 			page_rec_get_next_low(rec, FALSE));
 	}
 
-	lock_mutex_enter();
-	lock_rec_inherit_to_gap_if_gap_lock(block,
-					    receiver_heap_no, donator_heap_no);
-	lock_mutex_exit();
+	lock_rec_inherit_to_gap_if_gap_lock(
+		block, receiver_heap_no, donator_heap_no);
 }
 
 /*************************************************************//**
@@ -3857,8 +3870,6 @@ lock_table(
 
 	lock_mutex_enter();
 
-	trx_mutex_enter(trx);
-
 	/* Look for stronger locks the same trx already has on the table */
 
 	if (lock_table_has(trx, table, mode)) {
@@ -3874,17 +3885,23 @@ lock_table(
 		/* Another trx has a request on the table in an incompatible
 		mode: this trx may have to wait */
 
+		trx_mutex_enter(trx);
+
 		err = lock_table_enqueue_waiting(mode | flags, table, thr);
+
+		trx_mutex_exit(trx);
 	} else {
 
+		trx_mutex_enter(trx);
+
 		lock_table_create(table, mode | flags, trx);
+
+		trx_mutex_exit(trx);
 
 		ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
 		err = DB_SUCCESS;
 	}
-
-	trx_mutex_exit(trx);
 
 	lock_mutex_exit();
 

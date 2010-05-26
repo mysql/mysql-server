@@ -1115,13 +1115,13 @@ trx_mark_sql_stat_end(
 {
 	ut_a(trx);
 
-	trx_mutex_enter(trx);
+	//trx_mutex_enter(trx);
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		trx->undo_no = ut_dulint_zero;
 	}
 
-	trx_mutex_exit(trx);
+	//trx_mutex_exit(trx);
 
 	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
 }
@@ -1547,13 +1547,13 @@ trx_start_if_not_started_xa(
 /*========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	trx_mutex_enter(trx);
+	//trx_mutex_enter(trx);
 
 	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 
-		trx_mutex_exit(trx);
+		//trx_mutex_exit(trx);
 
 		/* Update the info whether we should skip XA steps that eat
 	       	CPU time For the duration of the transaction trx->support_xa
@@ -1565,7 +1565,7 @@ trx_start_if_not_started_xa(
 
 		trx_start_low(trx);
 	} else {
-		trx_mutex_exit(trx);
+		//trx_mutex_exit(trx);
 	}
 }
 
