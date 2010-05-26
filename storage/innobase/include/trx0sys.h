@@ -611,10 +611,7 @@ struct trx_sys_struct{
 	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
 					/*!< List of transactions created
 					for MySQL */
-	UT_LIST_BASE_NODE_T(trx_rseg_t) rseg_list;
-					/*!< List of rollback segment
-					objects */
-	trx_rseg_t*	latest_rseg;	/*!< Latest rollback segment in the
+	ulint		latest_rseg;	/*!< Latest rollback segment in the
 					round-robin assignment of rollback
 					segments to transactions */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];

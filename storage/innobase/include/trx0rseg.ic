@@ -143,3 +143,18 @@ trx_rsegf_undo_find_free(
 
 	return(ULINT_UNDEFINED);
 }
+
+/******************************************************************//**
+Looks for a rollback segment, based on the rollback segment id.
+@return	rollback segment */
+UNIV_INLINE
+trx_rseg_t*
+trx_rseg_get_on_id(
+/*===============*/
+	ulint	id)	/*!< in: rollback segment id */
+{
+	ut_a(id < TRX_SYS_N_RSEGS);
+
+	return(trx_sys->rseg_array[id]);
+}
+

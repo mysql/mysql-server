@@ -2019,7 +2019,7 @@ row_merge_drop_index(
 
 	pars_info_add_dulint_literal(info, "indexid", index->id);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 	trx->op_info = "dropping index";
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -2565,7 +2565,7 @@ row_merge_build_indexes(
 	ut_ad(indexes);
 	ut_ad(n_indexes);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */

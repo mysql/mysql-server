@@ -2800,6 +2800,10 @@ srv_purge_coordinator_thread(
 				if (!srv_check_activity(count)
 				    && trx_sys->rseg_history_len > 100) {
 					sleep_ms = 1;
+				} else {
+					sleep_ms = 10000000;
+				}
+#if 0
 				} else if (n_purged == 0) {
 					sleep_ms = 100000;
 				} else if (trx_sys->rseg_history_len > 50000) {
@@ -2815,7 +2819,7 @@ srv_purge_coordinator_thread(
 				if (sleep_ms > 20000000) {
 					sleep_ms = rnd % 10000;
 				}
-
+#endif
 				++iterations;
 
 				/* Take snapshot to check for user

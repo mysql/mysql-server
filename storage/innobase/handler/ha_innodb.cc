@@ -2036,7 +2036,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -2586,7 +2586,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Assign a read view if the transaction does not have it yet */
 

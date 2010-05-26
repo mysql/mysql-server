@@ -947,7 +947,7 @@ run_again:
 	/* It may be that the current session has not yet started
 	its transaction, or it has been committed: */
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	err = lock_table(0, prebuilt->table, LOCK_AUTO_INC, thr);
 
@@ -1019,7 +1019,7 @@ run_again:
 	/* It may be that the current session has not yet started
 	its transaction, or it has been committed: */
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	if (table) {
 		err = lock_table(0, table, mode, thr);
@@ -1118,7 +1118,7 @@ row_insert_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	if (node == NULL) {
 		row_get_prebuilt_insert_row(prebuilt);
@@ -1355,7 +1355,7 @@ row_update_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	node = prebuilt->upd_node;
 
@@ -1817,7 +1817,7 @@ err_exit:
 		goto err_exit;
 	}
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* The table name is prefixed with the database name and a '/'.
 	Certain table names starting with 'innodb_' have their special
@@ -1965,7 +1965,7 @@ row_create_index_for_mysql(
 	que_run_threads()) and thus index->table_name is not available. */
 	table_name = mem_strdup(index->table_name);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Check that the same column does not appear twice in the index.
 	Starting from 4.0.14, InnoDB should be able to cope with that, but
@@ -2089,7 +2089,7 @@ row_table_add_foreign_constraints(
 
 	trx->op_info = "adding foreign keys";
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
@@ -2355,7 +2355,7 @@ row_discard_tablespace_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx->op_info = "discarding tablespace";
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -2514,7 +2514,7 @@ row_import_tablespace_for_mysql(
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	trx->op_info = "importing tablespace";
 
@@ -2712,7 +2712,7 @@ row_truncate_table_for_mysql(
 
 	trx->op_info = "truncating table";
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -2999,7 +2999,7 @@ row_drop_table_for_mysql(
 
 	trx->op_info = "dropping table";
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* The table name is prefixed with the database name and a '/'.
 	Certain table names starting with 'innodb_' have their special
@@ -3534,7 +3534,7 @@ row_drop_database_for_mysql(
 
 	trx->op_info = "dropping database";
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 loop:
 	row_mysql_lock_data_dictionary(trx);
 
@@ -3725,7 +3725,7 @@ row_rename_table_for_mysql(
 	}
 
 	trx->op_info = "renaming table";
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);

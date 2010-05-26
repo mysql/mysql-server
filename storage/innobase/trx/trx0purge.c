@@ -511,7 +511,7 @@ trx_purge_truncate_history(
 	purge_iter_t*		limit,		/*!< in: truncate limit */
 	const read_view_t*	view)		/* !< purge view */
 {
-	trx_rseg_t*	rseg;
+	ulint		i;
 
 	ut_ad(purge_mutex_own());
 
@@ -525,12 +525,13 @@ trx_purge_truncate_history(
 
 	ut_ad((ut_dulint_cmp(limit->trx_no, view->low_limit_no) <= 0));
 
-	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg = trx_sys->rseg_array[i];
 
-	while (rseg) {
-		trx_purge_truncate_rseg_history(rseg, limit);
-
-		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
+		if (rseg != NULL) {
+			ut_a(rseg->id == i);
+			trx_purge_truncate_rseg_history(rseg, limit);
+		}
 	}
 }
 
@@ -645,8 +646,8 @@ void
 trx_purge_choose_next_log(void)
 /*===========================*/
 {
+	ulint		i = 0;
 	trx_undo_rec_t*	rec;
-	trx_rseg_t*	rseg;
 	trx_rseg_t*	min_rseg;
 	trx_id_t	min_trx_no;
 	ulint		space = 0;   /* remove warning (??? bug ???) */
@@ -658,14 +659,20 @@ trx_purge_choose_next_log(void)
 	ut_ad(mutex_own(&(purge_sys->mutex)));
 	ut_ad(purge_sys->next_stored == FALSE);
 
-	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-
 	min_trx_no = ut_dulint_max;
 
 	min_rseg = NULL;
 
-	while (rseg) {
-		mutex_enter(&(rseg->mutex));
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg = trx_sys->rseg_array[i];
+
+		ut_a(rseg == NULL || rseg->id == i);
+
+		if (rseg == NULL) {
+			break;
+		}
+
+		mutex_enter(&rseg->mutex);
 
 		if (rseg->last_page_no != FIL_NULL) {
 
@@ -685,9 +692,7 @@ trx_purge_choose_next_log(void)
 			}
 		}
 
-		mutex_exit(&(rseg->mutex));
-
-		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
+		mutex_exit(&rseg->mutex);
 	}
 
 	if (min_rseg == NULL) {

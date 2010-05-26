@@ -39,30 +39,6 @@ Created 3/26/1996 Heikki Tuuri
 UNIV_INTERN mysql_pfs_key_t	rseg_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
-/******************************************************************//**
-Looks for a rollback segment, based on the rollback segment id.
-@return	rollback segment */
-UNIV_INTERN
-trx_rseg_t*
-trx_rseg_get_on_id(
-/*===============*/
-	ulint	id)	/*!< in: rollback segment id */
-{
-	trx_rseg_t*	rseg;
-
-	trx_sys_mutex_enter();
-
-	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-
-	while (rseg && rseg->id != id) {
-		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
-	}
-
-	trx_sys_mutex_exit();
-
-	return(rseg);
-}
-
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
@@ -207,8 +183,6 @@ trx_rseg_mem_create(
 
 	mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_RSEG);
 
-	UT_LIST_ADD_LAST(rseg_list, trx_sys->rseg_list, rseg);
-
 	trx_sys_set_nth_rseg(trx_sys, id, rseg);
 
 	rseg_header = trx_rsegf_get_new(space, zip_size, page_no, mtr);
@@ -341,8 +315,6 @@ trx_rseg_list_and_array_init(
 	trx_sysf_t*	sys_header,	/* in: trx system header */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	UT_LIST_INIT(trx_sys->rseg_list);
-
 	trx_sys->rseg_history_len = 0;
 
 	trx_rseg_create_instance(sys_header, mtr);

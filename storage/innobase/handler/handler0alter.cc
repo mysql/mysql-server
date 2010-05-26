@@ -656,12 +656,12 @@ ha_innobase::add_index(
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
@@ -1162,12 +1162,12 @@ ha_innobase::final_drop_index(
 	update_thd();
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery. */

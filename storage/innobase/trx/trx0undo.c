@@ -1755,7 +1755,7 @@ trx_undo_assign_undo(
 
 	ut_ad(!mutex_own(&kernel_mutex));
 
-	mutex_enter(&(rseg->mutex));
+	mutex_enter(&rseg->mutex);
 
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
 				     &mtr);
