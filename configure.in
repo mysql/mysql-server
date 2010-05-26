@@ -926,6 +926,66 @@ else
   AC_MSG_RESULT([yes])
 fi
 
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in::sin_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in::sin_len is available],
+  mysql_cv_have_sockaddr_in_sin_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in *) 0)->sin_len)],
+    mysql_cv_have_sockaddr_in_sin_len=yes,
+    mysql_cv_have_sockaddr_in_sin_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN_SIN_LEN],
+    [1],
+    [If sockaddr_in::sin_len is available])
+fi
+
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in6::sin6_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in6::sin6_len is available],
+  mysql_cv_have_sockaddr_in6_sin6_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+
+      #ifdef HAVE_NETINET_IN6_H
+        #include <netinet/in6.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in6 *) 0)->sin6_len)],
+    mysql_cv_have_sockaddr_in6_sin6_len=yes,
+    mysql_cv_have_sockaddr_in6_sin6_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin6_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN6_SIN6_LEN],
+    [1],
+    [If sockaddr_in6::sin6_len is available])
+fi
+
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
 #--------------------------------------------------------------------
