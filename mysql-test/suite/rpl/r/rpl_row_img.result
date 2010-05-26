@@ -24363,16 +24363,6 @@ c1
 DROP TABLE t1;
 #### case #5: BI: no usable columns on the slave, AI: usable columns on the slave (slave must stop).
 #### 
-include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
-include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
-RESET MASTER;
-RESET SLAVE;
-include/start_slave.inc
-include/start_slave.inc
 CREATE TABLE t1 (c1 INT DEFAULT 100) Engine=ENGINE;
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 INT DEFAULT 100) Engine=ENGINE;
@@ -24630,16 +24620,6 @@ c1
 DROP TABLE t1;
 #### case #5: BI: no usable columns on the slave, AI: usable columns on the slave (slave must stop).
 #### 
-include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
-include/stop_slave.inc
-RESET MASTER;
-RESET SLAVE;
-RESET MASTER;
-RESET SLAVE;
-include/start_slave.inc
-include/start_slave.inc
 CREATE TABLE t1 (c1 INT DEFAULT 100) Engine=ENGINE;
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 INT DEFAULT 100) Engine=ENGINE;
