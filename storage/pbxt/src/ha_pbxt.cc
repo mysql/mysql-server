@@ -1250,7 +1250,7 @@ static int pbxt_init(void *p)
 				 * Only real problem, 2 threads try to load the same
 				 * plugin at the same time.
 				 */
-#if MYSQL_VERSION_ID < 60014 && (!defined(MARIADB_BASE_VERSION) || MYSQL_VERSION_ID < 50146)
+#if MYSQL_VERSION_ID <= 50146
 				myxt_mutex_unlock(&LOCK_plugin);
 #endif
 #endif
@@ -1286,10 +1286,8 @@ static int pbxt_init(void *p)
 
 				if (thd)
 					myxt_destroy_thread(thd, FALSE);
-#ifndef DRIZZLED
-#if MYSQL_VERSION_ID < 60014 && (!defined(MARIADB_BASE_VERSION) || MYSQL_VERSION_ID < 50146)
+#if MYSQL_VERSION_ID <= 50146 && !defined(DRIZZLED)
 				myxt_mutex_lock(&LOCK_plugin);
-#endif
 #endif
 			}
 #endif
