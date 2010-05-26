@@ -269,7 +269,12 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* UNIV_SYNC_DEBUG */
 	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
 	{&thr_local_mutex_key, "thr_local_mutex", 0},
-	{&trx_undo_mutex_key, "trx_undo_mutex", 0}
+	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
+	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
+	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
+	{&lock_sys_mutex_key, "lock_mutex_key", 0},
+	{&trx_mutex_key, "trx_mutex", 0},
+	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0}
 };
 # endif /* UNIV_PFS_MUTEX */
 
