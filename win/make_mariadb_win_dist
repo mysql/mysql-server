@@ -25,14 +25,13 @@ if [ "x_$1" != "x_-nobuild" ]; then
   devenv.com MySQL.sln /build Debug
 fi
 
-# TODO extract version number
 VER=`cat configure.in | 
      perl -e 'while (<>) { if (/^AC_INIT\(\[[a-zA-Z ]*\], *\[([0-9a-zA-Z\.-]+)\]/) { print "$1\n"; exit(0)} } ; exit 1'`
 
 echo Version string: $VER.
 
-# Remove '-maria-' from version number
-VER_NO_MARIA=${VER/maria-/}
+# Remove '-mariaDB' from version number
+VER_NO_MARIA=${VER/-MariaDB/}
 
 # We want the final zip to be named like this:
 #  mariadb-noinstall-5.1.38-win32.zip
