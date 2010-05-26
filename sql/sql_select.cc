@@ -1116,8 +1116,7 @@ JOIN::optimize()
   }
 
   if (conds && const_table_map != found_const_table_map &&
-      (select_options & SELECT_DESCRIBE) &&
-      select_lex->master_unit() == &thd->lex->unit) // upper level SELECT
+      (select_options & SELECT_DESCRIBE))
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }

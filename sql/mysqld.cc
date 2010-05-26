@@ -9136,6 +9136,45 @@ fn_format_relative_to_data_home(char * to, const char *name,
 }
 
 
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+ 
+  @param path null terminated character string
+
+  @return
+    @retval TRUE The path is secure
+    @retval FALSE The path isn't secure
+*/
+
+bool is_secure_file_path(char *path)
+{
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  /*
+    All paths are secure if opt_secure_file_path is 0
+  */
+  if (!opt_secure_file_priv)
+    return TRUE;
+
+  if (strlen(path) >= FN_REFLEN)
+    return FALSE;
+
+  if (my_realpath(buff1, path, 0))
+  {
+    /*
+      The supplied file path might have been a file and not a directory.
+    */
+    size_t length= dirname_length(path);        // Guaranteed to be < FN_REFLEN
+    memcpy(buff2, path, length);
+    buff2[length]= '\0';
+    if (length == 0 || my_realpath(buff1, buff2, 0))
+      return FALSE;
+  }
+  convert_dirname(buff2, buff1, NullS);
+  return is_prefix(buff2, opt_secure_file_priv) ? TRUE : FALSE;
+}
+
+
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
@@ -9195,11 +9234,27 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
   */
-  if (opt_secure_file_priv && opt_secure_file_priv[0])
+  if (opt_secure_file_priv)
   {
-    convert_dirname(buff, opt_secure_file_priv, NullS);
-    my_free(opt_secure_file_priv, MYF(0));
-    opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
+    if (*opt_secure_file_priv == 0)
+    {
+      /* For easy check later */
+      my_free(opt_secure_file_priv, MYF(0));
+      opt_secure_file_priv= 0;
+    }
+    else
+    {
+      char *secure_file_real_path;
+      if (my_realpath(buff, opt_secure_file_priv, 0))
+      {
+        sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
+        return 1;
+      }
+      secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
+      convert_dirname(secure_file_real_path, buff, NullS);
+      my_free(opt_secure_file_priv, MYF(0));
+      opt_secure_file_priv= secure_file_real_path;
+    }
   }
   return 0;
 }

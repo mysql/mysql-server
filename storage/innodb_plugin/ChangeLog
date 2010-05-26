@@ -1,3 +1,77 @@
+2010-05-03	The InnoDB Team
+
+	* buf0buf.c:
+	Fix Bug#53248 compressed tables page checksum mismatch after
+	re-enabling innodb_checksums
+
+2010-04-28	The InnoDB Team
+
+	* log/log0recv.h, log/log0recv.c:
+	Fix Bug#53122 InnoDB recovery uses too big a hash table for redo
+	log records
+
+2010-04-27	The InnoDB Team
+
+	* handler/ha_innodb.cc, lock/lock0lock.c, row/row0mysql.c,
+	row/row0sel.c:
+	Fix Bug#48607 READ UNCOMMITTED uses more locks than READ COMMITTED
+	in InnoDB 5.1+
+
+2010-04-26	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#52663 Lost update incrementing column value under
+	READ COMMITTED isolation level
+
+2010-04-22	The InnoDB Team
+
+	* include/dict0boot.h, dict/dict0boot.c:
+	Fix a bug that prevented the crash recovery of fast CREATE INDEX
+	from dropping partially created indexes.
+
+2010-04-21	The InnoDB Team
+
+	* btr/btr0btr.c:
+	Fix Bug#52964 Infinite loop in btr_page_split_and_insert()
+	in ROW_FORMAT=COMPRESSED
+
+2010-04-21	The InnoDB Team
+
+	* data/data0data.c:
+	Fix Bug#52745 Failing assertion: blob_no < page_zip->n_blobs
+
+2010-04-20	The InnoDB Team
+
+	* dict/dict0crea.c, handler/ha_innodb.cc, include/trx0trx.h:
+	Fix Bug#50495 'Row size too large' for plugin, but works for
+	built-in InnoDB
+	Only check the record size at index creation time when
+	innodb_strict_mode is set or when ROW_FORMAT is DYNAMIC or COMPRESSED.
+
+2010-04-20	The InnoDB Team
+
+	* btr/btr0btr.c, include/univ.i:
+	Implement UNIV_BTR_AVOID_COPY, for avoiding writes when a B-tree
+	node is split at the first or last record.
+
+2010-04-15	The InnoDB Team
+
+	* trx/trx0rec.c:
+	Fix Bug#52746 InnoDB purge thread crashed with table containing
+	prefix indexed blobs
+
+2010-03-31	The InnoDB Team
+
+	* mysql-test/innodb_bug51920.test, mysql-test/innodb_bug51920.result,
+	srv/srv0srv.c:
+	Fix Bug#51920 InnoDB connections in row lock wait ignore KILL
+	until lock wait timeout
+
+2010-03-31	The InnoDB Team
+
+	* mysql-test/innodb_bug38231.test:
+	Remove non-determinism in the test case.
+
 2010-03-18	The InnoDB Team
 
 	* CMakeLists.txt:

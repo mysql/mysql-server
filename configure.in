@@ -12,7 +12,7 @@ dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
-AC_INIT([MariaDB Server], [5.1.46-MariaDB], [], [mysql])
+AC_INIT([MariaDB Server], [5.1.47-MariaDB], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -831,7 +831,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
  memory.h pwd.h select.h fnmatch.h \
- stdlib.h stddef.h sys/stat.h \
+ stdlib.h stddef.h sys/stat.h valgrind/memcheck.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \

@@ -273,8 +273,7 @@ int mysql_update(THD *thd,
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
-      if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
-          table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
+      if (((uint) table->timestamp_field_type) & TIMESTAMP_AUTO_SET_ON_UPDATE)
         bitmap_set_bit(table->write_set,
                        table->timestamp_field->field_index);
     }
@@ -308,10 +307,8 @@ int mysql_update(THD *thd,
     update force the table handler to retrieve write-only fields to be able
     to compare records and detect data change.
   */
-  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-      table->timestamp_field &&
-      (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
-       table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+  if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
+      (((uint) table->timestamp_field_type) & TIMESTAMP_AUTO_SET_ON_UPDATE))
     bitmap_union(table->read_set, table->write_set);
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
@@ -1380,6 +1377,15 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      /*
+        If a timestamp field settable on UPDATE is present then to avoid wrong
+        update force the table handler to retrieve write-only fields to be able
+        to compare records and detect data change.
+        */
+      if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
+          (((uint) table->timestamp_field_type) &
+           TIMESTAMP_AUTO_SET_ON_UPDATE))
+        bitmap_union(table->read_set, table->write_set);
     }
   }
   

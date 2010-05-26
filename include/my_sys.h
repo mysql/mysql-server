@@ -145,7 +145,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
 #define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
 #define my_strndup(A,B,C) _my_strndup((A),(B),__FILE__,__LINE__,C)
-#define TRASH(A,B) bfill(A, B, 0x8F)
+
 #define QUICK_SAFEMALLOC sf_malloc_quick=1
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;

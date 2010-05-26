@@ -54,9 +54,9 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(TRUE),
+  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), thd(0),
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
     a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
@@ -111,6 +111,11 @@ public:
   {
     return (owner->type() == Item::FUNC_ITEM &&
            ((Item_func*)owner)->functype() == Item_func::EQUAL_FUNC);
+  }
+  void cleanup()
+  {
+    delete [] comparators;
+    comparators= 0;
   }
 
   friend class Item_func;
@@ -365,6 +370,11 @@ public:
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
+  void cleanup()
+  {
+    Item_int_func::cleanup();
+    cmp.cleanup();
+  }
 
   friend class  Arg_comparator;
 };

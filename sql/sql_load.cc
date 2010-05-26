@@ -348,16 +348,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         DBUG_ASSERT(FALSE); 
 #endif
       }
-      else if (opt_secure_file_priv)
+      else if (!is_secure_file_path(name))
       {
-        char secure_file_real_path[FN_REFLEN];
-        (void) my_realpath(secure_file_real_path, opt_secure_file_priv, 0);
-        if (strncmp(secure_file_real_path, name, strlen(secure_file_real_path)))
-        {
-          /* Read only allowed from within dir specified by secure_file_priv */
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-          DBUG_RETURN(TRUE);
-        }
+        /* Read only allowed from within dir specified by secure_file_priv */
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        DBUG_RETURN(TRUE);
       }
 
     }

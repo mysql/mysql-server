@@ -759,7 +759,7 @@ buf_pool_init(
 			/* Wipe contents of frame to eliminate a Purify
 			warning */
 
-#ifdef HAVE_valgrind
+#ifdef HAVE_purify
 			memset(block->frame, '\0', UNIV_PAGE_SIZE);
 #endif
 			if (srv_use_awe) {

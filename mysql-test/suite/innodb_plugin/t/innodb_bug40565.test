@@ -1,0 +1,10 @@
+# Bug #40565 Update Query Results in "1 Row Affected" But Should Be "Zero Rows"
+-- source include/have_innodb_plugin.inc
+
+create table bug40565(value decimal(4,2)) engine=innodb;
+insert into bug40565 values (1), (null);
+--enable_info
+update bug40565 set value=NULL;
+update bug40565 set value=NULL;
+--disable_info
+drop table bug40565;

@@ -745,21 +745,12 @@ sp_head::create(THD *thd)
 
 sp_head::~sp_head()
 {
-  DBUG_ENTER("sp_head::~sp_head");
-  destroy();
-  delete m_next_cached_sp;
-  if (m_thd)
-    restore_thd_mem_root(m_thd);
-  DBUG_VOID_RETURN;
-}
-
-void
-sp_head::destroy()
-{
-  sp_instr *i;
   LEX *lex;
-  DBUG_ENTER("sp_head::destroy");
-  DBUG_PRINT("info", ("name: %s", m_name.str));
+  sp_instr *i;
+  DBUG_ENTER("sp_head::~sp_head");
+
+  /* sp_head::restore_thd_mem_root() must already have been called. */
+  DBUG_ASSERT(m_thd == NULL);
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
@@ -770,21 +761,22 @@ sp_head::destroy()
   /*
     If we have non-empty LEX stack then we just came out of parser with
     error. Now we should delete all auxilary LEXes and restore original
-    THD::lex (In this case sp_head::restore_thd_mem_root() was not called
-    too, so m_thd points to the current thread context).
-    It is safe to not update LEX::ptr because further query string parsing
-    and execution will be stopped anyway.
+    THD::lex. It is safe to not update LEX::ptr because further query
+    string parsing and execution will be stopped anyway.
   */
-  DBUG_ASSERT(m_lex.is_empty() || m_thd);
   while ((lex= (LEX *)m_lex.pop()))
   {
-    lex_end(m_thd->lex);
-    delete m_thd->lex;
-    m_thd->lex= lex;
+    THD *thd= lex->thd;
+    lex_end(thd->lex);
+    delete thd->lex;
+    thd->lex= lex;
   }
 
   hash_free(&m_sptabs);
   hash_free(&m_sroutines);
+
+  delete m_next_cached_sp;
+
   DBUG_VOID_RETURN;
 }
 

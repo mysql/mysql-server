@@ -1592,6 +1592,8 @@ sub collect_mysqld_features {
   my $cmd= join(" ", $exe_mysqld, @$args);
   my $list= `$cmd`;
 
+  print "cmd: $cmd\n";
+
   foreach my $line (split('\n', $list))
   {
     # First look for version

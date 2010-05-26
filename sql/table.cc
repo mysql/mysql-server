@@ -498,11 +498,19 @@ inline bool is_system_table_name(const char *name, uint length)
   Check if a string contains path elements
 */  
 
-static inline bool has_disabled_path_chars(const char *str)
+static bool has_disabled_path_chars(const char *str)
 {
   for (; *str; str++)
-    if (*str == FN_EXTCHAR || *str == '/' || *str == '\\' || *str == '~' || *str == '@')
-      return TRUE;
+  {
+    switch (*str) {
+      case FN_EXTCHAR:
+      case '/':
+      case '\\':
+      case '~':
+      case '@':
+        return TRUE;
+    }
+  }
   return FALSE;
 }
 
@@ -2761,7 +2769,7 @@ bool check_table_name(const char *name, uint length, bool check_for_path_chars)
       int len=my_ismbchar(system_charset_info, name, end);
       if (len)
       {
-        name += len;
+        name+= len;
         name_length++;
         continue;
       }
