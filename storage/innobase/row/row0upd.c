@@ -2111,7 +2111,7 @@ row_upd_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	node = thr->run_node;
 

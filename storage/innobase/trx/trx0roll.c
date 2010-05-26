@@ -138,7 +138,7 @@ trx_general_rollback_for_mysql(
 
 	srv_active_wake_master_thread();
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	trx_general_rollback_for_mysql_low(trx, savept);
 
@@ -367,7 +367,7 @@ trx_savepoint_for_mysql(
 	ut_a(trx);
 	ut_a(savepoint_name);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 

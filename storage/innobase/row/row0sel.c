@@ -1993,7 +1993,7 @@ row_sel_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		trx_start_if_not_started(thr_get_trx(thr));
+		trx_start_if_not_started_xa(thr_get_trx(thr));
 
 		plan_reset_cursor(sel_node_get_nth_plan(node, 0));
 
@@ -3611,7 +3611,7 @@ shortcut_fails_too_big_rec:
 		trx->has_search_latch = FALSE;
 	}
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
@@ -4567,7 +4567,7 @@ row_search_check_if_query_cache_permitted(
 
 	/* Start the transaction if it is not started yet */
 
-	trx_start_if_not_started_low(trx);
+	trx_start_if_not_started(trx);
 
 	/* If there are locks on the table or some trx has invalidated the
 	cache up to our trx id, then ret = FALSE.

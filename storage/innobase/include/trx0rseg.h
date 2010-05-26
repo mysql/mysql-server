@@ -86,11 +86,11 @@ trx_rsegf_undo_find_free(
 /******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
 @return	rollback segment */
-UNIV_INTERN
+UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
 /*===============*/
-	ulint	id);	/*!< in: rollback segment id */
+	ulint	id);		/*!< in: rollback segment id */
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
@@ -176,10 +176,6 @@ struct trx_rseg_struct{
 					yet purged log */
 	ibool		last_del_marks;	/*!< TRUE if the last not yet purged log
 					needs purging */
-	/*--------------------------------------------------------*/
-	UT_LIST_NODE_T(trx_rseg_t) rseg_list;
-					/* the list of the rollback segment
-					memory objects */
 };
 
 /* Undo log segment slot in a rollback segment header */

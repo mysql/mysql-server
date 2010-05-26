@@ -128,16 +128,15 @@ trx_lists_init_at_db_start(void);
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started(
-/*=====================*/
+trx_start_if_not_started_xa(
+/*========================*/
 	trx_t*	trx);	/*!< in: transaction */
 /*************************************************************//**
-Starts the transaction if it is not yet started. Assumes we have reserved
-the kernel mutex! */
+Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started_low(
-/*=========================*/
+trx_start_if_not_started(
+/*=====================*/
 	trx_t*	trx);	/*!< in: transaction */
 /****************************************************************//**
 Commits a transaction. */

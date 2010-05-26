@@ -368,7 +368,7 @@ void
 trx_lists_init_at_db_start(void)
 /*============================*/
 {
-	trx_rseg_t*	rseg;
+	ulint		i;
 
 	ut_a(srv_is_being_started);
 
@@ -377,10 +377,11 @@ trx_lists_init_at_db_start(void)
 	/* Look from the rollback segments if there exist undo logs for
 	transactions */
 
-	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-
-	while (rseg != NULL) {
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_undo_t*	undo;
+		trx_rseg_t*	rseg;
+	       
+		rseg = trx_sys->rseg_array[i];
 
 		undo = UT_LIST_GET_FIRST(rseg->insert_undo_list);
 
@@ -545,8 +546,6 @@ trx_lists_init_at_db_start(void)
 
 			undo = UT_LIST_GET_NEXT(undo_list, undo);
 		}
-
-		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
 	}
 }
 
@@ -559,28 +558,27 @@ trx_rseg_t*
 trx_assign_rseg(void)
 /*=================*/
 {
+	ulint		i;
 	trx_rseg_t*	rseg;
 
 	trx_sys_mutex_enter();
 
-	rseg = trx_sys->latest_rseg;
+	i = trx_sys->latest_rseg % TRX_SYS_N_RSEGS;
 
 	do {
-		/* Get next rseg in a round-robin fashion */
+		rseg = trx_sys->rseg_array[i];
+		ut_a(rseg == NULL || i == rseg->id);
 
-		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
-
-		if (rseg == NULL) {
-			rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-		}
+		i = (rseg == NULL) ? 0 : i + 1;
 
 		/* If it is the SYSTEM rollback segment, and there
 		exist others, skip it */
 
-	} while (rseg->id == TRX_SYS_SYSTEM_RSEG_ID
-	         && UT_LIST_GET_LEN(trx_sys->rseg_list) > 1);
+	} while (rseg == NULL
+		 && rseg->id == TRX_SYS_SYSTEM_RSEG_ID
+	         && trx_sys->rseg_array[1] != NULL);
 
-	trx_sys->latest_rseg = rseg;
+	trx_sys->latest_rseg = i % TRX_SYS_N_RSEGS;
 
 	trx_sys_mutex_exit();
 
@@ -597,8 +595,6 @@ trx_start_low(
 {
 	trx_rseg_t*	rseg;
 
-	ut_ad(trx_mutex_own(trx));
-
 	ut_ad(trx->rseg == NULL);
 
 	ut_ad(trx->conc_state != TRX_ACTIVE);
@@ -612,14 +608,10 @@ trx_start_low(
 
 	trx->conc_state = TRX_ACTIVE;
 
-	trx_mutex_exit(trx);
-
 	rseg = trx_assign_rseg();
 
-	trx_mutex_enter(trx);
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
-	trx_mutex_exit(trx);
 
 	trx_sys_mutex_enter();
 
@@ -1055,7 +1047,7 @@ trx_commit_for_mysql(
 
 	ut_a(trx);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	trx->op_info = "committing";
 
@@ -1123,13 +1115,13 @@ trx_mark_sql_stat_end(
 {
 	ut_a(trx);
 
-	trx_sys_mutex_enter();
+	trx_mutex_enter(trx);
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		trx->undo_no = ut_dulint_zero;
 	}
 
-	trx_sys_mutex_exit();
+	trx_mutex_exit(trx);
 
 	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
 }
@@ -1415,7 +1407,7 @@ trx_prepare_for_mysql(
 /*==================*/
 	trx_t*	trx)	/*!< in: trx handle */
 {
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	trx_mutex_enter(trx);
 
@@ -1551,8 +1543,8 @@ trx_get_trx_by_xid(
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started(
-/*=====================*/
+trx_start_if_not_started_xa(
+/*========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
 	trx_mutex_enter(trx);
@@ -1560,6 +1552,8 @@ trx_start_if_not_started(
 	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
+
+		trx_mutex_exit(trx);
 
 		/* Update the info whether we should skip XA steps that eat
 	       	CPU time For the duration of the transaction trx->support_xa
@@ -1576,12 +1570,11 @@ trx_start_if_not_started(
 }
 
 /*************************************************************//**
-Starts the transaction if it is not yet started. Assumes we have reserved
-the kernel mutex! */
+Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started_low(
-/*=========================*/
+trx_start_if_not_started(
+/*=====================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
 	trx_mutex_enter(trx);
@@ -1589,6 +1582,8 @@ trx_start_if_not_started_low(
 	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
+
+		trx_mutex_exit(trx);
 
 		trx_start_low(trx);
 	} else {

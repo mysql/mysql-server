@@ -958,8 +958,6 @@ trx_sys_init_at_db_start(void)
 
 	trx_rseg_list_and_array_init(sys_header, &mtr);
 
-	trx_sys->latest_rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
 	trx_sys_get_new_trx_id will evaluate to TRUE when the function
@@ -1591,7 +1589,7 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	trx_rseg_t*	rseg;
+	ulint		i;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
@@ -1627,15 +1625,16 @@ trx_sys_close(void)
 	trx_doublewrite = NULL;
 
 	/* There can't be any active transactions. */
-	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg;
 
-	while (rseg != NULL) {
-		trx_rseg_t*	prev_rseg = rseg;
+		rseg = trx_sys->rseg_array[i];
 
-		rseg = UT_LIST_GET_NEXT(rseg_list, prev_rseg);
-		UT_LIST_REMOVE(rseg_list, trx_sys->rseg_list, prev_rseg);
-
-		trx_rseg_mem_free(prev_rseg);
+		if (rseg != NULL) {
+			trx_rseg_mem_free(rseg);
+		} else {
+			break;
+		}
 	}
 
 	trx_sys_mutex_enter();
@@ -1653,7 +1652,6 @@ trx_sys_close(void)
 	}
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == 0);
-	ut_a(UT_LIST_GET_LEN(trx_sys->rseg_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
