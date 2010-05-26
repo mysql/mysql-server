@@ -1689,9 +1689,8 @@ err:
         shared mode).
 
   @note There can be only one upgrader for a lock or we will have deadlock.
-        This invariant is ensured by code outside of metadata subsystem usually
-        by obtaining some sort of exclusive table-level lock (e.g. TL_WRITE,
-        TL_WRITE_ALLOW_READ) before performing upgrade of metadata lock.
+        This invariant is ensured by the fact that upgradeable locks SNW
+        and SNRW are not compatible with each other and themselves.
 
   @retval FALSE  Success
   @retval TRUE   Failure (thread was killed)

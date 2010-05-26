@@ -697,7 +697,7 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   lex->sql_command= SQLCOM_CREATE_INDEX;
   if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
                                               TL_OPTION_UPDATING,
-                                              TL_WRITE_ALLOW_READ,
+                                              TL_READ_NO_INSERT,
                                               MDL_SHARED_NO_WRITE))
     return TRUE;
   lex->alter_info.reset();
@@ -6157,7 +6157,7 @@ alter:
             lex->duplicates= DUP_ERROR; 
             if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
                                                    TL_OPTION_UPDATING,
-                                                   TL_WRITE_ALLOW_READ,
+                                                   TL_READ_NO_INSERT,
                                                    MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
             lex->col_list.empty();
@@ -10168,7 +10168,7 @@ drop:
             lex->alter_info.drop_list.push_back(ad);
             if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
                                                         TL_OPTION_UPDATING,
-                                                        TL_WRITE_ALLOW_READ,
+                                                        TL_READ_NO_INSERT,
                                                         MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
           }
@@ -14094,7 +14094,7 @@ trigger_tail:
             if (!lex->select_lex.add_table_to_list(YYTHD, $9,
                                                    (LEX_STRING*) 0,
                                                    TL_OPTION_UPDATING,
-                                                   TL_WRITE_ALLOW_READ,
+                                                   TL_READ_NO_INSERT,
                                                    MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
           }
