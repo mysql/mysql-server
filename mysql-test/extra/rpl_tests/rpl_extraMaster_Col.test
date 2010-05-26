@@ -146,12 +146,7 @@ SELECT COUNT(*) FROM t1;
 --echo
 SELECT * FROM t1 ORDER BY f3 LIMIT 20;
 
---echo
---echo * Show Slave Status *
---echo
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical show slave status;
---echo
+--source include/check_slave_is_running.inc
 
 ### Altering table def scenario
 --echo
@@ -431,16 +426,14 @@ connection master;
    delete from t4;
    delete from t31;
 
---echo
---echo ** Check slave status **
---echo
 #connection slave;
    sync_slave_with_master;
    select * from t31;
 
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical show slave status;
+--echo
+--echo ** Check slave status **
+--echo
+--source include/check_slave_is_running.inc
 
 #### Clean Up ####
 
@@ -493,16 +486,15 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 
 --echo
 --echo ********************************************
---echo *** Expect slave to fail with Error 1523 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 --echo
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo
 --echo *** Drop t10  ***
@@ -550,16 +542,15 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 
 --echo
 --echo ********************************************
---echo *** Expect slave to fail with Error 1523 ***
+--echo *** Expect slave to fail with Error 1535 ***
 --echo ********************************************
 --echo
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF
+--let $slave_sql_errno= 1535
+--let $slave_skip_counter= 2
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo
 --echo *** Drop t11  ***
@@ -697,10 +688,10 @@ SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
 # Remove below once fixed
 #***************************
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+# 1091 = ER_CANT_DROP_FIELD_OR_KEY
+--let $slave_sql_errno= 1091
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 #***************************
 
 STOP SLAVE;
@@ -763,10 +754,10 @@ SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
 --echo ********************************************
 --echo
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+# 1054 = ER_BAD_FIELD_ERROR
+--let $slave_sql_errno= 1054
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 RESET SLAVE;
 
@@ -840,10 +831,10 @@ SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
 --echo *****************
 --echo
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+# 1072 = ER_KEY_COLUMN_DOES_NOT_EXITS
+--let $slave_sql_errno= 1072
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 RESET SLAVE;
 
