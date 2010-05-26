@@ -1,7 +1,7 @@
 
 # 
-# Run select.test partitioned default key cache (with 7 partitions)
-# (see setting the number of partitions in select_pkecache-master.opt)
+# Run select.test with the segmented default key cache (with 7 segments)
+# (see setting the number of segments in select_pkecache-master.opt)
 # The result is expected the same as for select.test
 #
 

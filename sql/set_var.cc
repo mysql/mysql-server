@@ -330,7 +330,7 @@ static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars,
                                    "key_cache_age_threshold",
                                    offsetof(KEY_CACHE, param_age_threshold));
 static sys_var_key_cache_long  sys_key_cache_partitions(&vars,
-                                   "key_cache_partitions",
+                                   "key_cache_segments",
                                    offsetof(KEY_CACHE, param_partitions));
 static sys_var_const    sys_language(&vars, "language",
                                      OPT_GLOBAL, SHOW_CHAR,

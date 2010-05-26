@@ -234,10 +234,10 @@ NULL	information_schema	KEY_CACHES	BLOCK_SIZE	5	0	NO	bigint	NULL	NULL	19	0	NULL	
 NULL	information_schema	KEY_CACHES	DIRTY_BLOCKS	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	KEY_CACHES	FULL_SIZE	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	KEY_CACHES	KEY_CACHE_NAME	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
-NULL	information_schema	KEY_CACHES	PARTITIONS	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(3) unsigned			select	
-NULL	information_schema	KEY_CACHES	PARTITION_NUMBER	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(3) unsigned			select	
 NULL	information_schema	KEY_CACHES	READS	10	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	KEY_CACHES	READ_REQUESTS	9	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	KEY_CACHES	SEGMENTS	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(3) unsigned			select	
+NULL	information_schema	KEY_CACHES	SEGMENT_NUMBER	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(3) unsigned			select	
 NULL	information_schema	KEY_CACHES	UNUSED_BLOCKS	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	KEY_CACHES	USED_BLOCKS	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	KEY_CACHES	WRITES	12	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
@@ -756,8 +756,8 @@ NULL	information_schema	INNODB_TRX	trx_weight	bigint	NULL	NULL	NULL	NULL	bigint(
 NULL	information_schema	INNODB_TRX	trx_mysql_thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 3.0000	information_schema	INNODB_TRX	trx_query	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	KEY_CACHES	KEY_CACHE_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
-NULL	information_schema	KEY_CACHES	PARTITIONS	int	NULL	NULL	NULL	NULL	int(3) unsigned
-NULL	information_schema	KEY_CACHES	PARTITION_NUMBER	int	NULL	NULL	NULL	NULL	int(3) unsigned
+NULL	information_schema	KEY_CACHES	SEGMENTS	int	NULL	NULL	NULL	NULL	int(3) unsigned
+NULL	information_schema	KEY_CACHES	SEGMENT_NUMBER	int	NULL	NULL	NULL	NULL	int(3) unsigned
 NULL	information_schema	KEY_CACHES	FULL_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	KEY_CACHES	BLOCK_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	KEY_CACHES	USED_BLOCKS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
