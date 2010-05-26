@@ -80,10 +80,10 @@ lock_wait_table_release_slot(
 
 	lock_mutex_enter();
 
-	ut_a(slot->in_use);
-	ut_a(slot->thr != NULL);
-	ut_a(slot->thr->slot != NULL);
-	ut_a(slot->thr->slot == slot);
+	ut_ad(slot->in_use);
+	ut_ad(slot->thr != NULL);
+	ut_ad(slot->thr->slot != NULL);
+	ut_ad(slot->thr->slot == slot);
 
 	/* Must be within the array boundaries. */
 	ut_ad(slot >= lock_sys->waiting_threads);
@@ -420,10 +420,11 @@ lock_wait_check_and_cancel(
 		possible that the lock has already been
 		granted: in that case do nothing */
 
-
 		if (trx->wait_lock) {
 
 			ut_a(trx->que_state == TRX_QUE_LOCK_WAIT);
+
+			printf("Timeout: %p\n", trx);
 
 			lock_cancel_waiting_and_release(trx->wait_lock);
 		}

@@ -159,19 +159,16 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-
-	/* Tell Innobase server that there might be work for
-	utility threads: */
+	/* Tell Innobase server that there might be work for utility threads: */
 
 	srv_active_wake_master_thread();
 
-	trx_mutex_enter(trx);
+	//trx_mutex_enter(trx);
 
 	if (trx->conc_state != TRX_NOT_STARTED) {
-
 		trx->op_info = "rollback";
 
-		trx_mutex_exit(trx);
+		//trx_mutex_exit(trx);
 
 		/* If we are doing the XA recovery of prepared transactions,
 	       	then the transaction object does not have an InnoDB session
@@ -180,17 +177,15 @@ trx_rollback_for_mysql(
 
 		trx_general_rollback_for_mysql_low(trx, NULL);
 
-		trx_mutex_enter(trx);
+	} else {
+		//trx_mutex_exit(trx);
 	}
 
 	trx->op_info = "";
 
 	ut_a(trx->error_state == DB_SUCCESS);
 
-	trx_mutex_exit(trx);
-
-	/* Tell Innobase server that there might be work for
-	utility threads: */
+	/* Tell Innobase server that there might be work for utility threads: */
 
 	srv_active_wake_master_thread();
 
