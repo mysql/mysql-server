@@ -859,7 +859,9 @@ int ha_archive::write_row(uchar *buf)
   {
     KEY *mkey= &table->s->key_info[0]; // We only support one key right now
     update_auto_increment();
-    temp_auto= table->next_number_field->val_int();
+    temp_auto= (((Field_num*) table->next_number_field)->unsigned_flag ||
+                table->next_number_field->val_int() > 0 ?
+                table->next_number_field->val_int() : 0);
 
     /*
       We don't support decremening auto_increment. They make the performance
