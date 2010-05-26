@@ -1,4 +1,46 @@
 drop table if exists t1, t2;
+# Bug#39338: Fieldnames in
+#   INFORMATIONSCHEMA.PARTITIONS.PARTITION_EXPRESSION become unescaped
+# NOTE: the partition expression is saved as a string, so changing from
+#       normal quotes to ansi quotes does not change the expression, only
+#       for partition by KEY.
+CREATE TABLE t1 (
+ID int(11) NOT NULL,
+`aaaa,aaaaa` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+ddddddddd int(11) NOT NULL DEFAULT '0',
+new_field0 varchar(50),
+PRIMARY KEY(ID, `aaaa,aaaaa`, ddddddddd))
+PARTITION BY RANGE(ID)
+PARTITIONS 3
+SUBPARTITION BY LINEAR KEY(ID,`aaaa,aaaaa`)
+SUBPARTITIONS 2 (
+PARTITION p01 VALUES LESS THAN(100),
+PARTITION p11 VALUES LESS THAN(200),
+PARTITION p21 VALUES LESS THAN MAXVALUE);
+SELECT PARTITION_EXPRESSION, SUBPARTITION_EXPRESSION FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION
+ID	`ID`,`aaaa,aaaaa`
+ID	`ID`,`aaaa,aaaaa`
+ID	`ID`,`aaaa,aaaaa`
+ID	`ID`,`aaaa,aaaaa`
+ID	`ID`,`aaaa,aaaaa`
+ID	`ID`,`aaaa,aaaaa`
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ID` int(11) NOT NULL,
+  `aaaa,aaaaa` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `ddddddddd` int(11) NOT NULL DEFAULT '0',
+  `new_field0` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`ID`,`aaaa,aaaaa`,`ddddddddd`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (ID)
+SUBPARTITION BY LINEAR KEY (ID,`aaaa,aaaaa`)
+SUBPARTITIONS 2
+(PARTITION p01 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p11 VALUES LESS THAN (200) ENGINE = MyISAM,
+ PARTITION p21 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+drop table t1;
 CREATE TABLE t1 (a INT, b INT)
 PARTITION BY LIST (a)
 SUBPARTITION BY HASH (b)
