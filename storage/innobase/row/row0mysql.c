@@ -3285,7 +3285,7 @@ check_next_foreign:
 
 		dict_table_remove_from_cache(table);
 
-		if (dict_load_table(name) != NULL) {
+		if (dict_load_table(name, TRUE) != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: not able to remove table ",
 			      stderr);
@@ -3431,7 +3431,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name);
+		table = dict_load_table(table_name, TRUE);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);
