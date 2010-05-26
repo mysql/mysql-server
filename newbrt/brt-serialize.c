@@ -1260,12 +1260,25 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 				size_translation, address_translation);
     }
     {
-        //Alternate writing header to two locations:
-        //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
-        toku_off_t main_offset;
-        //TODO: #1623 uncomment next line when ready for 2 headers
-        main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
-	toku_full_pwrite_extend(fd, w_main.buf, w_main.ndone, main_offset);
+        //Everything but the header MUST be on disk before header starts.
+        //Otherwise we will think the header is good and some blocks might not
+        //yet be on disk.
+        //If the header has a cachefile we need to do cachefile fsync (to
+        //prevent crash if we redirected to dev null)
+        //If there is no cachefile we still need to do an fsync.
+        if (h->cf) {
+            rr = toku_cachefile_fsync(h->cf);
+        }
+        else {
+            rr = toku_file_fsync(fd);
+        }
+        if (rr==0) {
+            //Alternate writing header to two locations:
+            //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
+            toku_off_t main_offset;
+            main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
+            toku_full_pwrite_extend(fd, w_main.buf, w_main.ndone, main_offset);
+        }
     }
     toku_free(w_main.buf);
     toku_free(w_translation.buf);
