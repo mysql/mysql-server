@@ -191,7 +191,7 @@ typedef struct st_join_table {
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
   double	worst_seeks;
   key_map	const_keys;			/**< Keys with constant part */
-  key_map	checked_keys;			/**< Keys checked in find_best */
+  key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
 
