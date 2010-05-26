@@ -4181,10 +4181,9 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
 int ha_partition::common_index_read(uchar *buf, bool have_start_key)
 {
   int error;
-  uint key_len;
+  uint UNINIT_VAR(key_len); /* used if have_start_key==TRUE */
   bool reverse_order= FALSE;
   DBUG_ENTER("ha_partition::common_index_read");
-  LINT_INIT(key_len); /* used if have_start_key==TRUE */
 
   DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u have_start_key %u",
                       m_ordered, m_ordered_scan_ongoing, have_start_key));
