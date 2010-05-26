@@ -209,6 +209,18 @@ unpack_row(Relay_log_info const *rli,
   uchar const *null_ptr= row_data;
   uchar const *pack_ptr= row_data + master_null_byte_count;
 
+  if (bitmap_is_clear_all(cols))
+  {
+    /**
+       There was no data sent from the master, so there is 
+       nothing to unpack.    
+     */
+    *row_end= pack_ptr;
+    *master_reclength= 0;
+    DBUG_RETURN(error);
+  }
+
+
   Field **const begin_ptr = table->field;
   Field **field_ptr;
   Field **const end_ptr= begin_ptr + colcnt;
