@@ -489,7 +489,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   else
   {
     tables->table= open_n_lock_single_table(thd, tables,
-                                            TL_WRITE_ALLOW_READ, 0);
+                                            TL_READ_NO_INSERT, 0);
     if (! tables->table)
       goto end;
     tables->table->use_all_columns();

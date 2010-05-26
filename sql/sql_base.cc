@@ -5081,8 +5081,8 @@ static bool check_lock_and_start_stmt(THD *thd,
   else
     lock_type= table_list->lock_type;
 
-  if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
-      (int) table_list->table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
+  if ((int) lock_type > (int) TL_WRITE_ALLOW_WRITE &&
+      (int) table_list->table->reginfo.lock_type <= (int) TL_WRITE_ALLOW_WRITE)
   {
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_list->alias);
     DBUG_RETURN(1);
