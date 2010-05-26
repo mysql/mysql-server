@@ -2370,6 +2370,8 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 
   init_mrr_buff();
 
+  if (!join_tab->preread_init_done && join_tab->preread_init())
+    return NESTED_LOOP_ERROR;
   /* 
     Prepare to iterate over keys from the join buffer and to get
     matching candidates obtained with MMR handler functions.

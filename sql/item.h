@@ -778,6 +778,7 @@ public:
      class Field_enumerator)
   */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  virtual table_map all_used_tables() const { return used_tables(); }
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -934,8 +935,12 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+  virtual bool register_field_in_write_map(uchar *arg) { return 0; }
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
+  virtual bool view_used_tables_processor(uchar *arg) { return 0; }
+  virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
+
   /*
     The next function differs from the previous one that a bitmap to be updated
     is passed as uchar *arg.
@@ -1143,6 +1148,12 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+  table_map view_used_tables(TABLE_LIST *view)
+  {
+    view->view_used_tables= 0;
+    walk(&Item::view_used_tables_processor, 0, (uchar *) view);
+    return view->view_used_tables;
+  }
 };
 
 
@@ -1616,6 +1627,7 @@ public:
   int save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
+  table_map all_used_tables() const; 
   enum Item_result result_type () const
   {
     return field->result_type();
@@ -1645,6 +1657,7 @@ public:
   bool add_field_to_set_processor(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
+  bool register_field_in_write_map(uchar *arg);
   bool register_field_in_bitmap(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool vcol_in_partition_func_processor(uchar *bool_arg);
@@ -2515,11 +2528,14 @@ public:
 */
 class Item_direct_view_ref :public Item_direct_ref
 {
+  TABLE_LIST *view;
 public:
   Item_direct_view_ref(Name_resolution_context *context_arg, Item **item,
-                  const char *table_name_arg,
-                  const char *field_name_arg)
-    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg) {}
+                       const char *table_name_arg,
+                       const char *field_name_arg,
+                       TABLE_LIST *view_arg)
+    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg),
+     view(view_arg) {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item) {}
@@ -2533,6 +2549,24 @@ public:
     return item;
   }
   virtual Ref_Type ref_type() { return VIEW_REF; }
+  table_map used_tables() const		
+  {
+    return depended_from ? 
+           OUTER_REF_TABLE_BIT :
+           (view->merged ? (*ref)->used_tables() : view->table->map); 
+  }
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  { 
+    return (*ref)->walk(processor, walk_subquery, arg) ||
+           (this->*processor)(arg);
+  }
+   bool view_used_tables_processor(uchar *arg) 
+  {
+    TABLE_LIST *view_arg= (TABLE_LIST *) arg;
+    if (view_arg == view)
+      view_arg->view_used_tables|= (*ref)->used_tables();
+    return 0;
+  }
 };
 
 
@@ -2873,6 +2907,17 @@ public:
   void copy();
 };
 
+
+/*
+  Cached_item_XXX objects are not exactly caches. They do the following:
+
+  Each Cached_item_XXX object has
+   - its source item
+   - saved value of the source item
+   - cmp() method that compares the saved value with the current value of the
+     source item, and if they were not equal saves item's value into the saved
+     value.
+*/
 
 /*
   Cached_item_XXX objects are not exactly caches. They do the following:

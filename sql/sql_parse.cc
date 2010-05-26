@@ -458,7 +458,7 @@ static void handle_bootstrap_impl(THD *thd)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    char *query;
+    char *query, *res;
     /* strlen() can't be deleted because fgets() doesn't return length */
     ulong length= (ulong) strlen(buff);
     while (buff[length-1] != '\n' && !feof(file))
@@ -2769,6 +2769,9 @@ mysql_execute_command(THD *thd)
             }
           }
         }
+        if (mysql_handle_single_derived(thd->lex, create_table,
+            DT_MERGE_FOR_INSERT))
+          DBUG_RETURN(1);
 
         /*
           select_create is currently not re-execution friendly and
@@ -3300,6 +3303,10 @@ end_with_restore_list:
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
+      /*
+        Only the INSERT table should be merged. Other will be handled by
+        select.
+      */
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= (uchar*) second_table;
@@ -5183,6 +5190,8 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      !(all_tables->is_view() &&
+        all_tables->is_merged_derived()) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 

@@ -2894,6 +2894,9 @@ int subselect_uniquesubquery_engine::exec()
     DBUG_RETURN(0);
   }
 
+  if (!tab->preread_init_done && tab->preread_init())
+    DBUG_RETURN(1);
+
   if (null_keypart)
     DBUG_RETURN(scan_table());
  
@@ -3026,7 +3029,7 @@ subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
 
 int subselect_indexsubquery_engine::exec()
 {
-  DBUG_ENTER("subselect_indexsubquery_engine::exec");
+  DBUG_ENTER("subselect_indexsubquery_engine");
   int error;
   bool null_finding= 0;
   TABLE *table= tab->table;
@@ -3056,6 +3059,9 @@ int subselect_indexsubquery_engine::exec()
     ((Item_in_subselect *) item)->value= 0;
     DBUG_RETURN(0);
   }
+
+  if (!tab->preread_init_done && tab->preread_init())
+    DBUG_RETURN(1);
 
   if (null_keypart)
     DBUG_RETURN(scan_table());
@@ -3158,10 +3164,13 @@ void subselect_uniquesubquery_engine::exclude()
 }
 
 
-table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
+table_map subselect_engine::calc_const_tables(List<TABLE_LIST> &list)
 {
   table_map map= 0;
-  for (; table; table= table->next_leaf)
+  List_iterator<TABLE_LIST> ti(list);
+  TABLE_LIST *table;
+  //for (; table; table= table->next_leaf)
+  while ((table= ti++))
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)
@@ -3173,14 +3182,13 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 
 table_map subselect_single_select_engine::upper_select_const_tables()
 {
-  return calc_const_tables((TABLE_LIST *) select_lex->outer_select()->
-			   leaf_tables);
+  return calc_const_tables(select_lex->outer_select()->leaf_tables);
 }
 
 
 table_map subselect_union_engine::upper_select_const_tables()
 {
-  return calc_const_tables((TABLE_LIST *) unit->outer_select()->leaf_tables);
+  return calc_const_tables(unit->outer_select()->leaf_tables);
 }
 
 
@@ -3711,7 +3719,7 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
 
   if (((select_union*) result)->create_result_table(
                          thd, tmp_columns, TRUE, tmp_create_options,
-                         "materialized subselect", TRUE))
+                         "materialized subselect", TRUE, TRUE))
     DBUG_RETURN(TRUE);
 
   tmp_table= ((select_union*) result)->table;

@@ -719,7 +719,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
-    bool error= open_normal_and_derived_tables(thd, table_list, 0);
+    bool error= open_normal_and_derived_tables(thd, table_list, 0,
+                                               DT_PREPARE | DT_CREATE);
     thd->pop_internal_handler();
     if (error && (thd->killed || thd->main_da.is_error()))
       DBUG_RETURN(TRUE);
@@ -894,7 +895,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+  if (open_normal_and_derived_tables(thd, table_list, 0,
+                                     DT_PREPARE | DT_CREATE))
     DBUG_VOID_RETURN;
   table= table_list->table;
 
@@ -1680,7 +1682,7 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 static void append_algorithm(TABLE_LIST *table, String *buff)
 {
   buff->append(STRING_WITH_LEN("ALGORITHM="));
-  switch ((int8)table->algorithm) {
+  switch ((int16)table->algorithm) {
   case VIEW_ALGORITHM_UNDEFINED:
     buff->append(STRING_WITH_LEN("UNDEFINED "));
     break;
@@ -3360,8 +3362,9 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
     SQLCOM_SHOW_FIELDS is used because it satisfies 'only_view_structure()'
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
-  res= open_normal_and_derived_tables(thd, show_table_list,
-                                      MYSQL_LOCK_IGNORE_FLUSH);
+  res= (open_normal_and_derived_tables(thd, show_table_list,
+                                      MYSQL_LOCK_IGNORE_FLUSH,
+                                      DT_PREPARE | DT_CREATE));
   lex->sql_command= save_sql_command;
   /*
     get_all_tables() returns 1 on failure and 0 on success thus
@@ -3792,8 +3795,9 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
-            res= open_normal_and_derived_tables(thd, show_table_list,
-                                                MYSQL_LOCK_IGNORE_FLUSH);
+            res= (open_normal_and_derived_tables(thd, show_table_list,
+                                                MYSQL_LOCK_IGNORE_FLUSH,
+                                                DT_PREPARE | DT_CREATE));
             lex->sql_command= save_sql_command;
             /*
               XXX:  show_table_list has a flag i_is_requested,

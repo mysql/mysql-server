@@ -192,7 +192,6 @@ Item_func::fix_fields(THD *thd, Item **ref)
 
       with_sum_func= with_sum_func || item->with_sum_func;
       used_tables_cache|=     item->used_tables();
-      not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
       with_subselect|=        item->with_subselect;
     }
@@ -202,6 +201,21 @@ Item_func::fix_fields(THD *thd, Item **ref)
     return TRUE;
   fixed= 1;
   thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
+  return FALSE;
+}
+
+
+bool
+Item_func::eval_not_null_tables(uchar *opt_arg)
+{
+  Item **arg,**arg_end;
+  if (arg_count)
+  {		
+    for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
+    {
+      not_null_tables_cache|= (*arg)->not_null_tables();
+    }
+  }
   return FALSE;
 }
 
@@ -3895,6 +3909,20 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
     entry->collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
   collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
   cached_result_type= args[0]->result_type();
+  {
+    /*
+      When this function is used in a derived table/view force the derived
+      table to be materialized to preserve possible side-effect of setting a
+      user variable.
+    */
+    SELECT_LEX_UNIT *unit= thd->lex->current_select->master_unit();
+    TABLE_LIST *derived;
+    for (derived= unit->derived;
+         derived;
+         derived= derived->select_lex->master_unit()->derived)
+      derived->set_materialized_derived();
+  }
+
   return FALSE;
 }
 

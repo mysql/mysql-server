@@ -771,6 +771,7 @@ THD::THD()
   thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
+  prepare_derived_at_open= FALSE;
 }
 
 
@@ -2946,7 +2947,8 @@ bool
 select_materialize_with_stats::
 create_result_table(THD *thd_arg, List<Item> *column_types,
                     bool is_union_distinct, ulonglong options,
-                    const char *table_alias, bool bit_fields_as_long)
+                    const char *table_alias, bool bit_fields_as_long,
+                    bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.field_count= column_types->elements;

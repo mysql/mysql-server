@@ -91,6 +91,10 @@ public:
     DBUG_ASSERT(sizeof(buffer) >= 4);
     return (ulonglong) uint4korr(buffer);
   }
+  uint bits_set()
+  {
+    return bitmap_bits_set(&map);
+  }
 };
 
 /* An iterator to quickly walk over bits in unlonglong bitmap. */
@@ -169,5 +173,16 @@ public:
   public:
     Iterator(Bitmap<64> &bmp) : Table_map_iterator(bmp.map) {}
   };
+  uint bits_set()
+  {
+    //TODO: use my_count_bits()
+    uint res= 0, i= 0;
+    for (; i < 64 ; i++)
+    {
+      if (map & ((ulonglong)1<<i))
+        res++;
+    }
+    return res;
+  }
 };
 

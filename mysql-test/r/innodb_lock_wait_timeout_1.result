@@ -104,7 +104,7 @@ id	1
 select_type	PRIMARY
 table	<derived2>
 type	ALL
-possible_keys	NULL
+possible_keys	key0
 key	NULL
 key_len	NULL
 ref	NULL
@@ -308,7 +308,7 @@ id	1
 select_type	PRIMARY
 table	<derived2>
 type	ALL
-possible_keys	NULL
+possible_keys	key0
 key	NULL
 key_len	NULL
 ref	NULL

@@ -469,6 +469,11 @@ public:
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
   friend bool mysql_make_view(THD *thd, File_parser *parser,
                               TABLE_LIST *table, uint flags);
+  friend bool mysql_derived_prepare(THD *thd, st_lex *lex,
+                                  TABLE_LIST *orig_table_list);
+  friend bool mysql_derived_merge(THD *thd, st_lex *lex,
+                                  TABLE_LIST *orig_table_list);
+  friend bool TABLE_LIST::init_derived(THD *thd, bool init_view);
 private:
   void fast_exclude();
 };
@@ -487,13 +492,12 @@ class st_select_lex_unit: public st_select_lex_node {
 protected:
   TABLE_LIST result_table_list;
   select_union *union_result;
-  TABLE *table; /* temporary table using for appending UNION results */
-
-  select_result *result;
   ulonglong found_rows_for_union;
   bool saved_error;
 
 public:
+  TABLE *table; /* temporary table using for appending UNION results */
+  select_result *result;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
@@ -520,6 +524,11 @@ public:
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if unit used in subselect, point to subselect item */
   Item_subselect *item;
+  /*
+    TABLE_LIST representing this union in the embedding select. Used for
+    derived tables/views handling.
+  */
+  TABLE_LIST *derived;
   /* thread handler */
   THD *thd;
   /*
@@ -549,6 +558,7 @@ public:
 
   /* UNION methods */
   bool prepare(THD *thd, select_result *result, ulong additional_options);
+  bool optimize();
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
@@ -610,8 +620,15 @@ public:
     Beginning of the list of leaves in a FROM clause, where the leaves
     inlcude all base tables including view tables. The tables are connected
     by TABLE_LIST::next_leaf, so leaf_tables points to the left-most leaf.
+
+    List of all base tables local to a subquery including all view
+    tables. Unlike 'next_local', this in this list views are *not*
+    leaves. Created in setup_tables() -> make_leaves_list().
   */
-  TABLE_LIST *leaf_tables;
+  List<TABLE_LIST> leaf_tables;
+  List<TABLE_LIST> leaf_tables_exec;
+  uint insert_tables;
+
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
@@ -832,6 +849,28 @@ public:
 
   void clear_index_hints(void) { index_hints= NULL; }
   bool is_part_of_union() { return master_unit()->is_union(); }
+  bool handle_derived(struct st_lex *lex, uint phases);
+  void append_table_to_list(TABLE_LIST *TABLE_LIST::*link, TABLE_LIST *table);
+  bool get_free_table_map(table_map *map, uint *tablenr);
+  void remove_table_from_list(TABLE_LIST *table);
+  void remap_tables(TABLE_LIST *derived, table_map map,
+                    uint tablenr, st_select_lex *parent_lex);
+  bool merge_subquery(TABLE_LIST *derived, st_select_lex *subq_lex,
+                      uint tablenr, table_map map);
+  inline bool is_mergeable()
+  {
+    return (next_select() == 0 && group_list.elements == 0 &&
+            having == 0 && with_sum_func == 0 &&
+            table_list.elements >= 1 && !(options & SELECT_DISTINCT) &&
+            select_limit == 0);
+  }
+  void mark_as_belong_to_derived(TABLE_LIST *derived);
+  void increase_derived_records(uint records);
+  void update_used_tables();
+  void mark_const_derived(bool empty);
+
+  bool save_leaf_tables(THD *thd);
+
 private:  
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;
@@ -1556,8 +1595,6 @@ typedef struct st_lex : public Query_tables_list
 
   CHARSET_INFO *charset;
   bool text_string_is_7bit;
-  /* store original leaf_tables for INSERT SELECT and PS/SP */
-  TABLE_LIST *leaf_tables_insert;
 
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_select;
@@ -1673,7 +1710,7 @@ typedef struct st_lex : public Query_tables_list
     DERIVED_SUBQUERY and DERIVED_VIEW).
   */
   uint8 derived_tables;
-  uint8 create_view_algorithm;
+  uint16 create_view_algorithm;
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool autocommit;
@@ -1836,6 +1873,8 @@ typedef struct st_lex : public Query_tables_list
     switch (sql_command) {
     case SQLCOM_UPDATE:
     case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
     case SQLCOM_INSERT:
     case SQLCOM_INSERT_SELECT:
     case SQLCOM_REPLACE:
