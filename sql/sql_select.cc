@@ -317,8 +317,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
       function is aggregated in the select where the outer field was
       resolved or in some more inner select then the Item_direct_ref
       class should be used.
-      Also it should be used if we are grouping by a subquery containing
-      the outer field.
+      It used used also if we are grouping by a subquery that refers
+      this outer field.
     The resolution is done here and not at the fix_fields() stage as
     it can be done only after sum functions are fixed and pulled up to
     selects where they are have to be aggregated.
@@ -335,13 +335,25 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 
 bool
 fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
-                 Item **ref_pointer_array, ORDER *group_list)
+                 Item **ref_pointer_array)
 {
   Item_outer_ref *ref;
   bool res= FALSE;
   bool direct_ref= FALSE;
 
-  List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
+  /*
+    Mark the references from  the inner_refs_list that are occurred in
+    the group by expressions. Those references will contain direct
+    references to the referred fields. The markers are set in 
+    the found_in_group_by field of the references from the list.
+  */
+  List_iterator_fast <Item_outer_ref> ref_it(select->inner_refs_list);
+  for (ORDER *group= select->join->group_list; group;  group= group->next)
+  {
+    (*group->item)->walk(&Item::check_inner_refs_processor,
+                         TRUE, (uchar *) &ref_it);
+  } 
+    
   while ((ref= ref_it++))
   {
     Item *item= ref->outer_ref;
@@ -385,22 +397,9 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
         }
       }
     }
-    else
-    {
-      /*
-        Check if GROUP BY item trees contain the outer ref:
-        in this case we have to use Item_direct_ref instead of Item_ref.
-      */
-      for (ORDER *group= group_list; group; group= group->next)
-      {
-        if ((*group->item)->walk(&Item::find_item_processor, TRUE,
-                                 (uchar *) ref))
-        {
-          direct_ref= TRUE;
-          break;
-        }
-      }
-    }
+    else if (ref->found_in_group_by)
+      direct_ref= TRUE;
+
     new_ref= direct_ref ?
               new Item_direct_ref(ref->context, item_ref, ref->table_name,
                           ref->field_name, ref->alias_name_used) :
@@ -607,8 +606,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
 
   if (select_lex->inner_refs_list.elements &&
-      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array,
-                     group_list))
+      fix_inner_refs(thd, all_fields, select_lex, ref_pointer_array))
     DBUG_RETURN(-1);
 
   if (group_list)
@@ -1123,31 +1121,6 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
-
-  /*
-    It's necessary to check const part of HAVING cond as
-    there is a chance that some cond parts may become
-    const items after make_join_statisctics(for example
-    when Item is a reference to cost table field from
-    outer join).
-    This check is performed only for those conditions
-    which do not use aggregate functions. In such case
-    temporary table may not be used and const condition
-    elements may be lost during further having
-    condition transformation in JOIN::exec.
-  */
-  if (having && const_table_map)
-  {
-    having->update_used_tables();
-    having= remove_eq_conds(thd, having, &having_value);
-    if (having_value == Item::COND_FALSE)
-    {
-      having= new Item_int((longlong) 0,1);
-      zero_result_cause= "Impossible HAVING noticed after reading const tables";
-      DBUG_RETURN(0);
-    }
-  }
-
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -2210,7 +2183,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 used_tables);
+						 (table_map) 0);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -8943,7 +8916,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
           For example it might happen if RAND() function
           is used in JOIN ON clause.
 	*/  
-        if (!((prev_table->on_expr->used_tables() & ~RAND_TABLE_BIT) &
+        if (!((prev_table->on_expr->used_tables() &
+               ~(OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) &
               ~prev_used_tables))
           prev_table->dep_tables|= used_tables;
       }
@@ -11867,50 +11841,36 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
       join->thd->send_kill_message();
       return NESTED_LOOP_KILLED; // Aborted by user /* purecov: inspected */
     }
+    int err= 0;
     SQL_SELECT *select=join_tab->select;
-    if (rc == NESTED_LOOP_OK)
+    if (rc == NESTED_LOOP_OK &&
+        (!join_tab->cache.select ||
+         (err= join_tab->cache.select->skip_record(join->thd)) != 0 ))
     {
-      bool consider_record= !join_tab->cache.select || 
-        !join_tab->cache.select->skip_record();
-
-      /*
-        Check for error: skip_record() can execute code by calling
-        Item_subselect::val_*. We need to check for errors (if any)
-        after such call.
-      */
-      if (join->thd->is_error())
-      {
-        reset_cache_write(&join_tab->cache);
+      if (err < 0)
         return NESTED_LOOP_ERROR;
-      }
-
-      if (consider_record)  
+      rc= NESTED_LOOP_OK;
+      reset_cache_read(&join_tab->cache);
+      for (uint i= (join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
       {
-        uint i;
-        reset_cache_read(&join_tab->cache);
-        for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
+	read_cached_record(join_tab);
+        err= 0;
+	if (!select || (err= select->skip_record(join->thd)) != 0)
         {
-          read_cached_record(join_tab);
-          if (!select || !select->skip_record())
+          if (err < 0)
+            return NESTED_LOOP_ERROR;
+          rc= (join_tab->next_select)(join,join_tab+1,0);
+	  if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
           {
-            /*
-              Check for error: skip_record() can execute code by calling
-              Item_subselect::val_*. We need to check for errors (if any)
-              after such call.
-              */
-            if (join->thd->is_error())
-              rc= NESTED_LOOP_ERROR;
-            else
-              rc= (join_tab->next_select)(join,join_tab+1,0);
-            if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-            {
-              reset_cache_write(&join_tab->cache);
-              return rc;
-            }
+            reset_cache_write(&join_tab->cache);
+            return rc;
           }
         }
       }
     }
+      
+    rc= NESTED_LOOP_OK;
+
   } while (!(error=info->read_record(info)));
 
   if (skip_last)
@@ -13280,35 +13240,12 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
+  uint min_length= (uint) ~0;
   uint best= MAX_KEY;
-  uint usable_clustered_pk= (table->file->primary_key_is_clustered() &&
-                             table->s->primary_key != MAX_KEY &&
-                             usable_keys->is_set(table->s->primary_key)) ?
-                            table->s->primary_key : MAX_KEY;
   if (!usable_keys->is_clear_all())
   {
-    uint min_length= (uint) ~0;
     for (uint nr=0; nr < table->s->keys ; nr++)
     {
-      /*
-       As far as 
-       1) clustered primary key entry data set is a set of all record
-          fields (key fields and not key fields) and
-       2) secondary index entry data is a union of its key fields and
-          primary key fields (at least InnoDB and its derivatives don't
-          duplicate primary key fields there, even if the primary and
-          the secondary keys have a common subset of key fields),
-       then secondary index entry data is always a subset of primary key
-       entry, and the PK is always longer.
-       Unfortunately, key_info[nr].key_length doesn't show the length
-       of key/pointer pair but a sum of key field lengths only, thus
-       we can't estimate index IO volume comparing only this key_length
-       value of seconday keys and clustered PK.
-       So, try secondary keys first, and choose PK only if there are no
-       usable secondary covering keys:
-      */
-      if (nr == usable_clustered_pk)
-        continue;
       if (usable_keys->is_set(nr))
       {
         if (table->key_info[nr].key_length < min_length)
@@ -13319,7 +13256,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
       }
     }
   }
-  return best != MAX_KEY ? best : usable_clustered_pk;
+  return best;
 }
 
 /**
@@ -13768,10 +13705,48 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
               key (e.g. as in Innodb). 
               See Bug #28591 for details.
             */  
-            rec_per_key= used_key_parts &&
-                         used_key_parts <= keyinfo->key_parts ?
-                         keyinfo->rec_per_key[used_key_parts-1] : 1;
-            set_if_bigger(rec_per_key, 1);
+             uint used_index_parts= keyinfo->key_parts;
+             uint used_pk_parts= 0;
+             if (used_key_parts > used_index_parts)
+               used_pk_parts= used_key_parts-used_index_parts;
+             rec_per_key= keyinfo->rec_per_key[used_key_parts-1];
+             /* Take into account the selectivity of the used pk prefix */
+             if (used_pk_parts)
+	     {
+               KEY *pkinfo=tab->table->key_info+table->s->primary_key;
+               /*
+                 If the values of of records per key for the prefixes
+                 of the primary key are considered unknown we assume
+                 they are equal to 1.
+	       */
+               if (used_key_parts == pkinfo->key_parts ||
+                   pkinfo->rec_per_key[0] == 0)
+                 rec_per_key= 1;                 
+               if (rec_per_key > 1)
+	       {
+                 rec_per_key*= pkinfo->rec_per_key[used_pk_parts-1];
+                 rec_per_key/= pkinfo->rec_per_key[0];
+                 /* 
+                   The value of rec_per_key for the extended key has
+                   to be adjusted accordingly if some components of
+                   the secondary key are included in the primary key.
+	         */
+                  for(uint i= 0; i < used_pk_parts; i++)
+	         {
+		   if (pkinfo->key_part[i].field->key_start.is_set(nr))
+		   {
+                     /* 
+                       We presume here that for any index rec_per_key[i] != 0
+                       if rec_per_key[0] != 0.
+		     */
+                     DBUG_ASSERT(pkinfo->rec_per_key[i]);
+                     rec_per_key*= pkinfo->rec_per_key[i-1];
+                     rec_per_key/= pkinfo->rec_per_key[i];
+                   }
+	         }
+               }    
+             }
+             set_if_bigger(rec_per_key, 1);
             /*
               With a grouping query each group containing on average
               rec_per_key records produces only one row that will
@@ -14957,30 +14932,12 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     time.
 
     We check order_item->fixed because Item_func_group_concat can put
-    arguments for which fix_fields already was called.
-    
-    group_fix_field= TRUE is to resolve aliases from the SELECT list
-    without creating of Item_ref-s: JOIN::exec() wraps aliased items
-    in SELECT list with Item_copy items. To re-evaluate such a tree
-    that includes Item_copy items we have to refresh Item_copy caches,
-    but:
-      - filesort() never refresh Item_copy items,
-      - end_send_group() checks every record for group boundary by the
-        test_if_group_changed function that obtain data from these
-        Item_copy items, but the copy_fields function that
-        refreshes Item copy items is called after group boundaries only -
-        that is a vicious circle.
-    So we prevent inclusion of Item_copy items.
+    arguments for which fix_fields already was called.    
   */
-  bool save_group_fix_field= thd->lex->current_select->group_fix_field;
-  if (is_group_field)
-    thd->lex->current_select->group_fix_field= TRUE;
-  bool ret= (!order_item->fixed &&
+  if (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
-       thd->is_fatal_error));
-  thd->lex->current_select->group_fix_field= save_group_fix_field;
-  if (ret)
+       thd->is_fatal_error))
     return TRUE; /* Wrong field. */
 
   uint el= all_fields.elements;
@@ -15052,6 +15009,8 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   uint org_fields=all_fields.elements;
 
   thd->where="group statement";
+  enum_parsing_place save_place= thd->lex->current_select->parsing_place;
+  thd->lex->current_select->parsing_place= IN_GROUP_BY;
   for (ord= order; ord; ord= ord->next)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, ord, fields,
@@ -15064,6 +15023,8 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       return 1;
     }
   }
+  thd->lex->current_select->parsing_place= save_place;
+
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     /*

@@ -4321,31 +4321,18 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               It's not an Item_field in the select list so we must make a new
               Item_ref to point to the Item in the select list and replace the
               Item_field created by the parser with the new Item_ref.
-
-              NOTE: If we are fixing an alias reference inside ORDER/GROUP BY
-              item tree, then we use new Item_ref as an intermediate value
-              to resolve referenced item only.
-              In this case the new Item_ref item is unused.
             */
             Item_ref *rf= new Item_ref(context, db_name,table_name,field_name);
             if (!rf)
               return 1;
-
-            bool save_group_fix_field= thd->lex->current_select->group_fix_field;
-            /*
-              No need for recursive resolving of aliases.
-            */
-            thd->lex->current_select->group_fix_field= 0;
-
             bool ret= rf->fix_fields(thd, (Item **) &rf) || rf->check_cols(1);
-            thd->lex->current_select->group_fix_field= save_group_fix_field;
             if (ret)
               return TRUE;
-
-            if (save_group_fix_field && alias_name_used)
-              thd->change_item_tree(reference, *rf->ref);
-            else
-              thd->change_item_tree(reference, rf);
+           
+            SELECT_LEX *select= thd->lex->current_select;
+            thd->change_item_tree(reference,
+                                  select->parsing_place == IN_GROUP_BY && 
+				  alias_name_used  ?  *rf->ref : rf);
 
             return FALSE;
           }
@@ -6435,6 +6422,42 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   if ((*ref)->type() == Item::FIELD_ITEM)
     table_name= ((Item_field*)outer_ref)->table_name;
   return err;
+}
+
+
+/**
+  Mark references from inner selects used in group by clause
+
+  The method is used by the walk method when called for the expressions
+  from the group by clause. The callsare  occurred in the function
+  fix_inner_refs invoked by JOIN::prepare.
+  The parameter passed to Item_outer_ref::check_inner_refs_processor
+  is the iterator over the list of inner references from the subselects
+  of the select to be prepared. The function marks those references
+  from this list whose occurrences are encountered in the group by 
+  expressions passed to the walk method.  
+ 
+  @param arg  pointer to the iterator over a list of inner references
+
+  @return
+    FALSE always
+*/
+
+bool Item_outer_ref::check_inner_refs_processor(uchar *arg)
+{
+  List_iterator_fast<Item_outer_ref> *it=
+    ((List_iterator_fast<Item_outer_ref> *) arg);
+  Item_outer_ref *ref;
+  while ((ref= (*it)++))
+  {
+    if (ref == this)
+    {
+      ref->found_in_group_by= 1;
+      break;
+    }
+  }
+  (*it).rewind();
+  return FALSE;
 }
 
 

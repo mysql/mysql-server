@@ -905,7 +905,6 @@ public:
   virtual bool change_context_processor(uchar *context) { return 0; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
-  virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
@@ -997,6 +996,8 @@ public:
   {
     return FALSE;
   }
+
+  virtual bool check_inner_refs_processor(uchar *arg) { return FALSE; }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -2450,12 +2451,13 @@ public:
     of the outer select.
   */
   bool found_in_select_list;
+  bool found_in_group_by;
   Item_outer_ref(Name_resolution_context *context_arg,
                  Item_field *outer_field_arg)
     :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
                      outer_field_arg->field_name),
     outer_ref(outer_field_arg), in_sum_func(0),
-    found_in_select_list(0)
+    found_in_select_list(0), found_in_group_by(0)
   {
     ref= &outer_ref;
     set_properties();
@@ -2466,7 +2468,7 @@ public:
                  bool alias_name_used_arg)
     :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg,
                      alias_name_used_arg),
-    outer_ref(0), in_sum_func(0), found_in_select_list(1)
+    outer_ref(0), in_sum_func(0), found_in_select_list(1), found_in_group_by(0)
   {}
   void save_in_result_field(bool no_conversions)
   {
@@ -2478,6 +2480,7 @@ public:
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
   }
   virtual Ref_Type ref_type() { return OUTER_REF; }
+  bool check_inner_refs_processor(uchar * arg); 
 };
 
 
