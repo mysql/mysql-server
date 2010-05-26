@@ -3,95 +3,44 @@
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-// The purpose of this test is to test the error return from the generate callback
+// The purpose of this test is force errors returned from the generate function 
 
 #define DONT_DEPRECATE_MALLOC
 #define DONT_DEPRECATE_WRITES
 #include "test.h"
 #include "brtloader.h"
 #include "brtloader-internal.h"
+#include "brtloader-error-injector.h"
 #include "memory.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if 0
-
-static int my_malloc_count = 0;
-static int my_malloc_trigger = 0;
-
-static void set_my_malloc_trigger(int n) {
-    my_malloc_count = 0;
-    my_malloc_trigger = n;
-}
-
-static void *my_malloc(size_t n) {
-    my_malloc_count++;
-    if (my_malloc_count == my_malloc_trigger) {
-        errno = ENOSPC;
-        return NULL;
-    } else
-        return malloc(n);
-}
-
-#endif
-
-static int write_count, write_count_trigger, write_enospc;
-
-static void reset_write_counts(void) {
-    write_count = write_count_trigger = write_enospc = 0;
-}
-
-static void count_enospc(void) {
-    write_enospc++;
-}
-
-static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    write_count++;
-    size_t r;
-    if (write_count_trigger == write_count) {
-        count_enospc();
-	errno = ENOSPC;
-	r = -1;
-    } else {
-	r = fwrite(ptr, size, nmemb, stream);
-	if (r!=nmemb) {
-	    errno = ferror(stream);
-	}
-    }
-    return r;
-}
-
-static ssize_t bad_write(int fd, const void * bp, size_t len) {
-    ssize_t r;
-    write_count++;
-    if (write_count_trigger == write_count) {
-        count_enospc();
-	errno = ENOSPC;
-	r = -1;
-    } else {
-	r = write(fd, bp, len);
-    }
-    return r;
-}
-
-static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
-    ssize_t r;
-    write_count++;
-    if (write_count_trigger == write_count) {
-        count_enospc();
-	errno = ENOSPC;
-	r = -1;
-    } else {
-	r = pwrite(fd, bp, len, off);
-    }
-    return r;
+static void copy_dbt(DBT *dest, const DBT *src) {
+    assert(dest->flags & DB_DBT_REALLOC);
+    dest->data = toku_realloc(dest->data, src->size);
+    dest->size = src->size;
+    memcpy(dest->data, src->data, src->size);
 }
 
 static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
-    dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_val = dest_val; src_key = src_key; src_val = src_val; extra = extra;
-    return EINVAL;
+    if (verbose) printf("%s %p %p %p %p %p %p %p\n", __FUNCTION__, dest_db, src_db, dest_key, dest_val, src_key, src_val, extra);
+
+    assert(dest_db == NULL); assert(src_db == NULL); assert(extra == NULL);
+
+    int result;
+    if (event_count_trigger == event_add_and_fetch()) {
+        event_hit();
+        result = EINVAL;
+    } else {
+        copy_dbt(dest_key, src_key);
+        copy_dbt(dest_val, src_val);
+        result = 0;
+    }
+
+    if (verbose) printf("%s %d\n", __FUNCTION__, result);
+    return result;
 }
 
 static int qsort_compare_ints (const void *a, const void *b) {
@@ -111,8 +60,8 @@ static int compare_int(DB *dest_db, const DBT *akey, const DBT *bkey) {
 
 static void populate_rowset(struct rowset *rowset, int seq, int nrows) {
     for (int i = 0; i < nrows; i++) {
-        int k = seq + i;
-        int v = seq + i;
+        int k = seq * nrows + i;
+        int v = seq * nrows + i;
         DBT key = { .size = sizeof k, .data = &k };
         DBT val = { .size = sizeof v, .data = &v };
         add_row(rowset, &key, &val);
@@ -149,28 +98,24 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
         populate_rowset(rowset[i], i, nrows);
     }
 
-    // setup error injection
-    brtloader_set_os_fwrite(bad_fwrite);
-    toku_set_func_write(bad_write);
-    toku_set_func_pwrite(bad_pwrite);
-
     // feed rowsets to the extractor
     for (int i = 0; i < nrowsets; i++) {
         r = queue_enq(loader->primary_rowset_queue, rowset[i], 1, NULL);
         assert(r == 0);
     }
 
-    brtloader_set_os_fwrite(bad_fwrite);
-    toku_set_func_write(bad_write);
-    toku_set_func_pwrite(bad_pwrite);
+    r = toku_brt_loader_finish_extractor(loader);
+    assert(r == 0);
+    
+    int loader_error;
+    r = toku_brt_loader_get_error(loader, &loader_error);
+    assert(r == 0);
 
-    // verify the temp files
+    assert(expect_fail ? loader_error != 0 : loader_error == 0);
 
     // abort the brtloader.  this ends the test
     r = toku_brt_loader_abort(loader, TRUE);
     assert(r == 0);
-
-    expect_fail = expect_fail;
 }
 
 static int nrows = 1;
@@ -213,12 +158,12 @@ int test_main (int argc, const char *argv[]) {
     test_extractor(nrows, nrowsets, FALSE);
 
     // run tests
-    int write_error_limit = write_count;
-    if (verbose) printf("write_error_limit=%d\n", write_error_limit);
+    int event_limit = event_count;
+    if (verbose) printf("event_limit=%d\n", event_limit);
 
-    for (int i = 1; i <= write_error_limit; i++) {
-        reset_write_counts();
-        write_count_trigger = i;
+    for (int i = 1; i <= event_limit; i++) {
+        reset_event_counts();
+        event_count_trigger = i;
         test_extractor(nrows, nrowsets, TRUE);
     }
 
