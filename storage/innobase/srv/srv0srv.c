@@ -434,9 +434,9 @@ UNIV_INTERN mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 /* Key to register srv_sys_t::mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	srv_srv_sys_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
 /* Key to register srv_sys_t::tasks_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	srv_srv_sys_tasks_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /* Temporary file for innodb monitor output */
@@ -974,9 +974,9 @@ srv_init(void)
 
 	srv_sys = mem_zalloc(srv_sys_sz);
 
-	mutex_create(srv_srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
+	mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
-	mutex_create(srv_srv_sys_tasks_mutex_key,
+	mutex_create(srv_sys_tasks_mutex_key,
 		     &srv_sys->tasks_mutex, SYNC_NO_ORDER_CHECK);
 
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];

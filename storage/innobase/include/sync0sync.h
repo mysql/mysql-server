@@ -114,6 +114,11 @@ extern mysql_pfs_key_t	sync_thread_mutex_key;
 extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
 extern mysql_pfs_key_t	thr_local_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
+extern mysql_pfs_key_t	trx_mutex_key;
+extern mysql_pfs_key_t	lock_sys_mutex_key;
+extern mysql_pfs_key_t	trx_sys_mutex_key;
+extern mysql_pfs_key_t	srv_sys_mutex_key;
+extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**
