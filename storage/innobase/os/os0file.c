@@ -3923,6 +3923,7 @@ os_aio_simulated_handle(
 	ulint		n;
 	ulint		i;
 
+        consecutive_ios[0]= NULL;
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 
 restart:

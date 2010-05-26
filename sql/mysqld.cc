@@ -5343,11 +5343,11 @@ inline void kill_broken_server()
 
 void handle_connections_sockets()
 {
-  my_socket sock,new_sock;
+  my_socket UNINIT_VAR(sock), UNINIT_VAR(new_sock);
   uint error_count=0;
   THD *thd;
   struct sockaddr_storage cAddr;
-  int ip_flags=0,socket_flags=0,flags,retval;
+  int ip_flags=0,socket_flags=0,flags=0,retval;
   st_vio *vio_tmp;
 #ifdef HAVE_POLL
   int socket_count= 0;
@@ -5358,8 +5358,6 @@ void handle_connections_sockets()
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
-
-  LINT_INIT(new_sock);
 
 #ifndef HAVE_POLL
   FD_ZERO(&clientFDs);
