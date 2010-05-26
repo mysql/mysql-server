@@ -41,13 +41,10 @@ while ($1)
 --enable_query_log
 commit;
 drop table t1;
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000001' from 106;
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events in 'master-bin.000002' from 106;
-
+--source include/show_binlog_events.inc
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--source include/show_binlog_events.inc
+--let $binlog_file=
 
 #
 # Bug#22540 - Incorrect value in column End_log_pos of
@@ -77,8 +74,7 @@ insert into t1 values (2);
 insert into t1 values (3);
 commit;
 drop table t1;
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
-show binlog events from 0;
+--source include/show_binlog_events.inc
 
 # now show that nothing breaks if we need to read from the cache more
 # than once, resulting in split event-headers
@@ -100,8 +96,7 @@ while ($1)
 commit;
 enable_query_log;
 
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
-show binlog events from 0;
+--source include/show_binlog_events.inc
 
 drop table t1;
 
@@ -122,8 +117,7 @@ set @b= 14632475938453979136;
 execute stmt using @a, @b;
 deallocate prepare stmt;
 drop table t1;
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
-show binlog events from 0;
+--source include/show_binlog_events.inc
 
 
 #
@@ -249,14 +243,15 @@ reset master;
 drop table if exists t3;
 --enable_warnings
 create table t3 (a int(11) NOT NULL AUTO_INCREMENT, b text, PRIMARY KEY (a) ) engine=innodb;
-show master status;
+source include/show_master_status.inc;
 let $it=4;
 while ($it)
 {
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 dec $it;
 }
-show master status /* must show new binlog index after rotating */;
+# must show new binlog index after rotating;
+source include/show_master_status.inc;
 drop table t3;
 
 --echo #
