@@ -233,7 +233,7 @@ UNIV_INTERN ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 UNIV_INTERN ulint	srv_max_n_open_files	  = 300;
 
 /* Number of IO operations per second the server can do */
-UNIV_INTERN ulong	srv_io_capacity         = 200;
+UNIV_INTERN ulong	srv_io_capacity         = 400;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -2406,7 +2406,7 @@ loop:
 
 			goto background_loop;
 		}
-	}
+	} 
 
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
@@ -2420,6 +2420,7 @@ loop:
 
 		n_pages_flushed = buf_flush_list(
 			PCT_IO(100), IB_ULONGLONG_MAX);
+
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
@@ -2751,6 +2752,10 @@ srv_purge_coordinator_thread(
 	srv_sys_mutex_exit();
 
 	for (;;) {
+		ulint	iterations = 0;
+		ulint	last_time = ut_time();
+		ulint	count = srv_sys->activity_count;
+		ulint	sleep_ms = ut_rnd_gen_ulint() % 10000;
 
 		if (srv_shutdown_state != 0 && srv_fast_shutdown) {
 			break;
@@ -2765,21 +2770,37 @@ srv_purge_coordinator_thread(
 				n_pages_purged = trx_purge(
 					0, srv_purge_batch_size);
 
+				if (srv_check_activity(count)) {
+					sleep_ms = 1000000;
+				} else {
+					sleep_ms = 0;
+				}
+
+				/* No point in sleeping during shutdown. */
+				if (srv_shutdown_state == 0 && sleep_ms > 0) {
+					os_thread_sleep(sleep_ms);
+				}
+
 			} while (n_pages_purged > 0 && !srv_fast_shutdown);
 
+			++iterations;
+
+			/* Take snapshot to check for user
+			activity later every 3 seconds. */
+			if (ut_time() - last_time > 3) {
+				count = srv_sys->activity_count;
+				last_time = ut_time();
+			}
+
 		} else {
-			ulint	iterations = 0;
-			ulint	last_time = ut_time();
-			ulint	count = srv_sys->activity_count;
-			ulint	sleep_ms = ut_rnd_gen_ulint() % 10000;
+			ulint	batch_size = srv_purge_batch_size;
 
 			do {
 				ulint	n_purged;
 				ulint	rnd = ut_rnd_gen_ulint();
 
 				n_purged = trx_purge(
-					srv_n_purge_threads,
-				       	srv_purge_batch_size);
+					srv_n_purge_threads, batch_size);
 
 				/* During shutdown the worker threads can
 				exit when they detect a change in state.
@@ -2792,38 +2813,40 @@ srv_purge_coordinator_thread(
 				}
 
 				/* No point in sleeping during shutdown. */
-				if (srv_shutdown_state == 0) {
+				if (srv_shutdown_state == 0 && sleep_ms > 0) {
 					os_thread_sleep(sleep_ms);
 				}
 
 				/* FIXME: Do some black magic. */
 				if (!srv_check_activity(count)
 				    && trx_sys->rseg_history_len > 100) {
-					sleep_ms = 1;
-				} else {
-					sleep_ms = 10000000;
-				}
-#if 0
+					sleep_ms = 0;
+					batch_size = 5000;
 				} else if (n_purged == 0) {
 					sleep_ms = 100000;
+					batch_size = srv_purge_batch_size;
 				} else if (trx_sys->rseg_history_len > 50000) {
 					sleep_ms -= rnd % 10000;
+					batch_size = srv_purge_batch_size;
 				} else if (trx_sys->rseg_history_len > 25000) {
 					sleep_ms -= rnd % 1000;
+					batch_size = srv_purge_batch_size;
 				} else if (trx_sys->rseg_history_len > 15000) {
 					sleep_ms -= rnd % 100;
+					batch_size = srv_purge_batch_size;
 				} else {
 					sleep_ms += rnd % 20000;
+					batch_size = srv_purge_batch_size;
 				}
 
 				if (sleep_ms > 20000000) {
 					sleep_ms = rnd % 10000;
 				}
-#endif
+
 				++iterations;
 
 				/* Take snapshot to check for user
-			       	activity later every 3 seconds. */
+				activity later every 3 seconds. */
 				if (ut_time() - last_time > 3) {
 					count = srv_sys->activity_count;
 					last_time = ut_time();

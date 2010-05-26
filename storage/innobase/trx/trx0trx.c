@@ -552,7 +552,7 @@ trx_lists_init_at_db_start(void)
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
 Skips the SYSTEM rollback segment if another is available.
-@return	assigned rollback segment id */
+@return	assigned rollback segment */
 UNIV_INLINE
 trx_rseg_t*
 trx_assign_rseg(void)
@@ -561,9 +561,9 @@ trx_assign_rseg(void)
 	ulint		i;
 	trx_rseg_t*	rseg;
 
-	trx_sys_mutex_enter();
-
-	i = trx_sys->latest_rseg % TRX_SYS_N_RSEGS;
+	/* This breaks true round robin but that should be OK. */
+	i = trx_sys->latest_rseg;
+	i %= TRX_SYS_N_RSEGS;
 
 	do {
 		rseg = trx_sys->rseg_array[i];
@@ -577,6 +577,8 @@ trx_assign_rseg(void)
 	} while (rseg == NULL
 		 && rseg->id == TRX_SYS_SYSTEM_RSEG_ID
 	         && trx_sys->rseg_array[1] != NULL);
+
+	trx_sys_mutex_enter();
 
 	trx_sys->latest_rseg = i % TRX_SYS_N_RSEGS;
 
@@ -652,7 +654,7 @@ trx_commit(
 
 		if (trx->insert_undo != NULL) {
 			trx_undo_set_state_at_finish(
-				rseg, trx, trx->insert_undo, &mtr);
+				rseg, trx->insert_undo, &mtr);
 		}
 
 		undo = trx->update_undo;
@@ -669,7 +671,7 @@ trx_commit(
 			transaction commit for this transaction. */
 
 			update_hdr_page = trx_undo_set_state_at_finish(
-				rseg, trx, undo, &mtr);
+				rseg, undo, &mtr);
 
 			/* We have to do the cleanup for the update log while
 			holding the rseg mutex because update log headers
