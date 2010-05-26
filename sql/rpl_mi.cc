@@ -241,7 +241,7 @@ file '%s')", fname);
     int ssl= 0, ssl_verify_server_cert= 0;
     float master_heartbeat_period= 0.0;
     char *first_non_digit;
-    long retry_count;
+    long retry_count= master_retry_count;
 
     /*
        Starting from 4.1.x master.info has new format. Now its
