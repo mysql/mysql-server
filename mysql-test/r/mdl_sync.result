@@ -330,9 +330,9 @@ select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
 column_name
 c1
-select count(*) from t1;
-count(*)
-4
+# Disable result log to make test robust against
+# effects of concurrent insert.
+select * from t1;
 insert into t1 values (1);
 # Check that SNW lock is not compatible with SW lock.
 # Again we use ALTER TABLE which fails after opening
