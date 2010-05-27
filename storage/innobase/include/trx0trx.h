@@ -533,7 +533,7 @@ struct trx_struct{
 			mysql_trx_list;	/*!< list of transactions created for
 					MySQL */
 	/*------------------------------*/
-	ulint		error_state;	/*!< 0 if no error, otherwise error
+	enum db_err	error_state;	/*!< 0 if no error, otherwise error
 					number; NOTE That ONLY the thread
 					doing the transaction is allowed to
 					set this field: this is NOT protected
