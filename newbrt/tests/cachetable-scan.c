@@ -69,7 +69,8 @@ static void writeit (void) {
     }
     gettimeofday(&end, 0);
     double diff = toku_tdiff(&end, &start);
-    printf("writeit %d blocks of size %d in %6.2fs at %6.2fMB/s\n", N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6));
+    if (verbose)
+	printf("writeit %d blocks of size %d in %6.2fs at %6.2fMB/s\n", N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6));
 }
 
 static void readit (void) {
@@ -94,8 +95,9 @@ static void readit (void) {
     double diff = toku_tdiff(&end, &start);
     double udiff = toku_tdiff(&end_usertime, &start_usertime);
     double sdiff = toku_tdiff(&end_systime, &start_systime);
-    printf("readit  %d blocks of size %d in %6.2fs at %6.2fMB/s   user=%6.2fs sys=%6.2fs\n",
-	   N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6), udiff, sdiff);
+    if (verbose)
+	printf("readit  %d blocks of size %d in %6.2fs at %6.2fMB/s   user=%6.2fs sys=%6.2fs\n",
+	       N, BLOCKSIZE, diff, (N/diff)*(BLOCKSIZE*1e-6), udiff, sdiff);
 }
 
 int
