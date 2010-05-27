@@ -13,28 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
-CONFIGURE_FILE(unit.pl ${CMAKE_CURRENT_BINARY_DIR}/unit.pl COPYONLY)
-
-SET(unittests "")
-LIST(APPEND unittests "examples")
-LIST(APPEND unittests "mysys")
-LIST(APPEND unittests "mytap")
-LIST(APPEND unittests "gunit")
-LIST(APPEND unittests "../storage")
-
 ADD_CUSTOM_TARGET(
   test-unit
-  COMMAND perl unit.pl run ${unittests}
+  COMMAND perl ${CMAKE_CURRENT_SOURCE_DIR}/unit.pl run .
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
-
-# Create whitespace separated list.
-FOREACH(arg ${unittests})
-  SET(testdirs "${testdirs} ${arg}")
-ENDFOREACH()
-
-CONFIGURE_FILE(run-unit-tests.in
-  ${CMAKE_CURRENT_BINARY_DIR}/run-unit-tests @ONLY)
-IF(UNIX)
-  EXECUTE_PROCESS(
-    COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/run-unit-tests)
-ENDIF()

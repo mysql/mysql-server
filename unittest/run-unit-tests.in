@@ -1,2 +1,0 @@
-cd @CMAKE_CURRENT_BINARY_DIR@
-perl unit.pl run @testdirs@
