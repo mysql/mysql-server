@@ -66,7 +66,7 @@ struct row_mysql_drop_struct{
 };
 
 #ifdef UNIV_PFS_MUTEX
-/* Key to register kernel_mutex with performance schema */
+/* Key to register drop list mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	row_drop_list_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
