@@ -2777,9 +2777,10 @@ bool check_db_name(LEX_STRING *org_name)
 */
 
 
-bool check_table_name(const char *name, uint length)
+bool check_table_name(const char *name, size_t length)
 {
-  uint name_length= 0;  // name length in symbols
+  // name length in symbols
+  size_t name_length= 0;
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
@@ -2809,18 +2810,19 @@ bool check_table_name(const char *name, uint length)
     name_length++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-  return (last_char_is_space || name_length > NAME_CHAR_LEN) ;
+  return last_char_is_space || (name_length > NAME_CHAR_LEN);
 #else
-  return 0;
+  return FALSE;
 #endif
 }
 
 
 bool check_column_name(const char *name)
 {
-  uint name_length= 0;  // name length in symbols
+  // name length in symbols
+  size_t name_length= 0;
   bool last_char_is_space= TRUE;
-  
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -2845,7 +2847,7 @@ bool check_column_name(const char *name)
     name_length++;
   }
   /* Error if empty or too long column name */
-  return last_char_is_space || (uint) name_length > NAME_CHAR_LEN;
+  return last_char_is_space || (name_length > NAME_CHAR_LEN);
 }
 
 
