@@ -15,26 +15,11 @@
 
 SUBDIRS      = mytap . mysys examples gunit
 
-bin_SCRIPTS= run-unit-tests
-
 EXTRA_DIST = unit.pl
-CLEANFILES = unit $(bin_SCRIPTS)
-
-unittests = \
-	examples \
-	mysys    \
-	mytap    \
-	gunit    \
-        @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
-
-run-unit-tests: run-unit-tests.in
-	PWD=`pwd`; \
-	sed -e 's|@testdirs@|${unittests}|' \
-	    -e 's|@CMAKE_CURRENT_BINARY_DIR@|${PWD}|' < $< > $@
-	chmod +x $@
+CLEANFILES = unit
 
 test:
-	perl unit.pl run $(unittests)
+	perl unit.pl run .
 
 test-verbose:
-	HARNESS_VERBOSE=1 perl unit.pl run $(unittests)
+	HARNESS_VERBOSE=1 perl unit.pl run .
