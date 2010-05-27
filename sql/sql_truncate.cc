@@ -351,7 +351,7 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
       the MDL lock taken above and otherwise there is no way to
       wait for FLUSH TABLES in deadlock-free fashion.
     */
-    if (open_and_lock_tables(thd, table_ref, TL_WRITE,
+    if (open_and_lock_tables(thd, table_ref, FALSE,
                              MYSQL_OPEN_IGNORE_FLUSH |
                              MYSQL_OPEN_SKIP_TEMPORARY))
       DBUG_RETURN(TRUE);
@@ -406,7 +406,7 @@ bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
         table and delete all rows. In such a manner this can in fact
         open several tables if it's a temporary MyISAMMRG table.
       */
-      if (open_and_lock_tables(thd, table_ref, TL_WRITE,
+      if (open_and_lock_tables(thd, table_ref, FALSE,
                                MYSQL_OPEN_TEMPORARY_ONLY))
         DBUG_RETURN(TRUE);
 
