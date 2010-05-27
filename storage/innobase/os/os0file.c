@@ -4706,6 +4706,11 @@ restart:
 		goto wait_for_io;
 	}
 
+	/* if n_consecutive != 0, then we have assigned
+	something valid to consecutive_ios[0] */
+	ut_ad(n_consecutive != 0);
+	ut_ad(consecutive_ios[0] != NULL);
+
 	slot = consecutive_ios[0];
 
 	/* Check if there are several consecutive blocks to read or write */
