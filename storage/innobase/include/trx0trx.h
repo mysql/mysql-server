@@ -348,15 +348,6 @@ trx_get_que_state_str(
 /*==================*/
 	const trx_t*	trx);	/*!< in: transaction */
 
-/* Signal to a transaction */
-struct trx_sig_struct{
-	que_thr_t*	receiver;	/*!< non-NULL if the sender of
-				       	the signal wants reply after the
-				       	operation induced by the signal
-				       	is completed */
-	trx_savept_t	savept;		/*!< possible rollback savepoint */
-};
-
 typedef struct trx_lock_struct trx_lock_t;
 
 /** Transactions locks and state, these variables are protected by
@@ -556,7 +547,6 @@ struct trx_struct{
 					for this trx started: this is used to
 					return control to the original query
 					graph for error processing */
-	trx_sig_t	sig;		/*!< signal object  */
 	/*------------------------------*/
 	trx_lock_t	lock;		/* Information about the transaction
 					locks and state. */
