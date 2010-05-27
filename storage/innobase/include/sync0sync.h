@@ -588,11 +588,6 @@ V
 File system pages
 |
 V
-Kernel mutex				If a kernel operation needs a file
-|					page allocation, it must reserve the
-|					fsp x-latch before acquiring the kernel
-|					mutex.
-V
 lock_sys_mutex				Mutex protecting lock_sys_t
 |
 V
@@ -677,13 +672,12 @@ or row lock! */
 /*------------------------------------- MySQL query cache mutex */
 /*------------------------------------- MySQL binlog mutex */
 /*-------------------------------*/
-#define	SYNC_KERNEL		300
-#define SYNC_LOCK_SYS		299
-#define SYNC_TRX_SYS		298
-#define SYNC_TRX		297
-#define SYNC_THREADS		296
-#define SYNC_REC_LOCK		295
-#define	SYNC_TRX_LOCK_HEAP	294
+#define SYNC_LOCK_SYS		300
+#define SYNC_TRX_SYS		299
+#define SYNC_TRX		298
+#define SYNC_THREADS		297
+#define SYNC_REC_LOCK		296
+#define	SYNC_TRX_LOCK_HEAP	295
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147

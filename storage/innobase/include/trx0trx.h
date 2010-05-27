@@ -42,7 +42,7 @@ Created 3/26/1996 Heikki Tuuri
 extern sess_t*	trx_dummy_sess;
 
 /** Number of transactions currently allocated for MySQL: protected by
-the kernel mutex */
+the trx_sys_t::mutex */
 extern ulint	trx_n_mysql_transactions;
 
 /********************************************************************//**
@@ -240,7 +240,7 @@ trx_commit_step(
 
 /**********************************************************************//**
 Prints info about a transaction to the given file. The caller must own the
-kernel mutex. */
+trx_t::mutex. */
 UNIV_INTERN
 void
 trx_print(
@@ -377,7 +377,8 @@ struct trx_lock_struct {
 					the lock request, otherwise this is
 					NULL */
 	ulint		deadlock_mark;	/*!< a mark field used in deadlock
-					checking algorithm.  */
+					checking algorithm. This is only
+					covered by the lock_sys_t::mutex */
 	ibool		was_chosen_as_deadlock_victim;
 					/* when the transaction decides to wait
 					for a lock, it sets this to FALSE;
@@ -385,7 +386,8 @@ struct trx_lock_struct {
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */
 
-	time_t		wait_started;	/*!< lock wait started at this time */
+	time_t		wait_started;	/*!< lock wait started at this time,
+					protected only by lock_sys_t::mutex  */
 
 	que_thr_t*	wait_thr;	/*!< query thread beloging to this
 					trx that is in QUE_THR_LOCK_WAIT
@@ -408,8 +410,8 @@ rolling back after a database recovery */
 struct trx_struct{
 	ulint		magic_n;
 
-	mutex_t		mutex;		/* Mutex protecting the conc_state
-					and que_state fields */
+	mutex_t		mutex;		/* Mutex  protecting the trx_lock_t
+				       	fields see below: */
 
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
@@ -439,11 +441,11 @@ struct trx_struct{
 					until after we release the
 					mutex. */
 	ulint		must_flush_log_later;/* this flag is set to TRUE in
-					trx_commit_off_kernel() if
-					flush_log_later was TRUE, and there
-					were modifications by the transaction;
-					in that case we must flush the log
-					in trx_commit_complete_for_mysql() */
+					trx_commit() if flush_log_later was
+				       	TRUE, and there were modifications by
+				       	the transaction; in that case we must
+				       	flush the log in
+				       	trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	ulint		active_trans;	/*!< 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
@@ -467,7 +469,7 @@ struct trx_struct{
 					the latch mode trx currently holds
 					on dict_operation_lock */
 
-	/* All the next fields are protected by the kernel mutex, except the
+	/* All the next fields are protected by the trx_t::mutex , except the
 	undo logs which are protected by undo_mutex */
 	ulint		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back */
@@ -535,7 +537,7 @@ struct trx_struct{
 					number; NOTE That ONLY the thread
 					doing the transaction is allowed to
 					set this field: this is NOT protected
-					by the kernel mutex */
+					by any mutex */
 	const dict_index_t*error_info;	/*!< if the error number indicates a
 					duplicate key error, a pointer to
 					the problematic index is stored here */
