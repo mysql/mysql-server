@@ -313,8 +313,8 @@ read_view_open_now(
 		prev_trx = trx;
 
 		if (ut_dulint_cmp(trx->id, cr_trx_id) != 0
-		    && (trx->conc_state == TRX_ACTIVE
-			|| trx->conc_state == TRX_PREPARED)) {
+		    && (trx->lock.conc_state == TRX_ACTIVE
+			|| trx->lock.conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
@@ -489,8 +489,8 @@ read_cursor_view_create_for_mysql(
 
 		trx_mutex_enter(trx);
 
-		if (trx->conc_state == TRX_ACTIVE
-		    || trx->conc_state == TRX_PREPARED) {
+		if (trx->lock.conc_state == TRX_ACTIVE
+		    || trx->lock.conc_state == TRX_PREPARED) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 

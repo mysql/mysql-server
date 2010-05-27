@@ -226,10 +226,10 @@ lock_wait_suspend_thread(
 		/* The lock has already been released or this transaction
 		was chosen as a deadlock victim: no need to suspend */
 
-		if (trx->was_chosen_as_deadlock_victim) {
+		if (trx->lock.was_chosen_as_deadlock_victim) {
 
 			trx->error_state = DB_DEADLOCK;
-			trx->was_chosen_as_deadlock_victim = FALSE;
+			trx->lock.was_chosen_as_deadlock_victim = FALSE;
 		}
 
 		trx_mutex_exit(trx);
@@ -339,10 +339,10 @@ lock_wait_suspend_thread(
 		}
 	}
 
-	if (trx->was_chosen_as_deadlock_victim) {
+	if (trx->lock.was_chosen_as_deadlock_victim) {
 
 		trx->error_state = DB_DEADLOCK;
-		trx->was_chosen_as_deadlock_victim = FALSE;
+		trx->lock.was_chosen_as_deadlock_victim = FALSE;
 	}
 
 	/* InnoDB system transactions (such as the purge, and
@@ -420,13 +420,13 @@ lock_wait_check_and_cancel(
 		possible that the lock has already been
 		granted: in that case do nothing */
 
-		if (trx->wait_lock) {
+		if (trx->lock.wait_lock) {
 
-			ut_a(trx->que_state == TRX_QUE_LOCK_WAIT);
+			ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
 			printf("Timeout: %p\n", trx);
 
-			lock_cancel_waiting_and_release(trx->wait_lock);
+			lock_cancel_waiting_and_release(trx->lock.wait_lock);
 		}
 	}
 

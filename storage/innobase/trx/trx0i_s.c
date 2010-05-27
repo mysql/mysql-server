@@ -448,12 +448,12 @@ fill_trx_row(
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 
-	if (trx->wait_lock != NULL) {
+	if (trx->lock.wait_lock != NULL) {
 
 		ut_a(requested_lock_row != NULL);
 
 		row->requested_lock_row = requested_lock_row;
-		row->trx_wait_started = (ib_time_t) trx->wait_started;
+		row->trx_wait_started = (ib_time_t) trx->lock.wait_started;
 	} else {
 
 		ut_a(requested_lock_row == NULL);
@@ -521,9 +521,9 @@ thd_done:
 
 	row->trx_tables_locked = trx->mysql_n_tables_locked;
 
-	row->trx_lock_structs = UT_LIST_GET_LEN(trx->trx_locks);
+	row->trx_lock_structs = UT_LIST_GET_LEN(trx->lock.trx_locks);
 
-	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock_heap);
+	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock.lock_heap);
 
 	row->trx_rows_locked = lock_number_of_rows_locked(trx);
 
@@ -1097,21 +1097,21 @@ add_trx_relevant_locks_to_cache(
 
 	/* If transaction is waiting we add the wait lock and all locks
 	from another transactions that are blocking the wait lock. */
-	if (trx->que_state == TRX_QUE_LOCK_WAIT) {
+	if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
 		const lock_t*		curr_lock;
 		ulint			wait_lock_heap_no;
 		i_s_locks_row_t*	blocking_lock_row;
 		lock_queue_iterator_t	iter;
 
-		ut_a(trx->wait_lock != NULL);
+		ut_a(trx->lock.wait_lock != NULL);
 
 		wait_lock_heap_no
-			= wait_lock_get_heap_no(trx->wait_lock);
+			= wait_lock_get_heap_no(trx->lock.wait_lock);
 
 		/* add the requested lock */
 		*requested_lock_row
-			= add_lock_to_cache(cache, trx->wait_lock,
+			= add_lock_to_cache(cache, trx->lock.wait_lock,
 					    wait_lock_heap_no);
 
 		/* memory could not be allocated */
@@ -1123,17 +1123,17 @@ add_trx_relevant_locks_to_cache(
 		/* then iterate over the locks before the wait lock and
 		add the ones that are blocking it */
 
-		lock_queue_iterator_reset(&iter, trx->wait_lock,
+		lock_queue_iterator_reset(&iter, trx->lock.wait_lock,
 					  ULINT_UNDEFINED);
 
 		curr_lock = lock_queue_iterator_get_prev(&iter);
 		while (curr_lock != NULL) {
 
-			if (lock_has_to_wait(trx->wait_lock,
+			if (lock_has_to_wait(trx->lock.wait_lock,
 					     curr_lock)) {
 
 				/* add the lock that is
-				blocking trx->wait_lock */
+				blocking trx->lock.wait_lock */
 				blocking_lock_row
 					= add_lock_to_cache(
 						cache, curr_lock,

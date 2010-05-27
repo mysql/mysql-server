@@ -111,7 +111,7 @@ trx_general_rollback_for_mysql_low(
 
 		trx_mutex_enter(trx);
 
-		ut_a(trx->que_state == TRX_QUE_RUNNING);
+		ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
 
 		ut_a(trx->error_state == DB_SUCCESS);
 
@@ -165,7 +165,7 @@ trx_rollback_for_mysql(
 
 	//trx_mutex_enter(trx);
 
-	if (trx->conc_state != TRX_NOT_STARTED) {
+	if (trx->lock.conc_state != TRX_NOT_STARTED) {
 		trx->op_info = "rollback";
 
 		//trx_mutex_exit(trx);
@@ -203,7 +203,7 @@ trx_rollback_last_sql_stat_for_mysql(
 {
 	int	err;
 
-	if (trx->conc_state == TRX_NOT_STARTED) {
+	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 
 		return(DB_SUCCESS);
 	}
@@ -312,7 +312,7 @@ trx_rollback_to_savepoint_for_mysql(
 		return(DB_NO_SAVEPOINT);
 	}
 
-	if (trx->conc_state == TRX_NOT_STARTED) {
+	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
 		ut_print_name(stderr, trx, FALSE, savep->name);
@@ -533,7 +533,7 @@ trx_rollback_active(
 
 	trx_finish_rollback(thr_get_trx(roll_node->undo_thr));
 
-	ut_a(trx->que_state == TRX_QUE_RUNNING);
+	ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
 	    && !ut_dulint_is_zero(trx->table_id)) {
@@ -617,7 +617,7 @@ loop:
 			continue;
 		}
 
-		switch (trx->conc_state) {
+		switch (trx->lock.conc_state) {
 		case TRX_NOT_STARTED:
 		case TRX_PREPARED:
 			trx_mutex_exit(trx);
@@ -1187,7 +1187,7 @@ trx_rollback_start(
 	roll_graph = trx_roll_graph_build(trx);
 
 	trx->graph = roll_graph;
-	trx->que_state = TRX_QUE_ROLLING_BACK;
+	trx->lock.que_state = TRX_QUE_ROLLING_BACK;
 
 	return(que_fork_start_command(roll_graph));
 }
@@ -1210,7 +1210,7 @@ trx_finish_rollback(
 
 	trx_mutex_enter(trx);
 
-	trx->que_state = TRX_QUE_RUNNING;
+	trx->lock.que_state = TRX_QUE_RUNNING;
 
 	trx_mutex_exit(trx);
 }

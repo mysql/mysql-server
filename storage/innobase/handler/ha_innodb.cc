@@ -2552,7 +2552,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-	if (trx->conc_state == TRX_NOT_STARTED) {
+	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 
 		return;
 	}
@@ -2652,7 +2652,7 @@ innobase_commit(
 	be nothing to clean up. */
 
 	if (trx->active_trans == 0
-		&& trx->conc_state != TRX_NOT_STARTED) {
+		&& trx->lock.conc_state != TRX_NOT_STARTED) {
 
 		sql_print_error("trx->active_trans == 0, but"
 			" trx->conc_state != TRX_NOT_STARTED");
@@ -2968,14 +2968,14 @@ innobase_close_connection(
 	ut_a(trx);
 
 	if (trx->active_trans == 0
-		&& trx->conc_state != TRX_NOT_STARTED) {
+		&& trx->lock.conc_state != TRX_NOT_STARTED) {
 
 		sql_print_error("trx->active_trans == 0, but"
 			" trx->conc_state != TRX_NOT_STARTED");
 	}
 
 
-	if (trx->conc_state != TRX_NOT_STARTED &&
+	if (trx->lock.conc_state != TRX_NOT_STARTED &&
 		global_system_variables.log_warnings) {
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
@@ -9872,7 +9872,7 @@ innobase_xa_prepare(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->active_trans == 0 && trx->conc_state != TRX_NOT_STARTED) {
+	if (trx->active_trans == 0 && trx->lock.conc_state != TRX_NOT_STARTED) {
 
 	  sql_print_error("trx->active_trans == 0, but trx->conc_state != "
 			  "TRX_NOT_STARTED");
