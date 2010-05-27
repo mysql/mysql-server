@@ -2949,6 +2949,10 @@ static int brt_create_file(BRT brt, const char *fname, int *fdp) {
         r = errno;
         return r;
     }
+
+    r = toku_fsync_directory(fname);
+    resource_assert(r == 0);
+
     *fdp = fd;
     return 0;
 }

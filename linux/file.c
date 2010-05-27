@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include "memory.h"
 
 static int toku_assert_on_write_enospc = 0;
 static const int toku_write_enospc_sleep = 1;
@@ -394,4 +394,44 @@ void
 toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time) {
     *fsync_count = sched_fsync_count;
     *fsync_time  = sched_fsync_time;
+}
+
+int 
+toku_fsync_directory(const char *fname) {
+    int result = 0;
+    
+    // extract dirname from fname
+    char *sp = strrchr(fname, '/');
+    size_t len;
+    char *dirname = NULL;
+    if (sp) {
+        resource_assert(sp >= fname);
+        len = sp - fname + 1;
+        dirname = toku_malloc(len+1);
+        if (dirname == NULL)
+            result = errno;
+        else {
+            strncpy(dirname, fname, len);
+            dirname[len] = 0;
+        }
+    } else {
+        dirname = toku_strdup(".");
+        if (dirname == NULL)
+            result = errno;
+    }
+
+    if (result == 0) {
+        // fsync the dir
+        DIR *d = opendir(dirname);
+        if (d == NULL) {
+            result = errno;
+        } else {
+            result = toku_fsync_dirfd_without_accounting(d);
+            int r = closedir(d);
+            if (result == 0 && r != 0)
+                result = errno;
+        }
+    }
+    toku_free(dirname);
+    return result;
 }
