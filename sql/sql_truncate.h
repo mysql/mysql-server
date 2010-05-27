@@ -16,7 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 class THD;
-class TABLE_LIST;
+struct TABLE_LIST;
 
 bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref);
 
