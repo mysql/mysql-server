@@ -2269,7 +2269,7 @@ fseg_create_general(
 		header = byte_offset + buf_block_get_frame(block);
 	}
 
-	ut_ad(mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
+	ut_ad(!mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
@@ -2428,7 +2428,7 @@ fseg_n_reserved_pages(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
+	ut_ad(!mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
@@ -2844,7 +2844,7 @@ fseg_alloc_free_page_general(
 
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
+	ut_ad(!mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
@@ -2994,7 +2994,7 @@ fsp_reserve_free_extents(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
+	ut_ad(!mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
@@ -3379,7 +3379,7 @@ fseg_free_page(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
+	ut_ad(!mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
@@ -3497,7 +3497,7 @@ fseg_free_step(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
+	ut_ad(!mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
@@ -3580,7 +3580,7 @@ fseg_free_step_not_header(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
+	ut_ad(!mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
