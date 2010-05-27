@@ -1751,11 +1751,12 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           error= 1;
           goto err;
         }
-        share->partition_info= tmp_part_syntax_str;
+        share->partition_info_str= tmp_part_syntax_str;
       }
       else
-        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
-      share->partition_info_len= part_info->part_info_len= syntax_len;
+        memcpy((char*) share->partition_info_str, part_syntax_buf,
+               syntax_len + 1);
+      share->partition_info_str_len= part_info->part_info_len= syntax_len;
       part_info->part_info_string= part_syntax_buf;
     }
 #endif
@@ -1898,8 +1899,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool dont_log_query)
 {
   TABLE_LIST *table;
-  char path[FN_REFLEN + 1], *alias;
-  uint path_length;
+  char path[FN_REFLEN + 1], *alias= NULL;
+  uint path_length= 0;
   String wrong_tables;
   int error= 0;
   int non_temp_tables_count= 0;
@@ -1907,9 +1908,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_query;
   String built_tmp_query;
   DBUG_ENTER("mysql_rm_table_part2");
-
-  LINT_INIT(alias);
-  LINT_INIT(path_length);
 
   if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
   {
