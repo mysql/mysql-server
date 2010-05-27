@@ -314,11 +314,11 @@ dict_process_sys_tables_rec(
 					first */
 {
 	ulint		len;
-	const byte*	field;
+	const char*	field;
 	const char*	err_msg = NULL;
 	char*		table_name;
 
-	field = rec_get_nth_field_old(rec, 0, &len);
+	field = (const char*) rec_get_nth_field_old(rec, 0, &len);
 
 	ut_a(!rec_get_deleted_flag(rec, 0));
 
