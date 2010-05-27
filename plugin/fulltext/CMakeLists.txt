@@ -13,5 +13,5 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
-
-MYSQL_ADD_PLUGIN(ftexample plugin_example.c MODULE_ONLY MODULE_OUTPUT_NAME mypluglib)
+MYSQL_ADD_PLUGIN(ftexample plugin_example.c
+  MODULE_ONLY MODULE_OUTPUT_NAME "mypluglib")
