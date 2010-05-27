@@ -1336,6 +1336,7 @@ BackupRestore::table(const TableS & table){
       NdbDictionary::Event my_event(event_name.c_str());
       my_event.setTable(*tab);
       my_event.addTableEvent(NdbDictionary::Event::TE_ALL);
+      my_event.setReport(NdbDictionary::Event::ER_DDL);
 
       // add all columns to the event
       bool has_blobs = false;

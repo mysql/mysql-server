@@ -1426,7 +1426,8 @@ public:
     enum EventReport {
       ER_UPDATED = 0,
       ER_ALL = 1, // except not-updated blob inlines
-      ER_SUBSCRIBE = 2
+      ER_SUBSCRIBE = 2,
+      ER_DDL = 4
     };
 
     /**

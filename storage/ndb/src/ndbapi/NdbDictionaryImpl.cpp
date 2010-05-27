@@ -4267,6 +4267,14 @@ NdbDictInterface::createEvent(class Ndb & ndb,
       req->setReportAll();
     if (evnt.m_rep & NdbDictionary::Event::ER_SUBSCRIBE)
       req->setReportSubscribe();
+    if (evnt.m_rep & NdbDictionary::Event::ER_DDL)
+    {
+      req->setReportDDL();
+    }
+    else
+    {
+      req->clearReportDDL();
+    }
   }
 
   UtilBufferWriter w(m_buffer);

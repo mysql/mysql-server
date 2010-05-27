@@ -10968,6 +10968,10 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
     sumaReq->subscriptionType|= SubCreateReq::ReportAll;
   if (evntRecPtr.p->m_request.getReportSubscribe())
     sumaReq->subscriptionType|= SubCreateReq::ReportSubscribe;
+  if (! evntRecPtr.p->m_request.getReportDDL())
+  {
+    sumaReq->subscriptionType |= SubCreateReq::NoReportDDL;
+  }
   sumaReq->tableId          = evntRecPtr.p->m_request.getTableId();
     
 #ifdef EVENT_PH2_DEBUG

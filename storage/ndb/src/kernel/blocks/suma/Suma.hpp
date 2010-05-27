@@ -235,7 +235,8 @@ public:
     enum Options {
       REPORT_ALL       = 0x1,
       REPORT_SUBSCRIBE = 0x2,
-      MARKED_DROPPED   = 0x4
+      MARKED_DROPPED   = 0x4,
+      NO_REPORT_DDL    = 0x8
     };
 
     enum State {
