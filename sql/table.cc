@@ -4438,6 +4438,27 @@ void TABLE::mark_columns_used_by_index(uint index)
 
 
 /*
+  Add fields used by a specified index to the table's read_set.
+
+  NOTE:
+    The original state can be restored with
+    restore_column_maps_after_mark_index().
+*/
+
+void st_table::add_read_columns_used_by_index(uint index)
+{
+  MY_BITMAP *bitmap= &tmp_set;
+  DBUG_ENTER("st_table::add_read_columns_used_by_index");
+
+  set_keyread(TRUE);
+  bitmap_copy(bitmap, read_set);
+  mark_columns_used_by_index_no_reset(index, bitmap);
+  column_bitmaps_set(bitmap, write_set);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Restore to use normal column maps after key read
 
   NOTES
