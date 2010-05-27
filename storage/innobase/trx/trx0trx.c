@@ -532,6 +532,10 @@ trx_lists_init_at_db_start(void)
 	       
 		rseg = trx_sys->rseg_array[i];
 
+		if (rseg == NULL) {
+			continue;
+		}
+
 		/* Ressurrect transactions that were doing inserts. */
 		for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_list);
 		     undo != NULL;
@@ -548,16 +552,23 @@ trx_lists_init_at_db_start(void)
 		     undo != NULL;
 		     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
 			trx_t*	trx;
+			ibool	trx_created;
 
+			/* Check the trx_sys->trx_list first. */
 			trx = trx_get_on_id(undo->trx_id);
 
 			if (trx == NULL) {
 				trx = trx_create(trx_dummy_sess);
+				trx_created = TRUE;
+			} else {
+				trx_created = FALSE;
 			}
 
 			trx_resurrect_update(trx, undo, rseg);
 
-			trx_list_insert_ordered(trx);
+			if (trx_created == TRUE) {
+				trx_list_insert_ordered(trx);
+			}
 		}
 	}
 }
