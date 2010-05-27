@@ -10,7 +10,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING.  If not, write to the
+# along with this program; see the file COPYING. If not, write to the
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
@@ -121,43 +121,62 @@
 %define distro_specific 0
 %endif
 %if %{distro_specific}
-  %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define elver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-    %if "%elver" == "4"
-      %define distro_description        Enterprise Linux 4
-      %define distro_releasetag         el4
+  %if %(test -f /etc/enterprise-release && echo 1 || echo 0)
+    %define oelver %(rpm -qf --qf '%%{version}\\n' /etc/enterprise-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%oelver" == "4"
+      %define distro_description        Oracle Enterprise Linux 4
+      %define distro_releasetag         oel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-      %if "%elver" == "5"
-        %define distro_description      Enterprise Linux 5
-        %define distro_releasetag       el5
+      %if "%oelver" == "5"
+        %define distro_description      Oracle Enterprise Linux 5
+        %define distro_releasetag       oel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %{error:Enterprise Linux %{elver} is unsupported}
+        %{error:Oracle Enterprise Linux %{oelver} is unsupported}
       %endif
     %endif
   %else
-    %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-      %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
-      %if "%susever" == "10"
-        %define distro_description      SUSE Linux Enterprise Server 10
-        %define distro_releasetag       sles10
-        %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-        %define distro_requires         aaa_base coreutils grep procps pwdutils
+    %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+      %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+      %if "%rhelver" == "4"
+        %define distro_description      Red Hat Enterprise Linux 4
+        %define distro_releasetag       rhel4
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %if "%susever" == "11"
-          %define distro_description    SUSE Linux Enterprise Server 11
-          %define distro_releasetag     sles11
-          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %if "%rhelver" == "5"
+          %define distro_description    Red Hat Enterprise Linux 5
+          %define distro_releasetag     rhel5
+          %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+          %define distro_requires       chkconfig coreutils grep procps shadow-utils
         %else
-          %{error:SuSE %{susever} is unsupported}
+          %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
         %endif
       %endif
     %else
-      %{error:Unsupported distribution}
+      %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+        %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+        %if "%susever" == "10"
+          %define distro_description    SUSE Linux Enterprise Server 10
+          %define distro_releasetag     sles10
+          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %else
+          %if "%susever" == "11"
+            %define distro_description  SUSE Linux Enterprise Server 11
+            %define distro_releasetag   sles11
+            %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+            %define distro_requires     aaa_base coreutils grep procps pwdutils
+          %else
+            %{error:SuSE %{susever} is unsupported}
+          %endif
+        %endif
+      %else
+        %{error:Unsupported distribution}
+      %endif
     %endif
   %endif
 %else
@@ -363,6 +382,14 @@ touch optional-files-devel
 # not require C++ features such as exceptions, and may need to be removed at
 # a later date.
 #
+
+# This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
+# the compile in cmd-line-utils/readline - needs investigation, but for now
+# we simply unset it and use those specified directly in cmake.
+%if "%{_arch}" == "ia64"
+RPM_OPT_FLAGS=
+%endif
+
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
 export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
@@ -396,6 +423,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make VERBOSE=1
 )
 # Build full release
@@ -410,6 +438,7 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make VERBOSE=1
 )
 
@@ -442,6 +471,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/mysql-test
+install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
@@ -469,6 +499,10 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 # Touch the place where the my.cnf config file might be located
 # Just to make sure it's in the file list and marked as a config file
 touch $RBR%{_sysconfdir}/my.cnf
+
+# Install SELinux files in datadir
+install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
+  $RBR%{_datadir}/mysql/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}
 # Even though this is a shared library, put it under /usr/lib*/mysql, so it
@@ -727,12 +761,16 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
+%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
