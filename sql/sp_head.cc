@@ -2127,6 +2127,9 @@ sp_head::reset_lex(THD *thd)
   sublex->interval_list.empty();
   sublex->type= 0;
 
+  /* Reset part of parser state which needs this. */
+  thd->m_parser_state->m_yacc.reset_before_substatement();
+
   DBUG_RETURN(FALSE);
 }
 

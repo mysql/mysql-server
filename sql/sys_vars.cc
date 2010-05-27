@@ -295,7 +295,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   /*
     Make the session variable 'binlog_format' read-only inside a transaction.
   */
-  if (thd->active_transaction())
+  if (thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return true;
@@ -348,7 +348,7 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
      Makes the session variable 'binlog_direct_non_transactional_updates'
      read-only inside a transaction.
    */
-   if (thd->active_transaction())
+   if (thd->in_active_multi_stmt_transaction())
    {
      my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
      return true;
@@ -1428,7 +1428,7 @@ static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
-  if (thd->locked_tables_mode || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     return true;
@@ -2006,15 +2006,20 @@ static Sys_var_ulong Sys_thread_pool_size(
        VALID_RANGE(1, 16384), DEFAULT(20), BLOCK_SIZE(0));
 #endif
 
-//  Can't change the 'next' tx_isolation if we are already in a transaction
+/**
+  Can't change the 'next' tx_isolation if we are already in a
+  transaction.
+*/
+
 static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_DEFAULT && (thd->server_status & SERVER_STATUS_IN_TRANS))
+  if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
   {
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
     my_error(ER_CANT_CHANGE_TX_ISOLATION, MYF(0));
-    return true;
+    return TRUE;
   }
-  return false;
+  return FALSE;
 }
 
 /*
@@ -2027,6 +2032,7 @@ static bool fix_tx_isolation(sys_var *self, THD *thd, enum_var_type type)
     thd->session_tx_isolation= (enum_tx_isolation)thd->variables.tx_isolation;
   return false;
 }
+
 // NO_CMD_LINE - different name of the option
 static Sys_var_enum Sys_tx_isolation(
        "tx_isolation", "Default transaction isolation level",
