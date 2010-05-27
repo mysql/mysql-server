@@ -88,7 +88,7 @@ extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 extern mysql_pfs_key_t	ios_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
-extern mysql_pfs_key_t	kernel_mutex_key;
+extern mysql_pfs_key_t	server_mutex_key;
 # ifdef UNIV_MEM_DEBUG
 extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */

@@ -423,8 +423,8 @@ UNIV_INTERN mutex_t	srv_innodb_monitor_mutex;
 UNIV_INTERN mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
-/* Key to register kernel_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	kernel_mutex_key;
+/* Key to register server_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	server_mutex_key;
 /* Key to register srv_innodb_monitor_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 /* Key to register srv_monitor_file_mutex with performance schema */
@@ -692,14 +692,8 @@ struct srv_sys_struct{
 						activity */
 };
 
-/* padding to prevent other memory update hotspots from residing on
-the same memory cache line */
-UNIV_INTERN byte	srv_pad1[64];
 /* mutex protecting the server, trx structs, query threads, and lock table */
-UNIV_INTERN mutex_t*	kernel_mutex_temp;
-/* padding to prevent other memory update hotspots from residing on
-the same memory cache line */
-UNIV_INTERN byte	srv_pad2[64];
+UNIV_INTERN mutex_t*	server_mutex;
 
 static srv_sys_t*	srv_sys	= NULL;
 
@@ -964,8 +958,8 @@ srv_init(void)
 	srv_conc_slot_t*	conc_slot;
 	ulint			srv_sys_sz;
 
-	kernel_mutex_temp = mem_alloc(sizeof(mutex_t));
-	mutex_create(kernel_mutex_key, &kernel_mutex, SYNC_KERNEL);
+	server_mutex = mem_alloc(sizeof(mutex_t));
+	mutex_create(server_mutex_key, server_mutex, SYNC_KERNEL);
 
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
@@ -1032,8 +1026,8 @@ srv_free(void)
 	mem_free(srv_sys);
 	srv_sys = NULL;
 
-	mem_free(kernel_mutex_temp);
-	kernel_mutex_temp = NULL;
+	mem_free(server_mutex);
+	server_mutex = NULL;
 
 	trx_i_s_cache_free(trx_i_s_cache);
 }
@@ -1737,7 +1731,11 @@ srv_monitor_thread(
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
+	server_mutex_enter();
+
 	srv_monitor_active = TRUE;
+
+	server_mutex_exit();
 
 	/* Wake up every 5 seconds to see if we need to print
 	monitor information. */
@@ -1752,9 +1750,10 @@ loop:
 		last_monitor_time = time(NULL);
 
 		if (srv_print_innodb_monitor) {
+			// FIXME: 
 			/* Reset mutex_skipped counter everytime
 			srv_print_innodb_monitor changes. This is to
-			ensure we will not be blocked by kernel_mutex
+			ensure we will not be blocked by server_mutex
 			for short duration information printing,
 			such as requested by sync_array_print_long_waits() */
 			if (!last_srv_print_monitor) {
@@ -1849,12 +1848,20 @@ loop:
 		goto loop;
 	}
 
+	server_mutex_enter();
+
 	srv_monitor_active = FALSE;
+
+	server_mutex_exit();
 
 	goto loop;
 
 exit_func:
+	server_mutex_enter();
+
 	srv_monitor_active = FALSE;
+
+	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -1893,7 +1900,11 @@ srv_error_monitor_thread(
 #endif
 
 loop:
+	server_mutex_enter();
+
 	srv_error_monitor_active = TRUE;
+
+	server_mutex_exit();
 
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
@@ -1962,7 +1973,11 @@ loop:
 		goto loop;
 	}
 
+	server_mutex_enter();
+
 	srv_error_monitor_active = FALSE;
+
+	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -2018,7 +2033,6 @@ void
 srv_active_wake_master_thread(void)
 /*===============================*/
 {
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(!srv_sys_mutex_own());
 
 	srv_inc_activity_count();
@@ -2057,7 +2071,6 @@ void
 srv_wake_purge_thread_if_not_active(void)
 /*=====================================*/
 {
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(!srv_sys_mutex_own());
 
 	if (srv_n_purge_threads > 0
@@ -2074,7 +2087,6 @@ void
 srv_wake_master_thread(void)
 /*========================*/
 {
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(!srv_sys_mutex_own());
 
 	srv_inc_activity_count();
@@ -2089,7 +2101,6 @@ void
 srv_wake_purge_thread(void)
 /*=======================*/
 {
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(!srv_sys_mutex_own());
 
 	if (srv_n_purge_threads > 0) {
@@ -2106,7 +2117,6 @@ srv_wake_worker_threads(
 /*====================*/
 	ulint	n_workers)		/*!< number or workers to wake up */
 {
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(!srv_sys_mutex_own());
 
 	if (srv_n_purge_threads > 1) {
@@ -2157,8 +2167,6 @@ srv_master_do_purge(void)
 /*=====================*/
 {
 	ulint	n_pages_purged;
-
-	ut_ad(!mutex_own(&kernel_mutex));
 
 	ut_a(srv_n_purge_threads == 0);
 
@@ -2858,12 +2866,8 @@ srv_purge_coordinator_thread(
 		}
 	}
 
-	mutex_enter(&kernel_mutex);
-
 	/* Decrement the active count. */
 	srv_suspend_thread();
-
-	mutex_exit(&kernel_mutex);
 
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());

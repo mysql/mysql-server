@@ -163,9 +163,9 @@ dict_print(void)
 	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
 	monitor printout */
 
-	mutex_enter(&kernel_mutex);
+	server_mutex_enter();
 	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	server_mutex_exit();
 
 	mutex_enter(&(dict_sys->mutex));
 
@@ -191,9 +191,9 @@ loop:
 
 		/* Restore the fatal semaphore wait timeout */
 
-		mutex_enter(&kernel_mutex);
+		server_mutex_enter();
 		srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-		mutex_exit(&kernel_mutex);
+		server_mutex_exit();
 
 		return;
 	}

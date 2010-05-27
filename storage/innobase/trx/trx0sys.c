@@ -885,7 +885,6 @@ trx_sysf_create(
 	to the latching order rules. */
 
 	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), mtr);
-	mutex_enter(&kernel_mutex);
 
 	/* Create the trx sys file block in a new allocated file segment */
 	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
@@ -935,8 +934,6 @@ trx_sysf_create(
 
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
-
-	mutex_exit(&kernel_mutex);
 }
 
 /*****************************************************************//**
@@ -1597,6 +1594,8 @@ trx_sys_close(void)
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
+	trx_sys_mutex_enter();
+
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
 			"InnoDB: Error: all read views were not closed"
@@ -1605,12 +1604,12 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
+	trx_sys_mutex_exit();
+
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
 
 	trx_purge_sys_close();
-
-	mutex_enter(&kernel_mutex);
 
 	/* Free the double write data structures. */
 	ut_a(trx_doublewrite != NULL);
@@ -1624,6 +1623,8 @@ trx_sys_close(void)
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
 
+	trx_sys_mutex_enter();
+
 	/* There can't be any active transactions. */
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_rseg_t*	rseg;
@@ -1636,8 +1637,6 @@ trx_sys_close(void)
 			break;
 		}
 	}
-
-	trx_sys_mutex_enter();
 
 	view = UT_LIST_GET_FIRST(trx_sys->view_list);
 
@@ -1660,7 +1659,5 @@ trx_sys_close(void)
 	mem_free(trx_sys);
 
 	trx_sys = NULL;
-
-	mutex_exit(&kernel_mutex);
 }
 #endif /* !UNIV_HOTBACKUP */

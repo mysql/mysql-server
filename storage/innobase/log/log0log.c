@@ -3090,20 +3090,22 @@ logs_empty_and_mark_files_at_shutdown(void)
 loop:
 	os_thread_sleep(100000);
 
-	mutex_enter(&kernel_mutex);
-
 	/* We need the monitor threads to stop before we proceed with a
 	normal shutdown. In case of very fast shutdown, however, we can
 	proceed without waiting for monitor threads. */
+
+	server_mutex_enter();
 
 	if (srv_fast_shutdown < 2
 	   && (srv_error_monitor_active
 	      || srv_lock_timeout_active || srv_monitor_active)) {
 
-		mutex_exit(&kernel_mutex);
+		server_mutex_exit();
 
 		goto loop;
 	}
+
+	server_mutex_exit();
 
 	/* Check that there are no longer transactions. We need this wait even
 	for the 'very fast' shutdown, because the InnoDB layer may have
@@ -3114,8 +3116,6 @@ loop:
 	if (trx_n_mysql_transactions > 0
 	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 
-		mutex_exit(&kernel_mutex);
-
 		trx_sys_mutex_exit();
 
 		goto loop;
@@ -3124,6 +3124,7 @@ loop:
 	trx_sys_mutex_exit();
 
 	if (srv_fast_shutdown == 2) {
+
 		/* In this fastest shutdown we do not flush the buffer pool:
 		it is essentially a 'crash' of the InnoDB server. Make sure
 		that the log is all flushed to disk, so that we can recover
@@ -3136,8 +3137,6 @@ loop:
 
 		return; /* We SKIP ALL THE REST !! */
 	}
-
-	mutex_exit(&kernel_mutex);
 
 	/* Check that the background threads are suspended */
 

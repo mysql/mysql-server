@@ -458,7 +458,11 @@ lock_wait_timeout_thread(
 
 		os_thread_sleep(1000000);
 
+		server_mutex_enter();
+
 		srv_lock_timeout_active = TRUE;
+
+		server_mutex_exit();
 
 		lock_mutex_enter();
 
@@ -480,12 +484,20 @@ lock_wait_timeout_thread(
 		lock_mutex_exit();
 
 		if (!some_waits) {
+			server_mutex_enter();
+
 			srv_lock_timeout_active = FALSE;
+
+			server_mutex_exit();
 		}
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
+	server_mutex_enter();
+
 	srv_lock_timeout_active = FALSE;
+
+	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */

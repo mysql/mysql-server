@@ -888,7 +888,6 @@ trx_undo_add_page(
 	ibool		success;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
 
 	rseg = trx->rseg;
@@ -963,7 +962,6 @@ trx_undo_free_page(
 	ulint		zip_size;
 
 	ut_a(hdr_page_no != page_no);
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	zip_size = rseg->zip_size;
@@ -1217,8 +1215,6 @@ trx_undo_seg_free(
 	do {
 
 		mtr_start(&mtr);
-
-		ut_ad(!mutex_own(&kernel_mutex));
 
 		mutex_enter(&(rseg->mutex));
 
@@ -1752,8 +1748,6 @@ trx_undo_assign_undo(
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
 	mtr_start(&mtr);
-
-	ut_ad(!mutex_own(&kernel_mutex));
 
 	mutex_enter(&rseg->mutex);
 
