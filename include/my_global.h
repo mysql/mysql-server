@@ -551,7 +551,7 @@ C_MODE_END
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#ifndef __GNUC__
+#ifdef _some_old_compiler_that_does_not_understand_the_construct_below_
 #define compile_time_assert(X)  do { } while(0)
 #else
 #define compile_time_assert(X)                                  \
@@ -1703,6 +1703,15 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 */
 #ifdef TARGET_OS_LINUX
 #define NEED_EXPLICIT_SYNC_DIR 1
+#else
+/*
+  On linux default rwlock scheduling policy is good enough for
+  waiting_threads.c, on other systems use our special implementation
+  (which is slower).
+
+  QQ perhaps this should be tested in configure ? how ?
+*/
+#define WT_RWLOCKS_USE_MUTEXES 1
 #endif
 
 #if !defined(__cplusplus) && !defined(bool)

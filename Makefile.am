@@ -329,6 +329,3 @@ do_abi_check:
 	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

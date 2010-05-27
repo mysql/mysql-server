@@ -1378,6 +1378,8 @@ public:
   Lex_input_stream(THD *thd, const char* buff, unsigned int length);
   ~Lex_input_stream();
 
+  void reset(const char *buff, unsigned int length);
+
   /**
     Set the echo mode.
 
@@ -2207,8 +2209,8 @@ struct LEX: public Query_tables_list
 class Set_signal_information
 {
 public:
-  /** Constructor. */
-  Set_signal_information();
+  /** Empty default constructor, use clear() */
+ Set_signal_information() {} 
 
   /** Copy constructor. */
   Set_signal_information(const Set_signal_information& set);
@@ -2221,7 +2223,7 @@ public:
   void clear();
 
   /**
-    For each contition item assignment, m_item[] contains the parsed tree
+    For each condition item assignment, m_item[] contains the parsed tree
     that represents the expression assigned, if any.
     m_item[] is an array indexed by Diag_condition_item_name.
   */
@@ -2238,8 +2240,16 @@ class Yacc_state
 {
 public:
   Yacc_state()
-    : yacc_yyss(NULL), yacc_yyvs(NULL)
-  {}
+  {
+    reset();
+  }
+
+  void reset()
+  {
+    yacc_yyss= NULL;
+    yacc_yyvs= NULL;
+    m_set_signal_info.clear();
+  }
 
   ~Yacc_state();
 
@@ -2284,6 +2294,12 @@ public:
 
   Lex_input_stream m_lip;
   Yacc_state m_yacc;
+
+  void reset(const char *found_semicolon, unsigned int length)
+  {
+    m_lip.reset(found_semicolon, length);
+    m_yacc.reset();
+  }
 };
 
 
