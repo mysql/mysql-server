@@ -94,5 +94,6 @@
 #define RT_SPJ_TREENODE            MAKE_TID( 2, RG_QUERY_MEMORY)
 #define RT_SPJ_ARENA_BLOCK         MAKE_TID( 3, RG_QUERY_MEMORY)
 #define RT_SPJ_DATABUFFER          MAKE_TID( 4, RG_QUERY_MEMORY)
+#define RT_SPJ_SCANFRAG            MAKE_TID( 5, RG_QUERY_MEMORY)
 
 #endif

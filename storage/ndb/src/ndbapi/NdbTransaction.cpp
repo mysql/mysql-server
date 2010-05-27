@@ -2956,6 +2956,21 @@ NdbTransaction::report_node_failure(Uint32 id){
     }
     tmp = tmp->next();
   }
+
+  /**
+   * TODO, only abort ones really needing abort
+   */
+  NdbQueryImpl* qtmp = m_firstActiveQuery;
+  while (qtmp != 0)
+  {
+    if (qtmp->getQueryDef().isScanQuery() == false)
+    {
+      count++;
+      qtmp->setErrorCode(4119);
+    }
+    qtmp = qtmp->getNext();
+  }
+
   tNoComp += count;
   theNoOfOpCompleted = tNoComp;
   if(count)

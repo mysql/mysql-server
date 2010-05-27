@@ -2783,6 +2783,11 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
     sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
                         RouteOrd::SignalLength,
                         JBA, &handle);
+
+    routeOrd->dstRef = DBSPJ_REF;
+    sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
+                        RouteOrd::SignalLength,
+                        JBA, &handle);
   }
 
   /* Suma always notified */
@@ -2825,6 +2830,11 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
     failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
   }
   else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF3)
+  {
+    jam();
+    failedNodePtr.p->failState = WAITING_FOR_FAILCONF4;
+  }
+  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF4)
   {
     jam();
     failedNodePtr.p->failState = NORMAL;
@@ -3738,7 +3748,7 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
          */
         jam();
         sendApiFailReq(signal, nodeId, true); // sumaOnly
-        failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
+        failedNodePtr.p->failState = WAITING_FOR_FAILCONF4;
       }
       
       if (getNodeInfo(failedNodePtr.i).getType() == NodeInfo::MGM)

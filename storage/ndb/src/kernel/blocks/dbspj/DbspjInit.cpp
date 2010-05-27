@@ -30,9 +30,22 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   BLOCK_CONSTRUCTOR(Dbspj);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbspj::execDUMP_STATE_ORD);
+  addRecSignal(GSN_READ_NODESCONF, &Dbspj::execREAD_NODESCONF);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbspj::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Dbspj::execSTTOR);
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbspj::execDBINFO_SCANREQ);
+  addRecSignal(GSN_CONTINUEB, &Dbspj::execCONTINUEB);
+  addRecSignal(GSN_NODE_FAILREP, &Dbspj::execNODE_FAILREP);
+  addRecSignal(GSN_INCL_NODEREQ, &Dbspj::execINCL_NODEREQ);
+  addRecSignal(GSN_API_FAILREQ, &Dbspj::execAPI_FAILREQ);
+
+  /**
+   * Signals from DIH
+   */
+  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Dbspj::execDIH_SCAN_TAB_REF);
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Dbspj::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_REF, &Dbspj::execDIH_SCAN_GET_NODES_REF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF,&Dbspj::execDIH_SCAN_GET_NODES_CONF);
 
   /**
    * Signals from TC
@@ -55,6 +68,7 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
 
 Dbspj::~Dbspj() 
 {
+  m_page_pool.clear();
 }//Dbspj::~Dbspj()
 
 
