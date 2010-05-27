@@ -16,6 +16,136 @@
 
 #include <my_bit.h>
 
+/*
+  This file contains optimizations for semi-join subqueries.
+  
+  Contents
+  --------
+  1. What is a semi-join subquery
+  2. General idea about semi-join execution
+  2.1 Correlated vs uncorrelated semi-joins
+  2.2 Mergeable vs non-mergeable semi-joins
+  3. Code-level view of semi-join processing
+  3.1 Conversion
+  3.1.1 Merged semi-join TABLE_LIST object
+  3.1.2 Non-merged semi-join data structure
+  3.2 Semi-joins and query optimization
+  3.3 Semi-joins and query execution
+
+  1. What is a semi-join subquery
+  -------------------------------
+  We use this definition of semi-join:
+
+    outer_tbl SEMI JOIN inner_tbl ON cond = {set of outer_tbl.row such that
+                                             exist inner_tbl.row, for which 
+                                             cond(outer_tbl.row,inner_tbl.row)
+                                             is satisfied}
+  
+  That is, semi-join operation is similar to inner join operation, with
+  exception that we don't care how many matches a row from outer_tbl has in
+  inner_tbl.
+
+  In SQL, that translates into following: a semi-join subquery is an IN 
+  subquery that is an AND-part of the WHERE/ON clause.
+
+  2. General idea about semi-join execution
+  -----------------------------------------
+  We can execute semi-join in a way similar to inner join, with exception that 
+  we need to somehow ensure that we do not generate record combinations that 
+  differ only in rows of inner tables.
+  There is a number of different ways to achieve this property, implemented by
+  a number of semi-join execution strategies.
+  Some strategies can handle any semi-joins, other can be applied only to
+  semi-joins that have certain properties that are described below:
+
+  2.1 Correlated vs uncorrelated semi-joins
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Uncorrelated semi-joins are special in the respect that they allow to
+   - execute the subquery (possible as it's uncorrelated)
+   - somehow make sure that generated set does not have duplicates
+   - perform an inner join with outer tables.
+  
+  or, rephrasing in SQL form:
+
+  SELECT ... FROM ot WHERE ot.col IN (SELECT it.col FROM it WHERE uncorr_cond)
+    ->
+  SELECT ... FROM ot JOIN (SELECT DISTINCT it.col FROM it WHERE uncorr_cond)
+
+  2.2 Mergeable vs non-mergeable semi-joins
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Semi-join operation has some degree of commutability with inner join
+  operation: we can join subquery's tables with ouside table(s) and eliminate
+  duplicate record combination after that:
+
+    ot1 JOIN ot2 SEMI_JOIN{it1,it2} (it1 JOIN it2) ON sjcond(ot2,it*) ->
+              |
+              +-------------------------------+
+                                              v
+    ot1 SEMI_JOIN{it1,it2} (it1 JOIN it2 JOIN ot2) ON sjcond(ot2,it*)
+ 
+  In order for this to work, subquery's top-level operation must be join, and
+  grouping or ordering with limit (grouping or ordering with limit are not
+  commutative with duplicate removal). In other words, the conversion is
+  possible when the subquery doesn't have GROUP BY clause, any aggregate
+  functions*, or ORDER BY ... LIMIT clause.
+
+  Definitions:
+  - Subquery whose top-level operation is a join is called *mergeable semi-join*
+  - All other kinds of semi-join subqueries are considered non-mergeable.
+
+  *- this requirement is actually too strong, but its exceptions are too
+  complicated to be considered here.
+
+  3. Code-level view of semi-join processing
+  ------------------------------------------
+  
+  3.1 Conversion
+  --------------
+  * When doing JOIN::prepare for the subquery, we detect that it can be
+    converted into a semi-join and register it in parent_join->sj_subselects
+
+  * At the start of parent_join->optimize(), the predicate is converted into 
+    a semi-join node. A semi-join node is a TABLE_LIST object that is linked
+    somewhere in parent_join->join_list (either it is just present there, or
+    it is a descendant of some of its members).
+  
+  There are two kinds of semi-joins:
+  - Merged semi-joins
+  - Non-merged semi-joins
+   
+  3.1.1 Merged semi-join TABLE_LIST object
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Merged semi-join object is a TABLE_LIST that contains a sub-join of 
+  subquery tables and the semi-join ON expression (in this respect it is 
+  ery similar to nested outer join representation)
+  Merged semi-join represents this SQL:
+
+    ... SEMI JOIN (inner_tbl1 JOIN ... JOIN inner_tbl_n) ON sj_on_expr
+  
+  Semi-join objects of this kind have TABLE_LIST::sj_subq_pred set.
+ 
+  3.1.2 Non-merged semi-join data structure
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Non-merged semi-join object is a leaf TABLE_LIST object that has a subquery
+  that produces rows. It is similar to a base table and represents this SQL:
+    
+    ... SEMI_JOIN (SELECT non_mergeable_select) ON sj_on_expr
+  
+  Subquery items that were converted into semi-joins are removed from the WHERE
+  clause. (They do remain in PS-saved WHERE clause, and they replace themselves
+  with Item_int(1) on subsequent re-executions).
+
+  3.2 Semi-joins and query optimization
+  -------------------------------------
+  Query optimizer operates on semi-join nests.
+
+  3.3 Semi-joins and query execution
+  ----------------------------------
+  * Join executor has hooks for all semi-join strategies.
+    TODO elaborate
+*/
+
+
 static
 bool subquery_types_allow_materialization(Item_in_subselect *in_subs);
 static bool replace_where_subcondition(JOIN *join, Item **expr, 
@@ -1092,7 +1222,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
 
   TABLE_LIST *jtbm;
   char *tbl_alias;
-  const char alias_mask[]="SUBQUERY#%d";
+  const char alias_mask[]="<subquery%d>";
   if (!(tbl_alias= (char*)parent_join->thd->calloc(sizeof(alias_mask)+5)) || 
       !(jtbm= alloc_join_nest(parent_join->thd))) //todo: this is not a join nest!
   {

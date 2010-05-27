@@ -5899,7 +5899,6 @@ get_best_combination(JOIN *join)
     TABLE *form;
     *j= *join->best_positions[tablenr].table;
     form=join->table[tablenr]=j->table;
- //psergey-merge: or is the above:   form=join->all_tables[tablenr]=j->table;
     used_tables|= form->map;
     form->reginfo.join_tab=j;
     if (!*j->on_expr_ref)
@@ -15052,8 +15051,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
-        //psergey-mrr:if (tab->pre_idx_push_select_cond)
-        //  tab->select_cond= tab->select->cond= tab->pre_idx_push_select_cond;
 	if (tab->ref.key >= 0)
 	{
           /*
@@ -17990,7 +17987,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         /* table */
         int len= my_snprintf(table_name_buffer, 
                              sizeof(table_name_buffer)-1,
-                             "SUBQUERY#%d", 
+                             "<subquery%d>", 
                              tab->emb_sj_nest->sj_subq_pred->get_identifier());
 	item_list.push_back(new Item_string(table_name_buffer, len, cs));
         /* partitions */

@@ -3710,7 +3710,7 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns,
   }
 */
   char buf[32];
-  uint len= my_snprintf(buf, sizeof(buf), "SUBQUERY#%d", subquery_id);
+  uint len= my_snprintf(buf, sizeof(buf), "<subquery%d>", subquery_id);
   char *name;
   if (!(name= (char*)thd->alloc(len + 1)))
     DBUG_RETURN(TRUE);
