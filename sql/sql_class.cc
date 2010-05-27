@@ -460,7 +460,6 @@ THD::THD()
    rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   sql_log_bin_toplevel(false),
    binlog_unsafe_warning_flags(0), binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -929,7 +928,11 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_format_row();
   bzero((char *) &status_var, sizeof(status_var));
-  sql_log_bin_toplevel= variables.option_bits & OPTION_BIN_LOG;
+
+  if (variables.sql_log_bin)
+    variables.option_bits|= OPTION_BIN_LOG;
+  else
+    variables.option_bits&= ~OPTION_BIN_LOG;
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
@@ -4554,8 +4557,13 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     because the warnings should be printed only if the statement is
     actually logged. When executing decide_logging_format(), we cannot
     know for sure if the statement will be logged.
+
+    Besides, we should not try to print these warnings if it is not
+    possible to write statements to the binary log as it happens when
+    the execution is inside a function, or generaly speaking, when
+    the variables.option_bits & OPTION_BIN_LOG is false.
   */
-  if (sql_log_bin_toplevel)
+  if (variables.option_bits & OPTION_BIN_LOG)
     issue_unsafe_warnings();
 
   switch (qtype) {
