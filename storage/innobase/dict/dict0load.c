@@ -1192,6 +1192,8 @@ dict_load_index_low(
 	ulint		type;
 	ulint		space;
 
+	*index = NULL;
+
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 		return(dict_load_index_del);
 	}

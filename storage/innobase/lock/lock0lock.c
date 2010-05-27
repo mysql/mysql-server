@@ -379,9 +379,14 @@ UNIV_INTERN ibool	lock_deadlock_found = FALSE;
 UNIV_INTERN FILE*	lock_latest_err_file;
 
 /* Flags for recursive deadlock search */
-#define LOCK_VICTIM_IS_START	1
-#define LOCK_VICTIM_IS_OTHER	2
-#define LOCK_EXCEED_MAX_DEPTH	3
+enum lock_victim_enum {
+	LOCK_VICTIM_NONE,
+	LOCK_VICTIM_IS_START,
+	LOCK_VICTIM_IS_OTHER,
+	LOCK_VICTIM_EXCEED_MAX_DEPTH
+};
+
+typedef enum lock_victim_enum lock_victim_t;
 
 /********************************************************************//**
 Checks if a lock request results in a deadlock.
@@ -396,14 +401,14 @@ lock_deadlock_occurs(
 	trx_t*	trx);	/*!< in: transaction */
 /********************************************************************//**
 Looks recursively for a deadlock.
-@return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
-deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
-deadlock was found and we chose some other trx as a victim: we must do
-the search again in this last case because there may be another
-deadlock!
-LOCK_EXCEED_MAX_DEPTH if the lock search exceeds max steps or max depth. */
+@return LOCK_VICTIM_NONE if no deadlock found, LOCK_VICTIM_IS_START
+if there was a deadlock and we chose 'start' as the victim,
+LOCK_VICTIM_IS_OTHER if a deadlock was found and we chose some other
+trx as a victim: we must do the search again in this last case because
+there may be another deadlock!  LOCK_EXCEED_MAX_DEPTH if the lock search
+exceeds max steps or max depth. */
 static
-ulint
+lock_victim_t
 lock_deadlock_recursive(
 /*====================*/
 	trx_t*	start,		/*!< in: recursion starting point */
@@ -411,10 +416,10 @@ lock_deadlock_recursive(
 	lock_t*	wait_lock,	/*!< in:  lock that is waiting to be granted */
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
-				we return LOCK_EXCEED_MAX_DEPTH */
+				we return LOCK_VICTIM_EXCEED_MAX_DEPTH */
 	ulint	depth);		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
-				return LOCK_EXCEED_MAX_DEPTH */
+				return LOCK_VICTIM_EXCEED_MAX_DEPTH */
 
 /*********************************************************************//**
 Gets the nth bit of a record lock.
@@ -786,7 +791,6 @@ lock_set_lock_and_trx_wait(
 	trx_t*	trx)	/*!< in: trx */
 {
 	ut_ad(lock);
-	ut_ad(trx_mutex_own(trx));
 	ut_ad(trx->lock.wait_lock == NULL);
 
 	trx->lock.wait_lock = lock;
@@ -802,9 +806,8 @@ lock_reset_lock_and_trx_wait(
 /*=========================*/
 	lock_t*	lock)	/*!< in: record lock */
 {
-	ut_ad((lock->trx)->lock.wait_lock == lock);
+	ut_ad(lock->trx->lock.wait_lock == lock);
 	ut_ad(lock_get_wait(lock));
-	ut_ad(trx_mutex_own(lock->trx));
 
 	/* Reset the back pointer in trx to this waiting lock request */
 
@@ -2569,6 +2572,7 @@ lock_move_reorganize_page(
 		lock_rec_bitmap_reset(lock);
 
 		if (lock_get_wait(lock)) {
+
 			lock_reset_lock_and_trx_wait(lock);
 		}
 
@@ -3328,7 +3332,7 @@ retry:
 		is a deadlock */
 		goto retry;
 
-	case LOCK_EXCEED_MAX_DEPTH:
+	case LOCK_VICTIM_EXCEED_MAX_DEPTH:
 		/* If the lock search exceeds the max step
 		or the max depth, the current trx will be
 		the victim. Print its information. */
@@ -3369,15 +3373,114 @@ retry:
 }
 
 /********************************************************************//**
-Looks recursively for a deadlock.
-@return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
-deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
-deadlock was found and we chose some other trx as a victim: we must do
-the search again in this last case because there may be another
-deadlock!
-LOCK_EXCEED_MAX_DEPTH if the lock search exceeds max steps or max depth. */
+Choose the victim for rollback and print diagnostics to the lock err file.
+@return LOCK_VICTIM_IS_START or LOCK_VICTIM_IS_OTHER */
 static
 ulint
+lock_choose_trx_for_rollback(
+/*=========================*/
+	trx_t*		start,		/*!< Transaction starting point */
+	lock_t*		wait_lock,	/*!< in: lock that is waiting to
+				       	be granted */
+	lock_t*		lock)
+{
+	/* We came back to the recursion starting
+	point: a deadlock detected; or we have
+	searched the waits-for graph too long */
+
+	FILE*	ef = lock_latest_err_file;
+
+	rewind(ef);
+	ut_print_timestamp(ef);
+
+	trx_mutex_enter(wait_lock->trx);
+
+	fputs("\n*** (1) TRANSACTION:\n", ef);
+
+	trx_print(ef, wait_lock->trx, 3000);
+
+	fputs("*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
+
+	if (lock_get_type_low(wait_lock) == LOCK_REC) {
+		lock_rec_print(ef, wait_lock);
+	} else {
+		lock_table_print(ef, wait_lock);
+	}
+
+	fputs("*** (2) TRANSACTION:\n", ef);
+
+	trx_print(ef, lock->trx, 3000);
+
+	fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
+
+	if (lock_get_type_low(lock) == LOCK_REC) {
+		lock_rec_print(ef, lock);
+	} else {
+		lock_table_print(ef, lock);
+	}
+
+	fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
+
+	if (lock_get_type_low(start->lock.wait_lock) == LOCK_REC) {
+		lock_rec_print(ef, start->lock.wait_lock);
+	} else {
+		lock_table_print(ef, start->lock.wait_lock);
+	}
+#ifdef UNIV_DEBUG
+	if (lock_print_waits) {
+		fputs("Deadlock detected\n", stderr);
+	}
+#endif /* UNIV_DEBUG */
+
+	if (trx_weight_cmp(wait_lock->trx, start) >= 0) {
+		/* Our recursion starting point transaction is 'smaller',
+	       	let us choose 'start' as the victim and roll back it */
+
+		trx_mutex_exit(wait_lock->trx);
+
+		return(LOCK_VICTIM_IS_START);
+	}
+
+	lock_deadlock_found = TRUE;
+
+	/* Let us choose the transaction of wait_lock
+	as a victim to try to avoid deadlocking our
+	recursion starting point transaction */
+
+	fputs("*** WE ROLL BACK TRANSACTION (1)\n", ef);
+
+	wait_lock->trx->lock.was_chosen_as_deadlock_victim = TRUE;
+
+	/* This transaction will get its locks granted and so we release the
+	mutex so to avoid acquiring it during the grant phase. */
+	trx_mutex_exit(start);
+
+	lock_cancel_waiting_and_release(wait_lock);
+
+	trx_mutex_exit(wait_lock->trx);
+
+	trx_mutex_enter(start);
+
+	/* Since trx and wait_lock are no longer
+	in the waits-for graph, we can return FALSE;
+	note that our selective algorithm can choose
+	several transactions as victims, but still
+	we may end up rolling back also the recursion
+	starting point transaction! */
+
+	return(LOCK_VICTIM_IS_OTHER);
+}
+
+/********************************************************************//**
+Looks recursively for a deadlock.
+@return LOCK_VICTIM_NONE if no deadlock found, LOCK_VICTIM_IS_START
+if there was a deadlock and we chose 'start' as the victim,
+LOCK_VICTIM_IS_OTHER if a deadlock was found and we chose some other
+trx as a victim: we must do the search again in this last case because
+there may be another deadlock!  LOCK_EXCEED_MAX_DEPTH if the lock search
+exceeds max steps or max depth. */
+static
+lock_victim_t
 lock_deadlock_recursive(
 /*====================*/
 	trx_t*	start,		/*!< in: recursion starting point */
@@ -3385,10 +3488,10 @@ lock_deadlock_recursive(
 	lock_t*	wait_lock,	/*!< in: lock that is waiting to be granted */
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
-				we return LOCK_EXCEED_MAX_DEPTH */
+				we return LOCK_VICTIM_EXCEED_MAX_DEPTH */
 	ulint	depth)		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
-				return LOCK_EXCEED_MAX_DEPTH */
+				return LOCK_VICTIM_EXCEED_MAX_DEPTH */
 {
 	ulint	ret;
 	lock_t*	lock;
@@ -3465,100 +3568,9 @@ lock_deadlock_recursive(
 			lock_trx = lock->trx;
 
 			if (lock_trx == start) {
-
-				/* We came back to the recursion starting
-				point: a deadlock detected; or we have
-				searched the waits-for graph too long */
-
-				FILE*	ef = lock_latest_err_file;
-
-				rewind(ef);
-				ut_print_timestamp(ef);
-
-				trx_mutex_enter(wait_lock->trx);
-
-				fputs("\n*** (1) TRANSACTION:\n", ef);
-
-				trx_print(ef, wait_lock->trx, 3000);
-
-				fputs("*** (1) WAITING FOR THIS LOCK"
-				      " TO BE GRANTED:\n", ef);
-
-				if (lock_get_type_low(wait_lock) == LOCK_REC) {
-					lock_rec_print(ef, wait_lock);
-				} else {
-					lock_table_print(ef, wait_lock);
-				}
-
-				fputs("*** (2) TRANSACTION:\n", ef);
-
-				trx_print(ef, lock->trx, 3000);
-
-				fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
-
-				if (lock_get_type_low(lock) == LOCK_REC) {
-					lock_rec_print(ef, lock);
-				} else {
-					lock_table_print(ef, lock);
-				}
-
-				fputs("*** (2) WAITING FOR THIS LOCK"
-				      " TO BE GRANTED:\n", ef);
-
-				if (lock_get_type_low(start->lock.wait_lock)
-				    == LOCK_REC) {
-					lock_rec_print(ef,
-						       start->lock.wait_lock);
-				} else {
-					lock_table_print(ef,
-							 start->lock.wait_lock);
-				}
-#ifdef UNIV_DEBUG
-				if (lock_print_waits) {
-					fputs("Deadlock detected\n",
-					      stderr);
-				}
-#endif /* UNIV_DEBUG */
-
-				if (trx_weight_cmp(wait_lock->trx,
-						   start) >= 0) {
-					/* Our recursion starting point
-					transaction is 'smaller', let us
-					choose 'start' as the victim and roll
-					back it */
-
-					trx_mutex_exit(wait_lock->trx);
-
-					return(LOCK_VICTIM_IS_START);
-				}
-
-				lock_deadlock_found = TRUE;
-
-				/* Let us choose the transaction of wait_lock
-				as a victim to try to avoid deadlocking our
-				recursion starting point transaction */
-
-				fputs("*** WE ROLL BACK TRANSACTION (1)\n",
-				      ef);
-
-				wait_lock->trx->lock.was_chosen_as_deadlock_victim
-					= TRUE;
-
-				lock_cancel_waiting_and_release(wait_lock);
-
-				trx_mutex_exit(wait_lock->trx);
-
-				/* Since trx and wait_lock are no longer
-				in the waits-for graph, we can return FALSE;
-				note that our selective algorithm can choose
-				several transactions as victims, but still
-				we may end up rolling back also the recursion
-				starting point transaction! */
-
-				return(LOCK_VICTIM_IS_OTHER);
-			}
-
-			if (too_far) {
+				return(lock_choose_trx_for_rollback(
+					start, wait_lock, lock));
+			} else if (too_far) {
 
 #ifdef UNIV_DEBUG
 				if (lock_print_waits) {
@@ -3570,7 +3582,7 @@ lock_deadlock_recursive(
 				/* The information about transaction/lock
 				to be rolled back is available in the top
 				level. Do not print anything here. */
-				return(LOCK_EXCEED_MAX_DEPTH);
+				return(LOCK_VICTIM_EXCEED_MAX_DEPTH);
 			}
 
 			/* The transaction's que_state can't change since

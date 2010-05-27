@@ -339,6 +339,8 @@ lock_wait_suspend_thread(
 		}
 	}
 
+	trx_mutex_enter(trx);
+
 	if (trx->lock.was_chosen_as_deadlock_victim) {
 
 		trx->error_state = DB_DEADLOCK;

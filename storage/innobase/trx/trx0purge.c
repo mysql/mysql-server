@@ -374,17 +374,13 @@ loop:
 	os_atomic_dec_ulint(
 		&trx_sys->mutex, &trx_sys->rseg_history_len, n_removed_logs);
 
-	freed = FALSE;
-
-	while (!freed) {
+	do {
 		/* Here we assume that a file segment with just the header
 		page can be freed in a few steps, so that the buffer pool
 		is not flooded with bufferfixed pages: see the note in
 		fsp0fsp.c. */
 
-		freed = fseg_free_step(seg_hdr + TRX_UNDO_FSEG_HEADER,
-				       &mtr);
-	}
+	} while(fseg_free_step(seg_hdr + TRX_UNDO_FSEG_HEADER, &mtr));
 
 	hist_size = mtr_read_ulint(rseg_hdr + TRX_RSEG_HISTORY_SIZE,
 				   MLOG_4BYTES, &mtr);
