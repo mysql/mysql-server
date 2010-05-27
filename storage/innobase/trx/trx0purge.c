@@ -380,7 +380,7 @@ loop:
 		is not flooded with bufferfixed pages: see the note in
 		fsp0fsp.c. */
 
-	} while(fseg_free_step(seg_hdr + TRX_UNDO_FSEG_HEADER, &mtr));
+	} while(!fseg_free_step(seg_hdr + TRX_UNDO_FSEG_HEADER, &mtr));
 
 	hist_size = mtr_read_ulint(rseg_hdr + TRX_RSEG_HISTORY_SIZE,
 				   MLOG_4BYTES, &mtr);
