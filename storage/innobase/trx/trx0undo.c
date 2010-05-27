@@ -1799,7 +1799,6 @@ trx_undo_set_state_at_finish(
 	page_t*		undo_page;
 	ulint		state;
 
-	ut_ad(trx);
 	ut_ad(undo);
 	ut_ad(mtr);
 	ut_ad(mutex_own(&rseg->mutex));
