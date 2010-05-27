@@ -5180,8 +5180,8 @@ int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
     keycache->partition_array= partition_ptr;
   }
 
-  mem_decr= mem_per_cache / 5;
   mem_per_cache = use_mem / partitions;
+  mem_decr= mem_per_cache / 5;
 
   for (i= 0; i < (int) partitions; i++)
   {
