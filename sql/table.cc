@@ -4445,10 +4445,10 @@ void TABLE::mark_columns_used_by_index(uint index)
     restore_column_maps_after_mark_index().
 */
 
-void st_table::add_read_columns_used_by_index(uint index)
+void TABLE::add_read_columns_used_by_index(uint index)
 {
   MY_BITMAP *bitmap= &tmp_set;
-  DBUG_ENTER("st_table::add_read_columns_used_by_index");
+  DBUG_ENTER("TABLE::add_read_columns_used_by_index");
 
   set_keyread(TRUE);
   bitmap_copy(bitmap, read_set);
