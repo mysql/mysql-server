@@ -52,14 +52,6 @@ of SQL execution in the UNIV_SQL_DEBUG version */
 UNIV_INTERN ibool	que_trace_on		= FALSE;
 #endif /* UNIV_DEBUG */
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register query thread mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	que_thr_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
-
-/** Mutex protecting the query threads. */
-UNIV_INTERN mutex_t	que_thr_mutex;
-
 /* Short introduction to query graphs
    ==================================
 
@@ -1315,7 +1307,7 @@ void
 que_init(void)
 /*==========*/
 {
-	mutex_create(que_thr_mutex_key, &que_thr_mutex, SYNC_QUERY_THREADS);
+	/* No op */
 }
 
 /*********************************************************************//**

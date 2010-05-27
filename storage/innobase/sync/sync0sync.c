@@ -1170,7 +1170,6 @@ sync_thread_add_level(
 	case SYNC_KERNEL:
 	case SYNC_THREADS:
 	case SYNC_LOCK_SYS:
-	case SYNC_QUERY_THREADS:
 	case SYNC_TRX_SYS:
 	case SYNC_IBUF_BITMAP_MUTEX:
 	case SYNC_RSEG:
