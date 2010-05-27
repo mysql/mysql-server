@@ -731,8 +731,6 @@ public:
   /* Number of ranges in the last checked tree->key */
   uint range_count;
 
-  uchar min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
-    max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
 
   uint fields_bitmap_size;
