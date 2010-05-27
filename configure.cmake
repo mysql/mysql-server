@@ -1000,6 +1000,21 @@ IF(NOT HAVE_SOCKADDR_STORAGE_SS_FAMILY)
     SET(ss_family __ss_family)
   ENDIF()
 ENDIF()
+
+#
+# Check if struct sockaddr_in::sin_len is available.
+#
+
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in" sin_len
+  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN_SIN_LEN)
+
+#
+# Check if struct sockaddr_in6::sin6_len is available.
+#
+
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
+  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
+
 SET(CMAKE_EXTRA_INCLUDE_FILES) 
 
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_ino "dirent.h"  STRUCT_DIRENT_HAS_D_INO)

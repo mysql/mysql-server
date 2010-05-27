@@ -1442,11 +1442,11 @@ buf_LRU_make_block_old(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns BUF_LRU_FREED, it will not temporarily
-release buf_pool->mutex.  Furthermore, the page frame will no longer be
+NOTE: If this function returns BUF_LRU_FREED, it will temporarily
+release buf_pool_mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
-The caller must hold buf_pool->mutex and buf_page_get_mutex(bpage) and
+The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
 release these two mutexes after the call.  No other
 buf_page_get_mutex() may be held when calling this function.
 @return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
@@ -1460,7 +1460,7 @@ buf_LRU_free_block(
 				compressed page of an uncompressed page */
 	ibool*		buf_pool_mutex_released)
 				/*!< in: pointer to a variable that will
-				be assigned TRUE if buf_pool->mutex
+				be assigned TRUE if buf_pool_mutex
 				was temporarily released, or NULL */
 {
 	buf_page_t*	b = NULL;

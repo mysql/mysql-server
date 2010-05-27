@@ -177,10 +177,6 @@ dict_mem_table_add_col(
 	ulint		len)	/*!< in: precision */
 {
 	dict_col_t*	col;
-#ifndef UNIV_HOTBACKUP
-	ulint		mbminlen;
-	ulint		mbmaxlen;
-#endif /* !UNIV_HOTBACKUP */
 	ulint		i;
 
 	ut_ad(table);
@@ -205,19 +201,7 @@ dict_mem_table_add_col(
 
 	col = dict_table_get_nth_col(table, i);
 
-	col->ind = (unsigned int) i;
-	col->ord_part = 0;
-
-	col->mtype = (unsigned int) mtype;
-	col->prtype = (unsigned int) prtype;
-	col->len = (unsigned int) len;
-
-#ifndef UNIV_HOTBACKUP
-	dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
-
-	col->mbminlen = (unsigned int) mbminlen;
-	col->mbmaxlen = (unsigned int) mbmaxlen;
-#endif /* !UNIV_HOTBACKUP */
+	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
 }
 
 /**********************************************************************//**
@@ -244,22 +228,9 @@ dict_mem_index_create(
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 	index = mem_heap_zalloc(heap, sizeof(dict_index_t));
 
-	index->heap = heap;
+	dict_mem_fill_index_struct(index, heap, table_name, index_name,
+				   space, type, n_fields);
 
-	index->type = type;
-#ifndef UNIV_HOTBACKUP
-	index->space = (unsigned int) space;
-#endif /* !UNIV_HOTBACKUP */
-	index->name = mem_heap_strdup(heap, index_name);
-	index->table_name = table_name;
-	index->n_fields = (unsigned int) n_fields;
-	index->fields = mem_heap_alloc(heap, 1 + n_fields
-				       * sizeof(dict_field_t));
-	/* The '1 +' above prevents allocation
-	of an empty mem block */
-#ifdef UNIV_DEBUG
-	index->magic_n = DICT_INDEX_MAGIC_N;
-#endif /* UNIV_DEBUG */
 	return(index);
 }
 

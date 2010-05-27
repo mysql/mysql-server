@@ -182,9 +182,9 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
-#ifdef HAVE_purify
+#if defined HAVE_VALGRIND
 # define UNIV_DEBUG_VALGRIND
-#endif /* HAVE_purify */
+#endif /* HAVE_VALGRIND */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */

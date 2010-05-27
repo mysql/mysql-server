@@ -17179,8 +17179,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
     str->append(STRING_WITH_LEN("straight_join "));
-  if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
-      (this == &thd->lex->select_lex))
+  if (options & SELECT_HIGH_PRIORITY)
     str->append(STRING_WITH_LEN("high_priority "));
   if (options & SELECT_DISTINCT)
     str->append(STRING_WITH_LEN("distinct "));
