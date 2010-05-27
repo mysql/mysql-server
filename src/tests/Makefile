@@ -613,7 +613,7 @@ recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL
               done; \
            done; \
         done; \
-        echo $$count tests passed; \
+	(test -n "$(VERBOSE)" && echo $$count tests passed) || true; \
 	) $(SUMMARIZE_CMD)
 
 # helgrind1 is supposed to fail.
