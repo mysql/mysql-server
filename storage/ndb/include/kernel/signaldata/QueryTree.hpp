@@ -28,8 +28,9 @@ struct QueryNode  // Effectively used as a base class for QN_xxxNode
 
   enum OpType
   {
-    QN_LOOKUP    = 0x1,
-    QN_SCAN_FRAG = 0x2,
+    QN_LOOKUP     = 0x1,
+    QN_SCAN_FRAG  = 0x2,
+    QN_SCAN_INDEX = 0x3,
     QN_END = 0
   };
 
@@ -206,6 +207,79 @@ struct QN_ScanFragParameters // Is a QueryNodeParameters subclass
 };
 
 /**
+ * This node describes a IndexScan
+ */
+struct QN_ScanIndexNode
+{
+  Uint32 len;
+  Uint32 requestInfo;
+  Uint32 tableId;      // 16-bit
+  Uint32 tableVersion;
+  STATIC_CONST( NodeSize = 4 );
+
+  enum ScanIndexBits
+  {
+    /**
+     * If doing equality search that can be pruned
+     *   a pattern that creates the key to hash with is stored before
+     *   the DA optional part
+     */
+    SI_PRUNE_PATTERN = 0x10000,
+    
+    // Do pattern contain parameters
+    SI_PRUNE_PARAMS = 0x20000,
+
+    // Is prune pattern dependant on parent key (or only on parameters)
+    SI_PRUNE_LINKED = 0x40000,
+
+    // Should it be parallel scan (can also be set as in parameters)
+    SI_PARALLEL = 0x80000,
+
+    SI_END = 0
+  };
+
+  /**
+   * See DABits::NodeInfoBits
+   */
+  Uint32 optional[1];
+};
+
+/**
+ * This struct describes parameters that are associated with
+ *  a QN_ScanIndexNode
+ */
+struct QN_ScanIndexParameters
+{
+  Uint32 len;
+  Uint32 requestInfo;
+  Uint32 batchSize;    // (bytes << 16) | (rows)
+  Uint32 resultData;   // Api connect ptr
+  STATIC_CONST ( NodeSize = 4 );
+
+  enum ScanIndexParamBits
+  {
+    /**
+     * Do arguments contain parameters for prune-pattern
+     */
+    SIP_PRUNE_PARAMS = 0x10000,
+
+    /**
+     * Should it scan index in parallel
+     *   This is needed for "multi-cursor" semantics
+     *   with (partial) ordering
+     */
+    SIP_PARALLEL = 0x20000,
+
+    SIP_END = 0
+  };
+
+  /**
+   * See DABits::ParamInfoBits
+   */
+  Uint32 optional[1];
+};
+
+/**
  * This is the definition of a QueryTree
  */
 struct QueryTree
@@ -231,6 +305,7 @@ struct QueryPattern
     P_COL    = 0x2,  // Get column value from RowRef
     P_UNQ_PK = 0x3,  // NDB$PK column from a unique index
     P_PARAM  = 0x4,  // User specified parameter value
+    P_PARENT = 0x5,  // Move up in tree
     P_PARAM_HEADER = 0x6, // User specified param val including AttributeHeader
     P_ATTRINFO = 0x7,// Get column including header from RowRef
     P_END    = 0
@@ -264,6 +339,19 @@ struct QueryPattern
    */
   static Uint32 getParamNo(Uint32 info) { return info & 0xFFFF;}
   static Uint32 param(Uint32 no) { return (P_PARAM << 16) | no; }
+
+  static Uint32 paramHeader(Uint32 no) { return (P_PARAM_HEADER << 16) | no; }
+
+  /**
+   * get col including header
+   */
+  static Uint32 attrInfo(Uint32 no) { return (P_ATTRINFO << 16) | no;}
+
+  /**
+   * Move to grand-parent no
+   * (0 == imediate parent)
+   */
+  static Uint32 parent(Uint32 no) { return (P_PARENT << 16) | no;}
 };
 
 #endif

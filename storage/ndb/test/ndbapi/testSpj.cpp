@@ -88,7 +88,6 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
     i++;
   }
   g_info << endl;
-  ctx->stopTest();
   return NDBT_OK;
 }
 
@@ -116,7 +115,6 @@ runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
     i++;
   }
   g_info << endl;
-  ctx->stopTest();
   return NDBT_OK;
 }
 
@@ -154,7 +152,6 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
   }
   g_info << endl;
-  ctx->stopTest();
   return NDBT_OK;
 }
 
@@ -183,6 +180,17 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
   if (loops < restarter.getNumDbNodes())
     loops = restarter.getNumDbNodes();
 
+  NdbSleep_MilliSleep(200);
+  Uint32 running = ctx->getProperty("Running", (Uint32)0);
+  while (running == 0 && !ctx->isTestStopped())
+  {
+    NdbSleep_MilliSleep(100);
+    running = ctx->getProperty("Running", (Uint32)0);
+  }
+
+  if (ctx->isTestStopped())
+    return NDBT_FAILED;
+
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
 
     int id = lastId % restarter.getNumDbNodes();
@@ -193,13 +201,11 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
     int nodeId = restarter.getDbNodeId(id);
     ndbout << "Restart node " << nodeId << endl;
 
-    Uint32 running = ctx->getProperty("Running", (Uint32)0);
     if(restarter.restartOneDbNode(nodeId, false, true, true) != 0){
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
     }
-    ctx->setProperty("Running", (Uint32)0);
 
     if (restarter.waitNodesNoStart(&nodeId, 1))
     {
@@ -212,19 +218,26 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
     {
       Uint32 maxwait = 30;
       ndbout_c("running: 0x%.8x", running);
-      for (Uint32 checks = 0; checks < 3; checks++)
+      for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++)
       {
-        for (; maxwait != 0; maxwait--)
+        ctx->setProperty("Running", (Uint32)0);
+        for (; maxwait != 0 && !ctx->isTestStopped(); maxwait--)
         {
-          if (ctx->getProperty("Running", (Uint32)0) == running)
+          if ((ctx->getProperty("Running", (Uint32)0) & running) == running)
             goto ok;
           NdbSleep_SecSleep(1);
         }
+
+        if (ctx->isTestStopped())
+        {
+          g_err << "Test stopped while waiting for progress!" << endl;
+          return NDBT_FAILED;
+        }
+
         g_err << "No progress made!!" << endl;
         return NDBT_FAILED;
     ok:
         g_err << "Progress made!! " << endl;
-        (void)1;
       }
     }
 
@@ -239,6 +252,34 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "Cluster failed to start" << endl;
       result = NDBT_FAILED;
       break;
+    }
+
+    if (waitprogress)
+    {
+      Uint32 maxwait = 30;
+      ndbout_c("running: 0x%.8x", running);
+      for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++)
+      {
+        ctx->setProperty("Running", (Uint32)0);
+        for (; maxwait != 0 && !ctx->isTestStopped(); maxwait--)
+        {
+          if ((ctx->getProperty("Running", (Uint32)0) & running) == running)
+            goto ok2;
+          NdbSleep_SecSleep(1);
+        }
+
+        if (ctx->isTestStopped())
+        {
+          g_err << "Test stopped while waiting for progress!" << endl;
+          return NDBT_FAILED;
+        }
+
+        g_err << "No progress made!!" << endl;
+        return NDBT_FAILED;
+    ok2:
+        g_err << "Progress made!! " << endl;
+        ctx->setProperty("Running", (Uint32)0);
+      }
     }
 
     lastId++;
@@ -270,6 +311,8 @@ TESTCASE("NF_Join", ""){
   TC_PROPERTY("UntilStopped", 1);
   TC_PROPERTY("WaitProgress", 20);
   INITIALIZER(runLoadTable);
+  //STEPS(runScanJoin, 6);
+  //STEPS(runLookupJoin, 6);
   STEPS(runJoin, 6);
   STEP(runRestarter);
   FINALIZER(runClearTable);

@@ -2424,8 +2424,9 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     jam();
     Uint32 resultRef = inBuffer[inPos];
     Uint32 resultData = inBuffer[inPos + 1];
-    flush_read_buffer(req_struct, outBuf, resultRef, resultData);
-    return 2;
+    Uint32 routeRef = inBuffer[inPos + 2];
+    flush_read_buffer(req_struct, outBuf, resultRef, resultData, routeRef);
+    return 3;
   }
   case AttributeHeader::READ_ANY_VALUE:
   {
@@ -2614,24 +2615,49 @@ error:
 void
 Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
 			 const Uint32 * outBuf,
-			 Uint32 resultRef, Uint32 resultData)
+			 Uint32 resultRef,
+                         Uint32 resultData,
+                         Uint32 routeRef)
 {
   Uint32 sig1= req_struct->trans_id1;
   Uint32 sig2= req_struct->trans_id2;
   Uint32 len = (req_struct->out_buf_index >> 2) - 1;
   Signal * signal = req_struct->signal;
 
+  bool connectedToNode= getNodeInfo(refToNode(resultRef)).m_connected;
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p= (Uint32*)outBuf; // Should really remove this
+  ptr[0].sz= len;
+
   TransIdAI * transIdAI=  (TransIdAI *)signal->getDataPtrSend();
   transIdAI->connectPtr= resultData;
   transIdAI->transId[0]= sig1;
   transIdAI->transId[1]= sig2;
 
-  LinearSectionPtr ptr[3];
-  ptr[0].p= (Uint32*)outBuf; // Should really remove this
-  ptr[0].sz= len;
-  sendSignal(resultRef, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+  if (likely(connectedToNode))
+  {
+    sendSignal(resultRef, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+  }
+  else
+  {
+    jam();
+    if (outBuf == signal->theData + 3)
+    {
+      jam();
+      /**
+       * TUP guesses that it can EXECUTE_DIRECT if own-node,
+       *  it then puts outBuf == signal->theData+3
+       */
+      memmove(signal->theData+25, signal->theData+3, 4*len);
+      ptr[0].p = signal->theData+25;
+    }
+    transIdAI->attrData[0] = resultRef;
+    sendSignal(routeRef, GSN_TRANSID_AI_R, signal, 4, JBB, ptr, 1);
+  }
 
   req_struct->out_buf_index = 0; // Reset buffer
+  req_struct->out_buf_bits = 0;
 }
 
 Uint32

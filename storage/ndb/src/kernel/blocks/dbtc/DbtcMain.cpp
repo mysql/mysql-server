@@ -7659,7 +7659,21 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 {
   ScanFragRecPtr ptr;
   c_scan_frag_pool.getPtr(ptr, TscanConPtr);
-  DEBUG(TscanConPtr << " timeOutFoundFragLab: scanFragState = "<< ptr.p->scanFragState);
+#ifdef VM_TRACE
+  {
+    ScanRecordPtr scanptr;
+    scanptr.i = ptr.p->scanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ApiConnectRecordPtr TlocalApiConnectptr;
+    TlocalApiConnectptr.i = scanptr.p->scanApiRec;
+    ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    DEBUG("[ H'" << hex << TlocalApiConnectptr.p->transid[0]
+	<< " H'" << TlocalApiConnectptr.p->transid[1] << "] "
+        << TscanConPtr << " timeOutFoundFragLab: scanFragState = "
+        << ptr.p->scanFragState);
+  }
+#endif
 
   const Uint32 time_out_param= ctimeOutValue;
   const Uint32 old_time_out_param= c_abortRec.oldTimeOutValue;

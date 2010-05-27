@@ -117,6 +117,17 @@ SectionReader::peekWord(Uint32 * dst) const {
 }
 
 bool
+SectionReader::updateWord(Uint32 value) const 
+{
+  if(m_pos < m_len){
+    Uint32 ind = m_pos % SectionSegment::DataLength;
+    m_currentSegment->theData[ind] = value;
+    return true;
+  }
+  return false;
+}
+
+bool
 SectionReader::peekWords(Uint32 * dst, Uint32 len) const {
   if(m_pos + len > m_len)
     return false;

@@ -4144,6 +4144,7 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     const Uint32 senderData= truncatedScanFragReq->senderData;
     const Uint32 transid1= truncatedScanFragReq->transId1;
     const Uint32 transid2= truncatedScanFragReq->transId2;
+    const Uint32 fragId = truncatedScanFragReq->fragmentNoKeyLen;
 
     /* Send SCAN_FRAGREF back to the client */
     ScanFragRef* ref= (ScanFragRef*)&signal->theData[0];
@@ -4151,7 +4152,8 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     ref->transId1= transid1;
     ref->transId2= transid2;
     ref->errorCode= ZGET_ATTRINBUF_ERROR;
-    
+    ref->fragId = fragId;
+
     sendSignal(signal->senderBlockRef(), GSN_SCAN_FRAGREF, signal,
                ScanFragRef::SignalLength, JBB);
     break;
@@ -4203,16 +4205,13 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
-  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED(5031)) {
+  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5031)) {
     jamEntry();
     seizeTcrec();
   } else {
 /* ------------------------------------------------------------------------- */
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
-    if (ERROR_INSERTED(5031)) {
-      CLEAR_ERROR_INSERT_VALUE;
-    }
     releaseSections(handle);
     noFreeRecordLab(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
     return;
@@ -8628,7 +8627,7 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
     tcKeyRef->transId[0] = regTcPtr->transid[0];
     tcKeyRef->transId[1] = regTcPtr->transid[1];
     tcKeyRef->errorCode = regTcPtr->errorCode;
-    sendTCKEYREF(signal, regTcPtr->applRef, regTcPtr->clientBlockref, 0);
+    sendTCKEYREF(signal, regTcPtr->applRef, regTcPtr->tcBlockref, 0);
     cleanUp(signal);
     return;
   }//if
@@ -9789,7 +9788,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     goto error_handler_early_1;
   }
   
-  if (cfirstfreeTcConrec != RNIL) {
+  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5055)) {
     seizeTcrec();
     tcConnectptr.p->clientConnectrec = scanFragReq->senderData;
     tcConnectptr.p->clientBlockref = signal->senderBlockRef();
@@ -9919,6 +9918,7 @@ error_handler:
   ref->transId1 = transid1;
   ref->transId2 = transid2;
   ref->errorCode = errorCode;
+  ref->fragId = fragId;
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	     ScanFragRef::SignalLength, JBB);
   releaseSections(handle);
@@ -9936,6 +9936,7 @@ error_handler:
   ref->transId1 = transid1;
   ref->transId2 = transid2;
   ref->errorCode = errorCode;
+  ref->fragId = fragId;
   sendSignal(signal->senderBlockRef(), GSN_SCAN_FRAGREF, signal,
 	     ScanFragRef::SignalLength, JBB);
 }//Dblqh::execSCAN_FRAGREQ()
@@ -10030,6 +10031,7 @@ void Dblqh::abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode){
     ref->transId1 = tcConnectptr.p->transid[0];
     ref->transId2 = tcConnectptr.p->transid[1];
     ref->errorCode = errcode;
+    ref->fragId = tcConnectptr.p->fragmentid;
     sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	       ScanFragRef::SignalLength, JBB);
   }
@@ -10212,6 +10214,7 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     ndbrequire( keyInfoReader.getWord(&firstWord) );
     const Uint32 rangeLen= (firstWord >> 16) ? (firstWord >> 16) : totalLen;
     tcPtrP->m_scan_curr_range_no= (firstWord & 0xFFF0) >> 4;
+    tcPtrP->m_anyValue = ((firstWord & 0xFFF0) >> 4) << 16;
     
     firstWord &= 0xF; // Remove length+range num from first word
     
@@ -10972,6 +10975,7 @@ void Dblqh::tupScanCloseConfLab(Signal* signal)
     ref->transId1 = tcConnectptr.p->transid[0];
     ref->transId2 = tcConnectptr.p->transid[1];
     ref->errorCode = tcConnectptr.p->errorCode; 
+    ref->fragId = tcConnectptr.p->fragmentid;
     sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	 ScanFragRef::SignalLength, JBB);
   } else {
@@ -11457,6 +11461,7 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
 #ifdef NOT_USED
   NodeId tc_node_id= refToNode(tcConnectptr.p->clientBlockref);
 #endif
+  Uint32 fragId = tcConnectptr.p->fragmentid;
   Uint32 trans_id1= tcConnectptr.p->transid[0];
   Uint32 trans_id2= tcConnectptr.p->transid[1];
 
@@ -11466,6 +11471,7 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
   conf->transId1 = trans_id1;
   conf->transId2 = trans_id2;
   conf->total_len= total_len;
+  conf->fragId = fragId;
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGCONF, 
              signal, ScanFragConf::SignalLength, JBB);
   

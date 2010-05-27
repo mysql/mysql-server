@@ -1876,6 +1876,9 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB);
 
+  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
   if (c_stopRec.stopReq.senderRef)
   {
     jam();

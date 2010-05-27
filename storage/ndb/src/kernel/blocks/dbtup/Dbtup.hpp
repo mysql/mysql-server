@@ -2461,7 +2461,7 @@ private:
   void update_lcp(KeyReqStruct *req_struct, const Uint32* src, Uint32 len);
 
   void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
-			 Uint32 resultRef, Uint32 resultData);
+			 Uint32 resultRef, Uint32 resultData, Uint32 routeRef);
 public:
   /**
    * Used by Restore...
