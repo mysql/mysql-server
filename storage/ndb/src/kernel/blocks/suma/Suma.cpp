@@ -1526,6 +1526,8 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     Subscription::REPORT_ALL : 0;
   const Uint32 reportSubscribe = (flags & SubCreateReq::ReportSubscribe) ?
     Subscription::REPORT_SUBSCRIBE : 0;
+  const Uint32 noReportDDL = (flags & SubCreateReq::NoReportDDL) ?
+    Subscription::NO_REPORT_DDL : 0;
   const Uint32 tableId = req.tableId;
 
   bool subDropped = req.subscriptionType & SubCreateReq::NR_Sub_Dropped;
@@ -1598,7 +1600,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     subPtr.p->m_triggers[1]      = ILLEGAL_TRIGGER_ID;
     subPtr.p->m_triggers[2]      = ILLEGAL_TRIGGER_ID;
     subPtr.p->m_errorCode        = 0;
-    subPtr.p->m_options          = reportSubscribe | reportAll;
+    subPtr.p->m_options          = reportSubscribe | reportAll | noReportDDL;
   }
 
   Ptr<SubOpRecord> subOpPtr;
@@ -3984,14 +3986,21 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   LocalDLList<Subscription> subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
 
-  for (subList.first(subPtr); !subPtr.isNull(); )
+  for (subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
   {
+    jam();
     if(subPtr.p->m_subscriptionType != SubCreateReq::TableEvent)
     {
       jam();
       continue;
       //continue in for-loop if the table is not part of
       //the subscription. Otherwise, send data to subscriber.
+    }
+
+    if (subPtr.p->m_options & Subscription::NO_REPORT_DDL)
+    {
+      jam();
+      continue;
     }
 
     Ptr<Subscriber> ptr;
@@ -4003,9 +4012,6 @@ Suma::execDROP_TAB_CONF(Signal *signal)
       sendSignal(ptr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                  SubTableData::SignalLength, JBB);
     }
-    
-    Ptr<Subscription> tmp = subPtr;
-    subList.next(subPtr);
   }
 }
 
@@ -4077,6 +4083,12 @@ Suma::execALTER_TAB_REQ(Signal *signal)
       //the subscription. Otherwise, send data to subscriber.
     }
   
+    if (subPtr.p->m_options & Subscription::NO_REPORT_DDL)
+    {
+      jam();
+      continue;
+    }
+
     Ptr<Subscriber> ptr;
     LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
     for(list.first(ptr); !ptr.isNull(); list.next(ptr))
@@ -4541,6 +4553,11 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
   if (subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE)
   {
     req->subscriptionType |= SubCreateReq::ReportSubscribe;
+  }
+
+  if (subPtr.p->m_options & Subscription::NO_REPORT_DDL)
+  {
+    req->subscriptionType |= SubCreateReq::NoReportDDL;
   }
 
   if (subPtr.p->m_options & Subscription::MARKED_DROPPED)

@@ -181,6 +181,7 @@ struct CreateEvntReq {
   enum EventFlags {
     EF_REPORT_ALL = 0x1 << 16,
     EF_REPORT_SUBSCRIBE = 0x2 << 16,
+    EF_NO_REPORT_DDL = 0x4 << 16,
     EF_ALL = 0xFFFF << 16
   };
   STATIC_CONST( SignalLengthGet = 3 );
@@ -288,6 +289,15 @@ struct CreateEvntReq {
   }
   void setReportSubscribe() {
     m_eventType|= EF_REPORT_SUBSCRIBE;
+  }
+  Uint32 getReportDDL() const {
+    return (m_eventType & EF_NO_REPORT_DDL) == 0;
+  }
+  void setReportDDL() {
+    m_eventType &= ~(Uint32)EF_NO_REPORT_DDL;
+  }
+  void clearReportDDL() {
+    m_eventType |= EF_NO_REPORT_DDL;
   }
 };
 
