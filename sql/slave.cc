@@ -2849,7 +2849,6 @@ pthread_handler_t handle_slave_sql(void *arg)
   my_off_t saved_log_pos;
   my_off_t saved_master_log_pos;
   my_off_t saved_skip= 0;
-
   Relay_log_info* rli = &((Master_info*)arg)->rli;
   const char *errmsg;
 
@@ -2857,6 +2856,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
 
+  LINT_INIT(saved_master_log_pos);
+  LINT_INIT(saved_log_pos);
   DBUG_ASSERT(rli->inited);
   pthread_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(!rli->slave_running);

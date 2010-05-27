@@ -609,7 +609,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     if (error == 0)
       param->examined_rows++;
    
-    int rc= 0;
     if (error == 0 && (!select || select->skip_record(thd) > 0))
     {
       if (idx == param->keys)

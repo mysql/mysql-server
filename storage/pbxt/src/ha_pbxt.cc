@@ -1232,8 +1232,6 @@ static int pbxt_init(void *p)
 				THD *thd = NULL;
 
 #ifndef DRIZZLED
-				extern myxt_mutex_t LOCK_plugin;
-
 				/* {MYSQL QUIRK}
 				 * I have to release this lock for PBXT recovery to
 				 * work, because it needs to open .frm files.
@@ -1251,6 +1249,7 @@ static int pbxt_init(void *p)
 				 * plugin at the same time.
 				 */
 #if MYSQL_VERSION_ID <= 50146
+				extern myxt_mutex_t LOCK_plugin;
 				myxt_mutex_unlock(&LOCK_plugin);
 #endif
 #endif
