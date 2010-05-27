@@ -78,6 +78,3 @@ EXTRA_DIST =		FINISH.sh \
 			compile-solaris-sparc-debug \
 			compile-solaris-sparc-forte \
 			compile-solaris-sparc-purify
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

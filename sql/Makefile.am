@@ -273,6 +273,3 @@ probes_libndb.o: probes_mysql.d libndb_la-ha_ndbcluster.lo
 	fi
 
 endif
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
