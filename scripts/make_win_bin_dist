@@ -249,6 +249,7 @@ cp include/mysql.h \
    include/decimal.h \
    include/errmsg.h \
    include/my_global.h \
+   include/my_config.h \
    include/my_net.h \
    include/my_getopt.h \
    include/sslopt-longopts.h \
