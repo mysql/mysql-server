@@ -274,6 +274,9 @@ main(int argc, const char** argv){
     for(int a = 0; a < table->getNoOfColumns(); a++){
       myEvent->addEventColumn(a);
     }
+    myEvent->setReport((NdbDictionary::Event::EventReport)
+                       (NdbDictionary::Event::ER_UPDATED |
+                        NdbDictionary::Event::ER_DDL));
 
     if (myDict->createEvent(* myEvent))
     {

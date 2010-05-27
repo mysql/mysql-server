@@ -4237,30 +4237,38 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
       DBUG_RETURN(-1);
     }
     /* No primary key, subscribe for all attributes */
-    my_event.setReport(NDBEVENT::ER_ALL);
+    my_event.setReport((NDBEVENT::EventReport)
+                       (NDBEVENT::ER_ALL | NDBEVENT::ER_DDL));
     DBUG_PRINT("info", ("subscription all"));
   }
   else
   {
-    if (ndb_schema_share || strcmp(share->db, NDB_REP_DB) ||
-        strcmp(share->table_name, NDB_SCHEMA_TABLE))
+    if (strcmp(share->db, NDB_REP_DB) == 0 &&
+        strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
+    {
+      /**
+       * ER_SUBSCRIBE is only needed on NDB_SCHEMA_TABLE
+       */
+      my_event.setReport((NDBEVENT::EventReport)
+                         (NDBEVENT::ER_ALL |
+                          NDBEVENT::ER_SUBSCRIBE |
+                          NDBEVENT::ER_DDL));
+      DBUG_PRINT("info", ("subscription all and subscribe"));
+    }
+    else
     {
       if (get_binlog_full(share))
       {
-        my_event.setReport(NDBEVENT::ER_ALL);
+        my_event.setReport((NDBEVENT::EventReport)
+                           (NDBEVENT::ER_ALL | NDBEVENT::ER_DDL));
         DBUG_PRINT("info", ("subscription all"));
       }
       else
       {
-        my_event.setReport(NDBEVENT::ER_UPDATED);
+        my_event.setReport((NDBEVENT::EventReport)
+                           (NDBEVENT::ER_UPDATED | NDBEVENT::ER_DDL));
         DBUG_PRINT("info", ("subscription only updated"));
       }
-    }
-    else
-    {
-      my_event.setReport((NDBEVENT::EventReport)
-                         (NDBEVENT::ER_ALL | NDBEVENT::ER_SUBSCRIBE));
-      DBUG_PRINT("info", ("subscription all and subscribe"));
     }
   }
   if (share->flags & NSF_BLOB_FLAG)
