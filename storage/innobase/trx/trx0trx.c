@@ -168,9 +168,9 @@ trx_allocate_for_mysql(void)
 
 	trx = trx_allocate_for_background();
 
-	trx_sys_mutex_enter();
+	os_atomic_inc_ulint(&trx_sys->mutex, &trx_n_mysql_transactions, 1);
 
-	trx_n_mysql_transactions++;
+	trx_sys_mutex_enter();
 
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
@@ -308,11 +308,9 @@ trx_free_for_mysql(
 
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
-	ut_a(trx_n_mysql_transactions > 0);
-
-	trx_n_mysql_transactions--;
-
 	trx_sys_mutex_exit();
+
+	os_atomic_dec_ulint(&trx_sys->mutex, &trx_n_mysql_transactions, 1);
 
 	trx_free_for_background(trx);
 }

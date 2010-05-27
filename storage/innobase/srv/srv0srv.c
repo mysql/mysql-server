@@ -693,7 +693,7 @@ struct srv_sys_struct{
 };
 
 /* mutex protecting the server, trx structs, query threads, and lock table */
-UNIV_INTERN mutex_t*	server_mutex;
+UNIV_INTERN mutex_t	server_mutex;
 
 static srv_sys_t*	srv_sys	= NULL;
 
@@ -958,8 +958,7 @@ srv_init(void)
 	srv_conc_slot_t*	conc_slot;
 	ulint			srv_sys_sz;
 
-	server_mutex = mem_alloc(sizeof(mutex_t));
-	mutex_create(server_mutex_key, server_mutex, SYNC_KERNEL);
+	mutex_create(server_mutex_key, &server_mutex, SYNC_NO_ORDER_CHECK);
 
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
@@ -1025,9 +1024,6 @@ srv_free(void)
 	been freed by sync_close() already. */
 	mem_free(srv_sys);
 	srv_sys = NULL;
-
-	mem_free(server_mutex);
-	server_mutex = NULL;
 
 	trx_i_s_cache_free(trx_i_s_cache);
 }
