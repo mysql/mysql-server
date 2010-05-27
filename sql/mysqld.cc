@@ -5343,11 +5343,11 @@ inline void kill_broken_server()
 
 void handle_connections_sockets()
 {
-  my_socket sock,new_sock;
+  my_socket UNINIT_VAR(sock), UNINIT_VAR(new_sock);
   uint error_count=0;
   THD *thd;
   struct sockaddr_storage cAddr;
-  int ip_flags=0,socket_flags=0,flags,retval;
+  int ip_flags=0,socket_flags=0,flags=0,retval;
   st_vio *vio_tmp;
 #ifdef HAVE_POLL
   int socket_count= 0;
@@ -5358,8 +5358,6 @@ void handle_connections_sockets()
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
-
-  LINT_INIT(new_sock);
 
 #ifndef HAVE_POLL
   FD_ZERO(&clientFDs);
@@ -7918,8 +7916,9 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_master_info_data_lock, key_master_info_run_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
-  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data, key_LOCK_error_messages,
-  key_LOG_INFO_lock, key_LOCK_thread_count;
+  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
+  key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
+  key_PARTITION_LOCK_auto_inc;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7973,7 +7972,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0},
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
-  { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL}
+  { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
+  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,

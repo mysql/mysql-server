@@ -2943,7 +2943,7 @@ end_with_restore_list:
           access is granted. We need to check if first_table->grant.privilege
           contains any table-specific privilege.
         */
-        DBUG_PRINT("debug", ("first_table->grant.privilege: %x",
+        DBUG_PRINT("debug", ("first_table->grant.privilege: %lx",
                              first_table->grant.privilege));
         if (check_some_access(thd, SHOW_CREATE_TABLE_ACLS, first_table) ||
             (first_table->grant.privilege & SHOW_CREATE_TABLE_ACLS) == 0)
