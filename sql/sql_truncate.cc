@@ -52,6 +52,22 @@ delete_all_rows(THD *thd, TABLE *table)
   thd->clear_current_stmt_binlog_format_row();
 
   /*
+    Update handler statistics (e.g. table->file->stats.records).
+    Might be used by the storage engine to aggregate information
+    necessary to allow deletion. Currently, this seems to be
+    meaningful only to the archive storage engine, which uses
+    the info method to set the number of records. Although
+    archive does not support deletion, it becomes necessary in
+    order to return a error if the table is not empty.
+  */
+  error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+  if (error && error != HA_ERR_WRONG_COMMAND)
+  {
+    table->file->print_error(error, MYF(0));
+    goto end;
+  }
+
+  /*
     Attempt to delete all rows in the table.
     If it is unsupported, switch to row by row deletion.
   */
@@ -455,6 +471,11 @@ bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
     trans_rollback(thd);
   }
 
+  /*
+    A locked table ticket was upgraded to a exclusive lock. After the
+    the query has been written to the binary log, downgrade the lock
+    to a shared one.
+  */
   if (mdl_ticket)
     mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
 
