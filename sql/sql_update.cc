@@ -397,7 +397,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->mark_columns_used_by_index(used_index);
+      table->add_read_columns_used_by_index(used_index);
     else
     {
       table->use_all_columns();
