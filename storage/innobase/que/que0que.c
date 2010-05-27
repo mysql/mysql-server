@@ -1317,6 +1317,5 @@ void
 que_close(void)
 /*===========*/
 {
-	mutex_free(&que_thr_mutex);
-	memset(&que_thr_mutex, 0x0, sizeof(que_thr_mutex));
+	/* No op */
 }
