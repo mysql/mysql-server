@@ -1978,8 +1978,6 @@ i_s_dict_fill_sys_tables(
 
 	DBUG_ENTER("i_s_dict_fill_sys_tables");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
 	fields = table_to_fill->field;
 
 	table_id = ut_conv_dulint_to_longlong(table->id);
@@ -2245,8 +2243,6 @@ i_s_dict_fill_sys_tablestats(
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablestats");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
 	fields = table_to_fill->field;
 
 	table_id = ut_conv_dulint_to_longlong(table->id);
@@ -2510,8 +2506,6 @@ i_s_dict_fill_sys_indexes(
 
 	DBUG_ENTER("i_s_dict_fill_sys_indexes");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
 	fields = table_to_fill->field;
 
 	table_id = ut_conv_dulint_to_longlong(tableid);
@@ -2754,8 +2748,6 @@ i_s_dict_fill_sys_columns(
 
 	DBUG_ENTER("i_s_dict_fill_sys_columns");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
 	fields = table_to_fill->field;
 
 	table_id = ut_conv_dulint_to_longlong(tableid);
@@ -2965,8 +2957,6 @@ i_s_dict_fill_sys_fields(
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_fields");
-
-	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	fields = table_to_fill->field;
 
@@ -3194,8 +3184,6 @@ i_s_dict_fill_sys_foreign(
 
 	DBUG_ENTER("i_s_dict_fill_sys_foreign");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
 	fields = table_to_fill->field;
 
 	OK(field_store_string(fields[SYS_FOREIGN_ID], foreign->id));
@@ -3410,8 +3398,6 @@ i_s_dict_fill_sys_foreign_cols(
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_foreign_cols");
-
-	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	fields = table_to_fill->field;
 
