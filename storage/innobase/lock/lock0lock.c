@@ -671,7 +671,7 @@ lock_get_src_table(
 	src = NULL;
 	*mode = LOCK_NONE;
 
-	for (lock = UT_LIST_GET_FIRST(trx->trx_locks);
+	for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 	     lock;
 	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 		lock_table_t*	tab_lock;
@@ -787,9 +787,9 @@ lock_set_lock_and_trx_wait(
 {
 	ut_ad(lock);
 	ut_ad(trx_mutex_own(trx));
-	ut_ad(trx->wait_lock == NULL);
+	ut_ad(trx->lock.wait_lock == NULL);
 
-	trx->wait_lock = lock;
+	trx->lock.wait_lock = lock;
 	lock->type_mode |= LOCK_WAIT;
 }
 
@@ -802,13 +802,13 @@ lock_reset_lock_and_trx_wait(
 /*=========================*/
 	lock_t*	lock)	/*!< in: record lock */
 {
-	ut_ad((lock->trx)->wait_lock == lock);
+	ut_ad((lock->trx)->lock.wait_lock == lock);
 	ut_ad(lock_get_wait(lock));
 	ut_ad(trx_mutex_own(lock->trx));
 
 	/* Reset the back pointer in trx to this waiting lock request */
 
-	lock->trx->wait_lock = NULL;
+	lock->trx->lock.wait_lock = NULL;
 	lock->type_mode &= ~LOCK_WAIT;
 }
 
@@ -1628,7 +1628,7 @@ lock_number_of_rows_locked(
 	ulint	n_bits;
 	ulint	n_bit;
 
-	lock = UT_LIST_GET_FIRST(trx->trx_locks);
+	lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 
 	while (lock) {
 		if (lock_get_type_low(lock) == LOCK_REC) {
@@ -1696,7 +1696,7 @@ lock_rec_create(
 	n_bits = page_dir_get_n_heap(page) + LOCK_PAGE_BITMAP_MARGIN;
 	n_bytes = 1 + n_bits / 8;
 
-	lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t) + n_bytes);
+	lock = mem_heap_alloc(trx->lock.lock_heap, sizeof(lock_t) + n_bytes);
 
 	lock->trx = trx;
 
@@ -1723,7 +1723,7 @@ lock_rec_create(
 	}
 
 	if (append) {
-		UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);
+		UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
 	}
 
 	return(lock);
@@ -1808,15 +1808,15 @@ lock_rec_enqueue_waiting(
 	/* If there was a deadlock but we chose another transaction as a
 	victim, it is possible that we already have the lock now granted! */
 
-	if (trx->wait_lock == NULL) {
+	if (trx->lock.wait_lock == NULL) {
 
 		return(DB_SUCCESS);
 	}
 
-	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
-	trx->was_chosen_as_deadlock_victim = FALSE;
-	trx->wait_started = ut_time();
+	trx->lock.was_chosen_as_deadlock_victim = FALSE;
+	trx->lock.wait_started = ut_time();
 
 	ut_a(que_thr_stop(thr));
 
@@ -1978,7 +1978,7 @@ lock_rec_lock_fast(
 
 			trx_mutex_enter(trx);
 
-			UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);
+			UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
 
 			trx_mutex_exit(trx);
 		}
@@ -2213,7 +2213,7 @@ lock_grant(
 	TRX_QUE_LOCK_WAIT state, and there is no need to end the lock wait
 	for it */
 
-	if (lock->trx->que_state == TRX_QUE_LOCK_WAIT) {
+	if (lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 		que_thr_end_wait(lock->trx);
 	}
 
@@ -2278,7 +2278,7 @@ lock_rec_dequeue_from_page(
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
 
-	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
+	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, in_lock);
 
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
@@ -2321,7 +2321,7 @@ lock_rec_discard(
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
 
-	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
+	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, in_lock);
 }
 
 /*************************************************************//**
@@ -3312,7 +3312,7 @@ retry:
 	mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (mark_trx) {
-		mark_trx->deadlock_mark = 0;
+		mark_trx->lock.deadlock_mark = 0;
 		mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx);
 	}
 
@@ -3400,7 +3400,7 @@ lock_deadlock_recursive(
 	ut_a(wait_lock);
 	ut_ad(lock_mutex_own());
 
-	if (trx->deadlock_mark == 1) {
+	if (trx->lock.deadlock_mark == 1) {
 		/* We have already exhaustively searched the subtree starting
 		from this trx */
 
@@ -3451,7 +3451,7 @@ lock_deadlock_recursive(
 
 		if (lock == NULL) {
 			/* We can mark this subtree as searched */
-			trx->deadlock_mark = 1;
+			trx->lock.deadlock_mark = 1;
 
 			return(FALSE);
 		}
@@ -3505,11 +3505,13 @@ lock_deadlock_recursive(
 				fputs("*** (2) WAITING FOR THIS LOCK"
 				      " TO BE GRANTED:\n", ef);
 
-				if (lock_get_type_low(start->wait_lock)
+				if (lock_get_type_low(start->lock.wait_lock)
 				    == LOCK_REC) {
-					lock_rec_print(ef, start->wait_lock);
+					lock_rec_print(ef,
+						       start->lock.wait_lock);
 				} else {
-					lock_table_print(ef, start->wait_lock);
+					lock_table_print(ef,
+							 start->lock.wait_lock);
 				}
 #ifdef UNIV_DEBUG
 				if (lock_print_waits) {
@@ -3539,7 +3541,7 @@ lock_deadlock_recursive(
 				fputs("*** WE ROLL BACK TRANSACTION (1)\n",
 				      ef);
 
-				wait_lock->trx->was_chosen_as_deadlock_victim
+				wait_lock->trx->lock.was_chosen_as_deadlock_victim
 					= TRUE;
 
 				lock_cancel_waiting_and_release(wait_lock);
@@ -3575,7 +3577,7 @@ lock_deadlock_recursive(
 			we hold the lock mutex. FIXME: Confirm. */
 			//trx_mutex_enter(lock_trx);
 
-			if (lock_trx->que_state == TRX_QUE_LOCK_WAIT) {
+			if (lock_trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
 				//trx_mutex_exit(lock_trx);
 
@@ -3585,7 +3587,8 @@ lock_deadlock_recursive(
 
 				ret = lock_deadlock_recursive(
 					start, lock_trx,
-					lock_trx->wait_lock, cost, depth + 1);
+					lock_trx->lock.wait_lock,
+				       	cost, depth + 1);
 
 				if (ret != 0) {
 
@@ -3647,10 +3650,10 @@ lock_table_create(
 
 		ib_vector_push(trx->autoinc_locks, lock);
 	} else {
-		lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t));
+		lock = mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock));
 	}
 
-	UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);
+	UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
 
 	lock->type_mode = type_mode | LOCK_TABLE;
 	lock->trx = trx;
@@ -3716,7 +3719,7 @@ lock_table_remove_low(
 		--table->n_waiting_or_granted_auto_inc_locks;
 	}
 
-	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
+	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, lock);
 	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
 }
 
@@ -3787,17 +3790,17 @@ lock_table_enqueue_waiting(
 		return(DB_DEADLOCK);
 	}
 
-	if (trx->wait_lock == NULL) {
+	if (trx->lock.wait_lock == NULL) {
 		/* Deadlock resolution chose another transaction as a victim,
 		and we accidentally got our lock granted! */
 
 		return(DB_SUCCESS);
 	}
 
-	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
-	trx->wait_started = ut_time();
-	trx->was_chosen_as_deadlock_victim = FALSE;
+	trx->lock.wait_started = ut_time();
+	trx->lock.was_chosen_as_deadlock_victim = FALSE;
 
 	ut_a(que_thr_stop(thr));
 
@@ -4074,9 +4077,9 @@ lock_release(
 	ut_ad(trx_mutex_own(trx));
 	ut_ad(trx_sys_mutex_own());
 
-	for (lock = UT_LIST_GET_LAST(trx->trx_locks);
+	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
-	     lock = UT_LIST_GET_LAST(trx->trx_locks)) {
+	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
 			lock_rec_dequeue_from_page(lock);
@@ -4103,7 +4106,7 @@ lock_release(
 
 	ut_a(ib_vector_size(trx->autoinc_locks) == 0);
 
-	mem_heap_empty(trx->lock_heap);
+	mem_heap_empty(trx->lock.lock_heap);
 }
 
 /* True if a lock mode is S or X */
@@ -4131,7 +4134,7 @@ lock_remove_all_on_table_for_trx(
 
 	ut_ad(lock_mutex_own());
 
-	lock = UT_LIST_GET_LAST(trx->trx_locks);
+	lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 
 	while (lock != NULL) {
 		prev_lock = UT_LIST_GET_PREV(trx_locks, lock);
@@ -4472,7 +4475,7 @@ lock_print_info_all_transactions(
 	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
 
 	while (trx) {
-		if (trx->conc_state == TRX_NOT_STARTED) {
+		if (trx->lock.conc_state == TRX_NOT_STARTED) {
 			fputs("---", file);
 			trx_print(file, trx, 600);
 		}
@@ -4523,18 +4526,18 @@ loop:
 					trx->read_view->up_limit_id));
 		}
 
-		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
+		if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
 			fprintf(file,
 				"------- TRX HAS BEEN WAITING %lu SEC"
 				" FOR THIS LOCK TO BE GRANTED:\n",
 				(ulong) difftime(ut_time(),
-						 trx->wait_started));
+						 trx->lock.wait_started));
 
-			if (lock_get_type_low(trx->wait_lock) == LOCK_REC) {
-				lock_rec_print(file, trx->wait_lock);
+			if (lock_get_type_low(trx->lock.wait_lock) == LOCK_REC) {
+				lock_rec_print(file, trx->lock.wait_lock);
 			} else {
-				lock_table_print(file, trx->wait_lock);
+				lock_table_print(file, trx->lock.wait_lock);
 			}
 
 			fputs("------------------\n", file);
@@ -4553,7 +4556,7 @@ loop:
 	/* Look at the note about the trx loop above why we loop here:
 	lock may be an obsolete pointer now. */
 
-	lock = UT_LIST_GET_FIRST(trx->trx_locks);
+	lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 
 	while (lock && (i < nth_lock)) {
 		lock = UT_LIST_GET_NEXT(trx_locks, lock);
@@ -4650,9 +4653,10 @@ lock_table_queue_validate(
 	lock = UT_LIST_GET_FIRST(table->locks);
 
 	while (lock) {
-		ut_a(((lock->trx)->conc_state == TRX_ACTIVE)
-		     || ((lock->trx)->conc_state == TRX_PREPARED)
-		     || ((lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY));
+		ut_a((lock->trx->lock.conc_state == TRX_ACTIVE)
+		     || (lock->trx->lock.conc_state == TRX_PREPARED)
+		     || (lock->trx->lock.conc_state
+			 == TRX_COMMITTED_IN_MEMORY));
 
 		if (!lock_get_wait(lock)) {
 
@@ -4700,7 +4704,7 @@ lock_rec_queue_validate(
 		lock = lock_rec_get_first(block, heap_no);
 
 		while (lock) {
-			switch(lock->trx->conc_state) {
+			switch(lock->trx->lock.conc_state) {
 			case TRX_ACTIVE:
 			case TRX_PREPARED:
 			case TRX_COMMITTED_IN_MEMORY:
@@ -4787,9 +4791,9 @@ lock_rec_queue_validate(
 	lock = lock_rec_get_first(block, heap_no);
 
 	while (lock) {
-		ut_a(lock->trx->conc_state == TRX_ACTIVE
-		     || lock->trx->conc_state == TRX_PREPARED
-		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
+		ut_a(lock->trx->lock.conc_state == TRX_ACTIVE
+		     || lock->trx->lock.conc_state == TRX_PREPARED
+		     || lock->trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY);
 		ut_a(trx_in_trx_list(lock->trx));
 
 		if (index) {
@@ -4876,9 +4880,9 @@ loop:
 
 	ut_a(trx_in_trx_list(lock->trx));
 
-	ut_a(lock->trx->conc_state == TRX_ACTIVE
-	     || lock->trx->conc_state == TRX_PREPARED
-	     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
+	ut_a(lock->trx->lock.conc_state == TRX_ACTIVE
+	     || lock->trx->lock.conc_state == TRX_PREPARED
+	     || lock->trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY);
 
 # ifdef UNIV_SYNC_DEBUG
 	/* Only validate the record queues when this thread is not
@@ -4960,7 +4964,7 @@ lock_validate(void)
 
 		trx_mutex_enter(trx);
 
-		lock = UT_LIST_GET_FIRST(trx->trx_locks);
+		lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 
 		while (lock) {
 			if (lock_get_type_low(lock) & LOCK_TABLE) {

@@ -1343,7 +1343,8 @@ dict_load_indexes(
 
 		err_msg = dict_load_index_low(buf, table->name, heap, rec,
 					      TRUE, &index);
-		ut_ad((index == NULL) == (err_msg != NULL));
+		ut_ad((index == NULL && err_msg != NULL)
+		      || (index != NULL && err_msg == NULL));
 
 		if (err_msg == dict_load_index_id_err) {
 			/* TABLE_ID mismatch means that we have

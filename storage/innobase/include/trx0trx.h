@@ -311,7 +311,7 @@ is estimated as the number of altered rows + the number of locked rows.
 @param t	transaction
 @return		transaction weight */
 #define TRX_WEIGHT(t)	\
-	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->trx_locks))
+	ut_dulint_add((t)->undo_no, UT_LIST_GET_LEN((t)->lock.trx_locks))
 
 /*******************************************************************//**
 Compares the "weight" (or size) of two transactions. Transactions that
@@ -357,6 +357,48 @@ struct trx_sig_struct{
 	trx_savept_t	savept;		/*!< possible rollback savepoint */
 };
 
+typedef struct trx_lock_struct trx_lock_t;
+
+/** Transactions locks and state, these variables are protected by
+the lock_sys->mutex and trx_mutex. */
+struct trx_lock_struct {
+	trx_conc_t	conc_state;	/*!< state of the trx from the point
+					of view of concurrency control:
+					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
+					... */
+	ulint		n_active_thrs;	/*!< number of active query threads */
+
+	trx_que_t	que_state;	/*!< valid when conc_state
+					== TRX_ACTIVE: TRX_QUE_RUNNING,
+					TRX_QUE_LOCK_WAIT, ... */
+
+	lock_t*		wait_lock;	/*!< if trx execution state is
+					TRX_QUE_LOCK_WAIT, this points to
+					the lock request, otherwise this is
+					NULL */
+	ulint		deadlock_mark;	/*!< a mark field used in deadlock
+					checking algorithm.  */
+	ibool		was_chosen_as_deadlock_victim;
+					/* when the transaction decides to wait
+					for a lock, it sets this to FALSE;
+					if another transaction chooses this
+					transaction as a victim in deadlock
+					resolution, it sets this to TRUE */
+
+	time_t		wait_started;	/*!< lock wait started at this time */
+
+	que_thr_t*	wait_thr;	/*!< query thread beloging to this
+					trx that is in QUE_THR_LOCK_WAIT
+				       	state */
+
+	mem_heap_t*	lock_heap;	/*!< memory heap for the locks of the
+					transaction */
+
+	UT_LIST_BASE_NODE_T(lock_t)
+			trx_locks;	/*!< locks reserved by the
+				       	transaction */
+};
+
 #define TRX_MAGIC_N	91118598
 
 /* The transaction handle; every session has a trx object which is freed only
@@ -373,10 +415,6 @@ struct trx_struct{
 	const char*	op_info;	/*!< English text describing the
 					current operation, or an empty
 					string */
-	trx_conc_t	conc_state;	/*!< state of the trx from the point
-					of view of concurrency control:
-					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
-					... */
 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
 	ulint		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
@@ -413,8 +451,6 @@ struct trx_struct{
 	ulint		has_search_latch;
 					/* TRUE if this trx has latched the
 					search system latch in S-mode */
-	ulint		deadlock_mark;	/*!< a mark field used in deadlock
-					checking algorithm.  */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op */
 
 	/* Fields protected by the srv_conc_mutex. */
@@ -435,9 +471,6 @@ struct trx_struct{
 	undo logs which are protected by undo_mutex */
 	ulint		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back */
-	trx_que_t	que_state;	/*!< valid when conc_state
-					== TRX_ACTIVE: TRX_QUE_RUNNING,
-					TRX_QUE_LOCK_WAIT, ... */
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
 					TRX_ACTIVE */
@@ -516,7 +549,6 @@ struct trx_struct{
 					survive over a transaction commit, if
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
-	ulint		n_active_thrs;	/*!< number of active query threads */
 	que_t*		graph_before_signal_handling;
 					/* value of graph when signal handling
 					for this trx started: this is used to
@@ -524,26 +556,8 @@ struct trx_struct{
 					graph for error processing */
 	trx_sig_t	sig;		/*!< signal object  */
 	/*------------------------------*/
-	lock_t*		wait_lock;	/*!< if trx execution state is
-					TRX_QUE_LOCK_WAIT, this points to
-					the lock request, otherwise this is
-					NULL */
-	ibool		was_chosen_as_deadlock_victim;
-					/* when the transaction decides to wait
-					for a lock, it sets this to FALSE;
-					if another transaction chooses this
-					transaction as a victim in deadlock
-					resolution, it sets this to TRUE */
-	time_t		wait_started;	/*!< lock wait started at this time */
-
-	que_thr_t*	wait_thr;	/*!< query thread beloging to this
-					trx that is in QUE_THR_LOCK_WAIT
-				       	state */
-	/*------------------------------*/
-	mem_heap_t*	lock_heap;	/*!< memory heap for the locks of the
-					transaction */
-	UT_LIST_BASE_NODE_T(lock_t)
-			trx_locks;	/*!< locks reserved by the transaction */
+	trx_lock_t	lock;		/* Information about the transaction
+					locks and state. */
 	/*------------------------------*/
 	mem_heap_t*	global_read_view_heap;
 					/* memory heap for the global read

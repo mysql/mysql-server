@@ -206,11 +206,11 @@ que_thr_end_wait(
 
 	ut_ad(trx_mutex_own(trx));
 
-	thr = trx->wait_thr;
+	thr = trx->lock.wait_thr;
 
 	ut_ad(thr != NULL);
 
-	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
+	ut_ad(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 	/* In MySQL this is the only possible state here */
 	ut_a(thr->state == QUE_THR_LOCK_WAIT);
 
@@ -221,9 +221,9 @@ que_thr_end_wait(
 
 	que_thr_move_to_run_state(thr);
 
-	trx->que_state = TRX_QUE_RUNNING;
+	trx->lock.que_state = TRX_QUE_RUNNING;
 
-	trx->wait_thr = NULL;
+	trx->lock.wait_thr = NULL;
 
 	/* In MySQL we let the OS thread (not just the query thread) to wait
 	for the lock to be released: */
@@ -689,7 +689,7 @@ que_thr_move_to_run_state(
 
 		thr->graph->n_active_thrs++;
 
-		trx->n_active_thrs++;
+		trx->lock.n_active_thrs++;
 
 		thr->is_active = TRUE;
 	}
@@ -719,9 +719,9 @@ que_thr_stop(
 
 		thr->state = QUE_THR_SUSPENDED;
 
-	} else if (trx->que_state == TRX_QUE_LOCK_WAIT) {
+	} else if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
-		trx->wait_thr = thr;
+		trx->lock.wait_thr = thr;
 		thr->state = QUE_THR_LOCK_WAIT;
 
 	} else if (trx->error_state != DB_SUCCESS
@@ -796,7 +796,7 @@ que_thr_dec_refer_count(
 
 		fork = thr->common.parent;
 
-		--trx->n_active_thrs;
+		--trx->lock.n_active_thrs;
 
 		--fork->n_active_thrs;
 
@@ -843,13 +843,13 @@ que_thr_stop_for_mysql(
 	}
 
 	ut_ad(thr->is_active == TRUE);
-	ut_ad(trx->n_active_thrs == 1);
+	ut_ad(trx->lock.n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
 
 	thr->is_active = FALSE;
 	thr->graph->n_active_thrs--;
 
-	trx->n_active_thrs--;
+	trx->lock.n_active_thrs--;
 
 	query_mutex_exit(thr);
 }
@@ -879,7 +879,7 @@ que_thr_move_to_run_state_for_mysql(
 
 		thr->graph->n_active_thrs++;
 
-		trx->n_active_thrs++;
+		trx->lock.n_active_thrs++;
 
 		thr->is_active = TRUE;
 	}
@@ -900,7 +900,7 @@ que_thr_stop_for_mysql_no_error(
 	ut_ad(thr->state == QUE_THR_RUNNING);
 	ut_ad(!ut_dulint_is_zero(thr_get_trx(thr)->id));
 	ut_ad(thr->is_active == TRUE);
-	ut_ad(trx->n_active_thrs == 1);
+	ut_ad(trx->lock.n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
 
 	if (thr->magic_n != QUE_THR_MAGIC_N) {
@@ -916,9 +916,9 @@ que_thr_stop_for_mysql_no_error(
 	thr->state = QUE_THR_COMPLETED;
 
 	thr->is_active = FALSE;
-	(thr->graph)->n_active_thrs--;
+	thr->graph->n_active_thrs--;
 
-	trx->n_active_thrs--;
+	trx->lock.n_active_thrs--;
 }
 
 /****************************************************************//**

@@ -1120,7 +1120,7 @@ retry:
 	for SRV_THREAD_SLEEP_DELAY microseconds, and try again then */
 
 	if (!has_slept && !trx->has_search_latch
-	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
+	    && NULL == UT_LIST_GET_FIRST(trx->lock.trx_locks)) {
 
 		has_slept = TRUE; /* We let it sleep only once to avoid
 				  starvation */

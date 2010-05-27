@@ -665,8 +665,9 @@ row_vers_build_for_semi_consistent_read(
 		version_trx = trx_get_on_id(version_trx_id);
 
 		if (!version_trx
-		    || version_trx->conc_state == TRX_NOT_STARTED
-		    || version_trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
+		    || version_trx->lock.conc_state == TRX_NOT_STARTED
+		    || version_trx->lock.conc_state
+		    == TRX_COMMITTED_IN_MEMORY) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */

@@ -271,8 +271,8 @@ trx_get_on_id(
 
 /****************************************************************//**
 Returns the minumum trx id in trx list. This is the smallest id for which
-the trx can possibly be active. (But, you must look at the trx->conc_state to
-find out if the minimum trx id transaction itself is active, or already
+the trx can possibly be active. (But, you must look at the trx->lock.conc_state
+to find out if the minimum trx id transaction itself is active, or already
 committed.)
 @return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
 UNIV_INLINE
@@ -328,8 +328,9 @@ trx_is_active(
 
 	trx = trx_get_on_id(trx_id);
 
-	if (trx && (trx->conc_state == TRX_ACTIVE
-		    || trx->conc_state == TRX_PREPARED)) {
+	// FIXME: Do we need to acquire the trx_mutex here ?
+	if (trx && (trx->lock.conc_state == TRX_ACTIVE
+		    || trx->lock.conc_state == TRX_PREPARED)) {
 
 		return(TRUE);
 	}

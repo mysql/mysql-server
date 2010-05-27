@@ -953,7 +953,7 @@ sel_set_rec_lock(
 
 	trx = thr_get_trx(thr);
 
-	if (UT_LIST_GET_LEN(trx->trx_locks) > 10000) {
+	if (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000) {
 		if (buf_LRU_buf_pool_running_out()) {
 
 			return(DB_LOCK_TABLE_FULL);
@@ -4062,17 +4062,17 @@ no_gap_lock:
 
 			lock_mutex_enter();
                         trx_mutex_enter(trx);
-			if (trx->was_chosen_as_deadlock_victim) {
+			if (trx->lock.was_chosen_as_deadlock_victim) {
                                 trx_mutex_exit(trx);
 				lock_mutex_exit();
 				err = DB_DEADLOCK;
 
 				goto lock_wait_or_error;
 			}
-			if (trx->wait_lock != NULL) {
+			if (trx->lock.wait_lock != NULL) {
 
 				lock_cancel_waiting_and_release(
-					trx->wait_lock);
+					trx->lock.wait_lock);
 
 				prebuilt->new_rec_locks = 0;
 			} else {

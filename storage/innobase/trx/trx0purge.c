@@ -166,7 +166,7 @@ trx_purge_sys_create(
 	quite unnecessary. We should get rid of it eventually. */
 	purge_sys->trx->id = ut_dulint_zero;
 	purge_sys->trx->start_time = ut_time();
-	purge_sys->trx->conc_state = TRX_ACTIVE;
+	purge_sys->trx->lock.conc_state = TRX_ACTIVE;
 
 	trx_mutex_exit(purge_sys->trx);
 
@@ -191,7 +191,7 @@ trx_purge_sys_close(void)
 
 	ut_a(ut_dulint_is_zero(purge_sys->trx->id));
 
-	purge_sys->sess->trx->conc_state = TRX_NOT_STARTED;
+	purge_sys->sess->trx->lock.conc_state = TRX_NOT_STARTED;
 
 	sess_close(purge_sys->sess);
 

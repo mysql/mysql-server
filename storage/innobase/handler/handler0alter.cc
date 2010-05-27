@@ -799,7 +799,7 @@ err_exit:
 	row_mysql_unlock_data_dictionary(trx);
 	dict_locked = FALSE;
 
-	ut_a(trx->n_active_thrs == 0);
+	ut_a(trx->lock.n_active_thrs == 0);
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* A primary key is to be built.  Acquire an exclusive
