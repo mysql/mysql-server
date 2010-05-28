@@ -401,6 +401,8 @@ static void run_test(int iter){
     r = states->close(states, 0);                                                                         CKERR(r);
     r = env->close(env, 0);                                                                               CKERR(r);
     if ( verbose ) printf("%s : done\n", __FILE__);
+
+    toku_free(db_array);
 }
 
 // ------------ infrastructure ----------
