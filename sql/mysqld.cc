@@ -3601,7 +3601,6 @@ static int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
-  mysys_uses_curses=0;
 #ifdef USE_REGEX
   my_regex_init(&my_charset_latin1);
 #endif
