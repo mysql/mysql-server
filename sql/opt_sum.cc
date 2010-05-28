@@ -90,6 +90,123 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
 
 
 /**
+  Use index to read MIN(field) value.
+  
+  @param table      Table object
+  @param ref        Reference to the structure where we store the key value
+  @item_field       Field used in MIN()
+  @range_fl         Whether range endpoint is strict less than
+  @prefix_len       Length of common key part for the range
+  
+  @retval
+    0               No errors
+    HA_ERR_...      Otherwise
+*/
+
+static int get_index_min_value(TABLE *table, TABLE_REF *ref,
+                               Item_field *item_field, uint range_fl,
+                               uint prefix_len)
+{
+  int error;
+  
+  if (!ref->key_length)
+    error= table->file->index_first(table->record[0]);
+  else 
+  {
+    /*
+      Use index to replace MIN/MAX functions with their values
+      according to the following rules:
+
+      1) Insert the minimum non-null values where the WHERE clause still
+         matches, or
+      2) a NULL value if there are only NULL values for key_part_k.
+      3) Fail, producing a row of nulls
+
+      Implementation: Read the smallest value using the search key. If
+      the interval is open, read the next value after the search
+      key. If read fails, and we're looking for a MIN() value for a
+      nullable column, test if there is an exact match for the key.
+    */
+    if (!(range_fl & NEAR_MIN))
+      /* 
+         Closed interval: Either The MIN argument is non-nullable, or
+         we have a >= predicate for the MIN argument.
+      */
+      error= table->file->index_read_map(table->record[0],
+                                         ref->key_buff,
+                                         make_prev_keypart_map(ref->key_parts),
+                                         HA_READ_KEY_OR_NEXT);
+    else
+    {
+      /*
+        Open interval: There are two cases:
+        1) We have only MIN() and the argument column is nullable, or
+        2) there is a > predicate on it, nullability is irrelevant.
+        We need to scan the next bigger record first.
+      */
+      error= table->file->index_read_map(table->record[0],
+                                         ref->key_buff,
+                                         make_prev_keypart_map(ref->key_parts),
+                                         HA_READ_AFTER_KEY);
+      /* 
+         If the found record is outside the group formed by the search
+         prefix, or there is no such record at all, check if all
+         records in that group have NULL in the MIN argument
+         column. If that is the case return that NULL.
+
+         Check if case 1 from above holds. If it does, we should read
+         the skipped tuple.
+      */
+      if (item_field->field->real_maybe_null() &&
+          ref->key_buff[prefix_len] == 1 &&
+          /*
+            Last keypart (i.e. the argument to MIN) is set to NULL by
+            find_key_for_maxmin only if all other keyparts are bound
+            to constants in a conjunction of equalities. Hence, we
+            can detect this by checking only if the last keypart is
+            NULL.
+          */
+          (error == HA_ERR_KEY_NOT_FOUND ||
+           key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len)))
+      {
+        DBUG_ASSERT(item_field->field->real_maybe_null());
+        error= table->file->index_read_map(table->record[0],
+                                           ref->key_buff,
+                                           make_prev_keypart_map(ref->key_parts),
+                                           HA_READ_KEY_EXACT);
+      }
+    }
+  }
+  return error;
+}
+
+
+/**
+  Use index to read MAX(field) value.
+  
+  @param table      Table object
+  @param ref        Reference to the structure where we store the key value
+  @range_fl         Whether range endpoint is strict greater than
+  
+  @retval
+    0               No errors
+    HA_ERR_...      Otherwise
+*/
+
+static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
+{
+  return (ref->key_length ?
+          table->file->index_read_map(table->record[0], ref->key_buff,
+                                      make_prev_keypart_map(ref->key_parts),
+                                      range_fl & NEAR_MAX ?
+                                      HA_READ_BEFORE_KEY : 
+                                      HA_READ_PREFIX_LAST_OR_PREV) :
+          table->file->index_last(table->record[0]));
+}
+
+
+
+/**
   Substitutes constants for some COUNT(), MIN() and MAX() functions.
 
   @param tables                list of leaves of join table tree
@@ -220,9 +337,11 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           const_result= 0;
         break;
       case Item_sum::MIN_FUNC:
+      case Item_sum::MAX_FUNC:
       {
+        int is_max= test(item_sum->sum_func() == Item_sum::MAX_FUNC);
         /*
-          If MIN(expr) is the first part of a key or if all previous
+          If MIN/MAX(expr) is the first part of a key or if all previous
           parts of the key is found in the COND, then we can use
           indexes to find the key.
         */
@@ -241,89 +360,26 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
             this key, while prefix_len will contain the length of 
-            the beginning of this key without field used in MIN(). 
+            the beginning of this key without field used in MIN/MAX(). 
             Type of range for the key part for this field will be
             returned in range_fl.
           */
           if (table->file->inited || (outer_tables & table->map) ||
-              !find_key_for_maxmin(0, &ref, item_field->field, conds,
+              !find_key_for_maxmin(is_max, &ref, item_field->field, conds,
                                    &range_fl, &prefix_len))
           {
             const_result= 0;
             break;
           }
-          error= table->file->ha_index_init((uint) ref.key, 1);
+          table->file->ha_index_init((uint) ref.key, 1);
 
-          if (!ref.key_length)
-            error= table->file->index_first(table->record[0]);
-          else 
-          {
-            /*
-              Use index to replace MIN/MAX functions with their values
-              according to the following rules:
-           
-              1) Insert the minimum non-null values where the WHERE clause still
-                 matches, or
-              2) a NULL value if there are only NULL values for key_part_k.
-              3) Fail, producing a row of nulls
+          error= is_max ? 
+                 get_index_max_value(table, &ref, range_fl) :
+                 get_index_min_value(table, &ref, item_field, range_fl,
+                                     prefix_len);
 
-              Implementation: Read the smallest value using the search key. If
-              the interval is open, read the next value after the search
-              key. If read fails, and we're looking for a MIN() value for a
-              nullable column, test if there is an exact match for the key.
-            */
-            if (!(range_fl & NEAR_MIN))
-              /* 
-                 Closed interval: Either The MIN argument is non-nullable, or
-                 we have a >= predicate for the MIN argument.
-              */
-              error= table->file->index_read_map(table->record[0],
-                                                 ref.key_buff,
-                                                 make_prev_keypart_map(ref.key_parts),
-                                                 HA_READ_KEY_OR_NEXT);
-            else
-            {
-              /*
-                Open interval: There are two cases:
-                1) We have only MIN() and the argument column is nullable, or
-                2) there is a > predicate on it, nullability is irrelevant.
-                We need to scan the next bigger record first.
-              */
-              error= table->file->index_read_map(table->record[0],
-                                                 ref.key_buff, 
-                                                 make_prev_keypart_map(ref.key_parts),
-                                                 HA_READ_AFTER_KEY);
-              /* 
-                 If the found record is outside the group formed by the search
-                 prefix, or there is no such record at all, check if all
-                 records in that group have NULL in the MIN argument
-                 column. If that is the case return that NULL.
-
-                 Check if case 1 from above holds. If it does, we should read
-                 the skipped tuple.
-              */
-              if (item_field->field->real_maybe_null() &&
-                  ref.key_buff[prefix_len] == 1 &&
-                  /*
-                     Last keypart (i.e. the argument to MIN) is set to NULL by
-                     find_key_for_maxmin only if all other keyparts are bound
-                     to constants in a conjunction of equalities. Hence, we
-                     can detect this by checking only if the last keypart is
-                     NULL.
-                  */
-                  (error == HA_ERR_KEY_NOT_FOUND ||
-                   key_cmp_if_same(table, ref.key_buff, ref.key, prefix_len)))
-              {
-                DBUG_ASSERT(item_field->field->real_maybe_null());
-                error= table->file->index_read_map(table->record[0],
-                                                   ref.key_buff,
-                                                   make_prev_keypart_map(ref.key_parts),
-                                                   HA_READ_KEY_EXACT);
-              }
-            }
-          }
           /* Verify that the read tuple indeed matches the search key */
-	  if (!error && reckey_in_range(0, &ref, item_field->field, 
+	  if (!error && reckey_in_range(is_max, &ref, item_field->field, 
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;
           table->set_keyread(FALSE);
@@ -355,100 +411,18 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
         item_sum->set_aggregator(item_sum->has_with_distinct() ? 
                                  Aggregator::DISTINCT_AGGREGATOR :
                                  Aggregator::SIMPLE_AGGREGATOR);
-        if (!count)
-        {
-          /* If count == 0, then we know that is_exact_count == TRUE. */
-          ((Item_sum_min*) item_sum)->aggregator_clear(); /* Set to NULL. */
-        }
-        else
-          ((Item_sum_min*) item_sum)->reset(); /* Set to the constant value. */
-        ((Item_sum_min*) item_sum)->make_const();
-        recalc_const_item= 1;
-        break;
-      }
-      case Item_sum::MAX_FUNC:
-      {
         /*
-          If MAX(expr) is the first part of a key or if all previous
-          parts of the key is found in the COND, then we can use
-          indexes to find the key.
+          If count == 0 (so is_exact_count == TRUE) and
+          there're no outer joins, set to NULL,
+          otherwise set to the constant value.
         */
-        Item *expr=item_sum->get_arg(0);
-        if (expr->real_item()->type() == Item::FIELD_ITEM)
+        if (!count && !outer_tables)
         {
-          uchar key_buff[MAX_KEY_LENGTH];
-          TABLE_REF ref;
-          uint range_fl, prefix_len;
-
-          ref.key_buff= key_buff;
-          Item_field *item_field= (Item_field*) (expr->real_item());
-          TABLE *table= item_field->field->table;
-
-          /* 
-            Look for a partial key that can be used for optimization.
-            If we succeed, ref.key_length will contain the length of
-            this key, while prefix_len will contain the length of 
-            the beginning of this key without field used in MAX().
-            Type of range for the key part for this field will be
-            returned in range_fl.
-          */
-          if (table->file->inited || (outer_tables & table->map) ||
-	          !find_key_for_maxmin(1, &ref, item_field->field, conds,
-				                   &range_fl, &prefix_len))
-          {
-            const_result= 0;
-            break;
-          }
-          error= table->file->ha_index_init((uint) ref.key, 1);
-
-          if (!ref.key_length)
-            error= table->file->index_last(table->record[0]);
-          else
-	    error= table->file->index_read_map(table->record[0], key_buff,
-                                               make_prev_keypart_map(ref.key_parts),
-                                               range_fl & NEAR_MAX ?
-                                               HA_READ_BEFORE_KEY :
-                                               HA_READ_PREFIX_LAST_OR_PREV);
-	  if (!error && reckey_in_range(1, &ref, item_field->field,
-			                conds, range_fl, prefix_len))
-	    error= HA_ERR_KEY_NOT_FOUND;
-          table->set_keyread(FALSE);
-          table->file->ha_index_end();
-          if (error)
-          {
-	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
-	      return HA_ERR_KEY_NOT_FOUND;	     // No rows matching WHERE
-	    /* HA_ERR_LOCK_DEADLOCK or some other error */
-            table->file->print_error(error, MYF(ME_FATALERROR));
-            return(error);
-	  }
-          removed_tables|= table->map;
-        }
-        else if (!expr->const_item() || !is_exact_count)
-        {
-          /*
-            The optimization is not applicable in both cases:
-            (a) 'expr' is a non-constant expression. Then we can't
-            replace 'expr' by a constant.
-            (b) 'expr' is a costant. According to ANSI, MIN/MAX must return
-            NULL if the query does not return any rows. Thus, if we are not
-            able to determine if the query returns any rows, we can't apply
-            the optimization and replace MIN/MAX with a constant.
-          */
-          const_result= 0;
-          break;
-        }
-        item_sum->set_aggregator(item_sum->has_with_distinct() ? 
-                                 Aggregator::DISTINCT_AGGREGATOR :
-                                 Aggregator::SIMPLE_AGGREGATOR);
-        if (!count)
-        {
-          /* If count != 1, then we know that is_exact_count == TRUE. */
-          ((Item_sum_max*) item_sum)->aggregator_clear(); /* Set to NULL. */
+          item_sum->aggregator_clear();
         }
         else
-          ((Item_sum_max*) item_sum)->reset(); /* Set to the constant value. */
-        ((Item_sum_max*) item_sum)->make_const();
+          item_sum->reset();
+        item_sum->make_const();
         recalc_const_item= 1;
         break;
       }
