@@ -33,3 +33,19 @@ set tmp_table_size=default;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug #50946: fast index creation still seems to copy the table
+--echo #
+CREATE TABLE t1 (a INT(100) NOT NULL);
+INSERT INTO t1 VALUES (1), (0), (2);
+SET SESSION debug='+d,alter_table_only_index_change';
+ALTER TABLE t1 ADD INDEX a(a);
+SET SESSION debug=DEFAULT;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # End of 5.1 tests
+--echo #
