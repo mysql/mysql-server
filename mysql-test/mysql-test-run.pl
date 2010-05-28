@@ -3811,6 +3811,7 @@ sub extract_warning_lines ($$) {
       # Skip valgrind summary from tests where server has been restarted
       # Should this contain memory leaks, the final report will find it
       $skip_valgrind= 1 if $line =~ /^==\d+== ERROR SUMMARY:/;
+      $skip_valgrind= 1 if $line =~ /^==\d+== HEAP SUMMARY:/;
       $skip_valgrind= 0 unless $line =~ /^==\d+==/;
       next if $skip_valgrind;
     }
