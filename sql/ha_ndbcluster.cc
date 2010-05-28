@@ -2499,9 +2499,21 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
           else
           {
             longlong value= (static_cast<Field_bit*>(field))->val_int();
+            /* Map to NdbApi format - two Uint32s */
+            Uint32 out[2];
+            out[0] = 0;
+            out[1] = 0;
+            for (int b=0; b < 64; b++)
+            {
+              out[b >> 5] |= (value & 1) << (b & 31);
+              
+              value= value >> 1;
+            }
+            Uint32 defaultLen = field->used_length();
+            defaultLen = ((defaultLen + 3) & ~(Uint32)0x7);
             defaults_aligned= (0 == memcmp(ndb_default, 
-                                           &value, 
-                                           field->used_length()));
+                                           out, 
+                                           defaultLen));
           }
         }
         
@@ -6224,8 +6236,18 @@ static void get_default_value(void *def_val, Field *field)
         {
           field->move_field_offset(src_offset);
           longlong value= field_bit->val_int();
-          memcpy(def_val, &value, sizeof(longlong));
-         field->move_field_offset(-src_offset);
+          /* Map to NdbApi format - two Uint32s */
+          Uint32 out[2];
+          out[0] = 0;
+          out[1] = 0;
+          for (int b=0; b < 64; b++)
+          {
+            out[b >> 5] |= (value & 1) << (b & 31);
+            
+            value= value >> 1;
+          }
+          memcpy(def_val, out, sizeof(longlong));
+          field->move_field_offset(-src_offset);
         }
       }
       else if (field->flags & BLOB_FLAG)
@@ -8140,7 +8162,14 @@ static int create_ndb_column(THD *thd,
             /* Set a non-null native default */
             memset(buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
             get_default_value(buf, field);
-            col.setDefaultValue(buf, field->used_length());
+
+            /* For bit columns, default length is rounded up to 
+               nearest word, ensuring all data sent
+            */
+            Uint32 defaultLen = field->used_length();
+            if(field->type() == MYSQL_TYPE_BIT)
+              defaultLen = ((defaultLen + 3) /4) * 4;
+            col.setDefaultValue(buf, defaultLen);
           }
         }
       }

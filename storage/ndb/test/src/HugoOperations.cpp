@@ -847,13 +847,32 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
 				      int updateId){
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
   
-  int len = attr->getSizeInBytes();
-  char buf[NDB_MAX_TUPLE_SIZE];
-  memset(buf, 0, sizeof(buf));
-  Uint32 real_len;
-  const char * value = calc.calcValue(rowId, attrId, 
-				      updateId, buf, len, &real_len);
-  return pOp->setValue( attr->getName(), value, real_len);
+  if (! (attr->getType() == NdbDictionary::Column::Blob))
+  {
+    int len = attr->getSizeInBytes();
+    char buf[NDB_MAX_TUPLE_SIZE];
+    memset(buf, 0, sizeof(buf));
+    Uint32 real_len;
+    const char * value = calc.calcValue(rowId, attrId,
+                                        updateId, buf, len, &real_len);
+    return pOp->setValue( attr->getName(), value, real_len);
+  }
+  else
+  {
+    char buf[32000];
+    int len = (int)sizeof(buf);
+    Uint32 real_len;
+    const char * value = calc.calcValue(rowId, attrId,
+                                        updateId, buf, len, &real_len);
+    NdbBlob * b = pOp->getBlobHandle(attrId);
+    if (b == 0)
+      return -1;
+
+    if (real_len == 0)
+      return b->setNull();
+    else
+      return b->setValue(value, real_len);
+  }
 }
 
 int

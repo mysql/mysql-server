@@ -2781,19 +2781,40 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_nullable = attrDesc.AttributeNullableFlag;
     col->m_autoIncrement = (attrDesc.AttributeAutoIncrement != 0);
     col->m_autoIncrementInitialValue = ~0;
-    const char* defPtr = (const char*) attrDesc.AttributeDefaultValue;
-    AttributeHeader ah(* (const Uint32*) defPtr);
-    Uint32 bytesize = ah.getByteSize();
 
-    if (col->m_defaultValue.assign(defPtr + 4, bytesize))
+    if (attrDesc.AttributeDefaultValueLen)
     {
-      delete col;
-      delete impl;
-      DBUG_RETURN(4000);
+      assert(attrDesc.AttributeDefaultValueLen >= sizeof(Uint32)); /* AttributeHeader */
+      const char* defPtr = (const char*) attrDesc.AttributeDefaultValue;
+      Uint32 a = * (const Uint32*) defPtr;
+      AttributeHeader ah(ntohl(a));
+      Uint32 bytesize = ah.getByteSize();
+      assert(attrDesc.AttributeDefaultValueLen >= sizeof(Uint32) + bytesize);
+      
+      if (bytesize)
+      {
+        if (col->m_defaultValue.assign(defPtr + sizeof(Uint32), bytesize))
+        {
+          delete col;
+          delete impl;
+          DBUG_RETURN(4000);
+        }
+        
+        /* Table meta-info is normally stored in network byte order by
+         * SimpleProperties
+         * For the default value 'Blob' we do the work
+         */
+        /* In-place convert network -> host */
+        NdbSqlUtil::convertByteOrder(attrDesc.AttributeExtType,
+                                     attrDesc.AttributeSize,
+                                     attrDesc.AttributeArrayType,
+                                     attrDesc.AttributeArraySize,
+                                     (uchar*) col->m_defaultValue.get_data(),
+                                     bytesize);
+        
+        impl->m_has_default_values = true;
+      }
     }
-
-    if (bytesize > 0)
-      impl->m_has_default_values = true;
 
     col->m_column_no = impl->m_columns.size();
     impl->m_columns.push_back(col);
@@ -3482,6 +3503,7 @@ loop:
     {
       Uint32 ah;
       Uint32 byteSize = col->m_defaultValue.length();
+      assert(byteSize <= NDB_MAX_TUPLE_SIZE);
 
       if (byteSize)
       {
@@ -3499,10 +3521,28 @@ loop:
       //The AttributeId of a column isn't decided now, so 0 is used.
       AttributeHeader::init(&ah, 0, byteSize);
 
-      memcpy(tmpAttr.AttributeDefaultValue, &ah, 4);
-      memcpy(tmpAttr.AttributeDefaultValue + 4, col->m_defaultValue.get_data(), byteSize);
+      /* Table meta-info is normally stored in network byte order
+       * by SimpleProperties
+       * For the default value 'Blob' we do the work
+       */
+      Uint32 a = htonl(ah);
+      memcpy(tmpAttr.AttributeDefaultValue, &a, sizeof(Uint32));
+      memcpy(tmpAttr.AttributeDefaultValue + sizeof(Uint32), 
+             col->m_defaultValue.get_data(), byteSize);
+      Uint32 defValByteLen = ((col->m_defaultValue.length() + 3) / 4) * 4;
+      tmpAttr.AttributeDefaultValueLen = defValByteLen + sizeof(Uint32);
 
-      tmpAttr.AttributeDefaultValueLen = (((col->m_defaultValue.length() + 3) / 4) * 4) + 4;
+      if (defValByteLen)
+      {
+        /* In-place host->network conversion */
+        NdbSqlUtil::convertByteOrder(tmpAttr.AttributeExtType,
+                                     tmpAttr.AttributeSize,
+                                     tmpAttr.AttributeArrayType,
+                                     tmpAttr.AttributeArraySize,
+                                     tmpAttr.AttributeDefaultValue + 
+                                     sizeof(Uint32),
+                                     defValByteLen);
+      }
     }
     s = SimpleProperties::pack(w, 
 			       &tmpAttr,
@@ -4387,6 +4427,14 @@ NdbDictInterface::createEvent(class Ndb & ndb,
       req->setReportAll();
     if (evnt.m_rep & NdbDictionary::Event::ER_SUBSCRIBE)
       req->setReportSubscribe();
+    if (evnt.m_rep & NdbDictionary::Event::ER_DDL)
+    {
+      req->setReportDDL();
+    }
+    else
+    {
+      req->clearReportDDL();
+    }
     ptr[1].p = evnt.m_attrListBitmask.rep.data;
     ptr[1].sz = evnt.m_attrListBitmask.getSizeInWords();
     seccnt++;

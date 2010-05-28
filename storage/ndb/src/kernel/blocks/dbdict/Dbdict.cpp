@@ -833,6 +833,27 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     ConstRope def(c_rope_pool, attrPtr.p->defaultValue);
     def.copy(defaultValue);
 
+    if (def.size())
+    {
+      /* Convert default value to network byte order for storage */
+      /* Attribute header */
+      ndbrequire(def.size() >= sizeof(Uint32));
+      Uint32 a;
+      memcpy(&a, defaultValue, sizeof(Uint32));
+      a = htonl(a);
+      memcpy(defaultValue, &a, sizeof(Uint32));
+      
+      Uint32 remainBytes = def.size() - sizeof(Uint32);
+      
+      if (remainBytes)
+        NdbSqlUtil::convertByteOrder(attrType,
+                                     attrSize,
+                                     arrayType,
+                                     arraySize,
+                                     (uchar*) defaultValue + sizeof(Uint32),
+                                     remainBytes);
+    }
+
     w.add(DictTabInfo::AttributeDefaultValueLen, def.size());
     w.add(DictTabInfo::AttributeDefaultValue, defaultValue, def.size());
     w.add(DictTabInfo::AttributeEnd, 1);
@@ -5235,8 +5256,41 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     attrPtr.p->attributeDescriptor = desc;
     attrPtr.p->autoIncrement = attrDesc.AttributeAutoIncrement;
     {
+      char defaultValueBuf [MAX_ATTR_DEFAULT_VALUE_SIZE];
+      
+      if (attrDesc.AttributeDefaultValueLen)
+      {
+        ndbrequire(attrDesc.AttributeDefaultValueLen >= sizeof(Uint32));
+
+        memcpy(defaultValueBuf, attrDesc.AttributeDefaultValue,
+               attrDesc.AttributeDefaultValueLen);
+        
+        /* Table meta-info is normally stored in network byte order by
+         * SimpleProperties.
+         * For the default value, we convert as necessary here
+         */
+        /* Convert AttrInfoHeader */
+        Uint32 a;
+        memcpy(&a, defaultValueBuf, sizeof(Uint32));
+        a = ntohl(a);
+        memcpy(defaultValueBuf, &a, sizeof(Uint32));
+        
+        Uint32 remainBytes = attrDesc.AttributeDefaultValueLen - sizeof(Uint32);
+        
+        if (remainBytes)
+        {
+          /* Convert attribute */
+          NdbSqlUtil::convertByteOrder(attrDesc.AttributeExtType,
+                                       attrDesc.AttributeSize,
+                                       attrDesc.AttributeArrayType,
+                                       attrDesc.AttributeArraySize,
+                                       (uchar*) defaultValueBuf + sizeof(Uint32),
+                                       remainBytes);
+        }
+      }
+
       Rope defaultValue(c_rope_pool, attrPtr.p->defaultValue);
-      defaultValue.assign((const char*)attrDesc.AttributeDefaultValue,
+      defaultValue.assign(defaultValueBuf,
                           attrDesc.AttributeDefaultValueLen);
     }
     
@@ -10644,6 +10698,13 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     return;
   }
 
+  if (impl_req->indexId >= c_tableRecordPool.getSize())
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    return;
+  }
+
   if (ERROR_INSERTED(6122)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -14988,6 +15049,10 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
     sumaReq->subscriptionType|= SubCreateReq::ReportAll;
   if (evntRecPtr.p->m_request.getReportSubscribe())
     sumaReq->subscriptionType|= SubCreateReq::ReportSubscribe;
+  if (! evntRecPtr.p->m_request.getReportDDL())
+  {
+    sumaReq->subscriptionType |= SubCreateReq::NoReportDDL;
+  }
   sumaReq->tableId          = evntRecPtr.p->m_request.getTableId();
   sumaReq->schemaTransId    = 0;
     
@@ -26303,7 +26368,6 @@ Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
   tmp.m_tableState = newEntry->m_tableState;
   tmp.m_transId = newEntry->m_transId;
   op_ptr.p->m_orig_entry_id = objectId;
-  op_ptr.p->m_orig_entry = * oldEntry;
 
   * oldEntry = tmp;
 
@@ -26329,7 +26393,14 @@ Dbdict::trans_log_schema_op_abort(SchemaOpPtr op_ptr)
     op_ptr.p->m_orig_entry_id = RNIL;
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
-    * entry = op_ptr.p->m_orig_entry;
+
+    XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+    SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
+
+    /**
+     * restore old TableEntry
+     */
+    * entry = * oldentry;
   }
 }
 
@@ -26358,6 +26429,22 @@ Dbdict::trans_log_schema_op_complete(SchemaOpPtr op_ptr)
       ndbrequire(false);
     }
     entry->m_transId = 0;
+
+    if (op_ptr.p->m_restart == 0)
+    {
+      /**
+       * Don't overwrite OLD_SCHEMA_FILE during restart
+       */
+
+      jam();
+      XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+      SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
+      
+      /**
+       * store new TableEntry
+       */
+      * oldentry = * entry;
+    }
   }
 }
 

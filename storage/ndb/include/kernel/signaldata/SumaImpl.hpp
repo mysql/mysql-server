@@ -38,6 +38,7 @@ struct SubCreateReq {
     RestartFlag  = 0x2 << 16,
     ReportAll    = 0x4 << 16,
     ReportSubscribe= 0x8 << 16,
+    NoReportDDL = 0x10 << 16,
     NR_Sub_Dropped = 0x1 << 24   // sub is dropped but needs to be copied
   };
   

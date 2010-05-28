@@ -1732,8 +1732,19 @@ ConfigManager::run()
 {
   assert(m_facade);
   SignalSender & ss = * m_ss;
-  ss.lock();
 
+  if (!m_opts.config_cache)   
+  {
+    /* Confirm the present config, free the space that was allocated for a
+       new one, and terminate the manager thread */
+    delete m_new_config; 
+    m_config_state = CS_CONFIRMED;
+    ndbout_c("== ConfigManager disabled -- manager thread will exit ==");
+    return;
+  }  
+
+  ss.lock();
+  
   // Build bitmaks of all mgm nodes in config
   m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
 

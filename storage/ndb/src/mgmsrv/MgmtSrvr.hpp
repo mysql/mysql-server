@@ -115,6 +115,7 @@ public:
     int interactive;
     const char* config_filename;
     int mycnf;
+    int config_cache;
     const char* bind_address;
     int no_nodeid_checks;
     int print_full_config;

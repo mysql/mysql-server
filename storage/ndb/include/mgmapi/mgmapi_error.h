@@ -95,6 +95,11 @@ extern "C" {
   extern const int ndb_mgm_noOfErrorMsgs;
 #endif
 
+/* Include error messages when sourced from perror(or special define set) */
+#if defined PERROR_VERSION || defined MGMAPI_ERROR_INCLUDE_MESSAGES
+#include "../../src/mgmapi/mgmapi_error.c"
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -31,10 +31,10 @@
 // sql/my_decimal.h requires many more sql/*.h new to ndb
 // for now, copy the bit we need  TODO proper fix
 
-#define DECIMAL_MAX_LENGTH ((8 * 9) - 8)
+#define DECIMAL_MAX_FIELD_SIZE ((9 * 9) - (2 * 8))
 
-#ifndef NOT_FIXED_DEC
-#define NOT_FIXED_DEC                   31
+#ifndef DECIMAL_NOT_SPECIFIED
+#define DECIMAL_NOT_SPECIFIED 31
 #endif
 
 C_MODE_START
@@ -509,8 +509,9 @@ public:
           // copy from Field_new_decimal ctor
           uint precision = AttributeExtPrecision;
           uint scale = AttributeExtScale;
-          if (precision > DECIMAL_MAX_LENGTH || scale >= NOT_FIXED_DEC)
-            precision = DECIMAL_MAX_LENGTH;
+          if (precision > DECIMAL_MAX_FIELD_SIZE ||
+              scale >= DECIMAL_NOT_SPECIFIED)
+            return false;
           uint bin_size = my_decimal_get_binary_size(precision, scale);
           AttributeSize = DictTabInfo::an8Bit;
           AttributeArraySize = bin_size * AttributeExtLength;

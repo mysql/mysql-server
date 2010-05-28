@@ -1171,3 +1171,208 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   // no check for partial last
   return dstLen;
 }
+
+#if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)
+
+static
+void determineParams(Uint32 typeId,
+                     Uint32 typeLog2Size,
+                     Uint32 arrayType,
+                     Uint32 arraySize,
+                     Uint32 dataByteSize,
+                     Uint32& convSize,
+                     Uint32& convLen)
+{
+  /* Some types need 'normal behaviour' over-ridden in
+   * terms of endian-ness conversions
+   */
+  convSize = 0;
+  convLen = 0;
+  switch(typeId)
+  {
+  case NdbSqlUtil::Type::Datetime:
+  {
+    // Datetime is stored as 8x8, should be twiddled as 64 bit
+    assert(typeLog2Size == 3);
+    assert(arraySize == 8);
+    assert(dataByteSize == 8);
+    convSize = 64;
+    convLen = 1;
+    break;
+  }
+  case NdbSqlUtil::Type::Timestamp:
+  {
+    // Timestamp is stored as 4x8, should be twiddled as 32 bit
+    assert(typeLog2Size == 3);
+    assert(arraySize == 4);
+    assert(dataByteSize == 4);
+    convSize = 32;
+    convLen = 1;
+    break;
+  }
+  case NdbSqlUtil::Type::Bit:
+  {
+    // Bit is stored as bits, should be twiddled as 32 bit
+    assert(typeLog2Size == 0);
+    convSize = 32;
+    convLen = (arraySize + 31)/32;
+    break;
+  }
+  case NdbSqlUtil::Type::Blob:
+  case NdbSqlUtil::Type::Text:
+  {
+    if (arrayType == NDB_ARRAYTYPE_FIXED)
+    {
+      // Length of fixed size blob which is stored in first 64 bit's
+      // has to be twiddled, the remaining byte stream left as is
+      assert(typeLog2Size == 3);
+      assert(arraySize > 8);
+      assert(dataByteSize > 8);
+      convSize = 64;
+      convLen = 1;
+      break;
+    }
+    // Fall through for Blob v2
+  }
+  default:
+    /* Default determined by meta-info */
+    convSize = 1 << typeLog2Size;
+    convLen = arraySize;
+    break;
+  }
+
+  const Uint32 unitBytes = (convSize >> 3);
+  
+  if (dataByteSize < (unitBytes * convLen))
+  {
+    /* Actual data is shorter than expected, could
+     * be VAR type or bad FIXED data (which some other
+     * code should detect + handle)
+     * We reduce convLen to avoid trampling
+     */
+    assert((dataByteSize % unitBytes) == 0);
+    convLen = dataByteSize / unitBytes;
+  }
+
+  assert(convSize);
+  assert(convLen);
+  assert(dataByteSize >= (unitBytes * convLen));
+}
+
+static
+void doConvert(Uint32 convSize,
+               Uint32 convLen,
+               uchar* data)
+{
+  switch(convSize)
+  {
+  case 8:
+    /* Nothing to swap */
+    break;
+  case 16:
+  {
+    Uint16* ptr = (Uint16*)data;
+    for (Uint32 i = 0; i < convLen; i++){
+      Uint16 val = 
+        ((*ptr & 0xFF00) >> 8) |
+        ((*ptr & 0x00FF) << 8);
+      *ptr = val;
+      ptr++;
+    }
+    break;
+  }
+  case 32:
+  {
+    Uint32* ptr = (Uint32*)data;
+    for (Uint32 i = 0; i < convLen; i++){
+      Uint32 val = 
+        ((*ptr & 0xFF000000) >> 24) |
+        ((*ptr & 0x00FF0000) >> 8)  |
+        ((*ptr & 0x0000FF00) << 8)  |
+        ((*ptr & 0x000000FF) << 24);
+      *ptr = val;
+      ptr++;
+    }
+    break;
+  }
+  case 64:
+  {
+    Uint64* ptr = (Uint64*)data;
+    for (Uint32 i = 0; i < convLen; i++){
+      Uint64 val = 
+        ((*ptr & (Uint64)0xFF00000000000000LL) >> 56) |
+        ((*ptr & (Uint64)0x00FF000000000000LL) >> 40) |
+        ((*ptr & (Uint64)0x0000FF0000000000LL) >> 24) |
+        ((*ptr & (Uint64)0x000000FF00000000LL) >> 8)  |
+        ((*ptr & (Uint64)0x00000000FF000000LL) << 8)  |
+        ((*ptr & (Uint64)0x0000000000FF0000LL) << 24) |
+        ((*ptr & (Uint64)0x000000000000FF00LL) << 40) |
+        ((*ptr & (Uint64)0x00000000000000FFLL) << 56);
+      *ptr = val;
+      ptr++;
+    }
+    break;
+  }
+  default:
+    abort();
+    break;
+  }
+}
+#endif
+
+/**
+ * Convert attribute byte order if necessary
+ */
+void
+NdbSqlUtil::convertByteOrder(Uint32 typeId, 
+                             Uint32 typeLog2Size, 
+                             Uint32 arrayType, 
+                             Uint32 arraySize, 
+                             uchar* data,
+                             Uint32 dataByteSize)
+{
+#if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)
+  Uint32 convSize;
+  Uint32 convLen;
+  determineParams(typeId,
+                  typeLog2Size,
+                  arrayType,
+                  arraySize,
+                  dataByteSize,
+                  convSize,
+                  convLen);
+
+  size_t mask = (((size_t) convSize) >> 3) -1; // Bottom 0,1,2,3 bits set
+  bool aligned = (((size_t) data) & mask) == 0;
+  uchar* dataPtr = data;
+  const Uint32 bufSize = (MAX_TUPLE_SIZE_IN_WORDS + 1)/2;
+  Uint64 alignedBuf[bufSize];
+  
+  if (!aligned)
+  {
+    assert(dataByteSize <= 4 * MAX_TUPLE_SIZE_IN_WORDS);
+    memcpy(alignedBuf, data, dataByteSize);
+    dataPtr = (uchar*) alignedBuf;
+  }
+
+  /* Now have convSize and convLen, do the conversion */
+  doConvert(convSize,
+            convLen,
+            dataPtr);
+
+#ifdef VM_TRACE
+#ifndef WORDS_BIGENDIAN
+  // VM trace on little-endian performs double-convert
+  doConvert(convSize,
+            convLen,
+            dataPtr);
+#endif
+#endif
+
+  if (!aligned)
+  {
+    memcpy(data, alignedBuf, dataByteSize);
+  }  
+#endif
+}
+
