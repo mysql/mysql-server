@@ -319,6 +319,7 @@ public:
   /* This is relay log */
   bool is_relay_log;
   ulong signal_cnt;  // update of the counter is checked by heartbeat
+  bool checksum_flip; // sets to true at time opt_binlog_checksum is changing
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
@@ -645,6 +646,12 @@ enum enum_binlog_format {
   BINLOG_FORMAT_UNSPEC= 3
 };
 extern TYPELIB binlog_format_typelib;
+
+/*
+  if more alg will be added in future, binlog_checksum_alg_id should be
+  turned into an option
+*/
+extern const uint8 binlog_checksum_alg_id;
 
 int query_error_code(THD *thd, bool not_killed);
 uint purge_log_get_error_code(int res);

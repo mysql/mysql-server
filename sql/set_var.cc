@@ -1659,6 +1659,30 @@ sys_var_long_ptr(sys_var_chain *chain, const char *name_arg, ulong *value_ptr_ar
                            &LOCK_global_system_variables, after_update_arg)
 {}
 
+sys_var_bool_ptr_global::sys_var_bool_ptr_global(sys_var_chain *chain,
+                                                 const char *name_arg,
+                                                 my_bool *value_arg,
+                                                 pthread_mutex_t *guard_arg,
+                                                 sys_after_update_func after_update_arg)
+  :sys_var_global(name_arg, after_update_arg, guard_arg), value(value_arg)	
+{ 
+  chain_sys_var(chain);
+}
+
+bool sys_var_bool_ptr_global::update(THD *thd, set_var *var)
+{
+  pthread_mutex_lock(guard);
+  *value= (my_bool) var->save_result.ulong_value;
+  pthread_mutex_unlock(guard);
+  return 0;
+}
+
+void sys_var_bool_ptr_global::set_default(THD *thd, enum_var_type type)
+{
+  pthread_mutex_lock(guard);
+  *value= (my_bool) option_limits->def_value;
+  pthread_mutex_unlock(guard);
+}
 
 bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {

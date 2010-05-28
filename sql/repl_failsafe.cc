@@ -250,7 +250,7 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   for (;;)
   {
     Log_event* ev;
-    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*) 0, 0)))
+    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*) 0, 0, 0)))
     {
       if (log->error > 0)
 	strmov(errmsg, "Binary log truncated in the middle of event");
@@ -424,7 +424,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 
   for (i = 0; i < 2; i++)
   {
-    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*)0, 0)))
+    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*) 0, 0, 0)))
     {
       my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
 		  "Error reading event in log '%s'",
