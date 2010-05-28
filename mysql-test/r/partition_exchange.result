@@ -1,37 +1,37 @@
-create table t (a int,
-b varchar(55),
-primary key (a))
-engine =  myisam;
-create table tp (a int,
-b varchar(55),
-primary key (a))
-engine =  myisam
-partition by range (a)
-(partition p0 values less than (100),
-partition p1 values less than MAXVALUE);
-create table tsp (a int,
-b varchar(55),
-primary key (a))
-engine =  myisam
-partition by range (a)
-subpartition by hash(a)
-(partition p0 values less than (100)
-(subpartition sp0,
-subpartition sp1),
-partition p1 values less than MAXVALUE
-(subpartition sp2,
-subpartition sp3));
-insert into t values (1, "First value"), (3, "Three"), (5, "Five"), (99, "End of values");
-insert into tp values (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
-insert into tsp values (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
-show create table t;
+CREATE TABLE t (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM;
+CREATE TABLE tp (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+CREATE TABLE tsp (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH(a)
+(PARTITION p0 VALUES LESS THAN (100)
+(SUBPARTITION sp0,
+SUBPARTITION sp1),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+(SUBPARTITION sp2,
+SUBPARTITION sp3));
+INSERT INTO t VALUES (1, "First value"), (3, "Three"), (5, "Five"), (99, "End of values");
+INSERT INTO tp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
+INSERT INTO tsp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -41,13 +41,13 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 1	First value
 3	Three
 5	Five
 99	End of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 10	Ten
 161	161
@@ -61,15 +61,15 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-ALTER TABLE tp exchange partition p0 with table t;
-show create table t;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -79,7 +79,7 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 10	Ten
 2	First value
@@ -88,7 +88,7 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-select * from tp;
+SELECT * FROM tp;
 a	b
 1	First value
 161	161
@@ -99,14 +99,14 @@ a	b
 3	Three
 5	Five
 99	End of values
-ALTER TABLE tp exchange partition p0 with table t;
-select * from t;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SELECT * FROM t;
 a	b
 1	First value
 3	Three
 5	Five
 99	End of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 10	Ten
 161	161
@@ -120,17 +120,17 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-ALTER TABLE tp exchange partition p1 with table t;
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
 ERROR HY000: Found row that does not match the partition
-ALTER TABLE tp exchange partition p1 with table t IGNORE;
-show create table t;
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -140,14 +140,14 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 161	161
 162	162
 163	163
 164	164
 200	Two hundred, end of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 1	First value
 10	Ten
@@ -161,15 +161,15 @@ a	b
 64	Sixty four
 99	End of values
 # No need to use ignore on the original partition
-ALTER TABLE tp exchange partition p1 with table t;
-show create table t;
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -179,13 +179,13 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 1	First value
 3	Three
 5	Five
 99	End of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 10	Ten
 161	161
@@ -200,26 +200,28 @@ a	b
 63	Sixty three
 64	Sixty four
 # Test list of partitions
-ALTER TABLE tp exchange partition p0,p1 with table t ignore;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 with table t ignore' at line 1
-ALTER TABLE tp exchange partition (p0,p1) with table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(p0,p1) with table t' at line 1
-ALTER TABLE tp exchange partition p0 with table (t,t2) ignore;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(t,t2) ignore' at line 1
-ALTER TABLE tp exchange partition p0 with table t,t2;
+ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t IGNORE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t IGNORE' at line 1
+ALTER TABLE tp EXCHANGE PARTITION (p0,p1) WITH TABLE t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(p0,p1) WITH TABLE t' at line 1
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE (t,t2) IGNORE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(t,t2) IGNORE' at line 1
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t,t2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't2' at line 1
-ALTER TABLE tp exchange partition non_existent with table t ignore;
+ALTER TABLE tp EXCHANGE PARTITION non_existent WITH TABLE t IGNORE;
 ERROR HY000: Unknown partition 'non_existent' in table 'tp'
-ALTER TABLE tsp exchange partition p0 with table t;
+ALTER TABLE tsp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Subpartitioned table, use subpartition instead of partition
-show create table t;
+ALTER TABLE tsp EXCHANGE PARTITION sp0 WITH TABLE tp;
+ERROR HY000: Table to exchange with partition is partitioned: 'tp'
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -229,7 +231,7 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-show create table tsp;
+SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -244,13 +246,13 @@ SUBPARTITION BY HASH (a)
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION sp2 ENGINE = MyISAM,
   SUBPARTITION sp3 ENGINE = MyISAM)) */
-select * from t;
+SELECT * FROM t;
 a	b
 1	First value
 3	Three
 5	Five
 99	End of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 10	Ten
 161	161
@@ -265,15 +267,15 @@ a	b
 63	Sixty three
 64	Sixty four
 # Test exchange partition
-ALTER TABLE tp exchange partition p0 with table t ignore;
-show create table t;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -283,7 +285,7 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 10	Ten
 2	First value
@@ -292,7 +294,7 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-select * from tp;
+SELECT * FROM tp;
 a	b
 1	First value
 161	161
@@ -303,15 +305,15 @@ a	b
 3	Three
 5	Five
 99	End of values
-ALTER TABLE tp exchange partition p0 with table t;
-show create table t;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -321,13 +323,13 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 1	First value
 3	Three
 5	Five
 99	End of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 10	Ten
 161	161
@@ -341,15 +343,15 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-ALTER TABLE tp exchange partition p0 with table t;
-show create table t;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -359,7 +361,7 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 10	Ten
 2	First value
@@ -368,7 +370,7 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-select * from tp;
+SELECT * FROM tp;
 a	b
 1	First value
 161	161
@@ -380,15 +382,15 @@ a	b
 5	Five
 99	End of values
 # Test exchange subpartition with IGNORE
-ALTER TABLE tsp exchange partition sp3 with table t ignore;
-show create table t;
+ALTER TABLE tsp EXCHANGE PARTITION sp3 WITH TABLE t IGNORE;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tsp;
+SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -403,11 +405,11 @@ SUBPARTITION BY HASH (a)
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION sp2 ENGINE = MyISAM,
   SUBPARTITION sp3 ENGINE = MyISAM)) */
-select * from t;
+SELECT * FROM t;
 a	b
 161	161
 163	163
-select * from tsp;
+SELECT * FROM tsp;
 a	b
 10	Ten
 10	Ten
@@ -426,17 +428,17 @@ a	b
 63	Sixty three
 64	Sixty four
 64	Sixty four
-ALTER TABLE tsp exchange partition sp3 with table t ignore;
-alter table t engine = innodb;
-alter table tp engine = innodb;
-show create table t;
+ALTER TABLE tsp EXCHANGE PARTITION sp3 WITH TABLE t IGNORE;
+ALTER TABLE t ENGINE = InnoDB;
+ALTER TABLE tp ENGINE = InnoDB;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -446,7 +448,7 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-select * from t;
+SELECT * FROM t;
 a	b
 10	Ten
 2	First value
@@ -455,7 +457,7 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
-select * from tp;
+SELECT * FROM tp;
 a	b
 1	First value
 161	161
@@ -467,14 +469,14 @@ a	b
 5	Five
 99	End of values
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
-show create table t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -484,13 +486,13 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-select * from t;
+SELECT * FROM t;
 a	b
 1	First value
 3	Three
 5	Five
 99	End of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 10	Ten
 161	161
@@ -506,16 +508,16 @@ a	b
 64	Sixty four
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
 # test different engines
-alter table t engine = myisam;
-alter table tp engine = innodb;
-show create table t;
+ALTER TABLE t ENGINE = MyISAM;
+ALTER TABLE tp ENGINE = InnoDB;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -527,14 +529,14 @@ tp	CREATE TABLE `tp` (
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
 ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-show create table t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -545,21 +547,21 @@ tp	CREATE TABLE `tp` (
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 # Test different charsets
-alter table t engine = myisam;
-create table tmp like t;
-insert into tmp select * from t;
-rename table t to tmp2, tmp to t;
-alter table tp engine = myisam;
-alter table t character set = koi8r collate koi8r_general_ci;
+ALTER TABLE t ENGINE = MyISAM;
+CREATE TABLE tmp LIKE t;
+INSERT INTO tmp SELECT * FROM t;
+RENAME TABLE t TO tmp2, tmp TO t;
+ALTER TABLE tp ENGINE = MyISAM;
+ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
 ERROR HY000: Non matching attribute 'CHARACTER SET' between partition and table
-drop table t;
-rename table tmp2 to t;
-alter table t add key ba_key (b, a);
-alter table tp add key ba_key (b, a);
-alter table tsp add key ba_key (b, a);
-alter table tp exchange partition p1 with table t IGNORE;
-show create table t;
+DROP TABLE t;
+RENAME TABLE tmp2 TO t;
+ALTER TABLE t ADD KEY ba_key (b, a);
+ALTER TABLE tp ADD KEY ba_key (b, a);
+ALTER TABLE tsp ADD KEY ba_key (b, a);
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -567,7 +569,7 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -578,14 +580,14 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-select * from t;
+SELECT * FROM t;
 a	b
 161	161
 162	162
 163	163
 164	164
 200	Two hundred, end of values
-select * from tp;
+SELECT * FROM tp;
 a	b
 1	First value
 10	Ten
@@ -598,27 +600,27 @@ a	b
 63	Sixty three
 64	Sixty four
 99	End of values
-alter table tp exchange partition p1 with table t IGNORE;
-alter table t drop key ba_key;
-alter table tp exchange partition p1 with table t IGNORE;
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
+ALTER TABLE t DROP KEY ba_key;
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
 ERROR HY000: Tables have different definitions
-alter table t add key b_key (b);
-alter table tsp exchange partition sp1 with table t IGNORE;
+ALTER TABLE t ADD KEY b_key (b);
+ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t IGNORE;
 ERROR HY000: Tables have different definitions
-alter table t add key ba_key (b, a);
-alter table t drop key b_key;
-alter table t change a c int;
-alter table tsp exchange partition sp1 with table t IGNORE;
+ALTER TABLE t ADD KEY ba_key (b, a);
+ALTER TABLE t DROP KEY b_key;
+ALTER TABLE t CHANGE a c INT;
+ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t IGNORE;
 ERROR HY000: Tables have different definitions
-alter table t change c a int;
+ALTER TABLE t CHANGE c a INT;
 # test temporary table
-alter table t engine = myisam;
-alter table tp engine = myisam;
-create temporary table tmp like t;
-insert into tmp select * from t;
-alter table t rename to tmp2;
-alter table tmp rename to t;
-show create table t;
+ALTER TABLE t ENGINE = MyISAM;
+ALTER TABLE tp ENGINE = MyISAM;
+CREATE TEMPORARY TABLE tmp LIKE t;
+INSERT INTO tmp SELECT * FROM t;
+ALTER TABLE t RENAME TO tmp2;
+ALTER TABLE tmp RENAME TO t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TEMPORARY TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -626,7 +628,7 @@ t	CREATE TEMPORARY TABLE `t` (
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -639,7 +641,7 @@ tp	CREATE TABLE `tp` (
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
 ERROR HY000: Table to exchange with partition is temporary: 't'
-show create table t;
+SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TEMPORARY TABLE `t` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -647,7 +649,7 @@ t	CREATE TEMPORARY TABLE `t` (
   PRIMARY KEY (`a`),
   KEY `ba_key` (`b`,`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-show create table tp;
+SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
   `a` int(11) NOT NULL DEFAULT '0',
@@ -658,13 +660,13 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-drop temporary table t;
-alter table tmp2 rename to t;
+DROP TEMPORARY TABLE t;
+ALTER TABLE tmp2 RENAME TO t;
 # Test non partitioned table
-alter table tp remove partitioning;
+ALTER TABLE tp REMOVE PARTITIONING;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
 ERROR HY000: Partition management on a not partitioned table is not possible
-drop table t, tp, tsp;
+DROP TABLE t, tp, tsp;
 # Test with general_log
 use mysql;
 SET @old_general_log_state = @@global.general_log;

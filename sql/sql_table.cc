@@ -6595,7 +6595,7 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
   if (table->part_info)
   {
     my_error(ER_PARTITION_EXCHANGE_PART_TABLE, MYF(0),
-             table->s->table_name);
+             table->s->table_name.str);
     DBUG_RETURN(TRUE);
   }
 
@@ -6619,7 +6619,7 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
     my_error(ER_PARTITION_EXCHANGE_TEMP_TABLE, MYF(0),
-             table->s->table_name);
+             table->s->table_name.str);
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
