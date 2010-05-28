@@ -3191,6 +3191,15 @@ public:
   {
     return this == item;
   }
+  /**
+     Check if saved item has a non-NULL value.
+     Will cache value of saved item if not already done. 
+     @return TRUE if cached value is non-NULL.
+   */
+  bool has_value()
+  {
+    return (value_cached || cache_value()) && !null_value;
+  }
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const
