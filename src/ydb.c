@@ -1665,10 +1665,10 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	}
 	{
 	    // dummy values until upgrade logic is complete and counters are available
-	    engstat->upgrade_env_status = 1;
-	    engstat->upgrade_header     = 2;
-	    engstat->upgrade_nonleaf    = 3;
-	    engstat->upgrade_leaf       = 4;
+	    engstat->upgrade_env_status = 0;
+	    engstat->upgrade_header     = 0;
+	    engstat->upgrade_nonleaf    = 0;
+	    engstat->upgrade_leaf       = 0;
 	}
     }
     return r;
