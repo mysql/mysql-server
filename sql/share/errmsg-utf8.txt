@@ -6336,3 +6336,7 @@ ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 
 ER_BINLOG_UNSAFE_MIXED_STATEMENT
   eng "Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe."
+
+ER_FAILED_READ_FROM_PAR_FILE
+  eng "Failed to read from the .par file"
+  swe "Misslyckades läsa från .par filen"
