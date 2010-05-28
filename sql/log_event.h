@@ -72,6 +72,7 @@
 #define LOG_READ_MEM    -5
 #define LOG_READ_TRUNC  -6
 #define LOG_READ_TOO_LARGE -7
+#define LOG_READ_CHECKSUM_FAILURE -8
 
 #define LOG_EVENT_OFFSET 4
 
@@ -489,6 +490,13 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
+   @def LOG_EVENT_CHECKSUM_F
+   
+   Events with checksum (currently CRC32 alg)
+*/
+#define LOG_EVENT_CHECKSUM_F 0x80
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -521,6 +529,21 @@ struct sql_ex_info
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
+
+enum enum_binlog_checksum_alg {
+  BINLOG_CHECKSUM_ALG_CRC32= 1,  // to indexed by opt_binlog_checksum_alg_id
+  BINLOG_CHECKSUM_ALG_ENUM_END
+};
+
+#define CHECKSUM_CRC32_SIGNATURE_LEN 4
+/**
+   defined statically while there is just one alg implemented
+*/
+#define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
+#define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
+/* the total contribution to event header is union of alg desc and value */
+#define BINLOG_CHECKSUM_SIGNATURE_LEN \
+  (BINLOG_CHECKSUM_LEN + BINLOG_CHECKSUM_ALG_DESC_LEN)
 
 /**
   @enum Log_event_type
@@ -963,6 +986,10 @@ public:
   */
   ulong slave_exec_mode;
 
+  /**
+    Placeholder for event checksum while writing to binlog.
+   */
+  ha_checksum crc;
 #ifndef MYSQL_CLIENT
   THD* thd;
 
@@ -982,7 +1009,8 @@ public:
   static Log_event* read_log_event(IO_CACHE* file,
 				   pthread_mutex_t* log_lock,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event,
+                                   my_bool crc_check);
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
   /*
@@ -1011,7 +1039,7 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event, my_bool crc_check);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t *ts = 0);
@@ -1035,13 +1063,19 @@ public:
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
 
+
 #ifndef MYSQL_CLIENT
+  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong data_length);
   bool write_header(IO_CACHE* file, ulong data_length);
+  bool write_footer(IO_CACHE* file);
+  my_bool need_checksum(IO_CACHE* file);
+
   virtual bool write(IO_CACHE* file)
   {
-    return (write_header(file, get_data_size()) ||
-            write_data_header(file) ||
-            write_data_body(file));
+    return(write_header(file, get_data_size()) ||
+	   write_data_header(file) ||
+	   write_data_body(file) ||
+	   write_footer(file));
   }
   virtual bool write_data_header(IO_CACHE* file)
   { return 0; }
@@ -1097,7 +1131,7 @@ public:
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event, my_bool crc_check);
   /**
     Returns the human readable name of the given event type.
   */
@@ -2339,9 +2373,10 @@ public:
   uchar type;
 
 #ifndef MYSQL_CLIENT
-  Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
-    :Log_event(thd_arg,0,0),val(val_arg),type(type_arg)
-  {}
+  Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg,
+                   uint16 cache_type_arg)
+    :Log_event(thd_arg,0,0),val(val_arg), type(type_arg)
+    { cache_type= cache_type_arg; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2415,9 +2450,10 @@ class Rand_log_event: public Log_event
   ulonglong seed2;
 
 #ifndef MYSQL_CLIENT
-  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
-    :Log_event(thd_arg,0,0),seed1(seed1_arg),seed2(seed2_arg)
-  {}
+  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
+                 uint16 cache_type_arg)
+    :Log_event(thd_arg,0,0), seed1(seed1_arg), seed2(seed2_arg)
+    { cache_type= cache_type_arg; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2461,7 +2497,7 @@ class Xid_log_event: public Log_event
    my_xid xid;
 
 #ifndef MYSQL_CLIENT
-  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg,0,0), xid(x) {}
+  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg,0,0), xid(x) { cache_type= EVENT_NO_CACHE; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2513,11 +2549,12 @@ public:
 #ifndef MYSQL_CLIENT
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
-		     uint charset_number_arg, uchar flags_arg)
-    :Log_event(), name(name_arg), name_len(name_len_arg), val(val_arg),
-    val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
-    flags(flags_arg)
-    { is_null= !val; }
+		     uint charset_number_arg, uchar flags_arg,
+                     uint16 cache_type_arg)
+    :Log_event(thd_arg, 0, 0), name(name_arg), name_len(name_len_arg), val(val_arg),
+     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
+     flags(flags_arg)
+    { is_null= !val; cache_type= cache_type_arg; }
   void pack_info(Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -4042,4 +4079,6 @@ private:
   @} (end of group Replication)
 */
 
+bool
+event_checksum_test(uchar *buf, ulong event_len);
 #endif /* _log_event_h */

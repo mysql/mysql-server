@@ -503,6 +503,9 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
+volatile my_bool opt_binlog_checksum;
+my_bool opt_master_verify_checksum= 0;
+my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names) - 1, "",
@@ -5592,7 +5595,10 @@ enum options_mysqld
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
-  OPT_BINLOG_ROWS_EVENT_MAX_SIZE, 
+  OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+  OPT_BINLOG_CHECKSUM,
+  OPT_MASTER_VERIFY_CHECKSUM,
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
   OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
@@ -5816,9 +5822,29 @@ struct my_option my_long_options[] =
    (uchar**) &opt_binlog_rows_event_max_size, 0, 
    GET_ULONG, REQUIRED_ARG, 
    /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX, 
-   /* sub_size */     0, /* block_size */ 256, 
+   /* sub_size */     0, /* block_size */ 256,
    /* app_type */ 0
   },
+  {"binlog-checksum", OPT_BINLOG_CHECKSUM,
+   "Adding checksum (CRC32 only algorithm currently) for binlogged events. "
+   "Disabled by default.",
+   (uchar**) &opt_binlog_checksum, (uchar**) &opt_binlog_checksum, 0, GET_BOOL,
+   NO_ARG, 0, 0, 1, 0, 0, 0},
+  {"master-verify-checksum", OPT_MASTER_VERIFY_CHECKSUM,
+   "Forcing verification of binlogged events checksum before sending them "
+   "to slaves and in show binlog event. "
+   "Enabled by default.",
+   (uchar**) &opt_master_verify_checksum,
+   (uchar**) &opt_master_verify_checksum,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
+  {"slave-sql-verify-checksum", OPT_SLAVE_SQL_VERIFY_CHECKSUM,
+   "Forcing verification of CRC-checksum of replication events after reading "
+   "them from the relay log. Notice, CRC-ed events are always verified by slave at "
+   "receiving from the network before to be written to the relay log. "
+   "Enabled by default.",
+   (uchar**) &opt_slave_sql_verify_checksum,
+   (uchar**) &opt_slave_sql_verify_checksum,
+   0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},

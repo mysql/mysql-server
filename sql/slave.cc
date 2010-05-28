@@ -1456,19 +1456,59 @@ when it try to get the value of TIME_ZONE global variable from master.";
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
     my_sprintf(query, (query, query_format, llbuf));
 
-    if (mysql_real_query(mysql, query, strlen(query))
-        && !check_io_slave_killed(mi->io_thd, mi, NULL))
+    if (mysql_real_query(mysql, query, strlen(query)))
     {
-      errmsg= "The slave I/O thread stops because SET @master_heartbeat_period "
-        "on master failed.";
-      err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
-      mysql_free_result(mysql_store_result(mysql));
-      goto err;
+      if (is_network_error(mysql_errno(mysql)))
+      {
+        mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                   "SET @master_heartbeat_period to master failed with error: %s",
+                   mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto network_err;
+      }
+      else
+      {
+        /* Fatal error */
+        errmsg= "The slave I/O thread stops because a fatal error is encountered "
+          " when it tries to SET @master_heartbeat_period on master.";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto err;
+      }
     }
     mysql_free_result(mysql_store_result(mysql));
   }
- 
+  
+  /*
+    Notifying the master about CRC-awareness of this slave
+  */
+  {
+    int rc;
+    const char query[]= "SET @slave_is_checksum_aware= 1";
+    rc= mysql_real_query(mysql, query, strlen(query));
+    if (rc == 0)
+      mysql_free_result(mysql_store_result(mysql));
+    else 
+      if (is_network_error(mysql_errno(mysql)))
+      {
+        mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                   "Notifying master by SET @slave_is_checksum_aware failed with "
+                   "error: %s", mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto network_err;
+      }
+      else
+      {
+        errmsg= "The slave I/O thread stops because a fatal error is encountered "
+          "when it tried to SET @slave_is_checksum on master.";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto err;
+      }
+    mysql_free_result(mysql_store_result(mysql));
+  }
 
 err:
   if (errmsg)
@@ -2837,6 +2877,11 @@ Stopping slave I/O thread due to out-of-memory error from master");
           mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES,
                      "%s", ER(ER_OUT_OF_RESOURCES));
           goto err;
+        case ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE:
+          mi->report(ERROR_LEVEL, ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE,
+                     ER(ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE),
+                     mysql_error_number, mysql_error(mysql));
+          goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
                              reconnect_messages[SLAVE_RECON_ACT_EVENT]))
@@ -3555,8 +3600,9 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     Append_block/Exec_load (the SQL thread needs the data, as that thread is not
     connected to the master).
   */
-  Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
-                                            mi->rli.relay_log.description_event_for_queue);
+  Log_event *ev=
+    Log_event::read_log_event(buf,event_len, &errmsg,
+                              mi->rli.relay_log.description_event_for_queue, 0);
   if (unlikely(!ev))
   {
     sql_print_error("Read invalid event from master: '%s',\
@@ -3643,8 +3689,9 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
   DBUG_ENTER("queue_binlog_ver_3_event");
 
   /* read_log_event() will adjust log_pos to be end_log_pos */
-  Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
-                                            mi->rli.relay_log.description_event_for_queue);
+  Log_event *ev=
+    Log_event::read_log_event(buf, event_len, &errmsg,
+                              mi->rli.relay_log.description_event_for_queue, 0);
   if (unlikely(!ev))
   {
     sql_print_error("Read invalid event from master: '%s',\
@@ -3670,6 +3717,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     inc_pos= event_len;
     break;
   }
+
   if (unlikely(rli->relay_log.append(ev)))
   {
     delete ev;
@@ -3733,7 +3781,16 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   Relay_log_info *rli= &mi->rli;
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
   ulong s_id;
+  bool unlock_data_lock= TRUE;
+  uint16 flags= uint2korr(buf + FLAGS_OFFSET);
   DBUG_ENTER("queue_event");
+
+  if (event_checksum_test((uchar *) buf, event_len))
+  {
+    error= ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE;
+    unlock_data_lock= FALSE;
+    goto err;
+  }
 
   LINT_INIT(inc_pos);
 
@@ -3761,7 +3818,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto err;
   case ROTATE_EVENT:
   {
-    Rotate_log_event rev(buf,event_len,mi->rli.relay_log.description_event_for_queue);
+    Rotate_log_event rev(buf,
+			 (flags & LOG_EVENT_CHECKSUM_F) ?
+                         event_len - BINLOG_CHECKSUM_SIGNATURE_LEN : event_len,
+                         mi->rli.relay_log.description_event_for_queue);
+
     if (unlikely(process_io_rotate(mi,&rev)))
     {
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
@@ -3789,7 +3850,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     const char* errmsg;
     if (!(tmp= (Format_description_log_event*)
           Log_event::read_log_event(buf, event_len, &errmsg,
-                                    mi->rli.relay_log.description_event_for_queue)))
+                                    mi->rli.relay_log.description_event_for_queue,
+                                    0)))
     {
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
@@ -3817,7 +3879,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       HB (heartbeat) cannot come before RL (Relay)
     */
     char  llbuf[22];
-    Heartbeat_log_event hb(buf, event_len, mi->rli.relay_log.description_event_for_queue);
+    Heartbeat_log_event hb(buf,
+                           ((flags & LOG_EVENT_CHECKSUM_F) ==
+                            LOG_EVENT_CHECKSUM_F) ?
+                           event_len - BINLOG_CHECKSUM_SIGNATURE_LEN: event_len,
+                           mi->rli.relay_log.description_event_for_queue);
     if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
@@ -3945,7 +4011,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 skip_relay_logging:
   
 err:
-  pthread_mutex_unlock(&mi->data_lock);
+  if (unlock_data_lock)
+    pthread_mutex_unlock(&mi->data_lock);
   DBUG_PRINT("info", ("error: %d", error));
   if (error)
     mi->report(ERROR_LEVEL, error, ER(error), 
@@ -4415,8 +4482,9 @@ static Log_event* next_event(Relay_log_info* rli)
       But if the relay log is created by new_file(): then the solution is:
       MYSQL_BIN_LOG::open() will write the buffered description event.
     */
-    if ((ev=Log_event::read_log_event(cur_log,0,
-                                      rli->relay_log.description_event_for_exec)))
+    if ((ev=Log_event::read_log_event(cur_log, 0,
+                                      rli->relay_log.description_event_for_exec,
+                                      opt_slave_sql_verify_checksum)))
 
     {
       DBUG_ASSERT(thd==rli->sql_thd);
