@@ -1155,15 +1155,9 @@ trx_purge(
 
 	trx_sys_mutex_exit();
 
-	purge_sys->n_pages_handled_start = purge_sys->n_pages_handled;
-
-	if (ut_dulint_is_zero(purge_sys->limit.trx_no)) {
-		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
-	} else {
-		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
-	}
-
 	rw_lock_x_unlock(&purge_sys->latch);
+
+	purge_sys->n_pages_handled_start = purge_sys->n_pages_handled;
 
 	/* Fetch the UNDO recs that need to be purged. */
 	trx_purge_attach_undo_recs(
@@ -1222,6 +1216,16 @@ run_synchronously:
 			trx_purge_wait_for_workers_to_complete(purge_sys);
 		}
 	}
+
+	mutex_enter(&purge_sys->mutex);
+
+	if (ut_dulint_is_zero(purge_sys->limit.trx_no)) {
+		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
+	} else {
+		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
+	}
+
+	mutex_exit(&purge_sys->mutex);
 
 	return(purge_sys->n_pages_handled - purge_sys->n_pages_handled_start);
 }
