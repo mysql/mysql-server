@@ -3351,11 +3351,12 @@ compare_errors:
     */
     actual_error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
- 		       expected_error, actual_error));
+                       expected_error, actual_error));
+
     if ((expected_error && expected_error != actual_error &&
          !concurrency_error_code(expected_error)) &&
- 	!ignored_error_code(actual_error) &&
- 	!ignored_error_code(expected_error))
+        !ignored_error_code(actual_error) &&
+        !ignored_error_code(expected_error))
     {
       rli->report(ERROR_LEVEL, 0,
                       "\
@@ -3373,9 +3374,9 @@ Default database: '%s'. Query: '%s'",
       If we get the same error code as expected and it is not a concurrency
       issue, or should be ignored.
     */
-    else if ((expected_error == actual_error && 
+    else if ((expected_error == actual_error &&
               !concurrency_error_code(expected_error)) ||
- 	     ignored_error_code(actual_error))
+             ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
@@ -3394,7 +3395,7 @@ Default database: '%s'. Query: '%s'",
       If we expected a non-zero error code and get nothing and, it is a concurrency
       issue or should be ignored.
     */
-    else if (expected_error && !actual_error && 
+    else if (expected_error && !actual_error &&
              (concurrency_error_code(expected_error) ||
               ignored_error_code(expected_error)))
       trans_rollback_stmt(thd);
@@ -3435,12 +3436,13 @@ Default database: '%s'. Query: '%s'",
     */
   } /* End of if (db_ok(... */
 
-  {/**
-      The following failure injecion works in cooperation with tests 
+  {
+    /**
+      The following failure injecion works in cooperation with tests
       setting @@global.debug= 'd,stop_slave_middle_group'.
-      The sql thread receives the killed status and will proceed 
+      The sql thread receives the killed status and will proceed
       to shutdown trying to finish incomplete events group.
-   */
+    */
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     if (strcmp("COMMIT", query) != 0 &&
                         strcmp("BEGIN", query) != 0)
@@ -3455,7 +3457,7 @@ end:
     Probably we have set thd->query, thd->db, thd->catalog to point to places
     in the data_buf of this event. Now the event is going to be deleted
     probably, so data_buf will be freed, so the thd->... listed above will be
-    pointers to freed memory. 
+    pointers to freed memory.
     So we must set them to 0, so that those bad pointers values are not later
     used. Note that "cleanup" queries like automatic DROP TEMPORARY TABLE
     don't suffer from these assignments to 0 as DROP TEMPORARY
@@ -3465,7 +3467,7 @@ end:
   thd->set_db(NULL, 0);                 /* will free the current database */
   thd->set_query(NULL, 0);
   DBUG_PRINT("info", ("end: query= 0"));
-  close_thread_tables(thd);      
+  close_thread_tables(thd);
   /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able
@@ -3767,7 +3769,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     */
     if (post_header_len)
     {
-#ifndef DBUG_OFF      
+#ifndef DBUG_OFF
       // Allows us to sanity-check that all events initialized their
       // events (see the end of this 'if' block).
       memset(post_header_len, 255, number_of_event_types*sizeof(uint8));
@@ -4621,9 +4623,9 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     for (i = 0; i < num_fields; i++)
     {
       if (i)
-	my_b_printf(&cache, ",");
+        my_b_printf(&cache, ",");
       my_b_printf(&cache, "%s", field);
-	  
+
       field += field_lens[i]  + 1;
     }
     my_b_printf(&cache, ")");
@@ -4793,9 +4795,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       thd->set_query(load_data_query, (uint) (end - load_data_query));
 
       if (sql_ex.opt_flags & REPLACE_FLAG)
-      {
-	handle_dup= DUP_REPLACE;
-      }
+        handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
       {
         ignore= 1;
@@ -4804,14 +4804,14 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       else
       {
         /*
-	  When replication is running fine, if it was DUP_ERROR on the
+          When replication is running fine, if it was DUP_ERROR on the
           master then we could choose IGNORE here, because if DUP_ERROR
           suceeded on master, and data is identical on the master and slave,
           then there should be no uniqueness errors on slave, so IGNORE is
           the same as DUP_ERROR. But in the unlikely case of uniqueness errors
           (because the data on the master and slave happen to be different
-	  (user error or bug), we want LOAD DATA to print an error message on
-	  the slave to discover the problem.
+          (user error or bug), we want LOAD DATA to print an error message on
+          the slave to discover the problem.
 
           If reading from net (a 3.23 master), mysql_load() will change this
           to IGNORE.
@@ -4843,7 +4843,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
-	ex.field_term->length(0);
+        ex.field_term->length(0);
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
@@ -4852,12 +4852,10 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       thd->variables.pseudo_thread_id= thread_id;
       if (net)
       {
-	// mysql_load will use thd->net to read the file
-	thd->net.vio = net->vio;
-	/*
-	  Make sure the client does not get confused about the packet sequence
-	*/
-	thd->net.pkt_nr = net->pkt_nr;
+        // mysql_load will use thd->net to read the file
+        thd->net.vio = net->vio;
+        // Make sure the client does not get confused about the packet sequence
+        thd->net.pkt_nr = net->pkt_nr;
       }
       /*
         It is safe to use tmp_list twice because we are not going to
@@ -4869,7 +4867,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         thd->is_slave_error= 1;
       if (thd->cuted_fields)
       {
-	/* log_pos is the position of the LOAD event in the master log */
+        /* log_pos is the position of the LOAD event in the master log */
         sql_print_warning("Slave: load data infile on table '%s' at "
                           "log position %s in log '%s' produced %ld "
                           "warning(s). Default database: '%s'",
@@ -5617,10 +5615,10 @@ User_var_log_event(const char* buf,
   {
     type= (Item_result) buf[UV_VAL_IS_NULL];
     charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
-    val_len= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
-		       UV_CHARSET_NUMBER_SIZE);
+    val_len= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                       UV_CHARSET_NUMBER_SIZE);
     val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
-		   UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
+                   UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
 
     /**
       We need to check if this is from an old server
@@ -5704,9 +5702,9 @@ bool User_var_log_event::write(IO_CACHE* file)
 
   return (write_header(file, event_length) ||
           my_b_safe_write(file, (uchar*) buf, sizeof(buf))   ||
-	  my_b_safe_write(file, (uchar*) name, name_len)     ||
-	  my_b_safe_write(file, (uchar*) buf1, buf1_length) ||
-	  my_b_safe_write(file, pos, val_len) ||
+          my_b_safe_write(file, (uchar*) name, name_len)     ||
+          my_b_safe_write(file, (uchar*) buf1, buf1_length) ||
+          my_b_safe_write(file, pos, val_len) ||
           my_b_safe_write(file, &flags, unsigned_len));
 }
 #endif
@@ -5980,7 +5978,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   master_log_len = strlen(rli->group_master_log_name);
   // on OOM, just do not initialize the structure and print the error
   if ((mem_pool = (char*)my_malloc(get_data_size() + 1,
-				   MYF(MY_WME))))
+                                   MYF(MY_WME))))
   {
     master_host = mem_pool + SL_MASTER_HOST_OFFSET ;
     memcpy(master_host, mi->host, master_host_len + 1);
@@ -5989,7 +5987,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
     master_port = mi->port;
     master_pos = rli->group_master_log_pos;
     DBUG_PRINT("info", ("master_log: %s  pos: %lu", master_log,
-			(ulong) master_pos));
+                        (ulong) master_pos));
   }
   else
     sql_print_error("Out of memory while recording slave event");
