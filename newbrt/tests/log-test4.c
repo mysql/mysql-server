@@ -14,6 +14,7 @@ int
 test_main (int argc __attribute__((__unused__)),
 	  const char *argv[] __attribute__((__unused__))) {
     int r;
+    char logname[PATH_MAX];
     r = system(rmrf);
     CKERR(r);
     r = toku_os_mkdir(dname, S_IRWXU);                               assert(r==0);
@@ -34,7 +35,8 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logger_close(&logger);                                  assert(r == 0);
     {
 	toku_struct_stat statbuf;
-	r = toku_stat(dname "/log000000000000.tokulog", &statbuf);
+        sprintf(logname, dname "/log000000000000.tokulog%d", TOKU_LOG_VERSION);
+	r = toku_stat(logname, &statbuf);
 	assert(r==0);
 	assert(statbuf.st_size==12+5);
     }

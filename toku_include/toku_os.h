@@ -81,6 +81,8 @@ void toku_fs_get_write_info(time_t *enospc_last_time, uint64_t *enospc_current, 
 
 int toku_fsync_dirfd_without_accounting(DIR *dirp);
 
+int toku_fsync_dir_by_name_without_accounting(const char *dir_name);
+
 // Get the file system free and total space for the file system that contains a path name
 // *avail_size is set to the bytes of free space in the file system available for non-root 
 // *free_size is set to the bytes of free space in the file system

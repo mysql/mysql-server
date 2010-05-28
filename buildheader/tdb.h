@@ -323,9 +323,10 @@ struct __toku_dbt {
   u_int32_t ulen;
   u_int32_t flags;
 };
-typedef int (*toku_dbt_upgradef)(DB*,
-                                 u_int32_t old_version, const DBT *old_descriptor, const DBT *old_key, const DBT *old_val,
-                                 u_int32_t new_version, const DBT *new_descriptor, const DBT *new_key, const DBT *new_val);
+typedef struct __toku_descriptor {
+    u_int32_t version;
+    DBT       dbt;
+} *DESCRIPTOR, DESCRIPTOR_S;
 //One header is included in 'data'
 //One header is included in 'additional for checkpoint'
 typedef struct __toku_db_fragmentation {
@@ -351,8 +352,8 @@ struct __toku_db {
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
   int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
-  const DBT *descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
-  int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade) /* set row/dictionary descriptor for a db.  Available only while db is open */;
+  DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
+  int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
   int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */;
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;

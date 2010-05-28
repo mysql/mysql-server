@@ -13,14 +13,40 @@ static int delete_logfile(TOKULOGGER logger, long long index);
 static void grab_output(TOKULOGGER logger, LSN *fsynced_lsn);
 static void release_output(TOKULOGGER logger, LSN fsynced_lsn);
 
+static BOOL is_a_logfile_any_version (const char *name, uint64_t *number_result, uint32_t *version_of_log) {
+    BOOL rval = TRUE;
+    uint64_t result;
+    int n;
+    int r;
+    uint32_t version;
+    r = sscanf(name, "log%"SCNu64".tokulog%"SCNu32"%n", &result, &version, &n);
+    if (r!=2 || name[n]!='\0' || version <= TOKU_LOG_VERSION_1) {
+        //Version 1 does NOT append 'version' to end of '.tokulog'
+        version = TOKU_LOG_VERSION_1;
+        r = sscanf(name, "log%"SCNu64".tokulog%n", &result, &n);
+        if (r!=1 || name[n]!='\0') {
+            rval = FALSE;
+        }
+    }
+    if (rval) {
+        *number_result  = result;
+        *version_of_log = version;
+    }
+
+    return rval;
+}
+
 // added for #2424, improved for #2521
 static BOOL is_a_logfile (const char *name, long long *number_result) {
-    unsigned long long result;
-    int n;
-    int r = sscanf(name, "log%llu.tokulog%n", &result, &n);
-    if (r!=1 || name[n]!=0) return FALSE;
-    *number_result = result;
-    return TRUE;
+    BOOL rval;
+    uint64_t result;
+    uint32_t version;
+    rval = is_a_logfile_any_version(name, &result, &version);
+    if (rval && version != TOKU_LOG_VERSION)
+        rval = FALSE;
+    if (rval)
+        *number_result = result;
+    return rval;
 }
 
 
@@ -234,8 +260,8 @@ int toku_logger_shutdown(TOKULOGGER logger) {
     int r = 0;
     if (logger->is_open) {
         if (toku_omt_size(logger->live_txns) == 0) {
-            BYTESTRING comment = { strlen("shutdown"), "shutdown" };
-            int r2 = toku_log_comment(logger, NULL, TRUE, 0, comment);
+            time_t tnow = time(NULL);
+            int r2 = toku_log_shutdown(logger, NULL, TRUE, tnow);
             if (!r) r = r2;
         }
     }
@@ -575,7 +601,7 @@ static int open_logfile (TOKULOGGER logger)
 {
     int fnamelen = strlen(logger->directory)+50;
     char fname[fnamelen];
-    snprintf(fname, fnamelen, "%s/log%012lld.tokulog", logger->directory, logger->next_log_file_number);
+    snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, logger->next_log_file_number, TOKU_LOG_VERSION);
     long long index = logger->next_log_file_number;
     if (logger->write_log_files) {
         logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     
@@ -608,7 +634,7 @@ static int delete_logfile(TOKULOGGER logger, long long index)
 {
     int fnamelen = strlen(logger->directory)+50;
     char fname[fnamelen];
-    snprintf(fname, fnamelen, "%s/log%012lld.tokulog", logger->directory, index);
+    snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, index, TOKU_LOG_VERSION);
     int r = remove(fname);
     return r;
 }
@@ -786,6 +812,14 @@ int toku_logger_log_fdelete (TOKUTXN txn, const char *fname) {
     return r;
 }
 
+// fname is the iname
+int toku_logger_log_descriptor (TOKUTXN txn, FILENUM filenum, DESCRIPTOR descriptor_p) {
+    if (txn==0) return 0;
+    if (txn->logger->is_panicked) return EINVAL;
+    BYTESTRING bs_descriptor = { .len=descriptor_p->dbt.size, .data = descriptor_p->dbt.data };
+    int r = toku_log_fdescriptor (txn->logger, (LSN*)0, 1, filenum, descriptor_p->version, bs_descriptor);
+    return r;
+}
 
 
 
@@ -1258,3 +1292,82 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s) {
 	s->swap_ctr  = 0;
     }
 }
+
+//Used for upgrade
+int
+toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint32_t *version_found) {
+    BOOL found = FALSE;
+    uint32_t single_version = 0;
+    int r = 0;
+
+    struct dirent *de;
+    DIR *d=opendir(log_dir);
+    if (d==NULL) {
+        r = errno;
+    }
+    else {
+        // Examine every file in the directory and assert that all log files are of the same version (single_version).
+        while ((de=readdir(d))) {
+            uint32_t this_log_version;
+            uint64_t this_log_number;
+            BOOL is_log = is_a_logfile_any_version(de->d_name, &this_log_number, &this_log_version);
+            if (is_log) {
+                if (found)
+                    assert(single_version == this_log_version);
+                found = TRUE;
+                single_version = this_log_version;
+            }
+        }
+    }
+    {
+        int r2 = closedir(d);
+        if (r==0) r = r2;
+    }
+    if (r==0) {
+        *found_any_logs = found;
+        if (found)
+            *version_found = single_version;
+    }
+    return r;
+}
+
+//Used for upgrade
+int
+toku_delete_all_logs_of_version(const char *log_dir, uint32_t version_to_delete) {
+    int r = 0;
+
+    struct dirent *de;
+    DIR *d=opendir(log_dir);
+    if (d==NULL) {
+        r = errno;
+    }
+    else {
+        // Examine every file in the directory and if it is a log of the given version, delete it
+        while ((de=readdir(d))) {
+            uint32_t this_log_version;
+            uint64_t this_log_number;
+            BOOL is_log = is_a_logfile_any_version(de->d_name, &this_log_number, &this_log_version);
+            if (is_log && this_log_version == version_to_delete) {
+                char log_full_name[strlen(log_dir) + strlen(de->d_name) + 2]; //'\0' and '/'
+                { //Generate full fname
+                    int l = snprintf(log_full_name, sizeof(log_full_name),
+                                     "%s/%s", log_dir, de->d_name);
+                    assert(l+1 == (ssize_t)(sizeof(log_full_name)));
+                }
+
+                r = unlink(log_full_name);
+                if (r!=0) {
+                    r = errno;
+                    assert(r);
+                    break;
+                }
+            }
+        }
+    }
+    {
+        int r2 = closedir(d);
+        if (r==0) r = r2;
+    }
+    return r;
+}
+

@@ -4,14 +4,21 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
+#include "toku_atomic.h"
 
-#include "backwards_10.h"
+#include "backwards_11.h"
 // NOTE: The backwards compatability functions are in a file that is included at the END of this file.
-static int deserialize_brtheader_10 (int fd, struct rbuf *rb, struct brt_header **brth);
-static int upgrade_brtheader_10_11 (struct brt_header **brth_10, struct brt_header **brth_11);
-static int decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum);
-static int deserialize_brtnode_from_rbuf_10 (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb);
-static int upgrade_brtnode_10_11 (BRTNODE *brtnode_10, BRTNODE *brtnode_11);
+
+
+static BRT_UPGRADE_STATUS_S upgrade_status;  // accountability, used in backwards_x.c
+
+void 
+toku_brt_get_upgrade_status (BRT_UPGRADE_STATUS s) {
+    *s = upgrade_status;
+}
+
+
+
 
 // performance tracing
 #define DO_TOKU_TRACE 0
@@ -172,8 +179,7 @@ enum {
                             4+   // layout_version
                             4),  // layout_version_original
 
-    extended_node_header_overhead = (0+   // descriptor (variable, not counted here)
-                                     4+   // nodesize
+    extended_node_header_overhead = (4+   // nodesize
                                      4+   // flags
                                      4+   // height
                                      4+   // random for fingerprint
@@ -194,7 +200,6 @@ addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
 static unsigned int 
 toku_serialize_brtnode_size_slow (BRTNODE node) {
     unsigned int size = node_header_overhead + extended_node_header_overhead;
-    size += toku_serialize_descriptor_size(node->desc);
     if (node->height > 0) {
 	unsigned int hsize=0;
 	unsigned int csize=0;
@@ -236,7 +241,6 @@ unsigned int
 toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result = node_header_overhead + extended_node_header_overhead;
     assert(sizeof(toku_off_t)==8);
-    result += toku_serialize_descriptor_size(node->desc);
     if (node->height > 0) {
 	result += 4; /* subtree fingerpirnt */
 	result += 4; /* n_children */
@@ -276,9 +280,6 @@ serialize_node_header(BRTNODE node, struct wbuf *wbuf) {
     assert(node->layout_version == BRT_LAYOUT_VERSION);
     wbuf_nocrc_int(wbuf, node->layout_version);
     wbuf_nocrc_int(wbuf, node->layout_version_original);
-
-    // serialize the descriptor
-    toku_serialize_descriptor_contents_to_wbuf(wbuf, node->desc);
 
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_nocrc_uint(wbuf, node->nodesize);
@@ -518,8 +519,6 @@ toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_th
 int 
 toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads, BOOL for_checkpoint) {
 
-    assert(node->desc == &h->descriptor);
-
     size_t n_to_write;
     char *compressed_buf;
     {
@@ -550,7 +549,7 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
     return 0;
 }
 
-static void deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc, BOOL temporary);
+static void deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, BOOL temporary);
 
 #include "workset.h"
 
@@ -843,7 +842,6 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
 	if (0) { died0: toku_free(result); }
 	return r;
     }
-    result->desc = &h->descriptor;
     result->ever_been_written = 1;
 
     //printf("Deserializing %lld datasize=%d\n", off, datasize);
@@ -853,13 +851,6 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
     assert(result->layout_version == BRT_LAYOUT_VERSION);
     result->layout_version_original = rbuf_int(rb);
     result->layout_version_read_from_disk = result->layout_version;
-    {
-        //Restrict scope for now since we do not support upgrades.
-        struct descriptor desc;
-        //desc.dbt.data is TEMPORARY.  Will be unusable when the rc buffer is freed.
-        deserialize_descriptor_from_rbuf(rb, &desc, TRUE);
-        assert(desc.version == result->desc->version); //We do not yet support upgrading the dbts.
-    }
     result->nodesize = rbuf_int(rb);
 
     result->thisnodename = blocknum;
@@ -892,16 +883,23 @@ deserialize_brtnode_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *b
 }
 
 static int
-decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
+decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     toku_trace("decompress");
-    int r;
-
     // get the number of compressed sub blocks
     int n_sub_blocks;
     n_sub_blocks = toku_dtoh32(*(u_int32_t*)(&raw_block[node_header_overhead]));
 
     // verify the number of sub blocks
     assert(0 <= n_sub_blocks && n_sub_blocks <= max_sub_blocks);
+
+    { // verify the header checksum
+        u_int32_t header_length = node_header_overhead + sub_block_header_size(n_sub_blocks);
+        assert(header_length <= raw_block_size);
+        u_int32_t xsum = x1764_memory(raw_block, header_length);
+        u_int32_t stored_xsum = toku_dtoh32(*(u_int32_t *)(raw_block + header_length));
+        assert(xsum == stored_xsum);
+    }
+    int r;
 
     // deserialize the sub block header
     struct sub_block sub_block[n_sub_blocks];
@@ -954,14 +952,14 @@ decompress_from_raw_block_into_rbuf(u_int8_t *raw_block, struct rbuf *rb, BLOCKN
 }
 
 static int
-decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, struct rbuf *rb, BLOCKNUM blocknum) {
+decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     int r;
     switch (version) {
-        case BRT_LAYOUT_VERSION_10:
-            r = decompress_brtnode_from_raw_block_into_rbuf_10(raw_block, rb, blocknum);
+        case BRT_LAYOUT_VERSION_11:
+            r = decompress_brtnode_from_raw_block_into_rbuf_11(raw_block, rb, blocknum);
             break;
         case BRT_LAYOUT_VERSION:
-            r = decompress_from_raw_block_into_rbuf(raw_block, rb, blocknum);
+            r = decompress_from_raw_block_into_rbuf(raw_block, raw_block_size, rb, blocknum);
             break;
         default:
             assert(FALSE);
@@ -972,26 +970,32 @@ decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_b
 static int
 deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
     int r = 0;
-    BRTNODE brtnode_10 = NULL;
     BRTNODE brtnode_11 = NULL;
+    BRTNODE brtnode_12 = NULL;
 
     int upgrade = 0;
     switch (version) {
-        case BRT_LAYOUT_VERSION_10:
+        case BRT_LAYOUT_VERSION_11:
             if (!upgrade)
-                r = deserialize_brtnode_from_rbuf_10(blocknum, fullhash, &brtnode_10, h, rb);
+                r = deserialize_brtnode_from_rbuf_11(blocknum, fullhash, &brtnode_11, h, rb);
             upgrade++;
             if (r==0)
-                r = upgrade_brtnode_10_11(&brtnode_10, &brtnode_11);
+                r = upgrade_brtnode_11_12(&brtnode_11, &brtnode_12);
             //Fall through on purpose.
         case BRT_LAYOUT_VERSION:
             if (!upgrade)
-                r = deserialize_brtnode_from_rbuf(blocknum, fullhash, &brtnode_11, h, rb);
+                r = deserialize_brtnode_from_rbuf(blocknum, fullhash, &brtnode_12, h, rb);
             if (r==0) {
-                assert(brtnode_11);
-                *brtnode = brtnode_11;
+                assert(brtnode_12);
+                *brtnode = brtnode_12;
             }
-            if (upgrade && r == 0) (*brtnode)->dirty = 1;
+            if (upgrade && r == 0) {
+                toku_brtheader_lock(h);
+                assert(h->num_blocks_to_upgrade>0);
+                h->num_blocks_to_upgrade--;
+                toku_brtheader_unlock(h);
+                (*brtnode)->dirty = 1;
+            }
             break;    // this is the only break
         default:
             assert(FALSE);
@@ -1037,15 +1041,7 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
         }
     }
 
-    // verify the header checksum
-    u_int32_t n_sub_blocks = toku_dtoh32(*(u_int32_t *)(raw_block + node_header_overhead));
-    u_int32_t header_length = node_header_overhead + sub_block_header_size(n_sub_blocks);
-    assert(header_length <= size);
-    u_int32_t xsum = x1764_memory(raw_block, header_length);
-    u_int32_t stored_xsum = toku_dtoh32(*(u_int32_t *)(raw_block + header_length));
-    assert(xsum == stored_xsum);
-
-    r = decompress_from_raw_block_into_rbuf_versioned(layout_version, raw_block, rb, blocknum);
+    r = decompress_from_raw_block_into_rbuf_versioned(layout_version, raw_block, size, rb, blocknum);
     if (r!=0) goto cleanup;
 
     *layout_version_p = layout_version;
@@ -1097,8 +1093,8 @@ toku_maybe_upgrade_brt(BRT t) {	// possibly do some work to complete the version
     int version = t->h->layout_version_read_from_disk;
     if (!t->h->upgrade_brt_performed) {
 	switch (version) {
-        case BRT_LAYOUT_VERSION_10:
-	    r = toku_brt_broadcast_commit_all(t);
+        case BRT_LAYOUT_VERSION_11:
+            r = 0;
             //Fall through on purpose.
         case BRT_LAYOUT_VERSION:
 	    if (r == 0) {
@@ -1144,7 +1140,8 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
     return 0;
 }
 
-void toku_verify_counts (BRTNODE node) {
+void
+toku_verify_or_set_counts (BRTNODE node, BOOL set_fingerprints) {
     /*foo*/
     if (node->height==0) {
 	assert(node->u.l.buffer);
@@ -1155,6 +1152,9 @@ void toku_verify_counts (BRTNODE node) {
 	assert(sum_info.msum == node->u.l.buffer_mempool.free_offset - node->u.l.buffer_mempool.frag_size);
 
 	u_int32_t fps = node->rand4fingerprint * sum_info.fp;
+        if (set_fingerprints) {
+            node->local_fingerprint = fps;
+        }
 	assert(fps==node->local_fingerprint);
     } else {
 	unsigned int sum = 0;
@@ -1162,6 +1162,17 @@ void toku_verify_counts (BRTNODE node) {
 	    sum += BNC_NBYTESINBUF(node,i);
 	// We don't rally care of the later buffers have garbage in them.  Valgrind would do a better job noticing if we leave it uninitialized.
 	// But for now the code always initializes the later tables so they are 0.
+        uint32_t fp = 0;
+        int i;
+        for (i=0; i<node->u.n.n_children; i++)
+            FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
+                              {
+                                  fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
+                              });
+        if (set_fingerprints) {
+            node->local_fingerprint = fp;
+        }
+        assert(fp==node->local_fingerprint);
 	assert(sum==node->u.n.n_bytes_in_buffers);
     }
 }
@@ -1171,12 +1182,12 @@ serialize_brt_header_min_size (u_int32_t version) {
     u_int32_t size = 0;
     switch(version) {
         case BRT_LAYOUT_VERSION_12:
-        case BRT_LAYOUT_VERSION_11:
-	    size += 4;  // original_version
+            size += 8;  // Number of blocks in old version.
 	    // fall through to add up bytes in previous version
-        case BRT_LAYOUT_VERSION_10:
+        case BRT_LAYOUT_VERSION_11:
 	    size += (+8 // "tokudata"
 		     +4 // version
+		     +4 // original_version
 		     +4 // size
 		     +8 // byte order verification
 		     +8 // checkpoint_count
@@ -1221,6 +1232,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_BLOCKNUM(wbuf, h->root);
     wbuf_int(wbuf, h->flags);
     wbuf_int(wbuf, h->layout_version_original);
+    wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     assert(wbuf->ndone == wbuf->size);
@@ -1287,7 +1299,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 }
 
 u_int32_t
-toku_serialize_descriptor_size(const struct descriptor *desc) {
+toku_serialize_descriptor_size(const DESCRIPTOR desc) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
     u_int32_t size = 4+ //version
                      4; //size
@@ -1296,7 +1308,7 @@ toku_serialize_descriptor_size(const struct descriptor *desc) {
 }
 
 void
-toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const struct descriptor *desc) {
+toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc) {
     if (desc->version==0) assert(desc->dbt.size==0);
     wbuf_int(wb, desc->version);
     wbuf_bytes(wb, desc->dbt.data, desc->dbt.size);
@@ -1306,7 +1318,7 @@ toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const struct descrip
 //descriptor.
 //Descriptors are NOT written during the header checkpoint process.
 int
-toku_serialize_descriptor_contents_to_fd(int fd, const struct descriptor *desc, DISKOFF offset) {
+toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset) {
     int r = 0;
     // make the checksum
     int64_t size = toku_serialize_descriptor_size(desc)+4; //4 for checksum
@@ -1330,7 +1342,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, const struct descriptor *desc, 
 }
 
 static void
-deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc, BOOL temporary) {
+deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, BOOL temporary) {
     desc->version  = rbuf_int(rb);
     u_int32_t size;
     bytevec   data;
@@ -1351,7 +1363,7 @@ deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc, BOOL 
 }
 
 static void
-deserialize_descriptor_from(int fd, struct brt_header *h, struct descriptor *desc) {
+deserialize_descriptor_from(int fd, struct brt_header *h, DESCRIPTOR desc) {
     DISKOFF offset;
     DISKOFF size;
     toku_get_descriptor_offset_size(h->blocktable, &offset, &size);
@@ -1454,7 +1466,8 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         toku_blocktable_create_from_buffer(&h->blocktable,
                                            translation_address_on_disk,
                                            translation_size_on_disk,
-                                           tbuf);
+                                           tbuf,
+                                           FALSE /*not version 11 or older */ );
         toku_free(tbuf);
     }
 
@@ -1463,6 +1476,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->flags = rbuf_int(&rc);
     deserialize_descriptor_from(fd, h, &h->descriptor);
     h->layout_version_original = rbuf_int(&rc);    
+    h->num_blocks_to_upgrade   = rbuf_ulonglong(&rc);
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
@@ -1473,31 +1487,36 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
 
 
 
-//TODO: When version 12 exists, add case for version 11 that looks like version 10 case,
-// but calls deserialize_brtheader_11() and upgrade_11_12()
+//TODO: When version 13 exists, add case for version 12 that looks like version 10 case,
+// but calls deserialize_brtheader_12() and upgrade_12_13()
 static int
 deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
     int rval;
-    struct brt_header *brth_10 = NULL;
     struct brt_header *brth_11 = NULL;
+    struct brt_header *brth_12 = NULL;
     int upgrade = 0;
 
     switch(version) {
-    case BRT_LAYOUT_VERSION_10:
+    case BRT_LAYOUT_VERSION_11:
 	if (!upgrade)
-	    rval = deserialize_brtheader_10(fd, rb, &brth_10);
+	    rval = deserialize_brtheader_11(fd, rb, &brth_11);
 	upgrade++;
 	if (rval == 0) 
-	    rval = upgrade_brtheader_10_11(&brth_10, &brth_11);
+	    rval = upgrade_brtheader_11_12(fd, &brth_11, &brth_12);
         //Fall through on purpose.
     case BRT_LAYOUT_VERSION:
 	if (!upgrade)
-	    rval = deserialize_brtheader (fd, rb, &brth_11);
+	    rval = deserialize_brtheader (fd, rb, &brth_12);
 	if (rval == 0) {
-	    assert(brth_11);
-	    *brth = brth_11;
+	    assert(brth_12);
+	    *brth = brth_12;
 	}
-	if (upgrade && rval == 0) (*brth)->dirty = 1;
+	if (upgrade && rval == 0) {
+            toku_brtheader_lock(*brth);
+            (*brth)->num_blocks_to_upgrade = toku_block_get_blocks_in_use_unlocked((*brth)->blocktable);
+            (*brth)->dirty = 1;
+            toku_brtheader_unlock(*brth);
+        }
 	break;    // this is the only break
     default:
 	assert(FALSE);
@@ -1582,6 +1601,13 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset, struct rbuf *
             //Verify checksum
             u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
             u_int32_t stored_x1764     = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
+#if BRT_LAYOUT_MIN_SUPPORTED_VERSION <= BRT_LAYOUT_VERSION_11
+            if (version<=BRT_LAYOUT_VERSION_11) {
+                calculated_x1764 = ~calculated_x1764;
+            }
+#else
+#error The above code block is obsolete
+#endif
             if (calculated_x1764!=stored_x1764) r = TOKUDB_DICTIONARY_NO_HEADER; //Header useless
         }
         if (r==0) {
@@ -1869,6 +1895,7 @@ static int
 deserialize_rollback_log_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash,
                                               ROLLBACK_LOG_NODE *log,
                                               struct brt_header *h, struct rbuf *rb) {
+    //Upgrade is not necessary really here.  Rollback log nodes do not survive version changes.
     int r = 0;
     ROLLBACK_LOG_NODE rollback_log_node = NULL;
 
@@ -1923,5 +1950,5 @@ cleanup:
 
 
 // NOTE: Backwards compatibility functions are in the included .c file(s):
-#include "backwards_10.c"
+#include "backwards_11.c"
 

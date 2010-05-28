@@ -21,7 +21,7 @@ struct block_translation_pair {
 };
 
 void toku_blocktable_create_new(BLOCK_TABLE *btp);
-void toku_blocktable_create_from_buffer(BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
+void toku_blocktable_create_from_buffer(BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer, BOOL invert_checksum);
 void toku_blocktable_destroy(BLOCK_TABLE *btp);
 
 void toku_brtheader_lock(struct brt_header *h);
@@ -72,6 +72,8 @@ void toku_blocktable_internal_fragmentation(BLOCK_TABLE bt, int64_t *total_sizep
 void toku_block_table_get_fragmentation_unlocked(BLOCK_TABLE bt, TOKU_DB_FRAGMENTATION report);
 //Requires:  blocktable lock is held.
 //Requires:  report->file_size_bytes is already filled in.
+
+int64_t toku_block_get_blocks_in_use_unlocked(BLOCK_TABLE bt);
 
 //Unmovable reserved first, then reallocable.
 // We reserve one blocknum for the translation table itself.

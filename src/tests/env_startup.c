@@ -88,7 +88,7 @@ delete_directory(void) {
 static void
 delete_log(void) {
     char cmd[1024];
-    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "*.tokulog");
+    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "*.tokulog*");
     int r = system(cmd);
     CKERR(r);
 }

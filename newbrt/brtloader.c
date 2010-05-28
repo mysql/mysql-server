@@ -385,7 +385,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 				   generate_row_for_put_func g,
 				   DB *src_db,
 				   int N, DB*dbs[/*N*/],
-				   const struct descriptor *descriptors[/*N*/],
+				   const DESCRIPTOR descriptors[/*N*/],
 				   const char *new_fnames_in_env[/*N*/],
 				   brt_compare_func bt_compare_functions[/*N*/],
 				   const char *temp_file_template,
@@ -484,7 +484,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 			  generate_row_for_put_func g,
 			  DB *src_db,
 			  int N, DB*dbs[/*N*/],
-			  const struct descriptor *descriptors[/*N*/],
+			  const DESCRIPTOR descriptors[/*N*/],
 			  const char *new_fnames_in_env[/*N*/],
 			  brt_compare_func bt_compare_functions[/*N*/],
 			  const char *temp_file_template,
@@ -2051,7 +2051,7 @@ static inline long int loader_random(void) {
     return r;
 }
 
-static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *desc, int64_t lblocknum) {
+static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc), int64_t lblocknum) {
     invariant(lblocknum < out->n_translations_limit);
     struct leaf_buf *XMALLOC(lbuf);
     lbuf->blocknum = lblocknum;
@@ -2062,10 +2062,6 @@ static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *
     putbuf_bytes(&lbuf->dbuf, "tokuleaf", 8);
     putbuf_int32(&lbuf->dbuf, layout_version);
     putbuf_int32(&lbuf->dbuf, layout_version); // layout_version original
-
-    putbuf_int32(&lbuf->dbuf, desc->version); // desc version
-    putbuf_int32(&lbuf->dbuf, desc->dbt.size); // desc size
-    putbuf_bytes(&lbuf->dbuf, desc->dbt.data, desc->dbt.size);
 
     putbuf_int32(&lbuf->dbuf, nodesize);
     putbuf_int32(&lbuf->dbuf, flags);
@@ -2089,7 +2085,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *
 
 CILK_BEGIN
 static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progress_allocation, BRTLOADER bl);
-static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor);
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor);
 CILK_END
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
@@ -2110,7 +2106,7 @@ static void drain_writer_q(QUEUE q) {
 
 CILK_BEGIN
 static int toku_loader_write_brt_from_q (BRTLOADER bl,
-					 const struct descriptor *descriptor,
+					 const DESCRIPTOR descriptor,
 					 int fd, // write to here
 					 int progress_allocation,
 					 QUEUE q,
@@ -2359,7 +2355,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 CILK_END
 
 int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
-				       const struct descriptor *descriptor,
+				       const DESCRIPTOR descriptor,
 				       int                      fd, // write to here
 				       int                      progress_allocation,
 				       QUEUE                    q,
@@ -2390,7 +2386,7 @@ static int loader_do_i (BRTLOADER bl,
 			int which_db,
                         DB *dest_db,
                         brt_compare_func compare,
-                        const struct descriptor *descriptor,
+                        const DESCRIPTOR descriptor,
                         const char *new_fname,
                         int progress_allocation // how much progress do I need to add into bl->progress by the end..
                         )
@@ -2768,7 +2764,7 @@ static int write_header (struct dbout *out, long long translation_location_on_di
     struct brt_header h; memset(&h, 0, sizeof h);
     h.layout_version   = BRT_LAYOUT_VERSION;
     h.checkpoint_count = 1;
-    h.checkpoint_lsn   = load_lsn; // (max_uint_long means that this doesn't need any kind of recovery
+    h.checkpoint_lsn   = load_lsn;
     h.nodesize         = nodesize;
     h.root             = root_blocknum_on_disk;
     h.flags            = 0;
@@ -2898,14 +2894,14 @@ CILK_BEGIN
 
 static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknum_of_new_node, int n_children,
                                 DBT *pivots, /* must free this array, as well as the things it points t */
-                                struct subtree_info *subtree_info, int height, const struct descriptor *desc)
+                                struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc))
 {
+    //Nodes do not currently touch descriptors
     invariant(height>0);
 
     int result = 0;
 
     BRTNODE XMALLOC(node);
-    node->desc  =(struct descriptor *)desc;
     node->nodesize = nodesize;
     node->thisnodename = make_blocknum(blocknum_of_new_node);
     node->layout_version = BRT_LAYOUT_VERSION;
@@ -2991,7 +2987,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
         brt_loader_set_panic(bl, result, TRUE);
 }
 
-static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const struct descriptor *descriptor) {
+static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor) {
     int result = 0;
     int height = 1;
 
@@ -3113,7 +3109,7 @@ CILK_END
 
 #if 0
 // C function for testing write_file_to_dbfile
-int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation) {
+int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const DESCRIPTOR descriptor, int progress_allocation) {
 #if defined(__cilkplusplus)
     return cilk::run(write_file_to_dbfile, outfile, infile, bl, descriptor, progress_allocation);
 #else

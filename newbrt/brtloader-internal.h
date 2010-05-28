@@ -121,7 +121,7 @@ struct brtloader_s {
     DB *src_db;
     int N;
     DB **dbs; // N of these
-    const struct descriptor **descriptors; // N of these.
+    DESCRIPTOR *descriptors; // N of these.
     const char **new_fnames_in_env; // N of these.  The file names that the final data will be written to (relative to env).
 
     uint64_t *extracted_datasizes; // N of these.
@@ -170,7 +170,7 @@ u_int64_t toku_brt_loader_get_n_rows(BRTLOADER bl);
 // The data passed into a fractal_thread via pthread_create.
 struct fractal_thread_args {
     BRTLOADER                bl;
-    const struct descriptor *descriptor;
+    const DESCRIPTOR descriptor;
     int                      fd; // write the brt into tfd.
     int                      progress_allocation;
     QUEUE                    q;
@@ -195,14 +195,14 @@ int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_d
 
 CILK_END
 
-//int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation);
+//int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const DESCRIPTOR descriptor, int progress_allocation);
 int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation);
 
 int brt_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func);
 
 // This is probably only for testing.
 int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
-				       const struct descriptor *descriptor,
+				       const DESCRIPTOR descriptor,
 				       int                      fd, // write to here
 				       int                      progress_allocation,
 				       QUEUE                    q,
@@ -210,7 +210,7 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 
 int brt_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func, BRTLOADER, struct rowset *);
 
-int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation);
+int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const DESCRIPTOR descriptor, int progress_allocation);
 
 int brtloader_init_file_infos (struct file_infos *fi);
 void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error);
@@ -223,7 +223,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 				   generate_row_for_put_func g,
 				   DB *src_db,
 				   int N, DB*dbs[/*N*/],
-				   const struct descriptor *descriptors[/*N*/],
+				   const DESCRIPTOR descriptors[/*N*/],
 				   const char *new_fnames_in_env[/*N*/],
 				   brt_compare_func bt_compare_functions[/*N*/],
 				   const char *temp_file_template,

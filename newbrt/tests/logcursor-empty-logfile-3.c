@@ -59,7 +59,7 @@ test_main (int argc, const char *argv[]) {
         r = toku_logger_find_next_unused_log_file(dname, &nexti);
         assert(r == 0);
         char mt_fname[128];
-        snprintf(mt_fname, 128, "%s/log%012lld.tokulog", dname, nexti);
+        snprintf(mt_fname, 128, "%s/log%012lld.tokulog%d", dname, nexti, TOKU_LOG_VERSION);
         int mt_fd = open(mt_fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);
         assert(mt_fd != -1);
         r = close(mt_fd);
@@ -89,7 +89,7 @@ test_main (int argc, const char *argv[]) {
         r = toku_logger_find_next_unused_log_file(dname, &nexti);
         assert(r == 0);
         char mt_fname[128];
-        snprintf(mt_fname, 128, "%s/log%012lld.tokulog", dname, nexti);
+        snprintf(mt_fname, 128, "%s/log%012lld.tokulog%d", dname, nexti, TOKU_LOG_VERSION);
         int mt_fd = open(mt_fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);
         assert(mt_fd != -1);
         r = close(mt_fd);

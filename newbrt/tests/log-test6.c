@@ -56,8 +56,10 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
 
     {
+        char logname[PATH_MAX];
 	toku_struct_stat statbuf;
-	r = toku_stat(dname "/log000000000000.tokulog", &statbuf);
+        sprintf(logname, dname "/log000000000000.tokulog%d", TOKU_LOG_VERSION);
+	r = toku_stat(logname, &statbuf);
 	assert(r==0);
 	assert(statbuf.st_size<=LSIZE);
     }

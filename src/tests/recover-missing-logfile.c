@@ -62,17 +62,17 @@ static void run_recover (void) {
     r = toku_os_mkdir(ENVDIR "/savedlogs", S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 
-    r = system("mv " ENVDIR "/*.tokulog " ENVDIR "/savedlogs/");
+    r = system("mv " ENVDIR "/*.tokulog* " ENVDIR "/savedlogs/");
     CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR2(r, ENOENT);
 
-    r = system("rm -rf " ENVDIR "/*.tokulog");
+    r = system("rm -rf " ENVDIR "/*.tokulog*");
     CKERR(r);
 
-    r = system("mv "  ENVDIR "/savedlogs/*.tokulog " ENVDIR "/");
+    r = system("mv "  ENVDIR "/savedlogs/*.tokulog* " ENVDIR "/");
     CKERR(r);
 
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);

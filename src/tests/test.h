@@ -185,14 +185,6 @@ typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 
 #include <memory.h>
 
-static int __attribute__((__unused__))
-abort_on_upgrade(DB* UU(pdb),
-                 u_int32_t UU(old_version), const DBT *UU(old_descriptor), const DBT *UU(old_key), const DBT *UU(old_val),
-                 u_int32_t UU(new_version), const DBT *UU(new_descriptor), const DBT *UU(new_key), const DBT *UU(new_val)) {
-    assert(FALSE); //Must not upgrade.
-    return ENOSYS;
-}
-
 unsigned int seed = 0xFEEDFACE;
 
 static u_int64_t __attribute__((__unused__))

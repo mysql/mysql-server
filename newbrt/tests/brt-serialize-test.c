@@ -100,7 +100,6 @@ test_serialize_nonleaf(void) {
         assert(size   == 100);
     }
     
-    sn.desc = &brt->h->descriptor;
     r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);  
     assert(r==0);
     

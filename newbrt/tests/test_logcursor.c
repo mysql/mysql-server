@@ -127,7 +127,9 @@ int test_0 (void) {
 // test per-file version
 int test_1 () {
     int r=0;
-    char logfile[100] = "log000000000000.tokulog";
+    char logfile[PATH_MAX];
+    sprintf(logfile, "log000000000000.tokulog%d", TOKU_LOG_VERSION);
+
     struct toku_logcursor *cursor;
     struct log_entry *entry;
 

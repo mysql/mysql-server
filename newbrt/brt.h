@@ -32,16 +32,17 @@ typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void
 typedef int(*BRT_GET_STRADDLE_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
+int toku_maybe_upgrade_descriptor(BRT t, DESCRIPTOR d, BOOL do_log, TOKUTXN txn);
 
 int toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn);
 // See the brt.c file for what this toku_redirect_brt does
 
 int toku_dictionary_redirect_abort(struct brt_header *old_h, struct brt_header *new_h, TOKUTXN txn);
 
-u_int32_t toku_serialize_descriptor_size(const struct descriptor *desc);
+u_int32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
 int toku_brt_create(BRT *);
 int toku_brt_set_flags(BRT, unsigned int flags);
-int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor, toku_dbt_upgradef dbt_userformat_upgrade);
+int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor);
 int toku_brt_get_flags(BRT, unsigned int *flags);
 int toku_brt_set_nodesize(BRT, unsigned int nodesize);
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize);

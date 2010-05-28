@@ -33,7 +33,12 @@ endif
 SRCS = $(sort $(wildcard *.c))
 RECOVER_SRCS = $(wildcard recover-*.c)
 LOADER_SRCS = $(wildcard loader-*.c)
-NONSTANDARD_SRCS=$(RECOVER_SRCS) $(LOADER_SRCS)
+TRANSPARENT_UPGRADE_SRCS = $(wildcard upgrade-*.c)
+NONSTANDARD_SRCS= \
+		  $(RECOVER_SRCS) \
+		  $(LOADER_SRCS) \
+		  $(TRANSPARENT_UPGRADE_SRCS) \
+#end
 
 #Tests that don't compile in windows.  SHould
 WINDOWS_NOT_PORTED_TESTS = \
@@ -104,6 +109,7 @@ BDB_DONTRUN_TESTS = \
         loader-tpch-load \
         manyfiles \
         powerfail \
+	preload-3.1-db \
         progress \
         recover-2483 \
         recover-compare-db \
@@ -117,6 +123,8 @@ BDB_DONTRUN_TESTS = \
         recover-put-multiple-fdelete-some \
         recover-split-checkpoint \
         recover-tablelock \
+	recover-upgrade-db-descriptor-multihandle \
+	recover-upgrade-db-descriptor \
         recovery_fileops_stress \
         recovery_fileops_unit \
         recovery_stress \
@@ -153,6 +161,10 @@ BDB_DONTRUN_TESTS = \
         test_txn_nested4 \
         test_txn_nested5 \
         transactional_fileops \
+	upgrade-test-1 \
+	upgrade-test-2 \
+	upgrade-test-3 \
+	upgrade-test-4 \
         zombie_db \
 #\ ends prev line
 
