@@ -524,6 +524,14 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
+  /* Check nodeid parameter */
+  if (nodeid > MAX_NODES_ID)
+  {
+    m_output->println("result: illegal nodeid %u", nodeid);
+    m_output->println("%s", "");
+    return;
+  }
+
   NodeId tmp= nodeid;
   if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
     BaseString error_string;
@@ -2041,7 +2049,7 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
                          &buf64[start],
                          len64-start)) < 1)
       {
-        delete buf64;
+        delete[] buf64;
         result.assfmt("read_socket failed, errno: %d", errno);
         goto done;
       }
@@ -2050,16 +2058,16 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
 
     char* decoded = new char[base64_needed_decoded_length((size_t)len64 - 1)];
     int decoded_len= base64_decode(buf64, len64-1, decoded, NULL);
-    delete buf64;
+    delete[] buf64;
 
     ConfigValuesFactory cvf;
     if(!cvf.unpack(decoded, decoded_len))
     {
-      delete decoded;
+      delete[] decoded;
       result.assfmt("Failed to unpack config");
       goto done;
     }
-    delete decoded;
+    delete[] decoded;
 
     Config new_config(cvf.getConfigValues());
 

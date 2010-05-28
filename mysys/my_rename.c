@@ -46,31 +46,21 @@ int my_rename(const char *from, const char *to, myf MyFlags)
     my_errno=save_errno;
   }
 #endif
-#if defined(HAVE_RENAME)
-#if defined(__WIN__) || defined(__NETWARE__)
-  /*
-    On windows we can't rename over an existing file:
-    Remove any conflicting files: but first check that "from" exists
-  */
+#if defined(__WIN__)
+  if(!MoveFileEx(from, to, MOVEFILE_COPY_ALLOWED|
+                           MOVEFILE_REPLACE_EXISTING))
   {
-    int save_errno;
-    MY_STAT my_stat_result;
-    save_errno=my_errno;
-    if (my_stat(from ,&my_stat_result,MYF(0)) == 0)
-    {
-      my_errno=ENOENT;
-      DBUG_RETURN(-1);
-    }
-    my_errno=save_errno;
-  }
-  (void) my_delete(to, MYF(0));
-#endif
+    errno= EACCES; //my_osmaperr(GetLastError());  !!implemented in mainline
+    my_errno= errno;
+#else
+#if defined(HAVE_RENAME)
   if (rename(from,to))
 #else
   if (link(from, to) || unlink(from))
 #endif
   {
     my_errno=errno;
+#endif
     error = -1;
     if (MyFlags & (MY_FAE+MY_WME))
       my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);

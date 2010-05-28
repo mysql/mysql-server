@@ -7,7 +7,7 @@ AC_PREREQ(2.59)
 # Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AC_INIT([MySQL Server], [5.1.44-ndb-7.0.15], [], [mysql])
+AC_INIT([MySQL Server], [5.1.44-ndb-7.0.16], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
@@ -26,7 +26,7 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=15
+NDB_VERSION_BUILD=16
 NDB_VERSION_STATUS=""
 
 PROTOCOL_VERSION=10
@@ -924,6 +924,66 @@ if test x"$disable_ipv6" = xyes -o x"$have_in6_types" = xno; then
 else
   AC_DEFINE([HAVE_IPV6], [1], [Define if IPv6 networking support is present])
   AC_MSG_RESULT([yes])
+fi
+
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in::sin_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in::sin_len is available],
+  mysql_cv_have_sockaddr_in_sin_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in *) 0)->sin_len)],
+    mysql_cv_have_sockaddr_in_sin_len=yes,
+    mysql_cv_have_sockaddr_in_sin_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN_SIN_LEN],
+    [1],
+    [If sockaddr_in::sin_len is available])
+fi
+
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in6::sin6_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in6::sin6_len is available],
+  mysql_cv_have_sockaddr_in6_sin6_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+
+      #ifdef HAVE_NETINET_IN6_H
+        #include <netinet/in6.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in6 *) 0)->sin6_len)],
+    mysql_cv_have_sockaddr_in6_sin6_len=yes,
+    mysql_cv_have_sockaddr_in6_sin6_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin6_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN6_SIN6_LEN],
+    [1],
+    [If sockaddr_in6::sin6_len is available])
 fi
 
 #--------------------------------------------------------------------
