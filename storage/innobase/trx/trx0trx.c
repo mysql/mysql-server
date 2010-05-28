@@ -1369,6 +1369,8 @@ trx_prepare(
 					world */
 		/*--------------*/
 		lsn = mtr.end_lsn;
+
+		trx_mutex_enter(trx);
 	}
 
 	ut_ad(trx_mutex_own(trx));
