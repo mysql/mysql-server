@@ -901,6 +901,7 @@ secure-file-priv (No default value)
 server-id 0
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
+skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE
