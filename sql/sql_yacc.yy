@@ -4947,6 +4947,7 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
+            lex->option_list= NULL;
             if (add_create_index (lex, Key::MULTIPLE, key_name, 
                                   &default_key_create_info, 1))
               MYSQL_YYABORT;
