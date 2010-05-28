@@ -6454,8 +6454,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
-  legacy_db_type table_type;
-  frm_type_enum frm_type;
   enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
@@ -6535,91 +6533,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* Conditionally writes to binlog. */
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
 						   alter_info->tablespace_op));
-  strxnmov(new_name_buff, sizeof (new_name_buff) - 1, mysql_data_home, "/", db, 
-           "/", table_name, reg_ext, NullS);
-  (void) unpack_filename(new_name_buff, new_name_buff);
-  /*
-    If this is just a rename of a view, short cut to the
-    following scenario: 1) lock LOCK_open 2) do a RENAME
-    2) unlock LOCK_open.
-    This is a copy-paste added to make sure
-    ALTER (sic:) TABLE .. RENAME works for views. ALTER VIEW is handled
-    as an independent branch in mysql_execute_command. The need
-    for a copy-paste arose because the main code flow of ALTER TABLE
-    ... RENAME tries to use open_ltable, which does not work for views
-    (open_ltable was never modified to merge table lists of child tables
-    into the main table list, like open_tables does).
-    This code is wrong and will be removed, please do not copy.
-  */
-  frm_type= dd_frm_type(thd, new_name_buff, &table_type);
-  /* Rename a view */
-  /* Sic: there is a race here */
-  if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))
-  {
-    /*
-      The following branch handles "ALTER VIEW v1 /no arguments/;"
-      This feature is not documented one. 
-      However, before "OPTIMIZE TABLE t1;" was implemented, 
-      ALTER TABLE with no alter_specifications was used to force-rebuild
-      the table. That's why this grammar is allowed. That's why we ignore
-      it for views. So just do nothing in such a case.
-    */
-    if (!new_name)
-    {
-      my_ok(thd);
-      DBUG_RETURN(FALSE);
-    }
-
-    /*
-      Avoid problems with a rename on a table that we have locked or
-      if the user is trying to to do this in a transcation context
-    */
-
-    if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      DBUG_RETURN(TRUE);
-    }
-
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-      DBUG_RETURN(TRUE);
-
-    /*
-      TODO/FIXME: Get rid of this code branch if possible. To add insult
-                  to injury it breaks locking protocol.
-    */
-    table_list->mdl_request.set_type(MDL_EXCLUSIVE);
-    if (lock_table_names(thd, table_list))
-    {
-      error= 1;
-      goto view_err;
-    }
-
-    mysql_mutex_lock(&LOCK_open);
-
-    if (!do_rename(thd, table_list, new_db, new_name, new_name, 1))
-    {
-      if (mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        Query_log_event qinfo(thd, thd->query(), thd->query_length(),
-                              FALSE, TRUE, FALSE, 0);
-        if ((error= mysql_bin_log.write(&qinfo)))
-          goto view_err_unlock;
-      }
-      my_ok(thd);
-    }
-
-view_err_unlock:
-    mysql_mutex_unlock(&LOCK_open);
-    unlock_table_names(thd);
-
-view_err:
-    thd->global_read_lock.start_waiting_global_read_lock(thd);
-    DBUG_RETURN(error);
-  }
-
 
   /*
     Code below can handle only base tables so ensure that we won't open a view.
