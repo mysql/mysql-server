@@ -2315,6 +2315,8 @@ INSERT INTO t1 SELECT a+1280,b FROM t1;
 INSERT INTO t1 SELECT a+2560,b FROM t1;
 INSERT INTO t1 SELECT a+5120,b FROM t1;
 SET myisam_sort_buffer_size=4;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '4'
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	error	myisam_sort_buffer_size is too small
@@ -2365,6 +2367,8 @@ CREATE TABLE t1(a CHAR(255), KEY(a));
 SELECT * FROM t1, t1 AS a1;
 a	a
 SET myisam_sort_buffer_size=4;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '4'
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
