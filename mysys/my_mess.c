@@ -15,10 +15,10 @@
 
 #include "mysys_priv.h"
 
-void my_message_no_curses(uint error __attribute__((unused)),
-                          const char *str, myf MyFlags)
+void my_message_stderr(uint error __attribute__((unused)),
+                       const char *str, myf MyFlags)
 {
-  DBUG_ENTER("my_message_no_curses");
+  DBUG_ENTER("my_message_stderr");
   DBUG_PRINT("enter",("message: %s",str));
   (void) fflush(stdout);
   if (MyFlags & ME_BELL)
