@@ -7418,6 +7418,26 @@ innobase_get_mysql_key_number_for_index(
 	ut_ad(table);
 	ut_ad(share);
 
+	/* If index does not belong to the table of share structure. Search
+	index->table instead */
+	if (index->table != ib_table
+	    && strcmp(index->table->name, share->table_name)) {
+		i = 0;
+		ind = dict_table_get_first_index(index->table);
+
+		while (index != ind) {
+			ind = dict_table_get_next_index(ind);
+			i++;
+		}
+
+		if (row_table_got_default_clust_index(index->table)) {
+			ut_a(i > 0);
+			i--;
+		}
+
+		return(i);
+	}
+
 	/* If index translation table exists, we will first check
 	the index through index translation table for a match. */
         if (share->idx_trans_tbl.index_mapping) {
