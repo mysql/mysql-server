@@ -33,6 +33,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "fut0lst.h"
 #include "srv0srv.h"
 #include "trx0purge.h"
+#include "ut0bh.h"
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register rseg_mutex_key with performance schema */
@@ -200,6 +201,9 @@ trx_rseg_mem_create(
 
 	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr);
 	if (len > 0) {
+		void*		ptr;
+		rseg_queue_t	rseg_queue;
+
 		trx_sys->rseg_history_len += len;
 
 		node_addr = trx_purge_get_log_from_hist(
@@ -215,9 +219,16 @@ trx_rseg_mem_create(
 			undo_log_hdr + TRX_UNDO_TRX_NO, mtr);
 		rseg->last_del_marks = mtr_read_ulint(
 			undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
+
+		rseg_queue.rseg = rseg;
+		rseg_queue.trx_no = rseg->last_trx_no;
+
+		ptr = ib_bh_push(trx_sys->ib_bh, &rseg_queue);
+		ut_a(ptr != NULL);
 	} else {
 		rseg->last_page_no = FIL_NULL;
 	}
+
 
 	return(rseg);
 }
