@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0lst.h"
 #include "read0types.h"
 #include "page0types.h"
+#include "ut0bh.h"
 
 /** In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. */
@@ -621,6 +622,8 @@ struct trx_sys_struct{
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
+	ib_bh_t*	ib_bh;		/* Binary min-heap, ordered on
+					rseg_queue_t::trx_no */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted
 					on trx no, biggest first */

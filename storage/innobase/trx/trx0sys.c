@@ -1016,6 +1016,21 @@ trx_sys_init_at_db_start(void)
 }
 
 /*****************************************************************//**
+Compare two trx_rseg_t instances on last_trx_no. */
+static
+int
+trx_rseg_compare_last_trx_no(
+/*=========================*/
+	const void*	p1,		/*!< in: elem to compare */
+	const void*	p2)		/*!< in: elem to compare */
+{
+	const rseg_queue_t*	rseg_q1 = (const rseg_queue_t*) p1;
+	const rseg_queue_t*	rseg_q2 = (const rseg_queue_t*) p2;
+
+	return(ut_dulint_cmp(rseg_q1->trx_no, rseg_q2->trx_no));
+}
+
+/*****************************************************************//**
 Creates the trx_sys instance and initializes its mutex only. */
 UNIV_INTERN
 void
@@ -1025,6 +1040,10 @@ trx_sys_create(void)
 	ut_ad(trx_sys == NULL);
 
 	trx_sys = mem_zalloc(sizeof(*trx_sys));
+
+	trx_sys->ib_bh = ib_bh_create(
+		trx_rseg_compare_last_trx_no,
+	       	sizeof(rseg_queue_t), TRX_SYS_N_RSEGS * 128);
 
 	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
 }

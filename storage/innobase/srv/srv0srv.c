@@ -2823,28 +2823,17 @@ srv_purge_coordinator_thread(
 
 				/* FIXME: Do some black magic. */
 				if (!srv_check_activity(count)
-				    && trx_sys->rseg_history_len > 100) {
+				    && trx_sys->rseg_history_len > 5000) {
 					sleep_ms = 0;
 					batch_size = 5000;
-				} else if (n_purged == 0) {
-					sleep_ms = 100000;
-					batch_size = srv_purge_batch_size;
-				} else if (trx_sys->rseg_history_len > 50000) {
-					sleep_ms -= rnd % 10000;
-					batch_size = srv_purge_batch_size;
-				} else if (trx_sys->rseg_history_len > 25000) {
-					sleep_ms -= rnd % 1000;
-					batch_size = srv_purge_batch_size;
-				} else if (trx_sys->rseg_history_len > 15000) {
-					sleep_ms -= rnd % 100;
-					batch_size = srv_purge_batch_size;
 				} else {
-					sleep_ms += rnd % 20000;
-					batch_size = srv_purge_batch_size;
-				}
+					sleep_ms = 1000000;
 
-				if (sleep_ms > 20000000) {
-					sleep_ms = rnd % 10000;
+					if (n_purged > 0) {
+						sleep_ms = rnd % 100000;
+					}
+
+					batch_size = srv_purge_batch_size;
 				}
 
 				++iterations;

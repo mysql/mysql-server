@@ -290,11 +290,23 @@ trx_purge_add_update_undo_to_history(
 	}
 
 	if (rseg->last_page_no == FIL_NULL) {
+		void*		ptr;
+		rseg_queue_t	rseg_queue;
 
 		rseg->last_page_no = undo->hdr_page_no;
 		rseg->last_offset = undo->hdr_offset;
 		rseg->last_trx_no = trx->no;
 		rseg->last_del_marks = undo->del_marks;
+
+		rseg_queue.rseg = rseg;
+		rseg_queue.trx_no = rseg->last_trx_no;
+
+		trx_sys_mutex_enter();
+
+		ptr = ib_bh_push(trx_sys->ib_bh, &rseg_queue);
+		ut_a(ptr);
+
+		trx_sys_mutex_exit();
 	}
 }
 
@@ -540,6 +552,7 @@ trx_purge_rseg_get_next_history_log(
 /*================================*/
 	trx_rseg_t*	rseg)	/*!< in: rollback segment */
 {
+	void*		ptr;
 	page_t*		undo_page;
 	trx_ulogf_t*	log_hdr;
 	trx_usegf_t*	seg_hdr;
@@ -547,6 +560,7 @@ trx_purge_rseg_get_next_history_log(
 	trx_id_t	trx_no;
 	ibool		del_marks;
 	mtr_t		mtr;
+	rseg_queue_t	rseg_queue;
 
 	ut_ad(mutex_own(&(purge_sys->mutex)));
 
@@ -629,7 +643,120 @@ trx_purge_rseg_get_next_history_log(
 	rseg->last_trx_no = trx_no;
 	rseg->last_del_marks = del_marks;
 
+	rseg_queue.rseg = rseg;
+	rseg_queue.trx_no = rseg->last_trx_no;
+
 	mutex_exit(&(rseg->mutex));
+
+	trx_sys_mutex_enter();
+
+	ptr = ib_bh_push(trx_sys->ib_bh, &rseg_queue);
+	ut_a(ptr != NULL);
+
+	trx_sys_mutex_exit();
+}
+
+/***********************************************************************//**
+Chooses the rollback segment with the smallest trx_id.
+@return zip_size if log is for a compressed table */
+static
+ulint
+trx_purge_get_rseg_with_min_trx_id(
+/*===============================*/
+	trx_purge_t*	purge_sys)		/*!< in,out: purge instance */
+
+{
+	ulint		zip_size = 0;
+	dulint		last_trx_no = ut_dulint_max;
+
+	trx_sys_mutex_enter();
+
+	if (!ib_bh_is_empty(trx_sys->ib_bh)) {
+		rseg_queue_t*	rseg_queue;
+
+		rseg_queue = ib_bh_first(trx_sys->ib_bh);
+
+		purge_sys->rseg = rseg_queue->rseg;
+		last_trx_no = rseg_queue->trx_no;
+
+		ib_bh_pop(trx_sys->ib_bh);
+
+	} else {
+		purge_sys->rseg = NULL;
+	}
+
+	trx_sys_mutex_exit();
+
+	if (purge_sys->rseg != NULL) {
+		trx_rseg_t*	rseg = purge_sys->rseg;
+
+		mutex_enter(&rseg->mutex);
+
+		ut_a(rseg->last_page_no != FIL_NULL);
+
+		/* We assume in purge of externally stored fields
+	       	that space id == 0 */
+		ut_a(rseg->space == 0);
+
+		zip_size = rseg->zip_size;
+
+		ut_a(ut_dulint_cmp(last_trx_no, rseg->last_trx_no) == 0);
+
+		purge_sys->iter.trx_no = rseg->last_trx_no;
+
+		purge_sys->hdr_offset = rseg->last_offset;
+
+		purge_sys->hdr_page_no = rseg->last_page_no;
+
+		mutex_exit(&rseg->mutex);
+	}
+
+	return(zip_size);
+}
+
+/***********************************************************************//**
+Position the purge sys "iterator" on the undo record to use for purging. */
+static
+void
+trx_purge_read_undo_rec(
+/*====================*/
+	trx_purge_t*	purge_sys,		/*!< in, out: purge instance */
+	ulint		zip_size)		/*!< in: block size or 0 */
+{
+	ulint		page_no;
+	ulint		offset = 0;
+	dulint		undo_no = ut_dulint_zero;
+
+	if (purge_sys->rseg->last_del_marks) {
+		mtr_t		mtr;
+		trx_undo_rec_t*	undo_rec = NULL;
+
+		mtr_start(&mtr);
+
+		undo_rec = trx_undo_get_first_rec(
+			0 /* System space id */,
+		       	zip_size, purge_sys->hdr_page_no,
+			purge_sys->hdr_offset, RW_S_LATCH,
+		       	&mtr);
+
+		if (undo_rec != NULL) {
+			offset = page_offset(undo_rec);
+			undo_no = trx_undo_rec_get_undo_no(undo_rec);
+                	page_no = page_get_page_no(page_align(undo_rec));
+		} else {
+			page_no = purge_sys->hdr_page_no;
+		}
+
+		mtr_commit(&mtr);
+	} else {
+		page_no = purge_sys->hdr_page_no;
+	}
+
+	purge_sys->offset = offset;
+	purge_sys->page_no = page_no;
+	purge_sys->iter.undo_no = undo_no;
+
+	purge_sys->next_stored = TRUE;
 }
 
 /***********************************************************************//**
@@ -642,96 +769,16 @@ void
 trx_purge_choose_next_log(void)
 /*===========================*/
 {
-	ulint		i = 0;
-	trx_undo_rec_t*	rec;
-	trx_rseg_t*	min_rseg;
-	trx_id_t	min_trx_no;
-	ulint		space = 0;   /* remove warning (??? bug ???) */
-	ulint		zip_size = 0;
-	ulint		page_no = 0; /* remove warning (??? bug ???) */
-	ulint		offset = 0;  /* remove warning (??? bug ???) */
-	mtr_t		mtr;
+	ulint		zip_size;
 
 	ut_ad(mutex_own(&(purge_sys->mutex)));
 	ut_ad(purge_sys->next_stored == FALSE);
 
-	min_trx_no = ut_dulint_max;
+	zip_size = trx_purge_get_rseg_with_min_trx_id(purge_sys);
 
-	min_rseg = NULL;
-
-	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
-		trx_rseg_t*	rseg = trx_sys->rseg_array[i];
-
-		ut_a(rseg == NULL || rseg->id == i);
-
-		if (rseg == NULL) {
-			break;
-		}
-
-		mutex_enter(&rseg->mutex);
-
-		if (rseg->last_page_no != FIL_NULL) {
-
-			if ((min_rseg == NULL)
-			    || (ut_dulint_cmp(min_trx_no,
-					      rseg->last_trx_no) > 0)) {
-
-				min_rseg = rseg;
-				min_trx_no = rseg->last_trx_no;
-				space = rseg->space;
-				zip_size = rseg->zip_size;
-				ut_a(space == 0); /* We assume in purge of
-						  externally stored fields
-						  that space id == 0 */
-				page_no = rseg->last_page_no;
-				offset = rseg->last_offset;
-			}
-		}
-
-		mutex_exit(&rseg->mutex);
+	if (purge_sys->rseg != NULL) {
+		trx_purge_read_undo_rec(purge_sys, zip_size);
 	}
-
-	if (min_rseg == NULL) {
-
-		return;
-	}
-
-	mtr_start(&mtr);
-
-	if (!min_rseg->last_del_marks) {
-		/* No need to purge this log */
-
-		rec = &trx_purge_dummy_rec;
-	} else {
-		rec = trx_undo_get_first_rec(space, zip_size, page_no, offset,
-					     RW_S_LATCH, &mtr);
-		if (rec == NULL) {
-			/* Undo log empty */
-
-			rec = &trx_purge_dummy_rec;
-		}
-	}
-
-	purge_sys->next_stored = TRUE;
-	purge_sys->rseg = min_rseg;
-
-	purge_sys->hdr_page_no = page_no;
-	purge_sys->hdr_offset = offset;
-
-	purge_sys->iter.trx_no = min_trx_no;
-
-	if (rec == &trx_purge_dummy_rec) {
-
-		purge_sys->offset = 0;
-		purge_sys->page_no = page_no;
-		purge_sys->iter.undo_no = ut_dulint_zero;
-	} else {
-		purge_sys->offset = page_offset(rec);
-		purge_sys->page_no = page_get_page_no(page_align(rec));
-		purge_sys->iter.undo_no = trx_undo_rec_get_undo_no(rec);
-	}
-
-	mtr_commit(&mtr);
 }
 
 /***********************************************************************//**
@@ -885,7 +932,6 @@ trx_purge_fetch_next_rec(
 					" history list; pages handled %lu\n",
 					(ulong) purge_sys->n_pages_handled);
 			}
-
 
 			return(NULL);
 		}
