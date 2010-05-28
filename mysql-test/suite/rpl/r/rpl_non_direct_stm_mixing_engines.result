@@ -9770,9 +9770,9 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 4)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 7)
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N T S1 T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9782,9 +9782,9 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 4)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 7)
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T S1 T R1 C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -9822,9 +9822,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N S1 T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9832,9 +9832,9 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N S1 T R1 C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -9871,20 +9871,20 @@ COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 N T R1 C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 N T R1 C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -10801,20 +10801,20 @@ ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 T CT R1 R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
-master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
 
