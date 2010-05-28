@@ -361,7 +361,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
   }
   else if (get_from_handler_file(table_share->normalized_path.str, mem_root))
   {
-    mem_alloc_error(2);
+    my_error(ER_FAILED_READ_FROM_PAR_FILE, MYF(0));
     DBUG_RETURN(1);
   }
   /*
