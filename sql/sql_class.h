@@ -2119,8 +2119,6 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread, one_shot_set;
-  bool	     locked, some_tables_deleted;
-  bool       last_cuted_field;
   bool	     no_errors, password;
   /**
     Set to TRUE if execution of the current compound statement
