@@ -8115,7 +8115,15 @@ create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
 
     /* Apply primary difference */
     if (nweights)
+    {
       to[nweights - 1]+= r->diff[0];
+    }
+    else
+    {
+      /* Shift to a primary ignorable character, e.g.: & \u0000 < \u0001 */
+      DBUG_ASSERT(to[0] == 0);
+      to[0]= r->diff[0];
+    }
   }
   
   
