@@ -444,6 +444,55 @@ INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450647064506270646 USING utf8));
 SELECT HEX(CONVERT(col1 USING ucs2)) FROM t1 ORDER BY col1 COLLATE utf8_persian_ci, col1 COLLATE utf8_bin;
 DROP TABLE t1;
 
+#
+# Test all characters that appear in utf8_persia_ci tailoring
+#
+CREATE TABLE t1 (
+  a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_persian_ci,
+  offs INT NOT NULL
+);
+INSERT INTO t1 VALUES
+(_ucs2 0x066D, 1),(_ucs2 0x064E, 2),(_ucs2 0xFE76, 3),(_ucs2 0xFE77, 4),
+(_ucs2 0x0650, 5),(_ucs2 0xFE7A, 6),(_ucs2 0xFE7B, 7),(_ucs2 0x064F, 8),
+(_ucs2 0xFE78, 9),(_ucs2 0xFE79,10),(_ucs2 0x064B,11),(_ucs2 0xFE70,12),
+(_ucs2 0xFE71,13),(_ucs2 0x064D,14),(_ucs2 0xFE74,15),(_ucs2 0x064C,16),
+(_ucs2 0xFE72,17),
+
+(_ucs2 0xFE7F, 1),(_ucs2 0x0653, 2),(_ucs2 0x0654, 3),(_ucs2 0x0655, 4),
+(_ucs2 0x0670, 5),
+
+(_ucs2 0x0669, 1),(_ucs2 0x0622, 2),(_ucs2 0x0627, 3),(_ucs2 0x0671, 4),
+(_ucs2 0x0621, 5),(_ucs2 0x0623, 6),(_ucs2 0x0625, 7),(_ucs2 0x0624, 8),
+(_ucs2 0x0626, 9),
+
+(_ucs2 0x0642, 1),(_ucs2 0x06A9, 2),(_ucs2 0x0643, 3),
+
+(_ucs2 0x0648, 1),(_ucs2 0x0647, 2),(_ucs2 0x0629, 3),(_ucs2 0x06C0, 4),
+(_ucs2 0x06CC, 5),(_ucs2 0x0649, 6),(_ucs2 0x064A, 7),
+
+(_ucs2 0xFE80, 1),(_ucs2 0xFE81, 2),(_ucs2 0xFE82, 3),(_ucs2 0xFE8D, 4),
+(_ucs2 0xFE8E, 5),(_ucs2 0xFB50, 6),(_ucs2 0xFB51, 7),(_ucs2 0xFE80, 8),
+(_ucs2 0xFE83, 9),(_ucs2 0xFE84,10),(_ucs2 0xFE87,11),(_ucs2 0xFE88,12),
+(_ucs2 0xFE85,13),(_ucs2 0xFE86,14),(_ucs2 0x0689,16),(_ucs2 0x068A,17),
+
+(_ucs2 0xFEAE, 1),(_ucs2 0xFDFC, 2),
+
+(_ucs2 0xFED8, 1),(_ucs2 0xFB8E, 2),(_ucs2 0xFB8F, 3),(_ucs2 0xFB90, 4),
+(_ucs2 0xFB91, 5),(_ucs2 0xFED9, 6),(_ucs2 0xFEDA, 7),(_ucs2 0xFEDB, 8),
+(_ucs2 0xFEDC, 9),
+
+(_ucs2 0xFEEE, 1),(_ucs2 0xFEE9, 2),(_ucs2 0xFEEA, 3),(_ucs2 0xFEEB, 4),
+(_ucs2 0xFEEC, 5),(_ucs2 0xFE93, 6),(_ucs2 0xFE94, 7),(_ucs2 0xFBA4, 8),
+(_ucs2 0xFBA5, 9),(_ucs2 0xFBFC,10),(_ucs2 0xFBFD,11),(_ucs2 0xFBFE,12),
+(_ucs2 0xFBFF,13),(_ucs2 0xFEEF,14),(_ucs2 0xFEF0,15),(_ucs2 0xFEF1,16),
+(_ucs2 0xFEF2,17),(_ucs2 0xFEF3,18),(_ucs2 0xFEF4,19),(_ucs2 0xFEF5,20),
+(_ucs2 0xFEF6,21),(_ucs2 0xFEF7,22),(_ucs2 0xFEF8,23),(_ucs2 0xFEF9,24),
+(_ucs2 0xFEFA,25),(_ucs2 0xFEFB,26),(_ucs2 0xFEFC,27);
+
+SELECT HEX(CONVERT(a USING ucs2)), offs, hex(weight_string(a)), a
+FROM t1 ORDER BY a, offs, BINARY a;
+DROP TABLE t1;
+
 SET @test_character_set= 'utf8';
 SET @test_collation= 'utf8_swedish_ci';
 -- source include/ctype_common.inc
