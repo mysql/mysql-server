@@ -1006,7 +1006,7 @@ int generate_row_for_put(
     uchar* buff = NULL;
     u_int32_t max_key_len = 0;
     
-    row_desc = (uchar *)curr_db->descriptor->data;
+    row_desc = (uchar *)curr_db->descriptor->dbt.data;
     row_desc += (*(u_int32_t *)row_desc);
     desc_size = (*(u_int32_t *)row_desc) - 4;
     row_desc += 4;
@@ -2763,8 +2763,8 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
         *(u_int32_t *)ref1,
         ref2 + sizeof(u_int32_t),
         *(u_int32_t *)ref2,
-        (uchar *)share->file->descriptor->data + 4,
-        *(u_int32_t *)share->file->descriptor->data - 4,
+        (uchar *)share->file->descriptor->dbt.data + 4,
+        *(u_int32_t *)share->file->descriptor->dbt.data - 4,
         false
         );
     return ret_val;
@@ -3244,7 +3244,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
         //
         // TEST
         //
-        row_desc = (uchar *)share->key_file[keynr]->descriptor->data;
+        row_desc = (uchar *)share->key_file[keynr]->descriptor->dbt.data;
         row_desc += (*(u_int32_t *)row_desc);
         desc_size = (*(u_int32_t *)row_desc) - 4;
         row_desc += 4;
@@ -3268,7 +3268,7 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
             uchar* tmp_buff = NULL;
             tmp_buff = (uchar *)my_malloc(alloced_rec_buff_length,MYF(MY_WME));
             assert(tmp_buff);
-            row_desc = (uchar *)share->key_file[keynr]->descriptor->data;
+            row_desc = (uchar *)share->key_file[keynr]->descriptor->dbt.data;
             row_desc += (*(u_int32_t *)row_desc);
             row_desc += (*(u_int32_t *)row_desc);
             desc_size = (*(u_int32_t *)row_desc) - 4;
@@ -5416,7 +5416,7 @@ static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN*
         goto exit;
     }
         
-    error = file->set_descriptor(file, 1, row_descriptor, toku_dbt_up);
+    error = file->set_descriptor(file, 1, row_descriptor);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
         goto exit;

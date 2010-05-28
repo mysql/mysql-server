@@ -1523,7 +1523,7 @@ exit:
 
 int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
     int cmp;
-    if (file->descriptor->size == 0) {
+    if (file->descriptor->dbt.size == 0) {
         int num_bytes_cmp = keya->size < keyb->size ? 
             keya->size : keyb->size;
         cmp = memcmp(keya->data,keyb->data,num_bytes_cmp);
@@ -1537,8 +1537,8 @@ int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
             keya->size, 
             keyb->data,
             keyb->size,
-            (uchar *)file->descriptor->data + 4,
-            (*(u_int32_t *)file->descriptor->data) - 4,
+            (uchar *)file->descriptor->dbt.data + 4,
+            (*(u_int32_t *)file->descriptor->dbt.data) - 4,
             false
             );
     }
@@ -1552,8 +1552,8 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
         keya->size, 
         keyb->data,
         keyb->size,
-        (uchar *)file->descriptor->data + 4,
-        *(u_int32_t *)file->descriptor->data - 4,
+        (uchar *)file->descriptor->dbt.data + 4,
+        *(u_int32_t *)file->descriptor->dbt.data - 4,
         true
         );
     return cmp;
