@@ -1163,11 +1163,11 @@ trx_purge(
 		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
 	}
 
+	rw_lock_x_unlock(&purge_sys->latch);
+
 	/* Fetch the UNDO recs that need to be purged. */
 	trx_purge_attach_undo_recs(
 		n_purge_threads, purge_sys, &purge_sys->limit, batch_size);
-
-	rw_lock_x_unlock(&purge_sys->latch);
 
 	purge_sys->handle_limit = purge_sys->n_pages_handled + batch_size;
 
