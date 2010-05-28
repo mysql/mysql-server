@@ -333,6 +333,7 @@ int Master_info::init_info()
   }
 
   /* Starting from 5.5 the master_retry_count may be in the repository. */
+  retry_count= master_retry_count;
   if (lines >= LINE_FOR_MASTER_RETRY_COUNT)
   {
     if (handler->get_info(&retry_count, master_retry_count))
