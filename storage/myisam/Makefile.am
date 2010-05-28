@@ -27,7 +27,7 @@ LDADD =
 
 DEFS =                  @DEFS@
 
-EXTRA_DIST =		mi_test_all.sh mi_test_all.res ft_stem.c CMakeLists.txt plug.in
+EXTRA_DIST =		mi_test_all.sh mi_test_all.res CMakeLists.txt plug.in
 pkgdata_DATA =		mi_test_all mi_test_all.res
 
 pkglib_LIBRARIES =	libmyisam.a
@@ -47,10 +47,9 @@ myisampack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 rt_test sp_test #ft_test1 ft_eval
+noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 rt_test sp_test
 noinst_HEADERS =	myisamdef.h rt_index.h rt_key.h rt_mbr.h sp_defs.h \
-			fulltext.h ftdefs.h ft_test1.h ft_eval.h \
-			ha_myisam.h mi_extrafunc.h
+			fulltext.h ftdefs.h ha_myisam.h mi_extrafunc.h
 mi_test1_DEPENDENCIES=	$(LIBRARIES)
 mi_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
@@ -66,8 +65,6 @@ mi_test3_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-#ft_test1_DEPENDENCIES=	$(LIBRARIES)
-#ft_eval_DEPENDENCIES=	$(LIBRARIES)
 myisam_ftdump_DEPENDENCIES=	$(LIBRARIES)
 myisam_ftdump_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
