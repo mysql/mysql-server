@@ -788,6 +788,8 @@ trx_commit(
 
 	lock_release(trx);
 
+	lock_mutex_exit();
+
 	if (trx->global_read_view != NULL) {
 		read_view_remove(trx->global_read_view);
 		mem_heap_empty(trx->global_read_view_heap);
@@ -795,8 +797,6 @@ trx_commit(
 	}
 
 	trx_sys_mutex_exit();
-
-	lock_mutex_exit();
 
 	if (lsn) {
 		trx_mutex_exit(trx);

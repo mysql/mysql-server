@@ -1120,6 +1120,22 @@ trx_purge_wait_for_workers_to_complete(
 	}
 }
 
+/******************************************************************//**
+Remove old historical changes from the rollback segments. */
+static
+void
+trx_purge_truncate(void)
+/*====================*/
+{
+	ut_ad(mutex_own(&purge_sys->mutex));
+
+	if (ut_dulint_is_zero(purge_sys->limit.trx_no)) {
+		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
+	} else {
+		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
+	}
+}
+
 /*******************************************************************//**
 This function runs a purge batch.
 @return	number of undo log pages handled in the batch */
@@ -1219,11 +1235,7 @@ run_synchronously:
 
 	mutex_enter(&purge_sys->mutex);
 
-	if (ut_dulint_is_zero(purge_sys->limit.trx_no)) {
-		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
-	} else {
-		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
-	}
+	trx_purge_truncate();
 
 	mutex_exit(&purge_sys->mutex);
 
@@ -1253,3 +1265,4 @@ trx_purge_sys_print(void)
 		(ulong) purge_sys->hdr_page_no,
 		(ulong) purge_sys->hdr_offset);
 }
+

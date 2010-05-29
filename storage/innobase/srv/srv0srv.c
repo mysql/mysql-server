@@ -2830,7 +2830,7 @@ srv_purge_coordinator_thread(
 					sleep_ms = 1000000;
 
 					if (n_purged > 0) {
-						sleep_ms = rnd % 100000;
+						sleep_ms = 100000;
 					}
 
 					batch_size = srv_purge_batch_size;
