@@ -310,6 +310,9 @@ SHOULD_FAIL = $(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TEST
 # Any test that should fail, we invert the result by using MAYBEINVERTER
 $(SHOULD_FAIL): MAYBEINVERTER=$(INVERTER)
 $(SHOULD_FAIL): SUMMARIZE_CMD=$(SUMMARIZE_SHOULD_FAIL)
+# I want the failing tests to send their stderr to /dev/null
+$(SHOULD_FAIL): VGRIND+= --log-file=/dev/null
+# $(SHOULD_FAIL): INVERTER= 2> /dev/null ;test $$? -ne 0
 
 TDBVGRIND=$(VGRIND)
 
