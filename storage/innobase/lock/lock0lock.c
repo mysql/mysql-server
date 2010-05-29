@@ -5097,6 +5097,8 @@ lock_rec_insert_check_and_lock(
 	if (UNIV_LIKELY(lock == NULL)) {
 		/* We optimize CPU time usage in the simplest case */
 
+		trx_mutex_exit(trx);
+
 		lock_mutex_exit();
 
 		if (!dict_index_is_clust(index)) {
@@ -5107,8 +5109,6 @@ lock_rec_insert_check_and_lock(
 		}
 
 		*inherit = FALSE;
-
-		trx_mutex_exit(trx);
 
 		return(DB_SUCCESS);
 	}
