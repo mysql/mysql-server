@@ -1,0 +1,39 @@
+#
+# This file contains tests for WL#5096.
+#
+
+-- source include/rpl_chained_3_hosts.inc
+-- source include/have_binlog_format_row.inc
+
+-- connection mysqld_a
+-- source include/have_innodb.inc
+-- connection mysqld_b
+-- source include/have_innodb.inc
+-- connection mysqld_c
+-- source include/have_innodb.inc
+-- connection mysqld_a
+
+#
+# WL#5096
+#
+#   Test Description
+#   ================
+# 
+#   WL#5096 Tests.
+# 
+#   In this file we will run several binlog-row-image
+#   related tests that cover:
+#
+#     1. mixes of different indexes on master and slaves;
+#     2. mixes of same binlog-row-image values on master and slaves;
+#     3. mixes of engines (can be different on master and slave);
+#
+
+
+-- echo ###################################################################
+-- echo ###################################################################
+-- echo # engines and binlog-row-image mix for different index structures #
+-- echo ###################################################################
+-- echo ###################################################################
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img_diff_indexes.test
+-- source include/rpl_row_img_general_loop.inc

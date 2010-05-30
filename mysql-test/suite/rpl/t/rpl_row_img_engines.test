@@ -21,8 +21,12 @@
 # 
 #   WL#5096 Tests.
 # 
-#   In this file we will run tests that mix engines, indexes
-#   and blobs.
+#   In this file we will run several binlog-row-image
+#   related tests that cover:
+#
+#     1. mixes of same indexes on master and slaves;
+#     2. mixes of same binlog-row-image values on master and slaves;
+#     3. mixes of engines (can be different on master and slave);
 #
 
 -- echo ###################################################################
@@ -31,22 +35,6 @@
 -- echo ###################################################################
 -- echo ###################################################################
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
--- source include/rpl_row_img_general_loop.inc
-
--- echo ###################################################################
--- echo ###################################################################
--- echo # engines and binlog-row-image mix for different index structures #
--- echo ###################################################################
--- echo ###################################################################
--- let $row_img_test_script= extra/rpl_tests/rpl_row_img_diff_indexes.test
--- source include/rpl_row_img_general_loop.inc
-
--- echo ###################################################################
--- echo ###################################################################
--- echo # engines and binlog-row-image mixes for blobs                    #
--- echo ###################################################################
--- echo ###################################################################
--- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
 -- source include/rpl_row_img_general_loop.inc
 
 #
