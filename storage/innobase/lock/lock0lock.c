@@ -307,18 +307,14 @@ locks on the inserted record. */
  * statement-level MySQL binlog.
  * See also lock_mode_compatible().
  */
-#define LK(a,b) (1 << ((a) * LOCK_NUM + (b)))
-#define LKS(a,b) LK(a,b) | LK(b,a)
-
-/* Define the lock compatibility matrix in a ulint.  The first line below
-defines the diagonal entries.  The following lines define the compatibility
-for LOCK_IX, LOCK_S, and LOCK_AUTO_INC using LKS(), since the matrix
-is symmetric. */
-#define LOCK_MODE_COMPATIBILITY 0					\
- | LK(LOCK_IS, LOCK_IS) | LK(LOCK_IX, LOCK_IX) | LK(LOCK_S, LOCK_S)	\
- | LKS(LOCK_IX, LOCK_IS) | LKS(LOCK_IS, LOCK_AUTO_INC)			\
- | LKS(LOCK_S, LOCK_IS)							\
- | LKS(LOCK_AUTO_INC, LOCK_IS) | LKS(LOCK_AUTO_INC, LOCK_IX)
+static const byte lock_compatibility_matrix[5][5] = {
+ /**         IS     IX       S     X       AI */
+ /* IS */ {  TRUE,  TRUE,  TRUE,  FALSE,  TRUE},
+ /* IX */ {  TRUE,  TRUE,  FALSE, FALSE,  TRUE},
+ /* S  */ {  TRUE,  FALSE, TRUE,  FALSE,  FALSE},
+ /* X  */ {  FALSE, FALSE, FALSE, FALSE,  FALSE},
+ /* AI */ {  TRUE,  TRUE,  FALSE, FALSE,  FALSE}
+};
 
 /* STRONGER-OR-EQUAL RELATION (mode1=row, mode2=column)
  *    IS IX S  X  AI
@@ -329,17 +325,17 @@ is symmetric. */
  * AI -  -  -  -  +
  * See lock_mode_stronger_or_eq().
  */
+static const byte lock_strength_matrix[5][5] = {
+ /**         IS     IX       S     X       AI */
+ /* IS */ {  TRUE,  FALSE, FALSE,  FALSE, FALSE},
+ /* IX */ {  TRUE,  TRUE,  FALSE, FALSE,  FALSE},
+ /* S  */ {  TRUE,  FALSE, TRUE,  FALSE,  FALSE},
+ /* X  */ {  TRUE,  TRUE,  TRUE,  TRUE,   TRUE},
+ /* AI */ {  FALSE, FALSE, FALSE, FALSE,  TRUE}
+};
 
-/* Define the stronger-or-equal lock relation in a ulint.  This relation
-contains all pairs LK(mode1, mode2) where mode1 is stronger than or
-equal to mode2. */
-#define LOCK_MODE_STRONGER_OR_EQ 0					\
- | LK(LOCK_IS, LOCK_IS)							\
- | LK(LOCK_IX, LOCK_IS) | LK(LOCK_IX, LOCK_IX)				\
- | LK(LOCK_S, LOCK_IS) | LK(LOCK_S, LOCK_S)				\
- | LK(LOCK_AUTO_INC, LOCK_AUTO_INC)					\
- | LK(LOCK_X, LOCK_IS) | LK(LOCK_X, LOCK_IX) | LK(LOCK_X, LOCK_S)	\
- | LK(LOCK_X, LOCK_AUTO_INC) | LK(LOCK_X, LOCK_X)
+/** The count of the types of locks */
+static const ulint lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register mutex with performance schema */
@@ -647,12 +643,7 @@ lock_get_wait(
 {
 	ut_ad(lock);
 
-	if (UNIV_UNLIKELY(lock->type_mode & LOCK_WAIT)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(lock->type_mode & LOCK_WAIT) ? TRUE : FALSE;
 }
 
 /*********************************************************************//**
@@ -677,7 +668,7 @@ lock_get_src_table(
 	*mode = LOCK_NONE;
 
 	for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
-	     lock;
+	     lock != NULL;
 	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 		lock_table_t*	tab_lock;
 		enum lock_mode	lock_mode;
@@ -746,7 +737,7 @@ lock_is_table_exclusive(
 	lock_mutex_enter();
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
-	     lock;
+	     lock != NULL;
 	     lock = UT_LIST_GET_NEXT(locks, &lock->un_member.tab_lock)) {
 		if (lock->trx != trx) {
 			/* A lock on the table is held
@@ -870,12 +861,10 @@ lock_mode_stronger_or_eq(
 	enum lock_mode	mode1,	/*!< in: lock mode */
 	enum lock_mode	mode2)	/*!< in: lock mode */
 {
-	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
-	      || mode1 == LOCK_IS || mode1 == LOCK_AUTO_INC);
-	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
-	      || mode2 == LOCK_IS || mode2 == LOCK_AUTO_INC);
+	ut_a(mode1 < lock_types);
+	ut_a(mode2 < lock_types);
 
-	return((LOCK_MODE_STRONGER_OR_EQ) & LK(mode1, mode2));
+	return(lock_strength_matrix[mode1][mode2]);
 }
 
 /*********************************************************************//**
@@ -888,12 +877,10 @@ lock_mode_compatible(
 	enum lock_mode	mode1,	/*!< in: lock mode */
 	enum lock_mode	mode2)	/*!< in: lock mode */
 {
-	ut_ad(mode1 == LOCK_X || mode1 == LOCK_S || mode1 == LOCK_IX
-	      || mode1 == LOCK_IS || mode1 == LOCK_AUTO_INC);
-	ut_ad(mode2 == LOCK_X || mode2 == LOCK_S || mode2 == LOCK_IX
-	      || mode2 == LOCK_IS || mode2 == LOCK_AUTO_INC);
+	ut_a(mode1 < lock_types);
+	ut_a(mode2 < lock_types);
 
-	return((LOCK_MODE_COMPATIBILITY) & LK(mode1, mode2));
+	return(lock_compatibility_matrix[mode1][mode2]);
 }
 
 /*********************************************************************//**
