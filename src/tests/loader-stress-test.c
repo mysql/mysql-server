@@ -20,6 +20,7 @@ enum { old_default_cachesize=1024 }; // MB
 int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
 enum {MAGIC=311};
+char *datadir = NULL;
 
 //
 //   Functions to create unique key/value pairs, row generators, checkers, ... for each of NUM_DBS
@@ -344,6 +345,9 @@ static void run_test(void)
     r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
     if ( verbose ) printf("CACHESIZE = %d MB\n", CACHESIZE);
     r = env->set_cachesize(env, CACHESIZE / 1024, (CACHESIZE % 1024)*1024*1024, 1);                           CKERR(r);
+    if (datadir) {
+        r = env->set_data_dir(env, datadir);                                                                  CKERR(r);
+    }
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
@@ -472,6 +476,9 @@ static void do_args(int argc, char * const argv[]) {
 	    bomb_after_poll_count = strtoll(argv[0], &end, 10);
 	    assert(errno==0);
 	    assert(*end==0); // make sure we consumed the whole integer.
+        } else if (strcmp(argv[0], "--datadir") == 0 && argc > 1) {
+            argc--; argv++;
+            datadir = argv[0];
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
