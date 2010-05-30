@@ -1148,12 +1148,8 @@ bool Relay_log_info::cached_charset_compare(char *charset) const
 }
 
 
-void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
-                                  time_t event_creation_time)
+void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
 {
-#ifndef DBUG_OFF
-  extern uint debug_not_change_ts_if_art_event;
-#endif
   clear_flag(IN_STMT);
 
   /*
@@ -1185,20 +1181,6 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
   {
     inc_group_relay_log_pos(event_master_log_pos);
     flush_relay_log_info(this);
-    /*
-      Note that Rotate_log_event::do_apply_event() does not call this
-      function, so there is no chance that a fake rotate event resets
-      last_master_timestamp.  Note that we update without mutex
-      (probably ok - except in some very rare cases, only consequence
-      is that value may take some time to display in
-      Seconds_Behind_Master - not critical).
-    */
-#ifndef DBUG_OFF
-    if (!(event_creation_time == 0 && debug_not_change_ts_if_art_event > 0))
-#else
-      if (event_creation_time != 0)
-#endif
-        last_master_timestamp= event_creation_time;
   }
 }
 
