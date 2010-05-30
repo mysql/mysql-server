@@ -7411,7 +7411,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       table_list.init_one_table(db, strlen(db), file_name_str,
                                 strlen(file_name_str), file_name_str,
                                 TL_WRITE);
-      table_list.mdl_request.set_tpye(MDL_EXCLUSIVE);
+      table_list.mdl_request.set_type(MDL_EXCLUSIVE);
       (void)mysql_rm_table_part2(thd, &table_list,
                                  FALSE,   /* if_exists */
                                  FALSE,   /* drop_temporary */ 
