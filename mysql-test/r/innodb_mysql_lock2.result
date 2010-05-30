@@ -178,8 +178,7 @@ end|
 # 1.1 Simple SELECT statement.
 #
 # No locks are necessary as this statement won't be written
-# to the binary log and thanks to how MyISAM works SELECT
-# will see version of the table prior to concurrent insert.
+# to the binary log and InnoDB supports snapshots.
 Success: 'select * from t1' doesn't take row locks on 't1'.
 #
 # 1.2 Multi-UPDATE statement.
@@ -484,7 +483,7 @@ Success: 'insert into t2 values (f13((select i+10 from t1 where i=1)))' takes sh
 # row locks on the data it reads.
 Success: 'call p2(@a)' doesn't take row locks on 't1'.
 #
-# 5.2 Function that modifes data and uses CALL, 
+# 5.2 Function that modifies data and uses CALL, 
 #     which reads a table through SELECT.
 #
 # Since a call to such function is written to the binary
