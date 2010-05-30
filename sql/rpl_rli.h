@@ -381,14 +381,8 @@ public:
     Master log position of the event. The position is recorded in the
     relay log info and used to produce information for <code>SHOW
     SLAVE STATUS</code>.
-
-    @param event_creation_time
-    Timestamp for the creation of the event on the master side. The
-    time stamp is recorded in the relay log info and used to compute
-    the <code>Seconds_behind_master</code> field.
   */
-  void stmt_done(my_off_t event_log_pos,
-                 time_t event_creation_time);
+  void stmt_done(my_off_t event_log_pos);
 
 
   /**
