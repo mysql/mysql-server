@@ -2416,6 +2416,21 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   {
     int exec_res;
 
+    /* 
+      Even if we don't execute this event, we keep the master timestamp,
+      so that seconds behind master shows correct delta (there are events
+      that are not replayed, so we keep falling behind).
+
+      If it is an artificial event, or a relay log event (IO thread generated
+      event) or ev->when is set to 0, we don't update the 
+      last_master_timestamp.
+     */
+    if (!(ev->is_artificial_event() || ev->is_relay_log_event() || (ev->when == 0)))
+    {
+      rli->last_master_timestamp= ev->when + (time_t) ev->exec_time;
+      DBUG_ASSERT(rli->last_master_timestamp >= 0);
+    }
+
     /*
       This tests if the position of the beginning of the current event
       hits the UNTIL barrier.
@@ -4512,7 +4527,9 @@ static Log_event* next_event(Relay_log_info* rli)
           waiting for the following event) reset whenever EOF is
           reached.
         */
-        time_t save_timestamp= rli->last_master_timestamp;
+
+        /* shows zero while it is sleeping (and until the next event 
+           is about to be executed) */
         rli->last_master_timestamp= 0;
 
         DBUG_ASSERT(rli->relay_log.get_open_count() ==
@@ -4582,7 +4599,6 @@ static Log_event* next_event(Relay_log_info* rli)
         rli->relay_log.wait_for_update_relay_log(rli->sql_thd);
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
-        rli->last_master_timestamp= save_timestamp;
         continue;
       }
       /*
