@@ -77,6 +77,12 @@
 static int setenv(const char *name, const char *value, int overwrite);
 #endif
 
+C_MODE_START
+static sig_handler signal_handler(int sig);
+static my_bool get_one_option(int optid, const struct my_option *,
+                              char *argument);
+C_MODE_END
+
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
@@ -462,7 +468,6 @@ void log_msg(const char *fmt, ...)
 VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
               int val_len);
-void var_free(void* v);
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
 void eval_expr(VAR* v, const char *p, const char** p_end);
@@ -1914,6 +1919,8 @@ static void strip_parentheses(struct st_command *command)
 }
 
 
+C_MODE_START
+
 static uchar *get_var_key(const uchar* var, size_t *len,
                           my_bool __attribute__((unused)) t)
 {
@@ -1922,6 +1929,16 @@ static uchar *get_var_key(const uchar* var, size_t *len,
   *len = ((VAR*)var)->name_len;
   return (uchar*)key;
 }
+
+
+static void var_free(void *v)
+{
+  my_free(((VAR*) v)->str_val, MYF(MY_WME));
+  if (((VAR*)v)->alloced)
+    my_free(v, MYF(MY_WME));
+}
+
+C_MODE_END
 
 
 VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
@@ -1963,14 +1980,6 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
   return tmp_var;
-}
-
-
-void var_free(void *v)
-{
-  my_free(((VAR*) v)->str_val, MYF(MY_WME));
-  if (((VAR*)v)->alloced)
-    my_free(v, MYF(MY_WME));
 }
 
 
@@ -6070,8 +6079,7 @@ void read_embedded_server_arguments(const char *name)
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
+get_one_option(int optid, const struct my_option *, char *argument)
 {
   switch(optid) {
   case '#':
