@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1708,7 +1708,7 @@ bool READ_INFO::find_start_of_fields()
 /*
   Clear taglist from tags with a specified level
 */
-int READ_INFO::clear_level(int level)
+int READ_INFO::clear_level(int level_arg)
 {
   DBUG_ENTER("READ_INFO::read_xml clear_level");
   List_iterator<XML_TAG> xmlit(taglist);
@@ -1717,7 +1717,7 @@ int READ_INFO::clear_level(int level)
   
   while ((tag= xmlit++))
   {
-     if(tag->level >= level)
+     if(tag->level >= level_arg)
      {
        xmlit.remove();
        delete tag;
