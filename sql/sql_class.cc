@@ -261,11 +261,13 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info,
+const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_function,
                               const char *calling_file,
                               const unsigned int calling_line)
 {
+  THD *thd= (THD *) thd_arg;
+
   if (!thd)
     thd= current_thd;
 
@@ -4207,7 +4209,9 @@ field_type_name(enum_field_types type)
 #endif
 
 
-namespace {
+/* Declare in unnamed namespace. */
+CPP_UNNAMED_NS_START
+
   /**
      Class to handle temporary allocation of memory for row data.
 
@@ -4326,8 +4330,8 @@ namespace {
     uchar *m_memory;
     uchar *m_ptr[2];
   };
-}
 
+CPP_UNNAMED_NS_END
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           MY_BITMAP const* cols, size_t colcnt, 

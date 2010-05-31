@@ -2316,8 +2316,10 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
 #ifdef HAVE_READLINE
 
+C_MODE_START
 static char *new_command_generator(const char *text, int);
-extern "C" char **new_mysql_completion (const char *text, int start, int end);
+static char **new_mysql_completion(const char *text, int start, int end);
+C_MODE_END
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete
@@ -2449,9 +2451,9 @@ static void initialize_readline (char *name)
   array of matches, or NULL if there aren't any.
 */
 
-char **new_mysql_completion (const char *text,
-                             int start __attribute__((unused)),
-                             int end __attribute__((unused)))
+static char **new_mysql_completion(const char *text,
+                                   int start __attribute__((unused)),
+                                   int end __attribute__((unused)))
 {
   if (!status.batch && !quick)
 #if defined(USE_NEW_READLINE_INTERFACE)
