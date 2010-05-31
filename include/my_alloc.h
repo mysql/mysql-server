@@ -23,6 +23,8 @@
 #define ALLOC_MAX_BLOCK_TO_DROP			4096
 #define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 
+C_MODE_START
+
 typedef struct st_used_mem
 {				   /* struct for once_alloc (block) */
   struct st_used_mem *next;	   /* Next block in use */
@@ -48,4 +50,7 @@ typedef struct st_mem_root
 
   void (*error_handler)(void);
 } MEM_ROOT;
+
+C_MODE_END
+
 #endif
