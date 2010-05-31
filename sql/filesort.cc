@@ -608,7 +608,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     if (error == 0)
       param->examined_rows++;
-    if (error == 0 && (!select || select->skip_record() == 0))
+   
+    if (error == 0 && (!select || select->skip_record(thd) > 0))
     {
       if (idx == param->keys)
       {
@@ -621,6 +622,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     else
       file->unlock_row();
+      
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error())
       break;

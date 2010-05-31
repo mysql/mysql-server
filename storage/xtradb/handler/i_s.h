@@ -41,5 +41,7 @@ extern struct st_mysql_plugin	i_s_innodb_rseg;
 extern struct st_mysql_plugin	i_s_innodb_table_stats;
 extern struct st_mysql_plugin	i_s_innodb_index_stats;
 extern struct st_mysql_plugin	i_s_innodb_admin_command;
+extern struct st_mysql_plugin   i_s_innodb_sys_tables;
+extern struct st_mysql_plugin   i_s_innodb_sys_indexes;
 
 #endif /* i_s_h */

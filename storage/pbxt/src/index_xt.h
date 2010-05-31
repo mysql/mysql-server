@@ -30,6 +30,7 @@
 #include <mysql_version.h>
 #include <my_bitmap.h>
 #endif
+#include <time.h>
 
 #include "thread_xt.h"
 #include "linklist_xt.h"
@@ -293,7 +294,6 @@ typedef struct XTIndFreeList {
  */
 typedef struct XTIndex {
 	u_int				mi_index_no;				/* The index number (used by MySQL). */
-	xt_mutex_type		mi_flush_lock;				/* Lock the index during flushing. */
 
 	/* Protected by the mi_rwlock lock: */
 	XT_INDEX_LOCK_TYPE	mi_rwlock;					/* This lock protects the structure of the index.
@@ -407,7 +407,7 @@ typedef struct XTIndexLog {
 	off_t					il_buffer_offset;
 
 
-	void					il_reset(xtTableID tab_id);
+	xtBool					il_reset(XTOpenTable *ot);
 	void					il_close(xtBool delete_it);
 	void					il_release();
 
@@ -478,7 +478,7 @@ xtBool	xt_idx_search_prev(struct XTOpenTable *ot, struct XTIndex *ind, register 
 xtBool	xt_idx_next(register struct XTOpenTable *ot, register struct XTIndex *ind, register XTIdxSearchKeyPtr search_key);
 xtBool	xt_idx_prev(register struct XTOpenTable *ot, register struct XTIndex *ind, register XTIdxSearchKeyPtr search_key);
 xtBool	xt_idx_read(struct XTOpenTable *ot, struct XTIndex *ind, xtWord1 *rec_buf);
-void	xt_ind_set_index_selectivity(XTThreadPtr self, struct XTOpenTable *ot);
+void	xt_ind_set_index_selectivity(struct XTOpenTable *ot, XTThreadPtr thread);
 void	xt_check_indices(struct XTOpenTable *ot);
 void	xt_load_indices(XTThreadPtr self, struct XTOpenTable *ot);
 void	xt_ind_count_deleted_items(struct XTTable *ot, struct XTIndex *ind, struct XTIndBlock *block);

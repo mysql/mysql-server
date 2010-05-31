@@ -245,6 +245,8 @@ static int add_collation(CHARSET_INFO *cs)
       if (cs_copy_data(all_charsets[cs->number],cs))
         return MY_XML_ERROR;
 
+      newcs->caseup_multiply= newcs->casedn_multiply= 1;
+
       if (!strcmp(cs->csname,"ucs2") )
       {
 #if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
@@ -403,6 +405,7 @@ static void *cs_alloc(size_t size)
 
 
 static my_pthread_once_t charsets_initialized= MY_PTHREAD_ONCE_INIT;
+static my_pthread_once_t charsets_template= MY_PTHREAD_ONCE_INIT;
 
 static void init_available_charsets(void)
 {
@@ -429,6 +432,11 @@ static void init_available_charsets(void)
   my_read_charset_file(fname, MYF(0));
 }
 
+
+void free_charsets(void)
+{
+  charsets_initialized= charsets_template;
+}
 
 uint get_collation_number(const char *name)
 {

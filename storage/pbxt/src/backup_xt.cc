@@ -287,7 +287,7 @@ result_t PBXTBackupDriver::get_data(Buffer &buf)
 		bd_table_no++;
 		try_(a)	{
 			xt_ha_open_database_of_table(self, (XTPathStrPtr) path);
-			tab = xt_use_table(self, (XTPathStrPtr) path, FALSE, FALSE, NULL);
+			tab = xt_use_table(self, (XTPathStrPtr) path, FALSE, FALSE);
 			pushr_(xt_heap_release, tab);
 			if (!(bd_ot = xt_db_open_table_using_tab(tab, bd_thread)))
 				xt_throw(self);
@@ -403,7 +403,7 @@ result_t PBXTBackupDriver::lock()
 	bd_thread->st_abort_trans = FALSE;
 	bd_thread->st_stat_ended = FALSE;
 	bd_thread->st_stat_trans = FALSE;
-	bd_thread->st_is_update = FALSE;
+	bd_thread->st_is_update = NULL;
 	if (!xt_xn_begin(bd_thread))
 		return backup::ERROR;
 	bd_state = BUP_STATE_AFTER_LOCK;
@@ -562,7 +562,7 @@ result_t PBXTRestoreDriver::send_data(Buffer &buf)
 		m_tables[rd_table_no-1].internal_name(path, sizeof(path));
 		try_(a)	{
 			xt_ha_open_database_of_table(self, (XTPathStrPtr) path);
-			tab = xt_use_table(self, (XTPathStrPtr) path, FALSE, FALSE, NULL);
+			tab = xt_use_table(self, (XTPathStrPtr) path, FALSE, FALSE);
 			pushr_(xt_heap_release, tab);
 			if (!(rd_ot = xt_db_open_table_using_tab(tab, rd_thread)))
 				xt_throw(self);

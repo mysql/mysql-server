@@ -92,6 +92,7 @@ private:
 } XTXactRestartRec, *XTXactRestartPtr;
 
 typedef struct XTCheckPointState {
+	xtBool					cp_inited;						/* TRUE if structure was inited */
 	xt_mutex_type			cp_state_lock;					/* Lock and the entire checkpoint state. */
 	xtBool					cp_running;						/* TRUE if a checkpoint is running. */
 	xtLogID					cp_log_id;
@@ -135,6 +136,9 @@ void xt_dump_xlogs(struct XTDatabase *db, xtLogID start_log);
 
 void xt_xres_start_database_recovery(XTThreadPtr self);
 void xt_xres_terminate_recovery(XTThreadPtr self);
+
+void xt_start_flusher(struct XTThread *self, struct XTDatabase *db);
+void xt_stop_flusher(struct XTThread *self, struct XTDatabase *db);
 
 #define XT_RECOVER_PENDING			0
 #define XT_RECOVER_DONE				1

@@ -1898,6 +1898,10 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
         ret= SP_OK;
         break;
       default:
+        /* Query might have been killed, don't set error. */
+        if (thd->killed)
+          break;
+
         /*
           Any error when loading an existing routine is either some problem
           with the mysql.proc table, or a parse error because the contents

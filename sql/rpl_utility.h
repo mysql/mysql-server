@@ -32,12 +32,6 @@ class Relay_log_info;
   - Extract and decode table definition data from the table map event
   - Check if table definition in table map is compatible with table
     definition on slave
-
-  Currently, the only field type data available is an array of the
-  type operators that are present in the table map event.
-
-  @todo Add type operands to this structure to allow detection of
-     difference between, e.g., BIT(5) and BIT(10).
  */
 
 class table_def
@@ -59,9 +53,9 @@ public:
     @param null_bitmap The bitmap of fields that can be null
    */
   table_def(field_type *types, ulong size, uchar *field_metadata, 
-      int metadata_size, uchar *null_bitmap)
+      int metadata_size, uchar *null_bitmap, uint16 flags)
     : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
-      m_field_metadata(0), m_null_bits(0), m_memory(NULL)
+    m_field_metadata(0), m_null_bits(0), m_flags(flags), m_memory(NULL)
   {
     m_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                        &m_type, size,
@@ -247,6 +241,7 @@ private:
   uint m_field_metadata_size;
   uint16 *m_field_metadata;
   uchar *m_null_bits;
+  uint16 m_flags;         // Table flags
   uchar *m_memory;
 };
 

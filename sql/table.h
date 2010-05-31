@@ -905,6 +905,24 @@ struct st_table {
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
   bool is_children_attached(void);
+  inline void enable_keyread()
+  {
+    DBUG_ENTER("enable_keyread");
+    DBUG_ASSERT(key_read == 0);
+    key_read= 1;
+    file->extra(HA_EXTRA_KEYREAD);
+    DBUG_VOID_RETURN;
+  }
+  inline void disable_keyread()
+  {
+    DBUG_ENTER("disable_keyread");
+    if (key_read)
+    {
+      key_read= 0;
+      file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    DBUG_VOID_RETURN;
+  }
 };
 
 enum enum_schema_table_state

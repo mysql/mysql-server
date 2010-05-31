@@ -1519,6 +1519,7 @@ void close_temporary_tables(THD *thd)
   {
     if (is_user_table(table))
     {
+      bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
@@ -1548,6 +1549,7 @@ void close_temporary_tables(THD *thd)
       thd->clear_error();
       CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
+      thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
@@ -1560,6 +1562,7 @@ void close_temporary_tables(THD *thd)
                      "Failed to write the DROP statement for temporary tables to binary log");
       }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
+      thd->thread_specific_used= save_thread_specific_used;
     }
     else
     {
@@ -2176,6 +2179,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   proc_info=thd->proc_info;
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
+  DEBUG_SYNC(thd, "waiting_for_table");
   if (!thd->killed)
     (void) pthread_cond_wait(cond, mutex);
 
@@ -4613,7 +4617,20 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         safe_to_ignore_table= prelock_handler.safely_trapped_errors();
       }
       else
+      {
         tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
+
+        /*
+          Skip further processing if there has been a fatal error while
+          trying to open a table. For example, this might happen due to
+          stack shortage, unknown definer in views, etc.
+        */
+        if (!tables->table && thd->is_error())
+        {
+          result= -1;
+          goto err;
+        }
+      }
     }
     else
       DBUG_PRINT("tcache", ("referenced table: '%s'.'%s' 0x%lx",

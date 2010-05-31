@@ -83,7 +83,7 @@ typedef struct buf_buddy_stat_struct buf_buddy_stat_t;
 
 /** Statistics of the buddy system, indexed by block size.
 Protected by buf_pool_mutex. */
-extern buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
+extern buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
 
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"

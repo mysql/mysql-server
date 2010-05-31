@@ -482,6 +482,11 @@ ulint
 buf_calc_page_new_checksum(
 /*=======================*/
 	const byte*	page);	/*!< in: buffer page */
+UNIV_INTERN
+ulint
+buf_calc_page_new_checksum_32(
+/*==========================*/
+	const byte*	page);	/*!< in: buffer page */
 /********************************************************************//**
 In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
 looked at the first few bytes of the page. This calculates that old
@@ -855,7 +860,7 @@ buf_block_get_frame(
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
 #else /* UNIV_DEBUG */
-# define buf_block_get_frame(block) (block)->frame
+# define buf_block_get_frame(block) (block ? (block)->frame : 0)
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets the space id of a block.
@@ -987,7 +992,8 @@ UNIV_INTERN
 void
 buf_page_io_complete(
 /*=================*/
-	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	trx_t*		trx);
 /********************************************************************//**
 Calculates a folded value of a file page address to use in the page hash
 table.
@@ -1155,6 +1161,7 @@ struct buf_page_struct{
 					0 if the block was never accessed
 					in the buffer pool */
 	/* @} */
+	ibool		is_corrupt;
 # ifdef UNIV_DEBUG_FILE_ACCESSES
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when fsp
@@ -1422,11 +1429,11 @@ struct buf_pool_struct{
 	/* @{ */
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
-	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
+	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
 					/*!< buddy free lists */
-#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
-# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
-#endif
+//#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
+//# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
+//#endif
 #if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
 # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
 #endif

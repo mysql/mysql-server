@@ -85,6 +85,8 @@ dict_mem_table_create(
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;
+
+	table->is_corrupt = FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
 	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);

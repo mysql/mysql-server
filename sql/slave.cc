@@ -44,6 +44,7 @@
 #ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
+#include "debug_sync.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -931,7 +932,16 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
   */
 
-  DBUG_SYNC_POINT("debug_lock.before_get_UNIX_TIMESTAMP", 10);
+  DBUG_EXECUTE_IF("dbug.before_get_UNIX_TIMESTAMP",
+                  {
+                    const char act[]=
+                      "now "
+                      "wait_for signal.get_unix_timestamp";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
   master_res= NULL;
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -970,7 +980,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
-  DBUG_SYNC_POINT("debug_lock.before_get_SERVER_ID", 10);
+  DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID",
+                  {
+                    const char act[]=
+                      "now "
+                      "wait_for signal.get_server_id";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd, 
+                                                       STRING_WITH_LEN(act)));
+                  };);
   master_res= NULL;
   master_row= NULL;
   if (!mysql_real_query(mysql,
@@ -2518,6 +2536,16 @@ pthread_handler_t handle_slave_io(void *arg)
 
 connected:
 
+    DBUG_EXECUTE_IF("dbug.before_get_running_status_yes",
+                    {
+                      const char act[]=
+                        "now "
+                        "wait_for signal.io_thread_let_running";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(thd, 
+                                                         STRING_WITH_LEN(act)));
+                    };);
+
   // TODO: the assignment below should be under mutex (5.0)
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   thd->slave_net = &mysql->net;
@@ -2816,7 +2844,11 @@ pthread_handler_t handle_slave_sql(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
   char llbuff[22],llbuff1[22];
-
+  char saved_log_name[FN_REFLEN];
+  char saved_master_log_name[FN_REFLEN];
+  my_off_t saved_log_pos;
+  my_off_t saved_master_log_pos;
+  my_off_t saved_skip= 0;
   Relay_log_info* rli = &((Master_info*)arg)->rli;
   const char *errmsg;
 
@@ -2824,6 +2856,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
 
+  LINT_INIT(saved_master_log_pos);
+  LINT_INIT(saved_log_pos);
   DBUG_ASSERT(rli->inited);
   pthread_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(!rli->slave_running);
@@ -2961,6 +2995,14 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
     do not want to wait for next event in this case.
   */
   pthread_mutex_lock(&rli->data_lock);
+  if (rli->slave_skip_counter)
+  {
+    strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
+    strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
+    saved_log_pos= rli->group_relay_log_pos;
+    saved_master_log_pos= rli->group_master_log_pos;
+    saved_skip= rli->slave_skip_counter;
+  }
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
       rli->is_until_satisfied(thd, NULL))
   {
@@ -2979,6 +3021,21 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
     thd_proc_info(thd, "Reading event from the relay log");
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
+
+    if (saved_skip && rli->slave_skip_counter == 0)
+    {
+      sql_print_information("'SQL_SLAVE_SKIP_COUNTER=%ld' executed at "
+        "relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', "
+        "master_log_pos='%ld' and new position at "
+        "relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', "
+        "master_log_pos='%ld' ",
+        (ulong) saved_skip, saved_log_name, (ulong) saved_log_pos,
+        saved_master_log_name, (ulong) saved_master_log_pos,
+        rli->group_relay_log_name, (ulong) rli->group_relay_log_pos,
+        rli->group_master_log_name, (ulong) rli->group_master_log_pos);
+      saved_skip= 0;
+    }
+    
     if (exec_relay_log_event(thd,rli))
     {
       DBUG_PRINT("info", ("exec_relay_log_event() failed"));

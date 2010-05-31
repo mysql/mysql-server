@@ -280,6 +280,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
 protected:
   bool next,dont_free,in_ror_merged_scan;
+  /* true if we enabled key only reads */
+  bool doing_key_read;
 public:
   int error;
 protected:
@@ -623,6 +625,8 @@ private:
   bool have_min;         /* Specify whether we are computing */
   bool have_max;         /*   a MIN, a MAX, or both.         */
   bool seen_first_key;   /* Denotes whether the first key was retrieved.*/
+  bool doing_key_read;   /* true if we enabled key only reads */
+
   KEY_PART_INFO *min_max_arg_part; /* The keypart of the only argument field */
                                    /* of all MIN/MAX functions.              */
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */
@@ -714,7 +718,19 @@ class SQL_SELECT :public Sql_alloc {
     tmp.set_all();
     return test_quick_select(thd, tmp, 0, limit, force_quick_range) < 0;
   }
-  inline bool skip_record() { return cond ? cond->val_int() == 0 : 0; }
+  /* 
+    RETURN
+      0   if record must be skipped <-> (cond && cond->val_int() == 0)
+     -1   if error
+      1   otherwise
+  */   
+  inline int skip_record(THD *thd)
+  {
+    int rc= test(!cond || cond->val_int());
+    if (thd->is_error())
+      rc= -1;
+    return rc;
+  }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
 			ha_rows limit, bool force_quick_range);
 };

@@ -273,8 +273,7 @@ int mysql_update(THD *thd,
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
-      if (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
-          table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH)
+      if (((uint) table->timestamp_field_type) & TIMESTAMP_AUTO_SET_ON_UPDATE)
         bitmap_set_bit(table->write_set,
                        table->timestamp_field->field_index);
     }
@@ -308,10 +307,8 @@ int mysql_update(THD *thd,
     update force the table handler to retrieve write-only fields to be able
     to compare records and detect data change.
   */
-  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-      table->timestamp_field &&
-      (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
-       table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+  if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
+      (((uint) table->timestamp_field_type) & TIMESTAMP_AUTO_SET_ON_UPDATE))
     bitmap_union(table->read_set, table->write_set);
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
@@ -397,10 +394,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-    {
-      table->key_read=1;
       table->mark_columns_used_by_index(used_index);
-    }
     else
     {
       table->use_all_columns();
@@ -472,9 +466,10 @@ int mysql_update(THD *thd,
       thd_proc_info(thd, "Searching rows for update");
       ha_rows tmp_limit= limit;
 
-      while (!(error=info.read_record(&info)) && !thd->killed)
+      while (!(error=info.read_record(&info)) && 
+             !thd->killed && !thd->is_error())
       {
-	if (!(select && select->skip_record()))
+	if (!select || select->skip_record(thd) > 0)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -580,7 +575,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
-    if (!(select && select->skip_record()))
+    if (!select || select->skip_record(thd) > 0)
     {
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
@@ -844,11 +839,7 @@ int mysql_update(THD *thd,
 err:
   delete select;
   free_underlaid_joins(thd, select_lex);
-  if (table->key_read)
-  {
-    table->key_read=0;
-    table->file->extra(HA_EXTRA_NO_KEYREAD);
-  }
+  table->disable_keyread();
   thd->abort_on_warning= 0;
   DBUG_RETURN(1);
 }
@@ -1195,6 +1186,56 @@ reopen_tables:
 }
 
 
+/**
+   Implementation of the safe update options during UPDATE IGNORE. This syntax
+   causes an UPDATE statement to ignore all errors. In safe update mode,
+   however, we must never ignore the ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE. There
+   is a special hook in my_message_sql that will otherwise delete all errors
+   when the IGNORE option is specified. 
+
+   In the future, all IGNORE handling should be used with this class and all
+   traces of the hack outlined below should be removed.
+
+   - The parser detects IGNORE option and sets thd->lex->ignore= 1
+   
+   - In JOIN::optimize, if this is set, then 
+     thd->lex->current_select->no_error gets set.
+
+   - In my_message_sql(), if the flag above is set then any error is
+     unconditionally converted to a warning.
+
+   We are moving in the direction of using Internal_error_handler subclasses
+   to do all such error tweaking, please continue this effort if new bugs
+   appear.
+ */
+class Safe_dml_handler : public Internal_error_handler {
+
+private:
+  bool m_handled_error;
+
+public:
+  explicit Safe_dml_handler() : m_handled_error(FALSE) {}
+
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *thd)
+  {
+    if (level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
+        sql_errno == ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE)
+        
+    {      
+      thd->main_da.set_error_status(thd, sql_errno, message);
+      m_handled_error= TRUE;
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool handled_error() { return m_handled_error; }
+
+};
+
 /*
   Setup multi-update handling and call SELECT to do the join
 */
@@ -1223,18 +1264,36 @@ bool mysql_multi_update(THD *thd,
                                MODE_STRICT_ALL_TABLES));
 
   List<Item> total_list;
+
+  Safe_dml_handler handler;
+  bool using_handler= thd->options & OPTION_SAFE_UPDATES;
+  if (using_handler)
+    thd->push_internal_handler(&handler);
+
   res= mysql_select(thd, &select_lex->ref_pointer_array,
-                      table_list, select_lex->with_wild,
-                      total_list,
-                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
-                      (ORDER *)NULL,
-                      options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                      OPTION_SETUP_TABLES_DONE,
-                      result, unit, select_lex);
-  DBUG_PRINT("info",("res: %d  report_error: %d", res,
-                     (int) thd->is_error()));
+                    table_list, select_lex->with_wild,
+                    total_list,
+                    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+                    (ORDER *)NULL,
+                    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                    OPTION_SETUP_TABLES_DONE,
+                    result, unit, select_lex);
+
+  if (using_handler)
+  {
+    Internal_error_handler *top_handler;
+    top_handler= thd->pop_internal_handler();
+    DBUG_ASSERT(&handler == top_handler);
+  }
+
+  DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
   res|= thd->is_error();
-  if (unlikely(res))
+  /*
+    Todo: remove below code and make Safe_dml_handler do error processing
+    instead. That way we can return the actual error instead of
+    ER_UNKNOWN_ERROR.
+  */
+  if (unlikely(res) && (!using_handler || !handler.handled_error()))
   {
     /* If we had a another error reported earlier then this will be ignored */
     result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
@@ -1318,6 +1377,15 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      /*
+        If a timestamp field settable on UPDATE is present then to avoid wrong
+        update force the table handler to retrieve write-only fields to be able
+        to compare records and detect data change.
+        */
+      if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
+          (((uint) table->timestamp_field_type) &
+           TIMESTAMP_AUTO_SET_ON_UPDATE))
+        bitmap_union(table->read_set, table->write_set);
     }
   }
   

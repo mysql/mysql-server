@@ -46,8 +46,10 @@ static void tabc_fr_wait_for_cache(XTThreadPtr self, u_int msecs);
 xtPublic void xt_tc_set_cache_size(size_t cache_size)
 {
 	xt_tab_cache.tcm_cache_size = cache_size;
-	xt_tab_cache.tcm_low_level = cache_size / 4 * 3;		// Current 75%
-	xt_tab_cache.tcm_high_level = cache_size / 100 * 95;	// Current 95%
+	/* Multiplying by this number can overflow a 4 byte value! */
+	xt_tab_cache.tcm_low_level = (size_t) ((xtWord8) cache_size * (xtWord8) 70 / (xtWord8) 100);	// Current 70%
+	xt_tab_cache.tcm_high_level = (size_t) ((xtWord8) cache_size * 95 / (xtWord8) 100);				// Current 95%
+	xt_tab_cache.tcm_mid_level = (size_t) ((xtWord8) cache_size * 85 / (xtWord8) 100);				// Current 85%
 }
 
 /*
@@ -84,25 +86,30 @@ xtPublic void xt_tc_init(XTThreadPtr self, size_t cache_size)
 
 xtPublic void xt_tc_exit(XTThreadPtr self)
 {
-	for (u_int i=0; i<XT_TC_SEGMENT_COUNT; i++) {
-		if (xt_tab_cache.tcm_segment[i].tcs_hash_table) {
-			if (xt_tab_cache.tcm_segment[i].tcs_cache_in_use) {
-				XTTabCachePagePtr page, tmp_page;
+	XTTabCacheSegPtr seg;
 
-				for (size_t j=0; j<xt_tab_cache.tcm_hash_size; j++) {
-					page = xt_tab_cache.tcm_segment[i].tcs_hash_table[j];
-					while (page) {
-						tmp_page = page;
-						page = page->tcp_next;
-						xt_free(self, tmp_page);
-					}
+	for (u_int i=0; i<XT_TC_SEGMENT_COUNT; i++) {
+		seg = &xt_tab_cache.tcm_segment[i];
+		if (seg->tcs_hash_table) {
+			XTTabCachePagePtr page, tmp_page;
+
+			for (size_t j=0; j<xt_tab_cache.tcm_hash_size; j++) {
+				page = seg->tcs_hash_table[j];
+				while (page) {
+					tmp_page = page;
+					page = page->tcp_next;
+					ASSERT_NS(seg->tcs_cache_in_use >= offsetof(XTTabCachePageRec, tcp_data) + tmp_page->tcp_data_size);
+					seg->tcs_cache_in_use -= (offsetof(XTTabCachePageRec, tcp_data) + tmp_page->tcp_data_size);
+					ASSERT_NS(seg->tcs_cache_in_use == 0 || seg->tcs_cache_in_use >= 25000);
+					xt_free(self, tmp_page);
 				}
 			}
 
-			xt_free(self, xt_tab_cache.tcm_segment[i].tcs_hash_table);
-			xt_tab_cache.tcm_segment[i].tcs_hash_table = NULL;
-			TAB_CAC_FREE_LOCK(self, &xt_tab_cache.tcm_segment[i].tcs_lock);
+			xt_free(self, seg->tcs_hash_table);
+			seg->tcs_hash_table = NULL;
+			TAB_CAC_FREE_LOCK(self, &seg->tcs_lock);
 		}
+		ASSERT_NS(seg->tcs_cache_in_use == 0);
 	}
 
 	xt_free_mutex(&xt_tab_cache.tcm_lock);
@@ -554,24 +561,24 @@ xtBool XTTabCache::tc_fetch(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCache
 		}
 		page = page->tcp_next;
 	}
+	
+	size_t page_size = offsetof(XTTabCachePageRec, tcp_data) + this->tci_page_size;
+
 	TAB_CAC_UNLOCK(&seg->tcs_lock, thread->t_id);
 	
 	/* Page not found, allocate a new page: */
-	size_t page_size = offsetof(XTTabCachePageRec, tcp_data) + this->tci_page_size;
 	if (!(new_page = (XTTabCachePagePtr) xt_malloc_ns(page_size)))
 		return FAILED;
-	/* Increment cache used. */
-	seg->tcs_cache_in_use += page_size;
 
 	/* Check the level of the cache: */
 	size_t cache_used = 0;
 	for (int i=0; i<XT_TC_SEGMENT_COUNT; i++)
 		cache_used += dcg->tcm_segment[i].tcs_cache_in_use;
 
-	if (cache_used > dcg->tcm_cache_high)
+	if (cache_used + page_size > dcg->tcm_cache_high)
 		dcg->tcm_cache_high = cache_used;
 
-	if (cache_used > dcg->tcm_cache_size) {
+	if (cache_used + page_size > dcg->tcm_cache_size) {
 		XTThreadPtr self;
 		time_t		now;
 
@@ -638,7 +645,7 @@ xtBool XTTabCache::tc_fetch(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCache
 			for (int i=0; i<XT_TC_SEGMENT_COUNT; i++)
 				cache_used += dcg->tcm_segment[i].tcs_cache_in_use;
 
-			if (cache_used <= dcg->tcm_high_level)
+			if (cache_used + page_size <= dcg->tcm_high_level)
 				break;
 			/*
 			 * If there is too little cache we can get stuck here.
@@ -663,7 +670,7 @@ xtBool XTTabCache::tc_fetch(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCache
 		while (time(NULL) < now + 5);
 		xt_unlock_mutex_ns(&dcg->tcm_freeer_lock);
 	}
-	else if (cache_used > dcg->tcm_high_level) {
+	else if (cache_used + page_size > dcg->tcm_high_level) {
 		/* Wake up the freeer because the cache level,
 		 * is higher than the high level.
 		 */
@@ -693,6 +700,9 @@ xtBool XTTabCache::tc_fetch(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCache
 	}
 	
 #ifdef XT_MEMSET_UNUSED_SPACE
+	else
+		red_size = 0;
+
 	/* Removing this is an optimization. It should not be required
 	 * to clear the unused space in the page.
 	 */
@@ -726,6 +736,15 @@ xtBool XTTabCache::tc_fetch(XT_ROW_REC_FILE_PTR file, xtRefID ref_id, XTTabCache
 	/* Add the page to the hash table: */
 	page->tcp_next = seg->tcs_hash_table[hash_idx];
 	seg->tcs_hash_table[hash_idx] = page;
+
+	/* GOTCHA! This increment was done just after the malloc!
+	 * So it was not protected by the segment lock!
+	 * The result was that this count was no longer reliable,
+	 * This resulted in the amount of cache being used becoming less, and\
+	 * less, because increments were lost over time!
+	 */
+	/* Increment cache used. */
+	seg->tcs_cache_in_use += page_size;
 
 	done_ok:
 	*ret_seg = seg;
@@ -761,7 +780,7 @@ xtBool XTTableSeq::ts_log_no_op(XTThreadPtr thread, xtTableID tab_id, xtOpSeqNo 
 	 * some will be missing, so the writer will not
 	 * be able to contniue.
 	 */
-	return xt_xlog_log_data(thread, sizeof(XTactNoOpEntryDRec), (XTXactLogBufferDPtr) &ent_rec, FALSE);
+	return xt_xlog_log_data(thread, sizeof(XTactNoOpEntryDRec), (XTXactLogBufferDPtr) &ent_rec, XT_XLOG_NO_WRITE_NO_FLUSH);
 }
 
 #ifdef XT_NOT_INLINE
@@ -828,13 +847,23 @@ xtBool XTTableSeq::xt_op_is_before(register xtOpSeqNo now, register xtOpSeqNo th
 /*
  * Used by the writer to wake the freeer.
  */
-xtPublic void xt_wr_wake_freeer(XTThreadPtr self)
+xtPublic void xt_wr_wake_freeer(XTThreadPtr self, XTDatabaseHPtr db)
 {
+	/* BUG FIX: Was using tcm_freeer_cond.
+	 * This is incorrect. When the freeer waits for the
+	 * writter, it uses the writer's condition!
+	 */
+	xt_lock_mutex_ns(&db->db_wr_lock);
+	if (!xt_broadcast_cond_ns(&db->db_wr_cond))
+		xt_log_and_clear_exception_ns();
+	xt_unlock_mutex_ns(&db->db_wr_lock);
+/*
 	xt_lock_mutex(self, &xt_tab_cache.tcm_freeer_lock);
 	pushr_(xt_unlock_mutex, &xt_tab_cache.tcm_freeer_lock);
 	if (!xt_broadcast_cond_ns(&xt_tab_cache.tcm_freeer_cond))
 		xt_log_and_clear_exception_ns();
 	freer_(); // xt_unlock_mutex(&xt_tab_cache.tcm_freeer_lock)
+*/
 }
 
 /* Wait for a transaction to quit: */
@@ -1070,7 +1099,9 @@ static size_t tabc_free_page(XTThreadPtr self, TCResourcePtr tc)
 
 	/* Free the page: */
 	size_t freed_space = offsetof(XTTabCachePageRec, tcp_data) + page->tcp_data_size;
+	ASSERT_NS(seg->tcs_cache_in_use >= freed_space);
 	seg->tcs_cache_in_use -= freed_space;
+	ASSERT_NS(seg->tcs_cache_in_use == 0 || seg->tcs_cache_in_use >= 25000);
 	xt_free_ns(page);
 
 	TAB_CAC_UNLOCK(&seg->tcs_lock, self->t_id);
@@ -1083,6 +1114,7 @@ static void tabc_fr_main(XTThreadPtr self)
 {
 	register XTTabCacheMemPtr	dcg = &xt_tab_cache;
 	TCResourceRec				tc = { 0 };
+	int							i;
 
 	xt_set_low_priority(self);
 	dcg->tcm_freeer_busy = TRUE;
@@ -1095,14 +1127,20 @@ static void tabc_fr_main(XTThreadPtr self)
 		while (!self->t_quit) {
 			/* Total up the cache memory used: */
 			cache_used = 0;
-			for (int i=0; i<XT_TC_SEGMENT_COUNT; i++)
+			for (i=0; i<XT_TC_SEGMENT_COUNT; i++)
 				cache_used += dcg->tcm_segment[i].tcs_cache_in_use;
-			if (cache_used > dcg->tcm_cache_high) {
+
+			if (cache_used > dcg->tcm_cache_high)
 				dcg->tcm_cache_high = cache_used;
-			}
 
 			/* Check if the cache usage is over 95%: */
-			if (self->t_quit || cache_used < dcg->tcm_high_level)
+			if (self->t_quit)
+				break;
+
+			/* If threads are waiting then we are more aggressive about freeing
+			 * cache.
+			 */ 
+			if (cache_used < (dcg->tcm_threads_waiting ? dcg->tcm_mid_level : dcg->tcm_high_level))
 				break;
 
 			/* Reduce cache to the 75% level: */
@@ -1137,7 +1175,23 @@ static void tabc_fr_main(XTThreadPtr self)
 		 */
 		xt_db_approximate_time = time(NULL);
 		dcg->tcm_freeer_busy = FALSE;
-		tabc_fr_wait_for_cache(self, 500);
+		/* No idea, why, but I am getting an uneccesarry pause here.
+		 * I run DBT2 with low record cache.
+		 *
+		 * Every now and then there is a pause where the freeer is here,
+		 * and all user threads are waiting for the freeer.
+		 *
+		 * So adding the tcm_threads_waiting condition.
+		 */
+		if (dcg->tcm_threads_waiting) {
+			cache_used = 0;
+			for (i=0; i<XT_TC_SEGMENT_COUNT; i++)
+				cache_used += dcg->tcm_segment[i].tcs_cache_in_use;
+			if (cache_used < dcg->tcm_mid_level)
+				tabc_fr_wait_for_cache(self, 500);
+		}
+		else
+			tabc_fr_wait_for_cache(self, 500);
 		//tabc_fr_wait_for_cache(self, 30*1000);
 		dcg->tcm_freeer_busy = TRUE;
 		xt_db_approximate_time = time(NULL);
@@ -1174,7 +1228,7 @@ static void *tabc_fr_run_thread(XTThreadPtr self)
 		count = 2*60;
 #endif
 		while (!self->t_quit && count > 0) {
-			xt_db_approximate_time = xt_trace_clock();
+			xt_db_approximate_time = time(NULL);
 			sleep(1);
 			count--;
 		}

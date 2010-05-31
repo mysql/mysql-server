@@ -1100,7 +1100,7 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc)
-  :dont_free(0),error(0),free_file(0),in_range(0),cur_range(NULL),last_range(0)
+  :dont_free(0),doing_key_read(0),error(0),free_file(0),in_range(0),cur_range(NULL),last_range(0)
 {
   my_bitmap_map *bitmap;
   DBUG_ENTER("QUICK_RANGE_SELECT::QUICK_RANGE_SELECT");
@@ -1171,11 +1171,8 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     if (file) 
     {
       range_end();
-      if (head->key_read)
-      {
-        head->key_read= 0;
+      if (doing_key_read)
         file->extra(HA_EXTRA_NO_KEYREAD);
-      }
       if (free_file)
       {
         DBUG_PRINT("info", ("Freeing separate handler 0x%lx (free: %d)", (long) file,
@@ -1315,6 +1312,7 @@ int QUICK_ROR_INTERSECT_SELECT::init()
 int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   handler *save_file= file, *org_file;
+  my_bool org_key_read;
   THD *thd;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
@@ -1374,15 +1372,17 @@ end:
     The now bitmap is stored in 'column_bitmap' which is used in ::get_next()
   */
   org_file= head->file;
+  org_key_read= head->key_read;
   head->file= file;
-  /* We don't have to set 'head->keyread' here as the 'file' is unique */
+  head->key_read= 0;
   if (!head->no_keyread)
   {
-    head->key_read= 1;
+    doing_key_read= 1;
     head->mark_columns_used_by_index(index);
   }
   head->prepare_for_position();
   head->file= org_file;
+  head->key_read= org_key_read;
   bitmap_copy(&column_bitmap, head->read_set);
   head->column_bitmaps_set(&column_bitmap, &column_bitmap);
 
@@ -8161,12 +8161,15 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
   QUICK_RANGE_SELECT* cur_quick;
   int result;
-  Unique *unique;
+  Unique *unique= 0;
   handler *file= head->file;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
   /* We're going to just read rowids. */
-  file->extra(HA_EXTRA_KEYREAD);
+  if (!head->key_read)
+  {
+    head->enable_keyread();
+  }
   head->prepare_for_position();
 
   cur_quick_it.rewind();
@@ -8178,13 +8181,13 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     reset here.
   */
   if (cur_quick->init() || cur_quick->reset())
-    DBUG_RETURN(1);
+    goto err;
 
   unique= new Unique(refpos_order_cmp, (void *)file,
                      file->ref_length,
                      thd->variables.sortbuff_size);
   if (!unique)
-    DBUG_RETURN(1);
+    goto err;
   for (;;)
   {
     while ((result= cur_quick->get_next()) == HA_ERR_END_OF_FILE)
@@ -8197,10 +8200,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (cur_quick->file->inited != handler::NONE) 
         cur_quick->file->ha_index_end();
       if (cur_quick->init() || cur_quick->reset())
-      {
-        delete unique;
-        DBUG_RETURN(1);
-      }
+        goto err;
     }
 
     if (result)
@@ -8208,29 +8208,21 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (result != HA_ERR_END_OF_FILE)
       {
         cur_quick->range_end();
-        delete unique;
-        DBUG_RETURN(result);
+        goto err;
       }
       break;
     }
 
     if (thd->killed)
-    {
-      delete unique;
-      DBUG_RETURN(1);
-    }
+      goto err;
 
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges())
       continue;
 
     cur_quick->file->position(cur_quick->record);
-    result= unique->unique_add((char*)cur_quick->file->ref);
-    if (result)
-    {
-      delete unique;
-      DBUG_RETURN(1);
-    }
+    if (unique->unique_add((char*)cur_quick->file->ref))
+      goto err;
   }
 
   /*
@@ -8241,10 +8233,17 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   result= unique->get(head);
   delete unique;
   doing_pk_scan= FALSE;
-  /* index_merge currently doesn't support "using index" at all */
-  file->extra(HA_EXTRA_NO_KEYREAD);
+  /*
+    index_merge currently doesn't support "using index" at all
+  */
+  head->disable_keyread();
   init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
   DBUG_RETURN(result);
+
+err:
+  delete unique;
+  head->disable_keyread();
+  DBUG_RETURN(1);
 }
 
 
@@ -10315,7 +10314,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
   :join(join_arg), index_info(index_info_arg),
    group_prefix_len(group_prefix_len_arg),
    group_key_parts(group_key_parts_arg), have_min(have_min_arg),
-   have_max(have_max_arg), seen_first_key(FALSE),
+   have_max(have_max_arg), seen_first_key(FALSE), doing_key_read(FALSE),
    min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
    key_infix_len(key_infix_len_arg), min_functions_it(NULL),
    max_functions_it(NULL)
@@ -10446,7 +10445,12 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
 {
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT");
   if (file->inited != handler::NONE) 
+  {
+    DBUG_ASSERT(file == head->file);
+    if (doing_key_read)
+      head->disable_keyread();
     file->ha_index_end();
+  }
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);
   free_root(&alloc,MYF(0));
@@ -10629,7 +10633,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
-  file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
+  if (!head->key_read)
+  {
+    doing_key_read= 1;
+    head->enable_keyread(); /* We need only the key attributes */
+  }
   if ((result= file->ha_index_init(index,1)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())

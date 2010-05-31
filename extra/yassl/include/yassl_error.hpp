@@ -64,7 +64,7 @@ enum YasslError {
 enum Library { yaSSL_Lib = 0, CryptoLib, SocketLib };
 enum { MAX_ERROR_SZ = 80 };
 
-void SetErrorString(YasslError, char*);
+void SetErrorString(unsigned long, char*);
 
 /* remove for now, if go back to exceptions use this wrapper
 // Base class for all yaSSL exceptions

@@ -164,12 +164,13 @@ NULL	information_schema	INNODB_CMP_RESET	compress_time	4	0	NO	int	NULL	NULL	10	0
 NULL	information_schema	INNODB_CMP_RESET	page_size	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(5)			select	
 NULL	information_schema	INNODB_CMP_RESET	uncompress_ops	5	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select	
 NULL	information_schema	INNODB_CMP_RESET	uncompress_time	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select	
-NULL	information_schema	INNODB_INDEX_STATS	fields	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_INDEX_STATS	index_name	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
-NULL	information_schema	INNODB_INDEX_STATS	index_size	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_INDEX_STATS	leaf_pages	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_INDEX_STATS	row_per_keys	4		NO	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
-NULL	information_schema	INNODB_INDEX_STATS	table_name	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_INDEX_STATS	fields	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_INDEX_STATS	index_name	3		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_INDEX_STATS	index_size	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_INDEX_STATS	leaf_pages	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_INDEX_STATS	row_per_keys	5		NO	varchar	256	768	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select	
+NULL	information_schema	INNODB_INDEX_STATS	table_name	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_INDEX_STATS	table_schema	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
 NULL	information_schema	INNODB_LOCKS	lock_data	10	NULL	YES	varchar	8192	24576	NULL	NULL	utf8	utf8_general_ci	varchar(8192)			select	
 NULL	information_schema	INNODB_LOCKS	lock_id	1		NO	varchar	81	243	NULL	NULL	utf8	utf8_general_ci	varchar(81)			select	
 NULL	information_schema	INNODB_LOCKS	lock_index	6	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
@@ -190,11 +191,27 @@ NULL	information_schema	INNODB_RSEG	page_no	4	0	NO	bigint	NULL	NULL	19	0	NULL	NU
 NULL	information_schema	INNODB_RSEG	rseg_id	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_RSEG	space_id	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_RSEG	zip_size	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_TABLE_STATS	clust_size	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_TABLE_STATS	modified	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_TABLE_STATS	other_size	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_TABLE_STATS	rows	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_TABLE_STATS	table_name	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_SYS_INDEXES	ID	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_INDEXES	NAME	3		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_SYS_INDEXES	N_FIELDS	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_INDEXES	PAGE_NO	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_INDEXES	SPACE	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_INDEXES	TABLE_ID	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_INDEXES	TYPE	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_TABLES	CLUSTER_NAME	7		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_SYS_TABLES	ID	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_TABLES	MIX_ID	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_TABLES	MIX_LEN	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_TABLES	NAME	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_SYS_TABLES	N_COLS	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_TABLES	SPACE	8	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_TABLES	TYPE	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_TABLE_STATS	clust_size	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_TABLE_STATS	modified	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_TABLE_STATS	other_size	5	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_TABLE_STATS	rows	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_TABLE_STATS	table_name	2		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
+NULL	information_schema	INNODB_TABLE_STATS	table_schema	1		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
 NULL	information_schema	INNODB_TRX	trx_id	1		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
 NULL	information_schema	INNODB_TRX	trx_mysql_thread_id	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_TRX	trx_query	8	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
@@ -619,6 +636,7 @@ NULL	information_schema	INNODB_CMP_RESET	compress_ops_ok	int	NULL	NULL	NULL	NULL
 NULL	information_schema	INNODB_CMP_RESET	compress_time	int	NULL	NULL	NULL	NULL	int(11)
 NULL	information_schema	INNODB_CMP_RESET	uncompress_ops	int	NULL	NULL	NULL	NULL	int(11)
 NULL	information_schema	INNODB_CMP_RESET	uncompress_time	int	NULL	NULL	NULL	NULL	int(11)
+3.0000	information_schema	INNODB_INDEX_STATS	table_schema	varchar	192	576	utf8	utf8_general_ci	varchar(192)
 3.0000	information_schema	INNODB_INDEX_STATS	table_name	varchar	192	576	utf8	utf8_general_ci	varchar(192)
 3.0000	information_schema	INNODB_INDEX_STATS	index_name	varchar	192	576	utf8	utf8_general_ci	varchar(192)
 NULL	information_schema	INNODB_INDEX_STATS	fields	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
@@ -645,6 +663,22 @@ NULL	information_schema	INNODB_RSEG	zip_size	bigint	NULL	NULL	NULL	NULL	bigint(2
 NULL	information_schema	INNODB_RSEG	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_RSEG	max_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_RSEG	curr_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_INDEXES	TABLE_ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_INDEXES	ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_SYS_INDEXES	NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	INNODB_SYS_INDEXES	N_FIELDS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_INDEXES	TYPE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_INDEXES	SPACE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_INDEXES	PAGE_NO	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_SYS_TABLES	NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	INNODB_SYS_TABLES	ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_TABLES	N_COLS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_TABLES	TYPE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_TABLES	MIX_ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_TABLES	MIX_LEN	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_SYS_TABLES	CLUSTER_NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
+NULL	information_schema	INNODB_SYS_TABLES	SPACE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_TABLE_STATS	table_schema	varchar	192	576	utf8	utf8_general_ci	varchar(192)
 3.0000	information_schema	INNODB_TABLE_STATS	table_name	varchar	192	576	utf8	utf8_general_ci	varchar(192)
 NULL	information_schema	INNODB_TABLE_STATS	rows	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_TABLE_STATS	clust_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned

@@ -51,7 +51,9 @@ void	xt_ftracef(char *fmt, ...);
  * CONNECTION TRACKING
  */
 
+#ifdef DEBUG
 #define XT_TRACK_CONNECTIONS
+#endif
 
 #ifdef XT_TRACK_CONNECTIONS
 #define XT_TRACK_MAX_CONNS		500

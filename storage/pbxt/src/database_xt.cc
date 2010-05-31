@@ -68,6 +68,7 @@ xtPublic int				xt_db_log_file_count;
 xtPublic int				xt_db_auto_increment_mode;		/* 0 = MySQL compatible, 1 = PrimeBase Compatible. */
 xtPublic int				xt_db_offline_log_function;		/* 0 = recycle logs, 1 = delete logs, 2 = keep logs */
 xtPublic int				xt_db_sweeper_priority;			/* 0 = low (default), 1 = normal, 2 = high */
+xtPublic int				xt_db_flush_log_at_trx_commit;	/* 0 = no-write/no-flush, 1 = yes, 2 = write/no-flush */
 
 xtPublic XTSortedListPtr	xt_db_open_db_by_id = NULL;
 xtPublic XTHashTabPtr		xt_db_open_databases = NULL;
@@ -288,6 +289,7 @@ xtPublic void xt_stop_database_threads(XTThreadPtr self, xtBool sync)
 				/* Wait for the checkpointer: */
 				xt_wait_for_checkpointer(self, db);
 			}
+			xt_stop_flusher(self, db);
 			xt_stop_checkpointer(self, db);
 			xt_stop_writer(self, db);
 			xt_stop_sweeper(self, db);
@@ -317,6 +319,7 @@ static void db_finalize(XTThreadPtr self, void *x)
 {
 	XTDatabaseHPtr	db = (XTDatabaseHPtr) x;
 
+	xt_stop_flusher(self, db);
 	xt_stop_checkpointer(self, db);
 	xt_stop_compactor(self, db);
 	xt_stop_sweeper(self, db);
@@ -475,6 +478,8 @@ xtPublic XTDatabaseHPtr xt_get_database(XTThreadPtr self, char *path, xtBool mul
 		xt_start_compactor(self, db);
 		xt_start_writer(self, db);
 		xt_start_checkpointer(self, db);
+		if (xt_db_flush_log_at_trx_commit == 0 || xt_db_flush_log_at_trx_commit == 2)
+			xt_start_flusher(self, db);
 
 		popr_();
 		xt_ht_put(self, xt_db_open_databases, db);
@@ -574,6 +579,7 @@ xtPublic void xt_drop_database(XTThreadPtr self, XTDatabaseHPtr	db)
 	pushr_(xt_ht_unlock, xt_db_open_databases);
 
 	/* Shutdown the database daemons: */
+	xt_stop_flusher(self, db);
 	xt_stop_checkpointer(self, db);
 	xt_stop_sweeper(self, db);
 	xt_stop_compactor(self, db);
@@ -902,7 +908,7 @@ xtPublic XTOpenTablePoolPtr xt_db_lock_table_pool_by_name(XTThreadPtr self, XTDa
 	XTTableHPtr			tab;
 	xtTableID			tab_id;
 
-	pushsr_(tab, xt_heap_release, xt_use_table(self, tab_name, no_load, missing_ok, NULL));
+	pushsr_(tab, xt_heap_release, xt_use_table(self, tab_name, no_load, missing_ok));
 	if (!tab) {
 		freer_(); // xt_heap_release(tab)
 		return NULL;

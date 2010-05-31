@@ -566,16 +566,12 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
+#include <my_valgrind.h>
+
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_valgrind)
 #define VALGRIND_OR_LINT_INIT(var) var=0
 #else
 #define VALGRIND_OR_LINT_INIT(var)
-#endif
-
-#ifdef HAVE_valgrind
-#define IF_VALGRIND(A,B) (A)
-#else
-#define IF_VALGRIND(A,B) (B)
 #endif
 
 /* 
@@ -772,7 +768,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 #define MY_NFILE	64	/* This is only used to save filenames */
 #ifndef OS_FILE_LIMIT
-#define OS_FILE_LIMIT	65535
+#define OS_FILE_LIMIT	UINT_MAX
 #endif
 
 /* #define EXT_IN_LIBNAME     */

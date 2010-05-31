@@ -355,6 +355,9 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     */
     if (!(azopen(&archive_tmp, share->data_file_name, O_RDONLY|O_BINARY)))
     {
+      *rc= my_errno ? my_errno : -1;
+      pthread_mutex_unlock(&archive_mutex);
+      my_free(share, MYF(0));
       DBUG_RETURN(NULL);
     }
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
@@ -504,16 +507,18 @@ int ha_archive::open(const char *name, int mode, uint open_options)
     For now we have to refuse to open such table to avoid
     potential data loss.
   */
-  if ((rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
-      ||  rc == HA_ERR_TABLE_NEEDS_UPGRADE)
+  switch (rc)
   {
-    /* purecov: begin inspected */
+  case 0:
+    break;
+  case HA_ERR_CRASHED_ON_USAGE:
+    if (open_options & HA_OPEN_FOR_REPAIR)
+      break;
+    /* fall through */
+  case HA_ERR_TABLE_NEEDS_UPGRADE:
     free_share();
-    DBUG_RETURN(rc);
-    /* purecov: end */    
-  }
-  else if (rc == HA_ERR_OUT_OF_MEM)
-  {
+    /* fall through */
+  default:
     DBUG_RETURN(rc);
   }
 
@@ -1264,13 +1269,12 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
 
 /*
   This method repairs the meta file. It does this by walking the datafile and 
-  rewriting the meta file. Currently it does this by calling optimize with
-  the extended flag.
+  rewriting the meta file. If EXTENDED repair is requested, we attempt to
+  recover as much data as possible.
 */
 int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::repair");
-  check_opt->flags= T_EXTEND;
   int rc= optimize(thd, check_opt);
 
   if (rc)
@@ -1364,7 +1368,14 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_PRINT("ha_archive", ("recovered %llu archive rows", 
                         (unsigned long long)share->rows_recorded));
 
-    if (rc && rc != HA_ERR_END_OF_FILE)
+    /*
+      If REPAIR ... EXTENDED is requested, try to recover as much data
+      from data file as possible. In this case if we failed to read a
+      record, we assume EOF. This allows massive data loss, but we can
+      hardly do more with broken zlib stream. And this is the only way
+      to restore at least what is still recoverable.
+    */
+    if (rc && rc != HA_ERR_END_OF_FILE && !(check_opt->flags & T_EXTEND))
       goto error;
   } 
 
