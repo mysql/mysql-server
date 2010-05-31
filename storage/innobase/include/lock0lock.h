@@ -848,6 +848,8 @@ struct lock_sys_struct{
 					       	locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 					       	locks */
+	mutex_t		wait_mutex;		/*!< Mutex protecting the
+					       	next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for
 					       	locks within InnoDB, protected
@@ -873,6 +875,19 @@ extern lock_sys_t*	lock_sys;
 /** Release the lock_sys->mutex. */
 #define lock_mutex_exit() do {			\
 	mutex_exit(&lock_sys->mutex);		\
+} while (0)
+
+/** Test if lock_sys->wait_mutex is owned. */
+#define lock_wait_mutex_own() mutex_own(&lock_sys->wait_mutex)
+
+/** Acquire the lock_sys->wait_mutex. */
+#define lock_wait_mutex_enter() do {		\
+	mutex_enter(&lock_sys->wait_mutex);	\
+} while (0)
+
+/** Release the lock_sys->wait_mutex. */
+#define lock_wait_mutex_exit() do {		\
+	mutex_exit(&lock_sys->wait_mutex);	\
 } while (0)
 
 // FIXME: Move these to lock_sys_t

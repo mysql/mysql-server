@@ -272,7 +272,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
 	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
 	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
-	{&lock_sys_mutex_key, "lock_mutex_key", 0},
+	{&lock_sys_mutex_key, "lock_mutex", 0},
+	{&lock_sys_wait_mutex_key, "lock_wait_mutex", 0},
 	{&trx_mutex_key, "trx_mutex", 0},
 	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0}
 };

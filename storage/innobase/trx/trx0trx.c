@@ -743,13 +743,11 @@ trx_commit(
 		lsn = mtr.end_lsn;
 	}
 
-	lock_mutex_enter();
-
-	trx_sys_mutex_enter();
-
-	trx_mutex_enter(trx);
+	trx->is_recovered = FALSE;
 
 	trx->must_flush_log_later = FALSE;
+
+	lock_mutex_enter();
 
 	ut_ad(trx->lock.conc_state == TRX_ACTIVE
 	      || trx->lock.conc_state == TRX_PREPARED);
@@ -784,11 +782,11 @@ trx_commit(
 	background thread. To avoid this race we unconditionally
 	unset the is_recovered flag from the trx. */
 
-	trx->is_recovered = FALSE;
-
 	lock_release(trx);
 
 	lock_mutex_exit();
+
+	trx_sys_mutex_enter();
 
 	if (trx->global_read_view != NULL) {
 		read_view_remove(trx->global_read_view);
@@ -796,11 +794,11 @@ trx_commit(
 		trx->global_read_view = NULL;
 	}
 
+	trx->read_view = NULL;
+
 	trx_sys_mutex_exit();
 
 	if (lsn) {
-		trx_mutex_exit(trx);
-
 		if (trx->insert_undo != NULL) {
 
 			trx_undo_insert_cleanup(trx);
@@ -860,12 +858,10 @@ trx_commit(
 			ut_error;
 		}
 
-		trx_mutex_enter(trx);
-
 		trx->commit_lsn = lsn;
 	}
 
-	trx->read_view = NULL;
+	trx_mutex_enter(trx);
 
 	/* Free all savepoints */
 	trx_roll_free_all_savepoints(trx);
