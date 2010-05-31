@@ -1181,6 +1181,10 @@ public:
     collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
     fix_char_length(max_char_length_arg);
   }
+  /*
+    Return TRUE if the item points to a column of an outer-joined table.
+  */
+  virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
 };
 
 
@@ -1694,6 +1698,11 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
   virtual void print(String *str, enum_query_type query_type);
+  bool is_outer_field() const
+  {
+    DBUG_ASSERT(fixed);
+    return field->table->pos_in_table_list->outer_join;
+  }
   Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
@@ -2507,6 +2516,12 @@ public:
     return (*ref)->get_time(ltime);
   }
   virtual bool basic_const_item() const { return (*ref)->basic_const_item(); }
+  bool is_outer_field() const
+  {
+    DBUG_ASSERT(fixed);
+    DBUG_ASSERT(ref);
+    return (*ref)->is_outer_field();
+  }
 
 };
 
