@@ -1,5 +1,13 @@
 drop table if exists t1;
 #
+# Bug#49477: Assertion `0' failed in ha_partition.cc:5530
+# with temporary table and partitions
+#
+CREATE TABLE t1 (a INT) PARTITION BY HASH(a);
+CREATE TEMPORARY TABLE tmp_t1 LIKE t1;
+ERROR HY000: Cannot create temporary table with partitions
+DROP TABLE t1;
+#
 # Bug#50392: insert_id is not reset for partitioned tables
 #            auto_increment on duplicate entry
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);
