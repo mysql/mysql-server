@@ -15,7 +15,14 @@ $fields = {
         indexes => [undef, 'key', 'unique'],
         null => [undef],
 #       sign => [undef, 'unsigned'],
-        charsets => ['utf8', 'latin1']
+
+#########################################################################
+#       We don't specify charsets here as this will affect column naming 
+#       and requires a grammar rewrite  when we change to another charset 
+#       and/or collation.
+#########################################################################
+#       charsets => ['utf8'], collations => ['utf8_bin']
+#       charsets => ['latin1'], collations => ['latin1_bin']
 };
 
 $data = {
