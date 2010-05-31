@@ -47,7 +47,7 @@ lock_wait_table_print(void)
 	ulint			i;
 	const srv_slot_t*	slot;
 
-	ut_ad(lock_mutex_own());
+	ut_ad(lock_wait_mutex_own());
 
 	slot = lock_sys->waiting_threads;
 
@@ -78,7 +78,7 @@ lock_wait_table_release_slot(
 	srv_slot_t*	upper = lock_sys->waiting_threads + OS_THREAD_MAX_N;
 #endif /* UNIV_DEBUG */
 
-	lock_mutex_enter();
+	lock_wait_mutex_enter();
 
 	ut_ad(slot->in_use);
 	ut_ad(slot->thr != NULL);
@@ -89,9 +89,13 @@ lock_wait_table_release_slot(
 	ut_ad(slot >= lock_sys->waiting_threads);
 	ut_ad(slot < upper);
 
+	lock_mutex_enter();
+
 	slot->thr->slot = NULL;
 	slot->thr = NULL;
 	slot->in_use = FALSE;
+
+	lock_mutex_exit();
 
 	/* Scan backwards and adjust the last free slot pointer. */
 	for (slot = lock_sys->last_slot;
@@ -112,7 +116,7 @@ lock_wait_table_release_slot(
 	ut_ad(lock_sys->last_slot >= lock_sys->waiting_threads);
 	ut_ad(lock_sys->last_slot <= upper);
 
-	lock_mutex_exit();
+	lock_wait_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -128,7 +132,7 @@ lock_wait_table_reserve_slot(
 	ulint		i;
 	srv_slot_t*	slot;
 
-	ut_ad(lock_mutex_own());
+	ut_ad(lock_wait_mutex_own());
 
 	slot = lock_sys->waiting_threads;
 
@@ -211,9 +215,7 @@ lock_wait_suspend_thread(
 
 	trx = thr_get_trx(thr);
 
-	os_event_set(srv_lock_timeout_thread_event);
-
-	lock_mutex_enter();
+	lock_wait_mutex_enter();
 
 	trx_mutex_enter(trx);
 
@@ -234,13 +236,15 @@ lock_wait_suspend_thread(
 
 		trx_mutex_exit(trx);
 
-		lock_mutex_exit();
+		lock_wait_mutex_exit();
 		return;
 	}
 
 	ut_ad(thr->is_active == FALSE);
 
 	slot = lock_wait_table_reserve_slot(thr);
+
+	os_event_set(srv_lock_timeout_thread_event);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		// FIXME: Use atomics/lock_sys->mutex
@@ -259,7 +263,7 @@ lock_wait_suspend_thread(
 	os_event_set(srv_lock_timeout_thread_event);
 
 	trx_mutex_exit(trx);
-	lock_mutex_exit();
+	lock_wait_mutex_exit();
 
 	if (trx->declared_to_be_inside_innodb) {
 
@@ -339,14 +343,6 @@ lock_wait_suspend_thread(
 		}
 	}
 
-	trx_mutex_enter(trx);
-
-	if (trx->lock.was_chosen_as_deadlock_victim) {
-
-		trx->error_state = DB_DEADLOCK;
-		trx->lock.was_chosen_as_deadlock_victim = FALSE;
-	}
-
 	/* InnoDB system transactions (such as the purge, and
 	incomplete transactions that are being rolled back after crash
 	recovery) will use the global value of
@@ -363,8 +359,6 @@ lock_wait_suspend_thread(
 
 		trx->error_state = DB_INTERRUPTED;
 	}
-
-	trx_mutex_exit(trx);
 }
 
 /********************************************************************//**
@@ -381,6 +375,13 @@ lock_wait_release_thread_if_suspended(
 	ut_ad(query_mutex_own(thr));
 
 	if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
+		trx_t*	trx = thr_get_trx(thr);
+
+		if (trx->lock.was_chosen_as_deadlock_victim) {
+
+			trx->error_state = DB_DEADLOCK;
+			trx->lock.was_chosen_as_deadlock_victim = FALSE;
+		}
 
 		os_event_set(thr->slot->event);
 	}
@@ -400,7 +401,7 @@ lock_wait_check_and_cancel(
 	ulong		lock_wait_timeout;
 	ib_time_t	suspend_time = slot->suspend_time;
 
-	ut_ad(lock_mutex_own());
+	ut_ad(lock_wait_mutex_own());
 
 	wait_time = ut_difftime(ut_time(), suspend_time);
 
@@ -466,7 +467,7 @@ lock_wait_timeout_thread(
 
 		server_mutex_exit();
 
-		lock_mutex_enter();
+		lock_wait_mutex_enter();
 
 		/* Check all slots for user threads that are waiting
 	       	on locks, and if they have exceeded the time limit. */
@@ -483,7 +484,7 @@ lock_wait_timeout_thread(
 
 		os_event_reset(srv_lock_timeout_thread_event);
 
-		lock_mutex_exit();
+		lock_wait_mutex_exit();
 
 		if (!some_waits) {
 			server_mutex_enter();

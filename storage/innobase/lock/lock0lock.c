@@ -340,6 +340,8 @@ static const ulint lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 #ifdef UNIV_PFS_MUTEX
 /* Key to register mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	lock_sys_mutex_key;
+/* Key to register mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	lock_sys_wait_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
@@ -427,8 +429,7 @@ lock_rec_get_nth_bit(
 	const lock_t*	lock,	/*!< in: record lock */
 	ulint		i)	/*!< in: index of the bit */
 {
-	ulint	byte_index;
-	ulint	bit_index;
+	const byte*	b;
 
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
@@ -438,10 +439,9 @@ lock_rec_get_nth_bit(
 		return(FALSE);
 	}
 
-	byte_index = i / 8;
-	bit_index = i % 8;
+	b = ((const byte*) &lock[1]) + (i / 8);
 
-	return(1 & ((const byte*) &lock[1])[byte_index] >> bit_index);
+	return(1 & *b >> (i % 8));
 }
 
 /*********************************************************************//**
@@ -576,6 +576,9 @@ lock_sys_create(
 
 	mutex_create(lock_sys_mutex_key, &lock_sys->mutex, SYNC_LOCK_SYS);
 
+	mutex_create(lock_sys_wait_mutex_key,
+		     &lock_sys->wait_mutex, SYNC_LOCK_WAIT_SYS);
+
 	lock_sys->rec_hash = hash_create(n_cells);
 
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
@@ -601,6 +604,7 @@ lock_sys_close(void)
 	hash_table_free(lock_sys->rec_hash);
 
 	mutex_free(&lock_sys->mutex);
+	mutex_free(&lock_sys->wait_mutex);
 
 	mem_free(lock_sys);
 
@@ -1786,7 +1790,6 @@ lock_rec_enqueue_waiting(
 
 	/* Check if a deadlock occurs: if yes, remove the lock request and
 	return an error code */
-
 	if (UNIV_UNLIKELY(lock_deadlock_occurs(lock, trx))) {
 
 		lock_reset_lock_and_trx_wait(lock);
@@ -1843,6 +1846,7 @@ lock_rec_add_to_queue(
 	trx_t*			trx)	/*!< in: transaction */
 {
 	lock_t*	lock;
+	lock_t*	first_lock;
 
 	ut_ad(lock_mutex_own());
 #ifdef UNIV_DEBUG
@@ -1883,7 +1887,7 @@ lock_rec_add_to_queue(
 
 	/* Look for a waiting lock request on the same record or on a gap */
 
-	lock = lock_rec_get_first_on_page(block);
+	first_lock = lock = lock_rec_get_first_on_page(block);
 
 	while (lock != NULL) {
 		if (lock_get_wait(lock)
@@ -1902,8 +1906,7 @@ lock_rec_add_to_queue(
 		we can just set the bit */
 
 		lock = lock_rec_find_similar_on_page(
-			type_mode, heap_no,
-			lock_rec_get_first_on_page(block), trx);
+			type_mode, heap_no, first_lock, trx);
 
 		if (lock) {
 
@@ -3375,48 +3378,48 @@ lock_choose_trx_for_rollback(
 	point: a deadlock detected; or we have
 	searched the waits-for graph too long */
 
-	FILE*	ef = lock_latest_err_file;
+	//FILE*	ef = lock_latest_err_file;
 
-	rewind(ef);
-	ut_print_timestamp(ef);
+	//rewind(ef);
+	//ut_print_timestamp(ef);
 
-	trx_mutex_enter(wait_lock->trx);
+	//trx_mutex_enter(wait_lock->trx);
 
-	fputs("\n*** (1) TRANSACTION:\n", ef);
+	//fputs("\n*** (1) TRANSACTION:\n", ef);
 
-	trx_print(ef, wait_lock->trx, 3000);
+	//trx_print(ef, wait_lock->trx, 3000);
 
-	fputs("*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
+	//fputs("*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
 
-	if (lock_get_type_low(wait_lock) == LOCK_REC) {
-		lock_rec_print(ef, wait_lock);
-	} else {
-		lock_table_print(ef, wait_lock);
-	}
+	//if (lock_get_type_low(wait_lock) == LOCK_REC) {
+		//lock_rec_print(ef, wait_lock);
+	//} else {
+		//lock_table_print(ef, wait_lock);
+	//}
 
-	fputs("*** (2) TRANSACTION:\n", ef);
+	//fputs("*** (2) TRANSACTION:\n", ef);
 
-	trx_print(ef, lock->trx, 3000);
+	//trx_print(ef, lock->trx, 3000);
 
-	fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
+	//fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
 
-	if (lock_get_type_low(lock) == LOCK_REC) {
-		lock_rec_print(ef, lock);
-	} else {
-		lock_table_print(ef, lock);
-	}
+	//if (lock_get_type_low(lock) == LOCK_REC) {
+		//lock_rec_print(ef, lock);
+	//} else {
+		//lock_table_print(ef, lock);
+	//}
 
-	fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
+	//fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
 
-	if (lock_get_type_low(start->lock.wait_lock) == LOCK_REC) {
-		lock_rec_print(ef, start->lock.wait_lock);
-	} else {
-		lock_table_print(ef, start->lock.wait_lock);
-	}
+	//if (lock_get_type_low(start->lock.wait_lock) == LOCK_REC) {
+		//lock_rec_print(ef, start->lock.wait_lock);
+	//} else {
+		//lock_table_print(ef, start->lock.wait_lock);
+	//}
 #ifdef UNIV_DEBUG
-	if (lock_print_waits) {
-		fputs("Deadlock detected\n", stderr);
-	}
+	//if (lock_print_waits) {
+		//fputs("Deadlock detected\n", stderr);
+	//}
 #endif /* UNIV_DEBUG */
 
 	if (trx_weight_cmp(wait_lock->trx, start) >= 0) {
@@ -3434,7 +3437,7 @@ lock_choose_trx_for_rollback(
 	as a victim to try to avoid deadlocking our
 	recursion starting point transaction */
 
-	fputs("*** WE ROLL BACK TRANSACTION (1)\n", ef);
+	//fputs("*** WE ROLL BACK TRANSACTION (1)\n", ef);
 
 	wait_lock->trx->lock.was_chosen_as_deadlock_victim = TRUE;
 
@@ -3497,7 +3500,7 @@ lock_deadlock_recursive(
 		return(0);
 	}
 
-	*cost = *cost + 1;
+	(*cost)++;
 
 	if (lock_get_type_low(wait_lock) == LOCK_REC) {
 		ulint		space;
@@ -3511,19 +3514,7 @@ lock_deadlock_recursive(
 
 		lock = lock_rec_get_first_on_page_addr(space, page_no);
 
-		/* Position the iterator on the first matching record lock. */
-		while (lock != NULL
-		       && lock != wait_lock
-		       && !lock_rec_get_nth_bit(lock, heap_no)) {
-
-			lock = lock_rec_get_next_on_page(lock);
-		}
-
-		if (lock == wait_lock) {
-			lock = NULL;
-		}
-
-		ut_ad(lock == NULL || lock_rec_get_nth_bit(lock, heap_no));
+		ut_ad(lock != NULL);
 
 	} else {
 		lock = wait_lock;
@@ -3539,7 +3530,7 @@ lock_deadlock_recursive(
 				un_member.tab_lock.locks, lock);
 		}
 
-		if (lock == NULL) {
+		if (lock == NULL || lock == wait_lock) {
 			/* We can mark this subtree as searched */
 			trx->lock.deadlock_mark = 1;
 
@@ -3601,15 +3592,7 @@ lock_deadlock_recursive(
 
 			ut_a(lock != NULL);
 
-			do {
-				lock = lock_rec_get_next_on_page(lock);
-			} while (lock != NULL
-				&& lock != wait_lock
-				&& !lock_rec_get_nth_bit(lock, heap_no));
-
-			if (lock == wait_lock) {
-				lock = NULL;
-			}
+			lock = lock_rec_get_next(heap_no, lock);
 		}
 	}/* end of the 'for (;;)'-loop */
 }
