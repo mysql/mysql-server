@@ -9,7 +9,7 @@ set -e
 pre="spj"
 opre="$pre.$$"
 
-: ${RQG_HOME:=/home/oa136780/mysql/randgen/randgen-2.2.0}
+: ${RQG_HOME:=/net/fimafeng09/export/home/tmp/oleja/mysql/randgen/randgen-2.2.0}
 
 : ${data:= --spec=simple.zz}
 : ${grammar:=spj_test.yy}
@@ -37,12 +37,16 @@ dsn=dbi:mysql:host=loki43:port=4401:user=root:database=${pre}_myisam
 mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot"
 mysql="$MYSQLINSTALL/bin/mysql --host=loki43 --port=4401"
 
+# Create database with a case sensitive collation to ensure a deterministic 
+# resultset when 'LIMIT' is specified:
+charset_spec="character set latin1 collate latin1_bin"
+#charset_spec="default character set utf8 default collate utf8_bin"
+
 export RQG_HOME
 if [ "$load" ]
 then
 	$mysql -uroot -e "drop database if exists ${pre}_myisam; drop database if exists ${pre}_ndb"
-	$mysql -uroot -e "create database ${pre}_myisam; create database ${pre}_ndb"
-##	${gendata} --dsn=$dsn ${data}
+	$mysql -uroot -e "create database ${pre}_myisam ${charset_spec}; create database ${pre}_ndb ${charset_spec}"
 	${gendata} --dsn=$dsn ${data}
 cat > /tmp/sproc.$$ <<EOF
 DROP PROCEDURE IF EXISTS copydb;

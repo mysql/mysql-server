@@ -91,7 +91,7 @@ int_value_expr:
  | int_value_expr - int_value_expr
  | CHAR_LENGTH(char_value_expr)
  | (int_value_expr)
- | int_scalar_subquery
+#| int_scalar_subquery
  ;
 
 char_value_expr:
@@ -103,7 +103,7 @@ char_value_expr:
 #| LOWER(char_value_expr)
 #| TRIM(char_value_expr)
  | (char_value_expr)
- | char_scalar_subquery
+#| char_scalar_subquery
  ;
 
 char_string_literal:
@@ -614,7 +614,7 @@ other_predicate:
  | int_value_expr not BETWEEN int_value_expr AND int_value_expr
  | char_value_expr not LIKE {"'%".$prng->string(3)."%'"}
  | int_value_expr not IN (number_list)
- | int_value_expr not IN int_scalar_subquery
+#| int_value_expr not IN int_scalar_subquery
  | EXISTS table_subquery
  ;
 
@@ -677,37 +677,42 @@ int_indexed:
    pk | col_int_key | col_int_unique
  ;
 
+#################################################################
+# Charset and collation should be specified when starting mysqld
+# or creating the database.
+# In order to get a deterministic resultset for 'ORDER BY ... LIMIT'
+# ensure that the collation is case sensitive (or binary).
+#################################################################
 char_field_name:
-  col_varchar_10_utf8 | 
-  col_varchar_10_latin1 | 
-  col_varchar_256_utf8_key | 
-  col_varchar_256_utf8 | 
-  col_varchar_256_latin1_key | 
-  col_varchar_10_utf8_key | 
-  col_varchar_256_latin1 | 
-  col_varchar_10_latin1_key |
-  col_varchar_256_utf8_unique | 
-  col_varchar_256_latin1_unique | 
-  col_varchar_10_utf8_unique | 
-  col_varchar_10_latin1_unique
+   col_char_16
+ | col_char_16_key
+ | col_char_16_unique
+ | col_varchar_10
+ | col_varchar_10_key
+ | col_varchar_10_unique
+ | col_varchar_256
+ | col_varchar_256_key
+ | col_varchar_256_unique
  ; 
 
 char_indexed:
-  col_varchar_10_latin1_key | col_varchar_10_utf8_key |
-  col_varchar_256_latin1_key | col_varchar_256_utf8_key |
-  col_varchar_10_latin1_unique | col_varchar_10_utf8_unique |
-  col_varchar_256_latin1_unique |col_varchar_256_utf8_unique
+   col_char_16_key
+ | col_char_16_key
+ | col_varchar_10_key
+ | col_varchar_10_unique
+ | col_varchar_256_key
+ | col_varchar_256_unique
  ;
 
 datetime_field_name:
-   col_datetime |
-   col_datetime_key |
-   col_datetime_unique
+   col_datetime
+ | col_datetime_key
+ | col_datetime_unique
  ;
 
 datetime_indexed:
-   col_datetime_key |
-   col_datetime_unique
+   col_datetime_key
+ | col_datetime_unique
  ;
 
 existing_table_item:
