@@ -3479,9 +3479,10 @@ SET DEBUG_SYNC= "get_schema_column SIGNAL waiting WAIT_FOR completed";
 
 connection default;
 SET DEBUG_SYNC= "now WAIT_FOR waiting";
+--replace_column 8 #
 SHOW FULL COLUMNS FROM t1;
 SET DEBUG_SYNC= "now SIGNAL completed";
-
+--replace_column 8 #
 connection con1;
 --reap
 connection default;
