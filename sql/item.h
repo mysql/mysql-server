@@ -2506,7 +2506,7 @@ public:
     DBUG_ASSERT(fixed);
     return (*ref)->get_time(ltime);
   }
-  bool basic_const_item() { return (*ref)->basic_const_item(); }
+  virtual bool basic_const_item() const { return (*ref)->basic_const_item(); }
 
 };
 
@@ -3367,6 +3367,7 @@ public:
     cmp_context= STRING_RESULT;
   }
 
+  virtual void store(Item *item) { Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
