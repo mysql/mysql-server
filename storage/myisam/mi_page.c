@@ -86,13 +86,6 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if ((length=keyinfo->block_length) > IO_SIZE*2 &&
       info->state->key_file_length != page+length)
     length= ((mi_getint(buff)+IO_SIZE-1) & (uint) ~(IO_SIZE-1));
-#ifdef HAVE_purify
-  {
-    length=mi_getint(buff);
-    bzero((uchar*) buff+length,keyinfo->block_length-length);
-    length=keyinfo->block_length;
-  }
-#endif
   DBUG_RETURN((key_cache_write(info->s->key_cache,
                          info->s->kfile,page, level, (uchar*) buff,length,
 			 (uint) keyinfo->block_length,

@@ -8464,14 +8464,20 @@ bool Field_num::eq_def(Field *field)
 }
 
 
+/**
+  Check whether two numeric fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they are of the same type
+  and retain the same pack length.
+*/
+
 uint Field_num::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
-	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
-							 UNSIGNED_FLAG)) &&
+          ((new_field->flags & UNSIGNED_FLAG) == 
+           (uint) (flags & UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length <= max_display_length()));
+          (new_field->pack_length == pack_length()));
 }
 
 
@@ -9119,7 +9125,7 @@ void Create_field::create_length_to_internal_length(void)
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null, bool is_unsigned,
-                                      uint pack_length)
+                                      uint pack_length_arg)
 {
   DBUG_ENTER("Create_field::init_for_tmp_table");
 
@@ -9132,7 +9138,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   geom_type= Field::GEOM_GEOMETRY;
 
   DBUG_PRINT("enter", ("sql_type: %d, length: %u, pack_length: %u",
-                       sql_type_arg, length_arg, pack_length));
+                       sql_type_arg, length_arg, pack_length_arg));
 
   /*
     These pack flags are crafted to get it correctly through the
@@ -9196,8 +9202,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   case MYSQL_TYPE_GEOMETRY:
     // If you are going to use the above types, you have to pass a
     // pack_length as parameter. Assert that is really done.
-    DBUG_ASSERT(pack_length != ~0U);
-    pack_flag|= pack_length_to_packflag(pack_length);
+    DBUG_ASSERT(pack_length_arg != ~0U);
+    pack_flag|= pack_length_to_packflag(pack_length_arg);
     break;
   default:
     /* Nothing */

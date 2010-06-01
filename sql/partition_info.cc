@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2008 MySQL AB, Sun Microsystems Inc. 2008-2009
+/* Copyright (c) 2006, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -603,12 +603,12 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
 {
   handlerton *old_engine_type= engine_type;
   bool first= TRUE;
-  uint num_parts= partitions.elements;
+  uint n_parts= partitions.elements;
   DBUG_ENTER("partition_info::check_engine_mix");
   DBUG_PRINT("info", ("in: engine_type = %s, table_engine_set = %u",
                        ha_resolve_storage_engine_name(engine_type),
                        table_engine_set));
-  if (num_parts)
+  if (n_parts)
   {
     List_iterator<partition_element> part_it(partitions);
     uint i= 0;
@@ -621,7 +621,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
       if (is_sub_partitioned() &&
           part_elem->subpartitions.elements)
       {
-        uint num_subparts= part_elem->subpartitions.elements;
+        uint n_subparts= part_elem->subpartitions.elements;
         uint j= 0;
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         do
@@ -633,7 +633,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
           if (check_engine_condition(sub_elem, table_engine_set,
                                      &engine_type, &first))
             goto error;
-        } while (++j < num_subparts);
+        } while (++j < n_subparts);
         /* ensure that the partition also has correct engine */
         if (check_engine_condition(part_elem, table_engine_set,
                                    &engine_type, &first))
@@ -642,7 +642,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
       else if (check_engine_condition(part_elem, table_engine_set,
                                       &engine_type, &first))
         goto error;
-    } while (++i < num_parts);
+    } while (++i < n_parts);
   }
   DBUG_PRINT("info", ("engine_type = %s",
                        ha_resolve_storage_engine_name(engine_type)));
@@ -1199,7 +1199,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           part_elem->engine_type= default_engine_type;
         }
         if (check_table_name(part_elem->partition_name,
-                             strlen(part_elem->partition_name)))
+                             strlen(part_elem->partition_name), FALSE))
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
@@ -1218,7 +1218,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           sub_elem= sub_it++;
           warn_if_dir_in_part_elem(thd, sub_elem);
           if (check_table_name(sub_elem->partition_name,
-                               strlen(sub_elem->partition_name)))
+                               strlen(sub_elem->partition_name), FALSE))
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
             goto end;
@@ -1315,15 +1315,15 @@ end:
   RETURN VALUES
 */
 
-void partition_info::print_no_partition_found(TABLE *table)
+void partition_info::print_no_partition_found(TABLE *table_arg)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
   TABLE_LIST table_list;
 
   bzero(&table_list, sizeof(table_list));
-  table_list.db= table->s->db.str;
-  table_list.table_name= table->s->table_name.str;
+  table_list.db= table_arg->s->db.str;
+  table_list.table_name= table_arg->s->table_name.str;
 
   if (check_single_table_access(current_thd,
                                 SELECT_ACL, &table_list, TRUE))
@@ -1337,13 +1337,13 @@ void partition_info::print_no_partition_found(TABLE *table)
       buf_ptr= (char*)"from column_list";
     else
     {
-      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table_arg, table_arg->read_set);
       if (part_expr->null_value)
         buf_ptr= (char*)"NULL";
       else
         longlong2str(err_value, buf,
                      part_expr->unsigned_flag ? 10 : -10);
-      dbug_tmp_restore_column_map(table->read_set, old_map);
+      dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
   }
@@ -2003,7 +2003,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
                                                 part_elem_value *val,
                                                 uint part_id)
 {
-  uint num_columns= part_field_list.elements;
+  uint n_columns= part_field_list.elements;
   bool result= FALSE;
   uint i;
   part_column_list_val *col_val= val->col_val_array;
@@ -2013,7 +2013,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
   {
     DBUG_RETURN(FALSE);
   }
-  for (i= 0; i < num_columns; col_val++, i++)
+  for (i= 0; i < n_columns; col_val++, i++)
   {
     Item *column_item= col_val->item_expression;
     Field *field= part_field_array[i];
