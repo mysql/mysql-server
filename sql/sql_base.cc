@@ -16,11 +16,11 @@
 
 /* Basic functions needed by many modules */
 
+#include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "debug_sync.h"
-#include "sql_base.h"                           // setup_table_map
 #include "lock.h"        // broadcast_refresh, mysql_lock_remove,
                          // mysql_unlock_tables,
                          // mysql_lock_have_duplicate
