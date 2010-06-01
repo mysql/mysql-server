@@ -3476,13 +3476,31 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
     after a SET ONE_SHOT, because SET ONE_SHOT should not be separated
     from its following updating query.
   */
+  int ret= 0;
   if (thd->one_shot_set)
   {
     rli->inc_event_relay_log_pos();
-    return 0;
   }
   else
-    return Log_event::do_update_pos(rli);
+    ret= Log_event::do_update_pos(rli);
+
+   DBUG_EXECUTE_IF("crash_after_begin_pos",
+        if (!strcmp("BEGIN", query))
+        {
+          rli->flush_info(TRUE);
+          abort();
+        }
+   );
+  
+   DBUG_EXECUTE_IF("crash_after_commit_pos",
+        if (!strcmp("COMMIT", query))
+        {
+          rli->flush_info(TRUE);
+          abort();
+        }
+   );
+  
+  return ret;
 }
 
 
