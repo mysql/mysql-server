@@ -3935,8 +3935,8 @@ lock_rec_unlock(
 	const rec_t*		rec,	/*!< in: record */
 	enum lock_mode		lock_mode)/*!< in: LOCK_S or LOCK_X */
 {
+	lock_t*	first_lock;
 	lock_t*	lock;
-	lock_t*	release_lock	= NULL;
 	ulint	heap_no;
 
 	ut_ad(trx && rec);
@@ -3946,48 +3946,40 @@ lock_rec_unlock(
 
 	mutex_enter(&kernel_mutex);
 
-	lock = lock_rec_get_first(block, heap_no);
+	first_lock = lock_rec_get_first(block, heap_no);
 
 	/* Find the last lock with the same lock_mode and transaction
 	from the record. */
 
-	while (lock != NULL) {
+	for (lock = first_lock; lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 		if (lock->trx == trx && lock_get_mode(lock) == lock_mode) {
-			release_lock = lock;
 			ut_a(!lock_get_wait(lock));
+			lock_rec_reset_nth_bit(lock, heap_no);
+			goto released;
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 
-	/* If a record lock is found, release the record lock */
+	mutex_exit(&kernel_mutex);
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Error: unlock row could not"
+		" find a %lu mode lock on the record\n",
+		(ulong) lock_mode);
 
-	if (UNIV_LIKELY(release_lock != NULL)) {
-		lock_rec_reset_nth_bit(release_lock, heap_no);
-	} else {
-		mutex_exit(&kernel_mutex);
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: unlock row could not"
-			" find a %lu mode lock on the record\n",
-			(ulong) lock_mode);
+	return;
 
-		return;
-	}
-
+released:
 	/* Check if we can now grant waiting lock requests */
 
-	lock = lock_rec_get_first(block, heap_no);
-
-	while (lock != NULL) {
+	for (lock = first_lock; lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 		if (lock_get_wait(lock)
 		    && !lock_rec_has_to_wait_in_queue(lock)) {
 
 			/* Grant the lock */
 			lock_grant(lock);
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 
 	mutex_exit(&kernel_mutex);
