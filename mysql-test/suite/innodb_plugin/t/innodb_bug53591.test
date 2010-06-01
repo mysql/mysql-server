@@ -1,0 +1,22 @@
+-- source include/have_innodb_plugin.inc
+
+let $file_format=`select @@innodb_file_format`;
+let $file_format_check=`select @@innodb_file_format_check`;
+let $file_per_table=`select @@innodb_file_per_table`;
+
+SET GLOBAL innodb_file_format='Barracuda';
+SET GLOBAL innodb_file_per_table=on;
+
+set old_alter_table=0;
+
+CREATE TABLE bug53591(a text charset utf8 not null)
+ENGINE=InnoDB KEY_BLOCK_SIZE=1;
+-- error 139
+ALTER TABLE bug53591 ADD PRIMARY KEY(a(220));
+SHOW WARNINGS;
+
+DROP TABLE bug53591;
+
+EVAL SET GLOBAL innodb_file_format=$file_format;
+EVAL SET GLOBAL innodb_file_format_check=$file_format_check;
+EVAL SET GLOBAL innodb_file_per_table=$file_per_table;
