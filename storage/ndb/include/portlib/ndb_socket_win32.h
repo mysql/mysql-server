@@ -1,3 +1,19 @@
+/*
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -7,7 +23,14 @@
 #define MY_SOCKET_FORMAT "%p"
 #define MY_SOCKET_FORMAT_VALUE(x) (x.s)
 
+typedef SOCKET ndb_native_socket_t;
 typedef struct { SOCKET s; } ndb_socket_t;
+
+static inline ndb_native_socket_t
+ndb_socket_get_native(ndb_socket_t s)
+{
+  return s.s;
+}
 
 static inline int my_socket_valid(ndb_socket_t s)
 {
@@ -53,12 +76,6 @@ static inline ndb_socket_t my_socket_create(int domain, int type, int protocol)
   s.s= socket(domain, type, protocol);
 
   return s;
-}
-
-static inline int my_socket_nfds(ndb_socket_t s, int nfds)
-{
-  (void)s;
-  return nfds;
 }
 
 static inline size_t my_recv(ndb_socket_t s, char* buf, size_t len, int flags)
@@ -209,6 +226,3 @@ static inline ssize_t my_socket_writev(ndb_socket_t s, const struct iovec *iov,
     return -1;
   return rv;
 }
-
-#define my_FD_SET(sock,set)   FD_SET((sock).s,set)
-#define my_FD_ISSET(sock,set) FD_ISSET((sock).s,set)

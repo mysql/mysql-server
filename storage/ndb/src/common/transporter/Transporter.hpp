@@ -175,7 +175,7 @@ private:
   SocketClient *m_socket_client;
   struct in_addr m_connect_address;
 
-  virtual bool send_is_possible(struct timeval *timeout) = 0;
+  virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;
 
   Uint32 m_connection_refused_counter;
