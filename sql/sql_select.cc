@@ -5171,7 +5171,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     othertbl.field can be NULL, there will be no matches if othertbl.field 
     has NULL value.
     We use null_rejecting in add_not_null_conds() to add
-    'othertbl.field IS NOT NULL' to tab->select_cond.
+    'othertbl.field IS NOT NULL' to tab->select_cond, if this is not an outer
+    join. We also use it to shortcut reading "tbl" when othertbl.field is
+    found to be a NULL value (in join_read_always_key() and BKA).
   */
   {
     Item *real= (*value)->real_item();
@@ -17380,7 +17382,10 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
     table->file->ha_index_init(table_ref->key, tab->sorted);
   }
 
-  /* TODO: Why don't we do "Late NULLs Filtering" here? */
+  /*
+    We needn't do "Late NULLs Filtering" because eq_ref is restricted to
+    indices on NOT NULL columns (see create_ref_for_key()).
+  */
   if (cmp_buffer_with_ref(tab->join->thd, table, table_ref) ||
       (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
   {
@@ -17483,20 +17488,18 @@ join_read_always_key(JOIN_TAB *tab)
     table->file->ha_index_init(tab->ref.key, tab->sorted);
 
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
-  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
+  TABLE_REF *ref= &tab->ref;
+  if (ref->impossible_null_ref())
   {
-    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
-    {
-      DBUG_PRINT("info", ("join_read_always_key null rejected"));
-      return -1;
-    }
+    DBUG_PRINT("info", ("join_read_always_key null_rejected"));
+    return -1;
   }
 
-  if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
+  if (cp_buffer_from_ref(tab->join->thd, table, ref))
     return -1;
   if ((error=table->file->index_read_map(table->record[0],
-                                         tab->ref.key_buff,
-                                         make_prev_keypart_map(tab->ref.key_parts),
+                                         ref->key_buff,
+                                         make_prev_keypart_map(ref->key_parts),
                                          HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -18258,6 +18261,9 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 /**
   @return
     1 if right_item is used removable reference key on left_item
+
+  @note see comments in make_cond_for_table_from_pred() about careful
+  usage/modifications of test_if_ref().
 */
 
 static bool test_if_ref(COND *root_cond, 
@@ -18500,7 +18506,23 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
 
   /* 
     Remove equalities that are guaranteed to be true by use of 'ref' access
-    method
+    method.
+    Note that ref access implements "table1.field1 <=> table2.indexed_field2",
+    i.e. if it passed a NULL field1, it will return NULL indexed_field2 if
+    there are.
+    Thus the equality "table1.field1 = table2.indexed_field2",
+    is equivalent to "ref access AND table1.field1 IS NOT NULL"
+    i.e. "ref access and proper setting/testing of ref->null_rejecting".
+    Thus, we must be careful, that when we remove equalities below we also
+    set ref->null_rejecting, and test it at execution; otherwise wrong NULL
+    matches appear.
+    So:
+    - for the optimization phase, the code which is below, and the code in
+    test_if_ref(), and in add_key_field(), must be kept in sync: if the
+    applicability conditions in one place are relaxed, they should also be
+    relaxed elsewhere.
+    - for the execution phase, all possible execution methods must test
+    ref->null_rejecting.
   */
   if (cond->type() == Item::FUNC_ITEM &&
       ((Item_func*) cond)->functype() == Item_func::EQ_FUNC)

@@ -4348,10 +4348,9 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 
 int handler::multi_range_read_next(char **range_info)
 {
-  int result;
+  int result= HA_ERR_END_OF_FILE;
   int range_res;
   DBUG_ENTER("handler::multi_range_read_next");
-  LINT_INIT(result);
 
   if (!mrr_have_range)
   {
@@ -4373,11 +4372,6 @@ int handler::multi_range_read_next(char **range_info)
     {
       if (was_semi_consistent_read())
         goto scan_it_again;
-      /*
-        We need to set this for the last range only, but checking this
-        condition is more expensive than just setting the result code.
-      */
-      result= HA_ERR_END_OF_FILE;
     }
 
 start:

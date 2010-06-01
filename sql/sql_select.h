@@ -115,6 +115,24 @@ typedef struct st_table_ref
     produce different results (because of Index Condition Pushdown)
   */
   bool          disable_cache;
+
+  /**
+    @returns whether the reference contains NULL values which could never give
+    a match.
+  */
+  bool impossible_null_ref() const
+  {
+    if (null_rejecting != 0)
+    {
+      for (uint i= 0 ; i < key_parts ; i++)
+      {
+        if ((null_rejecting & 1 << i) && items[i]->is_null())
+          return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
 } TABLE_REF;
 
 
@@ -1740,6 +1758,8 @@ public:
     rollup.state= ROLLUP::STATE_NONE;
 
     no_const_tables= FALSE;
+    /* can help debugging (makes smaller test cases): */
+    DBUG_EXECUTE_IF("no_const_tables",no_const_tables= TRUE;);
     first_select= sub_select;
   }
 
