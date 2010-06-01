@@ -418,6 +418,9 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (101,101)
+master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1,t2
 reset master;
 create table t1 (a int) engine=innodb;
