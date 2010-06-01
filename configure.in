@@ -1912,6 +1912,17 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
 fi
 
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
+fi
+
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.
 AC_MSG_CHECKING(if Debug Sync Facility should be enabled.)
 AC_ARG_ENABLE(debug_sync,
