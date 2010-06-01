@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3434,9 +3434,9 @@ Item_param::set_param_type_and_swap_value(Item_param *src)
 bool
 Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
 {
-  Item *value= *it;
+  Item *arg= *it;
 
-  if (value->is_null())
+  if (arg->is_null())
   {
     set_null();
     return FALSE;
@@ -3444,12 +3444,12 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
 
   null_value= FALSE;
 
-  switch (value->result_type()) {
+  switch (arg->result_type()) {
   case STRING_RESULT:
   {
     char str_buffer[STRING_BUFFER_USUAL_SIZE];
     String sv_buffer(str_buffer, sizeof(str_buffer), &my_charset_bin);
-    String *sv= value->val_str(&sv_buffer);
+    String *sv= arg->val_str(&sv_buffer);
 
     if (!sv)
       return TRUE;
@@ -3466,19 +3466,19 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
   }
 
   case REAL_RESULT:
-    set_double(value->val_real());
+    set_double(arg->val_real());
       param_type= MYSQL_TYPE_DOUBLE;
     break;
 
   case INT_RESULT:
-    set_int(value->val_int(), value->max_length);
+    set_int(arg->val_int(), arg->max_length);
     param_type= MYSQL_TYPE_LONG;
     break;
 
   case DECIMAL_RESULT:
   {
     my_decimal dv_buf;
-    my_decimal *dv= value->val_decimal(&dv_buf);
+    my_decimal *dv= arg->val_decimal(&dv_buf);
 
     if (!dv)
       return TRUE;
@@ -3498,8 +3498,8 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
     return FALSE;
   }
 
-  item_result_type= value->result_type();
-  item_type= value->type();
+  item_result_type= arg->result_type();
+  item_type= arg->type();
   return FALSE;
 }
 

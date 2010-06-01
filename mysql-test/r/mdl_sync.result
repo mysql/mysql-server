@@ -2390,8 +2390,8 @@ SHOW FULL COLUMNS FROM t1;
 SET DEBUG_SYNC= "now WAIT_FOR waiting";
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	char(255)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+a	char(255)	latin1_swedish_ci	YES		NULL		#	
 SET DEBUG_SYNC= "now SIGNAL completed";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	char(255)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+a	char(255)	latin1_swedish_ci	YES		NULL		#	
 DROP TABLE t1;
