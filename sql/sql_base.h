@@ -89,7 +89,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-                Open_table_context *ot_ctx, uint flags);
+                Open_table_context *ot_ctx);
 bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
 bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
 TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
@@ -456,7 +456,7 @@ public:
     OT_DISCOVER,
     OT_REPAIR
   };
-  Open_table_context(THD *thd, ulong timeout);
+  Open_table_context(THD *thd, uint flags);
 
   bool recover_from_failed_open(THD *thd);
   bool request_backoff_action(enum_open_table_action action_arg,
@@ -486,11 +486,10 @@ public:
     return m_timeout;
   }
 
+  uint get_flags() const { return m_flags; }
 private:
   /** List of requests for all locks taken so far. Used for waiting on locks. */
   MDL_request_list m_mdl_requests;
-  /** Back off action. */
-  enum enum_open_table_action m_action;
   /** For OT_WAIT_MDL_LOCK action, the request for which we should wait. */
   MDL_request *m_failed_mdl_request;
   /**
@@ -501,12 +500,6 @@ private:
   TABLE_LIST *m_failed_table;
   MDL_ticket *m_start_of_statement_svp;
   /**
-    Whether we had any locks when this context was created.
-    If we did, they are from the previous statement of a transaction,
-    and we can't safely do back-off (and release them).
-  */
-  bool m_has_locks;
-  /**
     Request object for global intention exclusive lock which is acquired during
     opening tables for statements which take upgradable shared metadata locks.
   */
@@ -515,7 +508,17 @@ private:
     Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
     tables or to the "lock_wait_timeout" system variable for regular tables.
   */
-  uint m_timeout;
+  ulong m_timeout;
+  /* open_table() flags. */
+  uint m_flags;
+  /** Back off action. */
+  enum enum_open_table_action m_action;
+  /**
+    Whether we had any locks when this context was created.
+    If we did, they are from the previous statement of a transaction,
+    and we can't safely do back-off (and release them).
+  */
+  bool m_has_locks;
 };
 
 
