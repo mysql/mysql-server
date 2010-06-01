@@ -147,7 +147,8 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
   }
 
   /* insert the binlog position in the active transaction list. */
-  strcpy(ins_node->log_name_, log_file_name);
+  strncpy(ins_node->log_name_, log_file_name, FN_REFLEN-1);
+  ins_node->log_name_[FN_REFLEN-1] = 0; /* make sure it ends properly */
   ins_node->log_pos_ = log_file_pos;
 
   if (!trx_front_)
@@ -1009,13 +1010,15 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
     if (cmp > 0)
     {
       /* This is a larger position, let's update the maximum info. */
-      strcpy(commit_file_name_, log_file_name);
+      strncpy(commit_file_name_, log_file_name, FN_REFLEN-1);
+      commit_file_name_[FN_REFLEN-1] = 0; /* make sure it ends properly */
       commit_file_pos_ = log_file_pos;
     }
   }
   else
   {
-    strcpy(commit_file_name_, log_file_name);
+    strncpy(commit_file_name_, log_file_name, FN_REFLEN-1);
+    commit_file_name_[FN_REFLEN-1] = 0; /* make sure it ends properly */
     commit_file_pos_ = log_file_pos;
     commit_file_name_inited_ = true;
   }
@@ -1048,6 +1051,7 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
   const unsigned char *packet;
   char     log_file_name[FN_REFLEN];
   my_off_t log_file_pos;
+  ulong    log_file_len = 0;
   ulong    packet_len;
   int      result = -1;
 
@@ -1123,7 +1127,13 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
   }
 
   log_file_pos = uint8korr(packet + REPLY_BINLOG_POS_OFFSET);
-  strcpy(log_file_name, (const char*)packet + REPLY_BINLOG_NAME_OFFSET);
+  log_file_len = packet_len - REPLY_BINLOG_NAME_OFFSET;
+  if (log_file_len > FN_REFLEN)
+  {
+    sql_print_error("Read semi-sync reply binlog file length too large");
+    goto l_end;
+  }
+  strncpy(log_file_name, (const char*)packet + REPLY_BINLOG_NAME_OFFSET, log_file_len);
 
   if (trc_level & kTraceDetail)
     sql_print_information("%s: Got reply (%s, %lu)",
