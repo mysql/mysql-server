@@ -7,7 +7,26 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
- 
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo #
+--echo # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
+--echo #
+CREATE TABLE t1 (a INT) PARTITION BY HASH (a);
+FLUSH TABLES;
+--remove_file $MYSQLD_DATADIR/test/t1.par
+CHECK TABLE t1;
+--error ER_FAILED_READ_FROM_PAR_FILE
+SELECT * FROM t1;
+--echo # Note that it is currently impossible to drop a partitioned table
+--echo # without the .par file
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.frm
+--remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYI
+--remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYD
+
 --echo #
 --echo # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
 --echo # with temporary table and partitions
@@ -167,7 +186,6 @@ partitions 3
  partition x2 tablespace ts2,
  partition x3 tablespace ts3);
 
-let $MYSQLD_DATADIR= `select @@datadir`;
 select load_file('$MYSQLD_DATADIR/test/t1.par');
 #
 # Partition by hash, invalid field in function
