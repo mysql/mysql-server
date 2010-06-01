@@ -127,7 +127,7 @@ private:
   static bool setSocketNonBlocking(NDB_SOCKET_TYPE aSocket);
   virtual int pre_connect_options(NDB_SOCKET_TYPE aSocket);
   
-  bool sendIsPossible(struct timeval * timeout);
+  bool send_is_possible(int timeout_millisec) const;
 
   /**
    * Statistics
@@ -141,7 +141,10 @@ private:
   ReceiveBuffer receiveBuffer;
 
   bool send_limit_reached(int bufsize) { return bufsize > TCP_SEND_LIMIT; }
-  bool send_is_possible(struct timeval *tv) { return sendIsPossible(tv); }
+
+  unsigned m_poll_index;
+  void set_poll_index(unsigned index) { m_poll_index = index; };
+  unsigned get_poll_index(void) const { return m_poll_index; };
 };
 
 inline
