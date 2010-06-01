@@ -3619,6 +3619,12 @@ public:
  */
 #define CF_PROTECT_AGAINST_GRL  (1U << 10)
 
+/**
+  Identifies statements that may generate row events
+  and that may end up in the binary log.
+*/
+#define CF_CAN_GENERATE_ROW_EVENTS (1U << 11)
+
 /* Bits in server_command_flags */
 
 /**
