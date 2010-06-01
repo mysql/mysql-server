@@ -139,7 +139,7 @@ private:
   static bool setSocketNonBlocking(NDB_SOCKET_TYPE aSocket);
   virtual int pre_connect_options(NDB_SOCKET_TYPE aSocket);
   
-  bool sendIsPossible(struct timeval * timeout);
+  bool sendIsPossible(int timeout_millisec) const;
 
   /**
    * Statistics
@@ -157,6 +157,10 @@ private:
    */
   Uint32 overloadedPct;
   void update_status_overloaded();
+
+  unsigned m_poll_index;
+  void set_poll_index(unsigned index) { m_poll_index = index; };
+  unsigned get_poll_index(void) const { return m_poll_index; };
 };
 
 inline

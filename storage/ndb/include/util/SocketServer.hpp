@@ -127,9 +127,10 @@ private:
   NdbLockable m_session_mutex;
   Vector<SessionInstance> m_sessions;
   MutexVector<ServiceInstance> m_services;
+  ndb_socket_poller m_services_poller;
   unsigned m_maxSessions;
-  
-  void doAccept();
+
+  bool doAccept();
   void checkSessionsImpl();
   void startSession(SessionInstance &);
   

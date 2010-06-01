@@ -152,60 +152,77 @@ SocketServer::setup(SocketServer::Service * service,
   i.m_service = service;
   m_services.push_back(i);
 
+  // Increase size to allow polling all listening ports
+  m_services_poller.set_max_count(m_services.size());
+
   *port = ntohs(servaddr.sin_port);
 
   DBUG_RETURN(true);
 }
 
-void
-SocketServer::doAccept(){
-  fd_set readSet, exceptionSet;
-  FD_ZERO(&readSet);
-  FD_ZERO(&exceptionSet);
-  
+
+bool
+SocketServer::doAccept()
+{
   m_services.lock();
-  int maxSock = 0;
-  for (unsigned i = 0; i < m_services.size(); i++){
-    const NDB_SOCKET_TYPE s = m_services[i].m_socket;
-    FD_SET(s, &readSet);
-    FD_SET(s, &exceptionSet);
-    maxSock = (maxSock > s ? maxSock : s);
+
+  m_services_poller.clear();
+  for (unsigned i = 0; i < m_services.size(); i++)
+  {
+    m_services_poller.add(m_services[i].m_socket, true, false, true);
   }
-  struct timeval timeout;
-  timeout.tv_sec  = 1;
-  timeout.tv_usec = 0;
-  
-  if(select(maxSock + 1, &readSet, 0, &exceptionSet, &timeout) > 0){
-    for (unsigned i = 0; i < m_services.size(); i++){
-      ServiceInstance & si = m_services[i];
-      
-      if(FD_ISSET(si.m_socket, &readSet)){
-	NDB_SOCKET_TYPE childSock = accept(si.m_socket, 0, 0);
-	if(childSock == NDB_INVALID_SOCKET){
-	  continue;
-	}
-	
-	SessionInstance s;
-	s.m_service = si.m_service;
-	s.m_session = si.m_service->newSession(childSock);
-	if(s.m_session != 0)
-	{
-	  m_session_mutex.lock();
-	  m_sessions.push_back(s);
-	  startSession(m_sessions.back());
-	  m_session_mutex.unlock();
-	}
-	
-	continue;
-      }      
-      
-      if(FD_ISSET(si.m_socket, &exceptionSet)){
-	DEBUG("socket in the exceptionSet");
-	continue;
-      }
+  assert(m_services.size() == m_services_poller.count());
+
+  const int accept_timeout_ms = 1000;
+  const int ret = m_services_poller.poll(accept_timeout_ms);
+  if (ret < 0)
+  {
+    // Error occured, indicate error to caller by returning false
+    m_services.unlock();
+    return false;
+  }
+
+  if (ret == 0)
+  {
+    // Timeout occured
+    m_services.unlock();
+    return true;
+  }
+
+  bool result = true;
+  for (unsigned i = 0; i < m_services_poller.count(); i++)
+  {
+    const bool has_read = m_services_poller.has_read(i);
+
+    if (!has_read)
+      continue; // Ignore events where read flag wasn't set
+
+    ServiceInstance & si = m_services[i];
+    assert(m_services_poller.is_socket_equal(i, si.m_socket));
+
+    const NDB_SOCKET_TYPE childSock = accept(si.m_socket, 0, 0);
+    if (!my_socket_valid(childSock))
+    {
+      // Could not 'accept' socket(maybe at max fds), indicate error
+      // to caller by returning false
+      result = false;
+      continue;
+    }
+
+    SessionInstance s;
+    s.m_service = si.m_service;
+    s.m_session = si.m_service->newSession(childSock);
+    if (s.m_session != 0)
+    {
+      m_session_mutex.lock();
+      m_sessions.push_back(s);
+      startSession(m_sessions.back());
+      m_session_mutex.unlock();
     }
   }
+
   m_services.unlock();
+  return result;
 }
 
 extern "C"
@@ -260,11 +277,16 @@ SocketServer::doRun(){
   while(!m_stopThread){
     m_session_mutex.lock();
     checkSessionsImpl();
-    if(m_sessions.size() < m_maxSessions){
-      m_session_mutex.unlock();
-      doAccept();
-    } else {
-      m_session_mutex.unlock();
+    m_session_mutex.unlock();
+
+    if(m_sessions.size() >= m_maxSessions){
+      // Don't accept more connections yet
+      NdbSleep_MilliSleep(200);
+      continue;
+    }
+
+    if (!doAccept()){
+      // accept failed, step back
       NdbSleep_MilliSleep(200);
     }
   }
