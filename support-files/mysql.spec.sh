@@ -121,43 +121,62 @@
 %define distro_specific 0
 %endif
 %if %{distro_specific}
-  %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define elver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+  %if %(test -f /etc/enterprise-release && echo 1 || echo 0)
+    %define elver %(rpm -qf --qf '%%{version}\\n' /etc/enterprise-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
     %if "%elver" == "4"
-      %define distro_description        Enterprise Linux 4
+      %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         el4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
       %if "%elver" == "5"
-        %define distro_description      Enterprise Linux 5
+        %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       el5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %{error:Enterprise Linux %{elver} is unsupported}
+        %{error:Oracle Enterprise Linux %{elver} is unsupported}
       %endif
     %endif
   %else
-    %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-      %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
-      %if "%susever" == "10"
-        %define distro_description      SUSE Linux Enterprise Server 10
-        %define distro_releasetag       sles10
-        %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-        %define distro_requires         aaa_base coreutils grep procps pwdutils
+    %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+      %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+      %if "%rhelver" == "4"
+        %define distro_description      Red Hat Enterprise Linux 4
+        %define distro_releasetag       rhel4
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %if "%susever" == "11"
-          %define distro_description    SUSE Linux Enterprise Server 11
-          %define distro_releasetag     sles11
-          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %if "%rhelver" == "5"
+          %define distro_description    Red Hat Enterprise Linux 5
+          %define distro_releasetag     rhel5
+          %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+          %define distro_requires       chkconfig coreutils grep procps shadow-utils
         %else
-          %{error:SuSE %{susever} is unsupported}
+          %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
         %endif
       %endif
     %else
-      %{error:Unsupported distribution}
+      %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+        %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+        %if "%susever" == "10"
+          %define distro_description    SUSE Linux Enterprise Server 10
+          %define distro_releasetag     sles10
+          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %else
+          %if "%susever" == "11"
+            %define distro_description  SUSE Linux Enterprise Server 11
+            %define distro_releasetag   sles11
+            %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+            %define distro_requires     aaa_base coreutils grep procps pwdutils
+          %else
+            %{error:SuSE %{susever} is unsupported}
+          %endif
+        %endif
+      %else
+        %{error:Unsupported distribution}
+      %endif
     %endif
   %endif
 %else
@@ -396,8 +415,9 @@ mkdir debug
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
                   -e 's/ $//'`
-  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
-  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included
+  # XXX: before install_layout so we can't just set it based on
+  # XXX: INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
@@ -410,8 +430,9 @@ mkdir debug
 mkdir release
 (
   cd release
-  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
-  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included
+  # XXX: before install_layout so we can't just set it based on
+  # XXX: INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
@@ -468,8 +489,10 @@ install -d $RBR%{_sbindir}
 mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
-install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+install -m 644 $MBD/release/support-files/mysql-log-rotate \
+  $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/release/support-files/mysql.server \
+  $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -487,7 +510,8 @@ install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
 # Even though this is a shared library, put it under /usr/lib*/mysql, so it
 # doesn't conflict with possible shared lib by the same name in /usr/lib*.  See
 # `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
-install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
+install -m 644 "%{malloc_lib_source}" \
+  "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
 
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
@@ -511,15 +535,19 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   myvendor='%{mysql_vendor}'
   myversion='%{mysql_version}'
 
-  old_family=`echo $version   | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
-  new_family=`echo $myversion | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
+  old_family=`echo $version \
+    | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
+  new_family=`echo $myversion \
+    | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
 
   [ -z "$vendor" ] && vendor='<unknown>'
   [ -z "$old_family" ] && old_family="<unrecognized version $version>"
   [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
 
   error_text=
-  if [ "$vendor" != "$myoldvendor" -a "$vendor" != "$myvendor_2" -a "$vendor" != "$myvendor" ]; then
+  if [ "$vendor" != "$myoldvendor" \
+    -a "$vendor" != "$myvendor_2" \
+    -a "$vendor" != "$myvendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
 vendor ($vendor) than $myoldvendor, $myvendor_2, or $myvendor.
@@ -569,9 +597,9 @@ fi
 
 # Shut down a previously installed server first
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-        %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
-        echo "Giving mysqld 5 seconds to exit nicely"
-        sleep 5
+  %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
+  echo "Giving mysqld 5 seconds to exit nicely"
+  sleep 5
 fi
 
 %post -n MySQL-server%{product_suffix}
@@ -589,10 +617,10 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # ----------------------------------------------------------------------
 # use insserv for older SuSE Linux versions
 if [ -x /sbin/insserv ] ; then
-        /sbin/insserv %{_sysconfdir}/init.d/mysql
+  /sbin/insserv %{_sysconfdir}/init.d/mysql
 # use chkconfig on Enterprise Linux and newer SuSE releases
 elif [ -x /sbin/chkconfig ] ; then
-        /sbin/chkconfig --add mysql
+  /sbin/chkconfig --add mysql
 fi
 
 # ----------------------------------------------------------------------
@@ -600,8 +628,10 @@ fi
 # exists.
 # ----------------------------------------------------------------------
 groupadd -r %{mysqld_group} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
-# The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" \
+  -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
+# The user may already exist, make sure it has the proper group nevertheless
+# (BUG#12823)
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
 # ----------------------------------------------------------------------
@@ -630,32 +660,66 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 chmod -R og-rw $mysql_datadir/mysql
 
+# ----------------------------------------------------------------------
+# install SELinux files - but don't override existing ones
+# ----------------------------------------------------------------------
+SETARGETDIR=/etc/selinux/targeted/src/policy
+SEDOMPROG=$SETARGETDIR/domains/program
+SECONPROG=$SETARGETDIR/file_contexts/program
+if [ -f /etc/redhat-release ] \
+ && (grep -q "Red Hat Enterprise Linux .. release 4" /etc/redhat-release \
+ || grep -q "CentOS release 4" /etc/redhat-release) ; then
+  echo
+  echo
+  echo 'Notes regarding SELinux on this platform:'
+  echo '========================================='
+  echo
+  echo 'The default policy might cause server startup to fail because it is'
+  echo 'not allowed to access critical files.  In this case, please update'
+  echo 'your installation.'
+  echo
+  echo 'The default policy might also cause inavailability of SSL related'
+  echo 'features because the server is not allowed to access /dev/random'
+  echo 'and /dev/urandom. If this is a problem, please do the following:'
+  echo
+  echo '  1) install selinux-policy-targeted-sources from your OS vendor'
+  echo '  2) add the following two lines to '$SEDOMPROG/mysqld.te':'
+  echo '       allow mysqld_t random_device_t:chr_file read;'
+  echo '       allow mysqld_t urandom_device_t:chr_file read;'
+  echo '  3) cd to '$SETARGETDIR' and issue the following command:'
+  echo '       make load'
+  echo
+  echo
+fi
+
+if [ -x sbin/restorecon ] ; then
+  sbin/restorecon -R var/lib/mysql
+fi
+
 # Restart in the same way that mysqld will be started normally.
-%{_sysconfdir}/init.d/mysql start
+if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+  %{_sysconfdir}/init.d/mysql start
+  echo "Giving mysqld 2 seconds to start"
+  sleep 2
+fi
 
 # Allow mysqld_safe to start mysqld and print a message before we exit
 sleep 2
 
-#echo "Thank you for installing the MySQL Community Server! For Production
-#systems, we recommend MySQL Enterprise, which contains enterprise-ready
-#software, intelligent advisory services, and full production support with
-#scheduled service packs and more.  Visit www.mysql.com/enterprise for more
-#information."
-
 %preun -n MySQL-server%{product_suffix}
 if [ $1 = 0 ] ; then
-        # Stop MySQL before uninstalling it
-        if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-                %{_sysconfdir}/init.d/mysql stop > /dev/null
-                # Remove autostart of MySQL
-                # For older SuSE Linux versions
-                if [ -x /sbin/insserv ] ; then
-                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
-                # use chkconfig on Enterprise Linux and newer SuSE releases
-                elif [ -x /sbin/chkconfig ] ; then
-                        /sbin/chkconfig --del mysql
-                fi
-        fi
+  # Stop MySQL before uninstalling it
+  if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+    %{_sysconfdir}/init.d/mysql stop > /dev/null
+    # Remove autostart of MySQL
+    # For older SuSE Linux versions
+    if [ -x /sbin/insserv ] ; then
+      /sbin/insserv -r %{_sysconfdir}/init.d/mysql
+    # use chkconfig on Enterprise Linux and newer SuSE releases
+    elif [ -x /sbin/chkconfig ] ; then
+      /sbin/chkconfig --del mysql
+    fi
+  fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
@@ -665,7 +729,8 @@ fi
 # Clean up the BuildRoot after build is done
 # ----------------------------------------------------------------------
 %clean
-[ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
+[ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] \
+  && rm -rf $RPM_BUILD_ROOT;
 
 ##############################################################################
 #  Files section
@@ -846,6 +911,10 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Jun 1 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- Implement SELinux checks from distribution-specific spec file.
+
 * Wed May 12 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - Large number of changes to build using CMake

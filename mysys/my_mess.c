@@ -13,23 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*  File   : strcmp.c
-    Author : Richard A. O'Keefe.
-    Updated: 10 April 1984
-    Defines: strcmp()
+#include "mysys_priv.h"
 
-    strcmp(s, t) returns > 0, = 0,  or < 0  when s > t, s = t,	or s < t
-    according  to  the	ordinary  lexicographical  order.   To	test for
-    equality, the macro streql(s,t) is clearer than  !strcmp(s,t).  Note
-    that  if the string contains characters outside the range 0..127 the
-    result is machine-dependent; PDP-11s and  VAXen  use  signed  bytes,
-    some other machines use unsigned bytes.
-*/
-
-#include "strings.h"
-
-int strcmp(register const char *s, register const char *t)
+void my_message_stderr(uint error __attribute__((unused)),
+                       const char *str, myf MyFlags)
 {
-  while (*s == *t++) if (!*s++) return 0;
-  return s[0]-t[-1];
+  DBUG_ENTER("my_message_stderr");
+  DBUG_PRINT("enter",("message: %s",str));
+  (void) fflush(stdout);
+  if (MyFlags & ME_BELL)
+#ifdef __NETWARE__
+    ringbell();                   				/* Bell */
+#else
+    (void) fputc('\007',stderr);				/* Bell */
+#endif /* __NETWARE__ */
+  if (my_progname)
+  {
+    (void)fputs(my_progname,stderr); (void)fputs(": ",stderr);
+  }
+  (void)fputs(str,stderr);
+  (void)fputc('\n',stderr);
+  (void)fflush(stderr);
+  DBUG_VOID_RETURN;
 }

@@ -25,8 +25,7 @@
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                           // open_temprary_table
 #include "sql_table.h"                         // build_table_filename
-#include "lock.h"                              // lock_and_wait_for_table_name,
-                                               // unlock_table_name
+#include "lock.h"                              // unlock_table_name
 #include "sql_view.h"             // check_key_in_view, mysql_frm_type
 #include "sql_parse.h"            // mysql_init_select
 #include "sql_acl.h"              // *_ACL
@@ -262,6 +261,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
         free_underlaid_joins(thd, &thd->lex->select_lex);
         DBUG_RETURN(TRUE);
       }
+      thd->examined_row_count+= examined_rows;
       /*
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
@@ -279,7 +279,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(TRUE);
   }
-  if (usable_index==MAX_KEY)
+  if (usable_index==MAX_KEY || (select && select->quick))
     init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
@@ -318,6 +318,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
+    thd->examined_row_count++;
     // thd->is_error() is tested to disallow delete row on error
     if (!(select && select->skip_record())&& ! thd->is_error() )
     {
