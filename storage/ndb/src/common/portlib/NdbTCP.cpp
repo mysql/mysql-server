@@ -58,16 +58,6 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
   return -1; //DBUG_RETURN(-1);
 }
 
-#ifndef DBUG_OFF
-extern "C"
-int NDB_CLOSE_SOCKET(NDB_SOCKET_TYPE fd)
-{
-  DBUG_PRINT("info", ("NDB_CLOSE_SOCKET(" MY_SOCKET_FORMAT ")",
-                      MY_SOCKET_FORMAT_VALUE(fd)));
-  return _NDB_CLOSE_SOCKET(fd);
-}
-#endif
-
 #if 0
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
