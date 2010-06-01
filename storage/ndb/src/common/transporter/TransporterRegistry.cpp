@@ -1040,7 +1040,7 @@ TransporterRegistry::performReceive()
         if(t->isConnected())
         {
           const unsigned index = t->get_poll_index();
-          if (index != ~0 &&
+          if (index != (unsigned)~0 &&
               m_socket_poller.has_read(index))
           {
             assert(m_socket_poller.is_socket_equal(index, t->getSocket()));
