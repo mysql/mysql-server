@@ -218,7 +218,11 @@ TransporterRegistry::init(NodeId nodeId) {
   localNodeId = nodeId;
   
   DEBUG("TransporterRegistry started node: " << localNodeId);
-  
+
+  if (!m_socket_poller.set_max_count(maxTransporters +
+				     1 /* wakeup socket */))
+    DBUG_RETURN(false);
+
   DBUG_RETURN(true);
 }
 
@@ -284,15 +288,6 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
       g_eventLogger->error("Incompatible configuration: Transporter type "
                            "mismatch with node %d", nodeId);
 
-      // wait for socket close for 1 second to let message arrive at client
-      {
-	fd_set a_set;
-	FD_ZERO(&a_set);
-	FD_SET(sockfd, &a_set);
-	struct timeval timeout;
-	timeout.tv_sec  = 1; timeout.tv_usec = 0;
-	select(sockfd+1, &a_set, 0, 0, &timeout);
-      }
       DBUG_RETURN(false);
     }
   }
@@ -877,68 +872,38 @@ Uint32
 TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
 {
   bool hasdata = false;
-  if (false && nTCPTransporters == 0)
-  {
-    tcpReadSelectReply = 0;
-    return 0;
-  }
-  
-  NDB_SOCKET_TYPE maxSocketValue = -1;
-  
-  // Needed for TCP/IP connections
-  // The read- and writeset are used by select
-  
-  FD_ZERO(&tcpReadset);
 
-  // Prepare for sending and receiving
-  for (int i = 0; i < nTCPTransporters; i++) {
-    TCP_Transporter * t = theTCPTransporters[i];
-    Uint32 node_id= t->getRemoteNodeId();
-    
-    // If the transporter is connected
-    if (is_connected(node_id) && t->isConnected()) {
-      
-      const NDB_SOCKET_TYPE socket = t->getSocket();
-      // Find the highest socket value. It will be used by select
-      if (socket > maxSocketValue)
-	maxSocketValue = socket;
-      
-      // Put the connected transporters in the socket read-set 
-      FD_SET(socket, &tcpReadset);
-    }
-    hasdata |= t->hasReceiveData();
-  }
-  
+  m_socket_poller.clear();
+
   if (m_has_extra_wakeup_socket)
   {
     const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
-    if (socket > maxSocketValue)
-      maxSocketValue = socket;
 
-    // Put the wakup-socket in the read-set
-    FD_SET(socket, &tcpReadset);
+    // Poll the wakup-socket for read
+    m_socket_poller.add(socket, true, false, false);
   }
 
-  timeOutMillis = hasdata ? 0 : timeOutMillis;
-  
-  struct timeval timeout;
-  timeout.tv_sec  = timeOutMillis / 1000;
-  timeout.tv_usec = (timeOutMillis % 1000) * 1000;
-
-  // The highest socket value plus one
-  maxSocketValue++; 
-  
-  tcpReadSelectReply = select(maxSocketValue, &tcpReadset, 0, 0, &timeout);  
-  if(false && tcpReadSelectReply == -1 && errno == EINTR)
-    g_eventLogger->info("woke-up by signal");
-
-#ifdef NDB_WIN32
-  if(tcpReadSelectReply == SOCKET_ERROR)
+  for (int i = 0; i < nTCPTransporters; i++)
   {
-    NdbSleep_MilliSleep(timeOutMillis);
+    unsigned index = ~0;
+    TCP_Transporter * t = theTCPTransporters[i];
+    const Uint32 node_id = t->getRemoteNodeId();
+    const NDB_SOCKET_TYPE socket = t->getSocket();
+
+    if (is_connected(node_id) && t->isConnected() &&
+        my_socket_valid(socket))
+    {
+      // Poll the connected transporter for read
+      index = m_socket_poller.add(socket, true, false, false);
+    }
+    // Remember the index into poll list
+    t->set_poll_index(index);
+
+    hasdata |= t->hasReceiveData();
   }
-#endif
-  
+
+  tcpReadSelectReply = m_socket_poller.poll(hasdata ? 0 : timeOutMillis);
+
   return tcpReadSelectReply || hasdata;
 }
 #endif
@@ -1057,8 +1022,10 @@ TransporterRegistry::performReceive()
   {
     if (m_has_extra_wakeup_socket)
     {
-      if (FD_ISSET(m_extra_wakeup_sockets[0], &tcpReadset))
+      // The wakeupsocket is always added first => use index 0
+      if (m_socket_poller.has_read(0))
       {
+        assert(m_socket_poller.is_socket_equal(0, m_extra_wakeup_sockets[0]));
         consume_extra_sockets();
       }
     }
@@ -1068,14 +1035,19 @@ TransporterRegistry::performReceive()
       checkJobBuffer();
       TCP_Transporter *t = theTCPTransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
-      const NDB_SOCKET_TYPE socket    = t->getSocket();
+
       if(is_connected(nodeId)){
         if(t->isConnected())
         {
-          if (FD_ISSET(socket, &tcpReadset))
+          const unsigned index = t->get_poll_index();
+          if (index != ~0 &&
+              m_socket_poller.has_read(index))
           {
+            assert(m_socket_poller.is_socket_equal(index, t->getSocket()));
             t->doReceive();
           }
+	  // Reset the index into poll list
+	  t->set_poll_index(~0);
           
           if (t->hasReceiveData())
           {

@@ -54,6 +54,26 @@
 
 #define NDB_SOCKLEN_T SOCKET_SIZE_TYPE
 
+
+/* Forward compatibility functions */
+
+typedef NDB_SOCKET_TYPE ndb_socket_t;
+typedef NDB_SOCKET_TYPE ndb_native_socket_t;
+
+static inline bool
+my_socket_valid(ndb_socket_t s)
+{
+  return (s != NDB_INVALID_SOCKET);
+}
+
+static inline ndb_native_socket_t
+ndb_socket_get_native(ndb_socket_t s)
+{
+  return s;
+}
+
+#include <portlib/ndb_socket_poller.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
