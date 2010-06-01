@@ -4426,10 +4426,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   char from[FN_REFLEN],tmp[FN_REFLEN+32];
   const char **ext;
   MY_STAT stat_info;
-  Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+  Open_table_context ot_ctx(thd, (MYSQL_OPEN_IGNORE_FLUSH |
+                                  MYSQL_OPEN_HAS_MDL_LOCK |
+                                  MYSQL_LOCK_IGNORE_TIMEOUT));
   DBUG_ENTER("prepare_for_repair");
-  uint reopen_for_repair_flags= (MYSQL_OPEN_IGNORE_FLUSH |
-                                 MYSQL_OPEN_HAS_MDL_LOCK);
 
   if (!(check_opt->sql_flags & TT_USEFRM))
     DBUG_RETURN(0);
@@ -4584,8 +4584,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (open_table(thd, table_list, thd->mem_root,
-                 &ot_ctx_unused, reopen_for_repair_flags))
+  if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
   {
     error= send_check_errmsg(thd, table_list, "repair",
                              "Failed to open partially repaired table");
@@ -5374,7 +5373,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
 
         /*
           The condition avoids a crash as described in BUG#48506. Other
@@ -5389,8 +5388,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             to work. The table will be closed by close_thread_table() at
             the end of this branch.
           */
-          if (open_table(thd, table, thd->mem_root, &ot_ctx_unused,
-                         MYSQL_OPEN_REOPEN))
+          if (open_table(thd, table, thd->mem_root, &ot_ctx))
             goto err;
 
           int result __attribute__((unused))=
@@ -7139,14 +7137,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     if (table->s->tmp_table)
     {
-      Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+      Open_table_context ot_ctx(thd, (MYSQL_OPEN_IGNORE_FLUSH |
+                                      MYSQL_LOCK_IGNORE_TIMEOUT));
       TABLE_LIST tbl;
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
       /* Table is in thd->temporary_tables */
-      (void) open_table(thd, &tbl, thd->mem_root, &ot_ctx_unused,
-                        MYSQL_OPEN_IGNORE_FLUSH);
+      (void) open_table(thd, &tbl, thd->mem_root, &ot_ctx);
       new_table= tbl.table;
     }
     else
@@ -7425,7 +7423,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       To do this we need to obtain a handler object for it.
       NO need to tamper with MERGE tables. The real open is done later.
     */
-    Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+    Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
     TABLE *t_table;
     if (new_name != table_name || new_db != db)
     {
@@ -7445,8 +7443,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       table_list->mdl_request.ticket= mdl_ticket;
     }
-    if (open_table(thd, table_list, thd->mem_root,
-                   &ot_ctx_unused, MYSQL_OPEN_REOPEN))
+    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
     {
       goto err_with_mdl;
     }

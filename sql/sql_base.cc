@@ -2491,12 +2491,13 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
 
 
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-                Open_table_context *ot_ctx, uint flags)
+                Open_table_context *ot_ctx)
 {
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   char	*alias= table_list->alias;
+  uint flags= ot_ctx->get_flags();
   MDL_ticket *mdl_ticket;
   int error;
   TABLE_SHARE *share;
@@ -2806,26 +2807,15 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       if (open_new_frm(thd, share, alias,
                        (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                HA_GET_INDEX | HA_TRY_READ_ONLY),
-                       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
-                       (flags & OPEN_VIEW_NO_PARSE), thd->open_options,
+                       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                       thd->open_options,
                        0, table_list, mem_root))
         goto err_unlock;
 
       /* TODO: Don't free this */
       release_table_share(share);
 
-      if (flags & OPEN_VIEW_NO_PARSE)
-      {
-        /*
-          VIEW not really opened, only frm were read.
-          Set 1 as a flag here
-        */
-        table_list->view= (LEX*)1;
-      }
-      else
-      {
-        DBUG_ASSERT(table_list->view);
-      }
+      DBUG_ASSERT(table_list->view);
 
       mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(FALSE);
@@ -3358,7 +3348,7 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
 bool
 Locked_tables_list::reopen_tables(THD *thd)
 {
-  Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
   size_t reopen_count= 0;
   MYSQL_LOCK *lock;
   MYSQL_LOCK *merged_lock;
@@ -3370,8 +3360,7 @@ Locked_tables_list::reopen_tables(THD *thd)
       continue;
 
     /* Links into thd->open_tables upon success */
-    if (open_table(thd, table_list, thd->mem_root, &ot_ctx_unused,
-                   MYSQL_OPEN_REOPEN))
+    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
     {
       unlink_all_closed_tables(thd, 0, reopen_count);
       return TRUE;
@@ -3793,16 +3782,18 @@ end_with_lock_open:
 
 /** Open_table_context */
 
-Open_table_context::Open_table_context(THD *thd, ulong timeout)
-  :m_action(OT_NO_ACTION),
-   m_failed_mdl_request(NULL),
+Open_table_context::Open_table_context(THD *thd, uint flags)
+  :m_failed_mdl_request(NULL),
    m_failed_table(NULL),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
+   m_global_mdl_request(NULL),
+   m_timeout(flags & MYSQL_LOCK_IGNORE_TIMEOUT ?
+             LONG_TIMEOUT : thd->variables.lock_wait_timeout),
+   m_flags(flags),
+   m_action(OT_NO_ACTION),
    m_has_locks((thd->in_multi_stmt_transaction_mode() &&
                 thd->mdl_context.has_locks()) ||
-                thd->mdl_context.trans_sentinel()),
-   m_global_mdl_request(NULL),
-   m_timeout(timeout)
+                thd->mdl_context.trans_sentinel())
 {}
 
 
@@ -4290,12 +4281,12 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     */
     Prelock_error_handler prelock_handler;
     thd->push_internal_handler(& prelock_handler);
-    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx);
     thd->pop_internal_handler();
     safe_to_ignore_table= prelock_handler.safely_trapped_errors();
   }
   else
-    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx);
 
   free_root(new_frm_mem, MYF(MY_KEEP_PREALLOC));
 
@@ -4610,8 +4601,7 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   TABLE_LIST **table_to_open;
   Sroutine_hash_entry **sroutine_to_open;
   TABLE_LIST *tables;
-  Open_table_context ot_ctx(thd, (flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
-                            LONG_TIMEOUT : thd->variables.lock_wait_timeout);
+  Open_table_context ot_ctx(thd, flags);
   bool error= FALSE;
   MEM_ROOT new_frm_mem;
   bool has_prelocking_list;
@@ -5183,8 +5173,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
                    uint lock_flags)
 {
   TABLE *table;
-  Open_table_context ot_ctx(thd, (lock_flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
-                            LONG_TIMEOUT : thd->variables.lock_wait_timeout);
+  Open_table_context ot_ctx(thd, lock_flags);
   bool error;
   DBUG_ENTER("open_ltable");
 
@@ -5199,7 +5188,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* This function can't properly handle requests for such metadata locks. */
   DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_NO_WRITE);
 
-  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, lock_flags)) &&
+  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
   {
     /*
