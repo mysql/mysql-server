@@ -2670,6 +2670,10 @@ case SQLCOM_PREPARE:
         */
         lex->unlink_first_table(&link_to_local);
 
+        /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+        if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
+          thd->variables.option_bits|= OPTION_KEEP_LOG;
+
         /*
           select_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.

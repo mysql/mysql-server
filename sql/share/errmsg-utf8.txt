@@ -6350,3 +6350,9 @@ ER_CANNOT_LOAD_FROM_TABLE_V2
   eng "Cannot load from %s.%s. The table is probably corrupted"
   ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
 
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot modify @@session.sql_log_bin inside a transaction"
+
+ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot change the sql_log_bin inside a stored function or trigger"
+
