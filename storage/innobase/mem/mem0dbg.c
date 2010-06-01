@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,13 @@ Created 6/9/1994 Heikki Tuuri
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables below. */
-UNIV_INTERN mutex_t	mem_hash_mutex;
+UNIV_INTERN mutex_t		mem_hash_mutex;
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register mem_hash_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	mem_hash_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 # endif /* !UNIV_HOTBACKUP */
 
 /* The following variables contain information about the
@@ -149,7 +155,7 @@ mem_init(
 	/* Initialize the hash table */
 	ut_a(FALSE == mem_hash_initialized);
 
-	mutex_create(&mem_hash_mutex, SYNC_MEM_HASH);
+	mutex_create(mem_hash_mutex_key, &mem_hash_mutex, SYNC_MEM_HASH);
 
 	for (i = 0; i < MEM_HASH_SIZE; i++) {
 		UT_LIST_INIT(*mem_hash_get_nth_cell(i));
@@ -180,6 +186,10 @@ mem_close(void)
 {
 	mem_pool_free(mem_comm_pool);
 	mem_comm_pool = NULL;
+#ifdef UNIV_MEM_DEBUG
+	mutex_free(&mem_hash_mutex);
+	mem_hash_initialized = FALSE;
+#endif /* UNIV_MEM_DEBUG */
 }
 #endif /* !UNIV_HOTBACKUP */
 
