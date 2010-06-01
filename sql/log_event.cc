@@ -7633,9 +7633,17 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_PRINT_BITSET("debug", "Setting table's write_set from: %s", &m_cols);
     
     bitmap_set_all(table->read_set);
+    if (get_type_code() == DELETE_ROWS_EVENT)
+        bitmap_intersect(table->read_set,&m_cols);
+
     bitmap_set_all(table->write_set);
     if (!get_flags(COMPLETE_ROWS_F))
-      bitmap_intersect(table->write_set,&m_cols);
+    {
+      if (get_type_code() == UPDATE_ROWS_EVENT)
+        bitmap_intersect(table->write_set,&m_cols_ai);
+      else /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */
+        bitmap_intersect(table->write_set,&m_cols);
+    }
 
     this->slave_exec_mode= slave_exec_mode_options; // fix the mode
 
