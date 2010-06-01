@@ -150,7 +150,7 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
   if (r == 0)
     goto done; // connected immediately.
 
-  if (r < 0 && (errno != EINPROGRESS)) {
+  if (r < 0 && NONBLOCKERR(my_socket_errno())) {
     // Start of non blocking connect failed
     my_socket_close(m_sockfd);
     my_socket_invalidate(&m_sockfd);
