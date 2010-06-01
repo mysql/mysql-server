@@ -4007,9 +4007,9 @@ thr_lock_type read_lock_type_for_table(THD *thd,
     prelocked mode we can't rely on OPTION_BIN_LOG flag in THD::options
     bitmap to determine that binary logging is turned on as this bit can
     be cleared before executing sub-statement. So instead we have to look
-    at THD::sql_log_bin_toplevel member.
+    at THD::variables::sql_log_bin member.
   */
-  bool log_on= mysql_bin_log.is_open() && thd->sql_log_bin_toplevel;
+  bool log_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
