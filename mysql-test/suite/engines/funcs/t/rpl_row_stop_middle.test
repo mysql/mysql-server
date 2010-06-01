@@ -1,0 +1,44 @@
+# Test for BUG#11729: see if, when STOP SLAVE occurs while the slave
+# SQL thread has processed a Table_map_log_event but has not processed
+# the last Rows_log_event associated to it, the slave thread does not
+# forget to close its tables.
+
+# Can be run with statement-based but no interest (and long test)
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+connection master;
+create table t1 (a int not null auto_increment primary key, b int, key(b));
+sync_slave_with_master;
+stop slave;
+connection master;
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+
+connection slave;
+start slave;
+
+# hope one second is not enough for slave to reach the last
+# Rows_log_event, so that test actually tests something.
+
+real_sleep 1;
+stop slave;
+
+# see if slave hangs on DROP TABLE
+
+drop table t1;
+
+connection master; # cleanup
+drop table t1;

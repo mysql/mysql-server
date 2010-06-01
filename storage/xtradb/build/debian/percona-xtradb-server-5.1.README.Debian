@@ -1,0 +1,109 @@
+* MYSQL WON'T START OR STOP?:
+=============================
+You may never ever delete the special mysql user "debian-sys-maint". This
+user together with the credentials in /etc/mysql/debian.cnf are used by the
+init scripts to stop the server as they would require knowledge of the mysql
+root users password else.
+So in most of the times you can fix the situation by making sure that the
+debian.cnf file contains the right password, e.g. by setting a new one
+(remember to do a "flush privileges" then).
+
+* WHAT TO DO AFTER UPGRADES:
+============================
+The privilege tables are automatically updated so all there is left is read
+the changelogs on dev.mysql.com to see if any changes affect custom apps.
+
+* WHAT TO DO AFTER INSTALLATION:
+================================
+The MySQL manual describes certain steps to do at this stage in a separate
+chapter.  They are not necessary as the Debian packages does them
+automatically.
+
+The only thing that is left over for the admin is 
+ - setting the passwords
+ - creating new users and databases
+ - read the rest of this text
+
+* DOWNGRADING TO 4.0 or 4.1:
+============================
+Unsupported. Period.
+But if you do and get problems or make interesting experiences, mail me, it
+might help others.
+Ok, if you really want, I would recommend to "mysqldump --opt" all tables,
+then purge 4.1, delete /var/lib/mysql, install 4.0 and insert the dumps.  Be
+carefully, though, with the "mysql" table, you might not simply overwrite that
+one as the password for the mysql "debian-sys-maint" user is stored in
+/etc/mysql/debian.cnf and needed by /etc/init.d/ to start mysql and check if
+it's alive. 
+
+* SOME APPLICATION CAN NO LONGER CONNECT:
+=========================================
+This application is probably linked against libmysqlclient12 or below and
+somebody has created a mysql user with new-style passwords.
+The old_passwords=1 option in /etc/mysql/my.cnf might help. If not the
+application that inserted the user has to be changed or the application that
+tries to connect updated to libmysqlclient14 or -15.
+
+* NETWORKING:
+=============
+For security reasons, the Debian package has enabled networking only on the
+loop-back device using "bind-address" in /etc/mysql/my.cnf.  Check with
+"netstat -tlnp" where it is listening. If your connection is aborted
+immediately see if "mysqld: all" or similar is in /etc/hosts.allow and read
+hosts_access(5).
+
+* WHERE IS THE DOCUMENTATION?:
+==============================
+Unfortunately due to licensing restrictions, debian currently not able
+to provide the mysql-doc package in any format.  For the most up to date
+documentation, please go to http://dev.mysql.com/doc.
+
+* PASSWORDS:
+============
+It is strongly recommended to set a password for the mysql root user (which
+  /usr/bin/mysql -u root -D mysql -e "update user set password=password('new-password') where user='root'"
+  /usr/bin/mysql -u root -e "flush privileges"
+If you already had a password set add "-p" before "-u" to the lines above.
+
+
+If you are tired to type the password in every time or want to automate your
+scripts you can store it in the file $HOME/.my.cnf. It should be chmod 0600
+(-rw------- username username .my.cnf) to ensure that nobody else can read
+it.  Every other configuration parameter can be stored there, too. You will
+find an example below and more information in the MySQL manual in
+/usr/share/doc/mysql-doc or www.mysql.com.
+
+ATTENTION: It is necessary, that a .my.cnf from root always contains a "user"
+line wherever there is a "password" line, else, the Debian maintenance
+scripts, that use /etc/mysql/debian.cnf, will use the username
+"debian-sys-maint" but the password that is in root's .my.cnf. Also note,
+that every change you make in the /root/.my.cnf will affect the mysql cron
+script, too.
+
+        # an example of $HOME/.my.cnf
+	[client]
+	user		= your-mysql-username
+	password	= enter-your-good-new-password-here
+
+* BIG_ROWS FOR EVEN MORE ROWS IN A TABLE:
+=========================================
+If you ever run out of rows in a table there is the possibility of building
+the package with "-DBIG_ROWS" which, according to a MySQL employee on
+packagers@lists.mysql.com should lead to a 64bit row index (I guess > 2^32
+rows) but also to an approx. 5% performance loss.
+
+* BerkeleyDB Storage Engine
+===========================
+Support for BerkeleyDB has been removed in 5.1, and consequently both the
+have-bdb and skip-bdb configuration options will cause the server to fail. 
+Removing the options from /etc/mysql/my.cnf will fix this problem.
+
+* FURTHER NOTES ON REPLICATION
+===============================
+If the MySQL server is acting as a replication slave, you should not
+set --tmpdir to point to a directory on a memory-based filesystem or to
+a directory that is cleared when the server host restarts. A replication
+slave needs some of its temporary files to survive a machine restart so
+that it can replicate temporary tables or LOAD DATA INFILE operations. If
+files in the temporary file directory are lost when the server restarts,
+replication fails.

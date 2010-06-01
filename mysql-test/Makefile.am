@@ -104,7 +104,11 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/pbxt/t suite/pbxt/r \
 	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
 	suite/vcol suite/vcol/t suite/vcol/r suite/vcol/inc \
-	suite/oqgraph suite/oqgraph/t suite/oqgraph/r suite/oqgraph/include
+	suite/oqgraph suite/oqgraph/t suite/oqgraph/r suite/oqgraph/include \
+	suite/engines suite/engines/funcs suite/engines/iuds suite/engines/rr_trx \
+	suite/engines/funcs/r suite/engines/funcs/t suite/engines/iuds/r \
+	suite/engines/iuds/t suite/engines/rr_trx/include suite/engines/rr_trx/r \
+	suite/engines/rr_trx/t
 
 # Used by dist-hook and install-data-local to copy all
 # test files into either dist or install directory

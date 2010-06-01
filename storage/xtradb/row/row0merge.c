@@ -92,7 +92,7 @@ This buffer is used for writing or reading a record that spans two
 row_merge_block_t.  Thus, it must be able to hold one merge record,
 whose maximum size is the same as the minimum size of
 row_merge_block_t. */
-typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
+typedef byte	mrec_buf_t[UNIV_PAGE_SIZE_MAX];
 
 /** @brief Merge record in row_merge_block_t.
 
@@ -1216,6 +1216,13 @@ row_merge_read_clustered_index(
 
 		if (UNIV_LIKELY(has_next)) {
 			rec = btr_pcur_get_rec(&pcur);
+
+			if (srv_pass_corrupt_table && !rec) {
+				err = DB_CORRUPTION;
+				goto err_exit;
+			}
+			ut_a(rec);
+
 			offsets = rec_get_offsets(rec, clust_index, NULL,
 						  ULINT_UNDEFINED, &row_heap);
 

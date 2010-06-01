@@ -145,7 +145,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
 #define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
 #define my_strndup(A,B,C) _my_strndup((A),(B),__FILE__,__LINE__,C)
-#define TRASH(A,B) bfill(A, B, 0x8F)
 #define QUICK_SAFEMALLOC sf_malloc_quick=1
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
@@ -173,7 +172,6 @@ extern char *my_strndup(const char *from, size_t length,
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */
-#define TRASH(A,B) /* nothing */
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -1007,7 +1005,7 @@ extern my_bool resolve_charset(const char *cs_name,
 extern my_bool resolve_collation(const char *cl_name,
                                  CHARSET_INFO *default_cl,
                                  CHARSET_INFO **cl);
-
+extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);

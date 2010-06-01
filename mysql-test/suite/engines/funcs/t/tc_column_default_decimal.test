@@ -1,0 +1,85 @@
+--disable_warnings
+DROP TABLE IF EXISTS t12;
+DROP TABLE IF EXISTS t13;
+--enable_warnings
+CREATE TABLE t12(c1 DECIMAL(5,0) NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 DECIMAL(5,4) NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+CREATE TABLE t12(c1 DEC(5,0) NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 DEC(5,4) NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+CREATE TABLE t12(c1 FIXED(5,0) NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 FIXED(5,4) NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+CREATE TABLE t12(c1 NUMERIC(5,0) NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 NUMERIC(5,4) NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+CREATE TABLE t12(c1 DECIMAL(5,0) NOT NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 DECIMAL(5,4) NOT NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+CREATE TABLE t12(c1 DEC(5,0) NOT NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 DEC(5,4) NOT NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+CREATE TABLE t12(c1 FIXED(5,0) NOT NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 FIXED(5,4) NOT NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+CREATE TABLE t12(c1 NUMERIC(5,0) NOT NULL DEFAULT 2);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t12; DROP TABLE t12; SHOW TABLES;
+CREATE TABLE t13(c1 NUMERIC(5,4) NOT NULL DEFAULT 3.1234);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t13; DROP TABLE t13; SHOW TABLES;
+

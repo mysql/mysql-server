@@ -1148,6 +1148,11 @@ void XTDataLogBuffer::dlb_exit(XTThreadPtr self)
 xtBool XTDataLogBuffer::dlb_close_log(XTThreadPtr thread)
 {
 	if (dlb_data_log) {
+		if (dlb_data_log->dlf_log_file) {
+			if (!dl_write_log_header(dlb_data_log, dlb_data_log->dlf_log_file, 0, thread))
+				return FAILED;
+		}
+
 		/* Flush and commit the data in the old log: */
 		if (!dlb_flush_log(TRUE, thread))
 			return FAILED;
@@ -1244,7 +1249,7 @@ xtBool XTDataLogBuffer::dlb_write_thru_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtL
 	 */
 	dlb_data_log->dlf_log_eof += size;
 #ifdef DEBUG
-	if (log_offset + size > dlb_max_write_offset)
+	if ((ulonglong) (log_offset + size) > (ulonglong) dlb_max_write_offset)
 		dlb_max_write_offset = log_offset + size;
 #endif
 	dlb_flush_required = TRUE;
@@ -1286,7 +1291,7 @@ xtBool XTDataLogBuffer::dlb_append_log(xtLogID XT_NDEBUG_UNUSED(log_id), xtLogOf
 	if (!xt_pwrite_file(dlb_data_log->dlf_log_file, log_offset, size, data, &thread->st_statistics.st_data, thread))
 		return FAILED;
 #ifdef DEBUG
-	if (log_offset + size > dlb_max_write_offset)
+	if ((ulonglong) (log_offset + size) > (ulonglong) dlb_max_write_offset)
 		dlb_max_write_offset = log_offset + size;
 #endif
 	dlb_flush_required = TRUE;
@@ -1729,8 +1734,8 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 	xtLogOffset			src_log_offset;
 	xtLogID				curr_log_id;
 	xtLogOffset			curr_log_offset;
-	xtLogID				dest_log_id;
-	xtLogOffset			dest_log_offset;
+	xtLogID				dest_log_id= 0;
+	xtLogOffset			dest_log_offset= 0;
 	off_t				garbage_count = 0;
 
 	memset(&cs, 0, sizeof(XTCompactorStateRec));
@@ -1952,7 +1957,7 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 	log_rec.xl_status_1 = XT_LOG_ENT_DEL_LOG;
 	log_rec.xl_checksum_1 = XT_CHECKSUM_1(data_log->dlf_log_id);
 	XT_SET_DISK_4(log_rec.xl_log_id_4, data_log->dlf_log_id);
-	if (!xt_xlog_log_data(self, sizeof(XTXactNewLogEntryDRec), (XTXactLogBufferDPtr) &log_rec, TRUE)) {
+	if (!xt_xlog_log_data(self, sizeof(XTXactNewLogEntryDRec), (XTXactLogBufferDPtr) &log_rec, XT_XLOG_WRITE_AND_FLUSH)) {
 		db->db_datalogs.dls_set_log_state(data_log, XT_DL_TO_COMPACT);
 		xt_throw(self);
 	}

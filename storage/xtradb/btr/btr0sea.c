@@ -42,7 +42,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "ha0ha.h"
-
+#include "srv0srv.h"
 /** Flag: has the search system been enabled?
 Protected by btr_search_latch and btr_search_enabled_mutex. */
 UNIV_INTERN char		btr_search_enabled	= TRUE;
@@ -584,6 +584,11 @@ btr_search_info_update_slow(
 #endif /* UNIV_SYNC_DEBUG */
 
 	block = btr_cur_get_block(cursor);
+
+	if (srv_pass_corrupt_table && !block) {
+		return;
+	}
+	ut_a(block);
 
 	/* NOTE that the following two function calls do NOT protect
 	info or block->n_fields etc. with any semaphore, to save CPU time!

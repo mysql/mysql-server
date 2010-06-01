@@ -998,7 +998,7 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES (3, 'before 
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES (5, 'before savepoint s2')
-master-bin.000001	#	Query	1	#	use `test_rpl`; SAVEPOINT s2
+master-bin.000001	#	Query	1	#	SAVEPOINT s2
 master-bin.000001	#	Query	1	#	use `test_rpl`; INSERT INTO t1 VALUES (6, 'after savepoint s2')
 master-bin.000001	#	Table_map	1	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F

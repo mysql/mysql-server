@@ -10,3 +10,16 @@ set debug= '-P';
 select @@debug;
 @@debug
 T
+#
+# Bug #52629: memory leak from sys_var_thd_dbug in 
+#  binlog.binlog_write_error
+#
+SET GLOBAL debug='d,injecting_fault_writing';
+SELECT @@global.debug;
+@@global.debug
+d,injecting_fault_writing
+SET GLOBAL debug='';
+SELECT @@global.debug;
+@@global.debug
+
+End of 5.1 tests

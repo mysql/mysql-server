@@ -228,3 +228,28 @@ ut_fold_binary(
 
 	return(fold);
 }
+
+UNIV_INLINE
+ulint
+ut_fold_binary_32(
+/*==============*/
+	const byte*	str,	/*!< in: string of bytes */
+	ulint		len)	/*!< in: length */
+{
+	const ib_uint32_t*	str_end = (const ib_uint32_t*) (str + len);
+	const ib_uint32_t*	str_32 = (const ib_uint32_t*) str;
+	ulint			fold = 0;
+
+	ut_ad(str);
+	/* This function is only for word-aligned data */
+	ut_ad(len % 4 == 0);
+	ut_ad((ulint)str % 4 == 0);
+
+	while (str_32 < str_end) {
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str_32));
+
+		str_32++;
+	}
+
+	return(fold);
+}

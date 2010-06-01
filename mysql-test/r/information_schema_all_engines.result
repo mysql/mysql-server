@@ -111,9 +111,9 @@ INNODB_LOCK_WAITS	requesting_trx_id
 INNODB_CMPMEM_RESET	page_size
 INNODB_LOCKS	lock_id
 INNODB_CMPMEM	page_size
-INNODB_TABLE_STATS	table_name
+INNODB_TABLE_STATS	table_schema
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
-INNODB_INDEX_STATS	table_name
+INNODB_INDEX_STATS	table_schema
 SELECT t.table_name, c1.column_name
 FROM information_schema.tables t
 INNER JOIN
@@ -175,9 +175,9 @@ INNODB_LOCK_WAITS	requesting_trx_id
 INNODB_CMPMEM_RESET	page_size
 INNODB_LOCKS	lock_id
 INNODB_CMPMEM	page_size
-INNODB_TABLE_STATS	table_name
+INNODB_TABLE_STATS	table_schema
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
-INNODB_INDEX_STATS	table_name
+INNODB_INDEX_STATS	table_schema
 select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
 (select cast(table_name as char)  from information_schema.tables
 order by table_name limit 1) limit 1;

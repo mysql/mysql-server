@@ -117,6 +117,9 @@ int my_is_symlink(const char *filename __attribute__((unused)))
 /*
   Resolve all symbolic links in path
   'to' may be equal to 'filename'
+
+  to is guaranteed to never set to a string longer than FN_REFLEN
+  (including the end \0)
 */
 
 int my_realpath(char *to, const char *filename,
@@ -130,7 +133,7 @@ int my_realpath(char *to, const char *filename,
 
   DBUG_PRINT("info",("executing realpath"));
   if ((ptr=realpath(filename,buff)))
-      strmake(to,ptr,FN_REFLEN-1);
+    strmake(to, ptr, FN_REFLEN-1);
   else
   {
     /*

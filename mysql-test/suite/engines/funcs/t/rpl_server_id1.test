@@ -1,0 +1,26 @@
+# This test checks that the slave I/O thread refuses to start if slave
+# and master have the same server id (because this is a useless setup,
+# and otherwise SHOW SLAVE STATUS shows progress but all queries are
+# ignored, which has caught our customers), unless
+# --replicate-same-server-id.
+
+source include/master-slave.inc;
+connection slave;
+create table t1 (n int);
+reset master;
+# replicate ourselves
+stop slave;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval change master to master_port=$SLAVE_MYPORT;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 16 # 18 #
+show slave status;
+start slave;
+insert into t1 values (1);
+# can't MASTER_POS_WAIT(), it does not work in this weird setup
+# (when slave is its own master without --replicate-same-server-id)
+sleep 2; # enough time for the event to be replicated (it should not)
+show status like "slave_running";
+drop table t1;
+
+# End of 4.1 tests

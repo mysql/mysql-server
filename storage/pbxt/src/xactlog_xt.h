@@ -75,6 +75,10 @@ struct XTDatabase;
 #define XT_DELETE_LOGS				1
 #define XT_KEEP_LOGS				2
 
+#define XT_XLOG_NO_WRITE_NO_FLUSH	0
+#define XT_XLOG_WRITE_AND_FLUSH		1
+#define XT_XLOG_WRITE_AND_NO_FLUSH	2
+
 /* LOG CACHE ---------------------------------------------------- */
 
 typedef struct XTXLogBlock {
@@ -443,7 +447,7 @@ typedef struct XTDatabaseLog {
 	void					xlog_name(size_t size, char *path, xtLogID log_id);
 	int						xlog_delete_log(xtLogID del_log_id, struct XTThread *thread);
 
-	xtBool					xlog_append(struct XTThread *thread, size_t size1, xtWord1 *data1, size_t size2, xtWord1 *data2, xtBool commit, xtLogID *log_id, xtLogOffset *log_offset);
+	xtBool					xlog_append(struct XTThread *thread, size_t size1, xtWord1 *data1, size_t size2, xtWord1 *data2, int flush_log_at_trx_commit, xtLogID *log_id, xtLogOffset *log_offset);
 	xtBool					xlog_flush(struct XTThread *thread);
 	xtBool					xlog_flush_pending();
 
@@ -464,7 +468,7 @@ private:
 } XTDatabaseLogRec, *XTDatabaseLogPtr;
 
 xtBool			xt_xlog_flush_log(struct XTDatabase *db, struct XTThread *thread);
-xtBool			xt_xlog_log_data(struct XTThread *thread, size_t len, XTXactLogBufferDPtr log_entry, xtBool commit);
+xtBool			xt_xlog_log_data(struct XTThread *thread, size_t len, XTXactLogBufferDPtr log_entry, int flush_log_at_trx_commit);
 xtBool			xt_xlog_modify_table(xtTableID tab_id, u_int status, xtOpSeqNo op_seq, xtRecordID free_list, xtRecordID address, size_t size, xtWord1 *data, struct XTThread *thread);
 
 void			xt_xlog_init(struct XTThread *self, size_t cache_size);

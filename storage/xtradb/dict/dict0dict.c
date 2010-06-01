@@ -54,6 +54,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "row0merge.h"
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
+#include "srv0start.h" /* SRV_LOG_SPACE_FIRST_ID */
 
 #include <ctype.h>
 
@@ -658,7 +659,7 @@ dict_table_get(
 	mutex_exit(&(dict_sys->mutex));
 
 	if (table != NULL) {
-		if (!table->stat_initialized) {
+		if (!table->stat_initialized && !table->is_corrupt) {
 			/* If table->ibd_file_missing == TRUE, this will
 			print an error message and return without doing
 			anything. */
@@ -1181,7 +1182,7 @@ retry:
 		    + dict_sys->size) > srv_dict_size_limit ) {
 		prev_table = UT_LIST_GET_PREV(table_LRU, table);
 
-		if (table == self || table->n_mysql_handles_opened)
+		if (table == self || table->n_mysql_handles_opened || table->is_corrupt)
 			goto next_loop;
 
 		cached_foreign_tables = 0;
@@ -4219,6 +4220,11 @@ dict_update_statistics_low(
 	}
 
 	while (index) {
+		if (table->is_corrupt) {
+			ut_a(srv_pass_corrupt_table);
+			return;
+		}
+
 		size = btr_get_size(index, BTR_TOTAL_SIZE);
 
 		index->stat_index_size = size;
@@ -4919,5 +4925,43 @@ dict_close(void)
 
 	mem_free(dict_sys);
 	dict_sys = NULL;
+}
+
+/*************************************************************************
+set is_corrupt flag by space_id*/
+
+void
+dict_table_set_corrupt_by_space(
+/*============================*/
+	ulint	space_id,
+	ibool	need_mutex)
+{
+	dict_table_t*	table;
+	ibool		found = FALSE;
+
+	ut_a(space_id != 0 && space_id < SRV_LOG_SPACE_FIRST_ID);
+
+	if (need_mutex)
+		mutex_enter(&(dict_sys->mutex));
+
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+
+	while (table) {
+		if (table->space == space_id) {
+			table->is_corrupt = TRUE;
+			found = TRUE;
+		}
+
+		table = UT_LIST_GET_NEXT(table_LRU, table);
+	}
+
+	if (need_mutex)
+		mutex_exit(&(dict_sys->mutex));
+
+	if (!found) {
+		fprintf(stderr, "InnoDB: space to be marked as "
+			"crashed was not found for id %lu.\n",
+			(ulong) space_id);
+	}
 }
 #endif /* !UNIV_HOTBACKUP */

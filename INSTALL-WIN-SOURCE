@@ -13,10 +13,9 @@ Note
    from the Bazaar tree. For production use, we do not advise using a
    MySQL server built by yourself from source. Normally, it is best
    to use precompiled binary distributions of MySQL that are built
-   specifically for optimal performance on Windows by Sun
-   Microsystems, Inc. Instructions for installing binary
-   distributions are available in Section 2.5, "Installing MySQL on
-   Windows."
+   specifically for optimal performance on Windows by Oracle
+   Corporation. Instructions for installing binary distributions are
+   available in Section 2.5, "Installing MySQL on Windows."
 
    To build MySQL on Windows from source, you must satisfy the
    following system, compiler, and resource requirements:
@@ -76,8 +75,8 @@ Note
    You also need a MySQL source distribution for Windows, which can
    be obtained two ways:
 
-     * Obtain a source distribution packaged by Sun Microsystems,
-       Inc. These are available from http://dev.mysql.com/downloads/.
+     * Obtain a source distribution packaged by Oracle Corporation.
+       These are available from http://dev.mysql.com/downloads/.
 
      * Package a source distribution yourself from the latest Bazaar
        developer source tree. For instructions on pulling the latest
@@ -87,19 +86,20 @@ Note
    If you find something not working as expected, or you have
    suggestions about ways to improve the current build process on
    Windows, please send a message to the win32 mailing list. See
-   Section 1.5.1, "MySQL Mailing Lists."
+   Section 1.6.1, "MySQL Mailing Lists."
 
 2.5.10.1. Building MySQL from Source Using CMake and Visual Studio
 
    You can build MySQL on Windows by using a combination of cmake and
    Microsoft Visual Studio .NET 2003 (7.1), Microsoft Visual Studio
-   2005 (8.0) or Microsoft Visual C++ 2005 Express Edition. You must
-   have the appropriate Microsoft Platform SDK installed.
+   2005 (8.0), Microsoft Visual Studio 2008 (9.0) or Microsoft Visual
+   C++ 2005 Express Edition. You must have the appropriate Microsoft
+   Platform SDK installed.
 
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.41.tar.gz).
+   standard source distribution (for example, mysql-5.1.46.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -113,8 +113,19 @@ Note
        tool that can read .zip files. This directory is the work
        directory in the following instructions.
 
-    2. Using a command shell, navigate to the work directory and run
-       the following command:
+Note
+       You must run the commands in the win directory from the
+       top-level source directory. Do not change into the win
+       directory, as the commands will not be executed correctly.
+
+    2. Start a command shell. If you have not configured the PATH and
+       other environment variables for all command shells, you may be
+       able to start a command shell from the Start Menu within the
+       Windows Visual Studio menu that contains the necessary
+       environment changes.
+
+    3. Within the command shell, navigate to the work directory and
+       run the following command:
 C:\workdir>win\configure.js options
        If you have associated the .js file extension with an
        application such as a text editor, then you may need to use
@@ -165,16 +176,19 @@ C:\workdir>cscript win\configure.js options
 C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
              WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
 
-    3. From the work directory, execute the win\build-vs8.bat or
-       win\build-vs71.bat file, depending on the version of Visual
+    4. From the work directory, execute the win\build-vs9.bat
+       (Windows Visual Studio 2008), win\build-vs8.bat (Windows
+       Visual Studio 2005), or win\build-vs71.bat (Windows Visual
+       Stidion 2003) script, depending on the version of Visual
        Studio you have installed. The script invokes CMake, which
        generates the mysql.sln solution file.
-       You can also use win\build-vs8_x64.bat to build the 64-bit
-       version of MySQL. However, you cannot build the 64-bit version
-       with Visual Studio Express Edition. You must use Visual Studio
-       2005 (8.0) or higher.
+       You can also use the corresponding 64-bit file (for example
+       win\build-vs8_x64.bat or win\build-vs9_x64.bat) to build the
+       64-bit version of MySQL. However, you cannot build the 64-bit
+       version with Visual Studio Express Edition. You must use
+       Visual Studio 2005 (8.0) or higher.
 
-    4. From the work directory, open the generated mysql.sln file
+    5. From the work directory, open the generated mysql.sln file
        with Visual Studio and select the proper configuration using
        the Configuration menu. The menu provides Debug, Release,
        RelwithDebInfo, MinRelInfo options. Then select Solution >
@@ -183,7 +197,7 @@ C:\workdir>win\configure.js WITH_INNOBASE_STORAGE_ENGINE
        important later when you run the test script because that
        script needs to know which configuration you used.
 
-    5. Test the server. The server built using the preceding
+    6. Test the server. The server built using the preceding
        instructions expects that the MySQL base directory and data
        directory are C:\mysql and C:\mysql\data by default. If you
        want to test your server using the source tree root directory
@@ -243,26 +257,33 @@ C:\> mkdir C:\mysql\sql-bench
        Installation Notes."
 
     2. From the work directory, copy into the C:\mysql directory the
-       following directories:
+       following files and directories:
 C:\> cd \workdir
-C:\workdir> copy client_release\*.exe C:\mysql\bin
-C:\workdir> copy client_debug\mysqld.exe C:\mysql\bin\mysqld-debug.ex
-e
+C:\workdir> mkdir C:\mysql
+C:\workdir> mkdir C:\mysql\bin
+C:\workdir> copy client\Release\*.exe C:\mysql\bin
+C:\workdir> copy sql\Release\mysqld.exe C:\mysql\bin\mysqld.exe
 C:\workdir> xcopy scripts\*.* C:\mysql\scripts /E
 C:\workdir> xcopy share\*.* C:\mysql\share /E
        If you want to compile other clients and link them to MySQL,
        you should also copy several libraries and header files:
-C:\workdir> copy lib_debug\mysqlclient.lib C:\mysql\lib\debug
-C:\workdir> copy lib_debug\libmysql.* C:\mysql\lib\debug
-C:\workdir> copy lib_debug\zlib.* C:\mysql\lib\debug
-C:\workdir> copy lib_release\mysqlclient.lib C:\mysql\lib\opt
-C:\workdir> copy lib_release\libmysql.* C:\mysql\lib\opt
-C:\workdir> copy lib_release\zlib.* C:\mysql\lib\opt
+C:\workdir> copy lib\Release\mysqlclient.lib C:\mysql\lib\debug
+C:\workdir> copy lib\Release\libmysql.* C:\mysql\lib\debug
+C:\workdir> copy lib\Release\zlib.* C:\mysql\lib\debug
+C:\workdir> copy lib\Release\mysqlclient.lib C:\mysql\lib\opt
+C:\workdir> copy lib\Release\libmysql.* C:\mysql\lib\opt
+C:\workdir> copy lib\Release\zlib.* C:\mysql\lib\opt
 C:\workdir> copy include\*.h C:\mysql\include
 C:\workdir> copy libmysql\libmysql.def C:\mysql\include
+
+Note
+       If you have compiled a Debug, rather than Release solution,
+       you can replace Release with Debug in the source file names
+       shown above.
        If you want to benchmark MySQL, you should also do this:
 C:\workdir> xcopy sql-bench\*.* C:\mysql\bench /E
 
    After installation, set up and start the server in the same way as
-   for binary Windows distributions. See Section 2.5, "Installing
-   MySQL on Windows."
+   for binary Windows distributions. This includes creating the
+   system tables by running mysql_install_db. For more information,
+   see Section 2.5, "Installing MySQL on Windows."

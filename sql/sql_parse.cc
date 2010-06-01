@@ -1245,7 +1245,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     TABLE_LIST table_list;
     char db_buff[NAME_LEN+1];
     uint32 db_length;
-    uint dummy_errors;
+    uint dummy_errors, query_length;
 
     /* used as fields initializator */
     lex_start(thd);
@@ -1256,11 +1256,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     /*
       We have name + wildcard in packet, separated by endzero
+      (The packet is guaranteed to end with an end zero)
     */
     wildcard= strend(packet);
     db_length= wildcard - packet;
     wildcard++;
-    uint query_length= (uint) (packet_end - wildcard); // Don't count end \0
+    query_length= (uint) (packet_end - wildcard); // Don't count end \0
     if (db_length > NAME_LEN || query_length > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
@@ -1661,9 +1662,9 @@ void log_slow_statement(THD *thd)
 
   /*
     Do not log administrative statements unless the appropriate option is
-    set; do not log into slow log if reading from backup.
+    set.
   */
-  if (thd->enable_slow_log && !thd->user_time)
+  if (thd->enable_slow_log)
   {
     ulonglong end_utime_of_query= thd->current_utime();
     thd_proc_info(thd, "logging slow query");
@@ -3266,7 +3267,7 @@ end_with_restore_list:
           TODO: this is workaround. right way will be move invalidating in
           the unlock procedure.
         */
-        if (first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
+        if (!res && first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
             thd->lock)
         {
           /* INSERT ... SELECT should invalidate only the very first table */

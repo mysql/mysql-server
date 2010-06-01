@@ -41,6 +41,9 @@ sync/sync0sync\.c: unused variable
 ut/ut0ut\.c: ignoring return value of
 srv/srv0srv\.c: value computed is not used
 buf/buf0buf\.c: .*block_mutex.* might be used uninitialized
+btr/btr0cur\.c: null argument where non-null required: 1800-3000
+btr/btr0btr\.c: null argument where non-null required: 2500-3000
+ibuf/ibuf0ibuf.c: null argument where non-null required: 700-1000
 
 #
 # bdb is not critical to keep up to date
@@ -127,6 +130,7 @@ xaction_xt\.cc: may be used uninitialized in this function
 #
 storage/pbxt/ : typedef.*was ignored in this declaration
 ha_pbxt\.cc : variable.*might be clobbered by.*longjmp
+table_xt\.cc : variable.*might be clobbered by ~longjm~p or ~vfork~
 
 #
 # Yassl

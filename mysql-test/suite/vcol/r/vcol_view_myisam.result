@@ -199,7 +199,7 @@ create view v1 as select a,b,c from t1;
 create view v2 as select a,b,c from t2 where b in (select b from v1);
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c` from `t2` where `t2`.`b` in (select `v1`.`b` AS `b` from `v1`)	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a`,`t2`.`b` AS `b`,`t2`.`c` AS `c` from `t2` where `t2`.`b` in (select `v1`.`b` from `v1`)	latin1	latin1_swedish_ci
 drop view v2, v1;
 drop table t1, t2;
 create table t1 (a int,

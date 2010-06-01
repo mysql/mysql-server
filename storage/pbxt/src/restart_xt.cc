@@ -1315,7 +1315,7 @@ static void xres_apply_operations(XTThreadPtr self, XTWriterStatePtr ws, xtBool 
 		tab->tab_head_op_seq = op->or_op_seq;
 		if (tab->tab_wr_wake_freeer) {
 			if (!XTTableSeq::xt_op_is_before(tab->tab_head_op_seq, tab->tab_wake_freeer_op))
-				xt_wr_wake_freeer(self);
+				xt_wr_wake_freeer(self, ws->ws_db);
 		}
 		i++;
 	}
@@ -1498,7 +1498,7 @@ xtPublic void xt_xres_apply_in_order(XTThreadPtr self, XTWriterStatePtr ws, xtLo
 		tab->tab_head_op_seq = op_seq;
 		if (tab->tab_wr_wake_freeer) {
 			if (!XTTableSeq::xt_op_is_before(tab->tab_head_op_seq, tab->tab_wake_freeer_op))
-				xt_wr_wake_freeer(self);
+				xt_wr_wake_freeer(self, ws->ws_db);
 		}
 
 		/* Apply any operations in the list that now follow on...
@@ -1575,10 +1575,12 @@ static int xres_comp_flush_tabs(XTThreadPtr XT_UNUSED(self), register const void
 static void xres_init_checkpoint_state(XTThreadPtr self, XTCheckPointStatePtr cp)
 {
 	xt_init_mutex_with_autoname(self, &cp->cp_state_lock);
+	cp->cp_inited = TRUE;
 }
 
 static void xres_free_checkpoint_state(XTThreadPtr self, XTCheckPointStatePtr cp)
 {
+	cp->cp_inited = FALSE;
 	xt_free_mutex(&cp->cp_state_lock);
 	if (cp->cp_table_ids) {
 		xt_free_sortedlist(self, cp->cp_table_ids);
@@ -1616,6 +1618,7 @@ xtPublic void xt_xres_init(XTThreadPtr self, XTDatabaseHPtr db)
 
 	xt_init_mutex_with_autoname(self, &db->db_cp_lock);
 	xt_init_cond(self, &db->db_cp_cond);
+	xt_init_mutex_with_autoname(self, &db->db_fl_lock);
 	
 	xres_init_checkpoint_state(self, &db->db_cp_state);
 	db->db_restart.xres_init(self, db, &db->db_wr_log_id, &db->db_wr_log_offset, &max_log_id);
@@ -1633,6 +1636,7 @@ xtPublic void xt_xres_exit(XTThreadPtr self, XTDatabaseHPtr db)
 	xres_free_checkpoint_state(self, &db->db_cp_state);
 	xt_free_mutex(&db->db_cp_lock);
 	xt_free_cond(&db->db_cp_cond);
+	xt_free_mutex(&db->db_fl_lock);
 }
 
 /* ----------------------------------------------------------------------
@@ -2182,7 +2186,7 @@ xtBool XTXactRestart::xres_restart(XTThreadPtr self, xtLogID *log_id, xtLogOffse
 
 xtBool XTXactRestart::xres_is_checkpoint_pending(xtLogID curr_log_id, xtLogOffset curr_log_offset)
 {
-	return xt_bytes_since_last_checkpoint(xres_db, curr_log_id, curr_log_offset) >= xt_db_checkpoint_frequency / 2;
+	return xt_bytes_since_last_checkpoint(xres_db, curr_log_id, curr_log_offset) >= xt_db_checkpoint_frequency;
 }
 
 /*
@@ -2531,9 +2535,9 @@ static void xres_cp_main(XTThreadPtr self)
 	XTDatabaseHPtr		db = self->st_database;
 	u_int				curr_writer_total;
 	time_t				now;
+	xtXactID			sweep_count;
 
 	xt_set_low_priority(self);
-
 
 	while (!self->t_quit) {
 		/* Wait 2 seconds: */
@@ -2549,9 +2553,13 @@ static void xres_cp_main(XTThreadPtr self)
 		if (self->t_quit)
 			break;
 
-		if (curr_writer_total == db->db_xn_total_writer_count)
+		sweep_count = db->db_xn_curr_id + 1 - db->db_xn_to_clean_id;
+		if (curr_writer_total == db->db_xn_total_writer_count &&
+			!sweep_count &&
+			db->db_wr_idle == XT_THREAD_IDLE) {
 			/* No activity in 2 seconds: */
 			xres_cp_checkpoint(self, db, curr_writer_total, FALSE);
+		}
 		else {
 			/* There server is busy, check if we need to
 			 * write a checkpoint anyway...
@@ -2672,6 +2680,10 @@ xtPublic xtBool xt_begin_checkpoint(XTDatabaseHPtr db, xtBool have_table_lock, X
 	XTOperationPtr			op;
 	XTCheckPointTableRec	cpt;
 	XTSortedListPtr			tables = NULL;
+	
+	/* during startup we can get an error before the checkpointer is inited */
+	if (!cp->cp_inited)
+		return FAILED;
 
 	/* First check if a checkpoint is already running: */
 	xt_lock_mutex_ns(&cp->cp_state_lock);
@@ -3314,7 +3326,7 @@ static void *xn_xres_run_recovery_thread(XTThreadPtr self)
 	* #7	0x000c0db2 in THD::~THD at sql_class.cc:934
 	* #8	0x003b025b in myxt_destroy_thread at myxt_xt.cc:2999
 	* #9	0x003b66b5 in xn_xres_run_recovery_thread at restart_xt.cc:3196
-	* #10	0x003cbfbb in thr_main_pbxt at thread_xt.cc:1020
+	* #10	0x003cbfbb in xt_thread_main at thread_xt.cc:1020
 	*
 	myxt_destroy_thread(mysql_thread, TRUE);
 	*/
@@ -3350,3 +3362,123 @@ xtPublic void xt_xres_terminate_recovery(XTThreadPtr self)
 		xt_wait_for_thread(tid, TRUE);
 	}
 }
+
+/* ----------------------------------------------------------------------
+ * L O G   F L U S H    P R O C E S S
+ */
+
+static void *xres_fl_run_thread(XTThreadPtr self)
+{
+	XTDatabaseHPtr	db = (XTDatabaseHPtr) self->t_data;
+	int				count;
+	void			*mysql_thread;
+	xtWord8			to_flush;
+
+	if (!(mysql_thread = myxt_create_thread()))
+		xt_throw(self);
+
+	while (!self->t_quit) {
+		try_(a) {
+			/*
+			 * The garbage collector requires that the database
+			 * is in use because.
+			 */
+			xt_use_database(self, db, XT_FOR_CHECKPOINTER);
+
+			/* This action is both safe and required (see details elsewhere) */
+			xt_heap_release(self, self->st_database);
+
+			xt_set_low_priority(self);
+
+			to_flush = xt_trace_clock() + XT_XLOG_FLUSH_FREQ * 1000;
+			for (;;) {
+				/* Wait 1 second: */
+				while (!self->t_quit && xt_trace_clock() < to_flush)
+					xt_sleep_milli_second(10);
+
+				if (self->t_quit)
+					break;
+
+				if (!db->db_xlog.xlog_flush(self))
+					xt_throw(self);
+
+				to_flush += XT_XLOG_FLUSH_FREQ * 1000;
+			}
+		}
+		catch_(a) {
+			/* This error is "normal"! */
+			if (self->t_exception.e_xt_err != XT_ERR_NO_DICTIONARY &&
+				!(self->t_exception.e_xt_err == XT_SIGNAL_CAUGHT &&
+				self->t_exception.e_sys_err == SIGTERM))
+				xt_log_and_clear_exception(self);
+		}
+		cont_(a);
+
+		/* Avoid releasing the database (done above) */
+		self->st_database = NULL;
+		xt_unuse_database(self, self);
+
+		/* After an exception, pause before trying again... */
+		/* Number of seconds */
+		count = 60;
+		while (!self->t_quit && count > 0) {
+			sleep(1);
+			count--;
+		}
+	}
+
+   /*
+	* {MYSQL-THREAD-KILL}
+	myxt_destroy_thread(mysql_thread, TRUE);
+	*/
+	return NULL;
+}
+
+static void xres_fl_free_thread(XTThreadPtr self, void *data)
+{
+	XTDatabaseHPtr db = (XTDatabaseHPtr) data;
+
+	if (db->db_fl_thread) {
+		xt_lock_mutex(self, &db->db_fl_lock);
+		pushr_(xt_unlock_mutex, &db->db_fl_lock);
+		db->db_fl_thread = NULL;
+		freer_(); // xt_unlock_mutex(&db->db_fl_lock)
+	}
+}
+
+xtPublic void xt_start_flusher(XTThreadPtr self, XTDatabaseHPtr db)
+{
+	char name[PATH_MAX];
+
+	sprintf(name, "FL-%s", xt_last_directory_of_path(db->db_main_path));
+	xt_remove_dir_char(name);
+	db->db_fl_thread = xt_create_daemon(self, name);
+	xt_set_thread_data(db->db_fl_thread, db, xres_fl_free_thread);
+	xt_run_thread(self, db->db_fl_thread, xres_fl_run_thread);
+}
+
+xtPublic void xt_stop_flusher(XTThreadPtr self, XTDatabaseHPtr db)
+{
+	XTThreadPtr thr_fl;
+
+	if (db->db_fl_thread) {
+		xt_lock_mutex(self, &db->db_fl_lock);
+		pushr_(xt_unlock_mutex, &db->db_fl_lock);
+
+		/* This pointer is safe as long as you have the transaction lock. */
+		if ((thr_fl = db->db_fl_thread)) {
+			xtThreadID tid = thr_fl->t_id;
+
+			/* Make sure the thread quits when woken up. */
+			xt_terminate_thread(self, thr_fl);
+
+			freer_(); // xt_unlock_mutex(&db->db_cp_lock)
+
+			xt_wait_for_thread(tid, FALSE);
+			db->db_fl_thread = NULL;
+		}
+		else
+			freer_(); // xt_unlock_mutex(&db->db_cp_lock)
+	}
+}
+

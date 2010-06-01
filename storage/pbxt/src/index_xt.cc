@@ -1328,10 +1328,12 @@ static void idx_insert_node_item(XTTableHPtr XT_UNUSED(tab), XTIndexPtr XT_UNUSE
 	XT_SET_DISK_2(leaf->tb_size_2, XT_MAKE_NODE_SIZE(result->sr_item.i_total_size));
 }
 
-static void idx_get_middle_branch_item(XTIndexPtr ind, XTIdxBranchDPtr branch, XTIdxKeyValuePtr value, XTIdxResultPtr result)
+static xtBool idx_get_middle_branch_item(XTOpenTablePtr ot, XTIndexPtr ind, XTIdxBranchDPtr branch, XTIdxKeyValuePtr value, XTIdxResultPtr result)
 {
 	xtWord1	*bitem;
 
+	ASSERT_NS(result->sr_item.i_node_ref_size == 0 || result->sr_item.i_node_ref_size == XT_NODE_REF_SIZE);
+	ASSERT_NS((int) result->sr_item.i_total_size >= 0 && result->sr_item.i_total_size <= XT_INDEX_PAGE_SIZE*2);
 	if (ind->mi_fix_key) {
 		u_int full_item_size = result->sr_item.i_item_size + result->sr_item.i_node_ref_size;
 
@@ -1346,18 +1348,25 @@ static void idx_get_middle_branch_item(XTIndexPtr ind, XTIdxBranchDPtr branch, X
 	}
 	else {
 		u_int	node_ref_size;
-		u_int	ilen;
+		u_int	ilen, tlen;
 		xtWord1	*bend;
 
 		node_ref_size = result->sr_item.i_node_ref_size;
-		bitem = branch->tb_data + node_ref_size;;
+		bitem = branch->tb_data + node_ref_size;
 		bend = &branch->tb_data[(result->sr_item.i_total_size - node_ref_size) / 2 + node_ref_size];
 		ilen = 0;
 		if (bitem < bend) {
+			tlen = 0;
 			for (;;) {
 				ilen = myxt_get_key_length(ind, bitem);
-				if (bitem + ilen + XT_RECORD_REF_SIZE + node_ref_size >= bend)
+				tlen += ilen + XT_RECORD_REF_SIZE + node_ref_size;
+				if (bitem + ilen + XT_RECORD_REF_SIZE + node_ref_size >= bend) {
+					if (ilen > XT_INDEX_PAGE_SIZE || tlen > result->sr_item.i_total_size) {
+						xt_register_taberr(XT_REG_CONTEXT, XT_ERR_INDEX_CORRUPTED, ot->ot_table->tab_name);
+						return FAILED;
+					}
 					break;
+				}
 				bitem += ilen + XT_RECORD_REF_SIZE + node_ref_size;
 			}
 		}
@@ -1370,6 +1379,7 @@ static void idx_get_middle_branch_item(XTIndexPtr ind, XTIdxBranchDPtr branch, X
 		xt_get_record_ref(bitem + ilen, &value->sv_rec_id, &value->sv_row_id);
 		memcpy(value->sv_key, bitem, value->sv_length);
 	}
+	return OK;
 }
 
 static size_t idx_write_branch_item(XTIndexPtr XT_UNUSED(ind), xtWord1 *item, XTIdxKeyValuePtr value)
@@ -1438,7 +1448,8 @@ static xtBool idx_replace_node_key(XTOpenTablePtr ot, XTIndexPtr ind, IdxStackIt
 	/* We assume that value can be overwritten (which is the case) */
 	key_value.sv_flags = XT_SEARCH_WHOLE_KEY;
 	key_value.sv_key = key_buf;
-	idx_get_middle_branch_item(ind, iref.ir_branch, &key_value, &result);
+	if (!idx_get_middle_branch_item(ot, ind, iref.ir_branch, &key_value, &result))
+		goto failed_1;
 
 	if (!idx_new_branch(ot, ind, &new_branch))
 		goto failed_1;
@@ -1567,7 +1578,8 @@ static xtBool idx_insert_node(XTOpenTablePtr ot, XTIndexPtr ind, IdxBranchStackP
 	ASSERT_NS(result.sr_item.i_total_size > XT_INDEX_PAGE_DATA_SIZE);
 
 	/* We assume that value can be overwritten (which is the case) */
-	idx_get_middle_branch_item(ind, &ot->ot_ind_wbuf, key_value, &result);
+	if (!idx_get_middle_branch_item(ot, ind, &ot->ot_ind_wbuf, key_value, &result))
+		goto failed_1;
 
 	if (!idx_new_branch(ot, ind, &new_branch))
 		goto failed_1;
@@ -2041,7 +2053,7 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 	memcpy(&ot->ot_ind_wbuf, iref.ir_branch, offsetof(XTIdxBranchDRec, tb_data) + result.sr_item.i_total_size);
 	idx_insert_leaf_item(ind, &ot->ot_ind_wbuf, &key_value, &result);
 	IDX_TRACE("%d-> %x\n", (int) XT_NODE_ID(current), (int) XT_GET_DISK_2(ot->ot_ind_wbuf.tb_size_2));
-	ASSERT_NS(result.sr_item.i_total_size > XT_INDEX_PAGE_DATA_SIZE);
+	ASSERT_NS(result.sr_item.i_total_size > XT_INDEX_PAGE_DATA_SIZE && result.sr_item.i_total_size <= XT_INDEX_PAGE_DATA_SIZE*2);
 
 	/* This is the number of potential writes. In other words, the total number
 	 * of blocks that may be accessed.
@@ -2053,7 +2065,8 @@ xtPublic xtBool xt_idx_insert(XTOpenTablePtr ot, XTIndexPtr ind, xtRowID row_id,
 		goto failed_1;
 
 	/* Key does not fit, must split... */
-	idx_get_middle_branch_item(ind, &ot->ot_ind_wbuf, &key_value, &result);
+	if (!idx_get_middle_branch_item(ot, ind, &ot->ot_ind_wbuf, &key_value, &result))
+		goto failed_1;
 
 	if (!idx_new_branch(ot, ind, &new_branch))
 		goto failed_1;
@@ -3317,7 +3330,7 @@ xtPublic xtBool xt_idx_match_search(register XTOpenTablePtr XT_UNUSED(ot), regis
 	return FALSE;
 }
 
-static void idx_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot, XTIndexPtr ind)
+static void idx_set_index_selectivity(XTOpenTablePtr ot, XTIndexPtr ind, XTThreadPtr thread)
 {
 	static const xtRecordID MAX_RECORDS = 100;
 
@@ -3368,7 +3381,7 @@ static void idx_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot, XTInd
 				last_rec = ot->ot_curr_rec_id;
 
 				key_len = ot->ot_ind_state.i_item_size - XT_RECORD_REF_SIZE;
-				xt_ind_unlock_handle(ot->ot_ind_rhandle);
+				xt_ind_lock_handle(ot->ot_ind_rhandle);
 				memcpy(key_buf, ot->ot_ind_rhandle->ih_branch->tb_data + ot->ot_ind_state.i_item_offset, key_len);
 				xt_ind_unlock_handle(ot->ot_ind_rhandle);
 			}
@@ -3410,7 +3423,7 @@ static void idx_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot, XTInd
 		last_iter_rec = last_rec;
 
 		if (ot->ot_ind_rhandle) {
-			xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, self);
+			xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, thread);
 			ot->ot_ind_rhandle = NULL;
 		}
 	}
@@ -3431,8 +3444,10 @@ static void idx_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot, XTInd
 	return;
 
 	failed_1:
-	xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, self);
-	ot->ot_ind_rhandle = NULL;
+	if (ot->ot_ind_rhandle) {
+		xt_ind_release_handle(ot->ot_ind_rhandle, FALSE, thread);
+		ot->ot_ind_rhandle = NULL;
+	}
 
 	failed:
 	xt_tab_disable_index(ot->ot_table, XT_INDEX_CORRUPTED);
@@ -3440,16 +3455,23 @@ static void idx_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot, XTInd
 	return;
 }
 
-xtPublic void xt_ind_set_index_selectivity(XTThreadPtr self, XTOpenTablePtr ot)
+xtPublic void xt_ind_set_index_selectivity(XTOpenTablePtr ot, XTThreadPtr thread)
 {
 	XTTableHPtr		tab = ot->ot_table;
 	XTIndexPtr		*ind;
 	u_int			i;
+	time_t			now;
 
-	if (!tab->tab_dic.dic_disable_index) {
-		for (i=0, ind=tab->tab_dic.dic_keys; i<tab->tab_dic.dic_key_count; i++, ind++)
-			idx_set_index_selectivity(self, ot, *ind);
+	now = time(NULL);
+	xt_lock_mutex_ns(&tab->tab_ind_stat_lock);
+	if (tab->tab_ind_stat_calc_time < now) {
+		if (!tab->tab_dic.dic_disable_index) {
+			for (i=0, ind=tab->tab_dic.dic_keys; i<tab->tab_dic.dic_key_count; i++, ind++)
+				idx_set_index_selectivity(ot, *ind, thread);
+		}
+		tab->tab_ind_stat_calc_time = time(NULL);
 	}
+	xt_unlock_mutex_ns(&tab->tab_ind_stat_lock);
 }
 
 /*
@@ -3740,7 +3762,8 @@ xtPublic void xt_ind_count_deleted_items(XTTableHPtr tab, XTIndexPtr ind, XTIndB
 static xtBool idx_flush_dirty_list(XTIndexLogPtr il, XTOpenTablePtr ot, u_int *flush_count, XTIndBlockPtr *flush_list)
 {
 	for (u_int i=0; i<*flush_count; i++)
-		il->il_write_block(ot, flush_list[i]);
+		if (!il->il_write_block(ot, flush_list[i]))
+			return FAILED;
 	*flush_count = 0;
 	return OK;
 }
@@ -3793,7 +3816,7 @@ xtPublic xtBool xt_flush_indices(XTOpenTablePtr ot, off_t *bytes_flushed, xtBool
 	xtIndexNodeID			ind_free;
 	xtBool					something_to_free = FALSE;
 	xtIndexNodeID			last_address, next_address;
-	xtWord2					curr_flush_seq;
+	xtWord4					curr_flush_seq;
 	XTIndFreeListPtr		list_ptr;
 	u_int					dirty_blocks;
 	XTCheckPointTablePtr	cp_tab;
@@ -3810,8 +3833,9 @@ xtPublic xtBool xt_flush_indices(XTOpenTablePtr ot, off_t *bytes_flushed, xtBool
 	if (!tab->tab_db->db_indlogs.ilp_get_log(&il, ot->ot_thread))
 		goto failed_3;
 
-	il->il_reset(tab->tab_id);
-	if (!il->il_write_byte(ot, XT_DT_FREE_LIST))
+	if (!il->il_reset(ot))
+		goto failed_2;
+	if (!il->il_write_byte(ot, XT_DT_LOG_HEAD))
 		goto failed_2;
 	if (!il->il_write_word4(ot, tab->tab_id))
 		goto failed_2;
@@ -3849,7 +3873,7 @@ xtPublic xtBool xt_flush_indices(XTOpenTablePtr ot, off_t *bytes_flushed, xtBool
 			wrote_something = TRUE;
 			while (block) {
 				ASSERT_NS(block->cb_state == IDX_CAC_BLOCK_DIRTY);
-				ASSERT_NS(block->cp_flush_seq == curr_flush_seq);
+				ASSERT_NS((block->cp_flush_seq == curr_flush_seq) || xt_xn_is_before(block->cp_flush_seq, curr_flush_seq));
 				if (!ind_add_to_dirty_list(il, ot, &flush_count, flush_list, block))
 					goto failed;
 				block = block->cb_dirty_next;
@@ -4023,7 +4047,7 @@ xtPublic xtBool xt_flush_indices(XTOpenTablePtr ot, off_t *bytes_flushed, xtBool
 					fblock = block;
 					block = block->cb_dirty_next;
 					ASSERT_NS(fblock->cb_state == IDX_CAC_BLOCK_DIRTY);
-					if (fblock->cp_flush_seq == curr_flush_seq) {
+					if (fblock->cp_flush_seq == curr_flush_seq || xt_xn_is_before(fblock->cp_flush_seq, curr_flush_seq)) {
 						/* Take the block off the dirty list: */
 						if (fblock->cb_dirty_next)
 							fblock->cb_dirty_next->cb_dirty_prev = fblock->cb_dirty_prev;
@@ -4254,12 +4278,32 @@ void XTIndexLogPool::ilp_release_log(XTIndexLogPtr il)
 	xt_unlock_mutex_ns(&ilp_lock);
 }
 
-void XTIndexLog::il_reset(xtTableID tab_id)
+xtBool XTIndexLog::il_reset(XTOpenTable *ot)
 {
+	XTIndLogHeadDRec	log_head;
+	xtTableID			tab_id = ot->ot_table->tab_id;
+
 	il_tab_id = tab_id;
 	il_log_eof = 0;
 	il_buffer_len = 0;
 	il_buffer_offset = 0;
+
+	/* We must write the header and flush here or the "previous" status (from the
+	 * last flush run) could remain. Failure to write the file completely leave the
+	 * old header in place, and other parts of the file changed.
+	 * This would lead to index corruption.  
+	 */
+	log_head.ilh_data_type = XT_DT_LOG_HEAD;
+	XT_SET_DISK_4(log_head.ilh_tab_id_4, tab_id);
+	XT_SET_DISK_4(log_head.ilh_log_eof_4, 0);
+
+	if (!xt_pwrite_file(il_of, 0, sizeof(XTIndLogHeadDRec), (xtWord1 *) &log_head, &ot->ot_thread->st_statistics.st_ilog, ot->ot_thread))
+		return FAILED;
+
+	if (!xt_flush_file(il_of, &ot->ot_thread->st_statistics.st_ilog, ot->ot_thread))
+		return FAILED;
+
+	return OK;
 }
 
 void XTIndexLog::il_close(xtBool delete_it)

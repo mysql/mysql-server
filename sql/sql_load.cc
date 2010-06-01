@@ -348,16 +348,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         DBUG_ASSERT(FALSE); 
 #endif
       }
-      else if (opt_secure_file_priv)
+      else if (!is_secure_file_path(name))
       {
-        char secure_file_real_path[FN_REFLEN];
-        (void) my_realpath(secure_file_real_path, opt_secure_file_priv, 0);
-        if (strncmp(secure_file_real_path, name, strlen(secure_file_real_path)))
-        {
-          /* Read only allowed from within dir specified by secure_file_priv */
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-          DBUG_RETURN(TRUE);
-        }
+        /* Read only allowed from within dir specified by secure_file_priv */
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        DBUG_RETURN(TRUE);
       }
 
     }
@@ -689,12 +684,10 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   strcpy(end, p);
   end += pl;
 
-  thd->set_query_inner(load_data_query, end - load_data_query);
-
   Execute_load_query_log_event
-    e(thd, thd->query(), thd->query_length(),
-      (uint) ((char*) fname_start - (char*) thd->query() - 1),
-      (uint) ((char*) fname_end - (char*) thd->query()),
+    e(thd, load_data_query, end-load_data_query,
+      (uint) ((char*) fname_start - load_data_query - 1),
+      (uint) ((char*) fname_end - load_data_query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, errcode);

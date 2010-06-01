@@ -40,7 +40,6 @@ our $default_storage_engine;
 our $opt_with_ndbcluster_only;
 our $defaults_file;
 our $defaults_extra_file;
-our $reorder= 1;
 our $quick_collect;
 
 sub collect_option {
@@ -71,10 +70,19 @@ my $skip_test_reg;
 
 # Related to adding InnoDB plugin combinations
 my $lib_innodb_plugin;
-my $do_innodb_plugin;
 
 # If "Quick collect", set to 1 once a test to run has been found.
 my $some_test_found;
+
+sub find_innodb_plugin {
+  $lib_innodb_plugin=
+    my_find_file($::basedir,
+		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
+		  "lib/mysql/plugin", "lib/mariadb/plugin", "lib/plugin"],
+		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
+		  "ha_innodb_plugin.sl"],
+		 NOT_REQUIRED);
+}
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -99,7 +107,8 @@ sub init_pattern {
 #
 ##############################################################################
 
-sub collect_test_cases ($$) {
+sub collect_test_cases ($$$) {
+  my $opt_reorder= shift; # True if we're reordering tests
   my $suites= shift; # Semicolon separated list of test suites
   my $opt_cases= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
@@ -107,21 +116,18 @@ sub collect_test_cases ($$) {
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
 
-  $lib_innodb_plugin=
-    my_find_file($::basedir,
-		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
-		  "lib/mysql/plugin", "lib/mariadb/plugin", "lib/plugin"],
-		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
-		  "ha_innodb_plugin.sl"],
-		 NOT_REQUIRED);
-  $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
-		      !(IS_WINDOWS && $::opt_embedded_server) &&
-		      $lib_innodb_plugin);
+  &find_innodb_plugin;
 
-  foreach my $suite (split(",", $suites))
+  # If not reordering, we also shouldn't group by suites, unless
+  # no test cases were named.
+  # This also effects some logic in the loop following this.
+  if ($opt_reorder or !@$opt_cases)
   {
-    push(@$cases, collect_one_suite($suite, $opt_cases));
-    last if $some_test_found;
+    foreach my $suite (split(",", $suites))
+    {
+      push(@$cases, collect_one_suite($suite, $opt_cases));
+      last if $some_test_found;
+    }
   }
 
   if ( @$opt_cases )
@@ -135,6 +141,7 @@ sub collect_test_cases ($$) {
       my ($sname, $tname, $extension)= split_testname($test_name_spec);
       foreach my $test ( @$cases )
       {
+	last unless $opt_reorder;
 	# test->{name} is always in suite.name format
 	if ( $test->{name} =~ /.*\.$tname/ )
 	{
@@ -144,12 +151,13 @@ sub collect_test_cases ($$) {
       }
       if ( not $found )
       {
+	$sname= "main" if !$opt_reorder and !$sname;
 	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
-	# If suite was part of name, find it there
-	my ($this_case) = collect_one_suite($sname, [ $tname ]);
-	if ($this_case)
+	# If suite was part of name, find it there, may come with combinations
+	my @this_case = collect_one_suite($sname, [ $tname ]);
+	if (@this_case)
         {
-	  push (@$cases, $this_case);
+	  push (@$cases, @this_case);
 	}
 	else
 	{
@@ -159,7 +167,7 @@ sub collect_test_cases ($$) {
     }
   }
 
-  if ( $reorder && !$quick_collect)
+  if ( $opt_reorder && !$quick_collect)
   {
     # Reorder the test cases in an order that will make them faster to run
     my %sort_criteria;
@@ -500,70 +508,6 @@ sub collect_one_suite
     }
   }
 
-  # ----------------------------------------------------------------------
-  # Testing InnoDB plugin.
-  # ----------------------------------------------------------------------
-  if ($do_innodb_plugin)
-  {
-    my @new_cases;
-    my $sep= (IS_WINDOWS) ? ';' : ':';
-
-    foreach my $test (@cases)
-    {
-      next if (!$test->{'innodb_test'});
-      # If skipped due to no builtin innodb, we can still run it with plugin
-      next if ($test->{'skip'} && $test->{comment} ne "No innodb support");
-      # Exceptions
-      next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
-      next if ($test->{'name'} eq 'main.index_merge_innodb'); # Explain diff
-      # innodb_file_per_table is rw with innodb_plugin
-      next if ($test->{'name'} eq 'sys_vars.innodb_file_per_table_basic');
-      # innodb_lock_wait_timeout is rw with innodb_plugin
-      next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
-      # Diff around innodb_thread_concurrency variable
-      next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
-      # Can't work with InnoPlug. Test framework needs to be re-designed.
-      next if ($test->{'name'} eq 'main.innodb_bug46000');
-      # Fails with innodb plugin
-      next if ($test->{'name'} eq 'main.innodb-autoinc');
-      # Fails with innodb plugin: r6185 Testcases changes not included
-      next if ($test->{'name'} eq 'main.innodb_bug44369');
-      # Copy test options
-      my $new_test= My::Test->new();
-      while (my ($key, $value) = each(%$test))
-      {
-        if (ref $value eq "ARRAY")
-        {
-          push(@{$new_test->{$key}}, @$value);
-        }
-        else
-        {
-          $new_test->{$key}= $value unless ($key eq 'skip');
-        }
-      }
-      my $plugin_filename= basename($lib_innodb_plugin);
-      my $plugin_list= "innodb=$plugin_filename" . $sep . "innodb_locks=$plugin_filename";
-      push(@{$new_test->{master_opt}}, '--ignore-builtin-innodb');
-      push(@{$new_test->{master_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{master_opt}}, "--plugin_load=$plugin_list");
-      push(@{$new_test->{slave_opt}}, '--ignore-builtin-innodb');
-      push(@{$new_test->{slave_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{slave_opt}}, "--plugin_load=$plugin_list");
-      if ($new_test->{combination})
-      {
-        $new_test->{combination}.= '+innodb_plugin';
-      }
-      else
-      {
-        $new_test->{combination}= 'innodb_plugin';
-      }
-      push(@new_cases, $new_test);
-    }
-    push(@cases, @new_cases);
-  }
-  # ----------------------------------------------------------------------
-  # End of testing InnoDB plugin.
-  # ----------------------------------------------------------------------
   optimize_cases(\@cases);
   #print_testcases(@cases);
 
@@ -1018,11 +962,38 @@ sub collect_one_test_case {
     {
       # innodb is not supported, skip it
       $tinfo->{'skip'}= 1;
-      # This comment is checked for running with innodb plugin (see above),
-      # please keep that in mind if changing the text.
       $tinfo->{'comment'}= "No innodb support";
-      # But continue processing if we may run it with innodb plugin
-      return $tinfo unless $do_innodb_plugin;
+      return $tinfo;
+    }
+  }
+  elsif ( $tinfo->{'innodb_plugin_test'} )
+  {
+    # This is a test that needs the innodb plugin
+    if (!&find_innodb_plugin)
+    {
+      # innodb plugin is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No innodb plugin support";
+      return $tinfo;
+    }
+
+    my $sep= (IS_WINDOWS) ? ';' : ':';
+    my $plugin_filename= basename($lib_innodb_plugin);
+    my $plugin_list=
+      "innodb=$plugin_filename$sep" .
+      "innodb_trx=$plugin_filename$sep" .
+      "innodb_locks=$plugin_filename$sep" .
+      "innodb_lock_waits=$plugin_filename$sep" .
+      "innodb_cmp=$plugin_filename$sep" .
+      "innodb_cmp_reset=$plugin_filename$sep" .
+      "innodb_cmpmem=$plugin_filename$sep" .
+      "innodb_cmpmem_reset=$plugin_filename";
+
+    foreach my $k ('master_opt', 'slave_opt') 
+    {
+      push(@{$tinfo->{$k}}, '--ignore-builtin-innodb');
+      push(@{$tinfo->{$k}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
+      push(@{$tinfo->{$k}}, "--plugin-load=$plugin_list");
     }
   }
   else
@@ -1204,6 +1175,7 @@ my @tags=
 
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_pbxt.inc", "pbxt_test", 1],
+ ["include/have_innodb_plugin.inc", "innodb_plugin_test", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],

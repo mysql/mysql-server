@@ -293,6 +293,22 @@ page_cur_open_on_rnd_user_rec(
 /*==========================*/
 	buf_block_t*	block,	/*!< in: page */
 	page_cur_t*	cursor);/*!< out: page cursor */
+
+UNIV_INTERN
+void
+page_cur_open_on_nth_user_rec(
+/*==========================*/
+	buf_block_t*	block,	/*!< in: page */
+	page_cur_t*	cursor,	/*!< out: page cursor */
+	ulint		nth);
+
+UNIV_INTERN
+ibool
+page_cur_open_on_rnd_user_rec_after_nth(
+/*==========================*/
+	buf_block_t*	block,	/*!< in: page */
+	page_cur_t*	cursor,	/*!< out: page cursor */
+	ulint		nth);
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a log record of a record insert on a page.

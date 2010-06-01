@@ -1,0 +1,2 @@
+script-not-executable ./usr/share/percona-xtradb-common/internal-use-only/_etc_init.d_mysql
+script-not-executable ./usr/share/percona-xtradb-common/internal-use-only/_etc_mysql_debian-start

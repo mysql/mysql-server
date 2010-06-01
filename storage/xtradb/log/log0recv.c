@@ -680,8 +680,22 @@ recv_find_max_checkpoint(
 
 			group->lsn = mach_read_ull(
 				buf + LOG_CHECKPOINT_LSN);
+
+#ifdef UNIV_LOG_ARCHIVE
+#error "UNIV_LOG_ARCHIVE could not be enabled"
+#endif
+			{
+			ib_uint64_t tmp_lsn_offset = mach_read_ull(
+					buf + LOG_CHECKPOINT_ARCHIVED_LSN);
+				if (sizeof(ulint) != 4
+				    && tmp_lsn_offset != IB_ULONGLONG_MAX) {
+					group->lsn_offset = (ulint) tmp_lsn_offset;
+				} else {
 			group->lsn_offset = mach_read_from_4(
 				buf + LOG_CHECKPOINT_OFFSET);
+				}
+			}
+
 			checkpoint_no = mach_read_ull(
 				buf + LOG_CHECKPOINT_NO);
 

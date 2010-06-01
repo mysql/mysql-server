@@ -306,6 +306,7 @@ FILE*	lock_latest_err_file;
 /* Flags for recursive deadlock search */
 #define LOCK_VICTIM_IS_START	1
 #define LOCK_VICTIM_IS_OTHER	2
+#define LOCK_EXCEED_MAX_DEPTH	3
 
 /************************************************************************
 Checks if a lock request results in a deadlock. */
@@ -332,16 +333,18 @@ lock_deadlock_recursive(
 				was found and we chose some other trx as a
 				victim: we must do the search again in this
 				last case because there may be another
-				deadlock! */
+				deadlock!
+				LOCK_EXCEED_MAX_DEPTH if the lock search
+				exceeds max steps and/or max depth. */
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
 	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
 	ulint*	cost,		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
-				we return LOCK_VICTIM_IS_START */
+				we return LOCK_EXCEED_MAX_DEPTH */
 	ulint	depth);		/* in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
-				return LOCK_VICTIM_IS_START */
+				return LOCK_EXCEED_MAX_DEPTH */
 
 /*************************************************************************
 Gets the nth bit of a record lock. */
@@ -2359,7 +2362,7 @@ lock_rec_inherit_to_gap(
 		if (!lock_rec_get_insert_intention(lock)
 		    && !((srv_locks_unsafe_for_binlog
 			  || lock->trx->isolation_level
-			  == TRX_ISO_READ_COMMITTED)
+			  <= TRX_ISO_READ_COMMITTED)
 			 && lock_get_mode(lock) == LOCK_X)) {
 
 			lock_rec_add_to_queue(LOCK_REC | lock_get_mode(lock)
@@ -3084,8 +3087,6 @@ lock_deadlock_occurs(
 	lock_t*	lock,	/* in: lock the transaction is requesting */
 	trx_t*	trx)	/* in: transaction */
 {
-	dict_table_t*	table;
-	dict_index_t*	index;
 	trx_t*		mark_trx;
 	ulint		ret;
 	ulint		cost	= 0;
@@ -3107,31 +3108,50 @@ retry:
 
 	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0);
 
-	if (ret == LOCK_VICTIM_IS_OTHER) {
+	switch (ret) {
+	case LOCK_VICTIM_IS_OTHER:
 		/* We chose some other trx as a victim: retry if there still
 		is a deadlock */
-
 		goto retry;
-	}
 
-	if (ret == LOCK_VICTIM_IS_START) {
-		if (lock_get_type(lock) & LOCK_TABLE) {
-			table = lock->un_member.tab_lock.table;
-			index = NULL;
-		} else {
-			index = lock->index;
-			table = index->table;
-		}
+	case LOCK_EXCEED_MAX_DEPTH:
+		/* If the lock search exceeds the max step
+		or the max depth, the current trx will be
+		the victim. Print its information. */
+		rewind(lock_latest_err_file);
+		ut_print_timestamp(lock_latest_err_file);
 
-		lock_deadlock_found = TRUE;
-
-		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
+		fputs("TOO DEEP OR LONG SEARCH IN THE LOCK TABLE"
+		      " WAITS-FOR GRAPH, WE WILL ROLL BACK"
+		      " FOLLOWING TRANSACTION \n",
 		      lock_latest_err_file);
 
-		return(TRUE);
+		fputs("\n*** TRANSACTION:\n", lock_latest_err_file);
+		      trx_print(lock_latest_err_file, trx, 3000);
+
+		fputs("*** WAITING FOR THIS LOCK TO BE GRANTED:\n",
+		      lock_latest_err_file);
+
+		if (lock_get_type(lock) == LOCK_REC) {
+			lock_rec_print(lock_latest_err_file, lock);
+		} else {
+			lock_table_print(lock_latest_err_file, lock);
+		}
+		break;
+
+	case LOCK_VICTIM_IS_START:
+		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
+		      lock_latest_err_file);
+		break;
+
+	default:
+		/* No deadlock detected*/
+		return(FALSE);
 	}
 
-	return(FALSE);
+	lock_deadlock_found = TRUE;
+
+	return(TRUE);
 }
 
 /************************************************************************
@@ -3147,16 +3167,18 @@ lock_deadlock_recursive(
 				was found and we chose some other trx as a
 				victim: we must do the search again in this
 				last case because there may be another
-				deadlock! */
+				deadlock!
+				LOCK_EXCEED_MAX_DEPTH if the lock search
+				exceeds max steps and/or max depth. */
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
 	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
 	ulint*	cost,		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
-				we return LOCK_VICTIM_IS_START */
+				we return LOCK_EXCEED_MAX_DEPTH */
 	ulint	depth)		/* in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
-				return LOCK_VICTIM_IS_START */
+				return LOCK_EXCEED_MAX_DEPTH */
 {
 	lock_t*	lock;
 	ulint	bit_no		= ULINT_UNDEFINED;
@@ -3215,7 +3237,7 @@ lock_deadlock_recursive(
 
 			lock_trx = lock->trx;
 
-			if (lock_trx == start || too_far) {
+			if (lock_trx == start) {
 
 				/* We came back to the recursion starting
 				point: a deadlock detected; or we have
@@ -3262,19 +3284,10 @@ lock_deadlock_recursive(
 				}
 #ifdef UNIV_DEBUG
 				if (lock_print_waits) {
-					fputs("Deadlock detected"
-					      " or too long search\n",
+					fputs("Deadlock detected\n",
 					      stderr);
 				}
 #endif /* UNIV_DEBUG */
-				if (too_far) {
-
-					fputs("TOO DEEP OR LONG SEARCH"
-					      " IN THE LOCK TABLE"
-					      " WAITS-FOR GRAPH\n", ef);
-
-					return(LOCK_VICTIM_IS_START);
-				}
 
 				if (trx_weight_cmp(wait_lock->trx,
 						   start) >= 0) {
@@ -3308,6 +3321,21 @@ lock_deadlock_recursive(
 				starting point transaction! */
 
 				return(LOCK_VICTIM_IS_OTHER);
+			}
+
+			if (too_far) {
+
+#ifdef UNIV_DEBUG
+				if (lock_print_waits) {
+					fputs("Deadlock search exceeds"
+					      " max steps or depth.\n",
+					      stderr);
+				}
+#endif /* UNIV_DEBUG */
+				/* The information about transaction/lock
+				to be rolled back is available in the top
+				level. Do not print anything here. */
+				return(LOCK_EXCEED_MAX_DEPTH);
 			}
 
 			if (lock_trx->que_state == TRX_QUE_LOCK_WAIT) {
@@ -4510,12 +4538,33 @@ lock_rec_queue_validate(
 					       rec, impl_trx));
 		}
 	}
-
+#if 0
 	if (index && !(index->type & DICT_CLUSTERED)) {
 
 		/* The kernel mutex may get released temporarily in the
 		next function call: we have to release lock table mutex
 		to obey the latching order */
+
+		/* NOTE: This is a bogus check that would fail in the
+		following case: Our transaction is updating a
+		row. After it has updated the clustered index record,
+		it goes to a secondary index record and finds someone
+		else holding an explicit S- or X-lock on that
+		secondary index record, presumably from a locking
+		read. Our transaction cannot update the secondary
+		index immediately, but places a waiting X-lock request
+		on the secondary index record. There is nothing
+		illegal in this. The assertion is simply too strong. */
+
+		/* From the locking point of view, each secondary
+		index is a separate table. A lock that is held on
+		secondary index rec does not give any rights to modify
+		or read the clustered index rec. Therefore, we can
+		think of the sec index as a separate 'table' from the
+		clust index 'table'. Conversely, a transaction that
+		has acquired a lock on and modified a clustered index
+		record may need to wait for a lock on the
+		corresponding record in a secondary index. */
 
 		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
 			rec, index, offsets);
@@ -4527,7 +4576,7 @@ lock_rec_queue_validate(
 					       rec, impl_trx));
 		}
 	}
-
+#endif
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {

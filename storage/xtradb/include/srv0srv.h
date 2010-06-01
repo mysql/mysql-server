@@ -227,6 +227,7 @@ extern ulint	srv_stats_update_need_lock;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
+extern ibool	srv_fast_checksum;
 
 extern ibool	srv_set_thread_priorities;
 extern int	srv_query_thread_priority;
@@ -247,6 +248,7 @@ extern ulong	srv_adaptive_checkpoint;
 
 extern ulong	srv_expand_import;
 extern ulint	srv_relax_table_creation;
+extern ulint	srv_pass_corrupt_table;
 
 extern ulong	srv_extra_rsegments;
 extern ulong	srv_dict_size_limit;
