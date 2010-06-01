@@ -9125,7 +9125,7 @@ void Create_field::create_length_to_internal_length(void)
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null, bool is_unsigned,
-                                      uint pack_length)
+                                      uint pack_length_arg)
 {
   DBUG_ENTER("Create_field::init_for_tmp_table");
 
@@ -9138,7 +9138,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   geom_type= Field::GEOM_GEOMETRY;
 
   DBUG_PRINT("enter", ("sql_type: %d, length: %u, pack_length: %u",
-                       sql_type_arg, length_arg, pack_length));
+                       sql_type_arg, length_arg, pack_length_arg));
 
   /*
     These pack flags are crafted to get it correctly through the
@@ -9202,8 +9202,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   case MYSQL_TYPE_GEOMETRY:
     // If you are going to use the above types, you have to pass a
     // pack_length as parameter. Assert that is really done.
-    DBUG_ASSERT(pack_length != ~0U);
-    pack_flag|= pack_length_to_packflag(pack_length);
+    DBUG_ASSERT(pack_length_arg != ~0U);
+    pack_flag|= pack_length_to_packflag(pack_length_arg);
     break;
   default:
     /* Nothing */

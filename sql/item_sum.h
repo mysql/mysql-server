@@ -303,6 +303,8 @@ class st_select_lex;
 
 class Item_sum :public Item_result_field
 {
+  friend class Aggregator_distinct;
+
 protected:
   /**
     Aggregator class instance. Not set initially. Allocated only after
