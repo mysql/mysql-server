@@ -193,8 +193,6 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 INSERT INTO t_innodb VALUES(1);
 COMMIT;
-DROP TABLE t_myisam;
-DROP TABLE t_innodb;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tmp1(id int) engine= MyIsam
@@ -214,8 +212,29 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tmp1 VALUES(1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb VALUES(1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb VALUES(1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t_myisam
-master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t_innodb
+########################################################################
+#                           VERIFY ITEM 8
+########################################################################
+SET BINLOG_FORMAT=MIXED;
+BEGIN;
+CREATE TEMPORARY TABLE tmp2 SELECT * FROM t_innodb;
+INSERT INTO t_innodb VALUES(1);
+INSERT INTO t_innodb VALUES(1);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tmp2 SELECT * FROM t_innodb
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb VALUES(1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb VALUES(1)
+master-bin.000001	#	Query	#	#	ROLLBACK
 ###################################################################################
 #                               CHECK CONSISTENCY
 ###################################################################################
+###################################################################################
+#                                    CLEAN UP
+###################################################################################
+DROP TABLE t_myisam;
+DROP TABLE t_innodb;
