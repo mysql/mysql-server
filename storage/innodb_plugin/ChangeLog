@@ -1,5 +1,10 @@
 2010-06-01	The InnoDB Team
 
+	* include/sync0rw.h, sync/sync0rw.c:
+	Fix Bug#48197 Concurrent rw_lock_free may cause assertion failure
+
+2010-06-01	The InnoDB Team
+
 	* row/row0umod.c:
 	Fix Bug#53812 assert row/row0umod.c line 660 in txn rollback
 	after crash recovery
