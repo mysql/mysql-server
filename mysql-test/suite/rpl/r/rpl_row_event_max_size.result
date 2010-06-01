@@ -1,0 +1,68 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
+data2 LONGBLOB, PRIMARY KEY(a));
+INSERT INTO t1 (data1, data2) VALUES (repeat('a',1000000), repeat('a', 1000000));
+DELETE FROM t1 WHERE a = 1;
+# On master, test the inserted data is deleted
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
+LENGTH(data1)	LENGTH(data2)
+SET @@global.max_allowed_packet=4194304;
+# On master, test the added 'binlog-row-event-max-size' mysqlbinlog option
+# works fine and the data is inserted by executing the dumped ROW event
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
+LENGTH(data1)	LENGTH(data2)
+1000000	1000000
+set @@global.max_allowed_packet= 1048576;
+INSERT INTO t1 (data1, data2) VALUES (repeat('a',1048576), repeat('a',1048576));
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
+data2 LONGBLOB, PRIMARY KEY(a))
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	COMMIT
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Delete_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	COMMIT
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	COMMIT
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	COMMIT
+# On slave, test the row event data is replicated when the value of
+# the bigger one of max_allowed_packet and binlog_row_event_max_size
+# is larger than the required size.
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
+LENGTH(data1)	LENGTH(data2)
+1000000	1000000
+# On slave, test the row event data is replicated when the value of
+# the bigger one of max_allowed_packet and binlog_row_event_max_size
+# is equal to the required size.
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 2;
+LENGTH(data1)	LENGTH(data2)
+1048576	1048576
+DROP TABLE t1;
+# Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
+# of the bigger one of max_allowed_packet and binlog_row_event_max_size
+# is lower than the the required size.
+CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
+data2 LONGBLOB, data3 LONGBLOB, PRIMARY KEY(a));
+INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a',1000000), repeat('a', 1000000), repeat('a', 1000000));
+SELECT LENGTH(data1), LENGTH(data2), LENGTH(data3) FROM t1 WHERE a = 1;
+LENGTH(data1)	LENGTH(data2)	LENGTH(data3)
+1000000	1000000	1000000
+drop table t1;
+call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
+call mtr.add_suppression("Found invalid event in binary log");
+drop table t1;
+last_io_errno= 1236
