@@ -70,7 +70,7 @@ int my_socket_nfds(ndb_socket_t s, int nfds)
 }
 
 #define my_FD_SET(sock,set)   FD_SET(ndb_socket_get_native(sock), set)
-#define my_FD_ISSET(sock,set) FD_ISSET((ndb_socket_get_native(sock), set)
+#define my_FD_ISSET(sock,set) FD_ISSET(ndb_socket_get_native(sock), set)
 
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
