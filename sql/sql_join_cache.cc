@@ -738,7 +738,14 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     if (!key_part->field->eq_def(((Item_field *) item)->field))
       return FALSE;
     if (key_part->field->maybe_null())
+    {
       return FALSE;
+      /*
+        If this is changed so that embedded keys may contain nullable
+        components, get_next_key() willhave to test ref->null_rejecting in the
+        "embedded keys" case too.
+      */
+    }
   }
   
   copy= field_descr+flag_fields;
@@ -2455,84 +2462,101 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
   uint32 rec_len;
   uchar *init_pos;
   JOIN_CACHE *cache;
-  
-  /*
-    '>=' (unlike '>' in JOIN_CACHE::record()) because we are not at fields'
-    start, and previous record's fields might be empty.
-  */
-  if (pos >= last_rec_pos || !records)
+
+  if (records == 0)
     return 0;
 
-  /* Any record in a BKA cache is prepended with its length */
+  /* Any record in a BKA cache is prepended with its length, which we need */
   DBUG_ASSERT(with_length);
-   
-  /* Read the length of the record */
-  rec_len= get_rec_length(pos);
-  pos+= size_of_rec_len; 
-  init_pos= pos;
 
-  /* Read a reference to the previous cache if any */
-  if (prev_cache)
-    pos+= prev_cache->get_size_of_rec_offset();
-
-  curr_rec_pos= pos;
-
-  /* Read all flag fields of the record */
-  read_flag_fields();
- 
-  if (use_emb_key)
+  /*
+    Read keys until find non-ignorable one or EOF.
+    Unlike in JOIN_CACHE::read_all_record_fields()), pos>=last_rec_pos means
+    EOF, because we are not at fields' start, and previous record's fields
+    might be empty.
+  */
+  for(len= 0 ; (len == 0) && pos < last_rec_pos ; pos= init_pos + rec_len)
   {
-    /* An embedded key is taken directly from the join buffer */
-    *key= pos;
-    len= emb_key_length;
-  }
-  else
-  {
-    /* Read key arguments from previous caches if there are any such fields */
-    if (external_key_arg_fields)
+    /* Read the length of the record */
+    rec_len= get_rec_length(pos);
+    pos+= size_of_rec_len;
+    init_pos= pos;
+
+    /* Read a reference to the previous cache if any */
+    if (prev_cache)
+      pos+= prev_cache->get_size_of_rec_offset();
+
+    curr_rec_pos= pos;
+
+    /* Read all flag fields of the record */
+    read_flag_fields();
+
+    if (use_emb_key)
     {
-      uchar *rec_ptr= curr_rec_pos;
-      uint key_arg_count= external_key_arg_fields;
-      CACHE_FIELD **copy_ptr= blob_ptr-key_arg_count;
-      for (cache= prev_cache; key_arg_count; cache= cache->prev_cache)
-      { 
-        uint len= 0;
-        DBUG_ASSERT(cache);
-        rec_ptr= cache->get_rec_ref(rec_ptr);
-        while (!cache->referenced_fields)
+      /* An embedded key is taken directly from the join buffer */
+      *key= pos;
+      len= emb_key_length;
+      DBUG_ASSERT(len != 0);
+    }
+    else
+    {
+      /*
+        Read key arguments from previous caches if there are any such
+        fields
+      */
+      if (external_key_arg_fields)
+      {
+        uchar *rec_ptr= curr_rec_pos;
+        uint key_arg_count= external_key_arg_fields;
+        CACHE_FIELD **copy_ptr= blob_ptr-key_arg_count;
+        for (cache= prev_cache; key_arg_count; cache= cache->prev_cache)
         {
-          cache= cache->prev_cache;
+          uint len2= 0;
           DBUG_ASSERT(cache);
           rec_ptr= cache->get_rec_ref(rec_ptr);
-        }
-        while (key_arg_count && 
-               cache->read_referenced_field(*copy_ptr, rec_ptr, &len))
-        {
-          copy_ptr++;
-          --key_arg_count;
+          while (!cache->referenced_fields)
+          {
+            cache= cache->prev_cache;
+            DBUG_ASSERT(cache);
+            rec_ptr= cache->get_rec_ref(rec_ptr);
+          }
+          while (key_arg_count && 
+                 cache->read_referenced_field(*copy_ptr, rec_ptr, &len2))
+          {
+            copy_ptr++;
+            --key_arg_count;
+          }
         }
       }
+
+      /*
+         Read the other key arguments from the current record. The fields for
+         these arguments are always first in the sequence of the record's
+         fields.
+      */
+      CACHE_FIELD *copy= field_descr+flag_fields;
+      CACHE_FIELD *copy_end= copy+local_key_arg_fields;
+      bool blob_in_rec_buff= blob_data_is_in_rec_buff(curr_rec_pos);
+      for ( ; copy < copy_end; copy++)
+        read_record_field(copy, blob_in_rec_buff);
+
+      TABLE_REF *ref= &join_tab->ref;
+      if (ref->impossible_null_ref())
+      {
+        DBUG_PRINT("info", ("JOIN_CACHE_BKA::get_next_key null_rejected"));
+        /* this key cannot give a match, don't collect it, go read next key */
+        len= 0;
+      }
+      else
+      {
+        /* Build the key over the fields read into the record buffers */
+        cp_buffer_from_ref(join->thd, join_tab->table, ref);
+        *key= ref->key_buff;
+        len= ref->key_length;
+        DBUG_ASSERT(len != 0);
+      }
     }
-    
-    /* 
-      Read the other key arguments from the current record. The fields for
-      these arguments are always first in the sequence of the record's fields.
-    */     
-    CACHE_FIELD *copy= field_descr+flag_fields;
-    CACHE_FIELD *copy_end= copy+local_key_arg_fields;
-    bool blob_in_rec_buff= blob_data_is_in_rec_buff(curr_rec_pos);
-    for ( ; copy < copy_end; copy++)
-      read_record_field(copy, blob_in_rec_buff);
-    
-    /* Build the key over the fields read into the record buffers */ 
-    TABLE_REF *ref= &join_tab->ref;
-    cp_buffer_from_ref(join->thd, join_tab->table, ref);
-    *key= ref->key_buff;
-    len= ref->key_length;
   }
-
-  pos= init_pos+rec_len;
-
   return len;
 } 
 
@@ -3278,16 +3302,50 @@ bool JOIN_CACHE_BKA_UNIQUE::check_all_match_flags_for_key(uchar *key_chain_ptr)
 
 uint JOIN_CACHE_BKA_UNIQUE::get_next_key(uchar ** key)
 {  
-  if (curr_key_entry == last_key_entry)
-    return 0;
 
-  curr_key_entry-= key_entry_length;
+  uint len= 0;
 
-  *key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
+  /* Read keys until find non-ignorable one or EOF */
+  while((curr_key_entry > last_key_entry) && (len == 0))
+  {
+    curr_key_entry-= key_entry_length;
 
-  DBUG_ASSERT(*key >= buff && *key < hash_table);
+    *key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
 
-  return key_length;
+    DBUG_ASSERT(*key >= buff && *key < hash_table);
+
+    len= key_length;
+    DBUG_ASSERT(len != 0);
+    const TABLE_REF *ref= &join_tab->ref;
+    if (ref->null_rejecting != 0)
+    {
+      /*
+        Unlike JOIN_CACHE_BKA::get_next_key(), we have a key just read from
+        a buffer, not up-to-date fields pointed to by "ref". So we cannot use
+        ref->null_rejected(), must inspect the key.
+      */
+      const KEY *key_info= join_tab->table->key_info + ref->key;
+      const uchar *ptr= *key;
+#ifndef DBUG_OFF
+      const uchar *key_end= ptr + key_length;
+#endif
+      for (uint i= 0 ; i < ref->key_parts ; i++)
+      {
+        KEY_PART_INFO *key_part= key_info->key_part + i;
+        if (key_part->null_bit && ptr[0] && (ref->null_rejecting & 1 << i))
+        {
+          DBUG_PRINT("info", ("JOIN_CACHE_BKA_UNIQUE::get_next_key null_rejected"));
+          len= 0;
+          break;
+        }
+        ptr+= key_part->store_length;
+        DBUG_ASSERT(ptr <= key_end);
+      }
+      if (len != 0)
+        DBUG_ASSERT(ptr == key_end); /* should have read the full key */
+    }
+  }
+  return len;
 }
 
 
