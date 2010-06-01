@@ -20,7 +20,7 @@
 Rpl_info::Rpl_info(const char* type)
     :Slave_reporting_capability(type),
     info_thd(0), inited(0), abort_slave(0),
-    slave_running(0), slave_run_id(0)
+    slave_running(0), slave_run_id(0), handler(0)
 {
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);

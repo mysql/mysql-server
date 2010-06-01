@@ -1495,7 +1495,7 @@ bool change_master(THD* thd, Master_info* mi)
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-  if (mi->flush_info())
+  if (mi->flush_info(TRUE))
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
     ret= TRUE;
@@ -1557,7 +1557,7 @@ bool change_master(THD* thd, Master_info* mi)
     in-memory value at restart (thus causing errors, as the old relay log does
     not exist anymore).
   */
-  mi->rli->flush_info();
+  ret= mi->rli->flush_info(TRUE);
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli->data_lock);
 
