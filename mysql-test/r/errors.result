@@ -120,3 +120,17 @@ SET sql_quote_show_create= _utf8 x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
 SET sql_quote_show_create=_latin1 x'5452DC45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
+#
+# Bug#52430 Incorrect key in the error message for duplicate key error involving BINARY type
+#
+CREATE TABLE t1(c1 BINARY(10), c2 BINARY(10), c3 BINARY(10),
+PRIMARY KEY(c1,c2,c3));
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+ERROR 23000: Duplicate entry 'abc-abc-abc' for key 'PRIMARY'
+DROP TABLE t1;
+CREATE TABLE t1 (f1 VARBINARY(19) PRIMARY KEY);
+INSERT INTO t1 VALUES ('abc\0\0');
+INSERT INTO t1 VALUES ('abc\0\0');
+ERROR 23000: Duplicate entry 'abc\x00\x00' for key 'PRIMARY'
+DROP TABLE t1;
