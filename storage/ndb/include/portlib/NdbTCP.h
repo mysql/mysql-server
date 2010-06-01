@@ -22,6 +22,7 @@
 #include <ndb_global.h>
 #include <ndb_net.h>
 #include <ndb_socket.h>
+#include <portlib/ndb_socket_poller.h>
 
 #define NDB_SOCKET_TYPE ndb_socket_t
 #define _NDB_CLOSE_SOCKET(x) my_socket_close(x)

@@ -89,6 +89,23 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
 }
 #endif
 
+
+static inline
+int my_socket_nfds(ndb_socket_t s, int nfds)
+{
+#ifdef _WIN32
+  (void)s;
+#else
+  if(s.fd > nfds)
+    return s.fd;
+#endif
+  return nfds;
+}
+
+#define my_FD_SET(sock,set)   FD_SET(ndb_socket_get_native(sock), set)
+#define my_FD_ISSET(sock,set) FD_ISSET((ndb_socket_get_native(sock), set)
+
+
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
 {
 #ifdef HAVE_POLL

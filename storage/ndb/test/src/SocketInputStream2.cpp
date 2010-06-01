@@ -45,16 +45,8 @@ SocketInputStream2::gets(BaseString& str)
 bool
 SocketInputStream2::has_data_to_read()
 {
-  fd_set readset;
-  FD_ZERO(&readset);
-  my_FD_SET(m_socket, &readset);
-
-  struct timeval timeout;
-  timeout.tv_sec  = m_read_timeout;
-  timeout.tv_usec = 0;
-
-  const int res = select(my_socket_nfds(m_socket, 0) + 1,
-                         &readset, 0, 0, &timeout);
+  const int res = ndb_poll(m_socket, true, false, false,
+                           m_read_timeout * 1000);
 
   if (res == 1)
     return true; // Yes, there was data
