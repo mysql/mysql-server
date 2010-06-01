@@ -2243,17 +2243,69 @@ static Sys_var_bit Sys_log_off(
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_LOG_OFF,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super));
 
-static bool fix_sql_log_bin(sys_var *self, THD *thd, enum_var_type type)
+/**
+  This function sets the session variable thd->variables.sql_log_bin 
+  to reflect changes to @@session.sql_log_bin.
+
+  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[IN] type   The type either session or global.
+
+  @return @c FALSE.
+*/
+static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
+                                         enum_var_type type)
 {
-  if (type != OPT_GLOBAL && !thd->in_sub_stmt)
-    thd->sql_log_bin_toplevel= thd->variables.option_bits & OPTION_BIN_LOG;
-  return false;
+  if (type == OPT_SESSION)
+  {
+    if (thd->variables.sql_log_bin)
+      thd->variables.option_bits |= OPTION_BIN_LOG;
+    else
+      thd->variables.option_bits &= ~OPTION_BIN_LOG;
+  }
+  return FALSE;
 }
-static Sys_var_bit Sys_log_binlog(
+
+/**
+  This function checks if the sql_log_bin can be changed,
+  what is possible if:
+    - the user is a super user;
+    - the set is not called from within a function/trigger;
+    - there is no on-going transaction.
+
+  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[IN] var    A pointer to the set_var created by the parser.
+
+  @return @c FALSE if the change is allowed, otherwise @c TRUE.
+*/
+static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_has_super(self, thd, var))
+    return TRUE;
+
+  if (var->type == OPT_GLOBAL)
+    return FALSE;
+
+  /* If in a stored function/trigger, it's too late to change sql_log_bin. */
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN, MYF(0));
+    return TRUE;
+  }
+  /* Make the session variable 'sql_log_bin' read-only inside a transaction. */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN, MYF(0));
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+static Sys_var_mybool Sys_log_binlog(
        "sql_log_bin", "sql_log_bin",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BIN_LOG,
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super),
-       ON_UPDATE(fix_sql_log_bin));
+       SESSION_VAR(sql_log_bin), NO_CMD_LINE,
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
+       ON_UPDATE(fix_sql_log_bin_after_update));
 
 static Sys_var_bit Sys_sql_warnings(
        "sql_warnings", "sql_warnings",
