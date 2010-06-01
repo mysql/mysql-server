@@ -19,6 +19,16 @@
 #include "rpl_mi.h"
 #include "rpl_rli.h"
 
+#define MI_FIELD_ID 0
+
+#define MI_SCHEMA "mysql"
+#define MI_TABLE  "mi_info"
+
+#define RLI_FIELD_ID 0
+
+#define RLI_SCHEMA "mysql"
+#define RLI_TABLE  "rli_info"
+
 class Rpl_info_factory
 {
   public:

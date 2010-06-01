@@ -5474,10 +5474,58 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  int error= 0;
+  Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  return end_trans(thd, COMMIT);
+
+  pthread_mutex_lock(&rli_ptr->data_lock);
+  /*
+    We need to update the positions in here to make it transactional.  
+  */
+  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+    rli_ptr->get_group_master_log_name(),
+    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_relay_log_name(),
+    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_event_relay_log_name(),
+    (ulong) rli_ptr->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_before_update_pos", abort(););
+
+  rli_ptr->inc_event_relay_log_pos();
+  rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
+  rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
+
+  rli_ptr->notify_group_relay_log_name_update();
+
+  if (log_pos) // 3.23 binlogs don't have log_posx
+  {
+    rli_ptr->set_group_master_log_pos(log_pos);
+  }
+  
+  lex_start(thd); 
+  if ((error= rli_ptr->flush_info(TRUE)))
+    goto err;
+
+  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+    rli_ptr->get_group_master_log_name(),
+    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_relay_log_name(),
+    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_event_relay_log_name(),
+    (ulong) rli_ptr->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", abort(););
+  if ((error= end_trans(thd, COMMIT)))
+    goto err;
+  DBUG_EXECUTE_IF("crash_after_apply", abort(););
+
+err:
+  pthread_cond_broadcast(&rli_ptr->data_cond);
+  pthread_mutex_unlock(&rli_ptr->data_lock);
+  return error;
 }
 
 Log_event::enum_skip_reason
@@ -5489,6 +5537,11 @@ Xid_log_event::do_shall_skip(Relay_log_info *rli)
     DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
   }
   DBUG_RETURN(Log_event::do_shall_skip(rli));
+}
+
+int Xid_log_event::do_update_pos(Relay_log_info *rli)
+{
+  return (0);
 }
 #endif /* !MYSQL_CLIENT */
 

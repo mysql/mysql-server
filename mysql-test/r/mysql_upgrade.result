@@ -13,10 +13,16 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.mi_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.rli_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -45,10 +51,16 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.mi_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.rli_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -77,10 +89,16 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.mi_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.rli_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -111,10 +129,16 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.mi_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.rli_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -149,10 +173,16 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.mi_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.rli_info
+Error    : You can't use locks with log tables.
+status   : OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.

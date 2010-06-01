@@ -42,6 +42,7 @@
 #include <mysqld_error.h>
 #include <mysys_err.h>
 #include "rpl_handler.h"
+#include "server_ids.h"
 
 #ifdef HAVE_REPLICATION
 
@@ -265,8 +266,15 @@ int init_slave()
     goto err;
   }
 
-  /* If server id is not set, start_slave_thread() will say it */
+  DBUG_PRINT("info", ("init group master %s %lu  group relay %s %lu event %s %lu\n",
+    rli->get_group_master_log_name(),
+    (ulong) rli->get_group_master_log_pos(),
+    rli->get_group_relay_log_name(),
+    (ulong) rli->get_group_relay_log_pos(),
+    rli->get_event_relay_log_name(),
+    (ulong) rli->get_event_relay_log_pos()));
 
+  /* If server id is not set, start_slave_thread() will say it */
   if (active_mi->host[0] && !opt_skip_slave_start)
   {
     if (start_slave_threads(1 /* need mutex */,
@@ -421,7 +429,7 @@ int reset_info(Master_info* mi)
   DBUG_RETURN(error);
 }
 
-int flush_master_info(Master_info* mi)
+int flush_master_info(Master_info* mi, bool force)
 {
   DBUG_ENTER("flush_master_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
@@ -445,7 +453,16 @@ int flush_master_info(Master_info* mi)
     have "[0, 100] U [150, infinity[" and nobody will notice it, so the SQL
     thread will jump from 100 to 150, and replication will silently break.
   */
-  DBUG_RETURN(mi->rli->flush_current_log() ||  mi->flush_info());
+  pthread_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
+
+  pthread_mutex_lock(log_lock);
+
+  safe_mutex_assert_owner(log_lock);
+  int err=  (mi->rli->flush_current_log() ||  mi->flush_info(force));
+
+  pthread_mutex_unlock(log_lock);
+
+  DBUG_RETURN (err);
 }
 
 /**
@@ -1654,7 +1671,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi))
+      if (flush_master_info(mi, TRUE))
         sql_print_error("Failed to flush master info file");
       delete ev;
     }
@@ -3009,7 +3026,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
         goto err;
       }
 
-      if (flush_master_info(mi))
+      if (flush_master_info(mi, FALSE))
       {
         sql_print_error("Failed to flush master info file");
         goto err;
@@ -4427,6 +4444,9 @@ static Log_event* next_event(Relay_log_info* rli)
       goto err;
 #ifndef DBUG_OFF
     {
+      DBUG_PRINT("info", ("assertion file %lu  event relay log pos %lu\n",
+        (ulong) my_b_tell(cur_log), (ulong) rli->get_event_relay_log_pos()));
+
       /* This is an assertion which sometimes fails, let's try to track it */
       char llbuf1[22], llbuf2[22];
       DBUG_PRINT("info", ("my_b_tell(cur_log)=%s rli->event_relay_log_pos=%s",
@@ -4434,6 +4454,14 @@ static Log_event* next_event(Relay_log_info* rli)
                           llstr(rli->get_event_relay_log_pos(),llbuf2)));
       DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
       DBUG_ASSERT(my_b_tell(cur_log) == rli->get_event_relay_log_pos());
+
+      DBUG_PRINT("info", ("next_event group master %s %lu  group relay %s %lu event %s %lu\n",
+        rli->get_group_master_log_name(),
+        (ulong) rli->get_group_master_log_pos(),
+        rli->get_group_relay_log_name(),
+        (ulong) rli->get_group_relay_log_pos(),
+        rli->get_event_relay_log_name(),
+        (ulong) rli->get_event_relay_log_pos()));
     }
 #endif
     /*
@@ -4450,7 +4478,6 @@ static Log_event* next_event(Relay_log_info* rli)
     */
     if ((ev=Log_event::read_log_event(cur_log,0,
                                       rli->relay_log.description_event_for_exec)))
-
     {
       DBUG_ASSERT(thd==rli->info_thd);
       /*
@@ -4587,6 +4614,7 @@ static Log_event* next_event(Relay_log_info* rli)
 
       if (relay_log_purge)
       {
+        lex_start(thd);
         /*
           purge_first_log will properly set up relay log coordinates in rli.
           If the group's coordinates are equal to the event's coordinates
@@ -4606,6 +4634,13 @@ static Log_event* next_event(Relay_log_info* rli)
           errmsg = "Error purging processed logs";
           goto err;
         }
+        DBUG_PRINT("info", ("next_event group master %s %lu  group relay %s %lu event %s %lu\n",
+          rli->get_group_master_log_name(),
+          (ulong) rli->get_group_master_log_pos(),
+          rli->get_group_relay_log_name(),
+          (ulong) rli->get_group_relay_log_pos(),
+          rli->get_event_relay_log_name(),
+          (ulong) rli->get_event_relay_log_pos()));
       }
       else
       {
@@ -4907,28 +4942,24 @@ bool Server_ids::unpack_server_ids(const char *param_server_ids)
   DBUG_RETURN(FALSE);
 }
 
-const char *Server_ids::pack_server_ids()
+bool Server_ids::pack_server_ids(char *buffer)
 {
   DBUG_ENTER("Server_ids::pack_server_ids");
 
-  char* server_ids_buffer;
+  if (!buffer)
+    DBUG_RETURN(TRUE);
 
-  server_ids_buffer=
-    (char *) my_malloc((sizeof(::server_id) * 3 + 1) *
-                       (1 + server_ids.elements), MYF(MY_WME));
-  if (!server_ids_buffer)
-    DBUG_RETURN(NULL);
-  for (ulong i= 0, cur_len= my_sprintf(server_ids_buffer,
-                                       (server_ids_buffer, "%u",
+  for (ulong i= 0, cur_len= my_sprintf(buffer,
+                                       (buffer, "%u",
                                         server_ids.elements));
        i < server_ids.elements; i++)
   {
     ulong s_id;
     get_dynamic(&server_ids, (uchar*) &s_id, i);
-    cur_len +=my_sprintf(server_ids_buffer + cur_len,
-                         (server_ids_buffer + cur_len,
+    cur_len +=my_sprintf(buffer + cur_len,
+                         (buffer + cur_len,
                           " %lu", s_id));
   }
 
-  DBUG_RETURN(server_ids_buffer);
+  DBUG_RETURN(FALSE);
 }

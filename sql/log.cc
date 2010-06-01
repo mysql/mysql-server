@@ -3379,7 +3379,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
     rli->notify_group_relay_log_name_update();
   }
   /* Store where we are in the new file for the execution thread */
-  rli->flush_info();
+  rli->flush_info(TRUE);
 
   DBUG_EXECUTE_IF("crash_before_purge_logs", abort(););
 
@@ -6175,6 +6175,9 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
   Xid_log_event xle(thd, xid);
   binlog_cache_mngr *cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+
+  DBUG_EXECUTE_IF("crash_safe_slave", abort(););
+
   /*
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
