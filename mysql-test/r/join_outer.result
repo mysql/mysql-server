@@ -1362,39 +1362,39 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1(f1 INT, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN T1.f1 FROM t1 AS T1
-LEFT JOIN t1 AS T2
-RIGHT JOIN t1 AS T3
-JOIN t1 AS T4 ON 1
-LEFT JOIN t1 AS T5 ON 1
+EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+LEFT JOIN t1 AS jt2
+RIGHT JOIN t1 AS jt3
+JOIN t1 AS jt4 ON 1
+LEFT JOIN t1 AS jt5 ON 1
 ON 1
-RIGHT JOIN t1 AS T6 ON T6.f1
+RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	T1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T3	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T5	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T2	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
-Note	1003	select straight_join `test`.`T1`.`f1` AS `f1` from `test`.`t1` `T1` left join (`test`.`t1` `T6` left join (`test`.`t1` `T3` join `test`.`t1` `T4` left join `test`.`t1` `T5` on(1) left join `test`.`t1` `T2` on(1)) on((`test`.`T6`.`f1` and 1))) on(1) where 1
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN T1.f1 FROM t1 AS T1
-RIGHT JOIN t1 AS T2
-RIGHT JOIN t1 AS T3
-JOIN t1 AS T4 ON 1
-LEFT JOIN t1 AS T5 ON 1
+Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
+EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+RIGHT JOIN t1 AS jt2
+RIGHT JOIN t1 AS jt3
+JOIN t1 AS jt4 ON 1
+LEFT JOIN t1 AS jt5 ON 1
 ON 1
-RIGHT JOIN t1 AS T6 ON T6.f1
+RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	T6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T3	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T5	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T2	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	T1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
-Note	1003	select straight_join `test`.`T1`.`f1` AS `f1` from `test`.`t1` `T6` left join (`test`.`t1` `T3` join `test`.`t1` `T4` left join `test`.`t1` `T5` on(1) left join `test`.`t1` `T2` on(1)) on((`test`.`T6`.`f1` and 1)) left join `test`.`t1` `T1` on(1) where 1
+Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
 End of 5.1 tests
