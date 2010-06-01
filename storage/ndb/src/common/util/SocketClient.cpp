@@ -18,18 +18,17 @@
 
 
 #include <ndb_global.h>
-#include <NdbOut.hpp>
 
 #include <SocketClient.hpp>
 #include <SocketAuthenticator.hpp>
 
-SocketClient::SocketClient(const char *server_name, unsigned short port, SocketAuthenticator *sa)
+SocketClient::SocketClient(const char *server_name, unsigned short port, SocketAuthenticator *sa) :
+  m_connect_timeout_millisec(0) // Blocking connect by default
 {
   m_auth= sa;
   m_port= port;
   m_server_name= server_name ? strdup(server_name) : 0;
   my_socket_invalidate(&m_sockfd);
-  m_connect_timeout_sec= 0;
 }
 
 SocketClient::~SocketClient()
@@ -112,18 +111,10 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
 NDB_SOCKET_TYPE
 SocketClient::connect(const char *toaddress, unsigned short toport)
 {
-  fd_set rset, wset, eset;
-  struct timeval tval;
-  int r;
-  bool use_timeout;
-  SOCKOPT_OPTLEN_TYPE len;
-
   if (!my_socket_valid(m_sockfd))
   {
-    if (!init()) {
-#ifdef VM_TRACE
-      ndbout << "SocketClient::connect() failed " << m_server_name << " " << m_port << endl;
-#endif
+    if (!init())
+    {
       return m_sockfd;
     }
   }
@@ -146,64 +137,60 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
     }
   }
 
-  r= my_socket_nonblock(m_sockfd, true);
-  if (r < 0)
+  // Set socket non blocking
+  if (my_socket_nonblock(m_sockfd, true) < 0)
   {
     my_socket_close(m_sockfd);
     my_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
-  r= my_connect_inet(m_sockfd, &m_servaddr);
-
+  // Start non blocking connect
+  int r = my_connect_inet(m_sockfd, &m_servaddr);
   if (r == 0)
     goto done; // connected immediately.
 
   if (r < 0 && NONBLOCKERR(my_socket_errno())) {
+    // Start of non blocking connect failed
     my_socket_close(m_sockfd);
     my_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
-  FD_ZERO(&rset);
-  my_FD_SET(m_sockfd, &rset);
-  FD_ZERO(&eset);
-  my_FD_SET(m_sockfd, &eset);
-  wset= rset;
-  tval.tv_sec= m_connect_timeout_sec;
-  tval.tv_usec= 0;
-  use_timeout= m_connect_timeout_sec;
-
-  if ((r= select(my_socket_nfds(m_sockfd,0) + 1, &rset, &wset, &eset,
-                 use_timeout? &tval : NULL)) == 0)
+  if (ndb_poll(m_sockfd, true, true, true,
+               m_connect_timeout_millisec > 0 ?
+               m_connect_timeout_millisec : -1) <= 0)
   {
+    // Nothing has happened on the socket after timeout
+    // or an error occured
     my_socket_close(m_sockfd);
     my_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
-  if (my_FD_ISSET(m_sockfd, &rset) || my_FD_ISSET(m_sockfd, &wset))
+  // Activity detected on the socket
+
   {
-    len= sizeof(r);
-    if (my_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &r, &len) < 0 || r)
+    // Check socket level error code
+    int so_error = 0;
+    SOCKOPT_OPTLEN_TYPE len= sizeof(so_error);
+    if (my_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0)
     {
-      // Solaris got an error... different than others
+      my_socket_close(m_sockfd);
+      my_socket_invalidate(&m_sockfd);
+      return m_sockfd;
+    }
+
+    if (so_error)
+    {
       my_socket_close(m_sockfd);
       my_socket_invalidate(&m_sockfd);
       return m_sockfd;
     }
   }
-  else
-  {
-    // select error, probably m_sockfd not set.
-    my_socket_close(m_sockfd);
-    my_socket_invalidate(&m_sockfd);
-    return m_sockfd;
-  }
 
 done:
-  r= my_socket_nonblock(m_sockfd, true);
-  if (r < 0)
+  if (my_socket_nonblock(m_sockfd, true) < 0)
   {
     my_socket_close(m_sockfd);
     my_socket_invalidate(&m_sockfd);
