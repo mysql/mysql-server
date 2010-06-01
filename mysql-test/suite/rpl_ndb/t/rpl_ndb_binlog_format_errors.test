@@ -111,7 +111,7 @@ INSERT INTO t_slave_stmt VALUES (1);
 --connection slave
 # 1664 = ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
 --let $slave_sql_errno= 1664
---let $show_sql_error= 1
+--let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
 --connection slave
 SELECT * FROM t_slave_stmt /* should be empty */;
