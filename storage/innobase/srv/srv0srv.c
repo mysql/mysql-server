@@ -1554,11 +1554,15 @@ srv_suspend_mysql_thread(
 
 	mutex_exit(&kernel_mutex);
 
-	if (trx_is_interrupted(trx)
-	    || (srv_lock_wait_timeout < 100000000
-		&& wait_time > (double)srv_lock_wait_timeout)) {
+	if (srv_lock_wait_timeout < 100000000
+	    && wait_time > (double)srv_lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+	}
+
+	if (trx_is_interrupted(trx)) {
+
+		trx->error_state = DB_INTERRUPTED;
 	}
 #else /* UNIV_HOTBACKUP */
 	/* This function depends on MySQL code that is not included in

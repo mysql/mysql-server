@@ -55,6 +55,7 @@ buf_flush_insert_into_flush_list(
 	      || (ut_dulint_cmp((UT_LIST_GET_FIRST(buf_pool->flush_list))
 				->oldest_modification,
 				block->oldest_modification) <= 0));
+	UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
 
 	UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, block);
 
@@ -75,6 +76,7 @@ buf_flush_insert_sorted_into_flush_list(
 	buf_block_t*	b;
 
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+	UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
 
 	prev_b = NULL;
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
@@ -423,6 +425,7 @@ try_again:
 		goto try_again;
 	}
 
+	UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
 	ut_memcpy(trx_doublewrite->write_buf
 		  + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
 		  block->frame, UNIV_PAGE_SIZE);
