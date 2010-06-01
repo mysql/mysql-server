@@ -23,7 +23,7 @@ enum { old_default_cachesize=1024 }; // MB
 int CACHESIZE=old_default_cachesize;
 enum {ROWS_PER_TRANSACTION=10000};
 
-char *db_v3_dir = "../../utils/dir.preload-3.1-db.c.tdb";
+char *db_v3_dir = "../../utils/preload-3.1-db";
 char *db_v4_dir = "dir.preload-3.1-db.c.tdb";
 char *env_dir = ENVDIR; // the default env_dir.
 
