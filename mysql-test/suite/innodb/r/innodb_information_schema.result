@@ -21,3 +21,46 @@ lock_table	COUNT(*)
 "test"."t_max"	2
 "test"."t_min"	2
 "test"."`t'\""_str"	10
+Field	Type	Null	Key	Default	Extra
+trx_id	varchar(18)	NO			
+trx_state	varchar(13)	NO			
+trx_started	datetime	NO		0000-00-00 00:00:00	
+trx_requested_lock_id	varchar(81)	YES		NULL	
+trx_wait_started	datetime	YES		NULL	
+trx_weight	bigint(21) unsigned	NO		0	
+trx_mysql_thread_id	bigint(21) unsigned	NO		0	
+trx_query	varchar(1024)	YES		NULL	
+trx_operation_state	varchar(64)	YES		NULL	
+trx_tables_in_use	bigint(21) unsigned	NO		0	
+trx_tables_locked	bigint(21) unsigned	NO		0	
+trx_lock_structs	bigint(21) unsigned	NO		0	
+trx_lock_memory_bytes	bigint(21) unsigned	NO		0	
+trx_rows_locked	bigint(21) unsigned	NO		0	
+trx_rows_modified	bigint(21) unsigned	NO		0	
+trx_concurrency_tickets	bigint(21) unsigned	NO		0	
+trx_isolation_level	varchar(16)	NO			
+trx_unique_checks	int(1)	NO		0	
+trx_foreign_key_checks	int(1)	NO		0	
+trx_last_foreign_key_error	varchar(256)	YES		NULL	
+trx_apative_hash_latched	int(1)	NO		0	
+trx_adaptive_hash_timeout	bigint(21) unsigned	NO		0	
+trx_operation_state	varchar(64)	YES		NULL	
+trx_tables_in_use	bigint(21) unsigned	NO		0	
+trx_tables_locked	bigint(21) unsigned	NO		0	
+trx_lock_structs	bigint(21) unsigned	NO		0	
+trx_lock_memory_bytes	bigint(21) unsigned	NO		0	
+trx_rows_locked	bigint(21) unsigned	NO		0	
+trx_rows_modified	bigint(21) unsigned	NO		0	
+trx_concurrency_tickets	bigint(21) unsigned	NO		0	
+trx_isolation_level	varchar(16)	NO			
+trx_unique_checks	int(1)	NO		0	
+trx_foreign_key_checks	int(1)	NO		0	
+trx_last_foreign_key_error	varchar(256)	YES		NULL	
+trx_apative_hash_latched	int(1)	NO		0	
+trx_adaptive_hash_timeout	bigint(21) unsigned	NO		0	
+trx_state	trx_weight	trx_tables_in_use	trx_tables_locked	trx_rows_locked	trx_rows_modified	trx_concurrency_tickets	trx_isolation_level	trx_unique_checks	trx_foreign_key_checks
+RUNNING	4	0	0	7	1	0	REPEATABLE READ	1	1
+trx_isolation_level	trx_unique_checks	trx_foreign_key_checks
+SERIALIZABLE	0	0
+trx_state	trx_isolation_level	trx_last_foreign_key_error
+RUNNING	SERIALIZABLE	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`)

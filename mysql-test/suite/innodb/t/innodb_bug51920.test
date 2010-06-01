@@ -1,0 +1,43 @@
+#
+# Bug #51920: InnoDB connections in lock wait ignore KILL until timeout
+#
+-- source include/not_embedded.inc
+-- source include/have_innodb.inc
+
+CREATE TABLE bug51920 (i INT) ENGINE=InnoDB;
+INSERT INTO bug51920 VALUES (1);
+
+BEGIN;
+SELECT * FROM bug51920 FOR UPDATE;
+
+connect (con1,localhost,root,,);
+
+connection con1;
+--send
+UPDATE bug51920 SET i=2;
+
+connection default;
+let $wait_condition =
+  SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE INFO="UPDATE bug51920 SET i=2";
+-- source include/wait_condition.inc
+
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE INFO="UPDATE bug51920 SET i=2"
+INTO @thread_id;
+
+KILL @thread_id;
+let $wait_condition =
+  SELECT COUNT(*)=0 FROM information_schema.processlist WHERE ID=@thread_id;
+-- source include/wait_condition.inc
+
+#
+# Bug#19723: kill of active connection yields different error code
+# depending on platform.
+#
+connection con1;
+-- error 1317, 2006, 2013
+reap;
+connection default;
+DROP TABLE bug51920;
+-- disconnect con1
