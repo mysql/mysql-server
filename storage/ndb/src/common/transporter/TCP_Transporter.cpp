@@ -86,7 +86,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId),
-  m_sendBuffer(conf->tcp.sendBufferSize)
+  m_sendBuffer(conf->tcp.sendBufferSize),
+  m_poll_index(~0)
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
@@ -257,20 +258,15 @@ TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
 #endif
 
 bool
-TCP_Transporter::sendIsPossible(struct timeval * timeout) {
-  if(theSocket != NDB_INVALID_SOCKET){
-    fd_set   writeset;
-    FD_ZERO(&writeset);
-    FD_SET(theSocket, &writeset);
-    
-    int selectReply = select(theSocket + 1, NULL, &writeset, NULL, timeout);
+TCP_Transporter::sendIsPossible(int timeout_millisec) const
+{
+  if (!my_socket_valid(theSocket))
+    return false;
 
-    if ((selectReply > 0) && FD_ISSET(theSocket, &writeset)) 
-      return true;
-    else
-      return false;
-  }
-  return false;
+  if (ndb_poll(theSocket, false, true, false, timeout_millisec) <= 0)
+    return false; // Timeout or error occured
+
+  return true;
 }
 
 Uint32
@@ -283,15 +279,13 @@ Uint32 *
 TCP_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio){
   
   Uint32 * insertPtr = m_sendBuffer.getInsertPtr(lenBytes);
-  
-  struct timeval timeout = {0, 10000};
 
   if (insertPtr == 0) {
     //-------------------------------------------------
     // Buffer was completely full. We have severe problems.
     // We will attempt to wait for a small time
     //-------------------------------------------------
-    if(sendIsPossible(&timeout)) {
+    if(sendIsPossible(10)) {
       //-------------------------------------------------
       // Send is possible after the small timeout.
       //-------------------------------------------------
@@ -326,8 +320,7 @@ TCP_Transporter::updateWritePtr(Uint32 lenBytes, Uint32 prio){
     // we will not worry since we will soon be back for
     // a renewed trial.
     //-------------------------------------------------
-    struct timeval no_timeout = {0,0};
-    if(sendIsPossible(&no_timeout)) {
+    if(sendIsPossible(0)) {
       //-------------------------------------------------
       // Send was possible, attempt at a send.
       //-------------------------------------------------

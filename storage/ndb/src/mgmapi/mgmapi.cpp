@@ -562,7 +562,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       SocketClient s(0, 0);
       const char *bind_address= NULL;
       unsigned short bind_address_port= 0;
-      s.set_connect_timeout((handle->timeout+999)/1000);
+      s.set_connect_timeout(handle->timeout);
       if (!s.init())
       {
         fprintf(handle->errstream, 
@@ -1764,7 +1764,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   int port= ndb_mgm_get_connected_port(handle);
   const char *bind_address= ndb_mgm_get_connected_bind_address(handle);
   SocketClient s(0, 0);
-  s.set_connect_timeout((handle->timeout+999)/1000);
+  s.set_connect_timeout(handle->timeout);
   if (!s.init())
   {
     fprintf(handle->errstream, "Unable to create socket");
