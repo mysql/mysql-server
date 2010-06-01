@@ -48,8 +48,14 @@ setup (void) {
     CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
 
+    FILE *error_file = 0;
+    if (verbose==0) {
+	error_file = fopen(ENVDIR "/stderr", "w");                             assert(error_file);
+    }
+    else error_file = stderr;
+
     r=db_env_create(&env, 0); CKERR(r);
-    env->set_errfile(env, stderr);
+    env->set_errfile(env, error_file ? error_file : stderr);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 }
 
@@ -397,12 +403,21 @@ int
 test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
     setup();
-    print_engine_status(env);
+    if (verbose >= 2) {
+	printf("Immediately after setup:\n");
+	print_engine_status(env);
+    }
     test_fileops_1();
-    print_engine_status(env);
+    if (verbose >= 2) {
+	printf("After test_1:\n");
+	print_engine_status(env);
+    }
     test_fileops_2();
     test_fileops_3();
-    print_engine_status(env);
+    if (verbose >= 2) {
+	printf("After test_2 and test_3:\n");
+	print_engine_status(env);
+    }
     test_shutdown();
     return 0;
 }
