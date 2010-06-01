@@ -8608,7 +8608,9 @@ ha_innobase::external_lock(
 	if (lock_type == F_WRLCK
 	    && !(table_flags() & HA_BINLOG_STMT_CAPABLE)
 	    && thd_binlog_format(thd) == BINLOG_FORMAT_STMT
-	    && thd_binlog_filter_ok(thd)) {
+	    && thd_binlog_filter_ok(thd)
+            && thd_sqlcom_can_generate_row_events(thd))
+        {
 		int skip = 0;
 		/* used by test case */
 		DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = 1;);
