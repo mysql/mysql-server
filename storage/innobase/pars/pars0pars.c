@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2025,6 +2025,29 @@ pars_info_add_int4_literal(
 
 	mach_write_to_4(buf, val);
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+}
+
+/****************************************************************//**
+Equivalent to:
+
+char buf[8];
+mach_write_ull(buf, val);
+pars_info_add_literal(info, name, buf, 8, DATA_INT, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+UNIV_INTERN
+void
+pars_info_add_uint64_literal(
+/*=========================*/
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	ib_uint64_t	val)		/*!< in: value */
+{
+	byte*	buf = mem_heap_alloc(info->heap, 8);
+
+	mach_write_ull(buf, val);
+	pars_info_add_literal(info, name, buf, 8, DATA_INT, 0);
 }
 
 /****************************************************************//**
