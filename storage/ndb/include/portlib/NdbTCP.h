@@ -22,9 +22,14 @@
 #include <ndb_global.h>
 #include <ndb_net.h>
 #include <ndb_socket.h>
+#include <portlib/ndb_socket_poller.h>
 
 #define NDB_SOCKET_TYPE ndb_socket_t
-#define _NDB_CLOSE_SOCKET(x) my_socket_close(x)
+
+static inline
+void NDB_CLOSE_SOCKET(ndb_socket_t s) {
+  my_socket_close(s);
+}
 
 #ifdef	__cplusplus
 extern "C" {
@@ -42,12 +47,6 @@ extern "C" {
  *      inet_addr
  */
 int Ndb_getInAddr(struct in_addr * dst, const char *address);
-
-#ifdef DBUG_OFF
-#define NDB_CLOSE_SOCKET(fd) _NDB_CLOSE_SOCKET(fd)
-#else
-int NDB_CLOSE_SOCKET(NDB_SOCKET_TYPE fd);
-#endif
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
 

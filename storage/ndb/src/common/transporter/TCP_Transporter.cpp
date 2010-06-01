@@ -96,7 +96,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId,
-              conf->tcp.sendBufferSize)
+              conf->tcp.sendBufferSize),
+  m_poll_index(~0)
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
@@ -252,22 +253,15 @@ bool TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket)
 }
 
 bool
-TCP_Transporter::sendIsPossible(struct timeval * timeout) {
-  if(my_socket_valid(theSocket))
-  {
-    fd_set   writeset;
-    FD_ZERO(&writeset);
-    my_FD_SET(theSocket, &writeset);
+TCP_Transporter::send_is_possible(int timeout_millisec) const
+{
+  if (!my_socket_valid(theSocket))
+    return false;
 
-    int selectReply = select(my_socket_nfds(theSocket,0) + 1,
-                             NULL, &writeset, NULL, timeout);
+  if (ndb_poll(theSocket, false, true, false, timeout_millisec) <= 0)
+    return false; // Timeout or error occured
 
-    if ((selectReply > 0) && my_FD_ISSET(theSocket, &writeset))
-      return true;
-    else
-      return false;
-  }
-  return false;
+  return true;
 }
 
 #define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \

@@ -25,8 +25,8 @@
 
 extern "C"
 int 
-Ndb_getInAddr(struct in_addr * dst, const char *address) {
-  //  DBUG_ENTER("Ndb_getInAddr");
+Ndb_getInAddr(struct in_addr * dst, const char *address)
+{
   {
     int tmp_errno;
     struct hostent tmp_hostent, *hp;
@@ -37,7 +37,7 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
     {
       memcpy(dst, hp->h_addr, min(sizeof(*dst), (size_t) hp->h_length));
       my_gethostbyname_r_free();
-      return 0; //DBUG_RETURN(0);
+      return 0;
     }
     my_gethostbyname_r_free();
   }
@@ -51,43 +51,27 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
 #endif
       )
   {
-    return 0; //DBUG_RETURN(0);
-  }
-  //  DBUG_PRINT("error",("inet_addr(%s) - %d - %s",
-  //		      address, errno, strerror(errno)));
-  return -1; //DBUG_RETURN(-1);
-}
-
-#ifndef DBUG_OFF
-extern "C"
-int NDB_CLOSE_SOCKET(NDB_SOCKET_TYPE fd)
-{
-  DBUG_PRINT("info", ("NDB_CLOSE_SOCKET(" MY_SOCKET_FORMAT ")",
-                      MY_SOCKET_FORMAT_VALUE(fd)));
-  return _NDB_CLOSE_SOCKET(fd);
-}
-#endif
-
-#if 0
-int 
-Ndb_getInAddr(struct in_addr * dst, const char *address) {
-  struct hostent host, * hostPtr;
-  char buf[1024];
-  int h_errno;
-  hostPtr = gethostbyname_r(address, &host, &buf[0], 1024, &h_errno);
-  if (hostPtr != NULL) {
-    dst->s_addr = ((struct in_addr *) *hostPtr->h_addr_list)->s_addr;
-    return 0;
-  }
-  
-  /* Try it as aaa.bbb.ccc.ddd. */
-  dst->s_addr = inet_addr(address);
-  if (dst->s_addr != -1) {
     return 0;
   }
   return -1;
 }
+
+
+static inline
+int my_socket_nfds(ndb_socket_t s, int nfds)
+{
+#ifdef _WIN32
+  (void)s;
+#else
+  if(s.fd > nfds)
+    return s.fd;
 #endif
+  return nfds;
+}
+
+#define my_FD_SET(sock,set)   FD_SET(ndb_socket_get_native(sock), set)
+#define my_FD_ISSET(sock,set) FD_ISSET(ndb_socket_get_native(sock), set)
+
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
 {
