@@ -25,7 +25,7 @@ class SocketAuthenticator;
 class SocketClient
 {
   struct sockaddr_in m_servaddr;
-  unsigned int m_connect_timeout_sec;
+  unsigned int m_connect_timeout_millisec;
   unsigned short m_port;
   char *m_server_name;
   SocketAuthenticator *m_auth;
@@ -37,8 +37,8 @@ public:
     m_port = port;
     m_servaddr.sin_port = htons(m_port);
   };
-  void set_connect_timeout(unsigned int s) {
-    m_connect_timeout_sec= s;
+  void set_connect_timeout(unsigned int timeout_millisec) {
+    m_connect_timeout_millisec = timeout_millisec;
   }
   unsigned short get_port() { return m_port; };
   char *get_server_name() { return m_server_name; };

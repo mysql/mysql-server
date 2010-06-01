@@ -293,6 +293,10 @@ TransporterRegistry::init(NodeId nodeId) {
 
   DEBUG("TransporterRegistry started node: " << localNodeId);
 
+  if (!m_socket_poller.set_max_count(maxTransporters +
+				     1 /* wakeup socket */))
+    DBUG_RETURN(false);
+
   DBUG_RETURN(true);
 }
 
@@ -1018,65 +1022,38 @@ Uint32
 TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
 {
   bool hasdata = false;
-  if (false && nTCPTransporters == 0)
-  {
-    tcpReadSelectReply = 0;
-    return 0;
-  }
 
-  int maxSocketValue = 0;
+  m_socket_poller.clear();
 
-  // Needed for TCP/IP connections
-  // The read- and writeset are used by select
-
-  FD_ZERO(&tcpReadset);
-
-  // Prepare for sending and receiving
-  for (int i = 0; i < nTCPTransporters; i++) {
-    TCP_Transporter * t = theTCPTransporters[i];
-    Uint32 node_id= t->getRemoteNodeId();
-    
-    // If the transporter is connected
-    if (is_connected(node_id) && t->isConnected()) {
-      
-      const NDB_SOCKET_TYPE socket = t->getSocket();
-      if (!my_socket_valid(socket))
-        continue;
-
-      maxSocketValue = my_socket_nfds(socket, maxSocketValue);
-
-      // Put the connected transporters in the socket read-set 
-      my_FD_SET(socket, &tcpReadset);
-    }
-    hasdata |= t->hasReceiveData();
-  }
-  
   if (m_has_extra_wakeup_socket)
   {
     const NDB_SOCKET_TYPE socket = m_extra_wakeup_sockets[0];
-    maxSocketValue = my_socket_nfds(socket, maxSocketValue);
 
-    // Put the wakup-socket in the read-set
-    my_FD_SET(socket, &tcpReadset);
+    // Poll the wakup-socket for read
+    m_socket_poller.add(socket, true, false, false);
   }
 
-  timeOutMillis = hasdata ? 0 : timeOutMillis;
-  
-  struct timeval timeout;
-  timeout.tv_sec  = timeOutMillis / 1000;
-  timeout.tv_usec = (timeOutMillis % 1000) * 1000;
-
-  tcpReadSelectReply = select(maxSocketValue+1, &tcpReadset, 0, 0, &timeout);
-  if(false && tcpReadSelectReply == -1 && errno == EINTR)
-    g_eventLogger->info("woke-up by signal");
-
-#ifdef NDB_WIN32
-  if(tcpReadSelectReply == SOCKET_ERROR)
+  for (int i = 0; i < nTCPTransporters; i++)
   {
-    NdbSleep_MilliSleep(timeOutMillis);
+    unsigned index = ~0;
+    TCP_Transporter * t = theTCPTransporters[i];
+    const Uint32 node_id = t->getRemoteNodeId();
+    const NDB_SOCKET_TYPE socket = t->getSocket();
+
+    if (is_connected(node_id) && t->isConnected() &&
+        my_socket_valid(socket))
+    {
+      // Poll the connected transporter for read
+      index = m_socket_poller.add(socket, true, false, false);
+    }
+    // Remember the index into poll list
+    t->set_poll_index(index);
+
+    hasdata |= t->hasReceiveData();
   }
-#endif
-  
+
+  tcpReadSelectReply = m_socket_poller.poll(hasdata ? 0 : timeOutMillis);
+
   return tcpReadSelectReply || hasdata;
 }
 #endif
@@ -1200,8 +1177,10 @@ TransporterRegistry::performReceive()
   {
     if (m_has_extra_wakeup_socket)
     {
-      if (my_FD_ISSET(m_extra_wakeup_sockets[0], &tcpReadset))
+      // The wakeupsocket is always added first => use index 0
+      if (m_socket_poller.has_read(0))
       {
+        assert(m_socket_poller.is_socket_equal(0, m_extra_wakeup_sockets[0]));
         consume_extra_sockets();
       }
     }
@@ -1210,14 +1189,19 @@ TransporterRegistry::performReceive()
     {
       TCP_Transporter *t = theTCPTransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
-      const NDB_SOCKET_TYPE socket    = t->getSocket();
+
       if(is_connected(nodeId)){
         if(t->isConnected())
         {
-          if (my_FD_ISSET(socket, &tcpReadset))
+          const unsigned index = t->get_poll_index();
+          if (index != ~0 &&
+              m_socket_poller.has_read(index))
           {
+            assert(m_socket_poller.is_socket_equal(index, t->getSocket()));
             t->doReceive();
           }
+	  // Reset the index into poll list
+	  t->set_poll_index(~0);
           
           if (t->hasReceiveData())
           {
@@ -2054,12 +2038,11 @@ TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
                                           t->get_max_send_buffer());
 
   if (insertPtr == 0) {
-    struct timeval timeout = {0, 10000};
     //-------------------------------------------------
     // Buffer was completely full. We have severe problems.
     // We will attempt to wait for a small time
     //-------------------------------------------------
-    if(t->send_is_possible(&timeout)) {
+    if(t->send_is_possible(10)) {
       //-------------------------------------------------
       // Send is possible after the small timeout.
       //-------------------------------------------------
@@ -2098,8 +2081,7 @@ TransporterRegistry::updateWritePtr(TransporterSendBufferHandle *handle,
     // we will not worry since we will soon be back for
     // a renewed trial.
     //-------------------------------------------------
-    struct timeval no_timeout = {0,0};
-    if(t->send_is_possible(&no_timeout)) {
+    if(t->send_is_possible(0)) {
       //-------------------------------------------------
       // Send was possible, attempt at a send.
       //-------------------------------------------------
