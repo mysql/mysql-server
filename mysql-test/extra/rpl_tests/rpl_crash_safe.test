@@ -1,0 +1,316 @@
+###############################################################################
+#  This test case aims at crashing the slave at several points and verifies
+#  if it does not go out of sync.
+#
+#  For those transactions involving only transactional tables, we crash the
+#  slave while committing the transaction at the following points:
+#
+#  1 - crash_before_update_pos - before updating the positions.
+#  2 - crash_after_update_pos_before_apply - after updating the positions but
+#      before committing the transaction.
+#  3 - crash_after_apply - after updating the position and committing the
+#      transaction.
+#
+#  When a non-transactional table is updated, we crash the slave at two points:
+#
+#  1 - crash_after_begin_pos - after executing begin and updating the
+#  positions.
+#  2 - crash_after_commit_pos - after committing and updating the positions.
+################################################################################
+
+
+--echo ###################################################################################
+--echo #                               PREPARE EXECUTION
+--echo ###################################################################################
+connection master;
+let $engine_type=Innodb;
+SET @commands= 'configure';
+--source extra/rpl_tests/rpl_crash_safe.inc
+
+--echo ###################################################################################
+--echo #                         EXECUTE CASES CRASHING THE XID
+--echo ###################################################################################
+connection master;
+SET @failures= 'd,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply';
+while (`SELECT HEX(@failures) != HEX('')`)
+{
+  --disable_query_log
+  SET @failure= SUBSTRING_INDEX(@failures, ' ', 1);
+  let $failure= `SELECT @failure`;
+  if (`SELECT HEX(@failure) = HEX('ignore')`)
+  {
+    SET @failure= '';
+  }
+  --enable_query_log
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'T';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'T-trig';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'T-func';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'T-proc';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T T C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T T-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+   SET @commands= 'B T T-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T T-proc C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-trig T C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-func T C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-proc T C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --disable_query_log
+  --eval  SET @failure= '$failure';
+  SET @failures= LTRIM(SUBSTRING(@failures, LENGTH(@failure) + 1));
+  --enable_query_log
+}
+
+--echo ###################################################################################
+--echo #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
+--echo ###################################################################################
+SET @failures= 'd,crash_after_commit_pos d,crash_after_begin_pos';
+while (`SELECT HEX(@failures) != HEX('')`)
+{
+  --disable_query_log
+  SET @failure= SUBSTRING_INDEX(@failures, ' ', 1);
+  let $failure= `SELECT @failure`;
+  if (`SELECT HEX(@failure) = HEX('ignore')`)
+  {
+    SET @failure= '';
+  }
+  --enable_query_log
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N T C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-trig T C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-func T C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N T-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-trig T-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-func T-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N T-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-trig T-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-func T-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N T-proc C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-trig T-proc C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B N-func T-proc C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T N C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T N-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T N-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-trig N C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-trig N-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-trig N-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-func N C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-func N-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-func N-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-proc N C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-proc N-trig C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --echo
+  --echo
+  --echo
+  SET @commands= 'B T-proc N-func C';
+  --source extra/rpl_tests/rpl_crash_safe.inc
+
+  --disable_query_log
+  --eval  SET @failure= '$failure';
+  SET @failures= LTRIM(SUBSTRING(@failures, LENGTH(@failure) + 1));
+  --enable_query_log
+}
+
+--echo ###################################################################################
+--echo #                               CHECK CONSISTENCY
+--echo ###################################################################################
+connection master;
+sync_slave_with_master;
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+
+--echo ###################################################################################
+--echo #                                        CLEAN
+--echo ###################################################################################
+connection master;
+SET @commands= 'clean';
+--source extra/rpl_tests/rpl_crash_safe.inc
