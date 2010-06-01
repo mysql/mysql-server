@@ -210,7 +210,7 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 
 extern "C" {
 struct charset_info_st *thd_charset(MYSQL_THD thd);
-char **thd_query(MYSQL_THD thd);
+LEX_STRING *thd_query_string(MYSQL_THD thd);
 
 /** Get the file name of the MySQL binlog.
  * @return the name of the binlog file
