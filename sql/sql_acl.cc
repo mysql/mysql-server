@@ -8217,7 +8217,8 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   info->password_used = 1;
   if (pkt_len == SCRAMBLE_LENGTH)
-    return check_scramble(pkt, thd->scramble, mpvio->acl_user->salt) ?
+    return info->auth_string[0] == 0 ||
+           check_scramble(pkt, thd->scramble, mpvio->acl_user->salt) ?
              CR_ERROR : CR_OK;
 
   inc_host_errors(&mpvio->thd->net.vio->remote.sin_addr);
@@ -8268,7 +8269,8 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   info->password_used = 1;
 
   if (pkt_len == SCRAMBLE_LENGTH_323)
-    return check_scramble_323(pkt, thd->scramble,
+    return info->auth_string[0] == 0 ||
+           check_scramble_323(pkt, thd->scramble,
                              (ulong *)mpvio->acl_user->salt) ? CR_ERROR : CR_OK;
 
   inc_host_errors(&mpvio->thd->net.vio->remote.sin_addr);
