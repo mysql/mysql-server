@@ -2,6 +2,23 @@
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+/* This test is a little bit ugly, but I think it's mostly harmless.
+ * It's ugly because it requires a hook into cachetable.c, and that
+ * hook is a little ugly.
+ *
+ * The way it works:
+ *
+ *  In the cachetable we set a variable that indicates that we are
+ *  saving user data.  (This is toku_checkpointing_user_data_status).
+ *
+ *  In this test (cachetable-race), we close 2 of 5 dbs, and then busy
+ *  wait for that status variable to go to 1 and close the others.
+ *
+ *  In this way, the close happens (with good chances) right in the
+ *  middle of the checkpoint loop for saving all the user data, which
+ *  seems to trigger the race error.
+ */
+
 #include "test.h"
 #include "toku_pthread.h"
 #include "toku_atomic.h"
