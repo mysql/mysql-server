@@ -91,7 +91,7 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   fd_set readfds, writefds, errorfds;
   struct timeval tv= {0,0};
   int s_err;
-  int s_err_size= sizeof(s_err);
+  SOCKET_SIZE_TYPE s_err_size= sizeof(s_err);
 
   FD_ZERO(&readfds);
   FD_ZERO(&writefds);
