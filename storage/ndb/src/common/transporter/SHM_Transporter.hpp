@@ -163,7 +163,7 @@ private:
   {
     return ((Uint32)bufsize >= m_signal_threshold);
   }
-  bool send_is_possible(struct timeval *timeout) { return 1; }
+  bool send_is_possible(int timeout_millisec) const { return 1; }
 };
 
 #endif

@@ -1,3 +1,20 @@
+/*
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 #include <netdb.h>
 #include <errno.h>
 #include <unistd.h>
@@ -10,7 +27,14 @@
 #define MY_SOCKET_FORMAT "%d"
 #define MY_SOCKET_FORMAT_VALUE(x) (x.fd)
 
+typedef int ndb_native_socket_t;
 typedef struct { int fd; } ndb_socket_t;
+
+static inline ndb_native_socket_t
+ndb_socket_get_native(ndb_socket_t s)
+{
+  return s.fd;
+}
 
 static inline int my_socket_valid(ndb_socket_t s)
 {
@@ -56,13 +80,6 @@ static inline ndb_socket_t my_socket_create(int domain, int type, int protocol)
   s.fd= socket(domain, type, protocol);
 
   return s;
-}
-
-static inline int my_socket_nfds(ndb_socket_t s, int nfds)
-{
-  if(s.fd > nfds)
-    return s.fd;
-  return nfds;
 }
 
 static inline size_t my_recv(ndb_socket_t s, char* buf, size_t len, int flags)
@@ -204,7 +221,3 @@ static inline ssize_t my_socket_writev(ndb_socket_t s, const struct iovec *iov,
 {
   return writev(s.fd, iov, iovcnt);
 }
-
-
-#define my_FD_SET(s,set)   FD_SET(s.fd,set)
-#define my_FD_ISSET(s,set) FD_ISSET(s.fd,set)
