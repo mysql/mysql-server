@@ -9,7 +9,7 @@
 # column and index but without primary key.
 ##############################################################
 
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 --echo #
 --echo # Setup

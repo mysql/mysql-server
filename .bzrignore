@@ -1150,6 +1150,7 @@ libmysqld/rpl_record_old.cc
 libmysqld/rpl_utility.cc
 libmysqld/scheduler.cc
 libmysqld/set_var.cc
+libmysqld/sha2.cc
 libmysqld/simple-test
 libmysqld/slave.cc
 libmysqld/sp.cc
@@ -3083,3 +3084,4 @@ libmysqld/keycaches.cc
 client/dtoa.c
 libmysqld/sql_audit.cc
 configure.am
+libmysqld/des_key_file.cc

@@ -11,7 +11,7 @@
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
--- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+-- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 --
 -- The system tables of MySQL Server
@@ -159,26 +159,6 @@ SET @str = IF(@broken_pfs = 0, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
-
---
--- Unlike 'performance_schema', the 'mysql' database is reserved already,
--- so no user procedure is supposed to be there
---
-drop procedure if exists mysql.die;
-create procedure mysql.die() signal sqlstate 'HY000' set message_text='Unexpected content found in the performance_schema database.';
-
---
--- For broken upgrades, SIGNAL the error
---
-
-SET @cmd="call mysql.die()";
-
-SET @str = IF(@broken_pfs > 0, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-drop procedure mysql.die;
 
 --
 -- From this point, only create the performance schema tables

@@ -399,4 +399,12 @@ delimiter ;$$
 
 drop procedure p_37228;
 
+#
+# Bug#27863 (excessive memory usage for many small queries in a multiquery
+# packet).
+#
 
+let $i=`select repeat("set @a=1;", 65535)`;
+--disable_query_log
+eval $i;
+--enable_query_log

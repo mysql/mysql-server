@@ -1094,6 +1094,7 @@ public:
   bool enable_slow_log;
   bool last_insert_id_used;
   SAVEPOINT *savepoints;
+  enum enum_check_fields count_cuted_fields;
 };
 
 
@@ -1469,7 +1470,11 @@ struct Ha_data
     @sa trans_register_ha()
   */
   Ha_trx_info ha_info[2];
-
+  /**
+    NULL: engine is not bound to this thread
+    non-NULL: engine is bound to this thread, engine shutdown forbidden
+  */
+  plugin_ref lock;
   Ha_data() :ha_ptr(NULL) {}
 };
 
@@ -1994,7 +1999,50 @@ public:
   }
 
   ulonglong  limit_found_rows;
-  longlong   row_count_func;    /* For the ROW_COUNT() function */
+
+private:
+  /**
+    Stores the result of ROW_COUNT() function.
+
+    ROW_COUNT() function is a MySQL extention, but we try to keep it
+    similar to ROW_COUNT member of the GET DIAGNOSTICS stack of the SQL
+    standard (see SQL99, part 2, search for ROW_COUNT). It's value is
+    implementation defined for anything except INSERT, DELETE, UPDATE.
+
+    ROW_COUNT is assigned according to the following rules:
+
+      - In my_ok():
+        - for DML statements: to the number of affected rows;
+        - for DDL statements: to 0.
+
+      - In my_eof(): to -1 to indicate that there was a result set.
+
+        We derive this semantics from the JDBC specification, where int
+        java.sql.Statement.getUpdateCount() is defined to (sic) "return the
+        current result as an update count; if the result is a ResultSet
+        object or there are no more results, -1 is returned".
+
+      - In my_error(): to -1 to be compatible with the MySQL C API and
+        MySQL ODBC driver.
+
+      - For SIGNAL statements: to 0 per WL#2110 specification (see also
+        sql_signal.cc comment). Zero is used since that's the "default"
+        value of ROW_COUNT in the diagnostics area.
+  */
+
+  longlong m_row_count_func;    /* For the ROW_COUNT() function */
+
+public:
+  inline longlong get_row_count_func() const
+  {
+    return m_row_count_func;
+  }
+
+  inline void set_row_count_func(longlong row_count_func)
+  {
+    m_row_count_func= row_count_func;
+  }
+
   ha_rows    cuted_fields;
 
   /*
@@ -2003,8 +2051,15 @@ public:
   */
   ha_rows    sent_row_count;
 
-  /*
-    number of rows we read, sent or not, including in create_sort_index()
+  /**
+    Number of rows read and/or evaluated for a statement. Used for
+    slow log reporting.
+
+    An examined row is defined as a row that is read and/or evaluated
+    according to a statement condition, including in
+    create_sort_index(). Rows may be counted more than once, e.g., a
+    statement including ORDER BY could possibly evaluate the row in
+    filesort() before reading it for e.g. update.
   */
   ha_rows    examined_row_count;
 
@@ -2108,6 +2163,11 @@ public:
   
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
+  /**  
+    is set if a statement accesses a temporary table created through
+    CREATE TEMPORARY TABLE. 
+  */
+  bool       thread_temporary_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
@@ -2531,11 +2591,11 @@ public:
                ("temporary_tables: %s, in_sub_stmt: %s, system_thread: %s",
                 YESNO(temporary_tables), YESNO(in_sub_stmt),
                 show_system_thread(system_thread)));
-    if ((temporary_tables == NULL) && (in_sub_stmt == 0))
+    if (in_sub_stmt == 0)
     {
       if (variables.binlog_format == BINLOG_FORMAT_ROW)
         set_current_stmt_binlog_format_row();
-      else
+      else if (temporary_tables == NULL)
         clear_current_stmt_binlog_format_row();
     }
     DBUG_VOID_RETURN;
@@ -2776,6 +2836,7 @@ inline void
 my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
+  thd->set_row_count_func(affected_rows);
   thd->stmt_da->set_ok_status(thd, affected_rows, id, message);
 }
 
@@ -2785,6 +2846,7 @@ my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
 inline void
 my_eof(THD *thd)
 {
+  thd->set_row_count_func(-1);
   thd->stmt_da->set_eof_status(thd);
 }
 
@@ -3446,7 +3508,7 @@ public:
 /* Bits in sql_command_flags */
 
 #define CF_CHANGES_DATA           (1U << 0)
-#define CF_HAS_ROW_COUNT          (1U << 1)
+/* The 2nd bit is unused -- it used to be CF_HAS_ROW_COUNT. */
 #define CF_STATUS_COMMAND         (1U << 2)
 #define CF_SHOW_TABLE_COMMAND     (1U << 3)
 #define CF_WRITE_LOGS_COMMAND     (1U << 4)

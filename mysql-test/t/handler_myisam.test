@@ -37,4 +37,15 @@ TRUNCATE t1;
 HANDLER t1 READ FIRST;
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#51877 - HANDLER interface causes invalid memory read
+--echo #
+CREATE TABLE t1(a INT, KEY(a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+INSERT INTO t1 VALUES(1);
+HANDLER t1 READ a NEXT;
+HANDLER t1 CLOSE;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

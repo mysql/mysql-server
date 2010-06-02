@@ -1,4 +1,4 @@
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 set sql_mode=no_engine_substitution;
 set storage_engine = InnoDB;
 set autocommit=1;
@@ -709,11 +709,11 @@ SUCCESS
 # 25. DDL: DROP TEMPORARY TABLE, does not start a transaction
 #
 drop temporary table t2;
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 # 26. Verify that SET AUTOCOMMIT issues an implicit commit

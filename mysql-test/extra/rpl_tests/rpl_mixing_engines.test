@@ -245,7 +245,7 @@
 --echo #                            CONFIGURATION
 --echo #########################################################################
 
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 SET @commands= 'configure';
 --source extra/rpl_tests/rpl_mixing_engines.inc
@@ -1767,7 +1767,7 @@ sync_slave_with_master;
   
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
-if (`select @@session.binlog_format != 'STATEMENT'`)
+if (`select @@session.binlog_direct_non_transactional_updates = 0 || @@session.binlog_format != 'STATEMENT'`)
 {
   --diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
 }
