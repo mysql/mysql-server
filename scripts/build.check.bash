@@ -240,10 +240,10 @@ function build() {
 
     # man
     if [ $dowindows -eq 0 ] ; then
-        runcmd 0 $productbuilddir/man/texi make -k -j$makejobs >>$tracefile 2>&1
+        runcmd 0 $productbuilddir/man/texi make -k -s -j$makejobs >>$tracefile 2>&1
     else
         # Don't use XFAIL because on cygwin man/texi just hangs
-        runcmd 0 $productbuilddir/man/texi echo SKIPPED make -k -j$makejobs >>$tracefile 2>&1
+        runcmd 0 $productbuilddir/man/texi echo SKIPPED make -k -s -j$makejobs >>$tracefile 2>&1
     fi
 
     # debug build
