@@ -121,62 +121,43 @@
 %define distro_specific 0
 %endif
 %if %{distro_specific}
-  %if %(test -f /etc/enterprise-release && echo 1 || echo 0)
-    %define elver %(rpm -qf --qf '%%{version}\\n' /etc/enterprise-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-    %if "%elver" == "4"
-      %define distro_description        Oracle Enterprise Linux 4
-      %define distro_releasetag         el4
+  %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+    %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%rhelver" == "4"
+      %define distro_description        Red Hat Enterprise Linux 4
+      %define distro_releasetag         rhel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-      %if "%elver" == "5"
-        %define distro_description      Oracle Enterprise Linux 5
-        %define distro_releasetag       el5
+      %if "%rhelver" == "5"
+        %define distro_description      Red Hat Enterprise Linux 5
+        %define distro_releasetag       rhel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %{error:Oracle Enterprise Linux %{elver} is unsupported}
+        %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
       %endif
     %endif
   %else
-    %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-      %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-      %if "%rhelver" == "4"
-        %define distro_description      Red Hat Enterprise Linux 4
-        %define distro_releasetag       rhel4
-        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+    %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+      %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+      %if "%susever" == "10"
+        %define distro_description      SUSE Linux Enterprise Server 10
+        %define distro_releasetag       sles10
+        %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+        %define distro_requires         aaa_base coreutils grep procps pwdutils
       %else
-        %if "%rhelver" == "5"
-          %define distro_description    Red Hat Enterprise Linux 5
-          %define distro_releasetag     rhel5
-          %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-          %define distro_requires       chkconfig coreutils grep procps shadow-utils
+        %if "%susever" == "11"
+          %define distro_description    SUSE Linux Enterprise Server 11
+          %define distro_releasetag     sles11
+          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+          %define distro_requires       aaa_base coreutils grep procps pwdutils
         %else
-          %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
+          %{error:SuSE %{susever} is unsupported}
         %endif
       %endif
     %else
-      %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-        %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
-        %if "%susever" == "10"
-          %define distro_description    SUSE Linux Enterprise Server 10
-          %define distro_releasetag     sles10
-          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-          %define distro_requires       aaa_base coreutils grep procps pwdutils
-        %else
-          %if "%susever" == "11"
-            %define distro_description  SUSE Linux Enterprise Server 11
-            %define distro_releasetag   sles11
-            %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-            %define distro_requires     aaa_base coreutils grep procps pwdutils
-          %else
-            %{error:SuSE %{susever} is unsupported}
-          %endif
-        %endif
-      %else
-        %{error:Unsupported distribution}
-      %endif
+      %{error:Unsupported distribution}
     %endif
   %endif
 %else
