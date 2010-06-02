@@ -32,6 +32,8 @@
 #include <my_time.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
 #include "sql_priv.h"
+#include <signal.h>
+#include <my_dir.h>
 #include "log_event.h"
 #include "sql_common.h"
 
@@ -51,6 +53,7 @@ ulong open_files_limit;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
 static FILE *result_file;
+char **defaults_argv;
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
@@ -60,7 +63,7 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
-static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
+static bool one_database=0, disable_log_bin= 0;
 static bool opt_hexdump= 0;
 const char *base64_output_mode_names[]=
 {"NEVER", "AUTO", "ALWAYS", "UNSPEC", "DECODE-ROWS", NullS};
@@ -70,10 +73,13 @@ TYPELIB base64_output_mode_typelib=
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
 static const char *opt_base64_output_mode_str= NullS;
 static const char* database= 0;
+static const char* output_file= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
-static my_bool force_if_open_opt= 1;
+static my_bool force_if_open_opt= 1, raw_mode= 0;
+static my_bool to_last_remote_log= 0, stop_never= 0;
 static ulonglong offset = 0;
+static ulonglong stop_never_server_id= 1;
 static const char* host = 0;
 static int port= 0;
 static uint my_end_arg;
@@ -125,6 +131,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
 
+static void force_quit(int param);
+static void quit(Exit_status retval);
+static void init_signals(void);
+static int args_post_process(void);
 
 class Load_log_processor
 {
@@ -1081,6 +1091,14 @@ static struct my_option my_long_options[] =
   {"read-from-remote-server", 'R', "Read binary logs from a MySQL server.",
    (uchar**) &remote_opt, (uchar**) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"raw", OPT_RAW_OUTPUT, "Requires -R. Output raw binlog data instead of SQL \
+statements, output is to log files.",
+   (uchar**) &raw_mode, (uchar**) &raw_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"result-file", 'r', "Direct output to a given file.  With --raw this is a \
+prefix for the file names.  Cannot use with --result-dir.", 
+   (uchar**) &output_file, (uchar**) &output_file, 0, GET_STR, REQUIRED_ARG, 
+   0, 0, 0, 0, 0, 0},
   {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
@@ -1128,6 +1146,15 @@ static struct my_option my_long_options[] =
    "(you should probably use quotes for your shell to set it properly).",
    (uchar**) &stop_datetime_str, (uchar**) &stop_datetime_str,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"stop-never", OPT_STOP_NEVER, "Wait for more data from the server \
+instead of stopping at the end of the last log.  Implicitly sets \
+--to-last-log but instead of stopping at the end of the last log it continues \
+to wait till the server disconnects.",
+   (uchar**) &stop_never, (uchar**) &stop_never, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
+   "The slave server ID used for stop-never", (uchar**) &stop_never_server_id,
+   (uchar**) &stop_never_server_id, 0, GET_ULONG, REQUIRED_ARG, 65535, 1, 65535, 0, 0, 0},
   {"stop-position", OPT_STOP_POSITION,
    "Stop reading the binlog at position N. Applies to the last binlog "
    "passed on the command line.",
@@ -1317,10 +1344,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password=1;
     break;
-  case 'r':
-    if (!(result_file = my_fopen(argument, O_WRONLY | O_BINARY, MYF(MY_WME))))
-      exit(1);
-    break;
   case 'R':
     remote_opt= 1;
     break;
@@ -1352,6 +1375,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case OPT_STOP_NEVER:
+    /* wait-for-data implicitly sets to-last-log */
+    to_last_remote_log= 1;
+    break;
   case '?':
     usage();
     exit(0);
@@ -1436,7 +1463,10 @@ static Exit_status dump_log_entries(const char* logname)
      Set safe delimiter, to dump things
      like CREATE PROCEDURE safely
   */
-  fprintf(result_file, "DELIMITER /*!*/;\n");
+  if (!raw_mode)
+  {
+    fprintf(result_file, "DELIMITER /*!*/;\n");
+  }
   strmov(print_event_info.delimiter, "/*!*/;");
   
   print_event_info.verbose= short_form ? 0 : verbose;
@@ -1445,8 +1475,11 @@ static Exit_status dump_log_entries(const char* logname)
        dump_local_log_entries(&print_event_info, logname));
 
   /* Set delimiter back to semicolon */
-  fprintf(result_file, "DELIMITER ;\n");
-  strmov(print_event_info.delimiter, ";");
+  if (!raw_mode)
+  {
+    fprintf(result_file, "DELIMITER ;\n");
+    strmov(print_event_info.delimiter, ";");
+  }
   return rc;
 }
 
@@ -1546,9 +1579,11 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   uchar buf[128];
   ulong len;
   uint logname_len;
+  uint server_id;
   NET* net;
   my_off_t old_off= start_position_mot;
   char fname[FN_REFLEN+1];
+  char log_file_name[FN_REFLEN+1];
   Exit_status retval= OK_CONTINUE;
   DBUG_ENTER("dump_remote_log_entries");
 
@@ -1578,7 +1613,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     DBUG_RETURN(ERROR_STOP);
   }
   logname_len = (uint) tlen;
-  int4store(buf + 6, 0);
+  /* 
+    Fake a server ID to log continously.
+    This will show as a slave on the mysql server.
+  */
+  server_id= ((to_last_remote_log && stop_never) ?
+              stop_never_server_id : 0);
+
+  int4store(buf + 6, server_id);
   memcpy(buf + 10, logname, logname_len);
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, logname_len + 10, 1))
   {
@@ -1601,20 +1643,28 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       break; // end of data
     DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
 			len, net->read_pos[5]));
-    if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                        len - 1, &error_msg,
-                                        glob_description_event)))
-    {
-      error("Could not construct log event object: %s", error_msg);
-      DBUG_RETURN(ERROR_STOP);
-    }   
     /*
-      If reading from a remote host, ensure the temp_buf for the
-      Log_event class is pointing to the incoming stream.
+      In raw mode We only need the full event details if it is a 
+      ROTATE_EVENT or FORMAT_DESCRIPTION_EVENT
     */
-    ev->register_temp_buf((char *) net->read_pos + 1);
 
-    Log_event_type type= ev->get_type_code();
+    Log_event_type type= (Log_event_type) *(((const char*) net->read_pos + 1) + EVENT_TYPE_OFFSET);
+    if (!raw_mode || (type == ROTATE_EVENT) || 
+        (type == FORMAT_DESCRIPTION_EVENT))
+    {
+      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
+                                          len - 1, &error_msg,
+                                          glob_description_event)))
+      {
+        error("Could not construct log event object: %s", error_msg);
+        DBUG_RETURN(ERROR_STOP);
+      }   
+      /*
+        If reading from a remote host, ensure the temp_buf for the
+        Log_event class is pointing to the incoming stream.
+      */
+      ev->register_temp_buf((char *) net->read_pos + 1);
+    }
     if (glob_description_event->binlog_version >= 3 ||
         (type != LOAD_EVENT && type != CREATE_FILE_EVENT))
     {
@@ -1637,6 +1687,19 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           part of our log) and then we will stop when we receive the fake one
           soon.
         */
+        if (raw_mode)
+        {
+          if (output_file != 0)
+          {
+            my_snprintf(log_file_name, sizeof(log_file_name), "%s%s",
+                        output_file, rev->new_log_ident);
+          }
+          else
+          {
+            strmov(log_file_name, rev->new_log_ident);  
+          }
+        }
+
         if (rev->when == 0)
         {
           if (!to_last_remote_log)
@@ -1666,10 +1729,45 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           don't increment old_off. Real Format_description_log_event always
           starts from BIN_LOG_HEADER_SIZE position.
         */
-        if (old_off != BIN_LOG_HEADER_SIZE)
-          len= 1;         // fake event, don't increment old_off
+        // fake event when not in raw mode, don't increment old_off
+        if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
+          len= 1;
+        if (raw_mode)
+        {
+          my_fclose(result_file, MYF(0));
+          if (!(result_file = my_fopen(log_file_name, O_WRONLY | O_BINARY,
+                                       MYF(MY_WME))))
+          {
+            error("Could not create log file '%s'", log_file_name);
+            DBUG_RETURN(ERROR_STOP);
+          }
+          fprintf(result_file,"%s", BINLOG_MAGIC);
+          /*
+            Need to handle these events correctly in raw mode too 
+            or this could get messy
+          */
+          delete glob_description_event;
+          glob_description_event= (Format_description_log_event*) ev;
+          print_event_info->common_header_len= glob_description_event->common_header_len;
+          ev->temp_buf= 0;
+          ev= 0;
+        }
       }
-      Exit_status retval= process_event(print_event_info, ev, old_off, logname);
+
+      if (raw_mode)
+      {
+        my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(0));
+        if (ev)
+        {
+          ev->temp_buf=0;
+          delete ev;
+        }
+      }
+      else 
+      {
+        retval= process_event(print_event_info, ev, old_off, logname);
+      }
+
       if (retval != OK_CONTINUE)
         DBUG_RETURN(retval);
     }
@@ -1679,7 +1777,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       const char *old_fname= le->fname;
       uint old_len= le->fname_len;
       File file;
-      Exit_status retval;
 
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
         DBUG_RETURN(ERROR_STOP);
@@ -2012,15 +2109,60 @@ end:
   return retval;
 }
 
+/* Post processing of arguments to check for conflicts and other setups */
+static int args_post_process(void)
+{
+  DBUG_ENTER("args_post_process");
+  MY_STAT stat_info;
+  int err;
+
+  if ((raw_mode != 0) && (one_database != 0))
+  {
+    warning("The --database option is ignored with --raw mode");
+  }
+
+  if ((remote_opt == 0) && (raw_mode != 0))
+  {
+    error("You need to set --read-from-remote-server for --raw mode");
+    DBUG_RETURN(ERROR_STOP);
+  }
+
+  if ((raw_mode) && (stop_position != (ulonglong)(~(my_off_t)0)))
+  {
+    warning("The --stop-position option is ignored in raw mode");
+  }
+
+  if ((raw_mode) && (stop_datetime != MY_TIME_T_MAX))
+  {
+    warning("The --stop-datetime option is ignored in raw mode");
+  }
+
+  /*
+    Make this last of the post-option tests so we don't exit with a 
+    file open
+  */
+
+  if ((output_file != 0) && (!raw_mode))
+  {
+    if (!(result_file = my_fopen(output_file, O_WRONLY | O_BINARY, MYF(MY_WME))))
+    {
+      error("Could not create log file '%s'", output_file);
+      DBUG_RETURN(ERROR_STOP);
+    }
+  }
+  DBUG_RETURN(OK_CONTINUE);
+}
+
 
 int main(int argc, char** argv)
 {
-  char **defaults_argv;
-  Exit_status retval= OK_CONTINUE;
+  Exit_status retval= OK_STOP;
   ulonglong save_stop_position;
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
+
+  init_signals();
 
   my_init_time(); // for time functions
 
@@ -2032,9 +2174,13 @@ int main(int argc, char** argv)
   if (!argc)
   {
     usage();
-    free_defaults(defaults_argv);
-    exit(1);
+    quit(ERROR_STOP);
   }
+
+  /* Check for argument conflicts and do any post-processing */
+  if (args_post_process() == ERROR_STOP)
+    quit(ERROR_STOP);
+
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
@@ -2057,27 +2203,30 @@ int main(int argc, char** argv)
   else
     load_processor.init_by_cur_dir();
 
-  fprintf(result_file,
-	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
-
-  if (disable_log_bin)
+  if (!raw_mode)
+  {
     fprintf(result_file,
-            "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
+            "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
 
-  /*
-    In mysqlbinlog|mysql, don't want mysql to be disconnected after each
-    transaction (which would be the case with GLOBAL.COMPLETION_TYPE==2).
-  */
-  fprintf(result_file,
-          "/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,"
-          "COMPLETION_TYPE=0*/;\n");
+    if (disable_log_bin)
+      fprintf(result_file,
+              "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
 
-  if (charset)
+    /*
+      In mysqlbinlog|mysql, don't want mysql to be disconnected after each
+      transaction (which would be the case with GLOBAL.COMPLETION_TYPE==2).
+    */
     fprintf(result_file,
-            "\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
-            "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
-            "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"  
-            "\n/*!40101 SET NAMES %s */;\n", charset);
+            "/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,"
+            "COMPLETION_TYPE=0*/;\n");
+
+    if (charset)
+      fprintf(result_file,
+              "\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
+              "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
+              "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"  
+              "\n/*!40101 SET NAMES %s */;\n", charset);
+  }
 
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) ; )
@@ -2091,36 +2240,57 @@ int main(int argc, char** argv)
     start_position= BIN_LOG_HEADER_SIZE;
   }
 
-  /*
-    Issue a ROLLBACK in case the last printed binlog was crashed and had half
-    of transaction.
-  */
-  fprintf(result_file,
+  if (!raw_mode)
+  {
+    /*
+      Issue a ROLLBACK in case the last printed binlog was crashed and had half
+      of transaction.
+    */
+    fprintf(result_file,
           "# End of log file\nROLLBACK /* added by mysqlbinlog */;\n"
           "/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;\n");
-  if (disable_log_bin)
-    fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
+    if (disable_log_bin)
+      fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
 
-  if (charset)
-    fprintf(result_file,
-            "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
-            "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
-            "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
+    if (charset)
+      fprintf(result_file,
+              "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
+              "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
+              "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
+  }
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
+  quit(retval);
+}
+
+/* Catch all these signals so that we can close files safely when exiting */
+static void init_signals(void)
+{
+  int signals[] = {SIGINT,SIGTERM};
+
+  for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
+    signal(signals[i], force_quit);
+}
+
+static void force_quit(int param)
+{
+  quit(OK_STOP);
+}
+
+static void quit(Exit_status retval)
+{
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   cleanup();
-  free_defaults(defaults_argv);
+  if (defaults_argv)
+    free_defaults(defaults_argv);
   my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end(my_end_arg | MY_DONT_FREE_DBUG);
 
   exit(retval == ERROR_STOP ? 1 : 0);
-  /* Keep compilers happy. */
-  DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }
 
 /*
