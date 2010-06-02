@@ -1982,7 +1982,7 @@ i_s_dict_fill_sys_tables(
 
 	table_id = ut_conv_dulint_to_longlong(table->id);
 
-	OK(fields[SYS_TABLE_ID]->store(table_id));
+	OK(fields[SYS_TABLE_ID]->store(table_id, TRUE));
 
 	OK(field_store_string(fields[SYS_TABLE_NAME], table->name));
 
@@ -2247,7 +2247,7 @@ i_s_dict_fill_sys_tablestats(
 
 	table_id = ut_conv_dulint_to_longlong(table->id);
 
-	OK(fields[SYS_TABLESTATS_ID]->store(table_id));
+	OK(fields[SYS_TABLESTATS_ID]->store(table_id, TRUE));
 
 	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
 
@@ -2259,7 +2259,7 @@ i_s_dict_fill_sys_tablestats(
 				      "Uninitialized"));
 	}
 
-	OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows));
+	OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows, TRUE));
 
 	OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
 		table->stat_clustered_index_size));
@@ -2270,7 +2270,7 @@ i_s_dict_fill_sys_tablestats(
 	OK(fields[SYS_TABLESTATS_MODIFIED]->store(
 		table->stat_modified_counter));
 
-	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc));
+	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, TRUE));
 
 	OK(fields[SYS_TABLESTATS_MYSQL_OPEN_HANDLE]->store(
 		table->n_mysql_handles_opened));
@@ -2511,11 +2511,11 @@ i_s_dict_fill_sys_indexes(
 	table_id = ut_conv_dulint_to_longlong(tableid);
 	index_id = ut_conv_dulint_to_longlong(index->id);
 
-	OK(fields[SYS_INDEX_ID]->store(index_id));
+	OK(fields[SYS_INDEX_ID]->store(index_id, TRUE));
 
 	OK(field_store_string(fields[SYS_INDEX_NAME], index->name));
 
-	OK(fields[SYS_INDEX_TABLE_ID]->store(table_id));
+	OK(fields[SYS_INDEX_TABLE_ID]->store(table_id, TRUE));
 
 	OK(fields[SYS_INDEX_TYPE]->store(index->type));
 
@@ -2752,7 +2752,7 @@ i_s_dict_fill_sys_columns(
 
 	table_id = ut_conv_dulint_to_longlong(tableid);
 
-	OK(fields[SYS_COLUMN_TABLE_ID]->store(table_id));
+	OK(fields[SYS_COLUMN_TABLE_ID]->store(table_id, TRUE));
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
@@ -2962,7 +2962,7 @@ i_s_dict_fill_sys_fields(
 
 	index_id = ut_conv_dulint_to_longlong(indexid);
 
-	OK(fields[SYS_FIELD_INDEX_ID]->store(index_id));
+	OK(fields[SYS_FIELD_INDEX_ID]->store(index_id, TRUE));
 
 	OK(field_store_string(fields[SYS_FIELD_NAME], field->name));
 
