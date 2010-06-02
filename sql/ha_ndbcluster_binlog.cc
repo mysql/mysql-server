@@ -4875,7 +4875,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
             /* lsw is stored first */
             Uint32 *buf= (Uint32 *)(*value).rec->aRef();
             field_bit->Field_bit::store((((longlong)*buf)
-                                         & 0x000000000FFFFFFFFLL)
+                                         & 0x00000000FFFFFFFFLL)
                                         |
                                         ((((longlong)*(buf+1)) << 32)
                                          & 0xFFFFFFFF00000000LL),
