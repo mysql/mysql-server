@@ -61,6 +61,29 @@
 # execute the query
 -- connection master
 -- eval $row_img_query
+
+# lets wait until the binary log position changes
+# we may have just executed an insert delayed
+-- let $_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+
+# wait for 5 minutes
+-- let $iterations=3000
+while(`SELECT $_pos = $row_img_pos_master`)
+{
+  -- sleep 0.1
+  -- let $_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+  -- dec $iterations
+}
+
+if (!$iterations)
+{
+  -- echo Time out while waiting for the event to be written to the binary log at the master!
+  -- echo Query: $row_img_query
+  -- source include/show_rpl_debug_info.inc
+  -- exit
+}
+
+# now sync the slave
 -- sync_slave_with_master
 
 # master assertion
