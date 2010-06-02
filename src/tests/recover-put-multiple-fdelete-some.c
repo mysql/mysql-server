@@ -156,6 +156,8 @@ static void run_recover (void) {
         assert(v.size == 2);
         assert(memcmp(k.data, "a", 2) == 0);
         assert(memcmp(v.data, "b", 2) == 0);
+        toku_free(k.data);
+        toku_free(v.data);
 
         r = cursor->c_close(cursor);                                                        CKERR(r);
 
