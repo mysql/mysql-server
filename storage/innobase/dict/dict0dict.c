@@ -41,6 +41,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "dict0boot.h"
 #include "dict0mem.h"
 #include "dict0crea.h"
+#include "dict0stats.h"
 #include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
@@ -721,7 +722,7 @@ dict_table_get(
 			/* If table->ibd_file_missing == TRUE, this will
 			print an error message and return without doing
 			anything. */
-			dict_update_statistics(table);
+			dict_stats_update(table, DICT_STATS_UPD_FETCH);
 		}
 	}
 
@@ -1638,13 +1639,20 @@ undo_size_ok:
 		new_index->stat_n_diff_key_vals = mem_heap_alloc(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(ib_int64_t));
+			* sizeof(*new_index->stat_n_diff_key_vals));
+
+		new_index->stat_n_sample_sizes = mem_heap_alloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_sample_sizes));
+
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
 		for (i = 0; i <= dict_index_get_n_unique(new_index); i++) {
 
 			new_index->stat_n_diff_key_vals[i] = 100;
+			new_index->stat_n_sample_sizes[i] = 0;
 		}
 	}
 
@@ -4178,105 +4186,6 @@ dict_index_calc_min_rec_len(
 	return(sum);
 }
 
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics_low(
-/*=======================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex __attribute__((unused)))
-					/*!< in: TRUE if the caller has the
-					dictionary mutex */
-{
-	dict_index_t*	index;
-	ulint		size;
-	ulint		sum_of_index_sizes	= 0;
-
-	if (table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: cannot calculate statistics for table %s\n"
-			"InnoDB: because the .ibd file is missing.  For help,"
-			" please refer to\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-			table->name);
-
-		return;
-	}
-
-	/* If we have set a high innodb_force_recovery level, do not calculate
-	statistics, as a badly corrupted index can cause a crash in it. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
-		return;
-	}
-
-	/* Find out the sizes of the indexes and how many different values
-	for the key they approximately have */
-
-	index = dict_table_get_first_index(table);
-
-	if (index == NULL) {
-		/* Table definition is corrupt */
-
-		return;
-	}
-
-	while (index) {
-		size = btr_get_size(index, BTR_TOTAL_SIZE);
-
-		index->stat_index_size = size;
-
-		sum_of_index_sizes += size;
-
-		size = btr_get_size(index, BTR_N_LEAF_PAGES);
-
-		if (size == 0) {
-			/* The root node of the tree is a leaf */
-			size = 1;
-		}
-
-		index->stat_n_leaf_pages = size;
-
-		btr_estimate_number_of_different_key_vals(index);
-
-		index = dict_table_get_next_index(index);
-	}
-
-	index = dict_table_get_first_index(table);
-
-	dict_index_stat_mutex_enter(index);
-
-	table->stat_n_rows = index->stat_n_diff_key_vals[
-		dict_index_get_n_unique(index)];
-
-	dict_index_stat_mutex_exit(index);
-
-	table->stat_clustered_index_size = index->stat_index_size;
-
-	table->stat_sum_of_other_index_sizes = sum_of_index_sizes
-		- index->stat_index_size;
-
-	table->stat_initialized = TRUE;
-
-	table->stat_modified_counter = 0;
-}
-
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics(
-/*===================*/
-	dict_table_t*	table)	/*!< in/out: table */
-{
-	dict_update_statistics_low(table, FALSE);
-}
-
 /**********************************************************************//**
 Prints info of a foreign key constraint. */
 static
@@ -4354,7 +4263,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE);
+	dict_stats_update(table, DICT_STATS_UPD_FETCH);
 
 	fprintf(stderr,
 		"--------------------------------------\n"

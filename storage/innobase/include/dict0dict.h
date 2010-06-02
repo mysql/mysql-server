@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1032,24 +1032,6 @@ ulint
 dict_index_calc_min_rec_len(
 /*========================*/
 	const dict_index_t*	index);	/*!< in: index */
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics_low(
-/*=======================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
-					dictionary mutex */
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics(
-/*===================*/
-	dict_table_t*	table);	/*!< in/out: table */
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN

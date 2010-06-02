@@ -84,9 +84,11 @@ extern "C" {
 #include "row0merge.h"
 #include "thr0loc.h"
 #include "dict0boot.h"
+#include "dict0stats.h"
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
+#include "dict0dict.h"
 }
 
 #include "ha_innodb.h"
@@ -437,6 +439,12 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
 static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
+
+static MYSQL_THDVAR_BOOL(analyze_is_persistent, PLUGIN_VAR_OPCMDARG,
+  "ANALYZE TABLE in InnoDB uses a more precise (and slow) sampling "
+  "algorithm and saves the results persistently.",
+  /* check_func */ NULL, /* update_func */ NULL,
+  /* default */ FALSE);
 
 static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
@@ -7662,12 +7670,19 @@ innobase_get_mysql_key_number_for_index(
 }
 /*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
-in various fields of the handle object. */
+in various fields of the handle object.
+@return HA_ERR_* error code or 0 */
 UNIV_INTERN
 int
-ha_innobase::info(
-/*==============*/
-	uint flag)	/*!< in: what information MySQL requests */
+ha_innobase::info_low(
+/*==================*/
+					/*!< out: HA_ERR_* error code */
+	uint			flag,	/*!< in: what information MySQL
+					requests */
+	enum dict_stats_upd_how	stats_upd_how)
+					/*!< in: whether to (re)calc
+					the stats or to fetch them from
+					the persistent storage */
 {
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
@@ -7714,10 +7729,16 @@ ha_innobase::info(
 		if (innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
+			enum db_err	ret;
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			dict_update_statistics(ib_table);
+			ret = dict_stats_update(ib_table, stats_upd_how);
+
+			if (ret != DB_SUCCESS) {
+				prebuilt->trx->op_info = "";
+				DBUG_RETURN(HA_ERR_GENERIC);
+			}
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}
@@ -7945,10 +7966,23 @@ ha_innobase::info(
 	DBUG_RETURN(0);
 }
 
+/*********************************************************************//**
+Returns statistics information of the table to the MySQL interpreter,
+in various fields of the handle object.
+@return HA_ERR_* error code or 0 */
+UNIV_INTERN
+int
+ha_innobase::info(
+/*==============*/
+	uint flag)	/*!< in: what information MySQL requests */
+{
+	return(info_low(flag, DICT_STATS_UPD_FETCH));
+}
+
 /**********************************************************************//**
 Updates index cardinalities of the table, based on 8 random dives into
 each index tree. This does NOT calculate exact statistics on the table.
-@return	returns always 0 (success) */
+@return	HA_ADMIN_* error code or HA_ADMIN_OK */
 UNIV_INTERN
 int
 ha_innobase::analyze(
@@ -7956,10 +7990,25 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	/* Simply call ::info() with all the flags */
-	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+	enum dict_stats_upd_how	upd_how;
+	int			ret;
 
-	return(0);
+	if (THDVAR(thd, analyze_is_persistent)) {
+		upd_how = DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE;
+	} else {
+		upd_how = DICT_STATS_UPD_RECALC_TRANSIENT;
+	}
+
+	/* Simply call ::info_low() with all the flags
+	and request recalculation of the statistics */
+	ret = info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
+		       upd_how);
+
+	if (ret != 0) {
+		return(HA_ADMIN_FAILED);
+	}
+
+	return(HA_ADMIN_OK);
 }
 
 /**********************************************************************//**
@@ -10933,10 +10982,24 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
+static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_transient_sample_pages,
   PLUGIN_VAR_RQCMDARG,
-  "The number of index pages to sample when calculating statistics (default 8)",
+  "Deprecated, use innodb_stats_transient_sample_pages instead",
   NULL, NULL, 8, 1, ~0ULL, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(stats_transient_sample_pages,
+  srv_stats_transient_sample_pages,
+  PLUGIN_VAR_RQCMDARG,
+  "The number of leaf index pages to sample when calculating transient "
+  "statistics (if persistent statistics are not used, default 8)",
+  NULL, NULL, 8, 1, ~0ULL, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(stats_persistent_sample_pages,
+  srv_stats_persistent_sample_pages,
+  PLUGIN_VAR_RQCMDARG,
+  "The number of leaf index pages to sample when calculating persistent "
+  "statistics (by ANALYZE, default 20)",
+  NULL, NULL, 20, 1, ~0ULL, 0);
 
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
@@ -11142,11 +11205,14 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
+  MYSQL_SYSVAR(stats_transient_sample_pages),
+  MYSQL_SYSVAR(stats_persistent_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
+  MYSQL_SYSVAR(analyze_is_persistent),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),

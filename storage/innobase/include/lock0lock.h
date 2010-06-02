@@ -469,6 +469,20 @@ lock_table(
 	dict_table_t*	table,	/*!< in: database table in dictionary cache */
 	enum lock_mode	mode,	/*!< in: lock mode */
 	que_thr_t*	thr);	/*!< in: query thread */
+/*********************************************************************//**
+Lock a given table with the given lock mode. This function may block the
+execution for some time, but will not wait infinitely if the table is
+already locked, it may return DB_LOCK_WAIT_TIMEOUT.
+The table is unlocked when the trx is committed.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+enum db_err
+lock_table_by_name(
+/*===============*/
+	const char*	table_name,	/*!< in: table name */
+	enum lock_mode	mode,		/*!< in: lock mode */
+	trx_t*		trx);		/*!< in/out: transaction into which to
+					lock the table */
 /*************************************************************//**
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled
