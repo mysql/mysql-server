@@ -400,6 +400,7 @@ ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool opt_skip_name_resolve=0;
 my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
 bool opt_endinfo, using_udf_functions;
@@ -957,7 +958,9 @@ static void openssl_lock(int, openssl_lock_t *, const char *, int);
 static unsigned long openssl_id_function();
 #endif
 char *des_key_file;
+#ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
+#endif
 #endif /* HAVE_OPENSSL */
 
 /**
@@ -1003,8 +1006,8 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
-static void end_ssl();
 #endif
+static void end_ssl();
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -1524,9 +1527,7 @@ void clean_up(bool print_message)
 #endif
   delete binlog_filter;
   delete rpl_filter;
-#ifndef EMBEDDED_LIBRARY
   end_ssl();
-#endif
   vio_end();
 #ifdef USE_REGEX
   my_regex_end();
@@ -3916,11 +3917,10 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 #endif /* HAVE_OPENSSL */
 
 
-#ifndef EMBEDDED_LIBRARY
-
 static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
@@ -3942,6 +3942,9 @@ static void init_ssl()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
+#else
+  have_ssl= SHOW_OPTION_DISABLED;
+#endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
@@ -3951,15 +3954,15 @@ static void init_ssl()
 static void end_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   if (ssl_acceptor_fd)
   {
     free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
     ssl_acceptor_fd= 0;
   }
+#endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
 
 static int init_server_components()
@@ -6209,9 +6212,6 @@ Can't be set to 1 if --log-slave-updates is used.",
 #endif
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-name-resolve", OPT_SKIP_RESOLVE,
-   "Don't resolve hostnames. All hostnames are IP's or 'localhost'.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-slave-start", 0,
@@ -6434,7 +6434,7 @@ static int show_table_definitions(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /* Functions relying on CTX */
 static int show_ssl_ctx_sess_accept(THD *thd, SHOW_VAR *var, char *buff)
 {
@@ -6690,7 +6690,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
 
 /*
@@ -6781,6 +6781,7 @@ SHOW_VAR status_vars[]= {
   {"Sort_rows",		       (char*) offsetof(STATUS_VAR, filesort_rows), SHOW_LONG_STATUS},
   {"Sort_scan",		       (char*) offsetof(STATUS_VAR, filesort_scan_count), SHOW_LONG_STATUS},
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   {"Ssl_accept_renegotiates",  (char*) &show_ssl_ctx_sess_accept_renegotiate, SHOW_FUNC},
   {"Ssl_accepts",              (char*) &show_ssl_ctx_sess_accept, SHOW_FUNC},
   {"Ssl_callback_cache_hits",  (char*) &show_ssl_ctx_sess_cb_hits, SHOW_FUNC},
@@ -6804,6 +6805,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
+#endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -6961,6 +6963,7 @@ static int mysql_init_variables(void)
   opt_log= opt_slow_log= 0;
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
+  opt_skip_name_resolve= 0;
   opt_ignore_builtin_innodb= 0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
@@ -7103,8 +7106,10 @@ static int mysql_init_variables(void)
 #endif
 #ifdef HAVE_OPENSSL
   des_key_file = 0;
+#ifndef EMBEDDED_LIBRARY
   ssl_acceptor_fd= 0;
-#endif
+#endif /* ! EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
@@ -7328,6 +7333,7 @@ mysqld_get_one_option(int optid,
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
     break;
   case (int) OPT_SKIP_RESOLVE:
+    opt_skip_name_resolve= 1;
     opt_specialflag|=SPECIAL_NO_RESOLVE;
     break;
   case (int) OPT_WANT_CORE:
@@ -7705,6 +7711,48 @@ fn_format_relative_to_data_home(char * to, const char *name,
 }
 
 
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+ 
+  @param path null terminated character string
+
+  @return
+    @retval TRUE The path is secure
+    @retval FALSE The path isn't secure
+*/
+
+bool is_secure_file_path(char *path)
+{
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  /*
+    All paths are secure if opt_secure_file_path is 0
+  */
+  if (!opt_secure_file_priv)
+    return TRUE;
+
+  if (strlen(path) >= FN_REFLEN)
+    return FALSE;
+
+  if (my_realpath(buff1, path, 0))
+  {
+    /*
+      The supplied file path might have been a file and not a directory.
+    */
+    int length= (int)dirname_length(path);
+    if (length >= FN_REFLEN)
+      return FALSE;
+    memcpy(buff2, path, length);
+    buff2[length]= '\0';
+    if (length == 0 || my_realpath(buff1, buff2, 0))
+      return FALSE;
+  }
+  convert_dirname(buff2, buff1, NullS);
+  if (strncmp(opt_secure_file_priv, buff2, strlen(opt_secure_file_priv)))
+    return FALSE;
+  return TRUE;
+}
+
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
@@ -7765,10 +7813,26 @@ static int fix_paths(void)
    */
   if (opt_secure_file_priv)
   {
-    convert_dirname(buff, opt_secure_file_priv, NullS);
-    x_free(opt_secure_file_priv);
-    opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
+    if (*opt_secure_file_priv == 0)
+    {
+      opt_secure_file_priv= 0;
+    }
+    else
+    {
+      if (strlen(opt_secure_file_priv) >= FN_REFLEN)
+        opt_secure_file_priv[FN_REFLEN-1]= '\0';
+      if (my_realpath(buff, opt_secure_file_priv, 0))
+      {
+        sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
+        return 1;
+      }
+      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
+      convert_dirname(secure_file_real_path, buff, NullS);
+      my_free(opt_secure_file_priv, MYF(0));
+      opt_secure_file_priv= secure_file_real_path;
+    }
   }
+  
   return 0;
 }
 

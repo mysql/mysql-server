@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "tap.h"
 
 #include "my_global.h"
+#include "my_stacktrace.h"
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -50,7 +51,7 @@
 
    @ingroup MyTAP_Internal
  */
-static TEST_DATA g_test = { 0, 0, 0, "" };
+static TEST_DATA g_test = { NO_PLAN, 0, 0, "" };
 
 /**
    Output stream for test report message.
@@ -84,6 +85,7 @@ vemit_tap(int pass, char const *fmt, va_list ap)
           (fmt && *fmt) ? " - " : "");
   if (fmt && *fmt)
     vfprintf(tapout, fmt, ap);
+  fflush(tapout);
 }
 
 
@@ -106,6 +108,7 @@ static void
 emit_dir(const char *dir, const char *why)
 {
   fprintf(tapout, " # %s %s", dir, why);
+  fflush(tapout);
 }
 
 
@@ -118,12 +121,20 @@ static void
 emit_endl()
 {
   fprintf(tapout, "\n");
+  fflush(tapout);
 }
 
 static void
 handle_core_signal(int signo)
 {
-  BAIL_OUT("Signal %d thrown", signo);
+  /* BAIL_OUT("Signal %d thrown", signo); */
+#ifdef HAVE_STACKTRACE
+  fprintf(stderr, "Signal %d thrown, attempting backtrace.\n", signo);
+  my_print_stacktrace(NULL, 0);
+#endif
+  signal(signo, SIG_DFL);
+  raise(signo);
+  _exit(EXIT_FAILURE);
 }
 
 void
@@ -181,7 +192,7 @@ static signal_entry install_signal[]= {
 int skip_big_tests= 1;
 
 void
-plan(int count)
+plan(int const count)
 {
   char *config= getenv("MYTAP_CONFIG");
   size_t i;
@@ -189,7 +200,6 @@ plan(int count)
   if (config)
     skip_big_tests= strcmp(config, "big");
 
-  setvbuf(tapout, 0, _IONBF, 0);  /* provide output at once */
   /*
     Install signal handler
   */
@@ -204,7 +214,10 @@ plan(int count)
     break;
   default:
     if (count > 0)
+    {
       fprintf(tapout, "1..%d\n", count);
+      fflush(tapout);
+    }
     break;
   }
 }
@@ -217,12 +230,13 @@ skip_all(char const *reason, ...)
   va_start(ap, reason);
   fprintf(tapout, "1..0 # skip ");
   vfprintf(tapout, reason, ap);
+  fflush(tapout);
   va_end(ap);
   exit(0);
 }
 
 void
-ok(int pass, char const *fmt, ...)
+ok(int const pass, char const *fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);

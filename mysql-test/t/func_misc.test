@@ -467,4 +467,15 @@ select NAME_CONST('_id',1234) as id;
 
 select connection_id() > 0;
 
+--echo #
+--echo # Bug #52165: Assertion failed: file .\dtoa.c, line 465
+--echo # 
+
+CREATE TABLE t1 (a SET('a'), b INT);
+INSERT INTO t1 VALUES ('', 0);
+
+SELECT COALESCE(a) = COALESCE(b) FROM t1;
+
+DROP TABLE t1;
+
 --echo End of tests

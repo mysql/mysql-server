@@ -199,6 +199,7 @@ parse_arguments() {
         ;;
       --nice=*) niceness="$val" ;;
       --open-files-limit=*) open_files="$val" ;;
+      --open_files_limit=*) open_files="$val" ;;
       --skip-kill-mysqld*) KILL_MYSQLD=0 ;;
       --syslog) want_syslog=1 ;;
       --skip-syslog) want_syslog=0 ;;
@@ -306,7 +307,7 @@ set_malloc_lib() {
     malloc_lib=
     # This list is kept intentionally simple.  Simply set --malloc-lib
     # to a full path if another location is desired.
-    for libdir in /usr/lib "$pkglibdir"; do
+    for libdir in /usr/lib "$pkglibdir" "$pkglibdir/mysql"; do
       for flavor in _minimal '' _and_profiler _debug; do
         tmp="$libdir/libtcmalloc$flavor.so"
         #log_notice "DEBUG: Checking for malloc lib '$tmp'"
@@ -545,8 +546,12 @@ then
   if test -n "$open_files"
   then
     ulimit -n $open_files
-    append_arg_to_args "--open-files-limit=$open_files"
   fi
+fi
+
+if test -n "$open_files"
+then
+  append_arg_to_args "--open-files-limit=$open_files"
 fi
 
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
@@ -699,7 +704,7 @@ fi
 
 cmd="`mysqld_ld_preload_text`$NOHUP_NICENESS"
 
-plugin_dir="${PLUGIN_DIR:-@pkgplugindir@}${PLUGIN_VARIANT}"
+plugin_dir="${PLUGIN_DIR:-$MY_BASEDIR_VERSION/lib/plugin}${PLUGIN_VARIANT}"
 
 for i in  "$ledir/$MYSQLD" "$defaults" "--basedir=$MY_BASEDIR_VERSION" \
   "--datadir=$DATADIR" "--plugin-dir=$plugin_dir" "$USER_OPTION"

@@ -1,7 +1,7 @@
 -- source include/have_innodb.inc
 -- source include/have_binlog_format_statement.inc
 
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 # You cannot use `KILL' with the Embedded MySQL Server library,
 # because the embedded server merely runs inside the threads of the host

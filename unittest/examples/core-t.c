@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@
 /*
   This is a simple test to demonstrate what happens if a signal that
   generates a core is raised.
-
-  Note that this test will stop all further testing!
  */
 
 int main() {

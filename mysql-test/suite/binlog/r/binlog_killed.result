@@ -1,4 +1,4 @@
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 create table t1 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
 create table t2 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=MyISAM;
 create table t3 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;

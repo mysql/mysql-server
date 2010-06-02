@@ -61,7 +61,7 @@ if NEED_THREAD
 # mf_keycache is used only in the server, so it is safe to leave the file
 # out of the non-threaded library.
 # In fact, it will currently not compile without thread support.
-libmysys_a_SOURCES +=   mf_keycache.c
+libmysys_a_SOURCES +=   mf_keycache.c waiting_threads.c
 endif
 
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
@@ -159,6 +159,3 @@ probes_mysql.d:
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
 endif
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

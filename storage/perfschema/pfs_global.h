@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 */
 
 extern bool pfs_initialized;
+extern ulonglong pfs_allocated_memory;
 
 void *pfs_malloc(size_t size, myf flags);
 #define PFS_MALLOC_ARRAY(n, T, f) \
@@ -30,27 +31,50 @@ void pfs_free(void *ptr);
 
 inline uint randomized_index(const void *ptr, uint max_size)
 {
+  static uint seed1= 0;
+  static uint seed2= 0;
+  uint result;
+  register intptr value;
+
   if (unlikely(max_size == 0))
     return 0;
 
   /*
-    ptr is typically an aligned structure,
-    so the last bits are not really random, but this has no effect.
-    Apply a factor A*x to spread
-    close values of ptr further apart (which helps with arrays),
-    and to spread values way beyond a typical max_size.
-    Then, apply a modulo to end within [0, max_size - 1].
-    A is big prime numbers, to avoid resonating with max_size,
-    to have a uniform distribution in [0, max_size - 1].
-    The value of A is chosen so that index(ptr) and index(ptr + N) (for arrays)
-    are likely to be not similar for typical values of max_size
-    (50, 100, 1000, etc).
-    In other words, (sizeof(T)*A % max_size) should not be a small number,
-    to avoid that with 'T array[max_size]', index(array[i])
-    and index(array[i + 1]) end up pointing in the same area in [0, max_size - 1].
+    ptr is typically an aligned structure, and can be in an array.
+    - The last bits are not random because of alignment,
+      so we divide by 8.
+    - The high bits are mostly constant, especially with 64 bits architectures,
+      but we keep most of them anyway, by doing computation in intptr.
+      The high bits are significant depending on where the data is
+      stored (the data segment, the stack, the heap, ...).
+    - To spread consecutive cells in an array further, we multiply by
+      a factor A. This factor should not be too high, which would cause
+      an overflow and cause loss of randomness (droping the top high bits).
+      The factor is a prime number, to help spread the distribution.
+    - To add more noise, and to be more robust if the calling code is
+      passing a constant value instead of a random identity,
+      we add the previous results, for hysteresys, with a degree 2 polynom,
+      X^2 + X + 1.
+    - Last, a modulo is applied to be within the [0, max_size - 1] range.
+    Note that seed1 and seed2 are static, and are *not* thread safe,
+    which is even better.
+    Effect with arrays: T array[N]
+    - ptr(i) = & array[i] = & array[0] + i * sizeof(T)
+    - ptr(i+1) = ptr(i) + sizeof(T).
+    What we want here, is to have index(i) and index(i+1) fall into
+    very different areas in [0, max_size - 1], to avoid locality.
   */
-  return static_cast<uint>
-    (((reinterpret_cast<intptr> (ptr)) * 2166179) % max_size);
+  value= (reinterpret_cast<intptr> (ptr)) >> 3;
+  value*= 1789;
+  value+= seed2 + seed1 + 1;
+  
+  result= (static_cast<uint> (value)) % max_size;
+
+  seed2= seed1*seed1;
+  seed1= result;
+
+  DBUG_ASSERT(result < max_size);
+  return result;
 }
 
 void pfs_print_error(const char *format, ...);

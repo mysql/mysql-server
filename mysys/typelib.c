@@ -354,11 +354,11 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
             !(value= parse_name(&on_off_default_typelib, &pos, end)))
           goto err;
         
-        if (value == 1) // this is '=off'
+        if (value == 1) /* this is '=off' */
           flags_to_clear|= bit;
-        else if (value == 2) // this is '=on'
+        else if (value == 2) /* this is '=on' */
           flags_to_set|= bit;
-        else // this is '=default' 
+        else /* this is '=default'  */
         {
           if (default_set & bit)
             flags_to_set|= bit;
