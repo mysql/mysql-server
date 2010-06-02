@@ -2175,6 +2175,10 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 }
 
 
+// This is used by the cachetable_race test.  
+extern int toku_checkpointing_user_data_status __attribute__((__visibility__("default")));
+int toku_checkpointing_user_data_status = 0;
+
 int
 toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
                                void (*ydb_lock)(void), void (*ydb_unlock)(void),
@@ -2213,7 +2217,9 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
                     assert(ct->lsn_of_checkpoint_in_progress.lsn >= cf->most_recent_global_checkpoint_that_finished_early.lsn);
                     cachetable_unlock(ct);
                     assert(cf->checkpoint_state == CS_CALLED_BEGIN_CHECKPOINT);
+		    toku_checkpointing_user_data_status = 1;
                     int r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
+		    toku_checkpointing_user_data_status = 0;
                     assert(r==0);
                     cf->checkpoint_state = CS_CALLED_CHECKPOINT;
                     cachetable_lock(ct);
