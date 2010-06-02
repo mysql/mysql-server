@@ -1,5 +1,7 @@
 --source include/have_debug.inc
 
+SET @old_debug = @@GLOBAL.debug;
+
 #
 # Bug#34678 @@debug variable's incremental mode
 #
@@ -10,3 +12,27 @@ set debug= '+P';
 select @@debug;
 set debug= '-P';
 select @@debug;
+
+#
+# Bug#38054: "SET SESSION debug" modifies @@global.debug variable
+#
+
+SELECT @@session.debug, @@global.debug;
+
+SET SESSION debug = '';
+
+SELECT @@session.debug, @@global.debug;
+
+--echo #
+--echo # Bug #52629: memory leak from sys_var_thd_dbug in 
+--echo #  binlog.binlog_write_error
+--echo #
+
+SET GLOBAL debug='d,injecting_fault_writing';
+SELECT @@global.debug;
+SET GLOBAL debug='';
+SELECT @@global.debug;
+
+SET GLOBAL debug=@old_debug;
+
+--echo End of 5.1 tests

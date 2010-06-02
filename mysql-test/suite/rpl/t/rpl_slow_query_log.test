@@ -28,7 +28,7 @@
 source include/master-slave.inc;
 source include/have_binlog_format_statement.inc;
 
-CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 
 # Prepare slave for different long_query_time we need to stop the slave 

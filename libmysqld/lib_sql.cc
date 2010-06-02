@@ -534,6 +534,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
     opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
+  init_ssl();
   umask(((~my_umask) & 0666));
   if (init_server_components())
   {

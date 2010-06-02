@@ -1,5 +1,5 @@
 CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 drop table if exists t1, t2;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
@@ -8,7 +8,7 @@ begin;
 insert into t1 values(1);
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 commit;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -23,7 +23,7 @@ begin;
 insert into t1 values(2);
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -42,7 +42,7 @@ savepoint my_savepoint;
 insert into t1 values(4);
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 rollback to savepoint my_savepoint;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -51,10 +51,10 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(3)
-master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	SAVEPOINT my_savepoint
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(4)
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
-master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Query	#	#	ROLLBACK TO my_savepoint
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 delete from t1;
 delete from t2;
@@ -65,7 +65,7 @@ savepoint my_savepoint;
 insert into t1 values(6);
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 rollback to savepoint my_savepoint;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -79,10 +79,10 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(5)
-master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	SAVEPOINT my_savepoint
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(6)
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
-master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Query	#	#	ROLLBACK TO my_savepoint
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(7)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 delete from t1;
@@ -95,7 +95,7 @@ begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 select get_lock("a",10);
 get_lock("a",10)
 1
@@ -111,7 +111,7 @@ reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -127,7 +127,7 @@ insert into t1 values(10);
 begin;
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -245,10 +245,12 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 create table t0 (n int);
 insert t0 select * from t1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 set autocommit=1;
 insert into t0 select GET_LOCK("lock1",null);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3);
@@ -277,7 +279,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; create temporary table ti (a int) engine=innodb
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into ti values(1)
 master-bin.000001	#	Query	#	#	COMMIT
@@ -286,7 +288,7 @@ master-bin.000001	#	Query	#	#	use `test`; create temporary table t1 (a int) engi
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t1 values (1)
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	use `test`; create table t0 (n int)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert t0 select * from t1
@@ -332,6 +334,8 @@ DROP TABLE t2;
 INSERT INTO t1 values (6,6);
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
 INSERT INTO t1 values (7,7);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -399,10 +403,8 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (6,6)
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (7,7)
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (8,8)
 master-bin.000001	#	Query	#	#	COMMIT
@@ -427,7 +429,7 @@ begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 select get_lock("a",10);
 get_lock("a",10)
 1
@@ -453,8 +455,6 @@ begin;
 insert into ti values (1);
 insert into ti values (2) ;
 insert into tt select * from ti;
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -472,8 +472,6 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from ti /* that is what slave would miss - a bug */;
 a
 1
@@ -500,8 +498,6 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from tt /* that is what otherwise slave missed - the bug */;
 a
 1
@@ -520,10 +516,10 @@ end|
 reset master;
 insert into t2 values (bug27417(1));
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 insert into t2 select bug27417(2);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -543,7 +539,7 @@ count(*)
 2
 delete from t2 where a=bug27417(3);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -560,7 +556,7 @@ count(*)
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
 affected rows: 0
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 select count(*) from t1 /* must be 7 */;
 count(*)
 7
@@ -717,8 +713,6 @@ begin;
 insert into ti values (1);
 insert into ti values (2) ;
 insert into tt select * from ti;
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -736,8 +730,6 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from ti /* that is what slave would miss - bug#28960 */;
 a
 1
@@ -764,8 +756,6 @@ select count(*) from ti /* zero */;
 count(*)
 0
 insert into ti select * from tt;
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 select * from tt /* that is what otherwise slave missed - the bug */;
 a
 1
@@ -784,10 +774,10 @@ end|
 reset master;
 insert into t2 values (bug27417(1));
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 insert into t2 select bug27417(2);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
@@ -806,7 +796,7 @@ count(*)
 2
 delete from t2 where a=bug27417(3);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
@@ -822,7 +812,7 @@ count(*)
 delete t2 from t2 where t2.a=bug27417(100) /* must not affect t2 */;
 affected rows: 0
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 select count(*) from t1 /* must be 7 */;
 count(*)
 7
@@ -896,7 +886,7 @@ delete from t4;
 insert into t3 values (1,1),(2,2);
 insert into t4 values (1,1),(2,2);
 reset master;
-UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+UPDATE t3,t4 SET t3.a = t4.a + bug27417(1) where t3.a = 1;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)

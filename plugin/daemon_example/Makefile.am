@@ -39,6 +39,3 @@ libdaemon_example_a_CXXFLAGS =	$(AM_CFLAGS)
 libdaemon_example_a_CFLAGS =	$(AM_CFLAGS)
 libdaemon_example_a_SOURCES=	daemon_example.cc
 EXTRA_DIST = CMakeLists.txt
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

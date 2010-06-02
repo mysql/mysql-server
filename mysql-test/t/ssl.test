@@ -1,7 +1,7 @@
 # Turn on ssl between the client and server
 # and run a number of tests
 
--- source include/have_ssl.inc
+-- source include/have_ssl_communication.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -23,3 +23,5 @@ disconnect ssl_con;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+##  This test file is for testing encrypted communication only, not other
+##  encryption routines that the SSL library happens to provide!

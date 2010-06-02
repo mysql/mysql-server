@@ -907,6 +907,7 @@ shared-memory FALSE
 shared-memory-base-name MYSQL
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
+skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE

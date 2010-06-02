@@ -679,6 +679,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   server_id=	thd->server_id;
   when=		thd->start_time;
   cache_type= (using_trans || stmt_has_updated_trans_table(thd)
+               || thd->thread_temporary_used
                ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                Log_event::EVENT_STMT_CACHE);
 }
@@ -1729,8 +1730,8 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     {
       uint32 tmp= uint3korr(ptr);
       int part;
-      char buf[10];
-      char *pos= &buf[10];
+      char buf[11];
+      char *pos= &buf[10];  // start from '\0' to the beginning
 
       /* Copied from field.cc */
       *pos--=0;					// End NULL
@@ -2470,6 +2471,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   */
   LEX *lex= thd->lex;
   bool implicit_commit= FALSE;
+  bool force_trans= FALSE;
   cache_type= Log_event::EVENT_INVALID_CACHE;
   switch (lex->sql_command)
   {
@@ -2483,14 +2485,16 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
       implicit_commit= TRUE;
       break;
     case SQLCOM_DROP_TABLE:
-      implicit_commit= !(lex->drop_temporary && thd->in_multi_stmt_transaction());
+      force_trans= lex->drop_temporary && thd->in_multi_stmt_transaction();
+      implicit_commit= !force_trans;
       break;
     case SQLCOM_ALTER_TABLE:
     case SQLCOM_CREATE_TABLE:
-      implicit_commit= !((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-                   thd->in_multi_stmt_transaction()) &&
-                  !(lex->select_lex.item_list.elements &&
-                   thd->is_current_stmt_binlog_format_row());
+      force_trans= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+                    thd->in_multi_stmt_transaction();
+      implicit_commit= !force_trans &&
+                       !(lex->select_lex.item_list.elements &&
+                         thd->is_current_stmt_binlog_format_row());
       break;
     case SQLCOM_SET_OPTION:
       implicit_commit= (lex->autocommit ? TRUE : FALSE);
@@ -2548,7 +2552,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   }
   else
   {
-    cache_type= (using_trans || stmt_has_updated_trans_table(thd)
+    cache_type= ((using_trans || stmt_has_updated_trans_table(thd) ||
+                 force_trans || thd->thread_temporary_used)
                  ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                  Log_event::EVENT_STMT_CACHE);
   }
@@ -3184,10 +3189,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             ::do_apply_event(), then the companion SET also have so
             we don't need to reset_one_shot_variables().
   */
-  if (!strncmp(query_arg, "BEGIN", q_len_arg) ||
-      !strncmp(query_arg, "COMMIT", q_len_arg) ||
-      !strncmp(query_arg, "ROLLBACK", q_len_arg) ||
-      rpl_filter->db_ok(thd->db))
+  if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
     thd->set_query_and_id((char*)query_arg, q_len_arg, next_query_id());
@@ -3285,8 +3287,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       thd->table_map_for_update= (table_map)table_map_for_update;
       
       /* Execute the query (note that we bypass dispatch_command()) */
-      const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
+      Parser_state parser_state(thd, thd->query(), thd->query_length());
+      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
       log_slow_statement(thd);
 
       /*
@@ -7517,7 +7519,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           having severe errors which should not be skiped.
         */
         rli->report(ERROR_LEVEL, actual_error,
-                    "Error '%s' on opening tables",
+                    "Error executing row event: '%s'",
                     (actual_error ? thd->stmt_da->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
@@ -7732,12 +7734,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                                 RPL_LOG_NAME, (ulong) log_pos);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
-    }
-
-    if (!use_trans_cache())
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
   } // if (table)
 
@@ -8931,11 +8927,28 @@ static bool record_compare(TABLE *table)
   {
     for (int i = 0 ; i < 2 ; ++i)
     {
-      saved_x[i]= table->record[i][0];
-      saved_filler[i]= table->record[i][table->s->null_bytes - 1];
-      table->record[i][0]|= 1U;
-      table->record[i][table->s->null_bytes - 1]|=
-        256U - (1U << table->s->last_null_bit_pos);
+      /* 
+        If we have an X bit then we need to take care of it.
+      */
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+      {
+        saved_x[i]= table->record[i][0];
+        table->record[i][0]|= 1U;
+      }
+
+      /*
+         If (last_null_bit_pos == 0 && null_bytes > 1), then:
+
+         X bit (if any) + N nullable fields + M Field_bit fields = 8 bits 
+
+         Ie, the entire byte is used.
+      */
+      if (table->s->last_null_bit_pos > 0)
+      {
+        saved_filler[i]= table->record[i][table->s->null_bytes - 1];
+        table->record[i][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
     }
   }
 
@@ -8975,8 +8988,11 @@ record_compare_exit:
   {
     for (int i = 0 ; i < 2 ; ++i)
     {
-      table->record[i][0]= saved_x[i];
-      table->record[i][table->s->null_bytes - 1]= saved_filler[i];
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+        table->record[i][0]= saved_x[i];
+
+      if (table->s->last_null_bit_pos)
+        table->record[i][table->s->null_bytes - 1]= saved_filler[i];
     }
   }
 

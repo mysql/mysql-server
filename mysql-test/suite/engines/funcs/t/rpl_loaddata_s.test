@@ -22,7 +22,7 @@ sync_with_master;
 select count(*) from test.t1; # check that LOAD was replicated
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 106; # should be nothing
+show binlog events from 107; # should be nothing
 
 # Cleanup
 connection master;

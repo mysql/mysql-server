@@ -4,14 +4,7 @@
 # Test of manual relay log rotation with FLUSH LOGS.
 
 # Requires statement logging
--- source include/not_ndb_default.inc
-set @saved_binlog_format = @@global.binlog_format;
+source include/not_ndb_default.inc;
+source include/have_binlog_format_row.inc;
 
-SET SESSION BINLOG_FORMAT=ROW;
-SET GLOBAL BINLOG_FORMAT=ROW;
--- source extra/rpl_tests/rpl_max_relay_size.test
-
-# Restoring to the original values
-connection default;
-SET GLOBAL BINLOG_FORMAT= @saved_binlog_format;
-
+source extra/rpl_tests/rpl_max_relay_size.test;

@@ -13,8 +13,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <sql_priv.h>
+#include <my_pthread.h>
 #include <my_global.h>
+#include <sql_priv.h>
+
 #include <string.h>                             // strncpy
 #include <pfs_instr_class.h>
 #include <pfs_instr.h>

@@ -372,7 +372,7 @@ row_count() after delete
 2
 SELECT row_count();
 row_count()
--1
+0
 SELECT * FROM temp;
 f1	f2	f3	f4	f5	f6
 qwe	xyz	1998-03-26	100	uvw	1000

@@ -114,8 +114,6 @@ extern "C" {
 # endif /* MYSQL_PLUGIN_IMPORT */
 
 #if MYSQL_VERSION_ID < 50124
-/* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
-but we need it here */
 bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_VERSION_ID < 50124 */
 

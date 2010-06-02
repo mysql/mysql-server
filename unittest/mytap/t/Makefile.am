@@ -20,6 +20,3 @@ AM_LDFLAGS      = -L$(top_builddir)/unittest/mytap
 LDADD           = -lmytap
 
 noinst_PROGRAMS = basic-t
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
