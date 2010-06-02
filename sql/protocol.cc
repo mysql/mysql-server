@@ -747,8 +747,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       else
       {
         /* With conversion */
-        ulonglong max_length;
-        uint32 field_length;
+        uint32 field_length, max_length;
         int2store(pos, thd_charset->number);
         /*
           For TEXT/BLOB columns, field_length describes the maximum data
@@ -771,9 +770,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
                      field.type <= MYSQL_TYPE_BLOB) ?
                      field.length / item->collation.collation->mbminlen :
                      field.length / item->collation.collation->mbmaxlen;
-        max_length*= thd_charset->mbmaxlen;
-        field_length= (max_length > UINT_MAX32) ? 
-          UINT_MAX32 : (uint32) max_length;
+        field_length= char_to_byte_length_safe(max_length,
+                                               thd_charset->mbmaxlen);
         int4store(pos + 2, field_length);
       }
       pos[6]= field.type;
