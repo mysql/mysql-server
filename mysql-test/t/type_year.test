@@ -134,5 +134,21 @@ SELECT * FROM t4 WHERE yyyy > 123;
 DROP TABLE t2, t4;
 
 --echo #
+--echo # Bug #49910: Behavioural change in SELECT/WHERE on YEAR(4) data type
+--echo #
+
+CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
+INSERT INTO t1 (s) VALUES ('bad');
+INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
+
+SELECT * FROM t1 ta, t1 tb WHERE ta.y = tb.y;
+SELECT * FROM t1 WHERE t1.y = 0;
+SELECT * FROM t1 WHERE t1.y = 2000;
+
+SELECT ta.y AS ta_y, ta.s, tb.y AS tb_y, tb.s FROM t1 ta, t1 tb HAVING ta_y = tb_y;
+
+DROP TABLE t1;
+
+--echo #
 
 --echo End of 5.1 tests

@@ -430,7 +430,6 @@ typedef struct st_table_share
   bool name_lock, replace_with_name_lock;
   bool waiting_on_cond;                 /* Protection against free */
   ulong table_map_id;                   /* for row-based replication */
-  ulonglong table_map_version;
 
   /*
     Cache for row-based replication table share checks that does not
@@ -1691,7 +1690,11 @@ typedef struct st_nested_join
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
   table_map         used_tables;     /* bitmap of tables in the nested join */
   table_map         not_null_tables; /* tables that rejects nulls           */
-  struct st_join_table *first_nested;/* the first nested table in the plan  */
+  /**
+    Used for pointing out the first table in the plan being covered by this
+    join nest. It is used exclusively within make_outerjoin_info().
+   */
+  struct st_join_table *first_nested;
   /* 
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
@@ -1701,6 +1704,15 @@ typedef struct st_nested_join
   */
   uint              counter;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /**
+     True if this join nest node is completely covered by the query execution
+     plan. This means two things.
+
+     1. All tables on its @c join_list are covered by the plan.
+
+     2. All child join nest nodes are fully covered.
+   */
+  bool is_fully_covered() const { return join_list.elements == counter; }
 } NESTED_JOIN;
 
 

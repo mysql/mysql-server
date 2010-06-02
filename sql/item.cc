@@ -556,6 +556,18 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
 }
 
 
+Item_ident::Item_ident(TABLE_LIST *view_arg, const char *field_name_arg)
+  :orig_db_name(NullS), orig_table_name(view_arg->table_name),
+   orig_field_name(field_name_arg), context(&view_arg->view->select_lex.context),
+   db_name(NullS), table_name(view_arg->alias),
+   field_name(field_name_arg),
+   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_table(NULL), depended_from(NULL)
+{
+  name = (char*) field_name_arg;
+}
+
+
 /**
   Constructor used by Item_field & Item_*_ref (see Item comment)
 */
@@ -1701,7 +1713,16 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
+    {
+      /*
+        We should disable const subselect item evaluation because
+        subselect transformation does not happen in view_prepare_mode
+        and thus val_...() methods can not be called for const items.
+      */
+      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
+                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
+      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
+    }
 
     if (!conv)
     {
@@ -3503,7 +3524,7 @@ void Item_copy_decimal::copy()
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
-    memcpy (&cached_value, nr, sizeof (my_decimal)); 
+    my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
 }
 
@@ -4475,6 +4496,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  item_equal= NULL;
   null_value= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -5050,14 +5072,22 @@ int Item_field::save_in_field(Field *to, bool no_conversions)
   if (result_field->is_null())
   {
     null_value=1;
-    res= set_field_to_null_with_conversions(to, no_conversions);
+    return set_field_to_null_with_conversions(to, no_conversions);
   }
-  else
+  to->set_notnull();
+
+  /*
+    If we're setting the same field as the one we're reading from there's 
+    nothing to do. This can happen in 'SET x = x' type of scenarios.
+  */  
+  if (to == result_field)
   {
-    to->set_notnull();
-    res= field_conv(to,result_field);
     null_value=0;
+    return 0;
   }
+
+  res= field_conv(to,result_field);
+  null_value=0;
   return res;
 }
 
@@ -5336,13 +5366,25 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+Item_hex_string::Item_hex_string()
+{
+  hex_string_init("", 0);
+}
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
+{
+  hex_string_init(str, str_length);
+}
+
+void Item_hex_string::hex_string_init(const char *str, uint str_length)
 {
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
+  {
+    str_value.set("", 0, &my_charset_bin);
     return;
+  }
   str_value.set(ptr,max_length,&my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
@@ -5690,9 +5732,14 @@ void Item_field::print(String *str, enum_query_type query_type)
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
     field->val_str(&tmp);
-    str->append('\'');
-    str->append(tmp);
-    str->append('\'');
+    if (field->is_null())
+      str->append("NULL");
+    else
+    {
+      str->append('\'');
+      str->append(tmp);
+      str->append('\'');
+    }
     return;
   }
   Item_ident::print(str, query_type);
@@ -5709,6 +5756,20 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   alias_name_used= alias_name_used_arg;
   /*
     This constructor used to create some internals references over fixed items
+  */
+  if (ref && *ref && (*ref)->fixed)
+    set_properties();
+}
+
+
+Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
+                   const char *field_name_arg, bool alias_name_used_arg)
+  :Item_ident(view_arg, field_name_arg),
+   result_field(NULL), ref(item)
+{
+  alias_name_used= alias_name_used_arg;
+  /*
+    This constructor is used to create some internal references over fixed items
   */
   if (ref && *ref && (*ref)->fixed)
     set_properties();
@@ -7127,7 +7188,7 @@ double Item_cache_decimal::val_real()
   DBUG_ASSERT(fixed);
   double res;
   if (!value_cached && !cache_value())
-    return NULL;
+    return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &res);
   return res;
 }

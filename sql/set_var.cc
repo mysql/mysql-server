@@ -533,6 +533,10 @@ static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
 
+static sys_var_const    sys_skip_name_resolve(&vars, "skip_name_resolve",
+                                            OPT_GLOBAL, SHOW_BOOL,
+                                            (uchar*) &opt_skip_name_resolve);
+
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
                                    (uchar*) &mysqld_unix_port);
@@ -3078,6 +3082,13 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
+      if (thd->transaction.xid_state.xa_state != XA_NOTR)
+      {
+        thd->options= org_options;
+        my_error(ER_XAER_RMFAIL, MYF(0),
+                 xa_state_names[thd->transaction.xid_state.xa_state]);
+        return 1;
+      }
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
@@ -4228,10 +4239,15 @@ bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 
 bool sys_var_thd_dbug::update(THD *thd, set_var *var)
 {
+  char buf[256];
+  String str(buf, sizeof(buf), system_charset_info), *res;
+
+  res= var->value->val_str(&str);
+
   if (var->type == OPT_GLOBAL)
-    DBUG_SET_INITIAL(var ? var->value->str_value.c_ptr() : "");
+    DBUG_SET_INITIAL(res ? res->c_ptr() : "");
   else
-    DBUG_SET(var ? var->value->str_value.c_ptr() : "");
+    DBUG_SET(res ? res->c_ptr() : "");
 
   return 0;
 }
