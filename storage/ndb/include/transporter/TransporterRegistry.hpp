@@ -362,8 +362,8 @@ private:
    * Used in polling if exists TCP_Transporter
    */
   int tcpReadSelectReply;
-  fd_set tcpReadset;
-  
+  ndb_socket_poller m_socket_poller;
+
   Uint32 poll_TCP(Uint32 timeOutMillis);
   Uint32 poll_SCI(Uint32 timeOutMillis);
   Uint32 poll_SHM(Uint32 timeOutMillis);
