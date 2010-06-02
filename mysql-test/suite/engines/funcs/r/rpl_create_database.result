@@ -28,6 +28,7 @@ mysql
 mysqltest_bob
 mysqltest_prometheus
 mysqltest_sisyfos
+performance_schema
 test
 SHOW DATABASES;
 Database
@@ -36,6 +37,7 @@ mtr
 mysql
 mysqltest_prometheus
 mysqltest_sisyfos
+performance_schema
 test
 DROP DATABASE IF EXISTS mysqltest_sisyfos;
 USE mysqltest_prometheus;
@@ -52,6 +54,7 @@ mysql
 mysqltest_bob
 mysqltest_prometheus
 mysqltest_sisyfos
+performance_schema
 test
 SHOW DATABASES;
 Database
@@ -60,6 +63,7 @@ mtr
 mysql
 mysqltest_prometheus
 mysqltest_sisyfos
+performance_schema
 test
 USE mysqltest_prometheus;
 SHOW TABLES;

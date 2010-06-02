@@ -2,7 +2,7 @@
 # Test sets its own binlog_format, so we restrict it to run only once
 --source include/have_binlog_format_row.inc
 
-CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 # Get rid of previous tests binlog
 --disable_query_log

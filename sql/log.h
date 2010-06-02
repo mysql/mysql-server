@@ -26,6 +26,9 @@ class Format_description_log_event;
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(const THD *thd);
 bool use_trans_cache(const THD* thd, bool is_transactional);
+bool ending_trans(THD* thd, const bool all);
+bool trans_has_updated_non_trans_table(const THD* thd);
+bool stmt_has_updated_non_trans_table(const THD* thd);
 
 /*
   Transaction Coordinator log - a base abstract class
@@ -296,8 +299,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   bool no_auto_events;
 
-  ulonglong m_table_map_version;
-
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
      sync_relay_log_period
@@ -350,13 +351,6 @@ public:
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
-  bool is_table_mapped(TABLE *table) const
-  {
-    return table->s->table_map_version == table_map_version();
-  }
-
-  ulonglong table_map_version() const { return m_table_map_version; }
-  void update_table_map_version() { ++m_table_map_version; }
 
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);

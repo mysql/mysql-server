@@ -986,7 +986,7 @@ c1	c2	c3	c4
 2155	2155	1998-12-26	1998-12-26 11:30:45
 SELECT count(*) as total_rows, min(c2) as min_value, max(c2) FROM t2;
 total_rows	min_value	max(c2)
-20	1901	2155
+20	0	2155
 SELECT * FROM t2 WHERE c3 = '1998-12-11';
 c1	c2	c3	c4
 1990	1990	1998-12-11	1998-12-11 11:30:45
@@ -1400,7 +1400,7 @@ c1	c2	c3	c4
 2155	2155	1998-12-26	1998-12-26 11:30:45
 SELECT count(*) as total_rows, min(c2) as min_value, max(c2) FROM t2;
 total_rows	min_value	max(c2)
-20	1901	2155
+20	0	2155
 SELECT * FROM t2 WHERE c3 = '1998-12-11';
 c1	c2	c3	c4
 1990	1990	1998-12-11	1998-12-11 11:30:45

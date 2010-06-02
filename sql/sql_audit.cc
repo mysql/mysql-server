@@ -65,6 +65,7 @@ static void general_class_handler(THD *thd, uint event_subtype, va_list ap)
 {
   mysql_event_general event;
   event.event_class= MYSQL_AUDIT_GENERAL_CLASS;
+  event.event_subclass= event_subtype;
   event.general_error_code= va_arg(ap, int);
   event.general_thread_id= thd ? thd->thread_id : 0;
   event.general_time= va_arg(ap, time_t);

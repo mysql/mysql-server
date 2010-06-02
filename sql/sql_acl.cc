@@ -929,7 +929,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   if (acl_user)
   {
     /* OK. User found and password checked continue validation */
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     Vio *vio=thd->net.vio;
     SSL *ssl= (SSL*) vio->ssl_arg;
     X509 *cert;
@@ -946,7 +946,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     case SSL_TYPE_NONE:				// SSL is not required
       user_access= acl_user->access;
       break;
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     case SSL_TYPE_ANY:				// Any kind of SSL is ok
       if (vio_type(vio) == VIO_TYPE_SSL)
 	user_access= acl_user->access;
@@ -6255,21 +6255,21 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   mysql_mutex_unlock(&acl_cache->lock);
 
-  int binlog_error=
+  if (result)
+    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+
+  result= result |
     write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  /* error for writing binary log has already been reported */
-  if (result && !binlog_error)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
-  DBUG_RETURN(result || binlog_error);
+  DBUG_RETURN(result);
 }
 
 

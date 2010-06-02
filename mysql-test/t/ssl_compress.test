@@ -1,7 +1,7 @@
 # Turn on compression between the client and server
 # and run a number of tests
 
--- source include/have_ssl.inc
+-- source include/have_ssl_communication.inc
 -- source include/have_compress.inc
 
 # Save the initial number of concurrent sessions
@@ -30,3 +30,5 @@ disconnect ssl_compress_con;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+##  This test file is for testing encrypted communication only, not other
+##  encryption routines that the SSL library happens to provide!

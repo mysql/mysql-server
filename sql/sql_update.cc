@@ -222,7 +222,6 @@ int mysql_update(THD *thd,
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
-  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_update");
 
   if (open_tables(thd, &table_list, &table_count, 0))
@@ -437,6 +436,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -483,6 +483,7 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
+        thd->examined_row_count++;
 	if (!(select && select->skip_record()))
 	{
           if (table->file->was_semi_consistent_read())
@@ -589,6 +590,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
+    thd->examined_row_count++;
     if (!(select && select->skip_record()))
     {
       if (table->file->was_semi_consistent_read())
@@ -844,9 +846,8 @@ int mysql_update(THD *thd,
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->warning_info->statement_warn_count());
-    thd->row_count_func=
-      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-    my_ok(thd, (ulong) thd->row_count_func, id, buff);
+    my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+          id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -972,7 +973,6 @@ int mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
-  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
@@ -1339,6 +1339,16 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      /*
+        If a timestamp field settable on UPDATE is present then to avoid wrong
+        update force the table handler to retrieve write-only fields to be able
+        to compare records and detect data change.
+        */
+      if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+          table->timestamp_field &&
+          (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+        bitmap_union(table->read_set, table->write_set);
     }
   }
   
@@ -2152,8 +2162,7 @@ bool multi_update::send_eof()
     thd->first_successful_insert_id_in_prev_stmt : 0;
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
               (ulong) found, (ulong) updated, (ulong) thd->cuted_fields);
-  thd->row_count_func=
-    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+          id, buff);
   DBUG_RETURN(FALSE);
 }

@@ -4,6 +4,10 @@
 
 -- source include/have_log_bin.inc
 
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
 # Deletes all the binary logs
 reset master;
 
@@ -141,7 +145,14 @@ EOF
 # must be digestable for both client and server. In 4.1 the client
 # should use default-character-set same as the server.
 flush logs;
---exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000004 | $MYSQL
+# Due to BUG#18337 that wrongly suppresses the BINLOG EVENTS when
+# --short-form is used, the "insert into t5 select * from `‰ˆ¸ƒ÷‹`"
+# which is unsafe and thus written to the binary log in the row
+# format is not executed. This makes the assertion select * from t5 
+# /* must be (1),(1) */; to fail. To temporary fix the bug, we
+# removed the option --short-form.
+#--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000004 | $MYSQL
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000004 | $MYSQL
 select * from t5  /* must be (1),(1) */;
 drop table t5;
 
@@ -434,11 +445,18 @@ FLUSH LOGS;
 # Transaction3 end
 
 --echo #
---echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is exist
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified exists
 --exec $MYSQL_BINLOG --database=test --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
 --echo #
---echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is not exist
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified does not exist
 --exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+
+--echo #
+--echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified exists
+--exec $MYSQL_BINLOG --database=db1 --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
+--echo #
+--echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified does not exist
+--exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
 
 --echo End of 5.0 tests
 
