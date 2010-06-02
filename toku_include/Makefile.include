@@ -192,7 +192,9 @@ DEPEND_COMPILE += $(wildcard $(TOKUROOT)$(OS_CHOICE)/*.h)
 SUPPRESSIONS=no
 
 #Tools
-VALGRIND=valgrind
+ifeq ($(VALGRIND),)
+    VALGRIND=valgrind
+endif
 VGRIND_BASE=$(VALGRIND) --quiet --error-exitcode=1 \
        --suppressions=$(TOKUROOT)newbrt/valgrind.suppressions \
        --suppressions=$(TOKUROOT)src/tests/bdb.suppressions \
