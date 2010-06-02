@@ -9957,6 +9957,39 @@ Create_field::Create_field(Field *old_field,Field *orig_field)
 
 
 /**
+  maximum possible character length for blob.
+  
+  This method is used in Item_field::set_field to calculate
+  max_length for Item.
+  
+  For example:
+    CREATE TABLE t2 SELECT CONCAT(tinyblob_utf8_column) FROM t1;
+  must create a "VARCHAR(255) CHARACTER SET utf8" column.
+  
+  @return
+    length
+*/
+
+uint32 Field_blob::char_length()
+{
+  switch (packlength)
+  {
+  case 1:
+    return 255;
+  case 2:
+    return 65535;
+  case 3:
+    return 16777215;
+  case 4:
+    return (uint32) 4294967295U;
+  default:
+    DBUG_ASSERT(0); // we should never go here
+    return 0;
+  }
+}
+
+
+/**
   maximum possible display length for blob.
 
   @return
