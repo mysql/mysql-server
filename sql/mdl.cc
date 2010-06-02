@@ -119,8 +119,18 @@ public:
       victim(NULL),
       current_search_depth(0)
   { }
+  /**
+    The context which has initiated the search. There
+    can be multiple searches happening in parallel at the same time.
+  */
   MDL_context *start;
+  /** If a deadlock is found, the context that identifies the victim. */
   MDL_context *victim;
+  /** Set to the MAX_SEARCH_DEPTH at start. Decreased whenever
+    we descend into another MDL context (aka traverse to the next
+    wait-for graph node). When 0 is reached, we assume that
+    a deadlock is found, even if we have not found a loop.
+  */
   uint current_search_depth;
   /**
     Maximum depth for deadlock searches. After this depth is
@@ -408,7 +418,7 @@ mdl_locks_key(const uchar *record, size_t *length,
   statement, the design capitalizes on that to later save on
   look ups in the table definition cache. This leads to reduced
   contention overall and on LOCK_open in particular.
-  Please see the description of MDL_context::acquire_shared_lock()
+  Please see the description of MDL_context::acquire_lock_impl()
   for details.
 */
 
