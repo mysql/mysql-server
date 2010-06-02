@@ -40,3 +40,40 @@ commit;
 source include/show_binlog_events.inc;
 
 drop table t1;
+
+#
+# BUG#51251
+#
+# The test case checks if truncating a temporary table created with
+# engine InnoDB will not cause the truncate statement to be binlogged.
+
+# Before patch for BUG#51251, the TRUNCATE statements below would be
+# binlogged, which would cause the slave to fail with "table does not
+# exist".
+
+RESET MASTER;
+
+CREATE TABLE t1 ( c1 int , primary key (c1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TEMPORARY TABLE IF NOT EXISTS  t2 LIKE t1;
+TRUNCATE TABLE t2;
+DROP TABLE t1;
+
+-- echo ###############################################
+-- echo ### assertion: No event for 'TRUNCATE TABLE t2'
+-- echo ###############################################
+-- source include/show_binlog_events.inc
+-- echo ###############################################
+
+RESET MASTER;
+
+CREATE TEMPORARY TABLE t1 (c1 int) Engine=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (3);
+TRUNCATE t1;
+DROP TEMPORARY TABLE t1;
+
+-- echo ###############################################
+-- echo ### assertion: No event for 'TRUNCATE TABLE t1'
+-- echo ###############################################
+-- source include/show_binlog_events.inc
+-- echo ###############################################

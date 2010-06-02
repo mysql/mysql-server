@@ -1,0 +1,31 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1(a int);
+select * into outfile 'MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' from t1;
+truncate table t1;
+load data local infile 'MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' into table t1;
+select a,count(*) from t1 group by a;
+a	count(*)
+1	10000
+drop table t1;
+create table t1(a int);
+insert into t1 values (1), (2), (2), (3);
+select * into outfile 'MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' from t1;
+drop table t1;
+create table t1(a int primary key);
+load data local infile 'MYSQLTEST_VARDIR/tmp/rpl_loaddatalocal.select_outfile' into table t1;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+drop table t1;

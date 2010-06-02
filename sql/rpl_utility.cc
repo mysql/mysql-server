@@ -206,7 +206,7 @@ table_def::compatible_with(Relay_log_info const *rli_arg, TABLE *table)
       Check the slave's field size against that of the master.
     */
     if (!error &&
-        !field->compatible_field_size(field_metadata(col), rli_arg))
+        !field->compatible_field_size(field_metadata(col), rli_arg, m_flags))
     {
       error= 1;
       char buf[256];

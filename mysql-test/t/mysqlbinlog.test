@@ -434,12 +434,43 @@ FLUSH LOGS;
 # Transaction3 end
 
 --echo #
---echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is exist
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified exists
 --exec $MYSQL_BINLOG --database=test --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
 --echo #
---echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is not exist
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified does not exist
 --exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+
+--echo #
+--echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified exists
+--exec $MYSQL_BINLOG --database=db1 --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
+--echo #
+--echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified does not exist
+--exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
 
 --echo End of 5.0 tests
 
 --echo End of 5.1 tests
+
+#
+# BUG#38468 Memory leak detected when using mysqlbinlog utility;
+#
+disable_query_log;
+RESET MASTER;
+CREATE TABLE t1 SELECT 1;
+FLUSH LOGS;
+DROP TABLE t1;
+enable_query_log;
+
+# Write an empty file for comparison
+write_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
+EOF
+
+# Before fix of BUG#38468, this would generate some warnings
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 >/dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+
+# Make sure the command above does not generate any error or warnings
+diff_files $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
+
+# Cleanup for this part of test
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;

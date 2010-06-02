@@ -76,6 +76,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Eric Herman", "Amsterdam, Netherlands", "Bug fixing - federated" },
   { "Andrey Hristov", "Walldorf, Germany", "Event scheduler (5.1)" },
   { "Alexander (Alexi) Ivanov", "St. Petersburg, Russia", "Replication" },
+  { "Mattias Jonsson", "Uppsala, Sweden", "Partitioning" },
   { "Alexander (Salle) Keremidarski", "Sofia, Bulgaria",
     "Bug fixing" },
   { "Mats Kindahl", "Storvreta, Sweden", "Replication" },
