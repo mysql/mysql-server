@@ -173,7 +173,7 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
   {
     // Check socket level error code
     int so_error = 0;
-    SOCKOPT_OPTLEN_TYPE len= sizeof(so_error);
+    SOCKET_SIZE_TYPE len= sizeof(so_error);
     if (my_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0)
     {
       my_socket_close(m_sockfd);
