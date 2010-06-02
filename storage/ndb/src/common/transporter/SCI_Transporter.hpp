@@ -271,12 +271,6 @@ private:
    
   void resetToInitialState(); 
              
-  /** 
-   *  It is always possible to send data with SCI! 
-   *  @return True (always) 
-   */ 
-  bool send_is_possible(struct timeval * timeout);
-   
   void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
     reader->getReadPtr(* ptr, * eod);
   }
@@ -325,7 +319,7 @@ private:
   bool init_remote();
 
   bool send_limit_reached(int bufsize) { return (bufsize > m_PacketSize); }
-  bool send_is_possible(struct timeval *timeout) { return 1; }
+  bool send_is_possible(int timeout_millisec) const { return 1; }
 
 protected: 
    
