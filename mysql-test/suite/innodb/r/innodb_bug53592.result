@@ -1,0 +1,43 @@
+set old_alter_table=0;
+create table bug53592(a int) engine=innodb row_format=compact;
+alter table bug53592 add column b text charset utf8;
+alter table bug53592 add column c blob not null;
+create index bug53592_b on bug53592(b(81));
+create unique index bug53592_c on bug53592(c(1));
+replace into bug53592 values (),();
+Warnings:
+Warning	1364	Field 'c' doesn't have a default value
+check table bug53592;
+Table	Op	Msg_type	Msg_text
+test.bug53592	check	status	OK
+drop table bug53592;
+set old_alter_table=1;
+create table bug53592(a int) engine=innodb row_format=compact;
+alter table bug53592 add column b text charset utf8;
+alter table bug53592 add column c blob not null;
+create index bug53592_b on bug53592(b(81));
+create unique index bug53592_c on bug53592(c(1));
+replace into bug53592 values (),();
+Warnings:
+Warning	1364	Field 'c' doesn't have a default value
+check table bug53592;
+Table	Op	Msg_type	Msg_text
+test.bug53592	check	status	OK
+drop table bug53592;
+CREATE TABLE bug53592_1(
+col1 int, col2 int,
+PRIMARY KEY  (col1, col2)
+) ENGINE=InnoDB;
+CREATE TABLE bug53592_2 (
+col int PRIMARY KEY,
+FOREIGN KEY (col) REFERENCES bug53592_1 (col1)
+ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO bug53592_1 VALUES (1, 2);
+INSERT INTO bug53592_1 VALUES (3, 4);
+INSERT INTO bug53592_2 VALUES (1);
+INSERT INTO bug53592_2 VALUES (3);
+UPDATE bug53592_1 SET col1 = 3 WHERE col2 = 2;
+ERROR 23000: Upholding foreign key constraints for table 'bug53592_1', entry '3-2', key 1 would lead to a duplicate entry
+drop table bug53592_2;
+drop table bug53592_1;
