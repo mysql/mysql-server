@@ -3542,39 +3542,6 @@ next_datadir_item:
 	return(err);
 }
 
-/********************************************************************//**
-If we need crash recovery, and we have called
-fil_load_single_table_tablespaces() and dict_load_single_table_tablespaces(),
-we can call this function to print an error message of orphaned .ibd files
-for which there is not a data dictionary entry with a matching table name
-and space id. */
-UNIV_INTERN
-void
-fil_print_orphaned_tablespaces(void)
-/*================================*/
-{
-	fil_space_t*	space;
-
-	mutex_enter(&fil_system->mutex);
-
-	space = UT_LIST_GET_FIRST(fil_system->space_list);
-
-	while (space) {
-		if (space->purpose == FIL_TABLESPACE && space->id != 0
-		    && !space->mark) {
-			fputs("InnoDB: Warning: tablespace ", stderr);
-			ut_print_filename(stderr, space->name);
-			fprintf(stderr, " of id %lu has no matching table in\n"
-				"InnoDB: the InnoDB data dictionary.\n",
-				(ulong) space->id);
-		}
-
-		space = UT_LIST_GET_NEXT(space_list, space);
-	}
-
-	mutex_exit(&fil_system->mutex);
-}
-
 /*******************************************************************//**
 Returns TRUE if a single-table tablespace does not exist in the memory cache,
 or is being deleted there.
