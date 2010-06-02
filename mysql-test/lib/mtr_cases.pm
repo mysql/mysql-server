@@ -98,10 +98,11 @@ sub init_pattern {
 #
 ##############################################################################
 
-sub collect_test_cases ($$$) {
+sub collect_test_cases ($$$$) {
   my $opt_reorder= shift; # True if we're reordering tests
   my $suites= shift; # Semicolon separated list of test suites
   my $opt_cases= shift;
+  my $opt_skip_test_list= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
 
   $do_test_reg= init_pattern($do_test, "--do-test");
@@ -125,7 +126,7 @@ sub collect_test_cases ($$$) {
   {
     foreach my $suite (split(",", $suites))
     {
-      push(@$cases, collect_one_suite($suite, $opt_cases));
+      push(@$cases, collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
       last if $some_test_found;
     }
   }
@@ -250,6 +251,7 @@ sub collect_one_suite($)
 {
   my $suite= shift;  # Test suite name
   my $opt_cases= shift;
+  my $opt_skip_test_list= shift;
   my @cases; # Array of hash
 
   mtr_verbose("Collecting: $suite");
@@ -311,18 +313,23 @@ sub collect_one_suite($)
   # Build a hash of disabled testcases for this suite
   # ----------------------------------------------------------------------
   my %disabled;
-  if ( open(DISABLED, "$testdir/disabled.def" ) )
-  {
-    while ( <DISABLED> )
+  my @disabled_collection= @{$opt_skip_test_list} if defined @{$opt_skip_test_list};
+  unshift (@disabled_collection, "$testdir/disabled.def");
+  for my $skip (@disabled_collection)
+    {
+      if ( open(DISABLED, $skip ) )
       {
-        chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+        while ( <DISABLED> )
           {
-            $disabled{$1}= $2;
+            chomp;
+            if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+              {
+                $disabled{$1}= $2 if not exists $disabled{$1};
+              }
           }
+        close DISABLED;
       }
-    close DISABLED;
-  }
+    }
 
   # Read suite.opt file
   my $suite_opt_file=  "$testdir/suite.opt";

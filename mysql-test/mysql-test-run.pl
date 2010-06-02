@@ -165,6 +165,7 @@ our @opt_extra_mysqld_opt;
 my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
+my @opt_skip_test_list;
 our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -326,7 +327,7 @@ sub main {
   }
 
   mtr_report("Collecting tests...");
-  my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases);
+  my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases, \@opt_skip_test_list);
 
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
@@ -946,6 +947,7 @@ sub command_line_setup {
 
              'help|h'                   => \$opt_usage,
              'list-options'             => \$opt_list_options,
+             'skip-test-list=s'         => \@opt_skip_test_list
            );
 
   GetOptions(%options) or usage("Can't read options");
@@ -5419,6 +5421,9 @@ Options to control what test suites or cases to run
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
+  skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
+                        is an entry and should be formatted as: 
+                        <TESTNAME> : <COMMENT>
 
 Options that specify ports
 
