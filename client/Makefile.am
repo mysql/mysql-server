@@ -57,14 +57,10 @@ mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ \
 				$(LDADD) $(CXXLDFLAGS)
 mysqladmin_SOURCES =		mysqladmin.cc
 
-mysqlbinlog_SOURCES =		mysqlbinlog.cc \
-				$(top_srcdir)/mysys/mf_tempdir.c \
-				$(top_srcdir)/mysys/my_new.cc \
-				$(top_srcdir)/mysys/my_bit.c \
-				$(top_srcdir)/mysys/my_bitmap.c \
-				$(top_srcdir)/mysys/my_vle.c \
-				$(top_srcdir)/mysys/base64.c
-mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
+mysqlbinlog_SOURCES =		mysqlbinlog.cc 
+mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+				$(LIBMYSQLCLIENT_LA) @CLIENT_EXTRA_LDFLAGS@ \
+				$(top_builddir)/mysys/libmysys.a   
 
 mysqldump_SOURCES=              mysqldump.c \
 				my_user.c \
@@ -124,6 +120,3 @@ link_sources:
 	rm -f $(srcdir)/my_user.c; \
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
 	echo timestamp > link_sources;
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -18,6 +18,11 @@
 #ifndef _global_h
 #define _global_h
 
+/* Client library users on Windows need this macro defined here. */
+#if !defined(__WIN__) && defined(_WIN32)
+#define __WIN__
+#endif
+
 /*
   InnoDB depends on some MySQL internals which other plugins should not
   need.  This is because of InnoDB's foreign key support, "safe" binlog
@@ -546,7 +551,7 @@ C_MODE_END
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#ifndef __GNUC__
+#ifdef _some_old_compiler_that_does_not_understand_the_construct_below_
 #define compile_time_assert(X)  do { } while(0)
 #else
 #define compile_time_assert(X)                                  \
@@ -858,7 +863,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 #ifndef OS_FILE_LIMIT
-#define OS_FILE_LIMIT	65535
+#define OS_FILE_LIMIT	UINT_MAX
 #endif
 
 /* #define EXT_IN_LIBNAME     */
@@ -1089,10 +1094,14 @@ typedef long long	my_ptrdiff_t;
 #define HUGE_PTR
 #endif
 #endif
-#if defined(__IBMC__) || defined(__IBMCPP__)
-/* This was  _System _Export but caused a lot of warnings on _AIX43 */
-#define STDCALL
-#elif !defined( STDCALL)
+
+#ifdef STDCALL
+#undef STDCALL
+#endif
+
+#ifdef _WIN32
+#define STDCALL __stdcall
+#else
 #define STDCALL
 #endif
 
@@ -1694,6 +1703,15 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 */
 #ifdef TARGET_OS_LINUX
 #define NEED_EXPLICIT_SYNC_DIR 1
+#else
+/*
+  On linux default rwlock scheduling policy is good enough for
+  waiting_threads.c, on other systems use our special implementation
+  (which is slower).
+
+  QQ perhaps this should be tested in configure ? how ?
+*/
+#define WT_RWLOCKS_USE_MUTEXES 1
 #endif
 
 #if !defined(__cplusplus) && !defined(bool)

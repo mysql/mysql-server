@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,7 +18,8 @@
   Table EVENTS_WAITS_xxx (implementation).
 */
 
-#include "sql_priv.h"
+#include "my_global.h"
+#include "my_pthread.h"
 #include "table_events_waits.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -165,7 +166,7 @@ table_events_waits_history_long::m_share=
 
 table_events_waits_common::table_events_waits_common
 (const PFS_engine_table_share *share, void *pos)
-  : PFS_readonly_table(share, pos),
+  : PFS_engine_table(share, pos),
   m_row_exists(false)
 {}
 

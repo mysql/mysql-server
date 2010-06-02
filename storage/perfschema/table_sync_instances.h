@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ struct row_mutex_instances
 };
 
 /** Table PERFORMANCE_SCHEMA.MUTEX_INSTANCES. */
-class table_mutex_instances : public PFS_readonly_table
+class table_mutex_instances : public PFS_engine_table
 {
 public:
   /** Table share. */
@@ -108,7 +108,7 @@ struct row_rwlock_instances
 };
 
 /** Table PERFORMANCE_SCHEMA.RWLOCK_INSTANCES. */
-class table_rwlock_instances : public PFS_readonly_table
+class table_rwlock_instances : public PFS_engine_table
 {
 public:
   /** Table share */
@@ -161,7 +161,7 @@ struct row_cond_instances
 };
 
 /** Table PERFORMANCE_SCHEMA.COND_INSTANCES. */
-class table_cond_instances : public PFS_readonly_table
+class table_cond_instances : public PFS_engine_table
 {
 public:
   /** Table share. */

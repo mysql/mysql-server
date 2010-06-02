@@ -305,6 +305,37 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
+
+/**
+  Provide a handler data getter to simplify coding
+*/
+extern "C"
+void *thd_get_ha_data(const THD *thd, const struct handlerton *hton)
+{
+  return *thd_ha_data(thd, hton);
+}
+
+
+/**
+  Provide a handler data setter to simplify coding
+  @see thd_set_ha_data() definition in plugin.h
+*/
+extern "C"
+void thd_set_ha_data(THD *thd, const struct handlerton *hton,
+                     const void *ha_data)
+{
+  plugin_ref *lock= &thd->ha_data[hton->slot].lock;
+  if (ha_data && !*lock)
+    *lock= ha_lock_engine(NULL, (handlerton*) hton);
+  else if (!ha_data && *lock)
+  {
+    plugin_unlock(NULL, *lock);
+    *lock= NULL;
+  }
+  *thd_ha_data(thd, hton)= (void*) ha_data;
+}
+
+
 extern "C"
 long long thd_test_options(const THD *thd, long long test_options)
 {
@@ -505,14 +536,14 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  is_slave_error= thread_specific_used= FALSE;
+  is_slave_error= thread_specific_used= thread_temporary_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
   cuted_fields= 0L;
   sent_row_count= 0L;
   limit_found_rows= 0;
-  row_count_func= -1;
+  m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
@@ -804,7 +835,10 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     else
     {
       if (! stmt_da->is_error())
+      {
+        set_row_count_func(-1);
         stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
+      }
     }
   }
 
@@ -1805,11 +1839,6 @@ bool select_to_file::send_eof()
     error= 1;
   if (!error)
   {
-    /*
-      In order to remember the value of affected rows for ROW_COUNT()
-      function, SELECT INTO has to have an own SQLCOM.
-      TODO: split from SQLCOM_SELECT
-    */
     ::my_ok(thd,row_count);
   }
   file= -1;
@@ -1886,8 +1915,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   else
     (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
 
-  if (opt_secure_file_priv &&
-      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  if (!is_secure_file_path(path))
   {
     /* Write only allowed to dir or subdir specified by secure_file_priv */
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
@@ -2056,9 +2084,21 @@ bool select_export::send_data(List<Item> &items)
       const char *from_end_pos;
       const char *error_pos;
       uint32 bytes;
-      bytes= well_formed_copy_nchars(write_cs, cvt_buff, sizeof(cvt_buff),
+      uint64 estimated_bytes=
+        ((uint64) res->length() / res->charset()->mbminlen + 1) *
+        write_cs->mbmaxlen + 1;
+      set_if_smaller(estimated_bytes, UINT_MAX32);
+      if (cvt_str.realloc((uint32) estimated_bytes))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(0), (uint32) estimated_bytes);
+        goto err;
+      }
+
+      bytes= well_formed_copy_nchars(write_cs, (char *) cvt_str.ptr(),
+                                     cvt_str.alloced_length(),
                                      res->charset(), res->ptr(), res->length(),
-                                     sizeof(cvt_buff),
+                                     UINT_MAX32, // copy all input chars,
+                                                 // i.e. ignore nchars parameter
                                      &well_formed_error_pos,
                                      &cannot_convert_error_pos,
                                      &from_end_pos);
@@ -2075,6 +2115,15 @@ bool select_export::send_data(List<Item> &items)
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
                             item->name, row_count);
+      }
+      else if (from_end_pos < res->ptr() + res->length())
+      { 
+        /*
+          result is longer than UINT_MAX32 and doesn't fit into String
+        */
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                            item->full_name(), row_count);
       }
       cvt_str.length(bytes);
       res= &cvt_str;
@@ -2830,11 +2879,6 @@ bool select_dumpvar::send_eof()
   if (! row_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
-  /*
-    In order to remember the value of affected rows for ROW_COUNT()
-    function, SELECT INTO has to have an own SQLCOM.
-    TODO: split from SQLCOM_SELECT
-  */
   ::my_ok(thd,row_count);
   return 0;
 }
@@ -3192,6 +3236,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 #endif
   
   backup->option_bits=     variables.option_bits;
+  backup->count_cuted_fields= count_cuted_fields;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
   backup->limit_found_rows= limit_found_rows;
@@ -3229,6 +3274,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
+  DBUG_ENTER("THD::restore_sub_statement_state");
 #ifndef EMBEDDED_LIBRARY
   /* BUG#33029, if we are replicating from a buggy master, restore
      auto_inc_intervals_forced so that the top statement can use the
@@ -3255,6 +3301,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     /* ha_release_savepoint() never returns error. */
     (void)ha_release_savepoint(this, sv);
   }
+  count_cuted_fields= backup->count_cuted_fields;
   transaction.savepoints= backup->savepoints;
   variables.option_bits= backup->option_bits;
   in_sub_stmt=      backup->in_sub_stmt;
@@ -3284,6 +3331,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3601,13 +3649,33 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       capabilities, and one with the intersection of all the engine
       capabilities.
     */
+    handler::Table_flags flags_write_some_set= 0;
     handler::Table_flags flags_some_set= 0;
-    handler::Table_flags flags_all_set=
+    handler::Table_flags flags_write_all_set=
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
-    my_bool multi_engine= FALSE;
-    my_bool mixed_engine= FALSE;
-    my_bool all_trans_engines= TRUE;
+    /* 
+       If different types of engines are about to be updated.
+       For example: Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_write_engine= FALSE;
+    /*
+       If different types of engines are about to be accessed 
+       and any of them is about to be updated. For example:
+       Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_access_engine= FALSE;
+    /*
+       If non-transactional and transactional engines are about
+       to be accessed and any of them is about to be updated.
+       For example: Innodb and MyIsam.
+    */
+    my_bool trans_non_trans_access_engines= FALSE;
+    /*
+       If all engines that are about to be updated are
+       transactional.
+    */
+    my_bool all_trans_write_engines= TRUE;
     TABLE* prev_write_table= NULL;
     TABLE* prev_access_table= NULL;
 
@@ -3633,32 +3701,112 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         continue;
       if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
+      handler::Table_flags const flags= table->table->file->ha_table_flags();
+      DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
+                          table->table_name, flags));
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
-        handler::Table_flags const flags= table->table->file->ha_table_flags();
-        DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
-                            table->table_name, flags));
         if (prev_write_table && prev_write_table->file->ht !=
             table->table->file->ht)
-          multi_engine= TRUE;
-        all_trans_engines= all_trans_engines &&
-                           table->table->file->has_transactions();
+          multi_write_engine= TRUE;
+        /*
+          Every temporary table must be always written to the binary
+          log in transaction boundaries and as such we artificially
+          classify them as transactional.
+
+          Indirectly, this avoids classifying a temporary table created
+          on a non-transactional engine as unsafe when it is modified
+          after any transactional table:
+
+          BEGIN;
+            INSERT INTO innodb_t VALUES (1);
+            INSERT INTO myisam_t_temp VALUES (1);
+          COMMIT;
+
+          BINARY LOG:
+
+          BEGIN;
+            INSERT INTO innodb_t VALUES (1);
+            INSERT INTO myisam_t_temp VALUES (1);
+          COMMIT;
+        */
+        all_trans_write_engines= all_trans_write_engines &&
+                                 (table->table->file->has_transactions() ||
+                                  table->table->s->tmp_table);
         prev_write_table= table->table;
-        flags_all_set &= flags;
-        flags_some_set |= flags;
+        flags_write_all_set &= flags;
+        flags_write_some_set |= flags;
       }
-      if (prev_access_table && prev_access_table->file->ht != table->table->file->ht)
-        mixed_engine= mixed_engine || (prev_access_table->file->has_transactions() !=
-                      table->table->file->has_transactions());
+      flags_some_set |= flags;
+      /*
+        The mixture of non-transactional and transactional tables must
+        identified and classified as unsafe. However, a temporary table
+        must be always handled as a transactional table. Based on that,
+        we have the following statements classified as mixed and by
+        consequence as unsafe:
+
+        1: INSERT INTO myisam_t SELECT * FROM innodb_t;
+
+        2: INSERT INTO innodb_t SELECT * FROM myisam_t;
+
+        3: INSERT INTO myisam_t SELECT * FROM myisam_t_temp;
+
+        4: INSERT INTO myisam_t_temp SELECT * FROM myisam_t;
+
+        5: CREATE TEMPORARY TABLE myisam_t_temp SELECT * FROM mysiam_t;
+
+        The following statements are not considered mixed and as such
+        are safe:
+
+        1: INSERT INTO innodb_t SELECT * FROM myisam_t_temp;
+
+        2: INSERT INTO myisam_t_temp SELECT * FROM innodb_t_temp;
+      */
+      if (!trans_non_trans_access_engines && prev_access_table &&
+          (lex->sql_command != SQLCOM_CREATE_TABLE ||
+          (lex->sql_command == SQLCOM_CREATE_TABLE &&
+          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))))
+      {
+        my_bool prev_trans;
+        my_bool act_trans;
+        if (prev_access_table->s->tmp_table || table->table->s->tmp_table)
+        {
+          prev_trans= prev_access_table->s->tmp_table ? TRUE :
+                     prev_access_table->file->has_transactions();
+          act_trans= table->table->s->tmp_table ? TRUE :
+                    table->table->file->has_transactions();
+        }
+        else
+        {
+          prev_trans= prev_access_table->file->has_transactions();
+          act_trans= table->table->file->has_transactions();
+        }
+        trans_non_trans_access_engines= (prev_trans != act_trans);
+        multi_access_engine= TRUE;
+      }
+      thread_temporary_used |= table->table->s->tmp_table;
       prev_access_table= table->table;
     }
+
+    DBUG_PRINT("info", ("flags_write_all_set: 0x%llx", flags_write_all_set));
+    DBUG_PRINT("info", ("flags_write_some_set: 0x%llx", flags_write_some_set));
+    DBUG_PRINT("info", ("flags_some_set: 0x%llx", flags_some_set));
+    DBUG_PRINT("info", ("multi_write_engine: %d", multi_write_engine));
+    DBUG_PRINT("info", ("multi_access_engine: %d", multi_access_engine));
+    DBUG_PRINT("info", ("trans_non_trans_access_engines: %d",
+                        trans_non_trans_access_engines));
+
+    int error= 0;
+    int unsafe_flags;
 
     /*
       Set the statement as unsafe if:
 
       . it is a mixed statement, i.e. access transactional and non-transactional
-      tables, and updates at least one;
-      or
+      tables, and update any of them;
+
+      or:
+
       . an early statement updated a transactional table;
       . and, the current statement updates a non-transactional table.
 
@@ -3671,6 +3819,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       1: INSERT INTO myisam_t SELECT * FROM innodb_t;
 
       2: INSERT INTO innodb_t SELECT * FROM myisam_t;
+
+      3: INSERT INTO myisam_t SELECT * FROM myisam_t_temp;
+
+      4: INSERT INTO myisam_t_temp SELECT * FROM myisam_t;
+
+      5: CREATE TEMPORARY TABLE myisam_t_temp SELECT * FROM mysiam_t;
 
       are classified as unsafe to ensure that in mixed mode the execution is
       completely safe and equivalent to the row mode. Consider the following
@@ -3722,16 +3876,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       isolation level but if we have pure repeatable read or serializable the
       lock history on the slave will be different from the master.
     */
-    if (mixed_engine ||
-        (trans_has_updated_trans_table(this) && !all_trans_engines))
+    if (trans_non_trans_access_engines)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MIXED_STATEMENT);
+    else if (trans_has_updated_trans_table(this) && !all_trans_write_engines)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
-
-    DBUG_PRINT("info", ("flags_all_set: 0x%llx", flags_all_set));
-    DBUG_PRINT("info", ("flags_some_set: 0x%llx", flags_some_set));
-    DBUG_PRINT("info", ("multi_engine: %d", multi_engine));
-
-    int error= 0;
-    int unsafe_flags;
 
     /*
       If more than one engine is involved in the statement and at
@@ -3739,15 +3887,15 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       statement cannot be logged atomically, so we generate an error
       rather than allowing the binlog to become corrupt.
     */
-    if (multi_engine &&
-        (flags_some_set & HA_HAS_OWN_BINLOGGING))
-    {
+    if (multi_write_engine &&
+        (flags_write_some_set & HA_HAS_OWN_BINLOGGING))
       my_error((error= ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE),
                MYF(0));
-    }
+    else if (multi_access_engine && flags_some_set & HA_HAS_OWN_BINLOGGING)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE);
 
     /* both statement-only and row-only engines involved */
-    if ((flags_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)
+    if ((flags_write_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)
     {
       /*
         1. Error: Binary logging impossible since both row-incapable
@@ -3756,7 +3904,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       my_error((error= ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE), MYF(0));
     }
     /* statement-only engines involved */
-    else if ((flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
+    else if ((flags_write_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
     {
       if (lex->is_stmt_row_injection())
       {
@@ -3804,7 +3952,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           */
           my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_MODE), MYF(0));
         }
-        else if ((flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
           /*
             5. Error: Cannot modify table that uses a storage engine
@@ -3832,7 +3980,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       else
       {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
-            || (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
@@ -4313,7 +4461,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional)
     if (stmt_end)
     {
       pending->set_flags(Rows_log_event::STMT_END_F);
-      pending->flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       binlog_table_maps= 0;
     }
 
@@ -4499,7 +4646,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, direct,
                             suppress_use, errcode);
-      qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event
         (they are just removed on the slave side) so after the query

@@ -47,6 +47,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	0
+Master_Info_File	#
 start slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -89,6 +90,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 drop table if exists t1;
 create table t1 (n int, PRIMARY KEY(n));
 insert into t1 values (10),(45),(90);

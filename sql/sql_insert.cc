@@ -1005,10 +1005,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
-    thd->row_count_func= info.copied + info.deleted +
-                         ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
-                          info.touched : info.updated);
-    my_ok(thd, (ulong) thd->row_count_func, id);
+    my_ok(thd, info.copied + info.deleted +
+               ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+                info.touched : info.updated),
+          id);
   }
   else
   {
@@ -1024,8 +1024,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted + updated),
               (ulong) thd->warning_info->statement_warn_count());
-    thd->row_count_func= info.copied + info.deleted + updated;
-    ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
+    ::my_ok(thd, info.copied + info.deleted + updated, id, buff);
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
@@ -3257,7 +3256,7 @@ bool select_insert::send_data(List<Item> &values)
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
   store_values(values);
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error())
   {
     table->auto_increment_field_not_null= FALSE;
@@ -3337,7 +3336,7 @@ bool select_insert::send_eof()
 {
   int error;
   bool const trans_table= table->file->has_transactions();
-  ulonglong id;
+  ulonglong id, row_count;
   bool changed;
   THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("select_insert::send_eof");
@@ -3403,16 +3402,15 @@ bool select_insert::send_eof()
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated),
             (ulong) thd->warning_info->statement_warn_count());
-  thd->row_count_func= info.copied + info.deleted +
-                       ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
-                        info.touched : info.updated);
-
+  row_count= info.copied + info.deleted +
+             ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+              info.touched : info.updated);
   id= (thd->first_successful_insert_id_in_cur_stmt > 0) ?
     thd->first_successful_insert_id_in_cur_stmt :
     (thd->arg_of_last_insert_id_function ?
      thd->first_successful_insert_id_in_prev_stmt :
      (info.copied ? autoinc_value_of_last_inserted_row : 0));
-  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, row_count, id, buff);
   DBUG_RETURN(0);
 }
 

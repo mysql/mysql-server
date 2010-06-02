@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
   Table SETUP_OBJECTS (implementation).
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
+#include "my_global.h"
+#include "my_pthread.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"

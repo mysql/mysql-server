@@ -1186,7 +1186,9 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
                            enum_field_types sp_var_type,
                            uint pos_in_q, uint len_in_q)
   :Item_sp_variable(sp_var_name.str, sp_var_name.length),
-   m_var_idx(sp_var_idx), pos_in_query(pos_in_q), len_in_query(len_in_q)
+   m_var_idx(sp_var_idx),
+   limit_clause_param(FALSE),
+   pos_in_query(pos_in_q), len_in_query(len_in_q)
 {
   maybe_null= TRUE;
 
@@ -1794,9 +1796,36 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
                                   &dummy_offset))
       continue;
 
+    /*
+      No needs to add converter if an "arg" is NUMERIC or DATETIME
+      value (which is pure ASCII) and at the same time target DTCollation
+      is ASCII-compatible. For example, no needs to rewrite:
+        SELECT * FROM t1 WHERE datetime_field = '2010-01-01';
+      to
+        SELECT * FROM t1 WHERE CONVERT(datetime_field USING cs) = '2010-01-01';
+      
+      TODO: avoid conversion of any values with
+      repertoire ASCII and 7bit-ASCII-compatible,
+      not only numeric/datetime origin.
+    */
+    if ((*arg)->collation.derivation == DERIVATION_NUMERIC &&
+        (*arg)->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        !((*arg)->collation.collation->state & MY_CS_NONASCII) &&
+        !(coll.collation->state & MY_CS_NONASCII))
+      continue;
+
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
+    {
+      /*
+        We should disable const subselect item evaluation because
+        subselect transformation does not happen in view_prepare_mode
+        and thus val_...() methods can not be called for const items.
+      */
+      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
+                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
+      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
+    }
 
     if (!conv)
     {
@@ -3765,7 +3794,7 @@ void Item_copy_decimal::copy()
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
-    memcpy (&cached_value, nr, sizeof (my_decimal)); 
+    my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
 }
 
@@ -5310,14 +5339,22 @@ int Item_field::save_in_field(Field *to, bool no_conversions)
   if (result_field->is_null())
   {
     null_value=1;
-    res= set_field_to_null_with_conversions(to, no_conversions);
+    return set_field_to_null_with_conversions(to, no_conversions);
   }
-  else
+  to->set_notnull();
+
+  /*
+    If we're setting the same field as the one we're reading from there's 
+    nothing to do. This can happen in 'SET x = x' type of scenarios.
+  */  
+  if (to == result_field)
   {
-    to->set_notnull();
-    res= field_conv(to,result_field);
     null_value=0;
+    return 0;
   }
+
+  res= field_conv(to,result_field);
+  null_value=0;
   return res;
 }
 
@@ -5403,7 +5440,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
   {
     double nr= val_real();
     if (null_value)
-      return set_field_to_null(field);
+      return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
     error=field->store(nr);
   }
@@ -5603,13 +5640,25 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+Item_hex_string::Item_hex_string()
+{
+  hex_string_init("", 0);
+}
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
+{
+  hex_string_init(str, str_length);
+}
+
+void Item_hex_string::hex_string_init(const char *str, uint str_length)
 {
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
+  {
+    str_value.set("", 0, &my_charset_bin);
     return;
+  }
   str_value.set(ptr,max_length,&my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)

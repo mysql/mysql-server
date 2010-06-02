@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ struct pos_events_waits_summary_by_thread_by_event_name
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME. */
 class table_events_waits_summary_by_thread_by_event_name
-  : public PFS_readonly_table
+  : public PFS_engine_table
 {
 public:
   /** Table share */

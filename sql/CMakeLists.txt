@@ -41,13 +41,13 @@ ENDIF()
 SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
-               filesort.cc gstream.cc
+               filesort.cc gstream.cc sha2.cc
                ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
-               key.cc log.cc lock.cc message.rc 
+               key.cc log.cc lock.cc
                log_event.cc rpl_record.cc rpl_reporting.cc
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
@@ -92,7 +92,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
  
 
 IF(WIN32)
-  SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h)
+  SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
 ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
@@ -280,7 +280,8 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     ALL
     DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data/mysql DESTINATION data)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+    PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)

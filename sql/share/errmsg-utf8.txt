@@ -3288,25 +3288,25 @@ ER_NONEXISTING_GRANT 42000
         swe "Det finns inget privilegium definierat för användare '%-.48s' på '%-.64s'"
         ukr "Повноважень не визначено для користувача '%-.48s' з хосту '%-.64s'"
 ER_TABLEACCESS_DENIED_ERROR 42000 
-        cze "%-.16s p-Bříkaz nepřístupný pro uživatele: '%-.48s'@'%-.64s' pro tabulku '%-.192s'"
-        dan "%-.16s-kommandoen er ikke tilladt for brugeren '%-.48s'@'%-.64s' for tabellen '%-.192s'"
-        nla "%-.16s commando geweigerd voor gebruiker: '%-.48s'@'%-.64s' voor tabel '%-.192s'"
-        eng "%-.16s command denied to user '%-.48s'@'%-.64s' for table '%-.192s'"
-        jps "コマンド %-.16s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.192s' に対して許可されていません",
-        est "%-.16s käsk ei ole lubatud kasutajale '%-.48s'@'%-.64s' tabelis '%-.192s'"
-        fre "La commande '%-.16s' est interdite à l'utilisateur: '%-.48s'@'@%-.64s' sur la table '%-.192s'"
-        ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.48s'@'%-.64s' auf Tabelle '%-.192s'"
-        hun "%-.16s parancs a '%-.48s'@'%-.64s' felhasznalo szamara nem engedelyezett a '%-.192s' tablaban"
-        ita "Comando %-.16s negato per l'utente: '%-.48s'@'%-.64s' sulla tabella '%-.192s'"
-        jpn "コマンド %-.16s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.192s' に対して許可されていません"
-        kor "'%-.16s' 명령은 다음 사용자에게 거부되었습니다. : '%-.48s'@'%-.64s' for 테이블 '%-.192s'"
-        por "Comando '%-.16s' negado para o usuário '%-.48s'@'%-.64s' na tabela '%-.192s'"
-        rum "Comanda %-.16s interzisa utilizatorului: '%-.48s'@'%-.64s' pentru tabela '%-.192s'"
-        rus "Команда %-.16s запрещена пользователю '%-.48s'@'%-.64s' для таблицы '%-.192s'"
-        serbian "%-.16s komanda zabranjena za korisnika '%-.48s'@'%-.64s' za tabelu '%-.192s'"
-        spa "%-.16s comando negado para usuario: '%-.48s'@'%-.64s' para tabla '%-.192s'"
-        swe "%-.16s ej tillåtet för '%-.48s'@'%-.64s' för tabell '%-.192s'"
-        ukr "%-.16s команда заборонена користувачу: '%-.48s'@'%-.64s' у таблиці '%-.192s'"
+        cze "%-.128s p-Bříkaz nepřístupný pro uživatele: '%-.48s'@'%-.64s' pro tabulku '%-.64s'"
+        dan "%-.128s-kommandoen er ikke tilladt for brugeren '%-.48s'@'%-.64s' for tabellen '%-.64s'"
+        nla "%-.128s commando geweigerd voor gebruiker: '%-.48s'@'%-.64s' voor tabel '%-.64s'"
+        eng "%-.128s command denied to user '%-.48s'@'%-.64s' for table '%-.64s'"
+        jps "コマンド %-.128s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.64s' に対して許可されていません",
+        est "%-.128s käsk ei ole lubatud kasutajale '%-.48s'@'%-.64s' tabelis '%-.64s'"
+        fre "La commande '%-.128s' est interdite à l'utilisateur: '%-.48s'@'@%-.64s' sur la table '%-.64s'"
+        ger "%-.128s Befehl nicht erlaubt für Benutzer '%-.48s'@'%-.64s' auf Tabelle '%-.64s'"
+        hun "%-.128s parancs a '%-.48s'@'%-.64s' felhasznalo szamara nem engedelyezett a '%-.64s' tablaban"
+        ita "Comando %-.128s negato per l'utente: '%-.48s'@'%-.64s' sulla tabella '%-.64s'"
+        jpn "コマンド %-.128s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.64s' に対して許可されていません"
+        kor "'%-.128s' 명령은 다음 사용자에게 거부되었습니다. : '%-.48s'@'%-.64s' for 테이블 '%-.64s'"
+        por "Comando '%-.128s' negado para o usuário '%-.48s'@'%-.64s' na tabela '%-.64s'"
+        rum "Comanda %-.128s interzisa utilizatorului: '%-.48s'@'%-.64s' pentru tabela '%-.64s'"
+        rus "Команда %-.128s запрещена пользователю '%-.48s'@'%-.64s' для таблицы '%-.64s'"
+        serbian "%-.128s komanda zabranjena za korisnika '%-.48s'@'%-.64s' za tabelu '%-.64s'"
+        spa "%-.128s comando negado para usuario: '%-.48s'@'%-.64s' para tabla '%-.64s'"
+        swe "%-.128s ej tillåtet för '%-.48s'@'%-.64s' för tabell '%-.64s'"
+        ukr "%-.128s команда заборонена користувачу: '%-.48s'@'%-.64s' у таблиці '%-.64s'"
 ER_COLUMNACCESS_DENIED_ERROR 42000 
         cze "%-.16s p-Bříkaz nepřístupný pro uživatele: '%-.48s'@'%-.64s' pro sloupec '%-.192s' v tabulce '%-.192s'"
         dan "%-.16s-kommandoen er ikke tilladt for brugeren '%-.48s'@'%-.64s' for kolonne '%-.192s' in tabellen '%-.192s'"
@@ -5905,12 +5905,17 @@ ER_EVENT_OPEN_TABLE_FAILED
 ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
         ger "Kein DATETIME-Ausdruck angegeben"
-ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+
+# OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+ER_OBSOLETE_COL_COUNT_DOESNT_MATCH_CORRUPTED
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. The table is probably corrupted"
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
-ER_CANNOT_LOAD_FROM_TABLE
+
+# OBSOLETE, USE ER_CANNOT_LOAD_FROM_TABLE_V2
+ER_OBSOLETE_CANNOT_LOAD_FROM_TABLE
         eng "Cannot load from mysql.%s. The table is probably corrupted"
         ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
         ger "Löschen des Events aus mysql.event fehlgeschlagen"
@@ -5927,7 +5932,7 @@ ER_DROP_INDEX_FK
         eng "Cannot drop index '%-.192s': needed in a foreign key constraint"
         ger "Kann Index '%-.192s' nicht löschen: wird für einen Fremdschlüssel benötigt"
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
-# code.  See, for example, code in mysql_priv.h.
+# code.
 ER_WARN_DEPRECATED_SYNTAX_WITH_VER  
         eng  "The syntax '%s' is deprecated and will be removed in MySQL %s. Please use %s instead"
         ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt. Bitte benutzen Sie statt dessen %s"
@@ -6068,7 +6073,7 @@ ER_SLAVE_INCIDENT
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: %s"
+        eng "Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. %s"
 ER_SLAVE_FATAL_ERROR
         eng "Fatal error: %s"
 ER_SLAVE_RELAY_LOG_READ_FAILURE
@@ -6173,7 +6178,7 @@ ER_FUNC_INEXISTENT_NAME_COLLISION 42000
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
 
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
-# mysql_priv.h with the new maximal additional length for explain_filename.
+# sql_table.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
   eng "Database"
   swe "Databas"
@@ -6258,36 +6263,36 @@ ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
 ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
-  eng "Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved."
+  eng "Cannot execute statement: impossible to write to binary log since both row-incapable engines and statement-incapable engines are involved."
 ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
-  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging."
+  eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging."
 ER_BINLOG_UNSAFE_AND_STMT_ENGINE
-  eng "Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: %s"
+  eng "Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. %s"
 ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
-  eng "Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging."
+  eng "Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging."
 ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
-  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging.%s"
+  eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging.%s"
 ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
-  eng "Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT."
+  eng "Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT."
 ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
-  eng "Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging."
+  eng "Cannot execute statement: impossible to write to binary log since more than one engine is involved and at least one engine is self-logging."
 
 ER_BINLOG_UNSAFE_LIMIT
-  eng "Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
+  eng "The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
 ER_BINLOG_UNSAFE_INSERT_DELAYED
-  eng "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted."
+  eng "The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted."
 ER_BINLOG_UNSAFE_SYSTEM_TABLE
-  eng "Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave."
+  eng "The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves."
 ER_BINLOG_UNSAFE_AUTOINC_COLUMNS
-  eng "Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically."
+  eng "Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly."
 ER_BINLOG_UNSAFE_UDF
-  eng "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave."
+  eng "Statement is unsafe because it uses a UDF which may not return the same value on the slave."
 ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
-  eng "Statement uses a system variable whose value may differ on slave."
+  eng "Statement is unsafe because it uses a system variable that may have a different value on the slave."
 ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
-  eng "Statement uses a system function whose value may differ on slave."
+  eng "Statement is unsafe because it uses a system function that may return a different value on the slave."
 ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
-  eng "Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction."
+  eng "Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction."
 
 ER_MESSAGE_AND_STATEMENT
   eng "%s Statement: %s"
@@ -6327,3 +6332,21 @@ ER_LOCK_ABORTED
 
 ER_DATA_OUT_OF_RANGE 22003 
   eng "%s value is out of range in '%s'"
+
+ER_WRONG_SPVAR_TYPE_IN_LIMIT
+  eng "A variable of a non-integer type in LIMIT clause"
+
+ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
+  eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
+
+ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  eng "Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe."
+
+ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+  ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+
+ER_CANNOT_LOAD_FROM_TABLE_V2
+  eng "Cannot load from %s.%s. The table is probably corrupted"
+  ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+

@@ -60,7 +60,8 @@ dist-hook:
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
-	test ! -f configure.am  || $(INSTALL_DATA)  configure.am $(distdir)
+	test ! -f $(top_srcdir)/configure.am  || \
+	$(INSTALL_DATA)  $(top_srcdir)/configure.am $(distdir)
 
 all-local:		@ABI_CHECK@	
 
@@ -153,8 +154,8 @@ test-bt:
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl --comment=ndb+rpl_ndb+ps --force --timer \
-	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb,rpl_ndb $(EXP) ; \
+	      @PERL@ ./mysql-test-run.pl --comment=ndb+ps --force --timer \
+	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb $(EXP) ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
 	          --with-ndbcluster-only $(EXP) ; \
@@ -259,17 +260,12 @@ test-full-qa:
 
 #
 # Headers which need to be checked for abi/api compatibility.
-# API_PREPROCESSOR_HEADER will be used until mysql_priv.h stablizes
-# after which TEST_PREPROCESSOR_HEADER will be used.
 #
 
 API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
 			$(top_srcdir)/include/mysql.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
-
-TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
-			$(top_srcdir)/sql/mysql_priv.h
 
 #
 # Rules for checking that the abi/api has not changed.
@@ -311,8 +307,7 @@ TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
 abi_check:	$(API_PREPROCESSOR_HEADER)
 	$(MAKE) abi_headers="$^" do_abi_check
 
-abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
-	$(MAKE) abi_headers="$^" do_abi_check
+abi_check_all:	abi_check 
 
 do_abi_check:
 	set -ex; \
@@ -333,6 +328,3 @@ do_abi_check:
 	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

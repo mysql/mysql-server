@@ -1448,3 +1448,20 @@ DROP USER test_u@localhost;
 SHOW CREATE TABLE non_existent;
 ERROR 70100: Query execution was interrupted
 End of 5.1 tests
+#
+# Bug#52593 SHOW CREATE TABLE is blocked if table is locked
+#           for write by another connection
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (i INT PRIMARY KEY);
+LOCK TABLE t1 WRITE;
+# Switching to connection 'con1'.
+# This statement used to be blocked.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+# Switching to connection 'default'.
+UNLOCK TABLES;
+DROP TABLE t1;

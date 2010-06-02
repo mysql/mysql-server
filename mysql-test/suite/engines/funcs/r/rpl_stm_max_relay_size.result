@@ -17,6 +17,8 @@ reset slave;
 set @my_max_binlog_size= @@global.max_binlog_size;
 set global max_binlog_size=8192;
 set global max_relay_log_size=8192-1;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '8191'
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096
@@ -60,6 +62,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 #
 # Test 2
 #
@@ -108,6 +112,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 #
 # Test 3: max_relay_log_size = 0
 #
@@ -156,6 +162,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 #
 # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
 #
@@ -201,6 +209,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 #
 # Test 5
 #
@@ -247,6 +257,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 #
 # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
 #
@@ -291,6 +303,8 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 flush logs;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB

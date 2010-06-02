@@ -1,5 +1,5 @@
 
--- source include/have_ssl.inc
+-- source include/have_ssl_communication.inc
 
 # Repeat connect/disconnect
 
@@ -11,3 +11,6 @@ while ($i)
   dec $i;
 }
 echo completed;
+
+##  This test file is for testing encrypted communication only, not other
+##  encryption routines that the SSL library happens to provide!

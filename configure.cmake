@@ -913,6 +913,7 @@ ENDIF()
 
 SET(NO_ALARM "${HAVE_SOCKET_TIMEOUT}" CACHE BOOL 
    "No need to use alarm to implement socket timeout")
+SET(SIGNAL_WITH_VIO_CLOSE "${HAVE_SOCKET_TIMEOUT}")
 MARK_AS_ADVANCED(NO_ALARM)
 
 
