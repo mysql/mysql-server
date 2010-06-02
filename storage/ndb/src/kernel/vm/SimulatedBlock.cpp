@@ -1973,7 +1973,9 @@ SimulatedBlock::sendFragmentedSignal(BlockReference ref,
   }
   ptr.p->m_callback = c;
 
-  if(!c_fragSenderRunning){
+  if(!c_fragSenderRunning)
+  {
+    SaveSignal<2> save(signal);
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
     sig->type = ContinueFragmented::CONTINUE_SENDING;
@@ -2012,7 +2014,9 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
   }
   ptr.p->m_callback = c;
 
-  if(!c_fragSenderRunning){
+  if(!c_fragSenderRunning)
+  {
+    SaveSignal<2> save(signal);
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
     sig->type = ContinueFragmented::CONTINUE_SENDING;
@@ -2062,7 +2066,9 @@ SimulatedBlock::sendFragmentedSignal(BlockReference ref,
   }
   tmp.p->m_callback = c;
   
-  if(!c_fragSenderRunning){
+  if(!c_fragSenderRunning)
+  {
+    SaveSignal<2> save(signal);
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
     sig->type = ContinueFragmented::CONTINUE_SENDING;
@@ -2105,7 +2111,9 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
   }
   tmp.p->m_callback = c;
   
-  if(!c_fragSenderRunning){
+  if(!c_fragSenderRunning)
+  {
+    SaveSignal<2> save(signal);
     c_fragSenderRunning = true;
     ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
     sig->type = ContinueFragmented::CONTINUE_SENDING;
