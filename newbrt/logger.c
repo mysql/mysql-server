@@ -1087,6 +1087,15 @@ int toku_read_logmagic (FILE *f, u_int32_t *versionp) {
     return 0;
 }
 
+TXNID toku_txn_get_root_txnid (TOKUTXN txn) {
+    if (txn==0) return 0;
+    TOKUTXN root = txn;
+    while (root->parent) {
+        root = root->parent;
+    }
+    return root->txnid64;
+}
+
 TXNID toku_txn_get_txnid (TOKUTXN txn) {
     if (txn==0) return 0;
     else return txn->txnid64;

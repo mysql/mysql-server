@@ -574,6 +574,7 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     assert(r==0);
     if (txn->txnid64==brt->h->txnid_that_created_or_locked_when_empty) {
         brt->h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
+        brt->h->root_that_created_or_locked_when_empty  = TXNID_NONE;
     }
     if (txn->txnid64==brt->h->txnid_that_suppressed_recovery_logs) {
         brt->h->txnid_that_suppressed_recovery_logs = TXNID_NONE;
