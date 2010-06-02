@@ -435,7 +435,21 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   DBUG_PRINT("enter", ("from '%s'", from));
 
   if ((length= check_n_cut_mysql50_prefix(from, to, to_length)))
+  {
+    /*
+      Check if the name supplied is a valid mysql 5.0 name and 
+      make the name a zero length string if it's not.
+      Note that just returning zero length is not enough : 
+      a lot of places don't check the return value and expect 
+      a zero terminated string.
+    */  
+    if (check_table_name(to, length, TRUE))
+    {
+      to[0]= 0;
+      length= 0;
+    }
     DBUG_RETURN(length);
+  }
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&
@@ -5566,6 +5580,45 @@ err:
   DBUG_RETURN(-1);
 }
 
+/**
+  @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
+ 
+  @details Checks if any index is being modified (present as both DROP INDEX 
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+    online ALTER TABLE.
+  
+  @param table       The table being altered
+  @param alter_info  The ALTER TABLE structure
+  @return presence of index being altered  
+  @retval FALSE  No such index
+  @retval TRUE   Have at least 1 index modified
+*/
+
+static bool
+is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+{
+  List_iterator<Key> key_it(alter_info->key_list);
+  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
+  Key *key;
+
+  while ((key= key_it++))
+  {
+    if (key->name)
+    {
+      Alter_drop *drop;
+
+      drop_it.rewind();
+      while ((drop= drop_it++))
+      {
+        if (drop->type == Alter_drop::KEY &&
+            !my_strcasecmp(system_charset_info, key->name, drop->name))
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
 
 /*
   SYNOPSIS
@@ -5654,6 +5707,7 @@ compare_tables(TABLE *table,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
+
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
                                  &tmp_alter_info,
@@ -6851,10 +6905,14 @@ view_err:
   */
   new_db_type= create_info->db_type;
 
+  if (is_index_maintenance_unique (table, alter_info))
+    need_copy_table= ALTER_TABLE_DATA_CHANGED;
+
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
   
-  need_copy_table= alter_info->change_level;
+  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+    need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
@@ -6877,6 +6935,13 @@ view_err:
                        &index_add_buffer, &index_add_count,
                        &candidate_key_count))
       goto err;
+   
+    DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
+      if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
+        goto err; });
+    DBUG_EXECUTE_IF("alter_table_only_index_change", {
+      if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
+        goto err; });
    
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
@@ -7934,22 +7999,28 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
-        enum_field_types field_type= f->type();
-        /*
-          BLOB and VARCHAR have pointers in their field, we must convert
-          to string; GEOMETRY is implemented on top of BLOB.
-        */
-        if ((field_type == MYSQL_TYPE_BLOB) ||
-            (field_type == MYSQL_TYPE_VARCHAR) ||
-            (field_type == MYSQL_TYPE_GEOMETRY))
-	      {
-		String tmp;
-		f->val_str(&tmp);
-		row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(), tmp.length());
+
+             /*
+               BLOB and VARCHAR have pointers in their field, we must convert
+               to string; GEOMETRY is implemented on top of BLOB.
+               BIT may store its data among NULL bits, convert as well.
+             */
+              switch (f->type()) {
+                case MYSQL_TYPE_BLOB:
+                case MYSQL_TYPE_VARCHAR:
+                case MYSQL_TYPE_GEOMETRY:
+                case MYSQL_TYPE_BIT:
+                {
+                  String tmp;
+                  f->val_str(&tmp);
+                  row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(),
+                           tmp.length());
+                  break;
+                }
+                default:
+                  row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                  break;
 	      }
-	      else
-		row_crc= my_checksum(row_crc, f->ptr,
-				     f->pack_length());
 	    }
 
 	    crc+= row_crc;

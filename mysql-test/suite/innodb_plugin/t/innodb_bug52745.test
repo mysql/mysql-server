@@ -1,0 +1,109 @@
+-- source include/have_innodb_plugin.inc
+
+let $file_format=`select @@innodb_file_format`;
+let $file_format_check=`select @@innodb_file_format_check`;
+let $file_per_table=`select @@innodb_file_per_table`;
+SET GLOBAL innodb_file_format='Barracuda';
+SET GLOBAL innodb_file_per_table=on;
+
+CREATE TABLE bug52745 (
+  a2 int(10) unsigned DEFAULT NULL,
+  col37 time DEFAULT NULL,
+  col38 char(229) CHARACTER SET utf8 DEFAULT NULL,
+  col39 text,
+  col40 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  col41 int(10) unsigned DEFAULT NULL,
+  col42 varchar(248) CHARACTER SET utf8 DEFAULT NULL,
+  col43 smallint(5) unsigned zerofill DEFAULT NULL,
+  col44 varchar(150) CHARACTER SET utf8 DEFAULT NULL,
+  col45 float unsigned zerofill DEFAULT NULL,
+  col46 binary(1) DEFAULT NULL,
+  col47 tinyint(4) DEFAULT NULL,
+  col48 tinyint(1) DEFAULT NULL,
+  col49 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  col50 binary(1) DEFAULT NULL,
+  col51 double unsigned zerofill DEFAULT NULL,
+  col52 int(10) unsigned DEFAULT NULL,
+  col53 time DEFAULT NULL,
+  col54 double unsigned DEFAULT NULL,
+  col55 time DEFAULT NULL,
+  col56 mediumtext CHARACTER SET latin2,
+  col57 blob,
+  col58 decimal(52,16) unsigned zerofill NOT NULL DEFAULT '000000000000000000000000000000000000.0000000000000000',
+  col59 binary(1) DEFAULT NULL,
+  col60 longblob,
+  col61 time DEFAULT NULL,
+  col62 longtext CHARACTER SET utf8 COLLATE utf8_persian_ci,
+  col63 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  col64 int(10) unsigned DEFAULT NULL,
+  col65 date DEFAULT NULL,
+  col66 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  col67 binary(1) DEFAULT NULL,
+  col68 tinyblob,
+  col69 date DEFAULT NULL,
+  col70 tinyint(3) unsigned zerofill DEFAULT NULL,
+  col71 varchar(44) CHARACTER SET utf8 DEFAULT NULL,
+  col72 datetime DEFAULT NULL,
+  col73 smallint(5) unsigned zerofill DEFAULT NULL,
+  col74 longblob,
+  col75 bit(34) DEFAULT NULL,
+  col76 float unsigned zerofill DEFAULT NULL,
+  col77 year(2) DEFAULT NULL,
+  col78 tinyint(3) unsigned DEFAULT NULL,
+  col79 set('msfheowh','tbpxbgf','by','wahnrjw','myqfasxz','rsokyumrt') CHARACTER SET latin2 DEFAULT NULL,
+  col80 datetime DEFAULT NULL,
+  col81 smallint(6) DEFAULT NULL,
+  col82 enum('xtaurnqfqz','rifrse','kuzwpbvb','niisabk','zxavro','rbvasv','','uulrfaove','','') DEFAULT NULL,
+  col83 bigint(20) unsigned zerofill DEFAULT NULL,
+  col84 float unsigned zerofill DEFAULT NULL,
+  col85 double DEFAULT NULL,
+  col86 enum('ylannv','','vlkhycqc','snke','cxifustp','xiaxaswzp','oxl') CHARACTER SET latin1 COLLATE latin1_german2_ci DEFAULT NULL,
+  col87 varbinary(221) DEFAULT NULL,
+  col88 double unsigned DEFAULT NULL,
+  col89 float unsigned zerofill DEFAULT NULL,
+  col90 tinyblob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+INSERT INTO bug52745 SET
+col40='0000-00-00 00:00:00',
+col51=16547,
+col53='7711484',
+col54=-28604,
+col55='7112612',
+col56='wakefulness\'',
+col57=repeat('absorbefacient\'',106),
+col58=11027,
+col59='AM09gW7',
+col60=repeat('Noelani\'',16),
+col61='2520576',
+col62='substitutiv',
+col63='19950106155112',
+col64=-12038,
+col65='86238806',
+col66='19600719080256',
+col68=repeat('Sagittarius\'',54),
+col69='38943902',
+col70=1232,
+col71='Elora\'',
+col74=repeat('zipp',11),
+col75='0',
+col76=23254,
+col78=13247,
+col79='56219',
+col80='20500609035724',
+col81=11632,
+col82=7,
+col84=-23863,
+col85=6341,
+col87='HZdkf.4 s7t,5Rmq	8so fmr,ruGLUG25TrtI.yQ	2SuHq0ML7rw7.4 b2yf2E5TJxOtBBZImezDnzpj,uPYfznnEUDN1e9aQoO 2DsplB7TFWy	oQJ br  HLF :F,eQ p4i1oWsr lL3PG,hjCz6hYqN h1QTjLCjrv:QCdSzpYBibJAtZCxLOk3l6Blsh.W',
+col88=16894,
+col89=6161,
+col90=repeat('gale',48);
+
+SHOW WARNINGS;
+
+DROP TABLE bug52745;
+
+EVAL SET GLOBAL innodb_file_format=$file_format;
+EVAL SET GLOBAL innodb_file_format_check=$file_format_check;
+EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

@@ -364,11 +364,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
         DBUG_PRINT("warning",("mmap failed: errno: %d",errno));
         error= my_errno= errno;
       }
-      else
-      {
-        share->file_read= mi_mmap_pread;
-        share->file_write= mi_mmap_pwrite;
-      }
     }
     pthread_mutex_unlock(&share->intern_lock);
 #endif

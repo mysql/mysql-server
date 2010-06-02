@@ -58,6 +58,8 @@
 
 #include <mysql/plugin.h>
 
+#include "debug_sync.h"
+
 static const char *ha_par_ext= ".par";
 #ifdef NOT_USED
 static int free_share(PARTITION_SHARE * share);
@@ -690,6 +692,7 @@ int ha_partition::rename_partitions(const char *path)
   DBUG_ASSERT(!strcmp(path, get_canonical_filename(m_file[0], path,
                                                    norm_name_buff)));
 
+  DEBUG_SYNC(ha_thd(), "before_rename_partitions");
   if (temp_partitions)
   {
     /*
@@ -2607,6 +2610,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 
 err_handler:
+  DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
     (*file)->close();
   bitmap_free(&m_bulk_insert_started);
@@ -5090,6 +5094,7 @@ int ha_partition::info(uint flag)
 
     file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
+    stats.block_size= file->stats.block_size;
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
   }
@@ -6454,9 +6459,22 @@ void ha_partition::release_auto_increment()
     ulonglong next_auto_inc_val;
     lock_auto_increment();
     next_auto_inc_val= ha_data->next_auto_inc_val;
+    /*
+      If the current auto_increment values is lower than the reserved
+      value, and the reserved value was reserved by this thread,
+      we can lower the reserved value.
+    */
     if (next_insert_id < next_auto_inc_val &&
         auto_inc_interval_for_cur_row.maximum() >= next_auto_inc_val)
-      ha_data->next_auto_inc_val= next_insert_id;
+    {
+      THD *thd= ha_thd();
+      /*
+        Check that we do not lower the value because of a failed insert
+        with SET INSERT_ID, i.e. forced/non generated values.
+      */
+      if (thd->auto_inc_intervals_forced.maximum() < next_insert_id)
+        ha_data->next_auto_inc_val= next_insert_id;
+    }
     DBUG_PRINT("info", ("ha_data->next_auto_inc_val: %lu",
                         (ulong) ha_data->next_auto_inc_val));
 

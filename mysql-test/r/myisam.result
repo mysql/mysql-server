@@ -2313,6 +2313,8 @@ INSERT INTO t1 SELECT a+1280,b FROM t1;
 INSERT INTO t1 SELECT a+2560,b FROM t1;
 INSERT INTO t1 SELECT a+5120,b FROM t1;
 SET myisam_sort_buffer_size=4;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '4'
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	error	myisam_sort_buffer_size is too small
@@ -2339,4 +2341,75 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+#
+# Bug#51304: checksum table gives different results
+# for same data when using bit fields
+#
+CREATE TABLE t1(a INT, b BIT(1));
+INSERT INTO t1 VALUES(1, 0), (2, 1);
+CREATE TABLE t2 SELECT * FROM t1;
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	3775188275
+CHECKSUM TABLE t2 EXTENDED;
+Table	Checksum
+test.t2	3775188275
+CHECKSUM TABLE t3 EXTENDED;
+Table	Checksum
+test.t3	3775188275
+DROP TABLE t1, t2, t3;
+#
+# BUG#51307 - widespread corruption with partitions and insert...select
+#
+CREATE TABLE t1(a CHAR(255), KEY(a));
+SELECT * FROM t1, t1 AS a1;
+a	a
+SET myisam_sort_buffer_size=4;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '4'
+INSERT INTO t1 VALUES
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0');
+Warnings:
+Error	1034	myisam_sort_buffer_size is too small
+Error	1034	Number of rows changed from 0 to 157
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+INSERT INTO t1 VALUES('1');
+SELECT * FROM t1, t1 AS a1 WHERE t1.a=1 AND a1.a=1;
+a	a
+1	1
+DROP TABLE t1;
+#
+# BUG#47444 - --myisam_repair_threads>1can result in all index
+#             cardinalities=1
+#
+SET myisam_repair_threads=2;
+SET myisam_sort_buffer_size=4096;
+CREATE TABLE t1(a CHAR(255), KEY(a), KEY(a), KEY(a));
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(0),(1),(2),(3);
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+CARDINALITY
+14
+14
+14
+DROP TABLE t1;
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
 End of 5.1 tests

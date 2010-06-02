@@ -730,9 +730,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (strncmp(((Query_log_event*)ev)->query, "BEGIN", 5) && 
-          strncmp(((Query_log_event*)ev)->query, "COMMIT", 6) && 
-          strncmp(((Query_log_event*)ev)->query, "ROLLBACK", 8) &&  
+      if (!((Query_log_event*)ev)->is_trans_keyword() &&
           shall_skip_database(((Query_log_event*)ev)->db))
         goto end;
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
@@ -832,7 +830,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       print_event_info->common_header_len=
         glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
-      ev->temp_buf= 0; // as the event ref is zeroed
+      if (!remote_opt)
+        ev->free_temp_buf(); // free memory allocated in dump_local_log_entries
+      else
+        // disassociate but not free dump_remote_log_entries time memory
+        ev->temp_buf= 0;
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -1362,7 +1364,6 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
-  load_defaults("my",load_default_groups,argc,argv);
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag)
@@ -2019,8 +2020,10 @@ int main(int argc, char** argv)
 
   my_init_time(); // for time functions
 
+  if (load_defaults("my", load_default_groups, &argc, &argv))
+    exit(1);
+  defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
-  defaults_argv=argv;
 
   if (!argc)
   {

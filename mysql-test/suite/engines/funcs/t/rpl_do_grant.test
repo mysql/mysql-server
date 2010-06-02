@@ -1,0 +1,98 @@
+# Works in statement-based and row-based binlogging.
+# Test that GRANT and other user management commands are replicated to the slave
+
+-- source include/master-slave.inc
+
+# do not be influenced by other tests.
+connection master;
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
+flush privileges;
+save_master_pos;
+connection slave;
+sync_with_master;
+# if these DELETE did nothing on the master, we need to do them manually on the
+# slave.
+delete from mysql.user where user=_binary'rpl_ignore_grant';
+delete from mysql.db where user=_binary'rpl_ignore_grant';
+flush privileges;
+
+# test replication of GRANT
+connection master;
+grant select on *.* to rpl_do_grant@localhost;
+grant drop on test.* to rpl_do_grant@localhost;
+save_master_pos;
+connection slave;
+sync_with_master;
+show grants for rpl_do_grant@localhost;
+
+# test replication of SET PASSWORD
+connection master;
+set password for rpl_do_grant@localhost=password("does it work?");
+save_master_pos;
+connection slave;
+sync_with_master;
+select password<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
+
+# clear what we have done, to not influence other tests.
+connection master;
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
+flush privileges;
+sync_slave_with_master;
+# The mysql database is not replicated, so we have to do the deletes
+# manually on the slave as well. 
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
+flush privileges;
+
+# End of 4.1 tests
+
+connection master;
+--error 1141
+show grants for rpl_do_grant@localhost;
+connection slave;
+--error 1141
+show grants for rpl_do_grant@localhost;
+
+connection master;
+create user rpl_do_grant@localhost;
+show grants for rpl_do_grant@localhost;
+--error 1141
+show grants for rpl_do_grant2@localhost;
+sync_slave_with_master;
+show grants for rpl_do_grant@localhost;
+--error 1141
+show grants for rpl_do_grant2@localhost;
+
+connection master;
+rename user rpl_do_grant@localhost to rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+sync_slave_with_master;
+show grants for rpl_do_grant2@localhost;
+
+connection master;
+grant DELETE,INSERT on mysqltest1.* to rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+sync_slave_with_master;
+show grants for rpl_do_grant2@localhost;
+
+connection master;
+revoke DELETE on mysqltest1.* from rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+sync_slave_with_master;
+show grants for rpl_do_grant2@localhost;
+
+connection master;
+revoke all privileges, grant option from rpl_do_grant2@localhost;
+show grants for rpl_do_grant2@localhost;
+sync_slave_with_master;
+show grants for rpl_do_grant2@localhost;
+
+connection master;
+drop user rpl_do_grant2@localhost;
+--error 1141
+show grants for rpl_do_grant2@localhost;
+sync_slave_with_master;
+--error 1141
+show grants for rpl_do_grant2@localhost;

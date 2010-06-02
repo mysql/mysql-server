@@ -126,6 +126,7 @@ public:
   virtual void reset_value_registration() {}
   enum_parsing_place place() { return parsing_place; }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
 
   /**
     Get the SELECT_LEX structure associated with this Item.
