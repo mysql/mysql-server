@@ -924,7 +924,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     numAttrsToRead = setAttrIds(attributeMask, regTabPtr->m_no_of_attributes,
                                 &readBuffer[0]);
   }
-  ndbrequire(numAttrsToRead < MAX_ATTRIBUTES_IN_TABLE);
+  ndbrequire(numAttrsToRead <= MAX_ATTRIBUTES_IN_TABLE);
 //--------------------------------------------------------------------
 // Read Main tuple values
 //--------------------------------------------------------------------
