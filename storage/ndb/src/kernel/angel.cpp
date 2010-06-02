@@ -580,7 +580,8 @@ angel_run(const BaseString& original_args,
     // Check startup failure
     const Uint32 STARTUP_FAILURE_SPHASE = 6;
     const Uint32 MAX_FAILED_STARTUPS = 3;
-    if (child_sphase <= STARTUP_FAILURE_SPHASE)
+    if (error_exit && // Only check startup failure if ndbd exited uncontrolled
+        child_sphase <= STARTUP_FAILURE_SPHASE)
     {
       if (++failed_startups_counter >= MAX_FAILED_STARTUPS)
       {
