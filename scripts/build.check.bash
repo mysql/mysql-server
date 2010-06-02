@@ -228,11 +228,11 @@ function build() {
     runcmd 0 $productbuilddir/db-benchmark-test make -j$makejobs -k check >>$tracefile 2>&1
 
     # cxx
-    runcmd $dowindows $productbuilddir/cxx make -k >>$tracefile 2>&1
-    runcmd $dowindows $productbuilddir/cxx make -k install >>$tracefile 2>&1
-    runcmd $dowindows $productbuilddir/cxx/tests make -k check >>$tracefile 2>&1
-    runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k >>$tracefile 2>&1
-    runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k check >>$tracefile 2>&1
+    runcmd $dowindows $productbuilddir/cxx make -k -s >>$tracefile 2>&1
+    runcmd $dowindows $productbuilddir/cxx make -k -s install >>$tracefile 2>&1
+    runcmd $dowindows $productbuilddir/cxx/tests make -k -s check >>$tracefile 2>&1
+    runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s >>$tracefile 2>&1
+    runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s check >>$tracefile 2>&1
     
     # Makefile for release/examples is NOT ported to windows.  Expect it to fail.
     runcmd $dowindows $productbuilddir/release make -k setup >>$tracefile 2>&1
