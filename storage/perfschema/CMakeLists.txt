@@ -41,6 +41,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_events_waits_summary.h
   table_file_instances.h
   table_file_summary.h
+  table_helper.h
   table_performance_timers.h
   table_processlist.h
   table_setup_consumers.h

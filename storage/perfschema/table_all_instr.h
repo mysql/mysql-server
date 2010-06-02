@@ -24,6 +24,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -35,17 +36,17 @@ struct pos_all_instr_class : public PFS_double_index,
                              public PFS_instrument_view_constants
 {
   pos_all_instr_class()
-    : PFS_double_index(VIEW_MUTEX, 1)
+    : PFS_double_index(FIRST_VIEW, 1)
   {}
 
   inline void reset(void)
   {
-    m_index_1= VIEW_MUTEX;
+    m_index_1= FIRST_VIEW;
     m_index_2= 1;
   }
 
   inline bool has_more_view(void)
-  { return (m_index_1 <= VIEW_FILE); }
+  { return (m_index_1 <= LAST_VIEW); }
 
   inline void next_view(void)
   {
@@ -95,17 +96,17 @@ struct pos_all_instr : public PFS_double_index,
                        public PFS_instrument_view_constants
 {
   pos_all_instr()
-    : PFS_double_index(VIEW_MUTEX, 0)
+    : PFS_double_index(FIRST_VIEW, 0)
   {}
 
   inline void reset(void)
   {
-    m_index_1= VIEW_MUTEX;
+    m_index_1= FIRST_VIEW;
     m_index_2= 0;
   }
 
   inline bool has_more_view(void)
-  { return (m_index_1 <= VIEW_FILE); }
+  { return (m_index_1 <= LAST_VIEW); }
 
   inline void next_view(void)
   {
