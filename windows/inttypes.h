@@ -4,6 +4,11 @@
 #include <stdint.h>
 
 //Define printf types.
+#define SCNd64 "I64d"
+#define SCNu64 "I64u"
+#define SCNd32 "d"
+#define SCNu32 "u"
+
 #define PRId64 "I64d"
 #define PRIu64 "I64u"
 #define PRIx64 "I64x"

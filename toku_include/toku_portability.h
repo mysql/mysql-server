@@ -33,6 +33,8 @@ extern "C" {
 #if TOKU_WINDOWS
 // Windows
 
+#define DO_GCC_PRAGMA(x)      /* Nothing */
+
 #if defined(__ICL)
 #define __attribute__(x)      /* Nothing */
 #endif
@@ -56,6 +58,8 @@ typedef int64_t toku_off_t;
 
 #elif defined(__INTEL_COMPILER)
 
+#define DO_GCC_PRAGMA(x)      /* Nothing */
+
 #if defined(__ICC)
 // Intel linux
 
@@ -70,6 +74,8 @@ typedef int64_t toku_off_t;
 #define cast_to_typeof(v) (__typeof__(v))
 #elif defined(__GNUC__)
 // GCC linux
+
+#define DO_GCC_PRAGMA(x) _Pragma (#x)
 
 #include <toku_stdint.h>
 #include <unistd.h>

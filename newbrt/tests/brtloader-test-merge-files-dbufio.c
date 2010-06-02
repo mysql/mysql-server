@@ -286,7 +286,7 @@ static void test (const char *directory, BOOL is_error) {
 	n_records_in_fd[fdi]++;
     }
     for (int i=0; i<N_SOURCES; i++) {
-	off_t r = lseek(fds[i], 0, SEEK_SET);
+	toku_off_t r = lseek(fds[i], 0, SEEK_SET);
 	assert(r==0);
     }
 
