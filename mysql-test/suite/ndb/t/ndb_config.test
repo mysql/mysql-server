@@ -50,5 +50,7 @@ echo == 16 == bug44689;
 --exec $NDB_CONFIG --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --defaults-group-suffix=.bug44689 --query=host --mycnf 2> /dev/null
 
 echo == 17 == bug49400;
+--replace_regex /.*\[ndb_config\]//
 --error 255
---exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug49400.ini
+--exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug49400.ini 2>&1
+

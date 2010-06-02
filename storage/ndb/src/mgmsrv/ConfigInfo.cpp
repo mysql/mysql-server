@@ -4398,20 +4398,21 @@ static bool
 uniqueConnection(InitConfigFileParser::Context & ctx, const char * data)
 {
   Uint32 lo_node, hi_node;
+  BaseString key;       /* Properties key to identify this link */
+  BaseString defn;      /* Value stored at key (used in error msgs) */
   
   /* This rule runs *after* fixNodeId, so it is guaranteed that the 
    NodeId1 and NodeId2 properties exist and contain integers */  
-  assert(ctx.m_currentSection->get("NodeId1", & lo_node) == true);
-  assert(ctx.m_currentSection->get("NodeId2", & hi_node) == true);
+  require(ctx.m_currentSection->get("NodeId1", & lo_node) == true);
+  require(ctx.m_currentSection->get("NodeId2", & hi_node) == true);
   
   if(lo_node > hi_node) /* sort the node ids, low-node-first */
   {
-    register Uint32 tmp_node = hi_node;
+    const Uint32 tmp_node = hi_node;
     hi_node = lo_node;
     lo_node = tmp_node;
   }
   
-  BaseString key;       /* Properties key to identify this link: */
   key.assfmt("Link_%d_%d", lo_node, hi_node);
   
   /* The property must not already exist */
@@ -4419,15 +4420,14 @@ uniqueConnection(InitConfigFileParser::Context & ctx, const char * data)
   {
     const char * old_defn;
     if(ctx.m_userProperties.get(key.c_str(), &old_defn))    
-    ctx.reportError("%s connection is a duplicate of the existing %s",
-                    data, old_defn);
+      ctx.reportError("%s connection is a duplicate of the existing %s",
+                      data, old_defn);
     return false;
   }
   
   /* Set the unique link identifier property */
-  BaseString *defn = new BaseString;
-  defn->assfmt("%s link at line %d", data, ctx.m_sectionLineno);
-  ctx.m_userProperties.put(key.c_str(), defn->c_str());
+  defn.assfmt("%s link from line %d", data, ctx.m_sectionLineno);
+  ctx.m_userProperties.put(key.c_str(), defn.c_str());
   
   return true;
 }
