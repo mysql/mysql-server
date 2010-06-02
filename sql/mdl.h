@@ -322,6 +322,7 @@ public:
     DBUG_ASSERT(ticket == NULL);
     type= type_arg;
   }
+  /* A helper used to determine which lock request should be aborted. */
   uint get_deadlock_weight() const;
 
   static MDL_request *create(MDL_key::enum_mdl_namespace mdl_namespace,
