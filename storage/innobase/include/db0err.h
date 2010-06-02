@@ -28,6 +28,8 @@ Created 5/24/1996 Heikki Tuuri
 
 
 enum db_err {
+	DB_SUCCESS_LOCKED_REC = 9,	/*!< like DB_SUCCESS, but a new
+					explicit record lock was created */
 	DB_SUCCESS = 10,
 
 	/* The following are error codes */
