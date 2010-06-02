@@ -104,6 +104,37 @@ public:
   void garbage_register();
 };
 
+template<Uint32 len>
+class SaveSignal 
+{
+  Uint32 m_copy[len];
+  Signal * m_signal;
+
+public:
+  SaveSignal(Signal* signal) {
+    save(signal);
+  }
+
+  void save(Signal* signal) {
+    m_signal = signal;
+    for (Uint32 i = 0; i<len; i++)
+      m_copy[i] = m_signal->theData[i];
+  }
+
+  void clear() { m_signal = 0;}
+
+  void restore() {
+    for (Uint32 i = 0; i<len; i++)
+      m_signal->theData[i] = m_copy[i];
+  }
+
+  ~SaveSignal() {
+    if (m_signal)
+      restore();
+    clear();
+  }
+};
+
 inline
 Uint32
 Signal::getLength() const {
