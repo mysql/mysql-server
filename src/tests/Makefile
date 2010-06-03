@@ -82,6 +82,7 @@ BDB_DONTRUN_TESTS = \
         backwards_10_each_le_and_msg \
         bug1381 \
         bug627 \
+	cachetable-race \
         checkpoint_1 \
         checkpoint_callback \
         checkpoint_stress \

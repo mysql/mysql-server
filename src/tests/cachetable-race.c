@@ -24,6 +24,7 @@
 #include "toku_atomic.h"
 #include <db.h>
 #include <sys/stat.h>
+#include "ydb.h"
 #include "ydb-internal.h"
 
 DB_ENV *env;
@@ -71,11 +72,10 @@ static void run_cachetable_race_test(void)
         dbs[i] = NULL;
 	
 	if (i==2) {
-	    extern int get_toku_checkpointing_user_data_status(void);
-	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, get_toku_checkpointing_user_data_status());
-	    while (get_toku_checkpointing_user_data_status()==0)
+	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, toku_test_get_checkpointing_user_data_status());
+	    while (toku_test_get_checkpointing_user_data_status()==0)
 		sched_yield();
-	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, get_toku_checkpointing_user_data_status());
+	    if (verbose) printf("%s:%d c=%d\n", __FILE__, __LINE__, toku_test_get_checkpointing_user_data_status());
 	}
     }
     r = env->close(env, 0);                                                                                   CKERR(r);
