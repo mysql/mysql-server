@@ -1854,14 +1854,15 @@ bool MDL_lock::find_deadlock(MDL_ticket *waiting_ticket,
   MDL_ticket *ticket;
   MDL_context *src_ctx= waiting_ticket->get_ctx();
   bool result= TRUE;
-  Ticket_iterator granted_it(m_granted);
-  Ticket_iterator waiting_it(m_waiting);
-
 
   if (dvisitor->enter_node(src_ctx))
     return TRUE;
 
   mysql_prlock_rdlock(&m_rwlock);
+
+  /* Must be initialized after taking a read lock. */
+  Ticket_iterator granted_it(m_granted);
+  Ticket_iterator waiting_it(m_waiting);
 
   /*
     We do a breadth-first search first -- that is, inspect all
