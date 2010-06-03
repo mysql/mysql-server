@@ -987,26 +987,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
-#if MYSQL_VERSION_ID < 50200
-    if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
-    {
-      /*
-         Partition state array was here in version 5.1.6 to 5.1.9, this code
-         makes it possible to load a 5.1.6 table in later versions. Can most
-         likely be removed at some point in time. Will only be used for
-         upgrades within 5.1 series of versions. Upgrade to 5.2 can only be
-         done from newer 5.1 versions.
-      */
-      next_chunk+= 4;
-    }
-    else if (share->mysql_version >= 50110)
-#endif
+    if (share->mysql_version >= 50110)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       share->auto_partitioned= *next_chunk;
 #endif
       next_chunk++;
+      DBUG_ASSERT(next_chunk <= buff_end);
     }
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
@@ -1032,6 +1020,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
       }
     }
+    DBUG_ASSERT(next_chunk <= buff_end);
     if (share->db_create_options & HA_OPTION_TEXT_CREATE_OPTIONS)
     {
       /*
@@ -1042,6 +1031,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       options= next_chunk + 4;
       next_chunk+= options_len + 4;
     }
+    DBUG_ASSERT(next_chunk <= buff_end);
   }
   share->key_block_size= uint2korr(head+62);
 
