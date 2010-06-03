@@ -230,7 +230,7 @@ function build() {
     # cxx
     runcmd $dowindows $productbuilddir/cxx make -k -s >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/cxx make -k -s install >>$tracefile 2>&1
-    runcmd $dowindows $productbuilddir/cxx/tests make -k -s check >>$tracefile 2>&1
+    runcmd $dowindows $productbuilddir/cxx/tests make -k -s check SUMMARIZE=1 >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s check >>$tracefile 2>&1
     
