@@ -281,6 +281,13 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
 #endif /* MYSQL_VERSION_ID > 50140 */
+/**
+  Check if the query may generate row changes which
+  may end up in the binary.
+  @param  thd   Thread handle
+  @return 1 the query may generate row changes, 0 otherwise.
+*/
+bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 }
 
 typedef struct trx_struct trx_t;

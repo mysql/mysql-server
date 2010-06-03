@@ -34,6 +34,15 @@ void item_init(void);			/* Init item functions */
 class Item_field;
 class user_var_entry;
 
+
+static inline uint32
+char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
+{
+   ulonglong tmp= ((ulonglong) char_length_arg) * mbmaxlen_arg;
+   return (tmp > UINT_MAX32) ? (uint32) UINT_MAX32 : (uint32) tmp;
+}
+
+
 /*
    "Declared Type Collation"
    A combination of collation and its derivation.
@@ -1171,11 +1180,14 @@ public:
   { return max_length / collation.collation->mbmaxlen; }
   void fix_length_and_charset(uint32 max_char_length_arg, CHARSET_INFO *cs)
   {
-    max_length= max_char_length_arg * cs->mbmaxlen;
+    max_length= char_to_byte_length_safe(max_char_length_arg, cs->mbmaxlen);
     collation.collation= cs;
   }
   void fix_char_length(uint32 max_char_length_arg)
-  { max_length= max_char_length_arg * collation.collation->mbmaxlen; }
+  {
+    max_length= char_to_byte_length_safe(max_char_length_arg,
+                                         collation.collation->mbmaxlen);
+  }
   void fix_length_and_charset_datetime(uint32 max_char_length_arg)
   {
     collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
