@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef SQL_TABLE_INCLUDED
+#define SQL_TABLE_INCLUDED
 
 /* Structs that defines the TABLE */
 
@@ -1819,3 +1821,4 @@ static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
 
 size_t max_row_length(TABLE *table, const uchar *data);
 
+#endif
