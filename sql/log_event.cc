@@ -9029,14 +9029,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
           BI image that is null and part of UNNI.
         */
         bool null_found= FALSE;
-
-        for (uint i=0, fieldnr= keyinfo->key_part[i].fieldnr - 1 ;
-             (i < keyinfo->key_parts) && !null_found ;
-             i++, fieldnr= keyinfo->key_part[i].fieldnr - 1)
+        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
         {
+          uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
           Field **f= table->field+fieldnr;
-          if ((*f)->is_null())
-            null_found= TRUE;
+          null_found= (*f)->is_null();
         }
 
         if (!null_found)
