@@ -371,7 +371,6 @@ case "$target_os" in
     fi
   ;;
 esac
-
 AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
@@ -845,7 +844,7 @@ AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
  sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h \
- execinfo.h atomic.h)
+ execinfo.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -2187,7 +2186,7 @@ AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
 AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
-  chsize cuserid epoll_create fchmod fcntl \
+  chsize cuserid fchmod fcntl \
   fconvert fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd index initgroups isnan \
@@ -2197,22 +2196,17 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
-  pthread_setschedprio \
-  pthread_self sched_get_priority_min sched_get_priority_max \
-  sched_setaffinity processor_bind sched_setscheduler \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask port_create sleep \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
-  backtrace backtrace_symbols backtrace_symbols_fd \
-  posix_fallocate posix_memalign memalign sysconf directio atomic_swap_32 printstack)
+  posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd printstack)
 
 #
 #
 #
-AC_CHECK_LIB(rt, clock_gettime)
 case "$target" in
  *-*-aix4* | *-*-sco*)
 	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
@@ -2223,41 +2217,6 @@ case "$target" in
  *) AC_CHECK_FUNCS(clock_gettime)
     ;;
 esac
-AC_CHECK_FUNCS(pthread_condattr_setclock)
-
-#checking for Linux Scheduling and Locking Support
-AC_MSG_CHECKING(for Linux scheduling and locking support)
-AC_TRY_LINK(
-  [#ifndef _GNU_SOURCE
-   #define _GNU_SOURCE
-   #endif
-   #include <sys/types.h>
-   #include <unistd.h>
-   #include <sched.h>
-   #include <sys/syscall.h>],
-  [const cpu_set_t *p= (const cpu_set_t*)0;
-   struct sched_param loc_sched_param;
-   int policy = 0;
-   pid_t tid = (unsigned)syscall(SYS_gettid);
-   tid = getpid();
-   int ret = sched_setaffinity(tid, sizeof(* p), p);
-   ret = sched_setscheduler(tid, policy, &loc_sched_param);],
-  AC_MSG_RESULT(yes)
-  AC_DEFINE(HAVE_LINUX_SCHEDULING, [1], [Linux scheduling/locking function]),
-  AC_MSG_RESULT(no))
-
-AC_MSG_CHECKING(for Solaris affinity support)
-AC_TRY_LINK(
-  [#include <sys/types.h>
-   #include <sys/lwp.h>
-   #include <sys/processor.h>
-   #include <sys/procset.h>],
-  [processorid_t cpu_id = (processorid_t)0;
-   id_t tid = _lwp_self();
-   int ret = processor_bind(P_LWPID, tid, cpu_id, 0);],
-  AC_MSG_RESULT(yes)
-  AC_DEFINE(HAVE_SOLARIS_AFFINITY, [1], [Solaris affinity function]),
-  AC_MSG_RESULT(no))
 
 case "$mysql_cv_sys_os" in
  OS400) # i5/OS (OS/400) emits a SIGILL (Function not implemented) when
@@ -2581,64 +2540,6 @@ then
   AC_DEFINE([HAVE_BROKEN_NETINET_INCLUDES], [1], [Can netinet be included])
 fi
 AC_MSG_RESULT("$netinet_inc")
-
-#checking for Linux futex support
-AC_MSG_CHECKING(for Linux futex support)
-AC_TRY_LINK(
-  [#ifndef _GNU_SOURCE
-   #define _GNU_SOURCE
-   #endif
-   #include <sys/types.h>
-   #include <unistd.h>
-   #include <errno.h>
-   #include <sys/syscall.h>],
-   #define FUTEX_WAIT        0
-   #define FUTEX_WAKE        1
-   #define FUTEX_FD          2
-   #define FUTEX_REQUEUE     3
-   #define FUTEX_CMP_REQUEUE 4
-   #define FUTEX_WAKE_OP     5
-  [
-   int a = 0; int * addr = &a;
-   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
-  ],
-  AC_MSG_RESULT(yes)
-  AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
-  AC_MSG_RESULT(no))
-
-#checking for asm needed for ndbmtd
-SAVE_CFLAGS="$CFLAGS"
-if test "x${ac_cv_header_atomic_h}" = xyes; then
-   CFLAGS="$CFLAGS -DHAVE_ATOMIC_H"
-fi
-AC_CACHE_CHECK([assembler needed for ndbmtd],
-               [have_ndbmtd_asm], [AC_TRY_RUN([
-    #include "storage/ndb/src/kernel/vm/mt-asm.h"
-    int main()
-    {
-      unsigned int a = 0;
-      volatile unsigned int *ap = (volatile unsigned int*)&a;
-      #ifdef NDB_HAVE_XCNG
-      a = xcng(ap, 1);
-      cpu_pause();
-      #endif
-      mb();
-      * ap = 2;
-      rmb();
-      * ap = 1;
-      wmb();
-      * ap = 0;
-      read_barrier_depends();
-      return a;
-   }
-], [have_ndbmtd_asm=yes],
-   [have_ndbmtd_asm=no],
-   [have_ndbmtd_asm=no])])
-if test "x$have_ndbmtd_asm" = xyes; then
-  AC_DEFINE(HAVE_NDBMTD_ASM, 1,
-            [Define to 1 if assmbler needed to run ndbmtd is present.])
-fi
-CFLAGS="$SAVE_CFLAGS"
 
 AC_CACHE_CHECK([support for weak symbols], mysql_cv_weak_symbol,
 [AC_TRY_LINK([],[
@@ -3085,7 +2986,7 @@ if test -d "$srcdir/cmd-line-utils/readline" ; then
   AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
 fi
 
-AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile mysys/tests/Makefile dnl
+AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
@@ -3107,8 +3008,6 @@ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > st
 
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
-
-AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
 
 AC_OUTPUT
 

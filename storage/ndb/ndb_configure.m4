@@ -34,20 +34,12 @@ AC_DEFUN([MYSQL_CHECK_CXX_LINKING], [
   AC_SUBST(ndb_cxx_runtime_libs)
 ])
 
-
-dnl ---------------------------------------------------------------------------
-dnl Macro: MYSQL_CHECK_NDBCLUSTER
-dnl ---------------------------------------------------------------------------
-
 NDB_MYSQL_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
 NDB_MYSQL_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
 NDB_MYSQL_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
 
-TEST_NDBCLUSTER=""
-
 dnl for build ndb docs
 
-build_ndbmtd=
 AC_PATH_PROG(DOXYGEN, doxygen, no)
 AC_PATH_PROG(PDFLATEX, pdflatex, no)
 AC_PATH_PROG(MAKEINDEX, makeindex, no)
@@ -55,6 +47,78 @@ AC_PATH_PROG(MAKEINDEX, makeindex, no)
 AC_SUBST(DOXYGEN)
 AC_SUBST(PDFLATEX)
 AC_SUBST(MAKEINDEX)
+
+dnl ---------------------------------------------------------------------------
+dnl Check if ndbmtd should/can be built
+dnl - skipped if with --without-ndbmtd specified
+dnl - skipped if the ndbmtd assembler can't be compiled
+dnl
+dnl ---------------------------------------------------------------------------
+# Dummy define of BUILD_NDBMTD to satisfy builds without ndb
+AM_CONDITIONAL([BUILD_NDBMTD], [ false ])
+AC_DEFUN([NDB_CHECK_NDBMTD], [
+
+  build_ndbmtd=
+
+  AC_ARG_WITH([ndbmtd],
+              [AC_HELP_STRING([--without-ndbmtd],
+                              [Dont build ndbmtd])],
+              [ndb_ndbmtd="$withval"],
+              [ndb_ndbmtd=yes])
+
+  if test X"$ndb_ndbmtd" = Xyes
+  then
+    # checking atomic.h needed for spinlock's on sparc and Sun Studio
+    AC_CHECK_HEADERS(atomic.h)
+
+    # checking assembler needed for ndbmtd
+    SAVE_CFLAGS="$CFLAGS"
+    if test "x${ac_cv_header_atomic_h}" = xyes; then
+      CFLAGS="$CFLAGS -DHAVE_ATOMIC_H"
+    fi
+    AC_CACHE_CHECK([assembler needed for ndbmtd],
+                   [ndb_cv_ndbmtd_asm],[
+      AC_TRY_RUN(
+        [
+        #include "storage/ndb/src/kernel/vm/mt-asm.h"
+        int main()
+        {
+          unsigned int a = 0;
+          volatile unsigned int *ap = (volatile unsigned int*)&a;
+        #ifdef NDB_HAVE_XCNG
+          a = xcng(ap, 1);
+          cpu_pause();
+        #endif
+          mb();
+          * ap = 2;
+          rmb();
+          * ap = 1;
+          wmb();
+          * ap = 0;
+          read_barrier_depends();
+          return a;
+        }
+        ],
+        [ndb_cv_ndbmtd_asm=yes],
+        [ndb_cv_ndbmtd_asm=no],
+        [ndb_cv_ndbmtd_asm=no]
+      )]
+    )
+    CFLAGS="$SAVE_CFLAGS"
+
+    if test X"$ndb_cv_ndbmtd_asm" = Xyes
+    then
+      build_ndbmtd=yes
+      AC_MSG_RESULT([Including ndbmtd])
+    fi
+  fi
+
+  # Redefine BUILD_NDBMTD now when result is known(otherwise the test
+  # is evaluated too early in configure)
+  AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
+
+])
+
 
 AC_DEFUN([MYSQL_CHECK_JAVA], [
 
@@ -238,12 +302,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
                               [Disable ndb binlog])],
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
-
-  AC_ARG_WITH([ndbmtd],
-              [AC_HELP_STRING([--without-ndbmtd],
-                              [Dont build ndbmtd])],
-              [ndb_mtd="$withval"],
-              [ndb_mtd=yes])
   AC_ARG_WITH([openjpa],
               [AS_HELP_STRING([--with-openjpa], Include and set path for native OpenJPA support)],
               [openjpa="$withval"],
@@ -446,14 +504,79 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_MSG_RESULT([Using NDB Cluster])
   with_partition="yes"
   ndb_cxxflags_fix=""
-  TEST_NDBCLUSTER="--ndbcluster"
-
   ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include/ndbapi -I\$(top_srcdir)/storage/ndb/include/mgmapi"
   ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
   ndbcluster_system_libs=""
-  ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
 
   MYSQL_CHECK_NDB_OPTIONS
+  NDB_CHECK_NDBMTD
+
+  # checking CLOCK_MONOTONIC support
+  AC_CHECK_LIB(rt, clock_gettime)
+  AC_CHECK_FUNCS(clock_gettime pthread_condattr_setclock)
+
+  # checking various functions
+  AC_CHECK_FUNCS(pthread_self \
+    sched_get_priority_min sched_get_priority_max sched_setaffinity \
+    sched_setscheduler processor_bind epoll_create \
+    posix_memalign memalign sysconf directio atomic_swap_32)
+
+  AC_MSG_CHECKING(for Linux scheduling and locking support)
+  AC_TRY_LINK(
+    [#ifndef _GNU_SOURCE
+     #define _GNU_SOURCE
+     #endif
+     #include <sys/types.h>
+     #include <unistd.h>
+     #include <sched.h>
+     #include <sys/syscall.h>],
+    [const cpu_set_t *p= (const cpu_set_t*)0;
+     struct sched_param loc_sched_param;
+     int policy = 0;
+     pid_t tid = (unsigned)syscall(SYS_gettid);
+     tid = getpid();
+     int ret = sched_setaffinity(tid, sizeof(* p), p);
+     ret = sched_setscheduler(tid, policy, &loc_sched_param);],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_LINUX_SCHEDULING, [1], [Linux scheduling/locking function]),
+    AC_MSG_RESULT(no))
+
+  AC_MSG_CHECKING(for Solaris affinity support)
+  AC_TRY_LINK(
+    [#include <sys/types.h>
+     #include <sys/lwp.h>
+     #include <sys/processor.h>
+     #include <sys/procset.h>],
+    [processorid_t cpu_id = (processorid_t)0;
+     id_t tid = _lwp_self();
+     int ret = processor_bind(P_LWPID, tid, cpu_id, 0);],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_SOLARIS_AFFINITY, [1], [Solaris affinity function]),
+    AC_MSG_RESULT(no))
+
+  AC_MSG_CHECKING(for Linux futex support)
+  AC_TRY_LINK(
+    [#ifndef _GNU_SOURCE
+     #define _GNU_SOURCE
+     #endif
+     #include <sys/types.h>
+     #include <unistd.h>
+     #include <errno.h>
+     #include <sys/syscall.h>],
+     #define FUTEX_WAIT        0
+     #define FUTEX_WAKE        1
+     #define FUTEX_FD          2
+     #define FUTEX_REQUEUE     3
+     #define FUTEX_CMP_REQUEUE 4
+     #define FUTEX_WAKE_OP     5
+    [
+     int a = 0; int * addr = &a;
+     return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
+    ],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
+    AC_MSG_RESULT(no))
+
   NDBCLUSTER_WORKAROUNDS
 
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
@@ -518,16 +641,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   then
     ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
   fi
-  
-  if test X"$ndb_mtd" = Xyes
-  then
-    if test X"$have_ndbmtd_asm" = Xyes
-    then
-      build_ndbmtd=yes
-      AC_MSG_RESULT([Including ndbmtd])
-    fi
-  fi
-  export build_ndbmtd
 
   ndb_opt_subdirs=
   ndb_bin_am_ldflags="-static"
@@ -614,7 +727,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
-  AC_SUBST(ndb_mgmclient_libs)
   AC_SUBST(NDB_SCI_LIBS)
 
   AC_SUBST(ndb_transporter_opt_objs)
@@ -642,10 +754,4 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
    storage/ndb/include/ndb_types.h
   ])
 ])
-
-AC_SUBST(TEST_NDBCLUSTER)
-
-dnl ---------------------------------------------------------------------------
-dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
-dnl ---------------------------------------------------------------------------
 
