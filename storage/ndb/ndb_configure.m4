@@ -6,8 +6,6 @@ NDB_MYSQL_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
 NDB_MYSQL_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
 NDB_MYSQL_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
 
-TEST_NDBCLUSTER=""
-
 dnl for build ndb docs
 
 build_ndbmtd=
@@ -303,8 +301,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_MSG_RESULT([Using NDB Cluster])
   with_partition="yes"
   ndb_cxxflags_fix=""
-  TEST_NDBCLUSTER="--ndbcluster"
-
   ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include/ndbapi -I\$(top_srcdir)/storage/ndb/include/mgmapi"
   ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
   ndbcluster_system_libs=""
@@ -478,8 +474,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
    storage/ndb/include/ndb_types.h
   ])
 ])
-
-AC_SUBST(TEST_NDBCLUSTER)
 
 dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
