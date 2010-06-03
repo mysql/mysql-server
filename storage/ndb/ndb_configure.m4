@@ -18,12 +18,12 @@ dnl Check if ndbmtd should/can be built
 dnl - skipped if with --without-ndbmtd specified
 dnl - skipped if the ndbmtd assembler can't be compiled
 dnl
-dnl NOTE! the checks are only run if ndbcluster plugin is configured
-dnl but the AM_CODITIONAL is always enabled
 dnl ---------------------------------------------------------------------------
-build_ndbmtd=
-AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
+# Dummy define of BUILD_NDBMTD to satisfy builds without ndb
+AM_CONDITIONAL([BUILD_NDBMTD], [ false ])
 AC_DEFUN([NDB_CHECK_NDBMTD], [
+
+  build_ndbmtd=
 
   AC_ARG_WITH([ndbmtd],
               [AC_HELP_STRING([--without-ndbmtd],
@@ -77,6 +77,11 @@ AC_DEFUN([NDB_CHECK_NDBMTD], [
       AC_MSG_RESULT([Including ndbmtd])
     fi
   fi
+
+  # Redefine BUILD_NDBMTD now when result is known(otherwise the test
+  # is evaluated too early in configure)
+  AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
+
 ])
 
 
