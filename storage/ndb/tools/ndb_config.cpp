@@ -167,7 +167,7 @@ main(int argc, char** argv){
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
-    return -1;
+    exit(255);
 
   if (g_configinfo)
   {
@@ -183,7 +183,7 @@ main(int argc, char** argv){
   {
     fprintf(stderr,
 	    "Only one option of --nodes and --connections allowed\n");
-    return -1;
+    exit(255);
   }
 
   g_section = CFG_SECTION_NODE; //default
@@ -199,7 +199,7 @@ main(int argc, char** argv){
 
   if (conf == 0)
   {
-    return -1;
+    exit(255);
   }
 
   Vector<Apply*> select_list;
