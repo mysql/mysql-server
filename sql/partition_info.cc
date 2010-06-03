@@ -22,7 +22,8 @@
 #include "sql_priv.h"
 // Required to get server definitions for mysql/plugin.h right
 #include "sql_plugin.h"
-#include "sql_partition.h"     /* partition_info.h: LIST_PART_ENTRY */
+#include "sql_partition.h"                 // partition_info.h: LIST_PART_ENTRY
+                                           // NOT_A_PARTITION_ID
 #include "partition_info.h"
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_acl.h"                          // *_ACL

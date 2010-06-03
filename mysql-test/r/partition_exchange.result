@@ -556,6 +556,36 @@ ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
 ERROR HY000: Non matching attribute 'CHARACTER SET' between partition and table
 DROP TABLE t;
+# Test multiple different table options
+CREATE TABLE t (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM MAX_ROWS = 100000 MIN_ROWS = 1000;
+INSERT INTO t SELECT * FROM tmp2;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=1000 MAX_ROWS=100000
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
+ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
+SHOW WARNINGS;
+Level	Code	Message
+Error	1696	Non matching attribute 'MAX_ROWS' between partition and table
+Error	1696	Non matching attribute 'MIN_ROWS' between partition and table
+DROP TABLE t;
 RENAME TABLE tmp2 TO t;
 ALTER TABLE t ADD KEY ba_key (b, a);
 ALTER TABLE tp ADD KEY ba_key (b, a);

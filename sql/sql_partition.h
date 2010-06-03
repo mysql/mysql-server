@@ -76,7 +76,7 @@ typedef struct {
 } part_id_range;
 
 struct st_partition_iter;
-#define NOT_A_PARTITION_ID ((uint32)-1)
+#define NOT_A_PARTITION_ID UINT_MAX32
 
 bool is_partition_in_list(char *part_name, List<char> list_part_names);
 char *are_partitions_in_table(partition_info *new_part_info,

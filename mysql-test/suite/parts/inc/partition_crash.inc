@@ -10,6 +10,7 @@ SELECT * FROM t1;
 --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 wait
 EOF
+# CR_SERVER_LOST
 --error 2013
 --eval $crash_statement
 --echo # State after crash (before recovery)
@@ -29,11 +30,6 @@ open(FH, ">", $ENV{'EXPECT_FILE'}) or die "Failed to open expect file";
 print FH "restart";
 close(FH);
 EOF
-#--remove_file $MYSQLTEST_VARDIR/tmp/ls_of_crash.txt
-#--remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#restart
-#EOF
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --echo # State after crash recovery
