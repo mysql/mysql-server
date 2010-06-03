@@ -8,7 +8,6 @@ NDB_MYSQL_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
 
 dnl for build ndb docs
 
-build_ndbmtd=
 AC_PATH_PROG(DOXYGEN, doxygen, no)
 AC_PATH_PROG(PDFLATEX, pdflatex, no)
 AC_PATH_PROG(MAKEINDEX, makeindex, no)
@@ -16,6 +15,73 @@ AC_PATH_PROG(MAKEINDEX, makeindex, no)
 AC_SUBST(DOXYGEN)
 AC_SUBST(PDFLATEX)
 AC_SUBST(MAKEINDEX)
+
+dnl ---------------------------------------------------------------------------
+dnl Check if ndbmtd should/can be built
+dnl - skipped if with --without-ndbmtd specified
+dnl - skipped if the ndbmtd assembler can't be compiled
+dnl
+dnl NOTE! the checks are only run if ndbcluster plugin is configured
+dnl but the AM_CODITIONAL is always enabled
+dnl ---------------------------------------------------------------------------
+build_ndbmtd=
+AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
+AC_DEFUN([NDB_CHECK_NDBMTD], [
+
+  AC_ARG_WITH([ndbmtd],
+              [AC_HELP_STRING([--without-ndbmtd],
+                              [Dont build ndbmtd])],
+              [ndb_ndbmtd="$withval"],
+              [ndb_ndbmtd=yes])
+
+  if test X"$ndb_ndbmtd" = Xyes
+  then
+    # checking atomic.h needed for spinlock's on sparc and Sun Studio
+    AC_CHECK_HEADERS(atomic.h)
+
+    # checking assembler needed for ndbmtd
+    SAVE_CFLAGS="$CFLAGS"
+    if test "x${ac_cv_header_atomic_h}" = xyes; then
+      CFLAGS="$CFLAGS -DHAVE_ATOMIC_H"
+    fi
+    AC_CACHE_CHECK([assembler needed for ndbmtd],
+                   [ndb_cv_ndbmtd_asm],[
+      AC_TRY_RUN(
+        [
+        #include "storage/ndb/src/kernel/vm/mt-asm.h"
+        int main()
+        {
+          unsigned int a = 0;
+          volatile unsigned int *ap = (volatile unsigned int*)&a;
+        #ifdef NDB_HAVE_XCNG
+          a = xcng(ap, 1);
+          cpu_pause();
+        #endif
+          mb();
+          * ap = 2;
+          rmb();
+          * ap = 1;
+          wmb();
+          * ap = 0;
+          read_barrier_depends();
+          return a;
+        }
+        ],
+        [ndb_cv_ndbmtd_asm=yes],
+        [ndb_cv_ndbmtd_asm=no],
+        [ndb_cv_ndbmtd_asm=no]
+      )]
+    )
+    CFLAGS="$SAVE_CFLAGS"
+
+    if test X"$ndb_cv_ndbmtd_asm" = Xyes
+    then
+      build_ndbmtd=yes
+      AC_MSG_RESULT([Including ndbmtd])
+    fi
+  fi
+])
+
 
 AC_DEFUN([MYSQL_CHECK_NDB_JTIE], [
 
@@ -173,12 +239,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [ndb_jtie="$withval"],
               [ndb_jtie="no"])
 
-  AC_ARG_WITH([ndbmtd],
-              [AC_HELP_STRING([--without-ndbmtd],
-                              [Dont build ndbmtd])],
-              [ndb_mtd="$withval"],
-              [ndb_mtd=yes])
-
   case "$ndb_ccflags" in
     "yes")
         AC_MSG_RESULT([The --ndb-ccflags option requires a parameter (passed to CC for ndb compilation)])
@@ -306,6 +366,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   ndbcluster_system_libs=""
 
   MYSQL_CHECK_NDB_OPTIONS
+  NDB_CHECK_NDBMTD
   NDBCLUSTER_WORKAROUNDS
 
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
@@ -370,16 +431,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   then
     ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
   fi
-  
-  if test X"$ndb_mtd" = Xyes
-  then
-    if test X"$have_ndbmtd_asm" = Xyes
-    then
-      build_ndbmtd=yes
-      AC_MSG_RESULT([Including ndbmtd])
-    fi
-  fi
-  export build_ndbmtd
 
   ndb_opt_subdirs=
   ndb_bin_am_ldflags="-static"

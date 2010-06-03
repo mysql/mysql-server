@@ -845,7 +845,7 @@ AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
  sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h \
- execinfo.h atomic.h)
+ execinfo.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -2606,40 +2606,6 @@ AC_TRY_LINK(
   AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
   AC_MSG_RESULT(no))
 
-#checking for asm needed for ndbmtd
-SAVE_CFLAGS="$CFLAGS"
-if test "x${ac_cv_header_atomic_h}" = xyes; then
-   CFLAGS="$CFLAGS -DHAVE_ATOMIC_H"
-fi
-AC_CACHE_CHECK([assembler needed for ndbmtd],
-               [have_ndbmtd_asm], [AC_TRY_RUN([
-    #include "storage/ndb/src/kernel/vm/mt-asm.h"
-    int main()
-    {
-      unsigned int a = 0;
-      volatile unsigned int *ap = (volatile unsigned int*)&a;
-      #ifdef NDB_HAVE_XCNG
-      a = xcng(ap, 1);
-      cpu_pause();
-      #endif
-      mb();
-      * ap = 2;
-      rmb();
-      * ap = 1;
-      wmb();
-      * ap = 0;
-      read_barrier_depends();
-      return a;
-   }
-], [have_ndbmtd_asm=yes],
-   [have_ndbmtd_asm=no],
-   [have_ndbmtd_asm=no])])
-if test "x$have_ndbmtd_asm" = xyes; then
-  AC_DEFINE(HAVE_NDBMTD_ASM, 1,
-            [Define to 1 if assmbler needed to run ndbmtd is present.])
-fi
-CFLAGS="$SAVE_CFLAGS"
-
 AC_CACHE_CHECK([support for weak symbols], mysql_cv_weak_symbol,
 [AC_TRY_LINK([],[
   extern void __attribute__((weak)) foo(void);
@@ -3107,8 +3073,6 @@ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > st
 
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
-
-AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
 
 AC_OUTPUT
 
