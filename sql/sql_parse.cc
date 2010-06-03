@@ -247,8 +247,19 @@ void init_update_queries(void)
   /* Initialize the sql command flags array. */
   memset(sql_command_flags, 0, sizeof(sql_command_flags));
 
+  /*
+    In general, DDL statements do not generate row events and do not go
+    through a cache before being written to the binary log. However, the
+    CREATE TABLE...SELECT is an exception because it may generate row
+    events. For that reason,  the SQLCOM_CREATE_TABLE  which represents
+    a CREATE TABLE, including the CREATE TABLE...SELECT, has the
+    CF_CAN_GENERATE_ROW_EVENTS flag. The distinction between a regular
+    CREATE TABLE and the CREATE TABLE...SELECT is made in other parts of
+    the code, in particular in the Query_log_event's constructor.
+  */
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
@@ -256,7 +267,8 @@ void init_update_queries(void)
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
@@ -275,22 +287,32 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -365,7 +387,9 @@ void init_update_queries(void)
     last called (or executed) statement is preserved.
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
-  sql_command_flags[SQLCOM_CALL]=      CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_CALL]=      CF_REEXECUTION_FRAGILE |
+                                       CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_EXECUTE]=   CF_CAN_GENERATE_ROW_EVENTS;
 
   /*
     The following admin table operations are allowed
@@ -390,7 +414,12 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHECK]=              CF_AUTO_COMMIT_TRANS;
 }
 
-
+bool sqlcom_can_generate_row_events(const THD *thd)
+{
+  return (sql_command_flags[thd->lex->sql_command] &
+          CF_CAN_GENERATE_ROW_EVENTS);
+}
+ 
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
@@ -2669,6 +2698,10 @@ case SQLCOM_PREPARE:
           statements like "CREATE TABLE IF NOT EXISTS existing_view SELECT".
         */
         lex->unlink_first_table(&link_to_local);
+
+        /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+        if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
+          thd->variables.option_bits|= OPTION_KEEP_LOG;
 
         /*
           select_create is currently not re-execution friendly and

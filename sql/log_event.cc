@@ -2465,95 +2465,62 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
     time_zone_len= 0;
 
-  /*
-    In what follows, we decide whether to write to the binary log or to use a
-    cache.
-  */
   LEX *lex= thd->lex;
-  bool implicit_commit= FALSE;
-  bool force_trans= FALSE;
+  /*
+    TRUE defines that either a trx-cache or stmt-cache must be used
+    and wrapped by a BEGIN...COMMIT. Otherwise, the statement will
+    be written directly to the binary log without being wrapped by
+    a BEGIN...COMMIT.
+
+    Note that a cache will not be used if the parameter direct is
+    TRUE.
+  */
+  bool use_cache= FALSE;
+  /*
+    TRUE defines that the trx-cache must be used and by consequence
+    the use_cache is TRUE.
+
+    Note that a cache will not be used if the parameter direct is
+    TRUE.
+  */
+  bool trx_cache= FALSE;
   cache_type= Log_event::EVENT_INVALID_CACHE;
+
   switch (lex->sql_command)
   {
-    case SQLCOM_ALTER_DB:
-    case SQLCOM_CREATE_FUNCTION:
-    case SQLCOM_DROP_FUNCTION:
-    case SQLCOM_DROP_PROCEDURE:
-    case SQLCOM_INSTALL_PLUGIN:
-    case SQLCOM_UNINSTALL_PLUGIN:
-    case SQLCOM_ALTER_TABLESPACE:
-      implicit_commit= TRUE;
-      break;
     case SQLCOM_DROP_TABLE:
-      force_trans= lex->drop_temporary && thd->in_multi_stmt_transaction_mode();
-      implicit_commit= !force_trans;
-      break;
-    case SQLCOM_ALTER_TABLE:
+      use_cache= trx_cache= (lex->drop_temporary &&
+                            thd->in_multi_stmt_transaction_mode());
+    break;
+
     case SQLCOM_CREATE_TABLE:
-      force_trans= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-                    thd->in_multi_stmt_transaction_mode();
-      implicit_commit= !force_trans &&
-                       !(lex->select_lex.item_list.elements &&
-                         thd->is_current_stmt_binlog_format_row());
+      use_cache= trx_cache=
+                 ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+                   thd->in_multi_stmt_transaction_mode()) ||
+                 (lex->select_lex.item_list.elements &&
+                  thd->is_current_stmt_binlog_format_row());
       break;
     case SQLCOM_SET_OPTION:
-      implicit_commit= (lex->autocommit ? TRUE : FALSE);
+      use_cache= trx_cache= (lex->autocommit ? FALSE : TRUE);
       break;
-    /*
-      Replace what follows after CF_AUTO_COMMIT_TRANS is backported by:
-
-      default:
-        implicit_commit= ((sql_command_flags[lex->sql_command] &
-                      CF_AUTO_COMMIT_TRANS));
-      break;
-    */
-    case SQLCOM_CREATE_INDEX:
-    case SQLCOM_TRUNCATE:
-    case SQLCOM_CREATE_DB:
-    case SQLCOM_DROP_DB:
-    case SQLCOM_ALTER_DB_UPGRADE:
-    case SQLCOM_RENAME_TABLE:
-    case SQLCOM_DROP_INDEX:
-    case SQLCOM_CREATE_VIEW:
-    case SQLCOM_DROP_VIEW:
-    case SQLCOM_CREATE_TRIGGER:
-    case SQLCOM_DROP_TRIGGER:
-    case SQLCOM_CREATE_EVENT:
-    case SQLCOM_ALTER_EVENT:
-    case SQLCOM_DROP_EVENT:
-    case SQLCOM_REPAIR:
-    case SQLCOM_OPTIMIZE:
-    case SQLCOM_ANALYZE:
-    case SQLCOM_CREATE_USER:
-    case SQLCOM_DROP_USER:
-    case SQLCOM_RENAME_USER:
-    case SQLCOM_REVOKE_ALL:
-    case SQLCOM_REVOKE:
-    case SQLCOM_GRANT:
-    case SQLCOM_CREATE_PROCEDURE:
-    case SQLCOM_CREATE_SPFUNCTION:
-    case SQLCOM_ALTER_PROCEDURE:
-    case SQLCOM_ALTER_FUNCTION:
-    case SQLCOM_ASSIGN_TO_KEYCACHE:
-    case SQLCOM_PRELOAD_KEYS:
-    case SQLCOM_FLUSH:
-    case SQLCOM_RESET:
-    case SQLCOM_CHECK:
-      implicit_commit= TRUE;
+    case SQLCOM_RELEASE_SAVEPOINT:
+    case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+    case SQLCOM_SAVEPOINT:
+      use_cache= trx_cache= TRUE;
       break;
     default:
-      implicit_commit= FALSE;
+      use_cache= sqlcom_can_generate_row_events(thd);
       break;
   }
 
-  if (implicit_commit || direct)
+  if (!use_cache || direct)
   {
     cache_type= Log_event::EVENT_NO_CACHE;
   }
   else
   {
-    cache_type= ((using_trans || stmt_has_updated_trans_table(thd) ||
-                 force_trans || thd->thread_temporary_used)
+    cache_type= ((using_trans || stmt_has_updated_trans_table(thd)
+                  || trx_cache || thd->thread_temporary_used)
                  ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                  Log_event::EVENT_STMT_CACHE);
   }
