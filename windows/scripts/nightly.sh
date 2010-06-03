@@ -12,9 +12,12 @@ cd $HOME/svn.build
 if ! [ -d tokudb.build ] ; then
     svn --username $SVN_USER --password $SVN_PASS co -q --depth=empty https://svn.tokutek.com/tokudb/tokudb.build || exit 1
 fi
+if ! [ -d scripts ] ; then
+    svn --username $SVN_USER --password $SVN_PASS co -q --depth=empty https://svn.tokutek.com/toku/tokudb/scripts || exit 1
+fi
 
-cd tokudb.build
-svn --username $SVN_USER --password $SVN_PASS up -q bin || exit 1
+cd scripts
+svn --username $SVN_USER --password $SVN_PASS up || exit 1
 
 cd bin
 
