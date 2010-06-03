@@ -871,8 +871,6 @@ private:
   int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE);
 };
 
-extern SHOW_VAR ndb_status_variables[];
-
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
