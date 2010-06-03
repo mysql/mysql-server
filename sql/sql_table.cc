@@ -32,6 +32,7 @@
 #include "sql_partition.h"                      // mem_alloc_error,
                                                 // generate_partition_syntax,
                                                 // partition_info
+                                                // NOT_A_PARTITION_ID
 #include "sql_db.h" // load_db_opt_by_name, lock_db_cache, creating_database
 #include "sql_time.h"                  // make_truncated_value_warning
 #include "records.h"             // init_read_record, end_read_record
@@ -612,10 +613,8 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 
    History:
    First version written in 2006 by Mikael Ronstrom
-   Updated 2010 by Mattias Jonsson, added EXCHANGE action + refactoring
 --------------------------------------------------------------------------
 */
-
 
 struct st_global_ddl_log
 {
@@ -694,11 +693,11 @@ static bool write_ddl_log_file_entry(uint entry_no)
 {
   bool error= FALSE;
   File file_id= global_ddl_log.file_id;
-  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  uchar *file_entry_buf= (uchar*)global_ddl_log.file_entry_buf;
   DBUG_ENTER("write_ddl_log_file_entry");
 
   mysql_mutex_assert_owner(&LOCK_gdl);
-  if (mysql_file_pwrite(file_id, (uchar*)file_entry_buf,
+  if (mysql_file_pwrite(file_id, file_entry_buf,
                         IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
@@ -715,15 +714,8 @@ static bool write_ddl_log_file_entry(uint entry_no)
 
 static bool sync_ddl_log_file()
 {
-  bool error= FALSE;
   DBUG_ENTER("sync_ddl_log_file");
-  if (mysql_file_sync(global_ddl_log.file_id, MYF(0)))
-  {
-    /* Write to error log */
-    sql_print_error("Failed to sync ddl log file");
-    error= TRUE;
-  }
-  DBUG_RETURN(error);
+  DBUG_RETURN(mysql_file_sync(global_ddl_log.file_id, MYF(MY_WME)));
 }
 
 
@@ -738,7 +730,6 @@ static bool sync_ddl_log_file()
 static bool write_ddl_log_header()
 {
   uint16 const_var;
-  bool error= FALSE;
   DBUG_ENTER("write_ddl_log_header");
 
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NUM_ENTRY_POS],
@@ -754,8 +745,7 @@ static bool write_ddl_log_header()
     sql_print_error("Error writing ddl log header");
     DBUG_RETURN(TRUE);
   }
-  (void) sync_ddl_log_file();
-  DBUG_RETURN(error);
+  DBUG_RETURN(sync_ddl_log_file());
 }
 
 
@@ -782,13 +772,13 @@ static inline void create_ddl_log_file_name(char *file_name)
 
 static uint read_ddl_log_header()
 {
-  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  uchar *file_entry_buf= (uchar*)global_ddl_log.file_entry_buf;
   char file_name[FN_REFLEN];
   uint entry_no;
   bool successful_open= FALSE;
   DBUG_ENTER("read_ddl_log_header");
 
-  mysql_mutex_init(key_LOCK_gdl, &LOCK_gdl, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_gdl, &LOCK_gdl, MY_MUTEX_INIT_SLOW);
   mysql_mutex_lock(&LOCK_gdl);
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= mysql_file_open(key_file_global_ddl_log,
@@ -871,12 +861,15 @@ static void set_global_from_ddl_log_entry(const DDL_LOG_ENTRY *ddl_log_entry)
   Convert from file_entry_buf binary blob to ddl_log_entry struct.
 
   @param[out] ddl_log_entry   struct to fill in.
+
+  @note Strings (names) are pointing to the global_ddl_log structure,
+  so LOCK_gdl needs to be hold until they are read or copied.
 */
 
 static void set_ddl_log_entry_from_global(DDL_LOG_ENTRY *ddl_log_entry,
                                           const uint read_entry)
 {
-  char *file_entry_buf= (char*)&global_ddl_log.file_entry_buf;
+  char *file_entry_buf= (char*) global_ddl_log.file_entry_buf;
   uint inx;
   uchar single_char;
 
@@ -981,7 +974,6 @@ end:
 
 static bool sync_ddl_log_no_lock()
 {
-  bool error= FALSE;
   DBUG_ENTER("sync_ddl_log_no_lock");
 
   mysql_mutex_assert_owner(&LOCK_gdl);
@@ -1023,7 +1015,7 @@ static bool sync_ddl_log_no_lock()
 
 static bool deactivate_ddl_log_entry_no_lock(uint entry_no)
 {
-  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  uchar *file_entry_buf= (uchar*)global_ddl_log.file_entry_buf;
   DBUG_ENTER("deactivate_ddl_log_entry_no_lock");
 
   mysql_mutex_assert_owner(&LOCK_gdl);
@@ -1031,12 +1023,16 @@ static bool deactivate_ddl_log_entry_no_lock(uint entry_no)
   {
     if (file_entry_buf[DDL_LOG_ENTRY_TYPE_POS] == DDL_LOG_ENTRY_CODE)
     {
+      /*
+        Log entry, if complete mark it done (IGNORE).
+        Otherwise increase the phase by one.
+      */
       if (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_DELETE_ACTION ||
           file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_RENAME_ACTION ||
           (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_REPLACE_ACTION &&
            file_entry_buf[DDL_LOG_PHASE_POS] == 1) ||
           (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_EXCHANGE_ACTION &&
-           file_entry_buf[DDL_LOG_PHASE_POS] > 1))
+           file_entry_buf[DDL_LOG_PHASE_POS] >= EXCH_PHASE_TEMP_TO_FROM))
         file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= DDL_IGNORE_LOG_ENTRY_CODE;
       else if (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_REPLACE_ACTION)
       {
@@ -1045,7 +1041,8 @@ static bool deactivate_ddl_log_entry_no_lock(uint entry_no)
       }
       else if (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_EXCHANGE_ACTION)
       {
-        DBUG_ASSERT(file_entry_buf[DDL_LOG_PHASE_POS] <= 1);
+        DBUG_ASSERT(file_entry_buf[DDL_LOG_PHASE_POS] <=
+                                                 EXCH_PHASE_FROM_TO_NAME);
         file_entry_buf[DDL_LOG_PHASE_POS]++;
       }
       else
@@ -1088,7 +1085,6 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
   int error= TRUE;
   char to_path[FN_REFLEN];
   char from_path[FN_REFLEN];
-  char tmp_path[FN_REFLEN];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char *par_ext= (char*)".par";
 #endif
@@ -1210,7 +1206,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         since it will fall through until the first phase is undone.
       */
       switch (ddl_log_entry->phase) {
-        case 2:
+        case EXCH_PHASE_TEMP_TO_FROM:
           /* tmp_name -> from_name possibly done */
           (void) file->ha_rename_table(ddl_log_entry->from_name,
                                        ddl_log_entry->tmp_name);
@@ -1221,7 +1217,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           if (sync_ddl_log_no_lock())
             break;
           /* fall through */
-        case 1:
+        case EXCH_PHASE_FROM_TO_NAME:
           /* from_name -> name possibly done */
           (void) file->ha_rename_table(ddl_log_entry->name,
                                        ddl_log_entry->from_name);
@@ -1232,7 +1228,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           if (sync_ddl_log_no_lock())
             break;
           /* fall through */
-        case 0:
+        case EXCH_PHASE_NAME_TO_TEMP:
           /* name -> tmp_name possibly done */
           (void) file->ha_rename_table(ddl_log_entry->tmp_name,
                                        ddl_log_entry->name);
@@ -1647,9 +1643,7 @@ void execute_ddl_log_recovery()
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
 
-  /* Needed for InnoDB, since it checks for DROP FOREIGN KEY */
-  thd->query_string.str= recover_query_string;
-  thd->query_string.length= strlen(recover_query_string);
+  thd->set_query(recover_query_string, strlen(recover_query_string));
 
   /* this also initialize LOCK_gdl */
   num_entries= read_ddl_log_header();
@@ -6675,6 +6669,8 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   /*
     NOTE: ha_blackhole does not support check_if_compatible_data,
     so this always fail for blackhole tables.
+    ha_myisam compares pointers to verify that DATA/INDEX DIRECTORY is
+    the same, so any table using data/index_file_name will fail.
   */
   if (compare_tables(table, &part_alter_info, &part_create_info,
                      0, &alter_change_level, &key_info_buffer,
@@ -6779,7 +6775,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   handler *file= NULL;
   DBUG_ENTER("exchange_name_with_ddl_log");
 
-  if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, ht)))
+  if (!(file= get_new_handler(NULL, thd->mem_root, ht)))
   {
     mem_alloc_error(sizeof(handler));
     DBUG_RETURN(TRUE);
@@ -6793,6 +6789,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   exchange_entry.from_name=    from_name;
   exchange_entry.tmp_name=     tmp_name;
   exchange_entry.handler_name= ha_resolve_storage_engine_name(ht);
+  exchange_entry.phase=        EXCH_PHASE_NAME_TO_TEMP;
 
   mysql_mutex_lock(&LOCK_gdl);
   /*
@@ -6947,6 +6944,8 @@ bool mysql_exchange_partition(THD *thd,
   uint swap_part_id;
   uint part_file_name_len;
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
+  MDL_ticket *swap_table_mdl_ticket= NULL;
+  MDL_ticket *part_table_mdl_ticket= NULL;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
 
@@ -6978,7 +6977,7 @@ bool mysql_exchange_partition(THD *thd,
 
   /*
     NOTE: It is not possible to exchange a crashed partition/table since
-    we need som info from the engine, which we can only access after open,
+    we need some info from the engine, which we can only access after open,
     to be able to verify the structure/metadata.
   */
   if (open_and_lock_tables(thd, table_list, FALSE,
@@ -7046,8 +7045,10 @@ bool mysql_exchange_partition(THD *thd,
 
   /*
     Get exclusive mdl lock on both tables, alway the non partitioned table
-    first.
+    first. Remember the tickets for downgrading locks later.
   */
+  swap_table_mdl_ticket= swap_table->mdl_ticket;
+  part_table_mdl_ticket= part_table->mdl_ticket;
 
   /*
     No need to set used_partitions to only propagate
@@ -7069,22 +7070,29 @@ bool mysql_exchange_partition(THD *thd,
     goto err;
   /* Skip ha_binlog_log_query since this function is not supported by NDB */
 
-  /* Reopen tables under LOCK TABLES */
-  if (thd->locked_tables_list.reopen_tables(thd))
-    goto err;
+  /*
+    Reopen tables under LOCK TABLES. Ignore the return value for now. It's
+    better to keep master/slave in consistent state. Alternative would be to
+    try to revert the exchange operation and issue error.
+  */
+  (void) thd->locked_tables_list.reopen_tables(thd);
 
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
   {
     /*
-      Should we only report failure, even if the operation was successful,
-      or should we also revert the operation? We continue and only report the
-      failed bin log call.
+      The error is reported in write_bin_log().
+      We try to revert to make it easier to keep the master/slave in sync.
     */
-    sql_print_error("Failed to write to binlog in mysql_exchange_partition:"
-                    " ALTER TABLE ... EXCHANGE PARTITION ... WITH TABLE ..."
-                    " (Part 'file name' '%s' Exchange table 'file name' '%s')",
-                    part_file_name, swap_file_name);
-                    
+    (void) exchange_name_with_ddl_log(thd, part_file_name, swap_file_name,
+                                      temp_file_name, table_hton);
+    goto err;
+  }
+  if (thd->locked_tables_mode)
+  {
+    if (swap_table_mdl_ticket)
+      swap_table_mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+    if (part_table_mdl_ticket)
+      part_table_mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
   }
   my_ok(thd);
   table_list->table= NULL;			// For query cache
@@ -7092,6 +7100,14 @@ bool mysql_exchange_partition(THD *thd,
   query_cache_invalidate3(thd, table_list, 0);
   DBUG_RETURN(FALSE);
 err:
+  if (thd->locked_tables_mode)
+  {
+    if (swap_table_mdl_ticket)
+      swap_table_mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+    if (part_table_mdl_ticket)
+      part_table_mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+  }
+
   DBUG_RETURN(TRUE);
 }
 #endif

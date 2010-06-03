@@ -73,6 +73,12 @@ enum ddl_log_action_code
   DDL_LOG_EXCHANGE_ACTION = 'e'
 };
 
+enum enum_ddl_log_exchange_phase {
+  EXCH_PHASE_NAME_TO_TEMP= 0,
+  EXCH_PHASE_FROM_TO_NAME= 1,
+  EXCH_PHASE_TEMP_TO_FROM= 2
+};
+
 
 typedef struct st_ddl_log_entry
 {

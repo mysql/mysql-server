@@ -572,8 +572,13 @@ static bool set_up_field_array(TABLE *table,
           } while (++inx < num_fields);
           if (inx == num_fields)
           {
-            /* TODO: Set to correct error message! */
-            mem_alloc_error(1);
+            /*
+              Should not occur since it should already been checked in either
+              add_column_list_values, handle_list_of_fields,
+              check_partition_info etc.
+            */
+            DBUG_ASSERT(0);
+            my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
             result= TRUE;
             continue;
           }
@@ -3900,6 +3905,10 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                     it is matching the partition definition.
   @param part_table Partitioned table containing the partition to check.
   @param part_id    Which partition to match with.
+
+  @return Operation status
+    @retval TRUE                Not all rows match the given partition
+    @retval FALSE               OK
 */
 bool verify_data_with_partition(TABLE *table, TABLE *part_table,
                                 uint32 part_id)
@@ -3911,8 +3920,8 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
   uchar *old_rec;
   partition_info *part_info;
   DBUG_ENTER("verify_data_with_partition");
-  DBUG_ASSERT (table && table->file && part_table && part_table->part_info &&
-               part_table->file);
+  DBUG_ASSERT(table && table->file && part_table && part_table->part_info &&
+              part_table->file);
 
   /*
     Verify all table rows.
@@ -4618,7 +4627,9 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
 bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                partition_element *part_elem)
 {
-  bool error= FALSE;
+#define MAX_COMPARE_PARTITION_OPTION_ERRORS 5
+  const char *option_diffs[MAX_COMPARE_PARTITION_OPTION_ERRORS + 1];
+  int i, errors= 0;
   DBUG_ENTER("compare_partition_options");
   DBUG_ASSERT(!part_elem->tablespace_name &&
               !table_create_info->tablespace);
@@ -4628,37 +4639,20 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
     with partitioning. TODO: when there are, add compare.
   */
   if (part_elem->tablespace_name || table_create_info->tablespace)
-  {
-    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-             "TABLESPACE");
-    error= TRUE;
-  }
+    option_diffs[errors++]= "TABLESPACE";
   if (part_elem->part_max_rows != table_create_info->max_rows)
-  {
-    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-             "MAX_ROWS");
-    error= TRUE;
-  }
+    option_diffs[errors++]= "MAX_ROWS";
   if (part_elem->part_min_rows != table_create_info->min_rows)
-  {
-    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-             "MIN_ROWS");
-    error= TRUE;
-  }
+    option_diffs[errors++]= "MIN_ROWS";
   if (part_elem->data_file_name || table_create_info->data_file_name)
-  {
-    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-             "DATA DIRECTORY");
-    error= TRUE;
-  }
+    option_diffs[errors++]= "DATA DIRECTORY";
   if (part_elem->index_file_name || table_create_info->index_file_name)
-  {
-    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-             "INDEX DIRECTORY");
-    error= TRUE;
-  }
+    option_diffs[errors++]= "INDEX DIRECTORY";
 
-  DBUG_RETURN(error);
+  for (i= 0; i < errors; i++)
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             option_diffs[i]);
+  DBUG_RETURN(errors != 0);
 }
 
 
