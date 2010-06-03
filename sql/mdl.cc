@@ -105,33 +105,46 @@ enum enum_deadlock_weight
 };
 
 
-
 /**
   A context of the recursive traversal through all contexts
   in all sessions in search for deadlock.
 */
 
-class Deadlock_detection_context
+class Deadlock_detection_visitor
 {
 public:
-  Deadlock_detection_context(MDL_context *start_arg)
-    : start(start_arg),
-      victim(NULL),
-      current_search_depth(0)
-  { }
+  Deadlock_detection_visitor(MDL_context *start_node_arg)
+    : m_start_node(start_node_arg),
+      m_victim(NULL),
+      m_current_search_depth(0)
+  {}
+  bool enter_node(MDL_context * /* unused */);
+  void leave_node(MDL_context * /* unused */);
+
+  bool inspect_edge(MDL_context *dest);
+
+  MDL_context *get_victim() const { return m_victim; }
+
+  /**
+    Change the deadlock victim to a new one if it has lower deadlock
+    weight.
+  */
+  MDL_context *opt_change_victim_to(MDL_context *new_victim);
+private:
   /**
     The context which has initiated the search. There
     can be multiple searches happening in parallel at the same time.
   */
-  MDL_context *start;
+  MDL_context *m_start_node;
   /** If a deadlock is found, the context that identifies the victim. */
-  MDL_context *victim;
-  /** Set to the MAX_SEARCH_DEPTH at start. Decreased whenever
+  MDL_context *m_victim;
+  /** Set to the 0 at start. Increased whenever
     we descend into another MDL context (aka traverse to the next
-    wait-for graph node). When 0 is reached, we assume that
-    a deadlock is found, even if we have not found a loop.
+    wait-for graph node). When MAX_SEARCH_DEPTH is reached, we
+    assume that a deadlock is found, even if we have not found a
+    loop.
   */
-  uint current_search_depth;
+  uint m_current_search_depth;
   /**
     Maximum depth for deadlock searches. After this depth is
     achieved we will unconditionally declare that there is a
@@ -147,6 +160,74 @@ public:
   */
   static const uint MAX_SEARCH_DEPTH= 32;
 };
+
+
+/**
+  Enter a node of a wait-for graph. After
+  a node is entered, inspect_edge() will be called
+  for all wait-for destinations of this node. Then
+  leave_node() will be called.
+  We call "enter_node()" for all nodes we inspect, 
+  including the starting node.
+
+  @retval  TRUE  Maximum search depth exceeded.
+  @retval  FALSE OK.
+*/
+
+bool Deadlock_detection_visitor::enter_node(MDL_context * /* unused */)
+{
+  if (++m_current_search_depth >= MAX_SEARCH_DEPTH)
+    return TRUE;
+  return FALSE;
+}
+
+
+/**
+  Done inspecting this node. Decrease the search
+  depth. Clear the node for debug safety.
+*/
+
+void Deadlock_detection_visitor::leave_node(MDL_context * /* unused */)
+{
+  --m_current_search_depth;
+}
+
+
+/**
+  Inspect a wait-for graph edge from one MDL context to another.
+
+  @retval TRUE   A loop is found.
+  @retval FALSE  No loop is found.
+*/
+
+bool Deadlock_detection_visitor::inspect_edge(MDL_context *node)
+{
+  return node == m_start_node;
+}
+
+
+/**
+  Change the deadlock victim to a new one if it has lower deadlock
+  weight.
+
+  @retval new_victim  Victim is not changed.
+  @retval !new_victim New victim became the current.
+*/
+
+MDL_context *
+Deadlock_detection_visitor::opt_change_victim_to(MDL_context *new_victim)
+{
+  if (m_victim == NULL ||
+      m_victim->get_deadlock_weight() >= new_victim->get_deadlock_weight())
+  {
+    /* Swap victims, unlock the old one. */
+    MDL_context *tmp= m_victim;
+    m_victim= new_victim;
+    return tmp;
+  }
+  /* No change, unlock the current context. */
+  return new_victim;
+}
 
 
 /**
@@ -282,7 +363,7 @@ public:
   void remove_ticket(Ticket_list MDL_lock::*queue, MDL_ticket *ticket);
 
   bool find_deadlock(MDL_ticket *waiting_ticket,
-                     Deadlock_detection_context *deadlock_ctx);
+                     Deadlock_detection_visitor *dvisitor);
 
   /** List of granted tickets for this lock. */
   Ticket_list m_granted;
@@ -760,13 +841,6 @@ MDL_request::create(MDL_key::enum_mdl_namespace mdl_namespace, const char *db,
 }
 
 
-uint MDL_request::get_deadlock_weight() const
-{
-  return key.mdl_namespace() == MDL_key::GLOBAL ||
-         type > MDL_SHARED_NO_WRITE ?
-    MDL_DEADLOCK_WEIGHT_DDL : MDL_DEADLOCK_WEIGHT_DML;
-}
-
 /**
   Auxiliary functions needed for creation/destruction of MDL_lock objects.
 
@@ -811,6 +885,21 @@ MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg)
 void MDL_ticket::destroy(MDL_ticket *ticket)
 {
   delete ticket;
+}
+
+
+/**
+  Return the 'weight' of this ticket for the
+  victim selection algorithm. Requests with 
+  lower weight are preferred to requests
+  with higher weight when choosing a victim.
+*/
+
+uint MDL_ticket::get_deadlock_weight() const
+{
+  return (m_lock->key.mdl_namespace() == MDL_key::GLOBAL ||
+          m_type > MDL_SHARED_NO_WRITE ?
+          MDL_DEADLOCK_WEIGHT_DDL : MDL_DEADLOCK_WEIGHT_DML);
 }
 
 
@@ -1549,7 +1638,6 @@ bool MDL_context::acquire_lock_impl(MDL_request *mdl_request,
 
     mysql_prlock_unlock(&lock->m_rwlock);
 
-    set_deadlock_weight(mdl_request->get_deadlock_weight());
     will_wait_for(ticket);
 
     /* There is a shared or exclusive lock on the object. */
@@ -1761,46 +1849,56 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
 
 
 bool MDL_lock::find_deadlock(MDL_ticket *waiting_ticket,
-                             Deadlock_detection_context *deadlock_ctx)
+                             Deadlock_detection_visitor *dvisitor)
 {
   MDL_ticket *ticket;
-  bool result= FALSE;
-
-  mysql_prlock_rdlock(&m_rwlock);
-
+  MDL_context *src_ctx= waiting_ticket->get_ctx();
+  bool result= TRUE;
   Ticket_iterator granted_it(m_granted);
   Ticket_iterator waiting_it(m_waiting);
 
+
+  if (dvisitor->enter_node(src_ctx))
+    return TRUE;
+
+  mysql_prlock_rdlock(&m_rwlock);
+
+  /*
+    We do a breadth-first search first -- that is, inspect all
+    edges of the current node, and only then follow up to the next
+    node. In workloads that involve wait-for graph loops this
+    has proven to be a more efficient strategy [citation missing].
+  */
   while ((ticket= granted_it++))
   {
-    if (ticket->is_incompatible_when_granted(waiting_ticket->get_type()) &&
-        ticket->get_ctx() != waiting_ticket->get_ctx() &&
-        ticket->get_ctx() == deadlock_ctx->start)
+    /* Filter out edges that point to the same node. */
+    if (ticket->get_ctx() != src_ctx &&
+        ticket->is_incompatible_when_granted(waiting_ticket->get_type()) &&
+        dvisitor->inspect_edge(ticket->get_ctx()))
     {
-      result= TRUE;
       goto end;
     }
   }
 
   while ((ticket= waiting_it++))
   {
-    if (ticket->is_incompatible_when_waiting(waiting_ticket->get_type()) &&
-        ticket->get_ctx() != waiting_ticket->get_ctx() &&
-        ticket->get_ctx() == deadlock_ctx->start)
+    /* Filter out edges that point to the same node. */
+    if (ticket->get_ctx() != src_ctx &&
+        ticket->is_incompatible_when_waiting(waiting_ticket->get_type()) &&
+        dvisitor->inspect_edge(ticket->get_ctx()))
     {
-      result= TRUE;
       goto end;
     }
   }
 
+  /* Recurse and inspect all adjacent nodes. */
   granted_it.rewind();
   while ((ticket= granted_it++))
   {
-    if (ticket->is_incompatible_when_granted(waiting_ticket->get_type()) &&
-        ticket->get_ctx() != waiting_ticket->get_ctx() &&
-        ticket->get_ctx()->find_deadlock(deadlock_ctx))
+    if (ticket->get_ctx() != src_ctx &&
+        ticket->is_incompatible_when_granted(waiting_ticket->get_type()) &&
+        ticket->get_ctx()->find_deadlock(dvisitor))
     {
-      result= TRUE;
       goto end;
     }
   }
@@ -1808,23 +1906,34 @@ bool MDL_lock::find_deadlock(MDL_ticket *waiting_ticket,
   waiting_it.rewind();
   while ((ticket= waiting_it++))
   {
-    if (ticket->is_incompatible_when_waiting(waiting_ticket->get_type()) &&
-        ticket->get_ctx() != waiting_ticket->get_ctx() &&
-        ticket->get_ctx()->find_deadlock(deadlock_ctx))
+    if (ticket->get_ctx() != src_ctx &&
+        ticket->is_incompatible_when_waiting(waiting_ticket->get_type()) &&
+        ticket->get_ctx()->find_deadlock(dvisitor))
     {
-      result= TRUE;
       goto end;
     }
   }
 
+  result= FALSE;
 end:
   mysql_prlock_unlock(&m_rwlock);
+  dvisitor->leave_node(src_ctx);
   return result;
 }
 
 
-bool MDL_context::find_deadlock(Deadlock_detection_context *deadlock_ctx)
+/**
+  Recursively traverse the wait-for graph of MDL contexts
+  in search for deadlocks.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE
+*/
+
+bool MDL_context::find_deadlock(Deadlock_detection_visitor *dvisitor)
 {
+  MDL_context *m_unlock_ctx= this;
   bool result= FALSE;
 
   mysql_prlock_rdlock(&m_waiting_for_lock);
@@ -1839,57 +1948,55 @@ bool MDL_context::find_deadlock(Deadlock_detection_context *deadlock_ctx)
     */
     if (peek_signal() != VICTIM_WAKE_UP)
     {
-
-      if (++deadlock_ctx->current_search_depth >
-          deadlock_ctx->MAX_SEARCH_DEPTH)
-        result= TRUE;
-      else
-        result= m_waiting_for->m_lock->find_deadlock(m_waiting_for,
-                                                     deadlock_ctx);
-      --deadlock_ctx->current_search_depth;
+      result= m_waiting_for->m_lock->find_deadlock(m_waiting_for, dvisitor);
+      if (result)
+        m_unlock_ctx= dvisitor->opt_change_victim_to(this);
     }
   }
-
-  if (result)
-  {
-    if (! deadlock_ctx->victim)
-      deadlock_ctx->victim= this;
-    else if (deadlock_ctx->victim->m_deadlock_weight >= m_deadlock_weight)
-    {
-      mysql_prlock_unlock(&deadlock_ctx->victim->m_waiting_for_lock);
-      deadlock_ctx->victim= this;
-    }
-    else
-      mysql_prlock_unlock(&m_waiting_for_lock);
-  }
-  else
-    mysql_prlock_unlock(&m_waiting_for_lock);
+  /*
+    We may recurse into the same MDL_context more than once
+    in case this is not the starting node. Make sure we release the
+    read lock as it's been taken, except for 1 read lock for
+    the deadlock victim.
+  */
+  if (m_unlock_ctx)
+    mysql_prlock_unlock(&m_unlock_ctx->m_waiting_for_lock);
 
   return result;
 }
 
 
+/**
+  Try to find a deadlock. This function produces no errors.
+
+  @retval TRUE  A deadlock is found.
+  @retval FALSE No deadlock found.
+*/
+
 bool MDL_context::find_deadlock()
 {
   while (1)
   {
+    MDL_context *victim;
     /*
-      The fact that we use fresh instance of deadlock_ctx for each
+      The fact that we use fresh instance of dvisitor for each
       search performed by find_deadlock() below is important, code
       responsible for victim selection relies on this.
     */
-    Deadlock_detection_context deadlock_ctx(this);
+    Deadlock_detection_visitor dvisitor(this);
 
-    if (! find_deadlock(&deadlock_ctx))
+    if (! find_deadlock(&dvisitor))
     {
       /* No deadlocks are found! */
       break;
     }
 
-    if (deadlock_ctx.victim != this)
+    victim= dvisitor.get_victim();
+
+    if (victim != this)
     {
-      deadlock_ctx.victim->awake(VICTIM_WAKE_UP);
-      mysql_prlock_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
+      victim->awake(VICTIM_WAKE_UP);
+      mysql_prlock_unlock(&victim->m_waiting_for_lock);
       /*
         After adding new arc to waiting graph we found that it participates
         in some loop (i.e. there is a deadlock). We decided to destroy this
@@ -1901,8 +2008,8 @@ bool MDL_context::find_deadlock()
     }
     else
     {
-      DBUG_ASSERT(&deadlock_ctx.victim->m_waiting_for_lock == &m_waiting_for_lock);
-      mysql_prlock_unlock(&deadlock_ctx.victim->m_waiting_for_lock);
+      DBUG_ASSERT(&victim->m_waiting_for_lock == &m_waiting_for_lock);
+      mysql_prlock_unlock(&victim->m_waiting_for_lock);
       return TRUE;
     }
   }
@@ -1977,7 +2084,6 @@ MDL_context::wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
     wait_reset();
     mysql_prlock_unlock(&lock->m_rwlock);
 
-    set_deadlock_weight(MDL_DEADLOCK_WEIGHT_DML);
     will_wait_for(pending_ticket);
 
     bool is_deadlock= find_deadlock();

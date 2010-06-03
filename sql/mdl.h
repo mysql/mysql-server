@@ -34,7 +34,7 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
-class Deadlock_detection_context;
+class Deadlock_detection_visitor;
 
 /**
   Type of metadata lock request.
@@ -322,9 +322,6 @@ public:
     DBUG_ASSERT(ticket == NULL);
     type= type_arg;
   }
-  /* A helper used to determine which lock request should be aborted. */
-  uint get_deadlock_weight() const;
-
   static MDL_request *create(MDL_key::enum_mdl_namespace mdl_namespace,
                              const char *db, const char *name,
                              enum_mdl_type mdl_type, MEM_ROOT *root);
@@ -418,6 +415,8 @@ public:
   bool is_incompatible_when_granted(enum_mdl_type type) const;
   bool is_incompatible_when_waiting(enum_mdl_type type) const;
 
+  /* A helper used to determine which lock request should be aborted. */
+  uint get_deadlock_weight() const;
 private:
   friend class MDL_context;
 
@@ -529,6 +528,9 @@ public:
 
   inline THD *get_thd() const { return m_thd; }
 
+  /** @pre Only valid if we started waiting for lock. */
+  inline uint get_deadlock_weight() const
+  { return m_waiting_for->get_deadlock_weight(); }
   /**
     Wake up context which is waiting for a change of MDL_lock state.
   */
@@ -559,7 +561,7 @@ public:
     return m_needs_thr_lock_abort;
   }
 
-  bool find_deadlock(Deadlock_detection_context *deadlock_ctx);
+  bool find_deadlock(Deadlock_detection_visitor *dvisitor);
 private:
   /**
     All MDL tickets acquired by this connection.
@@ -668,17 +670,6 @@ private:
     mysql_prlock_wrlock(&m_waiting_for_lock);
     m_waiting_for= pending_ticket;
     mysql_prlock_unlock(&m_waiting_for_lock);
-  }
-
-  void set_deadlock_weight(uint weight)
-  {
-    /*
-      m_deadlock_weight should not be modified while m_waiting_for is
-      non-NULL as in this case this context might participate in deadlock
-      and so m_deadlock_weight can be accessed from other threads.
-    */
-    DBUG_ASSERT(m_waiting_for == NULL);
-    m_deadlock_weight= weight;
   }
 
   void stop_waiting()
