@@ -512,7 +512,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   NDB_CHECK_NDBMTD
 
   # checking CLOCK_MONOTONIC support
-  AC_CHECK_LIB(rt, clock_gettime)
   AC_CHECK_FUNCS(clock_gettime pthread_condattr_setclock)
 
   # checking various functions
