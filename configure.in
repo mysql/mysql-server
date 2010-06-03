@@ -2207,6 +2207,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
 #
 #
 #
+AC_CHECK_LIB(rt, clock_gettime)
 case "$target" in
  *-*-aix4* | *-*-sco*)
 	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
