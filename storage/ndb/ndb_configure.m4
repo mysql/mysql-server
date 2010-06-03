@@ -1,6 +1,3 @@
-dnl ---------------------------------------------------------------------------
-dnl Macro: MYSQL_CHECK_NDBCLUSTER
-dnl ---------------------------------------------------------------------------
 
 NDB_MYSQL_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
 NDB_MYSQL_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
@@ -590,8 +587,4 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
    storage/ndb/include/ndb_types.h
   ])
 ])
-
-dnl ---------------------------------------------------------------------------
-dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
-dnl ---------------------------------------------------------------------------
 
