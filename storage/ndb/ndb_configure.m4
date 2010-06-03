@@ -367,6 +367,73 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   MYSQL_CHECK_NDB_OPTIONS
   NDB_CHECK_NDBMTD
+
+  # checking CLOCK_MONOTONIC support
+  AC_CHECK_LIB(rt, clock_gettime)
+  AC_CHECK_FUNCS(clock_gettime pthread_condattr_setclock)
+
+  # checking various functions
+  AC_CHECK_FUNCS(pthread_self \
+    sched_get_priority_min sched_get_priority_max sched_setaffinity \
+    sched_setscheduler processor_bind epoll_create \
+    posix_memalign memalign sysconf directio atomic_swap_32)
+
+  AC_MSG_CHECKING(for Linux scheduling and locking support)
+  AC_TRY_LINK(
+    [#ifndef _GNU_SOURCE
+     #define _GNU_SOURCE
+     #endif
+     #include <sys/types.h>
+     #include <unistd.h>
+     #include <sched.h>
+     #include <sys/syscall.h>],
+    [const cpu_set_t *p= (const cpu_set_t*)0;
+     struct sched_param loc_sched_param;
+     int policy = 0;
+     pid_t tid = (unsigned)syscall(SYS_gettid);
+     tid = getpid();
+     int ret = sched_setaffinity(tid, sizeof(* p), p);
+     ret = sched_setscheduler(tid, policy, &loc_sched_param);],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_LINUX_SCHEDULING, [1], [Linux scheduling/locking function]),
+    AC_MSG_RESULT(no))
+
+  AC_MSG_CHECKING(for Solaris affinity support)
+  AC_TRY_LINK(
+    [#include <sys/types.h>
+     #include <sys/lwp.h>
+     #include <sys/processor.h>
+     #include <sys/procset.h>],
+    [processorid_t cpu_id = (processorid_t)0;
+     id_t tid = _lwp_self();
+     int ret = processor_bind(P_LWPID, tid, cpu_id, 0);],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_SOLARIS_AFFINITY, [1], [Solaris affinity function]),
+    AC_MSG_RESULT(no))
+
+  AC_MSG_CHECKING(for Linux futex support)
+  AC_TRY_LINK(
+    [#ifndef _GNU_SOURCE
+     #define _GNU_SOURCE
+     #endif
+     #include <sys/types.h>
+     #include <unistd.h>
+     #include <errno.h>
+     #include <sys/syscall.h>],
+     #define FUTEX_WAIT        0
+     #define FUTEX_WAKE        1
+     #define FUTEX_FD          2
+     #define FUTEX_REQUEUE     3
+     #define FUTEX_CMP_REQUEUE 4
+     #define FUTEX_WAKE_OP     5
+    [
+     int a = 0; int * addr = &a;
+     return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
+    ],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
+    AC_MSG_RESULT(no))
+
   NDBCLUSTER_WORKAROUNDS
 
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
