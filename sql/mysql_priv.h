@@ -2505,18 +2505,6 @@ inline bool is_user_table(TABLE * table)
   return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
 }
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-/*
-   function type for timed wait on some condition
-   max_seconds
-     0 == no wait
-   returns
-     0  condition true within timeout
-     >0 timeout occurred
-*/ 
-typedef int (*wait_cond_timed_func)(ulong max_seconds);
-#endif
-
 /*
   Some functions that are different in the embedded library and the normal
   server
