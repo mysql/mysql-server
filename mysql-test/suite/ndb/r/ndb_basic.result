@@ -26,16 +26,22 @@ Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
 ndb_cache_check_time	#
+ndb_cluster_connection_pool	#
 ndb_connectstring	#
+ndb_distribution	#
 ndb_extra_logging	#
 ndb_force_send	#
 ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
+ndb_log_bin	#
 ndb_log_binlog_index	#
 ndb_log_empty_epochs	#
+ndb_log_orig	#
 ndb_log_update_as_write	#
 ndb_log_updated_only	#
+ndb_mgmd_host	#
+ndb_nodeid	#
 ndb_optimization_delay	#
 ndb_optimized_node_selection	#
 ndb_report_thresh_binlog_epoch_slip	#
@@ -45,6 +51,8 @@ ndb_table_temporary	#
 ndb_use_copying_alter_table	#
 ndb_use_exact_count	#
 ndb_use_transactions	#
+ndb_wait_connected	#
+ndb_wait_setup	#
 CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 attr1 INT NOT NULL,
