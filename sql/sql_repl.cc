@@ -33,22 +33,68 @@ static int binlog_dump_count = 0;
    Internal to mysql_binlog_send() routine that recalculates checksum for
    a FD event (asserted) that needs additional arranment prior sending to slave.
 */
-static void fix_checksum(String *packet, ulong ev_offset)
+inline void fix_checksum(String *packet, ulong ev_offset)
 {
-  uint16 flags= uint2korr(packet->ptr() + ev_offset + FLAGS_OFFSET);
-
   /* recalculate the crc for this event */
-  if (flags & LOG_EVENT_CHECKSUM_F)
-  {
-    uint data_len = uint4korr(packet->ptr() + ev_offset + EVENT_LEN_OFFSET);
-    ha_checksum crc= my_checksum(0L, NULL, 0);
-    DBUG_ASSERT(data_len == 
-                LOG_EVENT_MINIMAL_HEADER_LEN + FORMAT_DESCRIPTION_HEADER_LEN +
-                BINLOG_CHECKSUM_SIGNATURE_LEN);
-    crc= my_checksum(crc, (uchar *)packet->ptr() + ev_offset, data_len -
-                     BINLOG_CHECKSUM_LEN);
-    int4store(packet->ptr() + ev_offset + data_len - BINLOG_CHECKSUM_LEN, crc);
-  }
+  uint data_len = uint4korr(packet->ptr() + ev_offset + EVENT_LEN_OFFSET);
+  ha_checksum crc= my_checksum(0L, NULL, 0);
+  DBUG_ASSERT(data_len == 
+              LOG_EVENT_MINIMAL_HEADER_LEN + FORMAT_DESCRIPTION_HEADER_LEN +
+              BINLOG_CHECKSUM_ALG_DESC_LEN + BINLOG_CHECKSUM_LEN /* todo: x 2 */);
+  crc= my_checksum(crc, (uchar *)packet->ptr() + ev_offset, data_len -
+                   BINLOG_CHECKSUM_LEN);
+  int4store(packet->ptr() + ev_offset + data_len - BINLOG_CHECKSUM_LEN, crc);
+}
+
+
+static user_var_entry * get_binlog_checksum_uservar(THD * thd)
+{
+  LEX_STRING name=  { C_STRING_WITH_LEN("master_binlog_checksum")};
+  user_var_entry *entry= 
+    (user_var_entry*) hash_search(&thd->user_vars, (uchar*) name.str,
+                                  name.length);
+  return entry;
+}
+
+/**
+  Function for calling in mysql_binlog_send
+  to check if slave initiated checksum-handshake.
+
+  @param[in]    thd  THD to access a user variable
+
+  @return        TRUE if handshake took place, FALSE otherwise
+*/
+
+static bool is_slave_checksum_aware(THD * thd)
+{
+  DBUG_ENTER("is_slave_checksum_aware");
+  user_var_entry *entry= get_binlog_checksum_uservar(thd);
+  DBUG_RETURN(entry? true  : false);
+}
+
+/**
+  Function for calling in mysql_binlog_send
+  to get the value of @@binlog_checksum of the master at
+  time of checksum-handshake.
+  The Function assumes the caller has checked `is_slave_checksum_aware'
+  returns positive.
+
+  The value tells the master to compute or not, and the slave
+  to verify or not the first artificial Rotate event's checksum.
+
+  @param[in]    thd  THD to access a user variable
+
+  @return       value of @@binlog_checksum
+*/
+
+static bool get_binlog_checksum_value_at_connect(THD * thd)
+{
+  my_bool null_value;
+
+  DBUG_ENTER("get_binlog_checksum_value_at_connect");
+  user_var_entry *entry= get_binlog_checksum_uservar(thd);
+  DBUG_ASSERT(is_slave_checksum_aware(thd));
+  DBUG_RETURN(entry->val_int(&null_value));
 }
 
 /*
@@ -70,11 +116,20 @@ static void fix_checksum(String *packet, ulong ev_offset)
 */
 
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
-                             ulonglong position, const char** errmsg)
+                             ulonglong position, const char** errmsg,
+                             uint8 checksum_alg_arg)
 {
   DBUG_ENTER("fake_rotate_event");
   char header[LOG_EVENT_HEADER_LEN], buf[ROTATE_HEADER_LEN+100];
-  my_bool do_checksum= opt_binlog_checksum;
+
+  /*
+    this Rotate is to be sent with checksum if and only if
+    slave's get_master_version_and_clock time handshake value 
+    of master's @@global.binlog_checksum was TRUE
+  */
+
+  my_bool do_checksum= checksum_alg_arg != 0;
+
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
     real and fake Rotate events (if necessary)
@@ -84,12 +139,11 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 
   char* p = log_file_name+dirname_length(log_file_name);
   uint ident_len = (uint) strlen(p);
-  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + (do_checksum ? BINLOG_CHECKSUM_SIGNATURE_LEN : 0);
-  uint16 flags= LOG_EVENT_ARTIFICIAL_F | (do_checksum ? LOG_EVENT_CHECKSUM_F : 0);
-
+  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
+    (do_checksum ? BINLOG_CHECKSUM_LEN : 0);
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
-  int2store(header + FLAGS_OFFSET, flags);
+  int2store(header + FLAGS_OFFSET, LOG_EVENT_ARTIFICIAL_F);
 
   // TODO: check what problems this may cause and fix them
   int4store(header + LOG_POS_OFFSET, 0);
@@ -106,9 +160,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
     crc= my_checksum(crc, (uchar*)header, sizeof(header));
     crc= my_checksum(crc, (uchar*)buf, ROTATE_HEADER_LEN);
     crc= my_checksum(crc, (uchar*)p, ident_len);
-    crc= my_checksum(crc, &binlog_checksum_alg_id, BINLOG_CHECKSUM_ALG_DESC_LEN);
     int4store(b, crc);
-    packet->append((const char*) &binlog_checksum_alg_id, BINLOG_CHECKSUM_ALG_DESC_LEN);
     packet->append(b, sizeof(b));
   }
 
@@ -426,11 +478,19 @@ static ulonglong get_heartbeat_period(THD * thd)
     the dump thread.
 */
 static int send_heartbeat_event(NET* net, String* packet,
-                                const struct event_coordinates *coord)
+                                const struct event_coordinates *coord,
+                                uint8 checksum_alg_arg)
 {
   DBUG_ENTER("send_heartbeat_event");
   char header[LOG_EVENT_HEADER_LEN];
-  my_bool do_checksum= opt_binlog_checksum;
+  /*
+    HB is not purely artificial as it's tied to the current being sent
+    binlog. The last one has FD with (A) desc set to according the last
+    opt_binlog_checksum value.
+    Therefore HB's checksum info is retrievable on the slave side
+    basing on FD.for_queue.
+  */
+  my_bool do_checksum= checksum_alg_arg;
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
     real and fake Rotate events (if necessary)
@@ -443,10 +503,10 @@ static int send_heartbeat_event(NET* net, String* packet,
 
   uint ident_len = strlen(p);
   ulong event_len = ident_len + LOG_EVENT_HEADER_LEN +
-    (do_checksum ? BINLOG_CHECKSUM_SIGNATURE_LEN : 0);
+    (do_checksum ? BINLOG_CHECKSUM_LEN : 0);
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
-  int2store(header + FLAGS_OFFSET, do_checksum ? LOG_EVENT_CHECKSUM_F : 0);
+  int2store(header + FLAGS_OFFSET, 0);
 
   int4store(header + LOG_POS_OFFSET, coord->pos);  // log_pos
 
@@ -459,10 +519,7 @@ static int send_heartbeat_event(NET* net, String* packet,
     ha_checksum crc= my_checksum(0L, NULL, 0);
     crc= my_checksum(crc, (uchar*) header, sizeof(header));
     crc= my_checksum(crc, (uchar*) p, ident_len);
-    crc= my_checksum(crc, &binlog_checksum_alg_id, BINLOG_CHECKSUM_ALG_DESC_LEN);
     int4store(b, crc);
-    packet->append((const char*) &binlog_checksum_alg_id,
-                   BINLOG_CHECKSUM_ALG_DESC_LEN);
     packet->append(b, sizeof(b));
   }
 
@@ -472,29 +529,6 @@ static int send_heartbeat_event(NET* net, String* packet,
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
-}
-
-/**
-  An auxiliary function for calling in mysql_binlog_send
-  to check if slave passed crc-handshake.
-
-  @param[in]    thd  THD to access a user variable
-
-  @return        heartbeat period an ulonglong of nanoseconds
-                 or zero if heartbeat was not demanded by slave
-*/ 
-static bool is_slave_crc_aware(THD * thd)
-{
-  DBUG_ENTER("is_slave_crc_aware");
-  my_bool null_value;
-  LEX_STRING name=  { C_STRING_WITH_LEN("slave_is_checksum_aware")};
-  user_var_entry *entry= 
-    (user_var_entry*) hash_search(&thd->user_vars, (uchar*) name.str,
-                                  name.length);
-
-  DBUG_EXECUTE_IF("simulate_slave_unaware_checksum", entry= NULL;);
-  DBUG_ASSERT(!entry || entry->val_int(&null_value) == 1);
-  DBUG_RETURN(entry? true  : false);
 }
 
 /*
@@ -518,6 +552,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   NET* net = &thd->net;
   pthread_mutex_t *log_lock;
   bool binlog_can_be_corrupted= FALSE;
+  uint8 current_checksum_alg= 0;
+
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
@@ -637,7 +673,9 @@ impossible position";
     given that we want minimum modification of 4.0, we send the normal
     and fake Rotates.
   */
-  if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg))
+  if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg,
+                        is_slave_checksum_aware(current_thd) ?
+                        get_binlog_checksum_value_at_connect(current_thd) : 0))
   {
     /*
        This error code is not perfect, as fake_rotate_event() does not
@@ -672,7 +710,7 @@ impossible position";
        Try to find a Format_description_log_event at the beginning of
        the binlog
      */
-    if (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+    if (!(error = Log_event::read_log_event(&log, packet, log_lock, 0)))
     { 
        /*
          The packet has offsets equal to the normal offsets in a
@@ -681,11 +719,14 @@ impossible position";
        */
        DBUG_PRINT("info",
                   ("Looked for a Format_description_log_event, found event type %d",
-                   (*packet)[EVENT_TYPE_OFFSET+ev_offset]));
-       if ((*packet)[EVENT_TYPE_OFFSET+ev_offset] == FORMAT_DESCRIPTION_EVENT)
+                   (*packet)[EVENT_TYPE_OFFSET + ev_offset]));
+       if ((*packet)[EVENT_TYPE_OFFSET + ev_offset] == FORMAT_DESCRIPTION_EVENT)
        {
-         if (!is_slave_crc_aware(thd) &&
-             (*packet)[ev_offset + FLAGS_OFFSET] & LOG_EVENT_CHECKSUM_F)
+         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
+                                                packet->length() - 1);
+         DBUG_ASSERT(current_checksum_alg == 0 ||
+                    current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
+         if (!is_slave_checksum_aware(thd) && current_checksum_alg != 0)
          {
            my_errno= ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE;
            errmsg= ER(my_errno);
@@ -708,7 +749,8 @@ impossible position";
                    ST_CREATED_OFFSET+ev_offset, (ulong) 0);
 
 	 /* fix the checksum due to latest changes in header */
-	 fix_checksum(packet, ev_offset);
+	 if (current_checksum_alg != 0)
+           fix_checksum(packet, ev_offset);
 
          /* send it */
          if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
@@ -752,7 +794,8 @@ impossible position";
        file */
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
-    while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+    while (!(error = Log_event::read_log_event(&log, packet, log_lock,
+                                               current_checksum_alg)))
     {
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -772,8 +815,11 @@ impossible position";
       event_type= (Log_event_type)((*packet)[LOG_EVENT_OFFSET+ev_offset]);
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
-        if (!is_slave_crc_aware(thd) &&
-            (*packet)[ev_offset + FLAGS_OFFSET] & LOG_EVENT_CHECKSUM_F)
+        current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
+                                               packet->length() - 1); // todo: test maybe 0-term string
+        DBUG_ASSERT(current_checksum_alg == 0 ||
+                    current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
+        if (!is_slave_checksum_aware(thd) && current_checksum_alg != 0)
         {
           my_errno= ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE;
           errmsg= ER(my_errno);
@@ -890,7 +936,8 @@ impossible position";
 	*/
 
 	pthread_mutex_lock(log_lock);
-	switch (error= Log_event::read_log_event(&log, packet, (pthread_mutex_t*) 0)) {
+	switch (error= Log_event::read_log_event(&log, packet, (pthread_mutex_t*) 0,
+                                                 current_checksum_alg)) {
 	case 0:
 	  /* we read successfully, so we'll need to send it to the slave */
 	  pthread_mutex_unlock(log_lock);
@@ -939,7 +986,7 @@ impossible position";
               /* reset transmit packet for the heartbeat event */
               if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
                 goto err;
-              if (send_heartbeat_event(net, packet, coord))
+              if (send_heartbeat_event(net, packet, coord, current_checksum_alg))
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
@@ -1044,7 +1091,7 @@ impossible position";
       */
       if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
 	  fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
-                            &errmsg))
+                            &errmsg, current_checksum_alg))
       {
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
@@ -1845,8 +1892,10 @@ bool mysql_show_binlog_events(THD* thd)
     {
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
       {
+        uint8 found_checksum_alg= ev->checksum_alg;
         delete description_event;
         description_event= (Format_description_log_event*) ev;
+        description_event->checksum_alg= found_checksum_alg;
       }
       else
         delete ev;
@@ -2264,7 +2313,7 @@ bool sys_var_binlog_checksum::update(THD *thd, set_var *var)
                                     (my_bool) var->save_result.ulong_value?
                                     RP_BINLOG_CHECKSUM_ON_OFF : 0));
   }
-  DBUG_ASSERT(opt_binlog_checksum == (ulong) var->save_result.ulong_value);
+  DBUG_ASSERT((ulong) opt_binlog_checksum == var->save_result.ulong_value);
   pthread_mutex_unlock(mysql_bin_log.get_log_lock());
   return 0;
 }

@@ -112,6 +112,18 @@ class Master_info : public Slave_reporting_capability
   ulonglong received_heartbeats;  // counter of received heartbeat events
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
+  /*
+    to hold checksum alg in use until IO thread has received FD.
+    Initialized to novalue, then set to the queried from master
+    @@global.binlog_checksum and deactivated once FD has been received.
+  */
+  uint8 checksum_alg_before_fd;
+  /*
+    restart slave via STOP, START sequence makes IO thread to
+    rotate the former session relay-log. The rotation event of the new session
+    needs checksum alg of the former one.
+  */
+  uint8 last_master_checksum_alg;
 };
 void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,

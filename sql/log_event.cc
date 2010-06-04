@@ -62,6 +62,12 @@ const char* binlog_checksum_alg_names[]= {"CRC32", NullS};
 */
 const uint8 binlog_checksum_alg_id= BINLOG_CHECKSUM_ALG_CRC32;
 
+/* replication event checksum is introduced it this version */
+const uchar checksum_version_split[3]= {5, 1, 46};
+const ulong checksum_version_product=
+  (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
+  checksum_version_split[2];
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
 
@@ -623,19 +629,18 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
    @return  TRUE        if test fails
             FALSE       as success
 */
-inline bool event_checksum_test(uchar *event_buf, ulong event_len)
+inline bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
 {
-  uint16 flags= uint2korr(event_buf + FLAGS_OFFSET);
   bool res= FALSE;
+#ifndef DBUG_OFF
+  uint16 flags= uint2korr(event_buf + FLAGS_OFFSET);
+#endif
 
-  if ((flags & LOG_EVENT_CHECKSUM_F) == LOG_EVENT_CHECKSUM_F)
+  if (alg != 0 && alg != (uint8) -1)
   {
     ha_checksum incoming;
     ha_checksum computed;
 
-    /* The only algorithm currently is CRC32 */
-    DBUG_ASSERT(event_buf[event_len - BINLOG_CHECKSUM_SIGNATURE_LEN] ==
-                BINLOG_CHECKSUM_ALG_CRC32);
     /*
       FD event is to be CRC-ed and therefore verified w/o the binlog-in-use flag
     */
@@ -643,6 +648,11 @@ inline bool event_checksum_test(uchar *event_buf, ulong event_len)
     {
       /* crc is to be computed w/o IN_USE flag */
       DBUG_ASSERT(!(flags & LOG_EVENT_BINLOG_IN_USE_F));
+      /* The only algorithm currently is CRC32 */
+      DBUG_ASSERT(event_buf[event_len - BINLOG_CHECKSUM_LEN - 
+                            BINLOG_CHECKSUM_ALG_DESC_LEN] ==
+                  BINLOG_CHECKSUM_ALG_CRC32);
+      DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
         Complile time guard to watch that
         the max number of alg is bound to
@@ -724,7 +734,8 @@ const char* Log_event::get_type_str()
 
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
-  :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg), crc(0), thd(thd_arg)
+  :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg), crc(0), thd(thd_arg),
+   checksum_alg(0)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
@@ -741,7 +752,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 */
 
 Log_event::Log_event()
-  :temp_buf(0), exec_time(0), flags(0),  crc(0), thd(0)
+  :temp_buf(0), exec_time(0), flags(0),  crc(0), thd(0), checksum_alg(0)
 {
   server_id=	::server_id;
   /*
@@ -760,7 +771,7 @@ Log_event::Log_event()
 
 Log_event::Log_event(const char* buf,
                      const Format_description_log_event* description_event)
-  :temp_buf(0), crc(0)
+  :temp_buf(0), crc(0), checksum_alg(0)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -949,11 +960,9 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 /**
    Decision helper whether to trigger checksum computation or not.
    To be invoked in Log_event::write().
-   The decision is positive when the event instance got already
-   @c LOG_EVENT_CHECKSUM_F flagged (e.g via
-   Log_event::write the caller or Log_event::write_header() 
-   set it after the first invocation of Log_event::need_checksum)
-   or 
+   The decision is positive if it's been marked for checksumming
+   (when FD by the constructor's caller, the rest in Log_event::write())
+   or
    global.binlog_checksum is ON and events is 
    directly written to the binlog file.
    Otherwise the decision is negative.
@@ -962,15 +971,20 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 */
 my_bool Log_event::need_checksum(IO_CACHE* file)
 {
-  return  
-    /* 
-       some callers of Log_event::write can pre-set the flag on 
-       to force checksum incapsulation into the event 
-    */
-    (flags & LOG_EVENT_CHECKSUM_F) || 
+  DBUG_ENTER("Log_event::need_checksum");
+  my_bool ret;
+  /* 
+     some callers of Log_event::write can pre-set the flag on 
+     to force checksum incapsulation into the event 
+  */
+  ret=
+    (checksum_alg != 0) ||
     (opt_binlog_checksum && (!thd  /* bootstrap */
                              || /* the main branch */
                              cache_type == Log_event::EVENT_NO_CACHE));
+  DBUG_ASSERT(get_type_code() != FORMAT_DESCRIPTION_EVENT || ret ||
+              data_written == 0);
+  DBUG_RETURN(ret);
 }
 
 bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong size)
@@ -990,12 +1004,8 @@ bool Log_event::write_footer(IO_CACHE* file)
   if (need_checksum(file))
   {
     uchar buf[BINLOG_CHECKSUM_LEN];
-    compile_time_assert(sizeof(BINLOG_CHECKSUM_ALG_DESC_LEN == 1));
-    crc= my_checksum(crc, &binlog_checksum_alg_id, 1);
     int4store(buf, crc);
-    return (my_b_safe_write(file, &binlog_checksum_alg_id,
-                            BINLOG_CHECKSUM_ALG_DESC_LEN) ||
-            my_b_safe_write(file, (uchar*) buf, sizeof(buf)));
+    return (my_b_safe_write(file, (uchar*) buf, sizeof(buf)));
   }
   return 0;
 }
@@ -1016,8 +1026,8 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   if (need_checksum(file))
   {
     crc= my_checksum(0L, NULL, 0);
-    data_written += BINLOG_CHECKSUM_SIGNATURE_LEN;
-    flags = flags | LOG_EVENT_CHECKSUM_F;
+    data_written += BINLOG_CHECKSUM_LEN;
+    checksum_alg= binlog_checksum_alg_id;
   }
 
   /*
@@ -1099,7 +1109,8 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
-			      pthread_mutex_t* log_lock)
+			      pthread_mutex_t* log_lock, 
+                              uint8 checksum_alg_arg)
 {
   ulong data_len;
   int result=0;
@@ -1165,11 +1176,12 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     else
     {
       /*
-        CRC verification.
+        CRC verification of the Dump thread
       */
-      if (opt_master_verify_checksum && 
+      if (opt_master_verify_checksum &&
           event_checksum_test((uchar*) packet->ptr() + ev_offset,
-          data_len + sizeof(buf)))
+                              data_len + sizeof(buf),
+                              checksum_alg_arg))
       {
         result= LOG_READ_CHECKSUM_FAILURE;
         goto end;
@@ -1307,7 +1319,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
                                      my_bool crc_check)
 {
   Log_event* ev;
-  uint16 flags= uint2korr(buf + FLAGS_OFFSET);
+  uint8 alg;
   DBUG_ENTER("Log_event::read_log_event(char*,...)");
   DBUG_ASSERT(description_event != 0);
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
@@ -1325,9 +1337,21 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   uint event_type= buf[EVENT_TYPE_OFFSET];
 
   /*
-    CRC verification.
+    CRC verification by SQL and Show-Binlog-Events master side.
+    SQL thread needs an access method to a correct A descriptor.
+    If event is FD the descriptor is in it.
+    Otherwise, the last time seen FD is the holder of A.
+    Notice, FD of binlog can be only one - SBE executing master thread
+    has just to find out the first FD's value -  while RL can contain more.
+    In the Rl case, the alg is kept in FD_e which is set to the new read-out 
+    event after its execution which installs the new one's alg descriptor.
+    Therefore in a typical sequence {FD_s^0, FD_m, E_m^1} E_m^1 will be verified
+    with (A) of FD_m.
   */
-  if (crc_check && event_checksum_test((uchar *) buf, event_len))
+  alg= (event_type != FORMAT_DESCRIPTION_EVENT) ?
+    description_event->checksum_alg : get_checksum_alg(buf, event_len);
+  if (crc_check &&
+      event_checksum_test((uchar *) buf, event_len, alg))
   {
 #ifdef MYSQL_CLIENT
     *error= "Event crc check failed! Most likely there is event corruption.";
@@ -1383,9 +1407,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       event_type= description_event->event_type_permutation[event_type];
     }
 
-    if ((flags & LOG_EVENT_CHECKSUM_F) == LOG_EVENT_CHECKSUM_F)
-      event_len= event_len - BINLOG_CHECKSUM_SIGNATURE_LEN;
-
+    if (alg != (uint8) -1 &&
+        (event_type == FORMAT_DESCRIPTION_EVENT || alg == 1))
+      event_len= event_len - BINLOG_CHECKSUM_LEN;
+    
     switch(event_type) {
     case QUERY_EVENT:
       ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT);
@@ -1477,8 +1502,12 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     }
   }
 
-  if (flags & LOG_EVENT_CHECKSUM_F)
-    ev->crc= uint4korr(buf + (event_len));
+  if (ev)
+  {
+    ev->checksum_alg= alg;
+    if (ev->checksum_alg != 0)
+      ev->crc= uint4korr(buf + (event_len));
+  }
 
   DBUG_PRINT("read_event", ("%s(type_code: %d; event_len: %d)",
                             ev ? ev->get_type_str() : "<unknown>",
@@ -1533,7 +1562,8 @@ void Log_event::print_header(IO_CACHE* file,
               llstr(log_pos,llbuff));
 
   /* print the checksum */
-  if (uint2korr(temp_buf+FLAGS_OFFSET) & LOG_EVENT_CHECKSUM_F)
+
+  if (checksum_alg != 0 && checksum_alg != (uint8) -1)
   {
     char checksum_buf[BINLOG_CHECKSUM_LEN * 2 + 4]; // to fit to "0x%lx "
     size_t const bytes_written=
@@ -3937,9 +3967,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
-    post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8),
+    post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8)
+                                       + BINLOG_CHECKSUM_ALG_DESC_LEN /* todo: x 2 */,
                                        MYF(0));
-
     /*
       This long list of assignments is not beautiful, but I see no way to
       make it nicer, as the right members are #defines, not array members, so
@@ -4086,19 +4116,31 @@ Format_description_log_event(const char* buf,
                              description_event)
   :Start_log_event_v3(buf, description_event), event_type_permutation(0)
 {
+  ulong ver_calc;
   DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
     DBUG_VOID_RETURN; /* sanity check */
   number_of_event_types=
-    event_len-(LOG_EVENT_MINIMAL_HEADER_LEN+ST_COMMON_HEADER_LEN_OFFSET+1);
+    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
   DBUG_PRINT("info", ("common_header_len=%d number_of_event_types=%d",
                       common_header_len, number_of_event_types));
   /* If alloc fails, we'll detect it in is_valid() */
+
   post_header_len= (uint8*) my_memdup((uchar*)buf+ST_COMMON_HEADER_LEN_OFFSET+1,
                                       number_of_event_types*
-                                      sizeof(*post_header_len), MYF(0));
+                                      sizeof(*post_header_len),
+                                      MYF(0));
   calc_server_version_split();
+  if ((ver_calc= (server_version_split[0] * 256 + server_version_split[1]) * 256 +
+       server_version_split[2]) >= checksum_version_product)
+  {
+    /* the last bytes are the checksum alg desc and value (or value's room) */
+    number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
+    DBUG_ASSERT(ver_calc != checksum_version_product ||
+                number_of_event_types == LOG_EVENT_TYPES);
+    checksum_alg= post_header_len[number_of_event_types]; // todo: x 2
+  }
 
   /*
     In some previous versions, the events were given other event type
@@ -4209,11 +4251,14 @@ Format_description_log_event(const char* buf,
 #ifndef MYSQL_CLIENT
 bool Format_description_log_event::write(IO_CACHE* file)
 {
+  bool ret;
+  bool no_checksum;
   /*
     We don't call Start_log_event_v3::write() because this would make 2
     my_b_safe_write().
   */
-  uchar buff[FORMAT_DESCRIPTION_HEADER_LEN];
+  uchar buff[FORMAT_DESCRIPTION_HEADER_LEN + BINLOG_CHECKSUM_ALG_DESC_LEN];
+  size_t rec_size= sizeof(buff);
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy((char*) buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
@@ -4222,9 +4267,39 @@ bool Format_description_log_event::write(IO_CACHE* file)
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
   memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1, (uchar*) post_header_len,
          LOG_EVENT_TYPES);
-  return (write_header(file, sizeof(buff)) ||
-          wrapper_my_b_safe_write(file, buff, sizeof(buff)) ||
-	  write_footer(file));
+  /*
+    if checksum is requested
+    record the checksum-algorithm descriptor next to
+    post_header_len vector which will be followed by the checksum value.
+    Master is supposed to trigger checksum computing by opt_binlog_checksum,
+    slave does it via marking the event according to
+    FD_queue checksum_alg value.
+  */
+  compile_time_assert(sizeof(BINLOG_CHECKSUM_ALG_DESC_LEN == 1));
+  IF_DBUG(data_written= 0); // to match need_checksum's assert
+  buff[FORMAT_DESCRIPTION_HEADER_LEN]= need_checksum(file) ?
+      binlog_checksum_alg_id : 0;
+  /* 
+     FD of checksum-aware server is with checksum value computed by
+     CRC32 alg regardless of the alg description value in the event.
+     Thereby a combination of (A) == 0, (V) != 0 means
+     it's the checksum-aware server's FD event that heads binlog of
+     events without checksum.
+     A combination of (A) != 0, V != 0 denotes FD of the checksum-aware server
+     heading binlog of checksummed events.
+     Old server's FD event does not have neither (A) nor (V) room.
+  */
+
+  if ((no_checksum= (checksum_alg == 0)))
+  {
+    checksum_alg= BINLOG_CHECKSUM_ALG_CRC32;  // Forcing (V) room with signature
+  }
+  ret= (write_header(file, rec_size) ||
+        wrapper_my_b_safe_write(file, buff, rec_size) ||
+        write_footer(file));
+  if (no_checksum)
+    checksum_alg= 0;
+  return ret;
 }
 #endif
 
@@ -4320,6 +4395,22 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
 
 #endif
 
+inline void do_server_version_split(char* version, uchar split_versions[3])
+{
+  char *p= version, *r;
+  ulong number;
+  for (uint i= 0; i<=2; i++)
+  {
+    number= strtoul(p, &r, 10);
+    split_versions[i]= (uchar) number;
+    DBUG_ASSERT(number < 256); // fit in uchar
+    p= r;
+    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
+    if (*r == '.')
+      p++; // skip the dot
+  }
+}
+
 
 /**
    Splits the event's 'server_version' string into three numeric pieces stored
@@ -4332,24 +4423,46 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
 */
 void Format_description_log_event::calc_server_version_split()
 {
-  char *p= server_version, *r;
-  ulong number;
-  for (uint i= 0; i<=2; i++)
-  {
-    number= strtoul(p, &r, 10);
-    server_version_split[i]= (uchar)number;
-    DBUG_ASSERT(number < 256); // fit in uchar
-    p= r;
-    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
-    if (*r == '.')
-      p++; // skip the dot
-  }
+  do_server_version_split(server_version, server_version_split);
+
   DBUG_PRINT("info",("Format_description_log_event::server_version_split:"
                      " '%s' %d %d %d", server_version,
                      server_version_split[0],
                      server_version_split[1], server_version_split[2]));
 }
 
+/**
+   @param buf buffer holding serialized FD event
+   @param len netto (possible checksum is stripped off) length of the event buf
+   
+   @return  the version-safe checksum alg descriptor where zero
+            designates no checksum, 255 - the orginator is
+            checksum-unaware (effectively no checksum) and the actuall
+            [1-254] range alg descriptor.
+*/
+uint8 get_checksum_alg(const char* buf, ulong len)
+{
+  uint8 ret;
+  char version[ST_SERVER_VER_LEN];
+  uchar version_split[3];
+
+  DBUG_ENTER("get_checksum_alg");
+  DBUG_ASSERT(buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
+
+  memcpy(version, buf +
+         buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET]
+         + ST_SERVER_VER_OFFSET, ST_SERVER_VER_LEN);
+  version[ST_SERVER_VER_LEN - 1]= 0;
+  
+  do_server_version_split(version, version_split);
+  ret= ((ulong) (version_split[0] * 256 + version_split[1]) * 256
+        + version_split[2] < checksum_version_product) ?
+    (uint8) -1 : * (uint8*) (buf + len - BINLOG_CHECKSUM_LEN - 
+                             BINLOG_CHECKSUM_ALG_DESC_LEN);
+  DBUG_ASSERT(ret == 0 || ret == (uint8) -1 || ret == 1);
+  DBUG_RETURN(ret);
+}
+  
 
   /**************************************************************************
         Load_log_event methods
@@ -5235,10 +5348,11 @@ bool Rotate_log_event::write(IO_CACHE* file)
 {
   char buf[ROTATE_HEADER_LEN];
   int8store(buf + R_POS_OFFSET, pos);
-  return (write_header(file, ROTATE_HEADER_LEN + ident_len) ||
-          wrapper_my_b_safe_write(file, (uchar*)buf, ROTATE_HEADER_LEN) ||
-          wrapper_my_b_safe_write(file, (uchar*)new_log_ident, (uint) ident_len)||
-	  write_footer(file));
+  return (write_header(file, ROTATE_HEADER_LEN + ident_len) || 
+          wrapper_my_b_safe_write(file, (uchar*) buf, ROTATE_HEADER_LEN) ||
+          wrapper_my_b_safe_write(file, (uchar*) new_log_ident,
+                                     (uint) ident_len) ||
+          write_footer(file));
 }
 #endif
 
@@ -5817,8 +5931,8 @@ User_var_log_event(const char* buf,
     */
     uint bytes_read= ((val + val_len) - start);
     DBUG_ASSERT(bytes_read==data_written || 
-                (start[FLAGS_OFFSET] & LOG_EVENT_CHECKSUM_F &&
-                 bytes_read==data_written - BINLOG_CHECKSUM_SIGNATURE_LEN) ||
+                (description_event->checksum_alg != 0 &&
+                 bytes_read==data_written - BINLOG_CHECKSUM_LEN) ||
                 bytes_read==(data_written-1));
     if ((data_written - bytes_read) > 0)
     {
