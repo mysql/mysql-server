@@ -451,27 +451,8 @@ handlerton *myisam_hton;
 handlerton *partition_hton;
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
-ulong opt_ndb_cluster_connection_pool;
-ulong ndb_extra_logging;
 ulong opt_ndb_wait_setup;
-wait_cond_timed_func ndb_wait_setup_func= 0;
-ulong ndb_report_thresh_binlog_epoch_slip= 0;
-ulong ndb_report_thresh_binlog_mem_usage= 0;
-my_bool ndb_log_binlog_index= FALSE;
-my_bool opt_ndb_log_update_as_write= FALSE;
-my_bool opt_ndb_log_updated_only= FALSE;
-my_bool opt_ndb_log_orig= FALSE;
-my_bool opt_ndb_log_bin= FALSE;
-my_bool opt_ndb_log_empty_epochs= FALSE;
-
-
-extern "C" const char *opt_ndb_connectstring;
-extern "C" ulong opt_ndb_nodeid;
-extern const char *ndb_distribution_names[];
-extern TYPELIB ndb_distribution_typelib;
-extern const char *opt_ndb_distribution;
-extern enum ndb_distribution opt_ndb_distribution_id;
+int(*ndb_wait_setup_func)(ulong)= 0;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -5660,26 +5641,7 @@ enum options_mysqld
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD,
-  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING, 
-  OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
-  OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
-  OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
-  OPT_NDB_BATCH_SIZE,
-  OPT_NDB_OPTIMIZATION_DELAY,
-  OPT_NDB_TABLE_TEMPORARY,
-  OPT_NDB_WAIT_CONNECTED,
-  OPT_NDB_CLUSTER_CONNECTION_POOL,
-  OPT_NDB_WAIT_SETUP,
-  OPT_NDB_MGMD, OPT_NDB_NODEID,
-  OPT_NDB_DISTRIBUTION,
-  OPT_NDB_INDEX_STAT_ENABLE,
-  OPT_NDB_EXTRA_LOGGING,
-  OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
-  OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
-  OPT_NDB_USE_COPYING_ALTER_TABLE,
-  OPT_NDB_LOG_UPDATE_AS_WRITE, OPT_NDB_LOG_UPDATED_ONLY,
-  OPT_NDB_LOG_ORIG, OPT_NDB_LOG_BIN, OPT_NDB_LOG_BINLOG_INDEX,
-  OPT_NDB_LOG_EMPTY_EPOCHS,
+  OPT_ENGINE_CONDITION_PUSHDOWN,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -6219,164 +6181,6 @@ master-ssl",
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (uchar**) &myisam_recover_options_str, (uchar**) &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
-   "Connect string for ndbcluster.",
-   (uchar**) &opt_ndb_connectstring,
-   (uchar**) &opt_ndb_connectstring,
-   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb-mgmd-host", OPT_NDB_MGMD,
-   "same as --ndb-connectstring.",
-   (uchar**) &opt_ndb_connectstring,
-   (uchar**) &opt_ndb_connectstring,
-   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb-nodeid", OPT_NDB_NODEID,
-   "Set node id for this node. Overrides node id specified "
-   "in --ndb-connectstring.",
-   (uchar**) &opt_ndb_nodeid,
-   (uchar**) &opt_ndb_nodeid,
-   0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb-autoincrement-prefetch-sz", OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
-   "Specify number of autoincrement values that are prefetched.",
-   (uchar**) &global_system_variables.ndb_autoincrement_prefetch_sz,
-   (uchar**) &max_system_variables.ndb_autoincrement_prefetch_sz,
-   0, GET_ULONG, REQUIRED_ARG, 1, 1, 65536, 0, 0, 0},
-  {"ndb-force-send", OPT_NDB_FORCE_SEND,
-   "Force send of buffers to ndb immediately without waiting for "
-   "other threads.",
-   (uchar**) &global_system_variables.ndb_force_send,
-   (uchar**) &global_system_variables.ndb_force_send,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb_force_send", OPT_NDB_FORCE_SEND,
-   "same as --ndb-force-send.",
-   (uchar**) &global_system_variables.ndb_force_send,
-   (uchar**) &global_system_variables.ndb_force_send,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb-extra-logging", OPT_NDB_EXTRA_LOGGING,
-   "Turn on more logging in the error log.",
-   (uchar**) &ndb_extra_logging,
-   (uchar**) &ndb_extra_logging,
-   0, GET_ULONG, OPT_ARG, 1, 0, 0, 0, 0, 0},
-#ifdef HAVE_NDB_BINLOG
-  {"ndb-report-thresh-binlog-epoch-slip", OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
-   "Threshold on number of epochs to be behind before reporting binlog status. "
-   "E.g. 3 means that if the difference between what epoch has been received "
-   "from the storage nodes and what has been applied to the binlog is 3 or more, "
-   "a status message will be sent to the cluster log.",
-   (uchar**) &ndb_report_thresh_binlog_epoch_slip,
-   (uchar**) &ndb_report_thresh_binlog_epoch_slip,
-   0, GET_ULONG, REQUIRED_ARG, 3, 0, 256, 0, 0, 0},
-  {"ndb-report-thresh-binlog-mem-usage", OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
-   "Threshold on percentage of free memory before reporting binlog status. E.g. "
-   "10 means that if amount of available memory for receiving binlog data from "
-   "the storage nodes goes below 10%, "
-   "a status message will be sent to the cluster log.",
-   (uchar**) &ndb_report_thresh_binlog_mem_usage,
-   (uchar**) &ndb_report_thresh_binlog_mem_usage,
-   0, GET_ULONG, REQUIRED_ARG, 10, 0, 100, 0, 0, 0},
-  {"ndb-log-update-as-write", OPT_NDB_LOG_UPDATE_AS_WRITE,
-   "For efficiency log only after image as a write event."
-   "Ignore before image.  This may cause compatability problems if"
-   "replicating to other storage engines than ndbcluster",
-   (uchar**) &opt_ndb_log_update_as_write,
-   (uchar**) &opt_ndb_log_update_as_write,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb-log-updated-only", OPT_NDB_LOG_UPDATED_ONLY,
-   "For efficiency log only updated columns. Columns are considered "
-   "as \"updated\" even if they are updated with the same value. "
-   "This may cause compatability problems if"
-   "replicating to other storage engines than ndbcluster",
-   (uchar**) &opt_ndb_log_updated_only,
-   (uchar**) &opt_ndb_log_updated_only,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb-log-orig", OPT_NDB_LOG_ORIG,
-   "Log originating server id and epoch in ndb_binlog_index.  Each epoch may in this case have "
-   "multiple rows in ndb_binlog_index, one for each originating epoch.",
-   (uchar**) &opt_ndb_log_orig,
-   (uchar**) &opt_ndb_log_orig,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb-log-bin", OPT_NDB_LOG_BIN,
-   "Log ndb tables in the binary log. Option only has meaning if "
-   "the binary log has been turned on for the server.",
-   (uchar**) &opt_ndb_log_bin, (uchar**) &opt_ndb_log_bin,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb-log-binlog-index", OPT_NDB_LOG_BINLOG_INDEX,
-   "Insert mapping between epochs and binlog positions into the "
-   "ndb_binlog_index table.",
-   (uchar**) &ndb_log_binlog_index, (uchar**) &ndb_log_binlog_index,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb-log-empty-epochs", OPT_NDB_LOG_EMPTY_EPOCHS,
-   "",
-   (uchar**) &opt_ndb_log_empty_epochs,
-   (uchar**) &opt_ndb_log_empty_epochs,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-  { "ndb-wait-setup", OPT_NDB_WAIT_SETUP,
-    "Time (in seconds) for mysqld to wait for Ndb engine setup to complete",
-    (uchar**) &opt_ndb_wait_setup, (uchar**) &opt_ndb_wait_setup,
-    0, GET_ULONG, REQUIRED_ARG, 15, 0, LONG_TIMEOUT, 0, 0, 0},
-  {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
-   "Use exact records count during query planning and for fast "
-   "select count(*), disable for faster queries.",
-   (uchar**) &global_system_variables.ndb_use_exact_count,
-   (uchar**) &global_system_variables.ndb_use_exact_count,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb-use-transactions", OPT_NDB_USE_TRANSACTIONS,
-   "Use transactions for large inserts, if enabled then large "
-   "inserts will be split into several smaller transactions",
-   (uchar**) &global_system_variables.ndb_use_transactions,
-   (uchar**) &global_system_variables.ndb_use_transactions,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb_use_transactions", OPT_NDB_USE_TRANSACTIONS,
-   "same as --ndb-use-transactions.",
-   (uchar**) &global_system_variables.ndb_use_transactions,
-   (uchar**) &global_system_variables.ndb_use_transactions,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,
-   "Select nodes for transactions in a more optimal way.",
-   (uchar**) &global_system_variables.ndb_optimized_node_selection,
-   (uchar**) &max_system_variables.ndb_optimized_node_selection,
-   0, GET_ULONG, OPT_ARG, 3, 0, 3, 0, 0, 0},
-  {"ndb-cache-check-time", OPT_NDB_CACHE_CHECK_TIME,
-   "A dedicated thread is created to, at the given millisecons interval, invalidate the query cache if another MySQL server in the cluster has changed the data in the database.",
-   (uchar**) &opt_ndb_cache_check_time, (uchar**) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
-    0, 0, LONG_TIMEOUT, 0, 1, 0},
-  {"ndb-batch-size", OPT_NDB_BATCH_SIZE,
-   "Batch size in bytes.",
-   (uchar**) &global_system_variables.ndb_batch_size,
-   (uchar**) &global_system_variables.ndb_batch_size,
-    0, GET_ULONG, REQUIRED_ARG, 32768, 0, LONG_TIMEOUT, 0, 1, 0},
-  {"ndb-optimization-delay", OPT_NDB_OPTIMIZATION_DELAY,
-   "For optimize table, specifies the delay in milliseconds for each batch of rows sent",
-   (uchar**) &global_system_variables.ndb_optimization_delay,
-   (uchar**) &max_system_variables.ndb_optimization_delay,
-   0, GET_ULONG, REQUIRED_ARG, 10, 0, 100000, 0, 0, 0},
-  {"ndb-table-temporary", OPT_NDB_TABLE_TEMPORARY,
-   "Create tables without persistence to disk",
-   (uchar**) &global_system_variables.ndb_table_temporary,
-   (uchar**) &global_system_variables.ndb_table_temporary,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"ndb-index-stat-enable", OPT_NDB_INDEX_STAT_ENABLE,
-   "Use ndb index statistics in query optimization.",
-   (uchar**) &global_system_variables.ndb_index_stat_enable,
-   (uchar**) &max_system_variables.ndb_index_stat_enable,
-   0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 0, 0},
-  {"ndb-use-copying-alter-table",
-   OPT_NDB_USE_COPYING_ALTER_TABLE,
-   "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
-   (uchar**) &global_system_variables.ndb_use_copying_alter_table,
-   (uchar**) &global_system_variables.ndb_use_copying_alter_table,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
-  { "ndb-wait-connected", OPT_NDB_WAIT_CONNECTED,
-    "Time (in seconds) for mysqld to wait for connection to cluster management and data nodes.",
-    (uchar**) &opt_ndb_wait_connected, (uchar**) &opt_ndb_wait_connected,
-    0, GET_ULONG, REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
-  { "ndb-cluster-connection-pool", OPT_NDB_CLUSTER_CONNECTION_POOL,
-    "Pool of cluster connections to cluster to be used by mysql server.",
-    (uchar**) &opt_ndb_cluster_connection_pool,
-    (uchar**) &opt_ndb_cluster_connection_pool,
-    0, GET_ULONG, REQUIRED_ARG, 1, 1, 63, 0, 0, 0},
-#endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (uchar**) &global_system_variables.new_mode,
    (uchar**) &max_system_variables.new_mode,
@@ -8509,21 +8313,6 @@ mysqld_get_one_option(int optid,
     global_system_variables.tx_isolation= (type-1);
     break;
   }
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  case OPT_NDB_DISTRIBUTION:
-    int id;
-    id= find_type_or_exit(argument, &ndb_distribution_typelib, opt->name);
-    opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
-    break;
-  case OPT_NDB_EXTRA_LOGGING:
-    if (!argument)
-      ndb_extra_logging++;
-    else if (argument == disabled_my_option)
-      ndb_extra_logging= 0L;
-    else
-      ndb_extra_logging= atoi(argument);
-    break;
-#endif
   case OPT_MYISAM_RECOVER:
   {
     if (!argument)
@@ -9146,17 +8935,6 @@ void refresh_status(THD *thd)
   max_used_connections= thread_count-delayed_insert_threads;
   pthread_mutex_unlock(&LOCK_thread_count);
 }
-
-
-/*****************************************************************************
-  Instantiate variables for missing storage engines
-  This section should go away soon
-*****************************************************************************/
-
-#ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
-ulong ndb_cache_check_time;
-ulong ndb_extra_logging;
-#endif
 
 /*****************************************************************************
   Instantiate templates
