@@ -14369,7 +14369,7 @@ static MYSQL_SYSVAR_STR(
   mgmd_host,                        /* name */
   opt_ndb_connectstring,                /* var */
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Alias for ndb-connectstring",
+  "Same as --ndb-connectstring",
   NULL,                             /* check func. */
   NULL,                             /* update func. */
   NULL                              /* default */
@@ -14380,7 +14380,8 @@ static MYSQL_SYSVAR_UINT(
   nodeid,                           /* name */
   opt_ndb_nodeid,                   /* var */
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Nodeid for this mysqld in the cluster.",
+  "Set nodeid for this node. Overrides node id specified "
+  "in --ndb-connectstring.",
   NULL,                             /* check func. */
   NULL,                             /* update func. */
   0,                                /* default */
