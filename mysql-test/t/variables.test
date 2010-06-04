@@ -785,6 +785,21 @@ show variables like 'hostname';
 --echo # Test 'myisam_mmap_size' option is not dynamic
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@myisam_mmap_size= 500M;
+
+
+--echo #
+--echo # Bug #52315: utc_date() crashes when system time > year 2037
+--echo #
+
+--error 0, ER_UNKNOWN_ERROR
+SET TIMESTAMP=2*1024*1024*1024;
+--echo #Should not crash
+--disable_result_log
+SELECT UTC_DATE();
+--enable_result_log
+SET TIMESTAMP=DEFAULT;
+
+
 --echo End of 5.0 tests
 
 #
