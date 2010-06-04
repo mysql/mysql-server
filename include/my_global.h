@@ -73,6 +73,11 @@
 #define C_MODE_END
 #endif
 
+#ifdef __cplusplus
+#define CPP_UNNAMED_NS_START  namespace {
+#define CPP_UNNAMED_NS_END    }
+#endif
+
 #if defined(_WIN32) 
 #include <my_config.h>
 #elif defined(__NETWARE__)

@@ -806,6 +806,10 @@ static int build_prefix(const LEX_STRING *prefix, const char *category,
   }                                                                   \
   return;
 
+/* Use C linkage for the interface functions. */
+
+C_MODE_START
+
 static void register_mutex_v1(const char *category,
                               PSI_mutex_info_v1 *info,
                               int count)
@@ -2054,8 +2058,9 @@ static void* get_interface(int version)
   }
 }
 
+C_MODE_END
+
 struct PSI_bootstrap PFS_bootstrap=
 {
   get_interface
 };
-

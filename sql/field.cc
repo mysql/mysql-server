@@ -1009,16 +1009,19 @@ test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
    Used below. In an anonymous namespace to not clash with definitions
    in other files.
  */
-namespace {
-  int compare(unsigned int a, unsigned int b)
-  {
-    if (a < b)
-      return -1;
-    if (b < a)
-      return 1;
-    return 0;
+
+CPP_UNNAMED_NS_START
+
+int compare(unsigned int a, unsigned int b)
+{
+  if (a < b)
+    return -1;
+  if (b < a)
+    return 1;
+  return 0;
 }
-}
+
+CPP_UNNAMED_NS_END
 
 /**
   Detect Item_result by given field type of UNION merge result.
