@@ -5,6 +5,11 @@
 --source include/not_windows.inc
 --source include/not_embedded.inc
 
+if ($MYSQLHOTCOPY)
+{
+  die due to missing mysqlhotcopy tool;
+}
+
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --disable_warnings
 DROP DATABASE IF EXISTS hotcopy_test;
