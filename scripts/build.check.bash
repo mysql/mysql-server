@@ -202,25 +202,25 @@ function build() {
     # lock tree
     runcmd 0 $productbuilddir/src/range_tree make -k -j$makejobs >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/lock_tree make -k -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/range_tree/tests make -k -j$makejobs check >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/lock_tree/tests make -k -j$makejobs check >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/range_tree/tests make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/lock_tree/tests make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
 
     # src
-    runcmd 0 $productbuilddir/src make -k -j$makejobs local >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src make -k -s -j$makejobs local >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/src make -k -j$makejobs check_globals >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src make -k -j$makejobs install >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/tests make -k -j$makejobs >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src make -k -s -j$makejobs install >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/tests make -k -s -j$makejobs >>$tracefile 2>&1
 
     # utils
-    runcmd 0 $productbuilddir/utils make -k -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/utils make -k -j$makejobs check >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/utils make -k -s -j$makejobs >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/utils make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
 
     # src/tests
-    runcmd 0 $productbuilddir/src/tests make -j$makejobs -k check.bdb VGRIND="" BDB_SUPPRESSIONS="" SUMMARIZE=1 -s >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/tests make -j$makejobs -k -s check.bdb VGRIND="" BDB_SUPPRESSIONS="" SUMMARIZE=1 >>$tracefile 2>&1
     if [ $dovalgrind -ne 0 ] ; then
-        runcmd 0 $productbuilddir/src/tests make -j$makejobs -k check.tdb SUMMARIZE=1 -s >>$tracefile 2>&1
+        runcmd 0 $productbuilddir/src/tests make -j$makejobs -k -s check.tdb SUMMARIZE=1 >>$tracefile 2>&1
     else
-        runcmd 0 $productbuilddir/src/tests make -j$makejobs -k check.tdb VGRIND="" SUMMARIZE=1 -s>>$tracefile 2>&1
+        runcmd 0 $productbuilddir/src/tests make -j$makejobs -k -s check.tdb VGRIND="" SUMMARIZE=1 >>$tracefile 2>&1
     fi
 
     # benchmark tests
