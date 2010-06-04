@@ -29,9 +29,9 @@ $(TEST_CODE) :
 	(cd $(top_builddir)/unittest/mytap; $(MAKE))
 
 PROD_CODE = $(top_builddir)/storage/perfschema/libperfschema.a \
-  $(top_builddir)/mysys/libmysys.a \
-  $(top_builddir)/dbug/libdbug.a \
-  $(top_builddir)/strings/libmystrings.a
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
 
 noinst_PROGRAMS = pfs_instr_class-t pfs_instr_class-oom-t \
 	pfs_instr-t pfs_instr-oom-t pfs_timer-t pfs-t
