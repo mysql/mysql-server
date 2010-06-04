@@ -62,7 +62,7 @@ mysqlbinlog_CXXFLAGS=           -DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqlbinlog_LDADD =             $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
                                 @CLIENT_EXTRA_LDFLAGS@ \
                                 $(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a   
+				$(top_builddir)/mysys/libmysyslt.la   
 
 mysqldump_SOURCES=              mysqldump.c \
 				my_user.c \
@@ -73,7 +73,7 @@ mysqlimport_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a
+				$(top_builddir)/mysys/libmysyslt.la
 
 mysqlshow_SOURCES=		mysqlshow.c
 
@@ -82,14 +82,14 @@ mysqlslap_CFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a
+				$(top_builddir)/mysys/libmysyslt.la
 
 mysqltest_SOURCES=		mysqltest.cc
 mysqltest_CXXFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a \
+				$(top_builddir)/mysys/libmysyslt.la \
 				$(top_builddir)/regex/libregex.a \
 				$(CLIENT_THREAD_LIBS)
 
