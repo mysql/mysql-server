@@ -27,16 +27,11 @@
 #include <portlib/NdbTick.h>
 #include "ha_ndbcluster_connection.h"
 
-/* options from from mysqld.cc */
-extern "C" const char *opt_ndb_connectstring;
-extern "C" int opt_ndb_nodeid;
-extern ulong opt_ndb_wait_connected;
-
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 static Ndb_cluster_connection **g_pool= NULL;
-static ulong g_pool_alloc= 0;
-static ulong g_pool_pos= 0;
+static uint g_pool_alloc= 0;
+static uint g_pool_pos= 0;
 static pthread_mutex_t g_pool_mutex;
 
 /*
@@ -48,7 +43,13 @@ static pthread_mutex_t g_pool_mutex;
 */
 extern int global_flag_skip_waiting_for_clean_cache;
 
-int ndbcluster_connect(int (*connect_callback)(void))
+int
+ndbcluster_connect(int (*connect_callback)(void),
+                   ulong wait_connected,
+                   uint connection_pool_size,
+                   bool optimized_node_select,
+                   const char* connect_string,
+                   uint force_nodeid)
 {
   NDB_TICKS end_time;
 
@@ -59,19 +60,17 @@ int ndbcluster_connect(int (*connect_callback)(void))
 #endif
   int res;
   DBUG_ENTER("ndbcluster_connect");
+  DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d",
+                       connect_string, force_nodeid));
 
   global_flag_skip_waiting_for_clean_cache= 1;
 
-  // Set connectstring if specified
-  if (opt_ndb_connectstring != 0)
-    DBUG_PRINT("connectstring", ("%s", opt_ndb_connectstring));
-  if ((g_ndb_cluster_connection=
-       new Ndb_cluster_connection(opt_ndb_connectstring, opt_ndb_nodeid)) == 0)
+  g_ndb_cluster_connection=
+    new Ndb_cluster_connection(connect_string, force_nodeid);
+  if (!g_ndb_cluster_connection)
   {
-    sql_print_error("NDB: failed to allocate global "
-                    "ndb cluster connection object");
-    DBUG_PRINT("error",("Ndb_cluster_connection(%s)",
-                        opt_ndb_connectstring));
+    sql_print_error("NDB: failed to allocate global ndb cluster connection");
+    DBUG_PRINT("error", ("Ndb_cluster_connection(%s)", connect_string));
     my_errno= HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(-1);
   }
@@ -81,8 +80,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
                 mysqld_name, server_id);
     g_ndb_cluster_connection->set_name(buf);
   }
-  g_ndb_cluster_connection->set_optimized_node_selection
-    (global_system_variables.ndb_optimized_node_selection & 1);
+  g_ndb_cluster_connection->set_optimized_node_selection(optimized_node_select);
 
   // Create a Ndb object to open the connection  to NDB
   if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
@@ -103,7 +101,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
   /* Connect to management server */
 
   end_time= NdbTick_CurrentMillisecond();
-  end_time+= 1000 * opt_ndb_wait_connected;
+  end_time+= 1000 * wait_connected;
 
   while ((res= g_ndb_cluster_connection->connect(0,0,0)) == 1)
   {
@@ -115,23 +113,23 @@ int ndbcluster_connect(int (*connect_callback)(void))
   }
 
   {
-    g_pool_alloc= opt_ndb_cluster_connection_pool;
+    g_pool_alloc= connection_pool_size;
     g_pool= (Ndb_cluster_connection**)
       my_malloc(g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
     pthread_mutex_init(&g_pool_mutex,
                        MY_MUTEX_INIT_FAST);
     g_pool[0]= g_ndb_cluster_connection;
-    for (unsigned i= 1; i < g_pool_alloc; i++)
+    for (uint i= 1; i < g_pool_alloc; i++)
     {
       if ((g_pool[i]=
-           new Ndb_cluster_connection(opt_ndb_connectstring,
+           new Ndb_cluster_connection(connect_string,
                                       g_ndb_cluster_connection)) == 0)
       {
         sql_print_error("NDB[%u]: failed to allocate cluster connect object",
                         i);
         DBUG_PRINT("error",("Ndb_cluster_connection[%u](%s)",
-                            i, opt_ndb_connectstring));
+                            i, connect_string));
         DBUG_RETURN(-1);
       }
       {
@@ -140,15 +138,14 @@ int ndbcluster_connect(int (*connect_callback)(void))
                     mysqld_name, server_id, i+1);
         g_pool[i]->set_name(buf);
       }
-      g_pool[i]->set_optimized_node_selection
-        (global_system_variables.ndb_optimized_node_selection & 1);
+      g_pool[i]->set_optimized_node_selection(optimized_node_select);
     }
   }
 
   if (res == 0)
   {
     connect_callback();
-    for (unsigned i= 0; i < g_pool_alloc; i++)
+    for (uint i= 0; i < g_pool_alloc; i++)
     {
       int node_id= g_pool[i]->node_id();
       if (node_id == 0)
@@ -194,7 +191,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
   }
   else if (res == 1)
   {
-    for (unsigned i= 0; i < g_pool_alloc; i++)
+    for (uint i= 0; i < g_pool_alloc; i++)
     {
       if (g_pool[i]->
           start_connect_thread(i == 0 ? connect_callback :  NULL))
@@ -237,7 +234,7 @@ void ndbcluster_disconnect(void)
     if (g_pool)
     {
       /* first in pool is the main one, wait with release */
-      for (unsigned i= 1; i < g_pool_alloc; i++)
+      for (uint i= 1; i < g_pool_alloc; i++)
       {
         if (g_pool[i])
           delete g_pool[i];
@@ -268,9 +265,8 @@ Ndb_cluster_connection *ndb_get_cluster_connection()
 
 ulonglong ndb_get_latest_trans_gci()
 {
-  unsigned i;
   ulonglong val= *g_ndb_cluster_connection->get_latest_trans_gci();
-  for (i= 1; i < g_pool_alloc; i++)
+  for (uint i= 1; i < g_pool_alloc; i++)
   {
     ulonglong tmp= *g_pool[i]->get_latest_trans_gci();
     if (tmp > val)
@@ -281,8 +277,7 @@ ulonglong ndb_get_latest_trans_gci()
 
 void ndb_set_latest_trans_gci(ulonglong val)
 {
-  unsigned i;
-  for (i= 0; i < g_pool_alloc; i++)
+  for (uint i= 0; i < g_pool_alloc; i++)
   {
     *g_pool[i]->get_latest_trans_gci()= val;
   }
@@ -290,8 +285,7 @@ void ndb_set_latest_trans_gci(ulonglong val)
 
 int ndb_has_node_id(uint id)
 {
-  unsigned i;
-  for (i= 0; i < g_pool_alloc; i++)
+  for (uint i= 0; i < g_pool_alloc; i++)
   {
     if (id == g_pool[i]->node_id())
       return 1;
