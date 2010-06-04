@@ -119,6 +119,9 @@ fi
 
 # Set flags for various build configurations.
 # Used in -valgrind builds
+# Override -DFORCE_INIT_OF_VARS from debug_cflags. It enables the macro
+# LINT_INIT(), which is only useful for silencing spurious warnings
+# of static analysis tools. We want LINT_INIT() to be a no-op in Valgrind.
 valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
 valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 #
