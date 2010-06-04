@@ -87,6 +87,7 @@ static bool transformSystem(InitConfigFileParser::Context & ctx, const char *);
 static bool transformNode(InitConfigFileParser::Context & ctx, const char *);
 static bool checkConnectionSupport(InitConfigFileParser::Context & ctx, const char *);
 static bool transformConnection(InitConfigFileParser::Context & ctx, const char *);
+static bool uniqueConnection(InitConfigFileParser::Context & ctx, const char *);
 static bool applyDefaultValues(InitConfigFileParser::Context & ctx, const char *);
 static bool checkMandatory(InitConfigFileParser::Context & ctx, const char *);
 static bool fixPortNumber(InitConfigFileParser::Context & ctx, const char *);
@@ -122,7 +123,7 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  transformConnection, 0 },
   { "SHM",  transformConnection, 0 },
   { "SCI",  transformConnection, 0 },
-
+  
   { DB_TOKEN,   fixNodeHostname, 0 },
   { API_TOKEN,  fixNodeHostname, 0 },
   { MGM_TOKEN,  fixNodeHostname, 0 },
@@ -133,6 +134,10 @@ ConfigInfo::m_SectionRules[] = {
   { "SHM",  fixNodeId, "NodeId2" },
   { "SCI",  fixNodeId, "NodeId1" },
   { "SCI",  fixNodeId, "NodeId2" },
+  
+  { "TCP",  uniqueConnection, "TCP" },
+  { "SHM",  uniqueConnection, "SHM" },
+  { "SCI",  uniqueConnection, "SCI" },
 
   { "TCP",  fixHostname, "HostName1" },
   { "TCP",  fixHostname, "HostName2" },
@@ -4383,6 +4388,47 @@ checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
     return false;
   }
 
+  return true;
+}
+
+/**
+ * Connection rule: allow only one connection between each node pair.
+ */
+static bool
+uniqueConnection(InitConfigFileParser::Context & ctx, const char * data)
+{
+  Uint32 lo_node, hi_node;
+  BaseString key;       /* Properties key to identify this link */
+  BaseString defn;      /* Value stored at key (used in error msgs) */
+  
+  /* This rule runs *after* fixNodeId, so it is guaranteed that the 
+   NodeId1 and NodeId2 properties exist and contain integers */  
+  require(ctx.m_currentSection->get("NodeId1", &lo_node) == true);
+  require(ctx.m_currentSection->get("NodeId2", &hi_node) == true);
+  
+  if(lo_node > hi_node) /* sort the node ids, low-node-first */
+  {
+    const Uint32 tmp_node = hi_node;
+    hi_node = lo_node;
+    lo_node = tmp_node;
+  }
+  
+  key.assfmt("Link_%d_%d", lo_node, hi_node);
+  
+  /* The property must not already exist */
+  if(ctx.m_userProperties.contains(key.c_str()))
+  {
+    const char * old_defn;
+    if(ctx.m_userProperties.get(key.c_str(), &old_defn))    
+      ctx.reportError("%s connection is a duplicate of the existing %s",
+                      data, old_defn);
+    return false;
+  }
+  
+  /* Set the unique link identifier property */
+  defn.assfmt("%s link from line %d", data, ctx.m_sectionLineno);
+  ctx.m_userProperties.put(key.c_str(), defn.c_str());
+  
   return true;
 }
 
