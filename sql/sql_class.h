@@ -1707,6 +1707,11 @@ public:
   inline void	end_time()    { safe_time(&start_time); }
   inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
   inline void	lock_time()   { safe_time(&time_after_lock); }
+  /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
+  inline bool	is_valid_time() 
+  { 
+    return (start_time < (time_t) MY_TIME_T_MAX); 
+  }
   inline void	insert_id(ulonglong id_arg)
   {
     last_insert_id= id_arg;
