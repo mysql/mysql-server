@@ -536,6 +536,7 @@ class sys_var_timestamp :public sys_var
 {
 public:
   sys_var_timestamp(const char *name_arg) :sys_var(name_arg) {}
+  bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   bool check_type(enum_var_type type)    { return type == OPT_GLOBAL; }
