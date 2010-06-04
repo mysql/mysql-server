@@ -134,6 +134,10 @@ static PFS_events_waits *thread_history_array= NULL;
 static LF_HASH filename_hash;
 /** True if filename_hash is initialized. */
 static bool filename_hash_inited= false;
+C_MODE_START
+/** Get hash table key for instrumented files. */
+static uchar *filename_hash_get_key(const uchar *, size_t *, my_bool);
+C_MODE_END
 
 /**
   Initialize all the instruments instance buffers.

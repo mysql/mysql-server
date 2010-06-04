@@ -31,8 +31,11 @@
 
 PFS_global_param pfs_param;
 
+C_MODE_START
 static void destroy_pfs_thread(void *key);
-void cleanup_performance_schema(void);
+C_MODE_END
+
+static void cleanup_performance_schema(void);
 
 struct PSI_bootstrap*
 initialize_performance_schema(const PFS_global_param *param)
@@ -99,7 +102,7 @@ static void destroy_pfs_thread(void *key)
     destroy_thread(pfs);
 }
 
-void cleanup_performance_schema(void)
+static void cleanup_performance_schema(void)
 {
   cleanup_instruments();
   cleanup_sync_class();

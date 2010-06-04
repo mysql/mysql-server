@@ -3685,7 +3685,7 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
   three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info,
+const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_func,
                               const char *calling_file,
                               const unsigned int calling_line);
