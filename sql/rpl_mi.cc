@@ -36,9 +36,9 @@ Master_info::Master_info(bool is_slave_recovery)
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), 
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY), inited(0), 
    rli(is_slave_recovery), abort_slave(0), 
-   slave_running(0), slave_run_id(0), sync_counter(0),
-   heartbeat_period(0), received_heartbeats(0), master_id(0),
-   retry_count(master_retry_count)
+   slave_running(0), slave_run_id(0), clock_diff_with_master(0), 
+   sync_counter(0), heartbeat_period(0), received_heartbeats(0), 
+   master_id(0), retry_count(master_retry_count)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
