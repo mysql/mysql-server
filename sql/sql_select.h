@@ -142,13 +142,25 @@ enum enum_nested_loop_state
 
 typedef enum_nested_loop_state
 (*Next_select_func)(JOIN *, struct st_join_table *, bool);
+
+/*
+  Function prototype for reading first record for a join tab
+
+  RETURN
+     0     - OK
+    -1     - Record not found
+    Other  - Error
+*/
 typedef int (*Read_record_func)(struct st_join_table *tab);
+
 Next_select_func setup_end_select_func(JOIN *join);
 int rr_sequential(READ_RECORD *info);
+int rr_sequential_and_unpack(READ_RECORD *info);
 
 
 class JOIN_CACHE;
 class SJ_TMP_TABLE;
+class JOIN_TAB_RANGE;
 
 typedef struct st_join_table {
   st_join_table() {}                          /* Remove gcc warning */
@@ -173,6 +185,14 @@ typedef struct st_join_table {
   st_join_table *last_inner;    /**< last table table for embedding outer join */
   st_join_table *first_upper;  /**< first inner table for embedding outer join */
   st_join_table *first_unmatched; /**< used for optimization purposes only     */
+
+  /*
+    psergey2:  for join tabs that are inside a bush: root of this bush.
+  */
+  st_join_table *bush_root_tab;
+  bool          last_leaf_in_bush;
+
+  JOIN_TAB_RANGE *bush_children;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   const char	*info;
@@ -211,6 +231,8 @@ typedef struct st_join_table {
     E(#records) is in found_records.
   */
   double        read_time;
+
+  ha_rows       records_read;
   
   /* Startup cost for execution */
   double        startup_cost;
@@ -292,7 +314,7 @@ typedef struct st_join_table {
   /*
     Semi-join strategy to be used for this join table. This is a copy of
     POSITION::sj_strategy field. This field is set up by the
-    fix_semijion_strategies_for_picked_join_order.
+    fix_semijoin_strategies_for_picked_join_order.
   */
   uint sj_strategy;
 
@@ -1365,17 +1387,29 @@ inline bool sj_is_materialize_strategy(uint strategy)
 }
 
 
+class JOIN_TAB_RANGE: public Sql_alloc
+{
+public:
+  JOIN_TAB *start;
+  JOIN_TAB *end;
+};
+
+
 class JOIN :public Sql_alloc
 {
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 public:
-  JOIN_TAB *join_tab,**best_ref;
+  JOIN_TAB *join_tab, **best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
+
+  List<JOIN_TAB_RANGE> join_tab_ranges;
+  
   /*
     Base tables participating in the join. After join optimization is done, the
-    tables are stored in the join order.
+    tables are stored in the join order (but the only really important part is 
+    that const tables are first).
   */
   TABLE    **table;
   /**
@@ -1387,6 +1421,13 @@ public:
   uint	   tables;        /**< Number of tables in the join */
   uint     outer_tables;  /**< Number of tables that are not inside semijoin */
   uint     const_tables;
+  /* 
+    Number of tables in the top join_tab array. Normally this matches
+    (join_tab_ranges.head()->end - join_tab_ranges.head()->start). 
+    
+    We keep it here so that it is saved/restored with JOIN::restore_tmp.
+  */
+  uint     top_jtrange_tables;
   uint	   send_group_parts;
   bool	   group;          /**< If query contains GROUP BY clause */
   /**
@@ -1595,6 +1636,7 @@ public:
     join_tab= join_tab_save= 0;
     table= 0;
     tables= 0;
+    top_jtrange_tables= 0;
     const_tables= 0;
     eliminated_tables= 0;
     join_list= 0;
@@ -1933,6 +1975,7 @@ COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
 int test_if_item_cache_changed(List<Cached_item> &list);
 void calc_used_field_length(THD *thd, JOIN_TAB *join_tab);
 int join_init_read_record(JOIN_TAB *tab);
+int join_read_record_no_init(JOIN_TAB *tab);
 void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key);
 inline Item * and_items(Item* cond, Item *item)
 {

@@ -372,5 +372,5 @@ void get_delayed_table_estimates(TABLE *table,
                                  double *scan_time,
                                  double *startup_cost);
 
-bool do_jtbm_materialization_if_needed(JOIN_TAB *tab);
+bool join_tab_execution_startup(JOIN_TAB *tab);
 

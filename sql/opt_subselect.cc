@@ -2607,6 +2607,9 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
   }
 }
 
+enum_nested_loop_state 
+end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+
 /*
   Setup semi-join materialization strategy for one semi-join nest
   
@@ -2628,10 +2631,11 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     TRUE   Error
 */
 
-bool setup_sj_materialization(JOIN_TAB *tab)
+bool setup_sj_materialization(JOIN_TAB *sjm_tab)
 {
   uint i;
   DBUG_ENTER("setup_sj_materialization");
+  JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
@@ -2659,10 +2663,13 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     DBUG_RETURN(TRUE); /* purecov: inspected */
   sjm->table->file->extra(HA_EXTRA_WRITE_CACHE);
   sjm->table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  //psergey2-todo: need this or can take advantage of re-init functionality?
   tab->join->sj_tmp_tables.push_back(sjm->table);
   tab->join->sjm_info_list.push_back(sjm);
   
   sjm->materialized= FALSE;
+  sjm_tab->table= sjm->table;
+
   if (!sjm->is_sj_scan)
   {
     KEY           *tmp_key; /* The only index on the temporary table. */
@@ -2675,8 +2682,9 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
-      DBUG_RETURN(TRUE); /* purecov: inspected */
+    //if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
+    //  DBUG_RETURN(TRUE); /* purecov: inspected */
+    tab_ref= &sjm_tab->ref;
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
     if (!(tab_ref->key_buff=
@@ -2733,6 +2741,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     if (!(sjm->in_equality= create_subq_in_equalities(thd, sjm,
                                                       emb_sj_nest->sj_subq_pred)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
+    sjm_tab->type= JT_EQ_REF;
   }
   else
   {
@@ -2818,7 +2827,17 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       /* The write_set for source tables must be set up to allow the copying */
       bitmap_set_bit(copy_to->table->write_set, copy_to->field_index);
     }
+    sjm_tab->type= JT_ALL;
+
+    /* Initialize full scan */
+    sjm_tab->read_first_record= join_read_record_no_init;
+    sjm_tab->read_record.copy_field= sjm->copy_field;
+    sjm_tab->read_record.copy_field_end= sjm->copy_field +
+                                         sjm->sjm_table_cols.elements;
+    sjm_tab->read_record.read_record= rr_sequential_and_unpack;
   }
+
+  sjm_tab->bush_children->end[-1].next_select= end_sj_materialize;
 
   DBUG_RETURN(FALSE);
 }
@@ -3919,8 +3938,26 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 }
 
 
-bool do_jtbm_materialization_if_needed(JOIN_TAB *tab)
+/*
+  Join tab execution startup function. 
+
+  DESCRIPTION
+    Join tab execution startup function. This is different from
+    tab->read_first_record in the regard that this has actions that are to be
+    done once per join execution.
+
+    Currently there are only two possible startup functions, so we have them
+    both here inside if (...) branches. In future we could switch to function
+    pointers.
+  
+  RETURN 
+    FALSE  Ok
+    TRUE   Error, join execution is not possible.
+*/
+
+bool join_tab_execution_startup(JOIN_TAB *tab)
 {
+  DBUG_ENTER("join_tab_execution_startup");
   Item_in_subselect *in_subs;
   if (tab->table->pos_in_table_list && 
       (in_subs= tab->table->pos_in_table_list->jtbm_subselect))
@@ -3936,9 +3973,54 @@ bool do_jtbm_materialization_if_needed(JOIN_TAB *tab)
       hash_sj_engine->is_materialized= TRUE; 
 
       if (hash_sj_engine->materialize_join->error || tab->join->thd->is_fatal_error)
-        return TRUE;
+        DBUG_RETURN(TRUE);
     }
   }
-  return FALSE;
+  else if (tab->bush_children)
+  {
+    /* It's a merged SJM nest */
+    int rc; // psergey3: todo: error codes!
+    JOIN *join= tab->join;
+    SJ_MATERIALIZATION_INFO *sjm= tab->bush_children->start->emb_sj_nest->sj_mat_info;
+    JOIN_TAB *join_tab= tab->bush_children->start;
+
+    if (!sjm->materialized)
+    {
+      /*
+        Now run the join for the inner tables. The first call is to run the
+        join, the second one is to signal EOF (this is essential for some
+        join strategies, e.g. it will make join buffering flush the records)
+      */
+      if ((rc= sub_select(join, join_tab, FALSE/* no EOF */)) < 0 ||
+          (rc= sub_select(join, join_tab, TRUE/* now EOF */)) < 0)
+      {
+        //psergey3-todo: set sjm->materialized=TRUE here, too??
+        DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
+      }
+      /*
+        Ok, materialization finished. Initialize the access to the temptable
+      */
+      sjm->materialized= TRUE;
+#if 0 
+      psergey3: already done at setup:
+      if (sjm->is_sj_scan)
+      {
+        /* Initialize full scan */
+        JOIN_TAB *last_tab= join_tab + (sjm->tables - 1);
+        init_read_record(&last_tab->read_record, join->thd,
+                         sjm->table, NULL, TRUE, TRUE, FALSE);
+
+        DBUG_ASSERT(last_tab->read_record.read_record == rr_sequential);
+        last_tab->read_first_record= join_read_record_no_init;
+        last_tab->read_record.copy_field= sjm->copy_field;
+        last_tab->read_record.copy_field_end= sjm->copy_field +
+                                              sjm->sjm_table_cols.elements;
+        last_tab->read_record.read_record= rr_sequential_and_unpack;
+      }
+#endif       
+    }
+  }
+
+  DBUG_RETURN(0);
 }
 
