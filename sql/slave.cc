@@ -1226,6 +1226,29 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   }
 
   /*
+    to set up the new session checksum_alg that could be one of two:
+    Relay log initial or the preceeding session's description_event_for_queue 
+    (FD_q).
+    The value is necessary to relay-log the first slave's Rotate.
+    Notice, the value won't be used at time the fake Rotate from master is received.
+    The one, if with checksum, will be verified by means
+    @c mi->checksum_alg_before_fd alg. The first appearence of the master' FD
+    will cancel mi->checksum_alg_before_fd usage.
+    In the following course FD_q will
+    change each time a FD from master has arrived and with it the
+    actual checksum_alg can be altered. The actual master's value
+    affect on how slave threads create own relay-log events (Rotate,
+    FD, Stop) execept the FD of the very first relay log.
+  */
+
+  mi->rli.relay_log.description_event_for_queue->checksum_alg=
+    (mi->last_master_checksum_alg != (uint8) -1) ? mi->last_master_checksum_alg :
+    mi->rli.relay_log.relay_log_checksum_alg;
+
+  DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg != (uint8) -1);
+  DBUG_ASSERT(mi->rli.relay_log.relay_log_checksum_alg != (uint8) -1); 
+
+  /*
     Compare the master and slave's clock. Do not die if master's clock is
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
   */
@@ -1481,35 +1504,87 @@ when it try to get the value of TIME_ZONE global variable from master.";
   }
   
   /*
-    Notifying the master about CRC-awareness of this slave
+    Querying if master is capable to checksum and notifying it about own
+    CRC-awareness. The master's side instant value of @@global.binlog_checksum 
+    is stored in the dump thread's uservar area as well as cached locally
+    to become known in consensus by master and slave.
   */
+  DBUG_EXECUTE_IF("simulate_slave_unaware_checksum",
+                  mi->checksum_alg_before_fd= 0;
+                  goto past_checksum;);
   {
     int rc;
-    const char query[]= "SET @slave_is_checksum_aware= 1";
+    const char query[]= "SET @master_binlog_checksum= @@global.binlog_checksum";
+    master_res= NULL;
+    mi->checksum_alg_before_fd= (uint8) -1;  // initially undefined
+    /*
+      @c checksum_alg_before_fd is queried from master in this block.
+      If master is old checksum-unaware the value stays undefined.
+      Once the first FD will be received its alg descriptor will replace
+      the being queried one.
+    */
     rc= mysql_real_query(mysql, query, strlen(query));
-    if (rc == 0)
-      mysql_free_result(mysql_store_result(mysql));
-    else 
-      if (is_network_error(mysql_errno(mysql)))
+    if (rc != 0)
+    {
+      if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
       {
+        // this is tolerable as OM -> NS is supported
         mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                   "Notifying master by SET @slave_is_checksum_aware failed with "
-                   "error: %s", mysql_error(mysql));
-        mysql_free_result(mysql_store_result(mysql));
-        goto network_err;
+                   "Notifying master by %s failed with "
+                   "error: %s", query, mysql_error(mysql));
       }
-      else
+      else         
       {
-        errmsg= "The slave I/O thread stops because a fatal error is encountered "
-          "when it tried to SET @slave_is_checksum on master.";
-        err_code= ER_SLAVE_FATAL_ERROR;
-        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
-        mysql_free_result(mysql_store_result(mysql));
-        goto err;
+        if (is_network_error(mysql_errno(mysql)))
+        {
+          mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                     "Notifying master by %s failed with "
+                     "error: %s", query, mysql_error(mysql));
+          mysql_free_result(mysql_store_result(mysql));
+          goto network_err;
+        }
+        else
+        {
+          errmsg= "The slave I/O thread stops because a fatal error is encountered "
+            "when it tried to SET @master_binlog_checksum on master.";
+          err_code= ER_SLAVE_FATAL_ERROR;
+          sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+          mysql_free_result(mysql_store_result(mysql));
+          goto err;
+        }
       }
+    }
     mysql_free_result(mysql_store_result(mysql));
+    if (!mysql_real_query(mysql,
+                          STRING_WITH_LEN("SELECT @master_binlog_checksum")) &&
+        (master_res= mysql_store_result(mysql)) &&
+        (master_row= mysql_fetch_row(master_res)))
+    {
+      // TODO: text name to alg id conversion
+      mi->checksum_alg_before_fd= strtoul(master_row[0], 0, 10);
+    }
+    else if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      // this is tolerable as OM -> NS is supported
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master BINLOG_CHECKSUM failed with error: %s", mysql_error(mysql));
+      // this master won't send checksum
+      mi->checksum_alg_before_fd= 0;
+    }
+    else if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master BINLOG_CHECKSUM failed with error: %s", mysql_error(mysql));
+      goto network_err;
+    }
+    if (master_res)
+    {
+      mysql_free_result(master_res);
+      master_res= NULL;
+    }
   }
 
+past_checksum:
 err:
   if (errmsg)
   {
@@ -3543,10 +3618,12 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   */
   if (mi->rli.relay_log.description_event_for_queue->binlog_version >= 4)
   {
+    uint8 last_alg= mi->rli.relay_log.description_event_for_queue->checksum_alg;
     delete mi->rli.relay_log.description_event_for_queue;
     /* start from format 3 (MySQL 4.0) again */
     mi->rli.relay_log.description_event_for_queue= new
       Format_description_log_event(3);
+    mi->rli.relay_log.description_event_for_queue->checksum_alg= last_alg;    
   }
   /*
     Rotate the relay log makes binlog format detection easier (at next slave
@@ -3782,10 +3859,32 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   pthread_mutex_t *log_lock= rli->relay_log.get_log_lock();
   ulong s_id;
   bool unlock_data_lock= TRUE;
-  uint16 flags= uint2korr(buf + FLAGS_OFFSET);
-  DBUG_ENTER("queue_event");
+  /*
+    FD_q must have been prepared for the first R_a event
+    inside get_master_version_and_clock()
+    Show-up of FD:s affects checksum_alg at once because
+    that changes FD_queue.
+  */
+  uint8 checksum_alg= mi->checksum_alg_before_fd != (uint8) -1 ? 
+    mi->checksum_alg_before_fd :
+    mi->rli.relay_log.description_event_for_queue->checksum_alg;
 
-  if (event_checksum_test((uchar *) buf, event_len))
+  char *save_buf;
+  char rot_buf[LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + FN_REFLEN];
+
+  DBUG_ASSERT(checksum_alg == 0 || checksum_alg == BINLOG_CHECKSUM_ALG_CRC32); 
+
+  DBUG_ENTER("queue_event");
+  /*
+    FD_queue checksum alg description does not apply in a case of
+    FD itself. The one carries both parts of the checksum data.
+  */
+  if (buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+  {
+    checksum_alg= get_checksum_alg(buf, event_len);
+  }
+
+  if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
   {
     error= ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE;
     unlock_data_lock= FALSE;
@@ -3818,16 +3917,57 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto err;
   case ROTATE_EVENT:
   {
-    Rotate_log_event rev(buf,
-			 (flags & LOG_EVENT_CHECKSUM_F) ?
-                         event_len - BINLOG_CHECKSUM_SIGNATURE_LEN : event_len,
+    Rotate_log_event rev(buf, checksum_alg != 0 ?
+                         event_len - BINLOG_CHECKSUM_LEN : event_len,
                          mi->rli.relay_log.description_event_for_queue);
 
-    if (unlikely(process_io_rotate(mi,&rev)))
+    if (unlikely(process_io_rotate(mi, &rev)))
     {
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
     }
+    /* 
+       Checksum special cases for Rotate event caused by protocol
+       of events serialization where Rotate of master is queued right next to
+       FD of slave.
+       Since it's only FD that carries the alg desc of checksum (FD_s, R_m) has to be
+       compatible in that R_m checksum verification is based on info inside FD_s.
+       
+       RSC_1: If OM \and fake Rotate \and slave is configured to
+              to compute checksum for its first FD event for RL
+              the fake Rotate gets checksummed here.
+    */
+    if (uint4korr(&buf[0]) == 0 && checksum_alg == 0 &&
+        mi->rli.relay_log.relay_log_checksum_alg == 1)
+    {
+      ha_checksum rot_crc= my_checksum(0L, NULL, 0);
+      event_len += BINLOG_CHECKSUM_LEN;
+      memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
+      int4store(&rot_buf[EVENT_LEN_OFFSET],
+                uint4korr(&rot_buf[EVENT_LEN_OFFSET]) + BINLOG_CHECKSUM_LEN);
+      rot_crc= my_checksum(rot_crc, (const uchar *) rot_buf,
+                           event_len - BINLOG_CHECKSUM_LEN);
+      int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
+      DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
+      save_buf= (char *) buf;
+      buf= rot_buf;
+    }
+    else
+      /*
+        RSC_2: If NM \and fake Rotate \and slave does not compute checksum
+        the fake Rotate's checksum is stripped off before relay-logging.
+      */
+      if (uint4korr(&buf[0]) == 0 && checksum_alg == 1 &&
+          mi->rli.relay_log.relay_log_checksum_alg == 0)
+      {
+        event_len -= BINLOG_CHECKSUM_LEN;
+        memcpy(rot_buf, buf, event_len);
+        int4store(&rot_buf[EVENT_LEN_OFFSET],
+                  uint4korr(&rot_buf[EVENT_LEN_OFFSET]) - BINLOG_CHECKSUM_LEN);
+        DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
+        save_buf= (char *) buf;
+        buf= rot_buf;
+      }
     /*
       Now the I/O thread has just changed its mi->master_log_name, so
       incrementing mi->master_log_pos is nonsense.
@@ -3848,16 +3988,18 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     Format_description_log_event* tmp;
     const char* errmsg;
+    mi->checksum_alg_before_fd= (uint8) -1; // mark it as undefined/irrelevant
     if (!(tmp= (Format_description_log_event*)
           Log_event::read_log_event(buf, event_len, &errmsg,
                                     mi->rli.relay_log.description_event_for_queue,
-                                    0)))
+                                    1)))
     {
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
     }
     delete mi->rli.relay_log.description_event_for_queue;
     mi->rli.relay_log.description_event_for_queue= tmp;
+    mi->last_master_checksum_alg= tmp->checksum_alg;
     /*
        Though this does some conversion to the slave's format, this will
        preserve the master's binlog format version, and number of event types.
@@ -3880,9 +4022,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     char  llbuf[22];
     Heartbeat_log_event hb(buf,
-                           ((flags & LOG_EVENT_CHECKSUM_F) ==
-                            LOG_EVENT_CHECKSUM_F) ?
-                           event_len - BINLOG_CHECKSUM_SIGNATURE_LEN: event_len,
+                           mi->rli.relay_log.description_event_for_queue->checksum_alg
+                           != 0 ? event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->rli.relay_log.description_event_for_queue);
     if (!hb.is_valid())
     {
@@ -4005,6 +4146,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
     }
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
+    if (save_buf != NULL)
+      buf= save_buf;
   }
   pthread_mutex_unlock(log_lock);
 

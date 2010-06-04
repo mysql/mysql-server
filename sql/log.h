@@ -321,6 +321,10 @@ public:
   ulong signal_cnt;  // update of the counter is checked by heartbeat
   bool checksum_flip; // sets to true at time opt_binlog_checksum is changing
   /*
+    to hold the slave's preference how to compute checksum for its own events.
+  */
+  uint8 relay_log_checksum_alg;
+  /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
     necessary to have 2 distinct objects, because the I/O thread may be reading

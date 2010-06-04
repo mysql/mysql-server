@@ -490,13 +490,6 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
-   @def LOG_EVENT_CHECKSUM_F
-   
-   Events with checksum (currently CRC32 alg)
-*/
-#define LOG_EVENT_CHECKSUM_F 0x80
-
-/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -541,9 +534,6 @@ enum enum_binlog_checksum_alg {
 */
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
-/* the total contribution to event header is union of alg desc and value */
-#define BINLOG_CHECKSUM_SIGNATURE_LEN \
-  (BINLOG_CHECKSUM_LEN + BINLOG_CHECKSUM_ALG_DESC_LEN)
 
 /**
   @enum Log_event_type
@@ -1012,7 +1002,7 @@ public:
                                    *description_event,
                                    my_bool crc_check);
   static int read_log_event(IO_CACHE* file, String* packet,
-			    pthread_mutex_t* log_lock);
+			    pthread_mutex_t* log_lock, uint8 checksum_alg_arg);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
@@ -1048,6 +1038,17 @@ public:
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
 #endif
+  /* 
+     The value is set by caller of FD constructor and
+     Log_event::write_header() for the rest.
+     In the FD case it's propagated into the last byte 
+     of post_header_len[] at FD::write().
+     On the slave side the value is assigned from post_header_len[last] 
+     of the last seen FD event.
+  */
+  uint8 checksum_alg;
+  /* relay log flagged events checksum alg can be different than master alg */
+  uint8 rl_events_checksum_alg;
 
   static void *operator new(size_t size)
   {
@@ -2284,7 +2285,10 @@ public:
   */
   uint8 common_header_len;
   uint8 number_of_event_types;
-  /* The list of post-headers' lengthes */
+  /* 
+     The list of post-headers' lengths followed 
+     by the checksum alg decription byte
+  */
   uint8 *post_header_len;
   uchar server_version_split[3];
   const uint8 *event_type_permutation;
@@ -4079,6 +4083,7 @@ private:
   @} (end of group Replication)
 */
 
-bool
-event_checksum_test(uchar *buf, ulong event_len);
+bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
+uint8 get_checksum_alg(const char* buf, ulong len);
+
 #endif /* _log_event_h */
