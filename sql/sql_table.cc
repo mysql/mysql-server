@@ -7668,27 +7668,6 @@ view_err:
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
     DBUG_RETURN(TRUE);
 
-  if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))
-  {
-    /*
-      For the alter table to be properly flushed to the logs, we
-      have to open the new table.  If not, we get a problem on server
-      shutdown. But we do not need to attach MERGE children.
-    */
-    char path[FN_REFLEN];
-    TABLE *t_table;
-    build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_temporary_table(thd, path, new_db, tmp_name, 0);
-    if (t_table)
-    {
-      intern_close_table(t_table);
-      my_free(t_table, MYF(0));
-    }
-    else
-      sql_print_warning("Could not open table %s.%s after rename\n",
-                        new_db,table_name);
-    ha_flush_logs(old_db_type);
-  }
   table_list->table=0;				// For query cache
   query_cache_invalidate3(thd, table_list, 0);
 

@@ -1276,6 +1276,7 @@ sp_drop_db_routines(THD *thd, char *db)
   TABLE *table;
   int ret;
   uint key_len;
+  uchar keybuf[MAX_KEY_LENGTH];
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
 
@@ -1285,12 +1286,14 @@ sp_drop_db_routines(THD *thd, char *db)
 
   table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
   key_len= table->key_info->key_part[0].store_length;
+  table->field[MYSQL_PROC_FIELD_DB]->get_key_image(keybuf, key_len, Field::itRAW);
+
+
 
   ret= SP_OK;
   table->file->ha_index_init(0, 1);
-  if (!table->file->ha_index_read_map(table->record[0],
-                                      (uchar *) table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                      (key_part_map)1, HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_map(table->record[0], keybuf, (key_part_map)1,
+                                      HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;
@@ -1305,11 +1308,8 @@ sp_drop_db_routines(THD *thd, char *db)
 	nxtres= 0;
 	break;
       }
-    } while (!(nxtres= table->file->
-               ha_index_next_same(table->record[0],
-                                  (uchar *)table->field[MYSQL_PROC_FIELD_DB]->
-                                  ptr,
-                                  key_len)));
+    } while (!(nxtres= table->file->ha_index_next_same(table->record[0],
+                                                       keybuf, key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
     if (deleted)

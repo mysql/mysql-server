@@ -64,9 +64,8 @@ private:
     partition_index_first= 1,
     partition_index_first_unordered= 2,
     partition_index_last= 3,
-    partition_index_read_last= 4,
-    partition_read_range = 5,
-    partition_no_index_scan= 6
+    partition_read_range = 4,
+    partition_no_index_scan= 5
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -458,8 +457,6 @@ public:
   virtual int index_first(uchar * buf);
   virtual int index_last(uchar * buf);
   virtual int index_next_same(uchar * buf, const uchar * key, uint keylen);
-  virtual int index_read_last_map(uchar * buf, const uchar * key,
-                                  key_part_map keypart_map);
 
   /*
     read_first_row is virtual method but is only implemented by

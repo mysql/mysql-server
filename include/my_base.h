@@ -300,6 +300,7 @@ enum ha_base_keytype {
 */
 #define HA_END_SPACE_ARE_EQUAL	 512
 #define HA_BIT_PART		1024
+#define HA_CAN_MEMCMP           2048 /* internal, never stored in frm */
 
 	/* optionbits for database */
 #define HA_OPTION_PACK_RECORD		1

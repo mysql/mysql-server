@@ -2044,12 +2044,6 @@ handler *handler::clone(MEM_ROOT *mem_root)
 }
 
 
-
-void handler::ha_statistic_increment(ulong SSV::*offset) const
-{
-  status_var_increment(table->in_use->status_var.*offset);
-}
-
 void **handler::ha_data(THD *thd) const
 {
   return thd_ha_data(thd, ht);
@@ -2131,8 +2125,6 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   register int error;
   DBUG_ENTER("handler::read_first_row");
 
-  ha_statistic_increment(&SSV::ha_read_first_count);
-
   /*
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
@@ -2142,14 +2134,14 @@ int handler::read_first_row(uchar * buf, uint primary_key)
       !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
     (void) ha_rnd_init(1);
-    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
+    while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
     (void) ha_rnd_end();
   }
   else
   {
     /* Find the first row through the primary key */
     if (!(error = ha_index_init(primary_key, 0)))
-      error= index_first(buf);
+      error= ha_index_first(buf);
     (void) ha_index_end();
   }
   DBUG_RETURN(error);
@@ -2520,10 +2512,10 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
-  index_init(table->s->next_number_index, 1);
+  ha_index_init(table->s->next_number_index, 1);
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
-    error=index_last(table->record[1]);
+    error=ha_index_last(table->record[1]);
     /*
       MySQL implicitely assumes such method does locking (as MySQL decides to
       use nr+increment without checking again with the handler, in
@@ -2555,7 +2547,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   else
     nr= ((ulonglong) table->next_number_field->
          val_int_offset(table->s->rec_buff_length)+1);
-  index_end();
+  ha_index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   *first_value= nr;
 }
@@ -3110,6 +3102,33 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   return update_frm_version(table);
 }
 
+/*
+  Calculate cost of 'index only' scan for given index and number of records.
+
+  SYNOPSIS
+  handler->keyread_read_time()
+      index    key to read
+      ranges   number of ranges
+      rows     #of records to read
+
+  NOTES
+    It is assumed that we will read trough all key ranges and that all
+    key blocks are half full (normally things are much better). It is also
+    assumed that each time we read the next key from the index, the handler
+    performs a random seek, thus the cost is proportional to the number of
+    blocks read.
+*/
+
+double handler::keyread_read_time(uint index, uint ranges, ha_rows rows)
+{
+  double read_time;
+  uint keys_per_block= (stats.block_size/2/
+			(table->key_info[index].key_length + ref_length) + 1);
+  read_time=((double) (rows+keys_per_block-1)/ (double) keys_per_block);
+  return read_time;
+}
+
+
 /**
   A helper function to mark a transaction read-write,
   if it is started.
@@ -3503,7 +3522,7 @@ int ha_enable_transaction(THD *thd, bool on)
 int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int error;
-  DBUG_ENTER("index_next_same");
+  DBUG_ENTER("handler::index_next_same");
   if (!(error=index_next(buf)))
   {
     my_ptrdiff_t ptrdiff= buf - table->record[0];
@@ -3548,6 +3567,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
         key_part->field->move_field_offset(-ptrdiff);
     }
   }
+  DBUG_PRINT("return",("%i", error));
   DBUG_RETURN(error);
 }
 
@@ -4598,6 +4618,8 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
 
   if (!result)
     my_eof(thd);
+  else if (!thd->is_error())
+    my_error(ER_GET_ERRNO, MYF(0), 0);
   return result;
 }
 
@@ -4798,6 +4820,7 @@ int handler::ha_write_row(uchar *buf)
   DBUG_ENTER("handler::ha_write_row");
 
   mark_trx_read_write();
+  increment_statistics(&SSV::ha_write_count);
 
   if (unlikely(error= write_row(buf)))
     DBUG_RETURN(error);
@@ -4820,6 +4843,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
 
   mark_trx_read_write();
+  increment_statistics(&SSV::ha_update_count);
 
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
@@ -4835,6 +4859,7 @@ int handler::ha_delete_row(const uchar *buf)
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
 
   mark_trx_read_write();
+  increment_statistics(&SSV::ha_delete_count);
 
   if (unlikely(error= delete_row(buf)))
     return error;

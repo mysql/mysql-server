@@ -3133,4 +3133,150 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
 
+/*
+  inline handler methods that need to know TABLE and THD structures
+*/
+inline void handler::increment_statistics(ulong SSV::*offset) const
+{
+  status_var_increment(table->in_use->status_var.*offset);
+}
+
+inline void handler::decrement_statistics(ulong SSV::*offset) const
+{
+  status_var_decrement(table->in_use->status_var.*offset);
+}
+
+inline int handler::ha_index_read_map(uchar * buf, const uchar * key,
+                                      key_part_map keypart_map,
+                                      enum ha_rkey_function find_flag)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_key_count);
+  int error= index_read_map(buf, key, keypart_map, find_flag);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_read_idx_map(uchar * buf, uint index,
+                                          const uchar * key,
+                                          key_part_map keypart_map,
+                                          enum ha_rkey_function find_flag)
+{
+  increment_statistics(&SSV::ha_read_key_count);
+  int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  if (!error)
+  {
+    rows_read++;
+    index_rows_read[index]++;
+  }
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_next(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_next_count);
+  int error= index_next(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_prev(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_prev_count);
+  int error= index_prev(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_first(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_first_count);
+  int error= index_first(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_last(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_last_count);
+  int error= index_last(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_next_same(uchar *buf, const uchar *key,
+                                       uint keylen)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_next_count);
+  int error= index_next_same(buf, key, keylen);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_ft_read(uchar *buf)
+{
+  int error= ft_read(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_next(uchar *buf)
+{
+  increment_statistics(&SSV::ha_read_rnd_next_count);
+  int error= rnd_next(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_pos(uchar *buf, uchar *pos)
+{
+  increment_statistics(&SSV::ha_read_rnd_count);
+  int error= rnd_pos(buf, pos);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_pos_by_record(uchar *buf)
+{
+  int error= rnd_pos_by_record(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_read_first_row(uchar *buf, uint primary_key)
+{
+  int error= read_first_row(buf, primary_key);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+
 #endif /* MYSQL_SERVER */

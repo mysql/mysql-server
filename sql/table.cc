@@ -1594,6 +1594,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         */
         if (field->real_maybe_null())
           key_part->key_part_flag|= HA_NULL_PART;
+        /*
+          Sometimes we can compare key parts for equality with memcmp.
+          But not always.
+        */
+        if (!(key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
+                                         HA_BIT_PART)) &&
+            key_part->type != HA_KEYTYPE_FLOAT &&
+            key_part->type == HA_KEYTYPE_DOUBLE)
+          key_part->key_part_flag|= HA_CAN_MEMCMP;
       }
       keyinfo->usable_key_parts= usable_parts; // Filesort
 

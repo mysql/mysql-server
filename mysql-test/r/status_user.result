@@ -100,8 +100,8 @@ Handler_commit	19
 Handler_delete	1
 Handler_discover	0
 Handler_prepare	18
-Handler_read_first	1
-Handler_read_key	8
+Handler_read_first	0
+Handler_read_key	3
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -113,7 +113,7 @@ Handler_update	5
 Handler_write	7
 select variable_value - @global_read_key as "handler_read_key" from information_schema.global_status where variable_name="handler_read_key";
 handler_read_key
-8
+3
 set @@global.userstat=0;
 select * from information_schema.index_statistics;
 TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ

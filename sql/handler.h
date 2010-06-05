@@ -843,7 +843,6 @@ inline LEX_STRING *hton_name(const handlerton *hton)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
 #define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
 #define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
-#define HTON_FLUSH_AFTER_RENAME      (1 << 4)
 #define HTON_NOT_USER_SELECTABLE     (1 << 5)
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
@@ -1439,6 +1438,7 @@ public:
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
+  virtual double keyread_read_time(uint index, uint ranges, ha_rows rows);
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
@@ -1572,17 +1572,6 @@ protected:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
-  /**
-     @brief
-     The following functions works like index_read, but it find the last
-     row with the current key value or prefix.
-  */
-  virtual int index_read_last_map(uchar * buf, const uchar * key,
-                                  key_part_map keypart_map)
-  {
-    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-    return index_read_last(buf, key, key_len);
-  }
   inline void update_index_statistics()
   {
     index_rows_read[active_index]++;
@@ -1593,68 +1582,15 @@ public:
   /* Similar functions like the above, but does statistics counting */
   inline int ha_index_read_map(uchar * buf, const uchar * key,
                                key_part_map keypart_map,
-                               enum ha_rkey_function find_flag)
-  {
-    int error= index_read_map(buf, key, keypart_map, find_flag);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
+                               enum ha_rkey_function find_flag);
   inline int ha_index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                    key_part_map keypart_map,
-                                   enum ha_rkey_function find_flag)
-  {
-    int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
-    if (!error)
-    {
-      rows_read++;
-      index_rows_read[index]++;
-    }
-    return error;
-  }
-  inline int ha_index_next(uchar * buf)
-  {
-    int error= index_next(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_prev(uchar * buf)
-  {
-    int error= index_prev(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_first(uchar * buf)
-  {
-    int error= index_first(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_last(uchar * buf)
-  {
-    int error= index_last(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
-  {
-    int error= index_next_same(buf, key, keylen);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_read_last_map(uchar * buf, const uchar * key,
-                                    key_part_map keypart_map)
-  {
-    int error= index_read_last_map(buf, key, keypart_map);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
+                                   enum ha_rkey_function find_flag);
+  inline int ha_index_next(uchar * buf);
+  inline int ha_index_prev(uchar * buf);
+  inline int ha_index_first(uchar * buf);
+  inline int ha_index_last(uchar * buf);
+  inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
 
   virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                      KEY_MULTI_RANGE *ranges, uint range_count,
@@ -1688,41 +1624,11 @@ private:
 public:
 
   /* Same as above, but with statistics */
-  inline int ha_ft_read(uchar *buf)
-  {
-    int error= ft_read(buf);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_rnd_next(uchar *buf)
-  {
-    int error= rnd_next(buf);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_rnd_pos(uchar *buf, uchar *pos)
-  {
-    int error= rnd_pos(buf, pos);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_rnd_pos_by_record(uchar *buf)
-  {
-    int error= rnd_pos_by_record(buf);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_read_first_row(uchar *buf, uint primary_key)
-  {
-    int error= read_first_row(buf, primary_key);
-    if (!error)
-      rows_read++;
-    return error;
-  }
+  inline int ha_ft_read(uchar *buf);
+  inline int ha_rnd_next(uchar *buf);
+  inline int ha_rnd_pos(uchar *buf, uchar *pos);
+  inline int ha_rnd_pos_by_record(uchar *buf);
+  inline int ha_read_first_row(uchar *buf, uint primary_key);
 
   /**
     The following 3 function is only needed for tables that may be
@@ -2041,8 +1947,10 @@ public:
   virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
 
 protected:
+  /* deprecated, don't use in new engines */
+  inline void ha_statistic_increment(ulong SSV::*offset) const { }
+
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulong SSV::*offset) const;
   void **ha_data(THD *) const;
   THD *ha_thd(void) const;
 
@@ -2068,6 +1976,8 @@ private:
     if (!mark_trx_done)
       mark_trx_read_write_part2();
   }
+  inline void increment_statistics(ulong SSV::*offset) const;
+  inline void decrement_statistics(ulong SSV::*offset) const;
 
   /*
     Low-level primitives for storage engines.  These should be
@@ -2155,8 +2065,6 @@ private:
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
-   { return (my_errno= HA_ERR_WRONG_COMMAND); }
   /**
     This method is similar to update_row, however the handler doesn't need
     to execute the updates at this point in time. The handler can be certain

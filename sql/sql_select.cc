@@ -12249,9 +12249,10 @@ join_read_last_key(JOIN_TAB *tab)
   }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
-  if ((error= table->file->ha_index_read_last_map(table->record[0],
-                                                  tab->ref.key_buff,
-                                                  make_prev_keypart_map(tab->ref.key_parts))))
+  if ((error= table->file->ha_index_read_map(table->record[0],
+                                            tab->ref.key_buff,
+                                     make_prev_keypart_map(tab->ref.key_parts),
+                                            HA_READ_PREFIX_LAST)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
