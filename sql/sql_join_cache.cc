@@ -1830,7 +1830,8 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     join_tab->select->quick= 0;
   }
 
-  for (tab= join->join_tab; tab != join_tab ; tab++)
+  //for (tab= join->join_tab; tab != join_tab ; tab++)
+  for (tab= start_tab ; tab != join_tab ; tab= next_linear_tab(join, tab, TRUE))
   {
     tab->status= tab->table->status;
     tab->table->status= 0;
@@ -1894,7 +1895,8 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   if (error > 0)				// Fatal error
     rc= NESTED_LOOP_ERROR; 
 finish:                  
-  for (tab= join->join_tab; tab != join_tab ; tab++)
+  //for (tab= join->join_tab; tab != join_tab ; tab++)
+  for (tab= start_tab ; tab != join_tab ; tab= next_linear_tab(join, tab, TRUE))
     tab->table->status= tab->status;
   return rc;
 }

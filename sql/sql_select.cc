@@ -7085,7 +7085,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }       
       }
 
-      /* Push down non-constant conditions from on expressions */
+      /* Push down non-constant conditions from ON expressions */
       JOIN_TAB *last_tab= tab;
       while (first_inner_tab && first_inner_tab->last_inner == last_tab)
       { 
@@ -7103,6 +7103,11 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
              tab; 
              tab= next_linear_tab(join, tab, TRUE))
         {
+          if (!tab->table)
+          {
+            //psergey3-todo: this is probably incorrect:
+            continue;
+          }
           current_map= tab->table->map;
           used_tables2|= current_map;
           COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
@@ -7521,7 +7526,12 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   uint i= tab - join->join_tab;
 
   *icp_other_tables_ok= TRUE;
-  if (cache_level == 0 || i == join->const_tables)
+  /*
+    Don't use join cache if @@join_cache_level==0 or this table is the first
+    one join suborder (either at top level or inside a bush)
+  */
+  if (cache_level == 0 || tab == join->join_tab + join->const_tables || 
+      (tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab))
     return 0;
 
   if (options & SELECT_NO_JOIN_CACHE)
@@ -7547,8 +7557,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     Don't use join buffering if we're dictated not to by no_jbuf_after (this
     ...)
   */
-  if (!(i <= no_jbuf_after) || tab->loosescan_match_tab || 
-      sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
+  if ((!tab->bush_root_tab? !(i <= no_jbuf_after) : FALSE) || 
+       tab->loosescan_match_tab || tab->bush_children)
     goto no_join_cache;
 
   for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
