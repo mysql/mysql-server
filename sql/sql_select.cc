@@ -6060,6 +6060,8 @@ get_best_combination(JOIN *join)
       j->quick= NULL;
       sjm_nest_end= jt + sjm->tables;
       sjm_saved_tab= j;
+      root_range->end= j+1;
+
       j= jt;
       //goto loop_end_not_table;
     }
@@ -6870,7 +6872,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       if (tmp || !cond || tab->type == JT_REF || tab->type == JT_REF_OR_NULL ||
           tab->type == JT_EQ_REF || first_inner_tab)
       {
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",print_where(tmp, 
+                                         tab->table? tab->table->alias :"sjm-nest",
+                                         QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
                                        thd->memdup((uchar*) select,
                                                    sizeof(*select)));
@@ -6894,16 +6898,19 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->set_select_cond(tmp, __LINE__);
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-          tab->table->file->pushed_cond= NULL;
-	  if (thd->variables.engine_condition_pushdown && !first_inner_tab)
+          if (tab->table) //psergey3-todo: how about ICP for bushy plans?
           {
-            COND *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map, FALSE);
-            if (push_cond)
+            tab->table->file->pushed_cond= NULL;
+            if (thd->variables.engine_condition_pushdown && !first_inner_tab)
             {
-              /* Push condition to handler */
-              if (!tab->table->file->cond_push(push_cond))
-                tab->table->file->pushed_cond= push_cond;
+              COND *push_cond= 
+                make_cond_for_table(tmp, current_map, current_map, FALSE);
+              if (push_cond)
+              {
+                /* Push condition to handler */
+                if (!tab->table->file->cond_push(push_cond))
+                  tab->table->file->pushed_cond= push_cond;
+              }
             }
           }
         }
@@ -6914,7 +6921,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
 	sel->head=tab->table;
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",print_where(tmp,tab->table? tab->table->alias: "sjm-nest", QT_ORDINARY););
 	if (tab->quick)
 	{
 	  /* Use quick key read if it's a constant and it's not used
@@ -6933,7 +6940,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  }
 	  tab->quick=0;
 	}
-	uint ref_key=(uint) sel->head->reginfo.join_tab->ref.key+1;
+	uint ref_key= sel->head? (uint) sel->head->reginfo.join_tab->ref.key+1 : 0;
 	if (i == join->const_tables && ref_key)
 	{
 	  if (!tab->const_keys.is_clear_all() &&
