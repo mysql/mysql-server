@@ -500,12 +500,14 @@ protected:
     context can be accessed.  
   */   
   JOIN *join;  
-
+#if 0
   /* 
     Cardinality of the range of join tables whose fields can be put into the
     cache. (A table from the range not necessarily contributes to the cache.)
   */
   uint tables;
+#endif
+  JOIN_TAB *start_tab;
 
   /* 
     The total number of flag and data fields that can appear in a record

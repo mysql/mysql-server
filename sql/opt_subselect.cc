@@ -3983,6 +3983,7 @@ bool join_tab_execution_startup(JOIN_TAB *tab)
     JOIN *join= tab->join;
     SJ_MATERIALIZATION_INFO *sjm= tab->bush_children->start->emb_sj_nest->sj_mat_info;
     JOIN_TAB *join_tab= tab->bush_children->start;
+    JOIN_TAB *save_return_tab= join->return_tab;
 
     if (!sjm->materialized)
     {
@@ -3995,29 +3996,14 @@ bool join_tab_execution_startup(JOIN_TAB *tab)
           (rc= sub_select(join, join_tab, TRUE/* now EOF */)) < 0)
       {
         //psergey3-todo: set sjm->materialized=TRUE here, too??
+        join->return_tab= save_return_tab;
         DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
       }
       /*
         Ok, materialization finished. Initialize the access to the temptable
       */
+      join->return_tab= save_return_tab;
       sjm->materialized= TRUE;
-#if 0 
-      psergey3: already done at setup:
-      if (sjm->is_sj_scan)
-      {
-        /* Initialize full scan */
-        JOIN_TAB *last_tab= join_tab + (sjm->tables - 1);
-        init_read_record(&last_tab->read_record, join->thd,
-                         sjm->table, NULL, TRUE, TRUE, FALSE);
-
-        DBUG_ASSERT(last_tab->read_record.read_record == rr_sequential);
-        last_tab->read_first_record= join_read_record_no_init;
-        last_tab->read_record.copy_field= sjm->copy_field;
-        last_tab->read_record.copy_field_end= sjm->copy_field +
-                                              sjm->sjm_table_cols.elements;
-        last_tab->read_record.read_record= rr_sequential_and_unpack;
-      }
-#endif       
     }
   }
 

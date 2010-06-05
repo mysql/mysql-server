@@ -5883,7 +5883,7 @@ JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
     Depending on include_bush_roots parameter, JOIN_TABS that represent
     SJM-scan/lookups are produced or omitted.
 
-    SJM Bush children are returned right after (or in place of) their container
+    SJM-Bush children are returned right after (or in place of) their container
     join tab (TODO: does anybody depend on this? A: make_join_readinfo() seems
     to.)
 */
@@ -6095,8 +6095,8 @@ get_best_combination(JOIN *join)
     }
     else if (create_ref_for_key(join, j, keyuse, used_tables))
       DBUG_RETURN(TRUE);                        // Something went wrong
-    j->records_read= join->best_positions[tablenr].records_read;
   loop_end:
+    j->records_read= join->best_positions[tablenr].records_read;
     join->map2table[j->table->tablenr]= j;
 
     // If we've reached the end of sjm nest, switch back to main sequence
