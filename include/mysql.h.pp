@@ -202,7 +202,6 @@ typedef unsigned int MYSQL_FIELD_OFFSET;
 typedef unsigned long long my_ulonglong;
 #include "typelib.h"
 #include "my_alloc.h"
-C_MODE_START
 typedef struct st_used_mem
 {
   struct st_used_mem *next;
@@ -220,7 +219,6 @@ typedef struct st_mem_root
   unsigned int first_block_usage;
   void (*error_handler)(void);
 } MEM_ROOT;
-C_MODE_END
 typedef struct st_typelib {
   unsigned int count;
   const char *name;
