@@ -192,7 +192,7 @@ function build() {
 
     # newbrt
     runcmd 0 $productbuilddir/newbrt make -k -j$makejobs checko2 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/newbrt make -k -j$makejobs >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/newbrt make -k -s -j$makejobs >>$tracefile 2>&1
     if [ $dovalgrind -ne 0 ] ; then
         runcmd 0 $productbuilddir/newbrt make -j$makejobs -k check -s SUMMARIZE=1 >>$tracefile 2>&1
     else
@@ -200,8 +200,8 @@ function build() {
     fi
 
     # lock tree
-    runcmd 0 $productbuilddir/src/range_tree make -k -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/lock_tree make -k -j$makejobs >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/range_tree make -k -s -j$makejobs >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/lock_tree make -k -s -j$makejobs >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/range_tree/tests make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/lock_tree/tests make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
 
