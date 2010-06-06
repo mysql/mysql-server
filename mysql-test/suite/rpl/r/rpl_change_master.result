@@ -52,7 +52,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 change master to master_user='root';
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -95,7 +94,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 start slave;
 select * from t1;
 n

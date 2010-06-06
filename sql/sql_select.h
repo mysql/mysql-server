@@ -597,7 +597,6 @@ typedef struct st_select_check {
 } SELECT_CHECK;
 
 extern const char *join_type_str[];
-void TEST_join(JOIN *join);
 
 /* Extern functions in sql_select.cc */
 bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);

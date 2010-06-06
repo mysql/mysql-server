@@ -52,52 +52,22 @@ typedef struct st_mysql_lock MYSQL_LOCK;
                             MYSQL_OPEN_HAS_MDL_LOCK)
 
 
-#include "thr_lock.h"                           /* thr_lock_type */
-
-struct TABLE_LIST;
-class THD;
-struct TABLE;
-typedef struct st_mysql_lock MYSQL_LOCK;
-
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count, uint flags);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock);
-void mysql_lock_downgrade_write(THD *thd, TABLE *table,
-                                thr_lock_type new_lock_type);
 bool mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
                                       TABLE_LIST *haystack);
-bool lock_global_read_lock(THD *thd);
-void unlock_global_read_lock(THD *thd);
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
-                              bool is_not_commit);
-void start_waiting_global_read_lock(THD *thd);
-bool make_global_read_lock_block_commit(THD *thd);
-bool set_protect_against_global_read_lock(void);
-void unset_protect_against_global_read_lock(void);
+void broadcast_refresh(void);
+/* Lock based on name */
+bool lock_table_names(THD *thd, TABLE_LIST *table_list);
+void unlock_table_names(THD *thd);
 /* Lock based on stored routine name */
 bool lock_routine_name(THD *thd, bool is_function, const char *db,
                        const char *name);
-void broadcast_refresh(void);
-
-/* Lock based on name */
-int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
-int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use);
-void unlock_table_name(THD *thd, TABLE_LIST *table_list);
-bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
-bool lock_table_names(THD *thd, TABLE_LIST *table_list);
-void unlock_table_names(THD *thd);
-bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list);
-bool is_table_name_exclusively_locked_by_this_thread(THD *thd, 
-                                                     TABLE_LIST *table_list);
-bool is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
-                                                     int key_length);
-void broadcast_refresh(void);
-
-
 
 #endif /* LOCK_INCLUDED */

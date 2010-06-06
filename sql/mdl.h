@@ -714,7 +714,7 @@ void mdl_destroy();
 extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
                                                    bool needs_thr_lock_abort);
 extern void mysql_ha_flush(THD *thd);
-extern "C" const char *set_thd_proc_info(THD *thd, const char *info,
+extern "C" const char *set_thd_proc_info(void *thd_arg, const char *info,
                                          const char *calling_function,
                                          const char *calling_file,
                                          const unsigned int calling_line);

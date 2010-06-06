@@ -1366,3 +1366,7 @@ ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used le
 CREATE INDEX i2 ON t1 (a(20));
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 DROP TABLE t1;
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES (1), (2);
+ALTER TABLE t1 ADD COLUMN (f1 INT), ADD COLUMN (f2 INT), ADD KEY f2k(f2);
+DROP TABLE t1;
