@@ -154,8 +154,8 @@ test-bt:
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl --comment=ndb+rpl_ndb+ps --force --timer \
-	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb,rpl_ndb $(EXP) ; \
+	      @PERL@ ./mysql-test-run.pl --comment=ndb+ps --force --timer \
+	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb $(EXP) ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
 	          --with-ndbcluster-only $(EXP) ; \
@@ -328,6 +328,3 @@ do_abi_check:
 	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

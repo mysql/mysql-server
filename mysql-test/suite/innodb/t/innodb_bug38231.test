@@ -1,0 +1,77 @@
+#
+# Bug#38231 Innodb crash in lock_reset_all_on_table() on TRUNCATE + LOCK / UNLOCK
+# http://bugs.mysql.com/38231
+#
+
+-- source include/have_innodb.inc
+
+# skip this test in embedded mode because "TRUNCATE TABLE bug38231_1"
+# hangs in that mode waiting for "lock_wait_timeout" although it is
+# preceded by --send
+-- source include/not_embedded.inc
+
+SET storage_engine=InnoDB;
+
+# we care only that the following SQL commands do not crash the server
+-- disable_query_log
+-- disable_result_log
+
+DROP TABLE IF EXISTS bug38231_1;
+CREATE TABLE bug38231_1 (a INT);
+
+-- connect (lock_gain,localhost,root,,)
+-- connect (lock_wait1,localhost,root,,)
+-- connect (lock_wait2,localhost,root,,)
+-- connect (truncate_wait,localhost,root,,)
+
+-- connection lock_gain
+SET autocommit=0;
+LOCK TABLE bug38231_1 WRITE;
+
+-- connection lock_wait1
+SET autocommit=0;
+-- send
+LOCK TABLE bug38231_1 WRITE;
+
+-- connection lock_wait2
+SET autocommit=0;
+-- send
+LOCK TABLE bug38231_1 WRITE;
+
+-- connection truncate_wait
+-- send
+TRUNCATE TABLE bug38231_1;
+
+-- connection lock_gain
+# this crashes the server if the bug is present
+UNLOCK TABLES;
+
+# clean up
+
+# do not clean up - we do not know which of the three has been released
+# so the --reap command may hang because the command that is being executed
+# in that connection is still running/waiting
+#-- connection lock_wait1
+#-- reap
+#UNLOCK TABLES;
+#
+#-- connection lock_wait2
+#-- reap
+#UNLOCK TABLES;
+#
+#-- connection truncate_wait
+#-- reap
+
+-- connection default
+
+-- disconnect lock_gain
+-- disconnect lock_wait1
+-- disconnect lock_wait2
+-- disconnect truncate_wait
+
+DROP TABLE bug38231_1;
+
+-- enable_query_log
+-- enable_result_log
+
+-- connection default

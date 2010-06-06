@@ -48,7 +48,7 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
-#include "lock.h"                           // MYSQL_LOCK_IGNORE_FLUSH
+#include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
 #include "debug_sync.h"
 #include "datadict.h"   // dd_frm_type()
 
@@ -1915,6 +1915,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         mysql_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
+      /* Lock THD mutex that protects its data when looking at it. */
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if (tmp->query())
       {
         table->field[7]->store(tmp->query(),
@@ -1922,6 +1924,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                    tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       if (schema_table_store_record(thd, table))
       {
@@ -1941,10 +1944,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
 
 static DYNAMIC_ARRAY all_status_vars;
 static bool status_vars_inited= 0;
+
+C_MODE_START
 static int show_var_cmp(const void *var1, const void *var2)
 {
   return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
 }
+C_MODE_END
 
 /*
   deletes all the SHOW_UNDEF elements from the array and calls
@@ -3296,12 +3302,17 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     goto end_share;
   }
 
+  if (!open_table_from_share(thd, share, table_name->str, 0,
+                             (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
+                             thd->open_options, &tbl, FALSE))
   {
     tbl.s= share;
     table_list.table= &tbl;
     table_list.view= (LEX*) share->is_view;
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
+    free_root(&tbl.mem_root, MYF(0));
+    my_free((char*) tbl.alias, MYF(MY_ALLOW_ZERO_PTR));
   }
 
 end_share:
@@ -3544,6 +3555,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
             res= open_normal_and_derived_tables(thd, show_table_list,
                    (MYSQL_OPEN_IGNORE_FLUSH |
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
@@ -3754,7 +3766,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (share->db_type() == partition_hton &&
-        share->partition_info_len)
+        share->partition_info_str_len)
     {
       tmp_db_type= share->default_part_db_type;
       is_partitioned= TRUE;
@@ -4028,7 +4040,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   TABLE *show_table;
-  TABLE_SHARE *show_table_share;
   Field **ptr, *field, *timestamp_field;
   int count;
   DBUG_ENTER("get_schema_column_record");
@@ -4051,37 +4062,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   }
 
   show_table= tables->table;
-  show_table_share= show_table->s;
   count= 0;
-
-  if (tables->view || tables->schema_table)
-  {
-    ptr= show_table->field;
-    timestamp_field= show_table->timestamp_field;
-    show_table->use_all_columns();               // Required for default
-  }
-  else
-  {
-    ptr= show_table_share->field;
-    timestamp_field= show_table_share->timestamp_field;
-    /*
-      read_set may be inited in case of
-      temporary table
-    */
-    if (!show_table->read_set)
-    {
-      /* to satisfy 'field->val_str' ASSERTs */
-      uchar *bitmaps;
-      uint bitmap_size= show_table_share->column_bitmap_size;
-      if (!(bitmaps= (uchar*) alloc_root(thd->mem_root, bitmap_size)))
-        DBUG_RETURN(0);
-      bitmap_init(&show_table->def_read_set,
-                  (my_bitmap_map*) bitmaps, show_table_share->fields, FALSE);
-      bitmap_set_all(&show_table->def_read_set);
-      show_table->read_set= &show_table->def_read_set;
-    }
-    bitmap_set_all(show_table->read_set);
-  }
+  ptr= show_table->field;
+  timestamp_field= show_table->timestamp_field;
+  show_table->use_all_columns();               // Required for default
+  restore_record(show_table, s->default_values);
 
   for (; (field= *ptr) ; ptr++)
   {
@@ -4090,9 +4075,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     String type(tmp,sizeof(tmp), system_charset_info);
     char *end;
 
-    /* to satisfy 'field->val_str' ASSERTs */
-    field->table= show_table;
-    show_table->in_use= thd;
+    DEBUG_SYNC(thd, "get_schema_column");
 
     if (wild && wild[0] &&
         wild_case_compare(system_charset_info, field->field_name,wild))
@@ -4351,6 +4334,15 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+static inline void copy_field_as_string(Field *to_field, Field *from_field)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp_str(buff, sizeof(buff), system_charset_info);
+  from_field->val_str(&tmp_str);
+  to_field->store(tmp_str.ptr(), tmp_str.length(), system_charset_info);
+}
+
+
 /**
   @brief Store record into I_S.PARAMETERS table
 
@@ -4517,18 +4509,26 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
 bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                        const char *wild, bool full_access, const char *sp_user)
 {
-  String tmp_string;
-  String sp_db, sp_name, definer;
   MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DB], &sp_db);
-  get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_NAME], &sp_name);
-  get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DEFINER],&definer);
+  char sp_db_buff[NAME_LEN + 1], sp_name_buff[NAME_LEN + 1],
+    definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 2],
+    returns_buff[MAX_FIELD_WIDTH];
+
+  String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
+  String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
+  String definer(definer_buff, sizeof(definer_buff), cs);
+  String returns(returns_buff, sizeof(returns_buff), cs);
+
+  proc_table->field[MYSQL_PROC_FIELD_DB]->val_str(&sp_db);
+  proc_table->field[MYSQL_PROC_FIELD_NAME]->val_str(&sp_name);
+  proc_table->field[MYSQL_PROC_FIELD_DEFINER]->val_str(&definer);
+
   if (!full_access)
-    full_access= !strcmp(sp_user, definer.ptr());
-  if (!full_access && 
-      check_some_routine_access(thd, sp_db.ptr(), sp_name.ptr(),
+    full_access= !strcmp(sp_user, definer.c_ptr_safe());
+  if (!full_access &&
+      check_some_routine_access(thd, sp_db.c_ptr_safe(), sp_name.c_ptr_safe(),
                                 proc_table->field[MYSQL_PROC_MYSQL_TYPE]->
                                 val_int() == TYPE_ENUM_PROCEDURE))
     return 0;
@@ -4542,32 +4542,30 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
+    if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
     {
       int enum_idx= (int) proc_table->field[MYSQL_PROC_FIELD_ACCESS]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME],
-                &tmp_string);
-      table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
+
+      copy_field_as_string(table->field[0],
+                           proc_table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]);
       table->field[1]->store(STRING_WITH_LEN("def"), cs);
       table->field[2]->store(sp_db.ptr(), sp_db.length(), cs);
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_MYSQL_TYPE],
-                &tmp_string);
-      table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[4],
+                           proc_table->field[MYSQL_PROC_MYSQL_TYPE]);
+
       if (proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() ==
           TYPE_ENUM_FUNCTION)
       {
         sp_head *sp;
         bool free_sp_head;
-        get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_RETURNS],
-                  &tmp_string);
-
+        proc_table->field[MYSQL_PROC_FIELD_RETURNS]->val_str(&returns);
         sp= sp_load_for_information_schema(thd, proc_table, &sp_db, &sp_name,
                                            (ulong) proc_table->
                                            field[MYSQL_PROC_FIELD_SQL_MODE]->
                                            val_int(),
                                            TYPE_ENUM_FUNCTION,
-                                           tmp_string.c_ptr_safe(),
+                                           returns.c_ptr_safe(),
                                            "", &free_sp_head);
 
         if (sp)
@@ -4598,24 +4596,19 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 
       if (full_access)
       {
-        get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_BODY_UTF8],
-                  &tmp_string);
-        table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[14],
+                             proc_table->field[MYSQL_PROC_FIELD_BODY_UTF8]);
         table->field[14]->set_notnull();
       }
       table->field[13]->store(STRING_WITH_LEN("SQL"), cs);
       table->field[17]->store(STRING_WITH_LEN("SQL"), cs);
-
-
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC],
-                &tmp_string);
-      table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[18],
+                           proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC]);
       table->field[19]->store(sp_data_access_name[enum_idx].str, 
                               sp_data_access_name[enum_idx].length , cs);
+      copy_field_as_string(table->field[21],
+                           proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]);
 
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE],
-                &tmp_string);
-      table->field[21]->store(tmp_string.ptr(), tmp_string.length(), cs);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_CREATED])->
         get_time(&time);
@@ -4624,29 +4617,20 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_MODIFIED])->
         get_time(&time);
       table->field[23]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      copy_field_as_string(table->field[24],
+                           proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]);
+      copy_field_as_string(table->field[25],
+                           proc_table->field[MYSQL_PROC_FIELD_COMMENT]);
 
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_SQL_MODE],
-                &tmp_string);
-      table->field[24]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_COMMENT],
-                &tmp_string);
-      table->field[25]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->field[26]->store(definer.ptr(), definer.length(), cs);
-
-      get_field(thd->mem_root,
-                proc_table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT],
-                &tmp_string);
-      table->field[27]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root,
-                proc_table->field[ MYSQL_PROC_FIELD_COLLATION_CONNECTION],
-                &tmp_string);
-      table->field[28]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DB_COLLATION],
-                &tmp_string);
-      table->field[29]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[27],
+                           proc_table->
+                           field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]);
+      copy_field_as_string(table->field[28],
+                           proc_table->
+                           field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]);
+      copy_field_as_string(table->field[29],
+			   proc_table->field[MYSQL_PROC_FIELD_DB_COLLATION]);
 
       return schema_table_store_record(thd, table);
     }
@@ -5242,7 +5226,8 @@ static int get_schema_key_column_usage_record(THD *thd,
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-static void collect_partition_expr(List<char> &field_list, String *str)
+static void collect_partition_expr(THD *thd, List<char> &field_list,
+                                   String *str)
 {
   List_iterator<char> part_it(field_list);
   ulong no_fields= field_list.elements;
@@ -5250,7 +5235,7 @@ static void collect_partition_expr(List<char> &field_list, String *str)
   str->length(0);
   while ((field_str= part_it++))
   {
-    str->append(field_str);
+    append_identifier(thd, str, field_str, strlen(field_str));
     if (--no_fields != 0)
       str->append(",");
   }
@@ -5317,7 +5302,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 {
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
-  PARTITION_INFO stat_info;
+  PARTITION_STATS stat_info;
   MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -5517,7 +5502,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
     }
     else if (part_info->list_of_part_fields)
     {
-      collect_partition_expr(part_info->part_field_list, &tmp_str);
+      collect_partition_expr(thd, part_info->part_field_list, &tmp_str);
       table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
     }
     table->field[9]->set_notnull();
@@ -5546,7 +5531,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       }
       else if (part_info->list_of_subpart_fields)
       {
-        collect_partition_expr(part_info->subpart_field_list, &tmp_str);
+        collect_partition_expr(thd, part_info->subpart_field_list, &tmp_str);
         table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
       }
       table->field[10]->set_notnull();

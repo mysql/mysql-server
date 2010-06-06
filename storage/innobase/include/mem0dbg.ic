@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,6 @@ Created 6/8/1994 Heikki Tuuri
 *************************************************************************/
 
 #ifdef UNIV_MEM_DEBUG
-# ifndef UNIV_HOTBACKUP
-extern mutex_t	mem_hash_mutex;
-# endif /* !UNIV_HOTBACKUP */
 extern ulint	mem_current_allocated_memory;
 
 /******************************************************************//**

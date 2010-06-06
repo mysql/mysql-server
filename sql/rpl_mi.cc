@@ -131,8 +131,10 @@ enum {
   LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
   /* 6.0 added value of master_heartbeat_period */
   LINE_FOR_MASTER_HEARTBEAT_PERIOD= 16,
+  /* MySQL Cluster 6.3 added master_bind */
+  LINE_FOR_MASTER_BIND = 17,
   /* 6.0 added value of master_ignore_server_id */
-  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 17,
+  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 18,
   /* Number of lines currently used when saving master info file */
   LINES_IN_MASTER_INFO= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS
 };
@@ -143,6 +145,7 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
                      int thread_mask)
 {
   int fd,error;
+  char fname[FN_REFLEN+128];
   DBUG_ENTER("init_master_info");
 
   if (mi->inited)
@@ -168,8 +171,7 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 
   mi->mysql=0;
   mi->file_id=1;
-  fn_format(mi->info_file_name, master_info_fname, mysql_data_home, "",
-            MYF(MY_UNPACK_FILENAME|MY_RETURN_REAL_PATH));
+  fn_format(fname, master_info_fname, mysql_data_home, "", 4+32);
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -181,7 +183,7 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 
   /* does master.info exist ? */
 
-  if (access(mi->info_file_name, F_OK))
+  if (access(fname,F_OK))
   {
     if (abort_if_no_master_info_file)
     {
@@ -194,18 +196,18 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
     */
     if (fd >= 0)
       mysql_file_close(fd, MYF(MY_WME));
-    if ((fd= mysql_file_open(key_file_master_info, mi->info_file_name,
-                             O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+    if ((fd= mysql_file_open(key_file_master_info,
+                             fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
     {
       sql_print_error("Failed to create a new master info file (\
-file '%s', errno %d)", mi->info_file_name, my_errno);
+file '%s', errno %d)", fname, my_errno);
       goto err;
     }
     if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
                       MYF(MY_WME)))
     {
       sql_print_error("Failed to create a cache on master info file (\
-file '%s')", mi->info_file_name);
+file '%s')", fname);
       goto err;
     }
 
@@ -220,17 +222,17 @@ file '%s')", mi->info_file_name);
     else
     {
       if ((fd= mysql_file_open(key_file_master_info,
-                               mi->info_file_name, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+                               fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
       {
         sql_print_error("Failed to open the existing master info file (\
-file '%s', errno %d)", mi->info_file_name, my_errno);
+file '%s', errno %d)", fname, my_errno);
         goto err;
       }
       if (init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
                         0, MYF(MY_WME)))
       {
         sql_print_error("Failed to create a cache on master info file (\
-file '%s')", mi->info_file_name);
+file '%s')", fname);
         goto err;
       }
     }
@@ -240,6 +242,7 @@ file '%s')", mi->info_file_name);
     int ssl= 0, ssl_verify_server_cert= 0;
     float master_heartbeat_period= 0.0;
     char *first_non_digit;
+    char dummy_buf[HOSTNAME_LENGTH+1];
 
     /*
        Starting from 4.1.x master.info has new format. Now its
@@ -329,6 +332,13 @@ file '%s')", mi->info_file_name);
           init_floatvar_from_file(&master_heartbeat_period, &mi->file, 0.0))
         goto errwithmsg;
       /*
+	Starting from MySQL Cluster 6.3 master_bind might be in the file
+	(this is just a reservation to avoid future upgrade problems) 
+       */
+      if (lines >= LINE_FOR_MASTER_BIND &&
+	  init_strvar_from_file(dummy_buf, sizeof(dummy_buf), &mi->file, ""))
+	  goto errwithmsg;
+      /*
         Starting from 6.0 list of server_id of ignorable servers might be
         in the file
       */
@@ -344,7 +354,7 @@ file '%s')", mi->info_file_name);
     if (ssl)
       sql_print_warning("SSL information in the master info file "
                       "('%s') are ignored because this MySQL slave was "
-                      "compiled without SSL support.", mi->info_file_name);
+                      "compiled without SSL support.", fname);
 #endif /* HAVE_OPENSSL */
 
     /*
@@ -480,14 +490,14 @@ int flush_master_info(Master_info* mi,
   my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
   my_b_seek(file, 0L);
   my_b_printf(file,
-              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n",
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",
               LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
-              heartbeat_buf, ignore_server_ids_buf);
+              heartbeat_buf, "", ignore_server_ids_buf);
   my_free(ignore_server_ids_buf, MYF(0));
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 
