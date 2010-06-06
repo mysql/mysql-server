@@ -56,7 +56,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_create.lo my_delete.lo mf_tempfile.lo my_open.lo \
 			my_file.lo my_read.lo my_write.lo errors.lo \
 			my_error.lo my_getwd.lo my_div.lo \
-			mf_pack.lo my_messnc.lo mf_dirname.lo mf_fn_ext.lo\
+			mf_pack.lo my_mess.lo mf_dirname.lo mf_fn_ext.lo\
 			mf_wcomp.lo typelib.lo safemalloc.lo my_alloc.lo \
 			mf_format.lo mf_path.lo mf_unixpath.lo my_fopen.lo \
 			my_symlink.lo my_fstream.lo mf_arr_appstr.lo \
@@ -116,6 +116,3 @@ conf_to_src_LDADD=
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc
 conf_to_src_LDFLAGS=@NOINST_LDFLAGS@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

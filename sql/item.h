@@ -34,6 +34,15 @@ void item_init(void);			/* Init item functions */
 class Item_field;
 class user_var_entry;
 
+
+static inline uint32
+char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
+{
+   ulonglong tmp= ((ulonglong) char_length_arg) * mbmaxlen_arg;
+   return (tmp > UINT_MAX32) ? (uint32) UINT_MAX32 : (uint32) tmp;
+}
+
+
 /*
    "Declared Type Collation"
    A combination of collation and its derivation.
@@ -1171,16 +1180,23 @@ public:
   { return max_length / collation.collation->mbmaxlen; }
   void fix_length_and_charset(uint32 max_char_length_arg, CHARSET_INFO *cs)
   {
-    max_length= max_char_length_arg * cs->mbmaxlen;
+    max_length= char_to_byte_length_safe(max_char_length_arg, cs->mbmaxlen);
     collation.collation= cs;
   }
   void fix_char_length(uint32 max_char_length_arg)
-  { max_length= max_char_length_arg * collation.collation->mbmaxlen; }
+  {
+    max_length= char_to_byte_length_safe(max_char_length_arg,
+                                         collation.collation->mbmaxlen);
+  }
   void fix_length_and_charset_datetime(uint32 max_char_length_arg)
   {
     collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
     fix_char_length(max_char_length_arg);
   }
+  /*
+    Return TRUE if the item points to a column of an outer-joined table.
+  */
+  virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
 };
 
 
@@ -1694,6 +1710,11 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
   virtual void print(String *str, enum_query_type query_type);
+  bool is_outer_field() const
+  {
+    DBUG_ASSERT(fixed);
+    return field->table->pos_in_table_list->outer_join;
+  }
   Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
@@ -2302,7 +2323,7 @@ public:
 class Item_hex_string: public Item_basic_constant
 {
 public:
-  Item_hex_string() {}
+  Item_hex_string();
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
@@ -2322,6 +2343,8 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+private:
+  void hex_string_init(const char *str, uint str_length);
 };
 
 
@@ -2504,7 +2527,13 @@ public:
     DBUG_ASSERT(fixed);
     return (*ref)->get_time(ltime);
   }
-  bool basic_const_item() { return (*ref)->basic_const_item(); }
+  virtual bool basic_const_item() const { return (*ref)->basic_const_item(); }
+  bool is_outer_field() const
+  {
+    DBUG_ASSERT(fixed);
+    DBUG_ASSERT(ref);
+    return (*ref)->is_outer_field();
+  }
 
 };
 
@@ -3189,6 +3218,15 @@ public:
   {
     return this == item;
   }
+  /**
+     Check if saved item has a non-NULL value.
+     Will cache value of saved item if not already done. 
+     @return TRUE if cached value is non-NULL.
+   */
+  bool has_value()
+  {
+    return (value_cached || cache_value()) && !null_value;
+  }
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const
@@ -3356,6 +3394,7 @@ public:
     cmp_context= STRING_RESULT;
   }
 
+  virtual void store(Item *item) { Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();

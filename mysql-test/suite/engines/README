@@ -50,22 +50,22 @@ The following suites are included:
 
 Known Issues
 ------------
-1) The 'funcs' and 'iuds' suites currently runs only against MySQL 5.1 server.
-   Running them against MySQL 5.5 will generate errors.
-
-2) The folowing tests in the 'iuds' suite:
+1) The folowing tests in the 'iuds' suite:
      - delete_decimal
      - insert_decimal 
      - update_decimal
    will return a 'Warning 1264 - Out of range value...' warning if run in a 32-bit environment.
    Add the '--force' option to prevent the test run from aborting.
 
-3) The following tests in the 'funcs' suite will fail when run against the innodb_plugin:
+2) The following tests in the 'funcs' suite will fail when run against the innodb_plugin:
    - crash_manycolumns_string (bug 50495) 
    - ix_unique_lob (bug 52056, masked by an 'Out of memory error' on some 32-bit platforms)
    - ix_unique_string_length (bug 52056, masked by an 'Out of memory error' on some 32-bit platforms)
    Add the '--force' option to prevent the test run from aborting.
 
-4) Some of the rpl_xxx tests in the 'funcs' suite require a secific binlog_forat setting and will be
+3) Some of the rpl_xxx tests in the 'funcs' suite require a secific binlog_forat setting and will be
    skipped otherwise.
+ 
+4) Some of the rpl_xxx tests in the 'funcs' suite will report a 'Statement unsafe for replication' warning 
+   when run againsr a server configured to use statement based replication.
  

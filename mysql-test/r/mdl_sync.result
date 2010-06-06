@@ -2420,3 +2420,17 @@ SET debug_sync= 'now SIGNAL go_flush';
 # Connection: default
 SET debug_sync= 'RESET';
 DROP TABLE t1;
+#
+# Bug#52856 concurrent show columns or show full columns causes a crash!!!
+#
+CREATE TABLE t1(a CHAR(255));
+SET DEBUG_SYNC= "get_schema_column SIGNAL waiting WAIT_FOR completed";
+SHOW FULL COLUMNS FROM t1;
+SET DEBUG_SYNC= "now WAIT_FOR waiting";
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	char(255)	latin1_swedish_ci	YES		NULL		#	
+SET DEBUG_SYNC= "now SIGNAL completed";
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	char(255)	latin1_swedish_ci	YES		NULL		#	
+DROP TABLE t1;

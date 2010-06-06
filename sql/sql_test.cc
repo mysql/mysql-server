@@ -75,7 +75,7 @@ print_where(COND *cond,const char *info, enum_query_type query_type)
 	/* This is for debugging purposes */
 
 
-void print_cached_tables(void)
+static void print_cached_tables(void)
 {
   uint idx,count,unused;
   TABLE_SHARE *share;
@@ -340,6 +340,11 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
 #endif
 
+C_MODE_START
+static int dl_compare(const void *p1, const void *p2);
+static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
+C_MODE_END
+
 typedef struct st_debug_lock
 {
   ulong thread_id;
@@ -349,8 +354,13 @@ typedef struct st_debug_lock
   enum thr_lock_type type;
 } TABLE_LOCK_INFO;
 
-static int dl_compare(TABLE_LOCK_INFO *a,TABLE_LOCK_INFO *b)
+static int dl_compare(const void *p1, const void *p2)
 {
+  TABLE_LOCK_INFO *a, *b;
+
+  a= (TABLE_LOCK_INFO *) p1;
+  b= (TABLE_LOCK_INFO *) p2;
+
   if (a->thread_id > b->thread_id)
     return 1;
   if (a->thread_id < b->thread_id)
@@ -400,9 +410,10 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
   function so that we can easily add this if we ever need this.
 */
 
-static void display_table_locks(void) 
+static void display_table_locks(void)
 {
   LIST *list;
+  void *saved_base;
   DYNAMIC_ARRAY saved_table_locks;
 
   (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), table_cache_count + 20,50);
@@ -423,13 +434,17 @@ static void display_table_locks(void)
     mysql_mutex_unlock(&lock->mutex);
   }
   mysql_mutex_unlock(&THR_LOCK_lock);
-  if (!saved_table_locks.elements) goto end;
-  
-  qsort((uchar*) dynamic_element(&saved_table_locks,0,TABLE_LOCK_INFO *),saved_table_locks.elements,sizeof(TABLE_LOCK_INFO),(qsort_cmp) dl_compare);
+
+  if (!saved_table_locks.elements)
+    goto end;
+
+  saved_base= dynamic_element(&saved_table_locks, 0, TABLE_LOCK_INFO *);
+  my_qsort(saved_base, saved_table_locks.elements, sizeof(TABLE_LOCK_INFO),
+           dl_compare);
   freeze_size(&saved_table_locks);
 
   puts("\nThread database.table_name          Locked/Waiting        Lock_type\n");
-  
+
   unsigned int i;
   for (i=0 ; i < saved_table_locks.elements ; i++)
   {

@@ -1,2 +1,0 @@
-SET storage_engine=InnoDB;
-DROP TABLE bug38231;

@@ -95,7 +95,7 @@ bool dd_check_storage_engine_flag(THD *thd,
     return TRUE;
   }
 
-  if (check_table_name(table_name, strlen(table_name)))
+  if (check_table_name(table_name, strlen(table_name), FALSE))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name);
     return TRUE;

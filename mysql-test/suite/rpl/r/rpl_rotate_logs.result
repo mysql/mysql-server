@@ -55,7 +55,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 select * from t1;
 s
 Could not break slave
@@ -137,7 +136,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 select * from t2;
 m
 34
@@ -207,7 +205,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)
