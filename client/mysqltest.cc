@@ -3785,8 +3785,9 @@ void do_perl(struct st_command *command)
     }
     error= pclose(res_file);
 
-    /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(0));
+    /* Remove the temporary file, but keep it if perl failed */
+    if (!error)
+      my_delete(temp_file_path, MYF(0));
 
     handle_command_error(command, WEXITSTATUS(error));
   }
