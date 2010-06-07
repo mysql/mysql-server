@@ -3136,15 +3136,27 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   bool error;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           MDL_SHARED_HIGH_PRIO);
-  while (!(error=
-           thd->mdl_context.try_acquire_lock(&table->mdl_request)) &&
-         !table->mdl_request.ticket && !can_deadlock)
+
+  if (can_deadlock)
   {
-    if ((error=
-         thd->mdl_context.wait_for_lock(&table->mdl_request,
-                                        thd->variables.lock_wait_timeout)))
-      break;
+    /*
+      When .FRM is being open in order to get data for an I_S table,
+      we might have some tables not only open but also locked.
+      E.g. this happens when a SHOW or I_S statement is run
+      under LOCK TABLES or inside a stored function.
+      By waiting for the conflicting metadata lock to go away we
+      might create a deadlock which won't entirely belong to the
+      MDL subsystem and thus won't be detectable by this subsystem's
+      deadlock detector. To avoid such situation, when there are
+      other locked tables, we prefer not to wait on a conflicting
+      lock.
+    */
+    error= thd->mdl_context.try_acquire_lock(&table->mdl_request);
   }
+  else
+    error= thd->mdl_context.acquire_lock(&table->mdl_request,
+                                         thd->variables.lock_wait_timeout);
+
   return error;
 }
 

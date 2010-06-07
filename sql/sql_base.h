@@ -451,7 +451,7 @@ public:
   enum enum_open_table_action
   {
     OT_NO_ACTION= 0,
-    OT_WAIT_MDL_LOCK,
+    OT_MDL_CONFLICT,
     OT_WAIT_TDC,
     OT_DISCOVER,
     OT_REPAIR
@@ -460,7 +460,7 @@ public:
 
   bool recover_from_failed_open(THD *thd);
   bool request_backoff_action(enum_open_table_action action_arg,
-                              MDL_request *mdl_request, TABLE_LIST *table);
+                              TABLE_LIST *table);
 
   void add_request(MDL_request *request)
   { m_mdl_requests.push_front(request); }
@@ -490,8 +490,6 @@ public:
 private:
   /** List of requests for all locks taken so far. Used for waiting on locks. */
   MDL_request_list m_mdl_requests;
-  /** For OT_WAIT_MDL_LOCK action, the request for which we should wait. */
-  MDL_request *m_failed_mdl_request;
   /**
     For OT_DISCOVER and OT_REPAIR actions, the table list element for
     the table which definition should be re-discovered or which

@@ -447,6 +447,37 @@ private:
 };
 
 
+/**
+  A reliable way to wait on an MDL lock.
+*/
+
+class MDL_wait
+{
+public:
+  MDL_wait();
+  ~MDL_wait();
+
+  enum enum_wait_status { EMPTY = 0, GRANTED, VICTIM, TIMEOUT, KILLED };
+
+  bool set_status(enum_wait_status result_arg);
+  enum_wait_status get_status();
+  void reset_status();
+  enum_wait_status timed_wait(THD *thd, struct timespec *abs_timeout,
+                             bool signal_timeout);
+private:
+  /**
+    Condvar which is used for waiting until this context's pending
+    request can be satisfied or this thread has to perform actions
+    to resolve a potential deadlock (we subscribe to such
+    notification by adding a ticket corresponding to the request
+    to an appropriate queue of waiters).
+  */
+  mysql_mutex_t m_LOCK_wait_status;
+  mysql_cond_t m_COND_wait_status;
+  enum_wait_status m_wait_status;
+};
+
+
 typedef I_P_List<MDL_request, I_P_List_adapter<MDL_request,
                  &MDL_request::next_in_list,
                  &MDL_request::prev_in_list>,
@@ -464,15 +495,12 @@ public:
   typedef I_P_List<MDL_ticket,
                    I_P_List_adapter<MDL_ticket,
                                     &MDL_ticket::next_in_context,
-                                    &MDL_ticket::prev_in_context> >
+                                    &MDL_ticket::prev_in_context>,
+                   I_P_List_null_counter,
+                   I_P_List_fast_push_back<MDL_ticket> >
           Ticket_list;
 
   typedef Ticket_list::Iterator Ticket_iterator;
-
-  enum mdl_signal_type { NO_WAKE_UP = 0,
-                         NORMAL_WAKE_UP,
-                         VICTIM_WAKE_UP,
-                         TIMEOUT_WAKE_UP };
 
   MDL_context();
   void destroy();
@@ -484,8 +512,6 @@ public:
                                         ulong lock_wait_timeout);
 
   bool clone_ticket(MDL_request *mdl_request);
-
-  bool wait_for_lock(MDL_request *mdl_request, ulong lock_wait_timeout);
 
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_lock(MDL_ticket *ticket);
@@ -532,16 +558,13 @@ public:
   inline uint get_deadlock_weight() const
   { return m_waiting_for->get_deadlock_weight(); }
   /**
-    Wake up context which is waiting for a change of MDL_lock state.
-  */
-  void awake(mdl_signal_type signal)
-  {
-    mysql_mutex_lock(&m_signal_lock);
-    m_signal= signal;
-    mysql_cond_signal(&m_signal_cond);
-    mysql_mutex_unlock(&m_signal_lock);
-  }
+    Post signal to the context (and wake it up if necessary).
 
+    @retval FALSE - Success, signal was posted.
+    @retval TRUE  - Failure, signal was not posted since context
+                    already has received some signal or closed
+                    signal slot.
+  */
   void init(THD *thd_arg) { m_thd= thd_arg; }
 
   void set_needs_thr_lock_abort(bool needs_thr_lock_abort)
@@ -562,6 +585,12 @@ public:
   }
 
   bool find_deadlock(Deadlock_detection_visitor *dvisitor);
+public:
+  /**
+    If our request for a lock is scheduled, or aborted by the deadlock
+    detector, the result is recorded in this class.
+  */
+  MDL_wait m_wait;
 private:
   /**
     All MDL tickets acquired by this connection.
@@ -643,60 +672,38 @@ private:
           important as deadlock detector won't work correctly
           otherwise. @sa Comment for MDL_lock::m_rwlock.
   */
-  mysql_prlock_t m_waiting_for_lock;
-  MDL_ticket *m_waiting_for;
-  uint m_deadlock_weight;
+  mysql_prlock_t m_LOCK_waiting_for;
   /**
-    Condvar which is used for waiting until this context's pending
-    request can be satisfied or this thread has to perform actions
-    to resolve a potential deadlock (we subscribe to such
-    notification by adding a ticket corresponding to the request
-    to an appropriate queue of waiters).
-  */
-  mysql_mutex_t m_signal_lock;
-  mysql_cond_t m_signal_cond;
-  mdl_signal_type m_signal;
-
+    Tell the deadlock detector what lock this session is waiting for.
+    In principle, this is redundant, as information can be found
+    by inspecting waiting queues, but we'd very much like it to be
+    readily available to the wait-for graph iterator.
+   */
+  MDL_ticket *m_waiting_for;
 private:
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           bool *is_transactional);
   void release_locks_stored_before(MDL_ticket *sentinel);
-  bool acquire_lock_impl(MDL_request *mdl_request, ulong lock_wait_timeout);
+  bool try_acquire_lock_impl(MDL_request *mdl_request,
+                             MDL_ticket **out_ticket);
 
-  bool find_deadlock();
+  void find_deadlock();
 
+  /** Inform the deadlock detector there is an edge in the wait-for graph. */
   void will_wait_for(MDL_ticket *pending_ticket)
   {
-    mysql_prlock_wrlock(&m_waiting_for_lock);
+    mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for= pending_ticket;
-    mysql_prlock_unlock(&m_waiting_for_lock);
+    mysql_prlock_unlock(&m_LOCK_waiting_for);
   }
 
-  void stop_waiting()
+  /** Remove the wait-for edge from the graph after we're done waiting. */
+  void done_waiting_for()
   {
-    mysql_prlock_wrlock(&m_waiting_for_lock);
+    mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for= NULL;
-    mysql_prlock_unlock(&m_waiting_for_lock);
+    mysql_prlock_unlock(&m_LOCK_waiting_for);
   }
-
-  void wait_reset()
-  {
-    mysql_mutex_lock(&m_signal_lock);
-    m_signal= NO_WAKE_UP;
-    mysql_mutex_unlock(&m_signal_lock);
-  }
-
-  mdl_signal_type timed_wait(struct timespec *abs_timeout);
-
-  mdl_signal_type peek_signal()
-  {
-    mdl_signal_type result;
-    mysql_mutex_lock(&m_signal_lock);
-    result= m_signal;
-    mysql_mutex_unlock(&m_signal_lock);
-    return result;
-  }
-
 private:
   MDL_context(const MDL_context &rhs);          /* not implemented */
   MDL_context &operator=(MDL_context &rhs);     /* not implemented */
@@ -713,7 +720,6 @@ void mdl_destroy();
 
 extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
                                                    bool needs_thr_lock_abort);
-extern void mysql_ha_flush(THD *thd);
 extern "C" const char *set_thd_proc_info(void *thd_arg, const char *info,
                                          const char *calling_function,
                                          const char *calling_file,
