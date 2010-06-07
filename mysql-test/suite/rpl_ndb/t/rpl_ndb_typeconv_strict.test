@@ -1,7 +1,5 @@
 -- source include/have_ndb.inc
 -- source include/ndb_master-slave.inc
-# JA 2010-05-20: Experiment to see if this is the only test that crashes windows in PB2
--- source include/not_windows.inc
 let $engine_type=NDBCLUSTER;
 
 connection slave;

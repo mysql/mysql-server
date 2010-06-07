@@ -130,8 +130,6 @@ my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,main,binlog,federated,rpl,innodb,ndb
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
-# JA 2010-05-21: Experiment to find root cause of windows problems
-$opt_verbose= 1 if (IS_WINDOWS);
 our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
