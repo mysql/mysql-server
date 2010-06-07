@@ -66,7 +66,7 @@ template <typename T, typename B,
           typename I = I_P_List_no_push_back<T> >
 class I_P_List : public C, public I
 {
-  T *first;
+  T *m_first;
 
   /*
     Do not prohibit copying of I_P_List object to simplify their usage in
@@ -74,18 +74,18 @@ class I_P_List : public C, public I
     is a bad idea.
   */
 public:
-  I_P_List() : I(&first), first(NULL) {};
-  inline void empty()      { first= NULL; C::reset(); I::set_last(&first); }
-  inline bool is_empty() const { return (first == NULL); }
+  I_P_List() : I(&m_first), m_first(NULL) {};
+  inline void empty()      { m_first= NULL; C::reset(); I::set_last(&m_first); }
+  inline bool is_empty() const { return (m_first == NULL); }
   inline void push_front(T* a)
   {
-    *B::next_ptr(a)= first;
-    if (first)
-      *B::prev_ptr(first)= B::next_ptr(a);
+    *B::next_ptr(a)= m_first;
+    if (m_first)
+      *B::prev_ptr(m_first)= B::next_ptr(a);
     else
       I::set_last(B::next_ptr(a));
-    first= a;
-    *B::prev_ptr(a)= &first;
+    m_first= a;
+    *B::prev_ptr(a)= &m_first;
     C::inc();
   }
   inline void push_back(T *a)
@@ -124,20 +124,20 @@ public:
     **B::prev_ptr(a)= next;
     C::dec();
   }
-  inline T* front() { return first; }
-  inline const T *front() const { return first; }
+  inline T* front() { return m_first; }
+  inline const T *front() const { return m_first; }
   void swap(I_P_List<T, B, C> &rhs)
   {
-    swap_variables(T *, first, rhs.first);
+    swap_variables(T *, m_first, rhs.m_first);
     I::swap(rhs);
-    if (first)
-      *B::prev_ptr(first)= &first;
+    if (m_first)
+      *B::prev_ptr(m_first)= &m_first;
     else
-      I::set_last(&first);
-    if (rhs.first)
-      *B::prev_ptr(rhs.first)= &rhs.first;
+      I::set_last(&m_first);
+    if (rhs.m_first)
+      *B::prev_ptr(rhs.m_first)= &rhs.m_first;
     else
-      I::set_last(&rhs.first);
+      I::set_last(&rhs.m_first);
     C::swap(rhs);
   }
 #ifndef _lint
@@ -160,13 +160,13 @@ class I_P_List_iterator
   T *current;
 public:
   I_P_List_iterator(const I_P_List<T, B, C, I> &a)
-    : list(&a), current(a.first) {}
+    : list(&a), current(a.m_first) {}
   I_P_List_iterator(const I_P_List<T, B, C, I> &a, T* current_arg)
     : list(&a), current(current_arg) {}
   inline void init(const I_P_List<T, B, C, I> &a)
   {
     list= &a;
-    current= a.first;
+    current= a.m_first;
   }
   inline T* operator++(int)
   {
@@ -182,7 +182,7 @@ public:
   }
   inline void rewind()
   {
-    current= list->first;
+    current= list->m_first;
   }
 };
 
@@ -248,13 +248,13 @@ protected:
 
 template <typename T> class I_P_List_fast_push_back
 {
-  T **last;
+  T **m_last;
 protected:
-  I_P_List_fast_push_back(T **a) : last(a) { };
-  void set_last(T **a) { last= a; }
-  T** get_last() const { return last; }
+  I_P_List_fast_push_back(T **a) : m_last(a) { };
+  void set_last(T **a) { m_last= a; }
+  T** get_last() const { return m_last; }
   void swap(I_P_List_fast_push_back<T> &rhs)
-  { swap_variables(T**, last, rhs.last); }
+  { swap_variables(T**, m_last, rhs.m_last); }
 };
 
 #endif
