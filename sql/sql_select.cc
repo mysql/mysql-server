@@ -44,7 +44,7 @@
 #include "sql_partition.h"       // make_used_partitions_str
 #include "sql_acl.h"             // *_ACL
 #include "sql_test.h"            // print_where, print_keyuse_array,
-                                 // print_sjm, print_plan
+                                 // print_sjm, print_plan, TEST_join
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
@@ -90,8 +90,10 @@ static bool best_extension_by_limited_search(JOIN *join,
                                              double read_time, uint depth,
                                              uint prune_level);
 static uint determine_search_depth(JOIN* join);
+C_MODE_START
 static int join_tab_cmp(const void* ptr1, const void* ptr2);
 static int join_tab_cmp_straight(const void* ptr1, const void* ptr2);
+C_MODE_END
 /*
   TODO: 'find_best' is here only temporarily until 'greedy_search' is
   tested and approved.
@@ -17252,8 +17254,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
     str->append(STRING_WITH_LEN("straight_join "));
-  if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
-      (this == &thd->lex->select_lex))
+  if (options & SELECT_HIGH_PRIORITY)
     str->append(STRING_WITH_LEN("high_priority "));
   if (options & SELECT_DISTINCT)
     str->append(STRING_WITH_LEN("distinct "));

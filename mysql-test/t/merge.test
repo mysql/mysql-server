@@ -126,7 +126,6 @@ drop table t3,t2,t1;
 # Test table without unions
 #
 create table t1 (a int not null, key(a)) engine=merge;
---error 1030
 select * from t1;
 drop table t1;
 
@@ -614,6 +613,14 @@ ALTER TABLE m1 UNION=(t1);
 ALTER TABLE m1 UNION=();
 SHOW CREATE TABLE m1;
 DROP TABLE t1, m1;
+
+#
+# BUG#35274 - merge table doesn't need any base tables, gives error 124 when
+#             key accessed
+#
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
+SELECT MAX(a) FROM t1;
+DROP TABLE t1;
 
 #
 # BUG#32047 - 'Spurious' errors while opening MERGE tables

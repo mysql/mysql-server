@@ -571,7 +571,7 @@ page_zip_dir_encode(
 	/* Traverse the list of stored records in the collation order,
 	starting from the first user record. */
 
-	rec = page + PAGE_NEW_INFIMUM, TRUE;
+	rec = page + PAGE_NEW_INFIMUM;
 
 	i = 0;
 
@@ -3117,8 +3117,13 @@ page_zip_validate_low(
 	temp_page_zip in a debugger when running valgrind --db-attach. */
 	VALGRIND_GET_VBITS(page, temp_page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+# if UNIV_WORD_SIZE == 4
 	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
+	/* On 32-bit systems, there is no padding in page_zip_des_t.
+	On other systems, Valgrind could complain about uninitialized
+	pad bytes. */
 	UNIV_MEM_ASSERT_RW(page_zip, sizeof *page_zip);
+# endif
 	VALGRIND_GET_VBITS(page_zip->data, temp_page,
 			   page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -4416,6 +4421,7 @@ page_zip_reorganize(
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
+	buf_pool_t*	buf_pool	= buf_pool_from_block(block);
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
 	page_t*		page		= buf_block_get_frame(block);
 	buf_block_t*	temp_block;
@@ -4433,7 +4439,7 @@ page_zip_reorganize(
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-	temp_block = buf_block_alloc(0);
+	temp_block = buf_block_alloc(buf_pool, 0);
 	btr_search_drop_page_hash_index(block);
 	block->check_index_page_at_flush = TRUE;
 #else /* !UNIV_HOTBACKUP */
