@@ -4477,7 +4477,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     uint mrr_keyno= h->active_index;
 
     if (!(new_h2= h->clone(thd->mem_root)) || 
-        new_h2->ha_external_lock(thd, F_RDLCK))
+        new_h2->ha_external_lock(thd, h->m_lock_type))
     {
       delete new_h2;
       DBUG_RETURN(1);
@@ -5518,7 +5518,15 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   int error= external_lock(thd, lock_type);
 
   if (error == 0)
+  {
     cached_table_flags= table_flags();
+
+    /*
+      The lock type is needed by MRR when creating a clone of this handler
+      object.
+    */
+    m_lock_type= lock_type;
+  }
 
   if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
       MYSQL_HANDLER_WRLOCK_DONE_ENABLED() ||

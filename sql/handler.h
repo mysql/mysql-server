@@ -1487,6 +1487,17 @@ public:
   */
   PSI_table *m_psi;
 
+private:
+  friend class DsMrr_impl;
+  /**
+    The lock type set by when calling::ha_external_lock(). This is 
+    propagated down to the storage engine. The reason for also storing 
+    it here, is that when doing MRR we need to create/clone a second handler
+    object. This cloned handler object needs to know about the lock_type used.
+  */
+  int m_lock_type;
+
+public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
@@ -1498,7 +1509,7 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL)
+    m_psi(NULL), m_lock_type(F_UNLCK)
     {}
   virtual ~handler(void)
   {
