@@ -723,6 +723,27 @@ DROP TABLE t1;
 SET max_sort_length=DEFAULT;
 SET NAMES latin1;
 
+--echo #
+--echo # Bug#52520 Difference in tinytext utf column metadata
+--echo #
+CREATE TABLE t1 (
+  s1 TINYTEXT CHARACTER SET utf16,
+  s2 TEXT CHARACTER SET utf16,
+  s3 MEDIUMTEXT CHARACTER SET utf16,
+  s4 LONGTEXT CHARACTER SET utf16
+);
+--enable_metadata
+SET NAMES utf8, @@character_set_results=NULL;
+SELECT *, HEX(s1) FROM t1;
+SET NAMES latin1;
+SELECT *, HEX(s1) FROM t1;
+SET NAMES utf8;
+SELECT *, HEX(s1) FROM t1;
+--disable_metadata
+CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
 
 #
 ## TODO: add tests for all engines

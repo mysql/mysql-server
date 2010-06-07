@@ -1,0 +1,82 @@
+# Testcase for Bug #53592 - "crash replacing duplicates into
+# table after fast alter table added unique key". The fix is to make
+# sure index number lookup should go through "index translation table".
+
+--source include/have_innodb.inc
+
+# Use FIC for index creation
+set old_alter_table=0;
+
+create table bug53592(a int) engine=innodb row_format=compact;
+
+alter table bug53592 add column b text charset utf8;
+
+alter table bug53592 add column c blob not null;
+
+# Create a non-unique nonclustered index
+create index bug53592_b on bug53592(b(81));
+
+# Create a unique index, this unique index should have smaller
+# index number than bug53592_b, since unique index ranks higher
+# than regular index does
+create unique index bug53592_c on bug53592(c(1));
+
+# This will trigger a dup key error and will require fetching
+# the index number through a index structure for the error reporting.
+# To get the correct index number, the code should go through index
+# translation table. Otherwise, it will get the wrong index
+# number and later trigger a server crash.
+replace into bug53592 values (),();
+
+check table bug53592;
+
+drop table bug53592;
+
+# Running the same set of test when "old_alter_table" is turned on
+set old_alter_table=1;
+
+create table bug53592(a int) engine=innodb row_format=compact;
+
+alter table bug53592 add column b text charset utf8;
+
+alter table bug53592 add column c blob not null;
+
+# Create a non-unique nonclustered index
+create index bug53592_b on bug53592(b(81));
+
+# Create a unique index
+create unique index bug53592_c on bug53592(c(1));
+
+# This will trigger a dup key error and will require fetching
+# the index number through a index structure for the error reporting.
+# To get the correct index number, the code should go through index
+# translation table. Otherwise, it will get the wrong index
+# number and later trigger a server crash.
+replace into bug53592 values (),();
+
+check table bug53592;
+drop table bug53592;
+
+# Test a dup key reported by foreign key constriant.
+CREATE TABLE bug53592_1(
+  col1 int, col2 int,
+  PRIMARY KEY  (col1, col2)
+) ENGINE=InnoDB;
+
+CREATE TABLE bug53592_2 (
+  col int PRIMARY KEY,
+  FOREIGN KEY (col) REFERENCES bug53592_1 (col1)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO bug53592_1 VALUES (1, 2);
+INSERT INTO bug53592_1 VALUES (3, 4);
+
+INSERT INTO bug53592_2 VALUES (1);
+INSERT INTO bug53592_2 VALUES (3);
+
+--error ER_FOREIGN_DUPLICATE_KEY
+UPDATE bug53592_1 SET col1 = 3 WHERE col2 = 2;
+
+drop table bug53592_2;
+drop table bug53592_1;
