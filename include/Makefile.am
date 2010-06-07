@@ -24,6 +24,8 @@ HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h mysql/services.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
+			mysql/service_thread_scheduler.h \
+			mysql/service_thd_wait.h \
 		  	my_pthread.h my_no_pthread.h \
 			mysql/psi/psi.h mysql/psi/mysql_thread.h \
 			mysql/psi/mysql_file.h \
