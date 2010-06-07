@@ -2365,6 +2365,66 @@ void table_share_release_hook(void *share)
 
 
 /**
+  An error handler which converts, if possible, ER_LOCK_DEADLOCK error
+  that can occur when we are trying to acquire a metadata lock to
+  a request for back-off and re-start of open_tables() process.
+*/
+
+class MDL_deadlock_handler : public Internal_error_handler
+{
+public:
+  MDL_deadlock_handler(Open_table_context *ot_ctx_arg)
+    : m_ot_ctx(ot_ctx_arg), m_is_active(FALSE)
+  {}
+
+  virtual ~MDL_deadlock_handler() {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
+
+private:
+  /** Open table context to be used for back-off request. */
+  Open_table_context *m_ot_ctx;
+  /**
+    Indicates that we are already in the process of handling
+    ER_LOCK_DEADLOCK error. Allows to re-emit the error from
+    the error handler without falling into infinite recursion.
+  */
+  bool m_is_active;
+};
+
+
+bool MDL_deadlock_handler::handle_condition(THD *,
+                                            uint sql_errno,
+                                            const char*,
+                                            MYSQL_ERROR::enum_warning_level,
+                                            const char*,
+                                            MYSQL_ERROR ** cond_hdl)
+{
+  *cond_hdl= NULL;
+  if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
+  {
+    /* Disable the handler to avoid infinite recursion. */
+    m_is_active= TRUE;
+    (void) m_ot_ctx->request_backoff_action(Open_table_context::OT_MDL_CONFLICT,
+                                            NULL);
+    m_is_active= FALSE;
+    /*
+      If the above back-off request failed, a new instance of
+      ER_LOCK_DEADLOCK error was emitted. Thus the current
+      instance of error condition can be treated as handled.
+    */
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/**
   Try to acquire an MDL lock for a table being opened.
 
   @param[in,out] thd      Session context, to report errors.
@@ -2432,19 +2492,61 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
 
   ot_ctx->add_request(mdl_request);
 
-  if (thd->mdl_context.try_acquire_lock(mdl_request))
-    return TRUE;
-
-  if (mdl_request->ticket == NULL)
+  if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
   {
-    if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
+    /*
+      When table is being open in order to get data for I_S table,
+      we might have some tables not only open but also locked (e.g. when
+      this happens under LOCK TABLES or in a stored function).
+      As a result by waiting on a conflicting metadata lock to go away
+      we may create a deadlock which won't entirely belong to the
+      MDL subsystem and thus won't be detectable by this subsystem's
+      deadlock detector.
+      To avoid such situation we skip the trouble-making table if
+      there is a conflicting lock.
+    */
+    if (thd->mdl_context.try_acquire_lock(mdl_request))
+      return TRUE;
+    if (mdl_request->ticket == NULL)
     {
       my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
                mdl_request->key.db_name(), mdl_request->key.name());
       return TRUE;
     }
-    if (ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_MDL_LOCK,
-                                   mdl_request, NULL))
+  }
+  else
+  {
+    /*
+      We are doing a normal table open. Let us try to acquire a metadata
+      lock on the table. If there is a conflicting lock, acquire_lock()
+      will wait for it to go away. Sometimes this waiting may lead to a
+      deadlock, with the following results:
+      1) If a deadlock is entirely within MDL subsystem, it is
+         detected by the deadlock detector of this subsystem.
+         ER_LOCK_DEADLOCK error is produced. Then, the error handler
+         that is installed prior to the call to acquire_lock() attempts
+         to request a back-off and retry. Upon success, ER_LOCK_DEADLOCK
+         error is suppressed, otherwise propagated up the calling stack.
+      2) Otherwise, a deadlock may occur when the wait-for graph
+         includes edges not visible to the MDL deadlock detector.
+         One such example is a wait on an InnoDB row lock, e.g. when:
+         conn C1 gets SR MDL lock on t1 with SELECT * FROM t1
+         conn C2 gets a row lock on t2 with  SELECT * FROM t2 FOR UPDATE
+         conn C3 gets in and waits on C1 with DROP TABLE t0, t1
+         conn C2 continues and blocks on C3 with SELECT * FROM t0
+         conn C1 deadlocks by waiting on C2 by issuing SELECT * FROM
+         t2 LOCK IN SHARE MODE.
+         Such circular waits are currently only resolved by timeouts,
+         e.g. @@innodb_lock_wait_timeout or @@lock_wait_timeout.
+    */
+    MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+
+    thd->push_internal_handler(&mdl_deadlock_handler);
+    bool result= thd->mdl_context.acquire_lock(mdl_request,
+                                               ot_ctx->get_timeout());
+    thd->pop_internal_handler();
+
+    if (result && !ot_ctx->can_recover_from_failed_open())
       return TRUE;
   }
   *mdl_ticket= mdl_request->ticket;
@@ -2542,7 +2644,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     if (thd->version != refresh_version)
     {
       (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
-                                            NULL, NULL);
+                                            NULL);
       DBUG_RETURN(TRUE);
     }
   }
@@ -2754,7 +2856,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     /* Someone did a refresh while thread was opening tables */
     mysql_mutex_unlock(&LOCK_open);
     (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
-                                          NULL, NULL);
+                                          NULL);
     DBUG_RETURN(TRUE);
   }
 
@@ -2885,7 +2987,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
       (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
-                                            NULL, NULL);
+                                            NULL);
       DBUG_RETURN(TRUE);
     }
     /* Force close at once after usage */
@@ -2926,13 +3028,13 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       {
         share->version= 0;
         (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
-                                              NULL, table_list);
+                                              table_list);
       }
       else if (share->crashed)
       {
         share->version= 0;
         (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
-                                              NULL, table_list);
+                                              table_list);
       }
 
       goto err_unlock;
@@ -3789,8 +3891,7 @@ end_with_lock_open:
 /** Open_table_context */
 
 Open_table_context::Open_table_context(THD *thd, uint flags)
-  :m_failed_mdl_request(NULL),
-   m_failed_table(NULL),
+  :m_failed_table(NULL),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
    m_global_mdl_request(NULL),
    m_timeout(flags & MYSQL_LOCK_IGNORE_TIMEOUT ?
@@ -3834,37 +3935,44 @@ MDL_request *Open_table_context::get_global_mdl_request(THD *thd)
 bool
 Open_table_context::
 request_backoff_action(enum_open_table_action action_arg,
-                       MDL_request *mdl_request, TABLE_LIST *table)
+                       TABLE_LIST *table)
 {
   /*
-    We are inside a transaction that already holds locks and have
-    met a broken table or a table which needs re-discovery.
-    Performing any recovery action requires acquiring an exclusive
-    metadata lock on this table. Doing that with locks breaks the
-    metadata locking protocol and might lead to deadlocks,
-    so we report an error.
+    A back off action may be one of the three kinds:
 
-    However, if we have only met a conflicting lock or an old
-    TABLE version, and just need to wait for the conflict to
-    disappear/old version to go away, allow waiting.
-    While waiting, we use a simple empiric to detect
-    deadlocks: we never wait on someone who's waiting too.
-    Waiting will be done after releasing metadata locks acquired
-    by this statement.
+    * We met a broken table that needs repair, or a table that
+      is not present on this MySQL server and needs re-discovery.
+      To perform the action, we need an exclusive metadata lock on
+      the table. Acquiring an X lock while holding other shared
+      locks is very deadlock-prone. If this is a multi- statement
+      transaction that holds metadata locks for completed
+      statements, we don't do it, and report an error instead.
+    * Our attempt to acquire an MDL lock lead to a deadlock,
+      detected by the MDL deadlock detector. The current
+      session was chosen a victim. If this is a multi-statement
+      transaction that holds metadata locks for completed statements,
+      restarting locking for the current statement may lead
+      to a livelock. Thus, again, if m_has_locks is set,
+      we report an error. Otherwise, when there are no metadata
+      locks other than which belong to this statement, we can
+      try to recover from error by releasing all locks and
+      restarting the pre-locking.
+    * Finally, we could have met a TABLE_SHARE with old version.
+      Again, if this is a first statement in a transaction we can
+      close all tables, release all metadata locks and wait for
+      the old version to go away. Otherwise, waiting with MDL locks
+      may lead to criss-cross wait between this connection and a
+      connection that has an open table and waits on a metadata lock,
+      i.e. to a deadlock.
+      Since there is no way to detect such a deadlock, we prevent
+      it by reporting an error.
   */
-  if (m_has_locks && action_arg != OT_WAIT_MDL_LOCK)
+  if (m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     return TRUE;
   }
   m_action= action_arg;
-  /*
-    If waiting for metadata lock is requested, a pointer to
-    MDL_request object for which we were unable to acquire the
-    lock is required.
-  */
-  DBUG_ASSERT(m_action != OT_WAIT_MDL_LOCK || mdl_request);
-  m_failed_mdl_request= mdl_request;
   /*
     If auto-repair or discovery are requested, a pointer to table
     list element must be provided.
@@ -3900,9 +4008,7 @@ recover_from_failed_open(THD *thd)
   /* Execute the action. */
   switch (m_action)
   {
-    case OT_WAIT_MDL_LOCK:
-      result= thd->mdl_context.wait_for_lock(m_failed_mdl_request,
-                                             get_timeout());
+    case OT_MDL_CONFLICT:
       break;
     case OT_WAIT_TDC:
       result= tdc_wait_for_old_versions(thd, &m_mdl_requests, get_timeout());
@@ -3973,7 +4079,6 @@ recover_from_failed_open(THD *thd)
     TABLE_LIST element, set when we need auto-discovery or repair,
     for safety.
   */
-  m_failed_mdl_request= NULL;
   m_failed_table= NULL;
   /* Prepare for possible another back-off. */
   m_action= OT_NO_ACTION;
@@ -4097,16 +4202,25 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         */
         DBUG_ASSERT(rt->mdl_request.type == MDL_SHARED);
 
-        if (thd->mdl_context.try_acquire_lock(&rt->mdl_request))
+        /*
+          Waiting for a conflicting metadata lock to go away may
+          lead to a deadlock, detected by MDL subsystem.
+          If possible, we try to resolve such deadlocks by releasing all
+          metadata locks and restarting the pre-locking process.
+          To prevent the error from polluting the diagnostics area
+          in case of successful resolution, install a special error
+          handler for ER_LOCK_DEADLOCK error.
+        */
+        MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+
+        thd->push_internal_handler(&mdl_deadlock_handler);
+        bool result= thd->mdl_context.acquire_lock(&rt->mdl_request,
+                                                   ot_ctx->get_timeout());
+        thd->pop_internal_handler();
+
+        if (result)
           DBUG_RETURN(TRUE);
 
-        if (rt->mdl_request.ticket == NULL)
-        {
-          /* A lock conflict. Someone's trying to modify SP metadata. */
-          ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_MDL_LOCK,
-                                         &rt->mdl_request, NULL);
-          DBUG_RETURN(TRUE);
-        }
         DEBUG_SYNC(thd, "after_shared_lock_pname");
 
         /* Ensures the routine is up-to-date and cached, if exists. */
@@ -4614,18 +4728,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   DBUG_ENTER("open_tables");
 
   /*
-    Close HANDLER tables which are marked for flush or against which there
-    are pending exclusive metadata locks. Note that we do this not to avoid
-    deadlocks (calls to mysql_ha_flush() in mdl_wait_for_locks() and
-    tdc_wait_for_old_version() are enough for this) but in order to have
-    a point during statement execution at which such HANDLERs are closed
-    even if they don't create problems for current thread (i.e. to avoid
-    having DDL blocked by HANDLERs opened for long time).
-  */
-  if (thd->handler_tables_hash.records)
-    mysql_ha_flush(thd);
-
-  /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size
   */
@@ -4633,6 +4735,17 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
 
   thd->current_tablenr= 0;
 restart:
+  /*
+    Close HANDLER tables which are marked for flush or against which there
+    are pending exclusive metadata locks. This is needed both in order to
+    avoid deadlocks and to have a point during statement execution at
+    which such HANDLERs are closed even if they don't create problems for
+    the current session (i.e. to avoid having a DDL blocked by HANDLERs
+    opened for a long time).
+  */
+  if (thd->handler_tables_hash.records)
+    mysql_ha_flush(thd);
+
   has_prelocking_list= thd->lex->requires_prelocking();
   table_to_open= start;
   sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
@@ -5578,15 +5691,6 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     /* We have to cleanup translation tables of views. */
     tmp->cleanup_items();
   }
-  /*
-    Metadata lock requests for tables from extended part of prelocking set
-    are part of list of requests to be waited for in Open_table_context.
-    So to satisfy assumptions in MDL_context::wait_for_locks(), which will
-    performs the waiting, we have to reset MDL_request::ticket values for
-    them as well.
-  */
-  for (tmp= first_not_own_table; tmp; tmp= tmp->next_global)
-    tmp->mdl_request.ticket= NULL;
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(start_of_statement_svp);
 }
@@ -8692,8 +8796,12 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests,
   while (!thd->killed)
   {
     /*
-      Here we have situation as in mdl_wait_for_locks() we need to
-      get rid of offending HANDLERs to avoid deadlock.
+      We have to get rid of HANDLERs which are open by this thread
+      and have old TABLE versions. Otherwise we might get a deadlock
+      in situation when we are waiting for an old TABLE object which
+      corresponds to a HANDLER open by another session. And this
+      other session waits for our HANDLER object to get closed.
+
       TODO: We should also investigate in which situations we have
             to broadcast on COND_refresh because of this.
     */

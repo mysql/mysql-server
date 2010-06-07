@@ -1765,6 +1765,7 @@ drop tables t1, t2;
 # locking subsystem.
 #
 drop tables if exists t0, t1, t2, t3, t4, t5;
+set debug_sync= 'RESET';
 create table t1 (i int);
 create table t2 (j int);
 create table t3 (k int);
@@ -1942,6 +1943,98 @@ commit;
 # Switching to connection 'default'.
 # Reap ALTER TABLE ... RENAME.
 drop table t2;
+#
+# Test that in situation when MDL subsystem detects a deadlock
+# but it turns out that it can be resolved by backing-off locks
+# acquired by one of participating transactions (which is
+# possible when one of transactions consists only of currently
+# executed statement, e.g. in autocommit mode) no error is
+# reported.
+#
+create table t1 (i int);
+create table t2 (j int);
+# Ensure that the below SELECT stops once it has acquired metadata
+# lock on table 't2'.
+set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+# Sending:
+select * from t2, t1;
+#
+# Switching to connection 'deadlock_con1'.
+# Wait till SELECT acquires MDL on 't2' and starts waiting for signal.
+set debug_sync= 'now WAIT_FOR locked';
+# Sending:
+lock tables t1 write, t2 write;
+#
+# Switching to connection 'deadlock_con2'.
+# Wait until LOCK TABLES acquires SNRW lock on 't1' and is blocked
+# while trying to acquire SNRW lock on 't1'.
+# Resume SELECT execution, this should eventually unblock LOCK TABLES.
+set debug_sync= 'now SIGNAL finish';
+#
+# Switching to connection 'deadlock_con1'.
+# Reaping LOCK TABLES.
+unlock tables;
+#
+# Switching to connection 'default'.
+# Reaping SELECT. It succeed and not report ER_LOCK_DEADLOCK error.
+j	i
+drop tables t1, t2;
+#
+# Test coverage for situation in which a race has happened
+# during deadlock detection process which led to unwarranted
+# ER_LOCK_DEADLOCK error.
+#
+create table t1 (i int);
+# Ensure that ALTER waits once it has acquired SNW lock.
+set debug_sync='after_open_table_mdl_shared SIGNAL parked1 WAIT_FOR go1';
+# Sending:
+alter table t1 add column j int;
+#
+# Switching to connection 'deadlock_con1'.
+# Wait till ALTER acquires SNW lock and stops.
+set debug_sync='now WAIT_FOR parked1';
+# Ensure that INSERT is paused once it detects that there is
+# a conflicting metadata lock so it has to wait, but before
+# deadlock detection is run.
+set debug_sync='mdl_acquire_lock_wait SIGNAL parked2 WAIT_FOR go2';
+# Sending:
+insert into t1 values ();
+#
+# Switching to connection 'deadlock_con2'.
+# Wait till INSERT is paused.
+set debug_sync='now WAIT_FOR parked2';
+# Resume ALTER execution. Eventually it will release its
+# metadata lock and INSERT's request for SW lock will be
+# satisified.
+set debug_sync='now SIGNAL go1';
+#
+# Switching to connection 'default'.
+# Reaping ALTER TABLE.
+# Add a new request for SNW lock to waiting graph.
+# Sending:
+alter table t1 drop column j;
+#
+# Switching to connection 'deadlock_con2'.
+# Wait until ALTER is blocked.
+# Resume INSERT so it can start deadlock detection.
+#
+# At this point there is a discrepancy between the fact that INSERT's
+# SW lock is already satisfied, but INSERT's connection is still
+# marked as waiting for it. Looking for a loop in waiters graph
+# without additional checks has detected a deadlock (INSERT waits
+# for SW lock; which is not granted because of pending SNW lock from
+# ALTER; which waits for active SW lock from INSERT). Since requests
+# for SW and SNW locks have same weight ALTER was selected as a victim
+# and ended with ER_LOCK_DEADLOCK error.
+set debug_sync='now SIGNAL go2';
+#
+# Switching to connection 'deadlock_con1'.
+# Reaping INSERT.
+#
+# Switching to connection 'default'.
+# Reaping ALTER. It should succeed and not produce ER_LOCK_DEADLOCK.
+drop table t1;
+set debug_sync= 'RESET';
 #
 # Test for bug #46748 "Assertion in MDL_context::wait_for_locks()
 # on INSERT + CREATE TRIGGER".
@@ -2175,7 +2268,7 @@ alter table t1 add column e int, rename to t2;;
 #
 # Switching to connection 'default'.
 set debug_sync='now WAIT_FOR alter_table_locked';
-set debug_sync='before_open_table_wait_refresh SIGNAL alter_go';
+set debug_sync='mdl_acquire_lock_wait SIGNAL alter_go';
 # The below statement should get ER_LOCK_DEADLOCK error
 # (i.e. it should not allow ALTER to proceed, and then
 # fail due to 't1' changing its name to 't2').
