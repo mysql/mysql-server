@@ -389,74 +389,49 @@ static uchar NEAR _sort_order_win1250ch2[] = {
 0x02, 0x06, 0x04, 0x0a, 0x08, 0x04, 0x06, 0x01
 };
 
-struct wordvalue
-{
-  const uchar * word;
-  uchar pass1;
-  uchar pass2;
+struct wordvalue {
+	const uchar *word;
+	uchar pass1;
+	uchar pass2;
+};
+static struct wordvalue doubles[] = {
+	{ (uchar*) "ch", 0xad, 0x03 },
+	{ (uchar*) "c",  0xa6, 0x02 },
+	{ (uchar*) "Ch", 0xad, 0x02 },
+	{ (uchar*) "CH", 0xad, 0x01 },
+	{ (uchar*) "C",  0xa6, 0x01 },
 };
 
-static struct wordvalue doubles[]=
-{
-  { (uchar*) "ch", 0xad, 0x03 },
-  { (uchar*) "c",  0xa6, 0x02 },
-  { (uchar*) "Ch", 0xad, 0x02 },
-  { (uchar*) "CH", 0xad, 0x01 },
-  { (uchar*) "C",  0xa6, 0x01 },
-};
-
-/*
-  ml - a flag indicating whether automatically
-       switch to the secondary level,
-       or stop on the primary level
-*/
-
-#define NEXT_CMP_VALUE(src, p, pass, value, len, ml)      \
-  while (1)                                               \
-  {                                                       \
-    if (IS_END(p, src, len))                              \
-    {                                                     \
-      if (pass == 0 && ml && len > 0)                     \
-      {                                                   \
-        p= src;                                           \
-        pass++;                                           \
-      }                                                   \
-      else                                                \
-      {                                                   \
-        value= 0;                                         \
-        break;                                            \
-      }                                                   \
-    }                                                     \
-    value= (pass == 0) ?                                  \
-             _sort_order_win1250ch1[*p] :                 \
-             _sort_order_win1250ch2[*p];                  \
-    if (value == 0xff)                                    \
-    {                                                     \
-      int i;                                              \
-      for (i= 0; i < (int) array_elements(doubles); i++)  \
-      {                                                   \
-        const uchar *patt= doubles[i].word;               \
-        const uchar *q= (const uchar *) p;                \
-        while (*patt &&                                   \
-               !IS_END(q, src, len) &&                    \
-               (*patt == *q))                             \
-        {                                                 \
-          patt++;                                         \
-          q++;                                            \
-        }                                                 \
-        if (!(*patt))                                     \
-        {                                                 \
-          value= (int) ((pass == 0) ?                     \
-                          doubles[i].pass1 :              \
-                          doubles[i].pass2);              \
-          p= (const uchar *) q - 1;                       \
-          break;                                          \
-        }                                                 \
-      }                                                   \
-    }                                                     \
-    p++;                                                  \
-    break;                                                \
-  }
+#define NEXT_CMP_VALUE(src, p, pass, value, len)			\
+	while (1) {							\
+		if (IS_END(p, src, len)) {				\
+			if (pass == 0 && len > 0) { p= src; pass++; }	\
+			else { value = 0; break; }			\
+		}							\
+		value = ((pass == 0) ? _sort_order_win1250ch1[*p]	\
+			: _sort_order_win1250ch2[*p]);			\
+		if (value == 0xff) {					\
+			int i;						\
+			for (i = 0; i < (int) sizeof(doubles); i++) {	\
+				const uchar *patt = doubles[i].word;	\
+				const uchar *q = (const uchar *) p;	\
+				while (*patt				\
+					&& !(IS_END(q, src, len))	\
+					&& (*patt == *q)) {		\
+					patt++; q++;			\
+				}					\
+				if (!(*patt)) {				\
+					value = (int)((pass == 0)	\
+						? doubles[i].pass1	\
+						: doubles[i].pass2);	\
+					p = (const uchar *) q - 1;	\
+					break;				\
+				}					\
+			}						\
+		}							\
+		p++;							\
+		break;							\
+	}
 
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
@@ -477,8 +452,8 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 
   do
   {
-    NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1, 1);
-    NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2, 1);
+    NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1);
+    NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2);
     if ((diff = v1 - v2))
       return diff;
   } while (v1);
@@ -487,106 +462,51 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 
 
 /*
-  Compare strings, ignore trailing spaces
+  TODO: Has to be fixed as strnncollsp in ctype-simple
 */
 
-static int
-my_strnncollsp_win1250ch(CHARSET_INFO * cs __attribute__((unused)),
-                         const uchar *s, size_t slen,
-                         const uchar *t, size_t tlen,
-                         my_bool diff_if_only_endspace_difference
-                         __attribute__((unused)))
+static
+int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
+			     const uchar *s, size_t slen, 
+			     const uchar *t, size_t tlen,
+                             my_bool diff_if_only_endspace_difference
+                             __attribute__((unused)))
 {
-  int level;
-
-  for (level= 0; level <= 3; level++)
-  {
-    const uchar *s1= s;
-    const uchar *t1= t;
-    
-    for (;;)
-    {
-      int sval, tval, diff;
-      NEXT_CMP_VALUE(s, s1, level, sval, (int) slen, 0);
-      NEXT_CMP_VALUE(t, t1, level, tval, (int) tlen, 0);
-      if (!sval)
-      {
-        sval= level ? _sort_order_win1250ch2[32] : _sort_order_win1250ch1[32];
-        for (; tval;)
-        {
-          if ((diff= sval - tval))
-            return diff;
-          NEXT_CMP_VALUE(t, t1, level, tval, (int) tlen, 0);
-        }
-        break;
-      }
-      else if (!tval)
-      {
-        tval= level ? _sort_order_win1250ch2[32] : _sort_order_win1250ch1[32];
-        for (; sval;)
-        {
-          if ((diff= sval - tval))
-            return diff;
-          NEXT_CMP_VALUE(s, s1, level, sval, (int) slen, 0);
-        }
-        break;
-      }
-
-      if ((diff= sval - tval))
-        return diff;
-    }
-  }
-  return 0;
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
+  return my_strnncoll_win1250ch(cs,s,slen,t,tlen,0);
 }
 
 
 static size_t
 my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
-                      uchar *dst, size_t dstlen, uint nweights_arg,
+                      uchar *dest, size_t len,
+                      uint nweights_arg __attribute__((unused)),
                       const uchar *src, size_t srclen, uint flags)
 {
-  uint level;
-  uchar *dst0= dst;
-  uchar *de= dst + dstlen;
+  int value;
+  const uchar *p;
+  int pass = 0;
+  size_t totlen = 0;
+  p = src;
 
-  if (!(flags & 0x03)) /* All levels by default */
-    flags|= 0x03;
+  if (!(flags & 0x0F)) /* All levels by default */                              
+    flags|= 0x0F;
 
-  for (level= 0; level <= 1; level++)
+  for (;;)
   {
-    if (flags & (1 << level))
-    {
-      uint nweights= nweights_arg;
-      const uchar *p= src;
-      int value;
-      uchar *dstl= dst;
-
-      for (; dst < de && nweights; nweights--)
-      {
-        NEXT_CMP_VALUE(src, p, level, value, (int) srclen, 0);
-        if (!value)
-          break;
-        *dst++= value;
-      }
-
-      if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
-      {
-        uint pad_length= de - dst;
-        set_if_smaller(pad_length, nweights);
-        /* [82.01] - weights for space character */
-        bfill(dst, pad_length, (int) (level ? 0x01 : 0x82));
-        dst+= pad_length;
-      }
-      my_strxfrm_desc_and_reverse(dstl, dst, flags, level);
-    }
+    NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
+    if (!value)
+      break;
+    if (totlen <= len && ((1 << pass) & flags))
+      dest[totlen++] = value;
   }
-  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
   {
-    uint fill_length= de - dst;
-    cs->cset->fill(cs, (char*) dst, fill_length, 0);
-    dst= de;
+    bfill(dest + totlen, len - totlen, 0x00);
+    totlen= len;
   }
-  return dst - dst0;
+  return totlen;
 }
 
 #undef IS_END
