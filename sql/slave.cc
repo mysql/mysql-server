@@ -3872,7 +3872,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   char *save_buf;
   char rot_buf[LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + FN_REFLEN];
 
-  DBUG_ASSERT(checksum_alg == 0 || checksum_alg == BINLOG_CHECKSUM_ALG_CRC32); 
+  DBUG_ASSERT(checksum_alg == 0 || 
+              checksum_alg == (uint8) -1 || 
+              checksum_alg == BINLOG_CHECKSUM_ALG_CRC32); 
 
   DBUG_ENTER("queue_event");
   /*
@@ -3999,6 +4001,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     delete mi->rli.relay_log.description_event_for_queue;
     mi->rli.relay_log.description_event_for_queue= tmp;
+    if (tmp->checksum_alg == (uint8) -1)
+      tmp->checksum_alg= 0; // don't have to worry about anymore this is OM's FD
+    // the assigned value will survive STOP/START slave but not RESET
     mi->last_master_checksum_alg= tmp->checksum_alg;
     /*
        Though this does some conversion to the slave's format, this will

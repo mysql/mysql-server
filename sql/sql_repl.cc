@@ -128,7 +128,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
     of master's @@global.binlog_checksum was TRUE
   */
 
-  my_bool do_checksum= checksum_alg_arg != 0;
+  my_bool do_checksum= checksum_alg_arg != 0 && checksum_alg_arg != (uint8) -1;
 
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
@@ -490,7 +490,7 @@ static int send_heartbeat_event(NET* net, String* packet,
     Therefore HB's checksum info is retrievable on the slave side
     basing on FD.for_queue.
   */
-  my_bool do_checksum= checksum_alg_arg;
+  my_bool do_checksum= checksum_alg_arg != 0 && checksum_alg_arg != (uint8) -1;
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
     real and fake Rotate events (if necessary)
@@ -723,8 +723,9 @@ impossible position";
        if ((*packet)[EVENT_TYPE_OFFSET + ev_offset] == FORMAT_DESCRIPTION_EVENT)
        {
          current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
-                                                packet->length() - 1);
+                                                packet->length() - ev_offset);
          DBUG_ASSERT(current_checksum_alg == 0 ||
+                     current_checksum_alg == (uint8) -1 ||
                     current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
          if (!is_slave_checksum_aware(thd) && current_checksum_alg != 0)
          {
@@ -816,8 +817,9 @@ impossible position";
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
-                                               packet->length() - 1); // todo: test maybe 0-term string
+                                               packet->length() - ev_offset);
         DBUG_ASSERT(current_checksum_alg == 0 ||
+                    current_checksum_alg == (uint8) -1 ||
                     current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
         if (!is_slave_checksum_aware(thd) && current_checksum_alg != 0)
         {
@@ -1515,6 +1517,13 @@ bool change_master(THD* thd, Master_info* mi)
     ret= TRUE;
     goto err;
   }
+  /*
+    end_master_info invoked on behalf of RESET slave resets as well
+    that is in step with removing FD_q.
+    init_master_info() can't be engaged for this mission as
+    it's called at times IO thread is ON and therefore FD_q is valid.
+  */
+  mi->last_master_checksum_alg= (uint8) -1;
 
   /*
     Data lock not needed since we have already stopped the running threads,

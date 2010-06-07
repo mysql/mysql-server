@@ -4292,7 +4292,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
 
   if ((no_checksum= (checksum_alg == 0)))
   {
-    checksum_alg= BINLOG_CHECKSUM_ALG_CRC32;  // Forcing (V) room with signature
+    checksum_alg= BINLOG_CHECKSUM_ALG_CRC32;  // Forcing (V) room to fill anyway
   }
   ret= (write_header(file, rec_size) ||
         wrapper_my_b_safe_write(file, buff, rec_size) ||
