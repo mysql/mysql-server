@@ -20,13 +20,6 @@
 
 #define BIG_TABLES
 
-/*
-  Minimal version of Windows we should be able to run on.
-  Currently Windows XP.
-*/
-#define _WIN32_WINNT     0x0501
-
-
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
 #define _CRT_SECURE_NO_DEPRECATE 1
