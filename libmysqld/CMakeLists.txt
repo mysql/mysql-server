@@ -79,6 +79,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/sql_audit.cc
+           ../sql/sql_alter_table.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
 	       ../sql/rpl_utility.cc
