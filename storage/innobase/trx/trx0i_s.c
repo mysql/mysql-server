@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -192,6 +192,15 @@ static trx_i_s_cache_t	trx_i_s_cache_static;
 INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 UNIV_INTERN trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
+
+/* Key to register the lock/mutex with performance schema */
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	trx_i_s_cache_lock_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	cache_last_read_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /*******************************************************************//**
 For a record lock that is in waiting state retrieves the only bit that
@@ -429,6 +438,12 @@ fill_trx_row(
 						which to copy volatile
 						strings */
 {
+	const char*	stmt;
+	size_t		stmt_len;
+	const char*	s;
+
+	ut_ad(mutex_own(&kernel_mutex));
+
 	row->trx_id = trx_get_id(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
@@ -449,37 +464,32 @@ fill_trx_row(
 
 	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
 
-	if (trx->mysql_thd != NULL) {
-		row->trx_mysql_thread_id
-			= thd_get_thread_id(trx->mysql_thd);
-	} else {
+	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
 		being recovered at startup there is no associated MySQL
 		thread data structure. */
 		row->trx_mysql_thread_id = 0;
+		row->trx_query = NULL;
+		goto thd_done;
 	}
 
-	if (trx->mysql_query_str != NULL && *trx->mysql_query_str != NULL) {
+	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
+	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 
-		if (strlen(*trx->mysql_query_str)
-		    > TRX_I_S_TRX_QUERY_MAX_LEN) {
+	if (stmt != NULL) {
 
-			char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
+		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
 
-			memcpy(query, *trx->mysql_query_str,
-			       TRX_I_S_TRX_QUERY_MAX_LEN);
-			query[TRX_I_S_TRX_QUERY_MAX_LEN] = '\0';
-
-			row->trx_query = ha_storage_put_memlim(
-				cache->storage, query,
-				TRX_I_S_TRX_QUERY_MAX_LEN + 1,
-				MAX_ALLOWED_FOR_STORAGE(cache));
-		} else {
-
-			row->trx_query = ha_storage_put_str_memlim(
-				cache->storage, *trx->mysql_query_str,
-				MAX_ALLOWED_FOR_STORAGE(cache));
+		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
+			stmt_len = TRX_I_S_TRX_QUERY_MAX_LEN;
 		}
+
+		memcpy(query, stmt, stmt_len);
+		query[stmt_len] = '\0';
+
+		row->trx_query = ha_storage_put_memlim(
+			cache->storage, stmt, stmt_len + 1,
+			MAX_ALLOWED_FOR_STORAGE(cache));
 
 		if (row->trx_query == NULL) {
 
@@ -489,6 +499,79 @@ fill_trx_row(
 
 		row->trx_query = NULL;
 	}
+
+thd_done:
+	s = trx->op_info;
+
+	if (s != NULL && s[0] != '\0') {
+
+		TRX_I_S_STRING_COPY(s, row->trx_operation_state,
+				    TRX_I_S_TRX_OP_STATE_MAX_LEN, cache);
+
+		if (row->trx_operation_state == NULL) {
+
+			return(FALSE);
+		}
+	} else {
+
+		row->trx_operation_state = NULL;
+	}
+
+	row->trx_tables_in_use = trx->n_mysql_tables_in_use;
+
+	row->trx_tables_locked = trx->mysql_n_tables_locked;
+
+	row->trx_lock_structs = UT_LIST_GET_LEN(trx->trx_locks);
+
+	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock_heap);
+
+	row->trx_rows_locked = lock_number_of_rows_locked(trx);
+
+	row->trx_rows_modified = ut_conv_dulint_to_longlong(trx->undo_no);
+
+	row->trx_concurrency_tickets = trx->n_tickets_to_enter_innodb;
+
+	switch (trx->isolation_level) {
+	case TRX_ISO_READ_UNCOMMITTED:
+		row->trx_isolation_level = "READ UNCOMMITTED";
+		break;
+	case TRX_ISO_READ_COMMITTED:
+		row->trx_isolation_level = "READ COMMITTED";
+		break;
+	case TRX_ISO_REPEATABLE_READ:
+		row->trx_isolation_level = "REPEATABLE READ";
+		break;
+	case TRX_ISO_SERIALIZABLE:
+		row->trx_isolation_level = "SERIALIZABLE";
+		break;
+	/* Should not happen as TRX_ISO_READ_COMMITTED is default */
+	default:
+		row->trx_isolation_level = "UNKNOWN";
+	}
+
+	row->trx_unique_checks = (ibool) trx->check_unique_secondary;
+
+	row->trx_foreign_key_checks = (ibool) trx->check_foreigns;
+
+	s = trx->detailed_error;
+
+	if (s != NULL && s[0] != '\0') {
+
+		TRX_I_S_STRING_COPY(s,
+				    row->trx_foreign_key_error,
+				    TRX_I_S_TRX_FK_ERROR_MAX_LEN, cache);
+
+		if (row->trx_foreign_key_error == NULL) {
+
+			return(FALSE);
+		}
+	} else {
+		row->trx_foreign_key_error = NULL;
+	}
+
+	row->trx_has_search_latch = (ibool) trx->has_search_latch;
+
+	row->trx_search_latch_timeout = trx->search_latch_timeout;
 
 	return(TRUE);
 }
@@ -1253,11 +1336,13 @@ trx_i_s_cache_init(
 	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
-	rw_lock_create(&cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
+	rw_lock_create(trx_i_s_cache_lock_key, &cache->rw_lock,
+		       SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
 
-	mutex_create(&cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
+	mutex_create(cache_last_read_mutex_key,
+		     &cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -212,6 +212,11 @@ os_thread_exit(
 	fprintf(stderr, "Thread exits, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_delete_thread();
+#endif
+
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count--;
 	os_mutex_exit(os_sync_mutex);

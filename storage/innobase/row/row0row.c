@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -730,9 +730,9 @@ row_get_clust_rec(
 
 /***************************************************************//**
 Searches an index record.
-@return	TRUE if found */
+@return	whether the record was found or buffered */
 UNIV_INTERN
-ibool
+enum row_search_result
 row_search_index_entry(
 /*===================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -749,13 +749,38 @@ row_search_index_entry(
 	ut_ad(dtuple_check_typed(entry));
 
 	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
+
+	switch (btr_pcur_get_btr_cur(pcur)->flag) {
+	case BTR_CUR_DELETE_REF:
+		ut_a(mode & BTR_DELETE);
+		return(ROW_NOT_DELETED_REF);
+
+	case BTR_CUR_DEL_MARK_IBUF:
+	case BTR_CUR_DELETE_IBUF:
+	case BTR_CUR_INSERT_TO_IBUF:
+		return(ROW_BUFFERED);
+
+	case BTR_CUR_HASH:
+	case BTR_CUR_HASH_FAIL:
+	case BTR_CUR_BINARY:
+		break;
+	}
+
 	low_match = btr_pcur_get_low_match(pcur);
 
 	rec = btr_pcur_get_rec(pcur);
 
 	n_fields = dtuple_get_n_fields(entry);
 
-	return(!page_rec_is_infimum(rec) && low_match == n_fields);
+	if (page_rec_is_infimum(rec)) {
+
+		return(ROW_NOT_FOUND);
+	} else if (low_match != n_fields) {
+
+		return(ROW_NOT_FOUND);
+	}
+
+	return(ROW_FOUND);
 }
 
 #include <my_sys.h>
@@ -915,6 +940,10 @@ row_raw_format(
 
 		ret = row_raw_format_int(data, data_len, prtype,
 					 buf, buf_size, &format_in_hex);
+		if (format_in_hex) {
+
+			goto format_in_hex;
+		}
 		break;
 	case DATA_CHAR:
 	case DATA_VARCHAR:
@@ -923,14 +952,15 @@ row_raw_format(
 
 		ret = row_raw_format_str(data, data_len, prtype,
 					 buf, buf_size, &format_in_hex);
+		if (format_in_hex) {
+
+			goto format_in_hex;
+		}
+
 		break;
 	/* XXX support more data types */
 	default:
-
-		format_in_hex = TRUE;
-	}
-
-	if (format_in_hex) {
+	format_in_hex:
 
 		if (UNIV_LIKELY(buf_size > 2)) {
 
