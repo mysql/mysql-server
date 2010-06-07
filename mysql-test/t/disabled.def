@@ -14,3 +14,6 @@ query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails spo
 innodb-autoinc           : Bug#49267 2009-12-02 test fails on windows because of different case mode
 innodb                   : Bug#49396 2009-12-03 test fails in embedded mode
 plugin_load              : Bug#42144 2009-12-21 alik plugin_load fails
+partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
+main.mysqlhotcopy_myisam : bug#54129 2010-06-04 Horst
+main.mysqlhotcopy_archive: bug#54129 2010-06-04 Horst

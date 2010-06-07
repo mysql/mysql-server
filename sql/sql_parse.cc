@@ -887,6 +887,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
+  if (!thd->is_valid_time())
+  {
+    /*
+     If the time has got past 2038 we need to shut this server down
+     We do this by making sure every command is a shutdown and we 
+     have enough privileges to shut the server down
+
+     TODO: remove this when we have full 64 bit my_time_t support
+    */
+    thd->security_ctx->master_access|= SHUTDOWN_ACL;
+    command= COM_SHUTDOWN;
+  }
   thd->set_query_id(get_query_id());
   if (!(server_command_flags[command] & CF_SKIP_QUERY_ID))
     next_query_id();
