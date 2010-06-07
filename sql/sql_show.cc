@@ -1789,6 +1789,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
+        mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           mysql_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
@@ -1796,16 +1797,15 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if (mysys_var)
           mysql_mutex_unlock(&mysys_var->mutex);
 
-        thd_info->start_time= tmp->start_time;
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
-        mysql_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query())
         {
           uint length= min(max_query_length, tmp->query_length());
           thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
+        thd_info->start_time= tmp->start_time;
         thread_infos.append(thd_info);
       }
     }
@@ -1892,6 +1892,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         table->field[3]->set_notnull();
       }
 
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if ((mysys_var= tmp->mysys_var))
         mysql_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
@@ -1912,6 +1913,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
 
       if (mysys_var)
         mysql_mutex_unlock(&mysys_var->mutex);
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       /* INFO */
       if (tmp->query())

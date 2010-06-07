@@ -103,6 +103,8 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "mysql/plugin.h"
+#include "mysql/service_thd_wait.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -1186,7 +1188,9 @@ retry:
 
 	trx->op_info = "waiting in InnoDB queue";
 
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
 	os_event_wait(slot->event);
+	thd_wait_end(trx->mysql_thd);
 
 	trx->op_info = "";
 
@@ -1551,7 +1555,9 @@ srv_suspend_mysql_thread(
 
 	/* Suspend this thread and wait for the event. */
 
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
 	os_event_wait(event);
+	thd_wait_end(trx->mysql_thd);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */

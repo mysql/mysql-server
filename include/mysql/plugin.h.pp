@@ -33,6 +33,27 @@ void *thd_memdup(void* thd, const void* str, unsigned int size);
 MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       const char *str, unsigned int size,
                                       int allocate_lex_string);
+#include <mysql/service_thd_wait.h>
+typedef enum _thd_wait_type_e {
+  THD_WAIT_MUTEX= 1,
+  THD_WAIT_DISKIO= 2,
+  THD_WAIT_ROW_TABLE_LOCK= 3,
+  THD_WAIT_GLOBAL_LOCK= 4
+} thd_wait_type;
+extern struct thd_wait_service_st {
+  void (*thd_wait_begin_func)(void*, thd_wait_type);
+  void (*thd_wait_end_func)(void*);
+} *thd_wait_service;
+void thd_wait_begin(void* thd, thd_wait_type wait_type);
+void thd_wait_end(void* thd);
+#include <mysql/service_thread_scheduler.h>
+struct scheduler_functions;
+extern struct my_thread_scheduler_service {
+  int (*set)(struct scheduler_functions *scheduler);
+  int (*reset)();
+} *my_thread_scheduler_service;
+int my_thread_scheduler_set(struct scheduler_functions *scheduler);
+int my_thread_scheduler_reset();
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
