@@ -13,18 +13,7 @@ let $show_binlog_events= show binlog events;
 
 if (!$binlog_start)
 {
-  let $binlog_checksum= `select variable_value='ON' from information_schema.GLOBAL_VARIABLES where variable_name='binlog_checksum';`;
-
-  # defaults to chop the first event in the binary log
-  if($binlog_checksum)
-  {
-    let $binlog_start=112;
-  }
-
-  if(!$binlog_checksum)
-  {
-    let $binlog_start=107;
-  }
+  let $binlog_start=112;
 }
 
 if (!`SELECT '$binary_log_file' = ''`)

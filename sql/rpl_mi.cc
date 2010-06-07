@@ -499,6 +499,7 @@ void end_master_info(Master_info* mi)
     mi->fd = -1;
   }
   mi->inited = 0;
+  mi->last_master_checksum_alg= (uint8) -1;
 
   DBUG_VOID_RETURN;
 }

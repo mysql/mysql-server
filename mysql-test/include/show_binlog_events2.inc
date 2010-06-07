@@ -1,16 +1,6 @@
 if (!$binlog_start)
 {
-  let $binlog_checksum= `select variable_value='ON' from information_schema.GLOBAL_VARIABLES where variable_name='binlog_checksum';`;
-
-  if($binlog_checksum)
-  {
-    let $binlog_start=112;
-  }
-
-  if(!$binlog_checksum)
-  {
-    let $binlog_start=107;
-  }
+  let $binlog_start=112;
 }
 
 --replace_result $binlog_start <binlog_start>
