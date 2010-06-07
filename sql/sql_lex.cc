@@ -435,8 +435,11 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
-                     lex->plugins.elements);
+  if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
+                       lex->plugins.elements);
+  }
   reset_dynamic(&lex->plugins);
 
   DBUG_VOID_RETURN;

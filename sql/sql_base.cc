@@ -686,7 +686,6 @@ static TABLE_SHARE
 
 void release_table_share(TABLE_SHARE *share)
 {
-  bool to_be_deleted= 0;
   DBUG_ENTER("release_table_share");
   DBUG_PRINT("enter",
              ("share: 0x%lx  table: %s.%s  ref_count: %u  version: %lu",
@@ -700,7 +699,7 @@ void release_table_share(TABLE_SHARE *share)
   {
     if (share->version != refresh_version ||
         table_def_shutdown_in_progress)
-      to_be_deleted=1;
+      my_hash_delete(&table_def_cache, (uchar*) share);
     else
     {
       /* Link share last in used_table_share list */
@@ -712,15 +711,14 @@ void release_table_share(TABLE_SHARE *share)
       end_of_unused_share.prev= &share->next;
       share->next= &end_of_unused_share;
 
-      to_be_deleted= (table_def_cache.records > table_def_size);
+      if (table_def_cache.records > table_def_size)
+      {
+        /* Delete the least used share to preserve LRU order. */
+        my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+      }
     }
   }
 
-  if (to_be_deleted)
-  {
-    DBUG_PRINT("info", ("Deleting share"));
-    my_hash_delete(&table_def_cache, (uchar*) share);
-  }
   DBUG_VOID_RETURN;
 }
 
