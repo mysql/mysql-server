@@ -1,0 +1,53 @@
+'#---------------------BS_STVARS_035_01----------------------#'
+SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
+COUNT(@@GLOBAL.innodb_buffer_pool_instances)
+1
+1 Expected
+'#---------------------BS_STVARS_035_02----------------------#'
+SET @@GLOBAL.innodb_buffer_pool_instances=1;
+ERROR HY000: Variable 'innodb_buffer_pool_instances' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
+COUNT(@@GLOBAL.innodb_buffer_pool_instances)
+1
+1 Expected
+'#---------------------BS_STVARS_035_03----------------------#'
+SELECT @@GLOBAL.innodb_buffer_pool_instances = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_buffer_pool_instances';
+@@GLOBAL.innodb_buffer_pool_instances = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
+COUNT(@@GLOBAL.innodb_buffer_pool_instances)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_buffer_pool_instances';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_035_04----------------------#'
+SELECT @@innodb_buffer_pool_instances = @@GLOBAL.innodb_buffer_pool_instances;
+@@innodb_buffer_pool_instances = @@GLOBAL.innodb_buffer_pool_instances
+1
+1 Expected
+'#---------------------BS_STVARS_035_05----------------------#'
+SELECT COUNT(@@innodb_buffer_pool_instances);
+COUNT(@@innodb_buffer_pool_instances)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_buffer_pool_instances);
+ERROR HY000: Variable 'innodb_buffer_pool_instances' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_buffer_pool_instances);
+ERROR HY000: Variable 'innodb_buffer_pool_instances' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
+COUNT(@@GLOBAL.innodb_buffer_pool_instances)
+1
+1 Expected
+SELECT innodb_buffer_pool_instances = @@SESSION.innodb_buffer_pool_instances;
+ERROR 42S22: Unknown column 'innodb_buffer_pool_instances' in 'field list'
+Expected error 'Readonly variable'
