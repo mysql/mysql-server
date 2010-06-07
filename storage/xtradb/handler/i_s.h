@@ -59,5 +59,7 @@ extern struct st_maria_plugin i_s_innodb_rseg_maria;
 extern struct st_maria_plugin i_s_innodb_table_stats_maria;
 extern struct st_maria_plugin i_s_innodb_index_stats_maria;
 extern struct st_maria_plugin i_s_innodb_admin_command_maria;
+extern struct st_maria_plugin i_s_innodb_sys_tables_maria;
+extern struct st_maria_plugin i_s_innodb_sys_indexes_maria;
 
 #endif /* i_s_h */

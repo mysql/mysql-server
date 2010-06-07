@@ -4341,6 +4341,23 @@ UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_tables =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+UNIV_INTERN struct st_maria_plugin   i_s_innodb_sys_tables_maria =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "INNODB_SYS_TABLES"),
+	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(descr, "InnoDB SYS_TABLES table"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_sys_tables_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+        STRUCT_FLD(version_info, "1.0"),
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_BETA)
+};
+
 UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_indexes =
 {
 	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
@@ -4356,3 +4373,21 @@ UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_indexes =
 	STRUCT_FLD(system_vars, NULL),
 	STRUCT_FLD(__reserved1, NULL)
 };
+
+UNIV_INTERN struct st_maria_plugin   i_s_innodb_sys_indexes_maria =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "INNODB_SYS_INDEXES"),
+	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(descr, "InnoDB SYS_INDEXES table"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_sys_indexes_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+        STRUCT_FLD(version_info, "1.0"),
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_BETA)
+};
+

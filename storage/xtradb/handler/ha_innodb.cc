@@ -10994,6 +10994,8 @@ i_s_innodb_cmpmem_reset_maria,
 i_s_innodb_table_stats_maria,
 i_s_innodb_index_stats_maria,
 i_s_innodb_admin_command_maria,
+i_s_innodb_sys_tables_maria,
+i_s_innodb_sys_indexes_maria,
 i_s_innodb_patches_maria
 maria_declare_plugin_end;
 
