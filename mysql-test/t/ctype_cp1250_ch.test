@@ -86,6 +86,11 @@ set names cp1250 collate cp1250_czech_cs;
 --echo # WL#3664 WEIGHT_STRING
 --echo #
 
+--echo #
+--echo # Note:
+--echo # cp1250_czech_cs does not support WEIGHT_STRING in full extent
+--echo #
+
 set names cp1250 collate cp1250_czech_cs;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc

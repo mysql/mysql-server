@@ -33,8 +33,11 @@ drop table t1;
 
 set names latin2 collate latin2_czech_cs;
 --source include/ctype_pad_space.inc
---source include/ctype_filesort.inc
 
+# We can not use ctype_filesort.inc because
+# order of SPACE and TAB is not strict
+#--source include/ctype_filesort.inc
+#
 
 #
 # Bug#29459 server died handling latin2 collate latin2_czech_cs
@@ -82,7 +85,7 @@ hex(weight_string(ch level 1)) l1,
 hex(weight_string(ch level 2)) l2,
 hex(weight_string(ch level 3)) l3,
 hex(weight_string(ch level 4)) l4,
-name from t1 order by l1, l2, l3, l4;
+name from t1 order by binary l1, binary l2, binary l3, binary l4;
 drop table t1;
 
 #
@@ -212,7 +215,14 @@ DROP TABLE t1;
 
 set names latin2 collate latin2_czech_cs;
 --source include/ctype_pad_space.inc
---source include/ctype_filesort.inc
+# We can not use ctype_filesort.inc because
+# order of SPACE and TAB is not strict
+#--source include/ctype_filesort.inc
+
+--echo #
+--echo # Note:
+--echo # latin2_czech_cs does not support WEIGHT_STRING in full extent
+--echo #
 --source include/weight_string.inc
 --source include/weight_string_chde.inc
 --source include/weight_string_l1.inc

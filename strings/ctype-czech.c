@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-        File strings/ctype-czech.c for MySQL.
+/* File strings/ctype-czech.c for MySQL.
 
 	This file implements the Czech sorting for the MySQL database
 	server (www.mysql.com). Due to some complicated rules the
@@ -60,6 +59,8 @@
  * .configure. strxfrm_multiply_czech=4
  */
 
+#define SKIP_TRAILING_SPACES 1
+
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
@@ -71,117 +72,34 @@
 	below for what are the "special values"
 */
 
-static const uchar *CZ_SORT_TABLE[]=
-{
-  (const uchar*)
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x41\x42\x43\x44\x45\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x47\x58\x5C\x6A\x77\x6B\x69\x5B\x5E\x5F\x66\x6E\x55\x54\x5A\x67"
-  "\x78\x79\x7A\x7B\x7C\x7D\x7E\x7F\x80\x81\x57\x56\x71\x72\x73\x59"
-  "\x65\x82\x83\xFF\x86\x87\x88\x89\x8A\x8C\x8D\x8E\x8F\x90\x91\x92"
-  "\x94\x95\x96\x98\x9A\x9B\x9D\x9E\x9F\xA0\xA1\x60\x68\x61\x4B\x52"
-  "\x49\x82\x83\xFF\x86\x87\x88\x89\x8A\x8C\x8D\x8E\x8F\x90\x91\x92"
-  "\x94\x95\x96\x98\x9A\x9B\x9D\x9E\x9F\xA0\xA1\x62\x74\x63\x75\x00"
-  "\x00\x00\x00\x00\x00\x46\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x48\x82\x4C\x8F\x76\x8F\x98\x64\x4E\x99\x98\x9A\xA1\x53\xA2\xA1"
-  "\x6D\x82\x51\x8F\x4A\x8F\x98\x6C\x50\x99\x98\x9A\xA1\x4F\xA2\xA1"
-  "\x96\x82\x82\x82\x82\x8F\x84\x84\x85\x87\x87\x87\x87\x8C\x8C\x86"
-  "\x86\x91\x91\x92\x92\x92\x92\x70\x97\x9B\x9B\x9B\x9B\xA0\x9A\x98"
-  "\x96\x82\x82\x82\x82\x8F\x84\x84\x85\x87\x87\x87\x87\x8C\x8C\x86"
-  "\x86\x91\x91\x92\x92\x92\x92\x6F\x97\x9B\x9B\x9B\x9B\xA0\x9A\x4D",
-
-  (const uchar*)
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x20\x20\x20\x20\x20\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20"
-  "\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20"
-  "\x20\x20\x20\xFF\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20"
-  "\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20"
-  "\x20\x20\x20\xFF\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20"
-  "\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x00"
-  "\x00\x00\x00\x00\x00\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x20\x2B\x20\x2C\x20\x25\x22\x20\x20\x25\x2A\x25\x22\x20\x25\x29"
-  "\x20\x2B\x20\x2C\x20\x25\x22\x20\x20\x25\x2A\x25\x22\x20\x25\x29"
-  "\x22\x22\x24\x23\x27\x22\x22\x2A\x25\x22\x2B\x47\x25\x22\x24\x25"
-  "\x2C\x22\x25\x22\x24\x28\x27\x20\x25\x26\x22\x28\x27\x22\x2A\x21"
-  "\x22\x22\x24\x23\x27\x22\x22\x2A\x25\x22\x2B\x47\x25\x22\x24\x25"
-  "\x2C\x22\x25\x22\x24\x28\x27\x20\x25\x26\x22\x28\x27\x22\x2A\x20",
-
-
-  (const uchar*)
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03\x03\x03\x03\x03\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03"
-  "\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03"
-  "\x03\x05\x05\xFF\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05"
-  "\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x03\x03\x03\x03\x03"
-  "\x03\x03\x03\xFF\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03"
-  "\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x00"
-  "\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x1B\x05\x03\x05\x03\x05\x05\x03\x03\x05\x05\x05\x05\x03\x05\x05"
-  "\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03"
-  "\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05\x05"
-  "\x05\x05\x05\x05\x05\x05\x05\x03\x05\x05\x05\x05\x05\x05\x05\x03"
-  "\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03"
-  "\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03\x03",
-
-  (const uchar*)
-  "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
-  "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"
-  "\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2A\x2B\x2C\x2D\x2E\x2F"
-  "\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3A\x3B\x3C\x3D\x3E\x3F"
-  "\x40\x41\x42\xFF\x44\x45\x46\x47\x48\x49\x4A\x4B\x4C\x4D\x4E\x4F"
-  "\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5A\x5B\x5C\x5D\x5E\x5F"
-  "\x60\x61\x62\xFF\x64\x65\x66\x67\x68\x69\x6A\x6B\x6C\x6D\x6E\x6F"
-  "\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7A\x7B\x7C\x7D\x7E\x7F"
-  "\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8A\x8B\x8C\x8D\x8E\x8F"
-  "\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9A\x9B\x9C\x9D\x9E\x9F"
-  "\xA0\xA1\xA2\xA3\xA4\xA5\xA6\xA7\xA8\xA9\xAA\xAB\xAC\xAD\xAE\xAF"
-  "\xB0\xB1\xB2\xB3\xB4\xB5\xB6\xB7\xB8\xB9\xBA\xBB\xBC\xBD\xBE\xBF"
-  "\xC0\xC1\xC2\xC3\xC4\xC5\xC6\xC7\xC8\xC9\xCA\xCB\xCC\xCD\xCE\xCF"
-  "\xD0\xD1\xD2\xD3\xD4\xD5\xD6\xD7\xD8\xD9\xDA\xDB\xDC\xDD\xDE\xDF"
-  "\xE0\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xE8\xE9\xEA\xEB\xEC\xED\xEE\xEF"
-  "\xF0\xF1\xF2\xF3\xF4\xF5\xF6\xF7\xF8\xF9\xFA\xFB\xFC\xFD\xFE\xFF"
+static uchar *CZ_SORT_TABLE[] = {
+  (uchar*) "\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\043\044\045\046\047\050\051\052\053\054\000\000\000\000\000\000\000\003\004\377\007\010\011\012\013\015\016\017\020\022\023\024\025\026\027\031\033\034\035\036\037\040\041\000\000\000\000\000\000\003\004\377\007\010\011\012\013\015\016\017\020\022\023\024\025\026\027\031\033\034\035\036\037\040\041\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\003\000\021\000\020\032\000\000\032\032\033\042\000\042\042\000\003\000\021\000\020\032\000\000\032\032\033\042\000\042\042\027\003\003\003\003\020\006\006\006\010\010\010\010\015\015\007\007\023\023\024\024\024\024\000\030\034\034\034\034\040\033\000\027\003\003\003\003\020\006\006\006\010\010\010\010\015\015\007\007\023\023\024\024\024\024\000\030\034\034\034\034\040\033\000",
+  (uchar*) "\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\106\107\110\111\112\113\114\115\116\117\000\000\000\000\000\000\000\003\011\377\016\021\026\027\030\032\035\036\037\043\044\047\054\055\056\061\065\070\075\076\077\100\102\000\000\000\000\000\000\003\011\377\016\021\026\027\030\032\035\036\037\043\044\047\054\055\056\061\065\070\075\076\077\100\102\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\010\000\042\000\041\063\000\000\062\064\066\104\000\103\105\000\010\000\042\000\041\063\000\000\062\064\066\104\000\103\105\057\004\005\007\006\040\014\015\013\022\025\024\023\033\034\017\020\046\045\050\051\053\052\000\060\072\071\074\073\101\067\000\057\004\005\007\006\040\014\015\013\022\025\024\023\033\034\017\020\046\045\050\051\053\052\000\060\072\071\074\073\101\067\000",
+(uchar*) "\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\212\213\214\215\216\217\220\221\222\223\000\000\000\000\000\000\000\004\020\377\032\040\052\054\056\063\071\073\075\105\107\115\127\131\133\141\151\157\171\173\175\177\203\000\000\000\000\000\000\003\017\377\031\037\051\053\055\062\070\072\074\104\106\114\126\130\132\140\150\156\170\172\174\176\202\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\016\000\103\000\101\145\000\000\143\147\153\207\000\205\211\000\015\000\102\000\100\144\000\000\142\146\152\206\000\204\210\135\006\010\014\012\077\026\030\024\042\050\046\044\065\067\034\036\113\111\117\121\125\123\000\137\163\161\167\165\201\155\000\134\005\007\013\011\076\025\027\023\041\047\045\043\064\066\033\035\112\110\116\120\124\122\000\136\162\160\166\164\200\154\000",
+(uchar*) "\264\265\266\267\270\271\272\273\274\002\276\277\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317\320\321\322\323\002\230\232\253\324\252\251\234\240\241\261\260\225\262\224\235\212\213\214\215\216\217\220\221\222\223\231\226\244\257\245\227\250\004\020\377\032\040\052\054\056\063\071\073\075\105\107\115\127\131\133\141\151\157\171\173\175\177\203\242\237\243\254\255\233\003\017\377\031\037\051\053\055\062\070\072\074\104\106\114\126\130\132\140\150\156\170\172\174\176\202\246\236\247\256\325\264\265\266\267\270\271\272\273\274\275\276\277\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317\320\321\322\323\326\016\327\103\330\101\145\331\332\143\147\153\207\333\205\211\334\015\335\102\336\100\144\337\340\142\146\152\206\341\204\210\135\006\010\014\012\077\026\030\024\042\050\046\044\065\067\034\036\113\111\117\121\125\123\263\137\163\161\167\165\201\155\342\134\005\007\013\011\076\025\027\023\041\047\045\043\064\066\033\035\112\110\116\120\124\122\343\136\162\160\166\164\200\154\344",
 };
 
 /*
-  These define the values for the double chars that need to be
-  sorted as they were single characters -- in Czech these are
-  'ch', 'Ch' and 'CH'.
+	These define the valuse for the double chars that need to be
+	sorted as they were single characters -- in Czech these are
+	'ch', 'Ch' and 'CH'.
 */
 
 struct wordvalue
-{
-  const uchar *word;
-  const uchar *outvalue;
-};
-
-static struct wordvalue doubles[]=
-{
-  { "ch", (const uchar*) "\x8B\x20\x03\x63" },
-  { "Ch", (const uchar*) "\x8B\x20\x04\x43" },
-  { "CH", (const uchar*) "\x8B\x20\x05\x43" },
-  { "c",  (const uchar*) "\x84\x20\x03\x63" },
-  { "C",  (const uchar*) "\x84\x20\x05\x43" },
-};
-
+	{
+	  const char * word;
+	  uchar *outvalue;
+	};
+static struct wordvalue doubles[] = {
+	{ "ch", (uchar*) "\014\031\057\057" },
+	{ "Ch", (uchar*) "\014\031\060\060" },
+	{ "CH", (uchar*) "\014\031\061\061" },
+	{ "c",  (uchar*) "\005\012\021\021" },
+	{ "C",  (uchar*) "\005\012\022\022" },
+	};
 
 /*
-  Define "auto" space character,
-  which is used while processing "PAD SPACE" rule,
-  when one string is shorter than another string.
-  "Auto" space character is lower than a real space
-  character on the third level.
-*/
-static const uchar *virtual_space= "\x47\x20\x02\x20";
-
-/*
-        Original comments from the contributor:
-        
-	Informal description of the algorithm:
+	Unformal description of the algorithm:
 
 	We walk the string left to right.
 
@@ -202,142 +120,87 @@ static const uchar *virtual_space= "\x47\x20\x02\x20";
 
 	If the value is space/end of word (2) and we are in the first
 	or second pass, we skip all characters having value 0 -- 2 and
-	switch the pass.
+	switch the passwd.
 
 	If it's the compose character (255), we check if the double
 	exists behind it, find its value.
 
 	We append 0 to the end.
-
+---
 	Neformální popis algoritmu:
 
-	procházíme øetìzec zleva doprava
-	konec øetìzce poznáme podle *p == 0
-	pokud jsme do¹li na konec øetìzce pøi prùchodu 0, nejdeme na
-		zaèátek, ale na ulo¾enou pozici, proto¾e první a druhý
-		prùchod bì¾í souèasnì
-	konec vstupu (prùchodu) oznaèíme na výstupu hodnotou 1
+	Procházíme øetìzec zleva doprava.
 
-	naèteme hodnotu z tøídící tabulky
-	jde-li o hodnotu ignorovat (0), skoèíme na dal¹í prùchod
-	jde-li o hodnotu konec slova (2) a je to prùchod 0 nebo 1,
-		pøeskoèíme v¹echny dal¹í 0 -- 2 a prohodíme
-		prùchody
-	jde-li o kompozitní znak (255), otestujeme, zda následuje
-		správný do dvojice, dohledáme správnou hodnotu
+	Konec øetìzce je pøedán buï jako parametr, nebo je to *p == 0.
+	Toto je o¹etøeno makrem IS_END.
 
-	na konci pøipojíme znak 0
-*/
+	Pokud jsme do¹li na konec øetìzce pøi prùchodu 0, nejdeme na
+	zaèátek, ale na ulo¾enou pozici, proto¾e první a druhý prùchod
+	bì¾í souèasnì.
 
-/*
-  In March 2007 latin2_czech_cs was reworked by Alexander Barkov,
-  to suite other MySQL collations better, and to be Falcon compatible.
-  
-  Changes:
-  - Discarded word-by-word comparison on the primary and the secondary level.
-    Comparison is now strictly done level-by-level
-    (like the Unicode Collation Algorithm (UCA) does).
-    
-  - Character weights were derived from Unicode 5.0.0 standard.
-    This is to make order of punctuation characters and digits
-    more consistent with all other MySQL collations and UCA.
-    
-    The order is now:
-    
-      Controls, spaces, punctuations, digits, letters.
-    
-    It previously used to be:
-    
-      Punctuations, controls, some more punctuations, letters, digits.
-    
-    NOTE:
-    
-    A minor difference between this implementations and the UCA:
-    
-    German "LATIN SMALL LETTER SHARP S" does not expand to "ss".
-    It is instead considered as secondary greater than "LATIN LETTER S",
-    and thus sorted between "LATIN LETTER S" and "LATIN LETTER S WITH ACUTE".
-    This allows to reduce *twice* disk space required for un-indexed
-    ORDER BY (using the filesort method).
-    
-    As neither the original version of latin2_czech_cs 
-    expanded "SHARP S" to "ss", nor "SHARP S" is a part of Czech alphabet,
-    this behavior should be ok.
-    
-  - Collation is now "PAD SPACE" like all other MySQL collations.
-    It ignores trailing spaces on primary and secondary level.
-    
-  - SPACE and TAB characters are not ignorable anymore.
-    Also, they have different weights on primary level,
-    like in all other MySQL collations:
-    
-    SELECT 'a\t' < 'a ' -- returns true
-    SELECT 'a\t' < 'a'  -- returns true
-    
-  - Some other punctuation characters are not ignorable anymore,
-    for better compatibility with UCA and other MySQL collations.
+	Konec vstupu (prùchodu) oznaèíme na výstupu hodnotou 1.
 
-*/
+	Pro ka¾dý znak øetìzce naèteme hodnotu z tøídící tabulky.
 
+	Jde-li o hodnotu ignorovat (0), skoèíme ihned na dal¹í znak..
+
+	Jde-li o hodnotu konec slova (2) a je to prùchod 0 nebo 1,
+	pøeskoèíme v¹echny dal¹í 0 -- 2 a prohodíme prùchody.
+
+	Jde-li o kompozitní znak (255), otestujeme, zda následuje
+	správný do dvojice, dohledáme správnou hodnotu.
+
+	Na konci pøipojíme znak 0
+ */
 
 #define ADD_TO_RESULT(dest, len, totlen, value)			\
-if ((totlen) < (len)) { dest[totlen] = value; } (totlen++);
+{ if ((totlen) < (len)) { dest[totlen++]= value; } }
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
-/*
-  src  - IN     pointer to the beginning of the string
-  p    - IN/OUT pointer to the current character being processed
-  pass - IN     pass number [0..3]
-                0 - primary level
-                1 - secondary level
-                2 - tertiary level 
-                3 - quarternary level
-  value - OUT   the next weight value.
-                -1 is returned on end-of-line.
-                 1 is returned between levels ("level separator").
-                Any value greater than 1 is a normal weight.
-  ml    - IN    a flag indicating whether to switch automatically
-                to the secondary level and higher levels,
-                or stop at the primary level.
-                ml=0 is used for prefix comparison.
-*/
-                
-#define NEXT_CMP_VALUE(src, p, pass, value, len, ml)	\
+#define NEXT_CMP_VALUE(src, p, store, pass, value, len)		\
 while (1)						\
 {							\
   if (IS_END(p, src, len))				\
   {							\
     /* when we are at the end of string */		\
-    /* return either -1 for end of string */		\
+    /* return either 0 for end of string */		\
    /* or 1 for end of pass */				\
-                                                        \
-   /* latin2_czech_cs WEIGHT_STRING() returns level */  \
-   /* separators even for empty string: 01.01.01.00 */  \
-   /* The another Czech collation (cp1250_czech_cs) */  \
-   /* returns *empty* WEIGHT_STRING() for empty input.*/\
-   /* This is why the below if(){}else{} code block */  \
-   /* differs from the similar piece in             */  \
-   /* ctype-win1250.c                               */  \
-   if (pass != 3 && ml)					\
+   value= 0;						\
+   if (pass != 3)					\
    {							\
-     p= src;						\
-     pass++;						\
-     value= 1; /* Level separator */                    \
-   }                                                    \
-   else                                                 \
-   {                                                    \
-     value= -1; /* End-of-line marker*/                 \
+     p= (pass++ == 0) ? store : src;			\
+     value = 1;						\
    }							\
    break;						\
   }							\
   /* not at end of string */				\
   value = CZ_SORT_TABLE[pass][*p];			\
-  if (value == 0 && pass < 3)				\
-  { p++; continue; } /* ignore value on levels 0,1,2 */	\
+  if (value == 0)					\
+  { p++; continue; } /* ignore value */			\
+  if (value == 2) /* space */				\
+  {							\
+    const uchar *tmp;					\
+    const uchar *runner = ++p;				\
+    while (!(IS_END(runner, src, len)) && (CZ_SORT_TABLE[pass][*runner] == 2)) \
+     runner++;	/* skip all spaces */			\
+    if (IS_END(runner, src, len) && SKIP_TRAILING_SPACES) \
+      p = runner;					\
+    if ((pass <= 2) && !(IS_END(runner, src, len)))	\
+      p = runner;					\
+    if (IS_END(p, src, len))				\
+      continue;						\
+    /* we switch passes */				\
+    if (pass > 1)					\
+      break;						\
+    tmp = p;						\
+    pass= 1-pass;					\
+    p = store; store = tmp;				\
+    break;						\
+  }							\
   if (value == 255)					\
   {							\
     int i;						\
-    for (i= 0; i < (int) array_elements(doubles); i++)  \
+    for (i = 0; i < (int) sizeof(doubles); i++)		\
     {							\
       const char * pattern = doubles[i].word;		\
       const char * q = (const char *) p;		\
@@ -371,80 +234,43 @@ static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
                               my_bool s2_is_prefix)
 {
   int v1, v2;
-  const uchar * p1, * p2;
-  int pass1= 0, pass2= 0;
+  const uchar *p1, * p2, * store1, * store2;
+  int pass1 = 0, pass2 = 0;
 
   if (s2_is_prefix && len1 > len2)
     len1=len2;
 
-  p1= s1;
-  p2= s2;
+  p1 = s1;	p2 = s2;
+  store1 = s1;	store2 = s2;
 
   do
   {
     int diff;
-    NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1, 1);
-    NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2, 1);
+    NEXT_CMP_VALUE(s1, p1, store1, pass1, v1, (int)len1);
+    NEXT_CMP_VALUE(s2, p2, store2, pass2, v2, (int)len2);
     if ((diff = v1 - v2))
       return diff;
   }
-  while (v1 >= 0);
+  while (v1);
   return 0;
 }
 
 
 
 /*
-  Compare strings, ignore trailing spaces
+  TODO: Fix this one to compare strings as they are done in ctype-simple1
 */
 
-static int
-my_strnncollsp_czech(CHARSET_INFO * cs __attribute__((unused)),
-                     const uchar *s, size_t slen,
-                     const uchar *t, size_t tlen,
-                     my_bool diff_if_only_endspace_difference
-                     __attribute__((unused)))
+static
+int my_strnncollsp_czech(CHARSET_INFO * cs, 
+                         const uchar *s, size_t slen, 
+                         const uchar *t, size_t tlen,
+                         my_bool diff_if_only_endspace_difference
+                         __attribute__((unused)))
 {
-  int level;
-
-  for (level= 0; level <= 3; level++)
-  {
-    const uchar *s1= s;
-    const uchar *t1= t;
-
-    for (;;)
-    {
-      int sval, tval, diff;
-      NEXT_CMP_VALUE(s, s1, level, sval, (int) slen, 0);
-      NEXT_CMP_VALUE(t, t1, level, tval, (int) tlen, 0);
-      if (sval < 0)
-      {
-        sval= virtual_space[level];
-        for (; tval >= 0 ;)
-        {
-          if ((diff= sval - tval))
-            return diff;
-          NEXT_CMP_VALUE(t, t1, level, tval, (int) tlen, 0);
-        }
-        break;
-      }
-      else if (tval < 0)
-      {
-        tval= virtual_space[level];
-        for (; sval >= 0 ;)
-        {
-          if ((diff= sval - tval))
-            return diff;
-          NEXT_CMP_VALUE(s, s1, level, sval, (int) slen, 0);
-        }
-        break;
-      }
-
-      if ((diff= sval - tval))
-        return diff;
-    }
-  }
-  return 0;
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
+  return my_strnncoll_czech(cs,s,slen,t,tlen,0);
 }
 
 
@@ -456,71 +282,65 @@ my_strnxfrmlen_czech(CHARSET_INFO *cs __attribute__((unused)), size_t len)
 {
   return len * 4 + 4;
 }
-
+    
 
 /*
   Function strnxfrm, actually strxfrm, with Czech sorting, which expect
   the length of the strings being specified
 */
+
 static size_t
-my_strnxfrm_czech(CHARSET_INFO * cs  __attribute__((unused)),
-                  uchar *dst, size_t dstlen, uint nweights_arg,
+my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
+                  uchar *dest, size_t len, uint nweights_arg,
                   const uchar *src, size_t srclen, uint flags)
 {
-  uint level;
-  uchar *dst0= dst;
-  uchar *de= dst + dstlen;
+  int value;
+  const uchar *p, * store;
+  int pass = 0;
+  size_t totlen = 0;
+  p = src;	store = src;
 
-  if (!(flags & 0x0F)) /* All levels by default */
+  if (!(flags & 0x0F)) /* All levels by default */                              
     flags|= 0x0F;
 
-  for (level= 0; level <= 3; level++)
+  do
   {
-    if (flags & (1 << level))
-    {
-      uint nweights= nweights_arg;
-      const uchar *p= src;
-      int value;
-      uchar *dstl= dst;
-      
-      for (; dst < de && nweights; nweights--)
-      {
-        NEXT_CMP_VALUE(src, p, level, value, (int) srclen, 0);
-        if (value < 0)
-          break;
-        *dst++= value;
-      }
-      
-      if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
-      {
-        uint pad_length= de - dst;
-        set_if_smaller(pad_length, nweights);
-        /* fill with weight for space character */
-        bfill(dst, pad_length, virtual_space[level]);
-        dst+= pad_length;
-      }
-      
-      my_strxfrm_desc_and_reverse(dstl, dst, flags, level);
-      
-      /* Add level delimiter */
-      if (dst < de)
-        *dst++= level < 3 ? 1 : 0;
-    }
+    int add= (1 << pass) & flags; /* If this level is needed */
+    NEXT_CMP_VALUE(src, p, store, pass, value, (int)srclen);
+    if (add)
+      ADD_TO_RESULT(dest, len, totlen, value);
   }
-  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
+  while (value);
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
   {
-    uint fill_length= de - dst;
-    cs->cset->fill(cs, (char*) dst, fill_length, 0);
-    dst= de;
+    bfill(dest + totlen, len - totlen, ' ');
+    totlen= len;
   }
-  return dst - dst0;
+  return totlen;
 }
-
 
 #undef IS_END
 
 
 /*
+	Neformální popis algoritmu:
+
+	procházíme øetìzec zleva doprava
+	konec øetìzce poznáme podle *p == 0
+	pokud jsme do¹li na konec øetìzce pøi prùchodu 0, nejdeme na
+		zaèátek, ale na ulo¾enou pozici, proto¾e první a druhý
+		prùchod bì¾í souèasnì
+	konec vstupu (prùchodu) oznaèíme na výstupu hodnotou 1
+
+	naèteme hodnotu z tøídící tabulky
+	jde-li o hodnotu ignorovat (0), skoèíme na dal¹í prùchod
+	jde-li o hodnotu konec slova (2) a je to prùchod 0 nebo 1,
+		pøeskoèíme v¹echny dal¹í 0 -- 2 a prohodíme
+		prùchody
+	jde-li o kompozitní znak (255), otestujeme, zda následuje
+		správný do dvojice, dohledáme správnou hodnotu
+
+	na konci pøipojíme znak 0
  */
 
 
@@ -541,8 +361,9 @@ my_strnxfrm_czech(CHARSET_INFO * cs  __attribute__((unused)),
 ** optimized !
 */
 
-#define min_sort_char 0x00
-#define max_sort_char 0xAE
+
+#define min_sort_char ' '
+#define max_sort_char '9'
 
 
 static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
@@ -809,5 +630,6 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     &my_charset_8bit_handler,
     &my_collation_latin2_czech_ci_handler
 };
+
 
 #endif
