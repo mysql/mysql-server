@@ -151,7 +151,7 @@ if HAVE_DTRACE_DASH_G
 libmysyslt_la_LIBADD = probes_mysql.o
 libmysyslt_la_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
-DTRACEFILES = mf_keycache.o
+DTRACEFILES = .libs/mf_keycache.o
 DTRACEPROVIDER = probes_mysql.d
 CLEANFILES += $(DTRACEPROVIDER) dtrace_sources
 
