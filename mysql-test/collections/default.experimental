@@ -87,3 +87,6 @@ parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experiment
 parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
+
+# Suite rpl_bhs generated at testing moment "on-th-fly" from rpl suite
+rpl_bhs.*
