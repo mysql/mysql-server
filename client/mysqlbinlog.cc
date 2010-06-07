@@ -1734,7 +1734,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           len= 1;
         if (raw_mode)
         {
-          my_fclose(result_file, MYF(0));
+          if (result_file && (result_file != stdout))
+            my_fclose(result_file, MYF(0));
           if (!(result_file = my_fopen(log_file_name, O_WRONLY | O_BINARY,
                                        MYF(MY_WME))))
           {
