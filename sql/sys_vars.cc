@@ -2405,8 +2405,8 @@ static Sys_var_session_special Sys_timestamp(
        "timestamp", "Set the time for this client",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
        VALID_RANGE(0, ~(time_t)0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_timestamp),
-       ON_READ(read_timestamp));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_timestamp), 
+       ON_UPDATE(update_timestamp), ON_READ(read_timestamp));
 
 static bool update_last_insert_id(THD *thd, set_var *var)
 {

@@ -1353,8 +1353,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
       packet[0].
     */
-    enum mysql_enum_shutdown_level level=
-      (enum mysql_enum_shutdown_level) (uchar) packet[0];
+    enum mysql_enum_shutdown_level level;
+    if (!thd->is_valid_time())
+      level= SHUTDOWN_DEFAULT;
+    else
+      level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
     else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
