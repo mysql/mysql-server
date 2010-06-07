@@ -50,6 +50,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
+#include "sql_alter_table.h"                   // Alter_table*_statement
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -6168,9 +6169,21 @@ alter:
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= NULL;
           }
           alter_commands
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            if (!lex->m_stmt)
+            {
+              /* Create a generic ALTER TABLE statment. */
+              lex->m_stmt= new (thd->mem_root) Alter_table_statement(lex);
+              if (lex->m_stmt == NULL)
+                MYSQL_YYABORT;
+            }
+          }
         | ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
@@ -6440,8 +6453,8 @@ alter_commands:
         | EXCHANGE_SYM PARTITION_SYM alt_part_name_item
           WITH TABLE_SYM table_ident have_partitioning
           {
-            LEX *lex=Lex;
             THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             size_t dummy;
             lex->select_lex.db=$6->db.str;
             if (lex->select_lex.db == NULL &&
@@ -6454,6 +6467,11 @@ alter_commands:
             if (!lex->select_lex.add_table_to_list(thd, $6, NULL,
                                                    TL_OPTION_UPDATING,
                                                    TL_WRITE_ALLOW_READ))
+              MYSQL_YYABORT;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root)
+                               Alter_table_exchange_partition_statement(lex);
+            if (lex->m_stmt == NULL)
               MYSQL_YYABORT;
           }
           opt_ignore
