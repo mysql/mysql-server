@@ -2411,6 +2411,7 @@ drop tables t1, t2;
 --disable_warnings
 drop tables if exists t0, t1, t2, t3, t4, t5;
 --enable_warnings
+set debug_sync= 'RESET';
 
 connect(deadlock_con1,localhost,root,,);
 connect(deadlock_con2,localhost,root,,);
@@ -2699,6 +2700,136 @@ connection default;
 --reap
 
 drop table t2;
+
+--echo #
+--echo # Test that in situation when MDL subsystem detects a deadlock
+--echo # but it turns out that it can be resolved by backing-off locks
+--echo # acquired by one of participating transactions (which is
+--echo # possible when one of transactions consists only of currently
+--echo # executed statement, e.g. in autocommit mode) no error is
+--echo # reported.
+--echo #
+create table t1 (i int);
+create table t2 (j int);
+--echo # Ensure that the below SELECT stops once it has acquired metadata
+--echo # lock on table 't2'.
+set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+--echo # Sending:
+--send select * from t2, t1
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait till SELECT acquires MDL on 't2' and starts waiting for signal.
+set debug_sync= 'now WAIT_FOR locked';
+--echo # Sending:
+--send lock tables t1 write, t2 write
+
+--echo #
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait until LOCK TABLES acquires SNRW lock on 't1' and is blocked
+--echo # while trying to acquire SNRW lock on 't1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "lock tables t1 write, t2 write";
+--source include/wait_condition.inc
+--echo # Resume SELECT execution, this should eventually unblock LOCK TABLES.
+set debug_sync= 'now SIGNAL finish';
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reaping LOCK TABLES.
+--reap
+unlock tables;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reaping SELECT. It succeed and not report ER_LOCK_DEADLOCK error.
+--reap
+
+drop tables t1, t2;
+
+--echo #
+--echo # Test coverage for situation in which a race has happened
+--echo # during deadlock detection process which led to unwarranted
+--echo # ER_LOCK_DEADLOCK error.
+--echo #
+create table t1 (i int);
+
+--echo # Ensure that ALTER waits once it has acquired SNW lock.
+set debug_sync='after_open_table_mdl_shared SIGNAL parked1 WAIT_FOR go1';
+--echo # Sending:
+--send alter table t1 add column j int
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait till ALTER acquires SNW lock and stops.
+set debug_sync='now WAIT_FOR parked1';
+--echo # Ensure that INSERT is paused once it detects that there is
+--echo # a conflicting metadata lock so it has to wait, but before
+--echo # deadlock detection is run.
+set debug_sync='mdl_acquire_lock_wait SIGNAL parked2 WAIT_FOR go2';
+--echo # Sending:
+--send insert into t1 values ()
+
+--echo #
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait till INSERT is paused.
+set debug_sync='now WAIT_FOR parked2';
+--echo # Resume ALTER execution. Eventually it will release its
+--echo # metadata lock and INSERT's request for SW lock will be
+--echo # satisified.
+set debug_sync='now SIGNAL go1';
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reaping ALTER TABLE.
+--reap
+--echo # Add a new request for SNW lock to waiting graph.
+--echo # Sending:
+--send alter table t1 drop column j
+
+--echo #
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait until ALTER is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 drop column j";
+--source include/wait_condition.inc
+--echo # Resume INSERT so it can start deadlock detection.
+--echo #
+--echo # At this point there is a discrepancy between the fact that INSERT's
+--echo # SW lock is already satisfied, but INSERT's connection is still
+--echo # marked as waiting for it. Looking for a loop in waiters graph
+--echo # without additional checks has detected a deadlock (INSERT waits
+--echo # for SW lock; which is not granted because of pending SNW lock from
+--echo # ALTER; which waits for active SW lock from INSERT). Since requests
+--echo # for SW and SNW locks have same weight ALTER was selected as a victim
+--echo # and ended with ER_LOCK_DEADLOCK error.
+set debug_sync='now SIGNAL go2';
+
+--echo #
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reaping INSERT.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reaping ALTER. It should succeed and not produce ER_LOCK_DEADLOCK.
+--reap
+
+drop table t1;
+
+set debug_sync= 'RESET';
 
 disconnect deadlock_con1;
 disconnect deadlock_con2;
@@ -3097,7 +3228,7 @@ set debug_sync='after_lock_tables_takes_lock SIGNAL alter_table_locked WAIT_FOR 
 --echo # Switching to connection 'default'.
 connection default;
 set debug_sync='now WAIT_FOR alter_table_locked';
-set debug_sync='before_open_table_wait_refresh SIGNAL alter_go';
+set debug_sync='mdl_acquire_lock_wait SIGNAL alter_go';
 --echo # The below statement should get ER_LOCK_DEADLOCK error
 --echo # (i.e. it should not allow ALTER to proceed, and then
 --echo # fail due to 't1' changing its name to 't2').
