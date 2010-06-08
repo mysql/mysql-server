@@ -519,4 +519,115 @@ INSERT INTO variant (a) VALUES (1);
 SELECT * from variant;
 DROP TABLE variant;
 
+
+--echo *************************************************************
+--echo * Restore data-only from old backup without native defaults *
+--echo *************************************************************
+
+--echo Create schema manually with differences for ndb_restore to 
+--echo deal with.  See the backup (or above) for the original schema.
+--echo   - J changed from Int -> Bigint, and default changed from 6 to 6006
+--echo       requires --promote-attribute AND default ignoring
+--echo   - ch default changed from 'aaa' to 'aaaAAA', requires default ignoring
+--echo   - vch missing in DB schema, requires --exclude-missing-columns
+--echo   - timestamp_c default changed from CURRENT_TIMESTAMP to a const default (native)
+--echo     requires default ignoring
+--echo   - newOne is a new column with a default value, requires --exclude-missing-columns
+--echo   - newTwo is a new nullable column with no default value, requires --exclude-missing-columns
+
+CREATE TABLE t1 (  
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `j` bigint(20) NOT NULL DEFAULT '6006', 
+  `f` float NOT NULL DEFAULT '6.6',
+  `d` double DEFAULT '8.8',
+  `d2` double NOT NULL,
+  `ch` char(19) DEFAULT 'aaaAAA',
+  `b` binary(19) DEFAULT 'ccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `vb` varbinary(19) DEFAULT 'ddd',
+  `blob1` blob,
+  `text1` text,
+  `timestamp_c` timestamp NOT NULL DEFAULT '2010-06-07 13:06:22',
+  `newOne` varchar(255) DEFAULT 'Comment field default',
+  `newTwo` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+
+# Bit1 currently unchanged
+CREATE TABLE bit1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `b1` bit(3) DEFAULT b'111',
+  `b2` bit(9) DEFAULT b'101',
+  `b3` bit(23) DEFAULT b'110',
+  `b4` bit(37) DEFAULT b'11',
+  `b5` bit(63) DEFAULT b'101011',
+  PRIMARY KEY (`pk`)
+) ENGINE=ndbcluster AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+
+
+SHOW CREATE TABLE t1;
+
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -r --promote-attribute --exclude-missing-columns $MYSQL_TEST_DIR/std_data/ndb_backup_before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r --promote-attribute --exclude-missing-columns $MYSQL_TEST_DIR/std_data/ndb_backup_before_native_default >> $NDB_TOOLS_OUTPUT
+
+SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne, newTwo from t1 order by i;
+
+drop table bit1;
+
+--echo Now backup the current data and restore data-only to a different schema
+
+--source include/ndb_backup.inc
+drop table t1;
+
+CREATE TABLE t1 (  
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `j` bigint NOT NULL DEFAULT '6', 
+  `f` float NOT NULL DEFAULT '6.6',
+  `d` double DEFAULT '8.8',
+  `d2` double NOT NULL,
+  `ch` char(19) DEFAULT 'aaa',
+  `b` binary(19) DEFAULT 'ccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `vb` varbinary(19) DEFAULT 'ddd',
+  `blob1` blob,
+  `text1` text,
+  `timestamp_c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `newOne` varchar(256) DEFAULT 'Comment field default',
+  PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attribute --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attribute --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne from t1 order by i;
+
+--echo Now backup the current data then restore data-only to a schema with different defaults and no special ndb_restore options
+
+--source include/ndb_backup.inc
+drop table t1;
+
+CREATE TABLE t1 (  
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `j` bigint NOT NULL DEFAULT '20', 
+  `f` float NOT NULL DEFAULT '6.66',
+  `d` double DEFAULT '8.88',
+  `d2` double NOT NULL DEFAULT '9.99',
+  `ch` char(19) DEFAULT 'aaaZZZ',
+  `b` binary(19) DEFAULT 'ccccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `vb` varbinary(19) DEFAULT 'dddDDDddd',
+  `blob1` blob,
+  `text1` text,
+  `timestamp_c` timestamp NOT NULL DEFAULT 20100608133131,
+  `newOne` varchar(256),
+  PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne from t1 order by i;
+
+drop table t1;
+
 --echo End of ndb native default support test
