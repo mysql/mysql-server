@@ -1975,7 +1975,7 @@ struct LEX: public Query_tables_list
   bool autocommit;
   bool verbose, no_write_to_binlog;
 
-  bool tx_chain, tx_release;
+  enum enum_yes_no_unknown tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
     When creating a view, we need to just check its syntax omitting

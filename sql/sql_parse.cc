@@ -4078,33 +4078,65 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_COMMIT:
+  {
     DBUG_ASSERT(thd->lock == NULL ||
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
+    bool tx_chain= (lex->tx_chain == TVL_YES ||
+                    (thd->variables.completion_type == 1 &&
+                     lex->tx_chain != TVL_NO));
+    bool tx_release= (lex->tx_release == TVL_YES ||
+                      (thd->variables.completion_type == 2 &&
+                       lex->tx_release != TVL_NO));
     if (trans_commit(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
     /* Begin transaction with the same isolation level. */
-    if (lex->tx_chain && trans_begin(thd))
+    if (tx_chain)
+    {
+      if (trans_begin(thd))
       goto error;
+    }
+    else
+    {
+      /* Reset the isolation level if no chaining transaction. */
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    }
     /* Disconnect the current client connection. */
-    if (lex->tx_release)
+    if (tx_release)
       thd->killed= THD::KILL_CONNECTION;
     my_ok(thd);
     break;
+  }
   case SQLCOM_ROLLBACK:
+  {
     DBUG_ASSERT(thd->lock == NULL ||
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
+    bool tx_chain= (lex->tx_chain == TVL_YES ||
+                    (thd->variables.completion_type == 1 &&
+                     lex->tx_chain != TVL_NO));
+    bool tx_release= (lex->tx_release == TVL_YES ||
+                      (thd->variables.completion_type == 2 &&
+                       lex->tx_release != TVL_NO));
     if (trans_rollback(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
     /* Begin transaction with the same isolation level. */
-    if (lex->tx_chain && trans_begin(thd))
-      goto error;
+    if (tx_chain)
+    {
+      if (trans_begin(thd))
+        goto error;
+    }
+    else
+    {
+      /* Reset the isolation level if no chaining transaction. */
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    }
     /* Disconnect the current client connection. */
-    if (lex->tx_release)
+    if (tx_release)
       thd->killed= THD::KILL_CONNECTION;
     my_ok(thd);
     break;
+  }
   case SQLCOM_RELEASE_SAVEPOINT:
     if (trans_release_savepoint(thd, lex->ident))
       goto error;
@@ -4607,12 +4639,22 @@ create_sp_error:
     if (trans_xa_commit(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
+    /*
+      We've just done a commit, reset transaction
+      isolation level to the session default.
+    */
+    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
     my_ok(thd);
     break;
   case SQLCOM_XA_ROLLBACK:
     if (trans_xa_rollback(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
+    /*
+      We've just done a rollback, reset transaction
+      isolation level to the session default.
+    */
+    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
