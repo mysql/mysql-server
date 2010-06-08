@@ -5,3 +5,17 @@ flush tables;
 select * from t1 where isnull(to_days(mydate));
 id	mydate
 drop table t1;
+#
+# Bug#53933 crash when using uncacheable subquery in the having clause of outer query
+#
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (0),(0);
+SELECT ISNULL((SELECT GET_LOCK('Bug#53933', 0) FROM t1 GROUP BY f1)) AS f2
+FROM t1 GROUP BY f1 HAVING f2 = f2;
+f2
+0
+SELECT RELEASE_LOCK('Bug#53933');
+RELEASE_LOCK('Bug#53933')
+1
+DROP TABLE t1;
+End of 5.0 tests
