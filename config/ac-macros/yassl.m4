@@ -32,6 +32,12 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
         ;;
     esac
     AC_SUBST([yassl_taocrypt_extra_cxxflags])
+    # Thread safe check
+    yassl_thread_cxxflags=""
+    if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"; then
+      yassl_thread_cxxflags="-DYASSL_THREAD_SAFE"
+    fi
+    AC_SUBST([yassl_thread_cxxflags])
     # Link extra/yassl/include/openssl subdir to include/
     yassl_h_ln_cmd="\$(LN) -s \$(top_srcdir)/extra/yassl/include/openssl openssl"
     AC_SUBST(yassl_h_ln_cmd)
