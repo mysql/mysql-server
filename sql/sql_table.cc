@@ -5429,14 +5429,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             goto err;
 
           DBUG_ASSERT(thd->open_tables == table->table);
-          mysql_mutex_lock(&LOCK_open);
           /*
             When opening the table, we ignored the locked tables
             (MYSQL_OPEN_GET_NEW_TABLE). Now we can close the table without
             risking to close some locked table.
           */
           close_thread_table(thd, &thd->open_tables);
-          mysql_mutex_unlock(&LOCK_open);
         }
       }
       else                                      // Case 1
@@ -7490,9 +7488,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                create_info);
 
     DBUG_ASSERT(thd->open_tables == t_table);
-    mysql_mutex_lock(&LOCK_open);
     close_thread_table(thd, &thd->open_tables);
-    mysql_mutex_unlock(&LOCK_open);
     table_list->table= 0;
 
     if (error)

@@ -1294,23 +1294,16 @@ static void close_open_tables(THD *thd)
 
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  mysql_mutex_lock(&LOCK_open);
-
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
   while (thd->open_tables)
     found_old_table|= close_thread_table(thd, &thd->open_tables);
 
-  /* Free tables to hold down open files */
-  while (table_cache_count > table_cache_size && unused_tables)
-    free_cache_entry(unused_tables);
   if (found_old_table)
   {
     /* Tell threads waiting for refresh that something has happened */
     broadcast_refresh();
   }
-
-  mysql_mutex_unlock(&LOCK_open);
 }
 
 
@@ -1342,13 +1335,6 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   memcpy(key, share->table_cache_key.str, key_length);
 
   mysql_mutex_assert_not_owner(&LOCK_open);
-  /*
-    We need to hold LOCK_open while changing the open_tables
-    list, since another thread may work on it.
-    @sa mysql_notify_thread_having_shared_lock()
-  */
-  mysql_mutex_lock(&LOCK_open);
-
   for (TABLE **prev= &thd->open_tables; *prev; )
   {
     TABLE *table= *prev;
@@ -1356,10 +1342,9 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     if (table->s->table_cache_key.length == key_length &&
         !memcmp(table->s->table_cache_key.str, key, key_length))
     {
-      /* Inform handler that table will be dropped after close */
-      if (table->db_stat)
-        table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-
+      thd->locked_tables_list.unlink_from_list(thd,
+                                               table->pos_in_locked_tables,
+                                               remove_from_locked_tables);
       /*
         Does nothing if the table is not locked.
         This allows one to use this function after a table
@@ -1367,12 +1352,11 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       */
       mysql_lock_remove(thd, thd->lock, table);
 
-      thd->locked_tables_list.unlink_from_list(thd,
-                                               table->pos_in_locked_tables,
-                                               remove_from_locked_tables);
-
       /* Make sure the table is removed from the cache */
       table->s->version= 0;
+      /* Inform handler that table will be dropped after close */
+      if (table->db_stat) /* Not true for partitioned tables. */
+        table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
       close_thread_table(thd, prev);
     }
     else
@@ -1383,7 +1367,6 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   }
   /* We have been removing tables from the table cache. */
   broadcast_refresh();
-  mysql_mutex_unlock(&LOCK_open);
 }
 
 
@@ -1582,17 +1565,22 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
-  mysql_mutex_assert_owner(&LOCK_open);
-
-  *table_ptr=table->next;
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   table->mdl_ticket= NULL;
+
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  *table_ptr=table->next;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+  mysql_mutex_lock(&LOCK_open);
+
   if (table->s->needs_reopen() ||
       thd->version != refresh_version || table->needs_reopen() ||
       table_def_shutdown_in_progress)
   {
     free_cache_entry(table);
-    found_old_table=1;
+    found_old_table= 1;
   }
   else
   {
@@ -1602,10 +1590,17 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
 
     /* Free memory and reset for next loop */
     free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
-    
+
     table->file->ha_reset();
     table_def_unuse_table(table);
+    /*
+      We free the least used table, not the subject table,
+      to keep the LRU order.
+    */
+    if (table_cache_count > table_cache_size)
+      free_cache_entry(unused_tables);
   }
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(found_old_table);
 }
 
@@ -2229,11 +2224,9 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     /* Ensure the table is removed from the cache. */
     table->s->version= 0;
 
-    mysql_mutex_lock(&LOCK_open);
     table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     close_thread_table(thd, &thd->open_tables);
     quick_rm_table(table_type, db_name, table_name, 0);
-    mysql_mutex_unlock(&LOCK_open);
   }
   DBUG_VOID_RETURN;
 }
@@ -3062,8 +3055,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   table->mdl_ticket= mdl_ticket;
 
-  table->next=thd->open_tables;		/* Link into simple list */
-  thd->open_tables=table;
+  table->next= thd->open_tables;		/* Link into simple list */
+  thd->set_open_tables(table);
 
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
@@ -3403,7 +3396,6 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
   */
   if (reopen_count)
   {
-    mysql_mutex_lock(&LOCK_open);
     while (reopen_count--)
     {
       /*
@@ -3420,7 +3412,6 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
       close_thread_table(thd, &thd->open_tables);
     }
     broadcast_refresh();
-    mysql_mutex_unlock(&LOCK_open);
   }
   /* Exclude all closed tables from the LOCK TABLES list. */
   for (TABLE_LIST *table_list= m_locked_tables; table_list; table_list=
@@ -8655,10 +8646,10 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
     mysql_mutex_unlock(&in_use->mysys_var->mutex);
     signalled= TRUE;
   }
-  mysql_mutex_lock(&LOCK_open);
 
   if (needs_thr_lock_abort)
   {
+    mysql_mutex_lock(&in_use->LOCK_thd_data);
     for (TABLE *thd_table= in_use->open_tables;
          thd_table ;
          thd_table= thd_table->next)
@@ -8669,10 +8660,11 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
         and do not remove such instances from the THD::open_tables
         for some time, during which other thread can see those instances
         (e.g. see partitioning code).
-        */
+      */
       if (!thd_table->needs_reopen())
         signalled|= mysql_lock_abort_for_thread(thd, thd_table);
     }
+    mysql_mutex_unlock(&in_use->LOCK_thd_data);
   }
   /*
     Wake up threads waiting in tdc_wait_for_old_versions().
@@ -8685,7 +8677,6 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
     a multi-statement transaction.
   */
   broadcast_refresh();
-  mysql_mutex_unlock(&LOCK_open);
   return signalled;
 }
 
