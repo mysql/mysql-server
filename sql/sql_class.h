@@ -1941,8 +1941,31 @@ public:
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
   uint       select_number;             //number of select (used for EXPLAIN)
-  /* variables.transaction_isolation is reset to this after each commit */
-  enum_tx_isolation session_tx_isolation;
+  /*
+    Current or next transaction isolation level.
+    When a connection is established, the value is taken from
+    @@session.tx_isolation (default transaction isolation for
+    the session), which is in turn taken from @@global.tx_isolation
+    (the global value).
+    If there is no transaction started, this variable
+    holds the value of the next transaction's isolation level.
+    When a transaction starts, the value stored in this variable
+    becomes "actual".
+    At transaction commit or rollback, we assign this variable
+    again from @@session.tx_isolation.
+    The only statement that can otherwise change the value
+    of this variable is SET TRANSACTION ISOLATION LEVEL.
+    Its purpose is to effect the isolation level of the next
+    transaction in this session. When this statement is executed,
+    the value in this variable is changed. However, since
+    this statement is only allowed when there is no active
+    transaction, this assignment (naturally) only affects the
+    upcoming transaction.
+    At the end of the current active transaction the value is
+    be reset again from @@session.tx_isolation, as described
+    above.
+  */
+  enum_tx_isolation tx_isolation;
   enum_check_fields count_cuted_fields;
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */

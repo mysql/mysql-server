@@ -767,6 +767,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   enum index_hint_type index_hint;
   enum enum_filetype filetype;
   enum Foreign_key::fk_option m_fk_option;
+  enum enum_yes_no_unknown m_yes_no_unk;
   Diag_condition_item_name diag_condition_item_name;
 }
 
@@ -1434,11 +1435,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         table_option opt_if_not_exists opt_no_write_to_binlog
         opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
-        start_transaction_opts opt_chain opt_release
+        start_transaction_opts
         union_opt select_derived_init option_type2
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
+
+%type <m_yes_no_unk>
+        opt_chain opt_release
 
 %type <m_fk_option>
         delete_option
@@ -13602,16 +13606,16 @@ opt_work:
 
 opt_chain:
           /* empty */
-          { $$= (YYTHD->variables.completion_type == 1); }
-        | AND_SYM NO_SYM CHAIN_SYM { $$=0; }
-        | AND_SYM CHAIN_SYM        { $$=1; }
+          { $$= TVL_UNKNOWN; }
+        | AND_SYM NO_SYM CHAIN_SYM { $$= TVL_NO; }
+        | AND_SYM CHAIN_SYM        { $$= TVL_YES; }
         ;
 
 opt_release:
           /* empty */
-          { $$= (YYTHD->variables.completion_type == 2); }
-        | RELEASE_SYM        { $$=1; }
-        | NO_SYM RELEASE_SYM { $$=0; }
+          { $$= TVL_UNKNOWN; }
+        | RELEASE_SYM        { $$= TVL_YES; }
+        | NO_SYM RELEASE_SYM { $$= TVL_NO; }
 ;
 
 opt_savepoint:
@@ -13624,7 +13628,9 @@ commit:
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_COMMIT;
-            lex->tx_chain= $3; 
+            /* Don't allow AND CHAIN RELEASE. */
+            MYSQL_YYABORT_UNLESS($3 != TVL_YES || $4 != TVL_YES);
+            lex->tx_chain= $3;
             lex->tx_release= $4;
           }
         ;
@@ -13634,7 +13640,9 @@ rollback:
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_ROLLBACK;
-            lex->tx_chain= $3; 
+            /* Don't allow AND CHAIN RELEASE. */
+            MYSQL_YYABORT_UNLESS($3 != TVL_YES || $4 != TVL_YES);
+            lex->tx_chain= $3;
             lex->tx_release= $4;
           }
         | ROLLBACK_SYM opt_work
