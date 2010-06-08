@@ -973,6 +973,7 @@ err_exit:
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
 				    TRUE, space,
+				    flags == DICT_TF_COMPACT ? 0 :
 				    flags & ~(~0 << DICT_TF_BITS), name)) {
 				/* We failed to find a sensible
 				tablespace file */
