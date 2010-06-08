@@ -45,13 +45,13 @@
   exception that we don't care how many matches a row from outer_tbl has in
   inner_tbl.
 
-  In SQL, that translates into following: a semi-join subquery is an IN 
-  subquery that is an AND-part of the WHERE/ON clause.
+  In SQL terms: a semi-join subquery is an IN subquery that is an AND-part of
+  the WHERE/ON clause.
 
   2. General idea about semi-join execution
   -----------------------------------------
-  We can execute semi-join in a way similar to inner join, with exception that 
-  we need to somehow ensure that we do not generate record combinations that 
+  We can execute semi-join in a way similar to inner join, with exception that
+  we need to somehow ensure that we do not generate record combinations that
   differ only in rows of inner tables.
   There is a number of different ways to achieve this property, implemented by
   a number of semi-join execution strategies.
@@ -3957,8 +3957,8 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 
 bool join_tab_execution_startup(JOIN_TAB *tab)
 {
-  DBUG_ENTER("join_tab_execution_startup");
   Item_in_subselect *in_subs;
+  DBUG_ENTER("join_tab_execution_startup");
   if (tab->table->pos_in_table_list && 
       (in_subs= tab->table->pos_in_table_list->jtbm_subselect))
   {
@@ -3995,13 +3995,9 @@ bool join_tab_execution_startup(JOIN_TAB *tab)
       if ((rc= sub_select(join, join_tab, FALSE/* no EOF */)) < 0 ||
           (rc= sub_select(join, join_tab, TRUE/* now EOF */)) < 0)
       {
-        //psergey3-todo: set sjm->materialized=TRUE here, too??
         join->return_tab= save_return_tab;
         DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
       }
-      /*
-        Ok, materialization finished. Initialize the access to the temptable
-      */
       join->return_tab= save_return_tab;
       sjm->materialized= TRUE;
     }

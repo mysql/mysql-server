@@ -158,42 +158,6 @@ JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
 
 void JOIN_CACHE::calc_record_fields()
 {
-  //psergey4-todo: prev_cache, or
-  //  - first non-const table if on top level
-  //  - first table inside SJM nest if within sjm nest
-  // this->join_tab is 'our' join_tab
-
-  // No. the right idea: start from ... and walk to the current join_tab 
-  /// with an iterator, skipping
-  // join nests (can do so for now)
-
-  /*
-    The above sucks, too.
-     The right idea: 
-      - for SJM-inner tables, walk only within the nest
-      - for SJM-outer tables, use all preceding tables, including inner ones.
-      eof
-  */
-
-/*  JOIN_TAB *tab = prev_cache ? prev_cache->join_tab :
-                               join->join_tab+join->const_tables;
-*/
-
-/*  JOIN_TAB *tab;
-  if (prev_cache)
-    tab= prev_cache->join_tab;
-  else
-  {
-    if (tab->bush_root_tab)
-    {
-      ;
-    }
-    else
-    {
-      / * top-level * /
-      tab= join->join_tab+join->const_tables;
-    }
-  }*/
   JOIN_TAB *tab;
   if (prev_cache)
     tab= prev_cache->join_tab;
@@ -201,12 +165,18 @@ void JOIN_CACHE::calc_record_fields()
   {
     if (join_tab->bush_root_tab)
     {
-      // inside SJM-Mat nest: pick first one
+      /* 
+        If the tab we're attached to is inside an SJM-nest, start from the
+        first tab in that SJM nest
+      */
       tab= join_tab->bush_root_tab->bush_children->start;
     }
     else
     {
-      // outside SJM-Mat nest: start from first non-const table
+      /*
+        The tab we're attached to is not inside an SJM-nest. Start from the
+        first non-const table.
+      */
       tab= join->join_tab + join->const_tables;
     }
   }

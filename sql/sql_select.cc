@@ -1011,10 +1011,10 @@ JOIN::optimize()
   {
     List_iterator<JOIN_TAB_RANGE> it(join_tab_ranges);
     JOIN_TAB_RANGE *jt_range;
-    bool first= TRUE;
+    uint first_tab_offs= const_tables;
     while ((jt_range= it++))
     {
-      for (JOIN_TAB *tab= jt_range->start + (first ? const_tables : 0); 
+      for (JOIN_TAB *tab= jt_range->start + first_tab_offs;
            tab < jt_range->end; tab++)
       {
         if (*tab->on_expr_ref)
@@ -1025,7 +1025,7 @@ JOIN::optimize()
           (*tab->on_expr_ref)->update_used_tables();
         }
       }
-      first= FALSE;
+      first_tab_offs= 0;
     }
   }
 
@@ -1298,9 +1298,11 @@ JOIN::optimize()
   */
   if (need_tmp || select_distinct || group_list || order)
   {
-    for (uint i = const_tables; i < tables; i++)
-      table[i]->prepare_for_position();
-
+    for (uint i= 0; i < tables; i++)
+    {
+      if (!(table[i]->map & const_table_map))
+        table[i]->prepare_for_position();
+    }
   }
 
   DBUG_EXECUTE("info",TEST_join(this););
@@ -5868,11 +5870,10 @@ JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
 {
   JOIN_TAB *first= join->join_tab;
   if (after_const_tables)
-    first += join->const_tables;
+    first+= join->const_tables;
   if (first < join->join_tab + join->top_jtrange_tables)
     return first;
-  else
-    return NULL;
+  return NULL;
 }
 
 
@@ -5888,24 +5889,24 @@ JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
     to.)
 */
 
-JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots) //psergey2: added
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots)
 {
   if (include_bush_roots && tab->bush_children)
     return tab->bush_children->start;
 
+  DBUG_ASSERT(!tab->last_leaf_in_bush || tab->bush_root_tab);
   if (tab->last_leaf_in_bush)
     tab= tab->bush_root_tab;
 
   if (tab->bush_root_tab)
     return ++tab;
 
-  if (++tab == join->join_tab + join->top_jtrange_tables /*join->join_tab_ranges.head()->end*/)
+  if (++tab == join->join_tab + join->top_jtrange_tables)
     return NULL;
 
   if (!include_bush_roots && tab->bush_children)
-  {
     tab= tab->bush_children->start;
-  }
+
   return tab;
 }
 
@@ -5929,12 +5930,12 @@ JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots) //
 
 */
 
-JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab) //psergey2: added
+JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab)
 {
   bool start= FALSE;
   if (tab == NULL)
   {
-    /* This means we're starting. */
+    /* This means we're starting the enumeration */
     if (join->const_tables == join->top_jtrange_tables)
       return NULL;
 
@@ -5944,8 +5945,12 @@ JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab) //psergey2: added
    
   if (tab->last_leaf_in_bush)
     return tab->bush_root_tab;
+  
+  /* Move to next tab in the array we're traversing*/
+  if (!start)
+    tab++;
 
-  if ((start? tab: ++tab) == join->join_tab_ranges.head()->end)
+  if (tab == join->join_tab_ranges.head()->end)
     return NULL; /* End */
 
   if (tab->bush_children)
@@ -5955,7 +5960,7 @@ JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab) //psergey2: added
 }
 
 
-static Item *null_ptr= NULL;
+static Item * const null_ptr= NULL;
 
 /*
   Set up join struct according to the picked join order in
@@ -6004,10 +6009,6 @@ get_best_combination(JOIN *join)
 
   fix_semijoin_strategies_for_picked_join_order(join);
    
-  /* 
-    psergey2-todo:  Here: switch to nested structure when copying.
-  */
-
   JOIN_TAB_RANGE *root_range= new JOIN_TAB_RANGE;
   root_range->start= join->join_tab;
   /* root_range->end will be set later */
@@ -6041,7 +6042,7 @@ get_best_combination(JOIN *join)
       j->ref.key_parts=0;
       j->loosescan_match_tab= NULL;  //non-nulls will be set later
       j->use_join_cache= FALSE;
-      j->on_expr_ref= &null_ptr;
+      j->on_expr_ref= (Item**) &null_ptr;
       j->cache= NULL;
 
       /*
@@ -6363,9 +6364,6 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
     DBUG_RETURN(TRUE);                        /* purecov: inspected */
 
   join_tab= parent->join_tab_reexec;
-  //psergey2: hopefully this is ok:
- // join_tab_ranges.head()->start= join_tab;
- // join_tab_ranges.head()->end= join_tab + 1;
   top_jtrange_tables= 1;
 
   table= &parent->table_reexec[0]; parent->table_reexec[0]= tmp_table;
@@ -7701,21 +7699,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
 
-
-    //if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
-    if (tab->bush_children) // SJM
+    if (tab->bush_children)
     {
-      /* This is a start of semi-join nest */
-      //first_sjm_table= i;
-      //last_sjm_table= i + join->best_positions[i].n_sj_tables;
-      /*
-      psergey2: dont:
-      if (i == join->const_tables)
-        join->first_select= sub_select_sjm;
-      else
-       tab[-1].next_select= sub_select_sjm;
-      */
-
       if (setup_sj_materialization(tab))
         return TRUE;
       table= tab->table;
@@ -12717,9 +12702,9 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   else
   {
     DBUG_ASSERT(join->tables);
-    error= join->first_select(join,join_tab,0);
+    error= sub_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
-      error= join->first_select(join,join_tab,1);
+      error= sub_select(join,join_tab,1);
     if (error == NESTED_LOOP_QUERY_LIMIT)
       error= NESTED_LOOP_OK;                    /* select_limit used */
   }

@@ -5733,26 +5733,10 @@ Item_field* Item_equal::get_first(Item_field *field)
       It's a field from an materialized semi-join. We can substitute it only
       for a field from the same semi-join.
     */
-#if 0
-    psergey3:remove:
-    JOIN_TAB *first;
-    JOIN *join= field_tab->join;
-    int tab_idx= field_tab - field_tab->join->join_tab;
 
-    /* Find the first table of this semi-join nest */
-    for (int i= tab_idx; i >= (int)join->const_tables; i--)
-    {
-      if (join->join_tab[i].table->map & emb_nest->sj_inner_tables)
-        first= join->join_tab + i;
-      else
-        // Found first tab that doesn't belong to current SJ.
-        break;
-    }
-#endif    
     /* Find an item to substitute for. */
     while ((item= it++))
     {
-      //if (item->field->table->reginfo.join_tab >= first)
       if (item->field->table->pos_in_table_list->embedding == emb_nest)
       {
         /*

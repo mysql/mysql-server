@@ -190,8 +190,15 @@ typedef struct st_join_table {
     psergey2:  for join tabs that are inside a bush: root of this bush.
   */
   st_join_table *bush_root_tab;
-  bool          last_leaf_in_bush;
 
+  /* TRUE <=> This join_tab is inside a join bush and is the last leaf tab here */
+  bool          last_leaf_in_bush;
+  
+  /*
+    ptr  - this is a bush, and ptr points to description of child join_tab
+           range
+    NULL - this join tab has no bush children
+  */
   JOIN_TAB_RANGE *bush_children;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
@@ -500,13 +507,13 @@ protected:
     context can be accessed.  
   */   
   JOIN *join;  
-#if 0
-  /* 
-    Cardinality of the range of join tables whose fields can be put into the
-    cache. (A table from the range not necessarily contributes to the cache.)
+  /*
+    JOIN_TAB of the first table that can have it's fields in the join cache. 
+    That is, tables in the [start_tab, tab) range can have their fields in the
+    join cache. 
+    If a join tab in the range represents an SJM-nest, then all tables from the
+    nest can have their fields in the join cache, too.
   */
-  uint tables;
-#endif
   JOIN_TAB *start_tab;
 
   /* 
@@ -1505,7 +1512,6 @@ public:
 
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
-  Next_select_func first_select;
   /*
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
@@ -1691,7 +1697,6 @@ public:
     rollup.state= ROLLUP::STATE_NONE;
 
     no_const_tables= FALSE;
-    first_select= sub_select;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
