@@ -2682,6 +2682,12 @@ public:
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
+  void set_open_tables(TABLE *open_tables_arg)
+  {
+    mysql_mutex_lock(&LOCK_thd_data);
+    open_tables= open_tables_arg;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
