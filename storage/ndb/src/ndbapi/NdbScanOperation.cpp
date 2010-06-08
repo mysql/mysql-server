@@ -367,7 +367,8 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
  */
 int
 NdbScanOperation::generatePackedReadAIs(const NdbRecord *result_record,
-                                        bool& haveBlob)
+                                        bool& haveBlob,
+                                        const Uint32 * m_read_mask)
 {
   Bitmask<MAXNROFATTRIBUTESINWORDS> readMask;
   Uint32 columnCount= 0;
@@ -444,12 +445,13 @@ NdbScanOperation::generatePackedReadAIs(const NdbRecord *result_record,
  * types share
  */
 inline int
-NdbScanOperation::scanImpl(const NdbScanOperation::ScanOptions *options)
+NdbScanOperation::scanImpl(const NdbScanOperation::ScanOptions *options,
+                           const Uint32 * readMask)
 {
   bool haveBlob= false;
 
   /* Add AttrInfos for packed read of cols in result_record */
-  if (generatePackedReadAIs(m_attribute_record, haveBlob) != 0)
+  if (generatePackedReadAIs(m_attribute_record, haveBlob, readMask) != 0)
     return -1;
 
   theInitialReadSize= theTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
@@ -474,7 +476,7 @@ NdbScanOperation::scanImpl(const NdbScanOperation::ScanOptions *options)
    */
   if (unlikely(haveBlob) && !m_scanUsingOldApi)
   {
-    if (getBlobHandlesNdbRecord(m_transConnection) == -1)
+    if (getBlobHandlesNdbRecord(m_transConnection, readMask) == -1)
       return -1;
   }
 
@@ -581,7 +583,8 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
 #endif
 
   m_attribute_record= result_record;
-  m_attribute_record->copyMask(m_read_mask, result_mask);
+  AttributeMask readMask;
+  m_attribute_record->copyMask(readMask.rep.data, result_mask);
 
   /* Process scan definition info */
   res= processTableScanDefs(lock_mode, scan_flags, parallel, batch);
@@ -590,7 +593,7 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
 
   theStatus= NdbOperation::UseNdbRecord;
   /* Call generic scan code */
-  return scanImpl(options);
+  return scanImpl(options, readMask.rep.data);
 }
 
 
@@ -1212,7 +1215,8 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
     return -1;
   }
 
-  result_record->copyMask(m_read_mask, result_mask);
+  AttributeMask readMask;
+  result_record->copyMask(readMask.rep.data, result_mask);
 
   if (scan_flags & (NdbScanOperation::SF_OrderBy | 
                     NdbScanOperation::SF_OrderByFull))
@@ -1241,10 +1245,10 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
 
     if (scan_flags & NdbScanOperation::SF_OrderByFull)
     {
-      BitmaskImpl::bitOR(MAXNROFATTRIBUTESINWORDS, m_read_mask, keymask);
+      BitmaskImpl::bitOR(MAXNROFATTRIBUTESINWORDS, readMask.rep.data, keymask);
     }
     else if (!BitmaskImpl::contains(MAXNROFATTRIBUTESINWORDS, 
-                                    m_read_mask, keymask))
+                                    readMask.rep.data, keymask))
     {
       setErrorCodeAbort(4341);
       return -1;
@@ -1279,7 +1283,7 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
   theStatus= NdbOperation::UseNdbRecord;
   
   /* Call generic scan code */
-  res= scanImpl(options);
+  res= scanImpl(options, readMask.rep.data);
 
   if (!res)
   {
@@ -2754,7 +2758,8 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   op->theDistributionKey= fragment;
 
   op->m_attribute_row= row;
-  record->copyMask(op->m_read_mask, mask);
+  AttributeMask readMask;
+  record->copyMask(readMask.rep.data, mask);
 
   if (opType == ReadRequest)
   {
@@ -2795,7 +2800,7 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   case UpdateRequest:
     if (unlikely(record->flags & NdbRecord::RecHasBlob))
     {
-      if (op->getBlobHandlesNdbRecord(pTrans) == -1)
+      if (op->getBlobHandlesNdbRecord(pTrans, readMask.rep.data) == -1)
         return NULL;
     }
     
@@ -2809,7 +2814,8 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
     if (unlikely(record->flags & NdbRecord::RecTableHasBlob))
     {
       if (op->getBlobHandlesNdbRecordDelete(pTrans,
-                                            row != NULL) == -1)
+                                            row != NULL,
+                                            readMask.rep.data) == -1)
         return NULL;
     }
     break;
@@ -2821,7 +2827,8 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   /* Now prepare the signals to be sent...
    */
   int returnCode=op->buildSignalsNdbRecord(pTrans->theTCConPtr, 
-                                           pTrans->theTransactionId);
+                                           pTrans->theTransactionId,
+                                           readMask.rep.data);
 
   if (returnCode)
   {

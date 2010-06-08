@@ -838,7 +838,8 @@ NdbOperation::prepareSendInterpreted()
 */
 int
 NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, 
-                                    Uint64 aTransId)
+                                    Uint64 aTransId,
+                                    const Uint32 * m_read_mask)
 {
   char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
   int res;

@@ -153,7 +153,7 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
 ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
 
 -- Indexes -- 
@@ -373,7 +373,7 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
 
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
@@ -601,4 +601,813 @@ PRIMARY(a) - OrderedIndex
 NDBT_ProgramExit: 0 - OK
 
 DROP TABLE t1;
+***********************************
+* Test timestamp column weirdness
+http://dev.mysql.com/doc/refman/5.1/en/timestamp.html
+***********************************
+Timestamp updated on insert + update
+CREATE TABLE variant (a int primary key,
+b timestamp) engine =ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	CURRENT_TIMESTAMP
+DROP TABLE variant;
+Full syntax for update on insert + update
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine =ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	CURRENT_TIMESTAMP
+DROP TABLE variant;
+Default on insert only
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	CURRENT_TIMESTAMP
+DROP TABLE variant;
+Set on update only
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
+c int) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a,c) VALUES (1,1);
+SELECT * from variant;
+a	b	c
+1	0000-00-00 00:00:00	1
+UPDATE variant SET c=2;
+SELECT * from variant;
+a	b	c
+1	CURRENT_TIMESTAMP	2
+DROP TABLE variant;
+No auto-set default 0
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT 0) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	0000-00-00 00:00:00
+DROP TABLE variant;
+No auto-set default non-zero
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT 19770623000001) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	1977-06-23 00:00:01
+DROP TABLE variant;
+Non-first timestamp default insert value
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT 19770623000001,
+c timestamp DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
+  `c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b	c
+1	1977-06-23 00:00:01	CURRENT_TIMESTAMP
+DROP TABLE variant;
+Non-first timestamp default update value
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT 19770623000001,
+c timestamp ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
+  `c` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b	c
+1	1977-06-23 00:00:01	0000-00-00 00:00:00
+UPDATE variant SET b=20100603000001;
+SELECT * from variant;
+a	b	c
+1	2010-06-03 00:00:01	CURRENT_TIMESTAMP
+DROP TABLE variant;
+Non-first timestamp set on insert+update
+CREATE TABLE variant (a int primary key,
+b timestamp DEFAULT 19770623000001,
+c timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
+  `c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b	c
+1	1977-06-23 00:00:01	CURRENT_TIMESTAMP
+DROP TABLE variant;
+Nullable timestamp no default
+CREATE TABLE variant (a int primary key,
+b timestamp NULL) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	NULL
+DROP TABLE variant;
+Nullable timestamp default zero
+CREATE TABLE variant (a int primary key,
+b timestamp NULL DEFAULT 0) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NULL AT=FIXED ST=MEMORY DEFAULT 0
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	0000-00-00 00:00:00
+DROP TABLE variant;
+Nullable timestamp default non-zero
+CREATE TABLE variant (a int primary key,
+b timestamp NULL DEFAULT 19770623000001) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	1977-06-23 00:00:01
+DROP TABLE variant;
+Nullable timestamp auto insert val
+CREATE TABLE variant (a int primary key,
+b timestamp NULL DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	CURRENT_TIMESTAMP
+DROP TABLE variant;
+Nullable timestamp auto update val
+CREATE TABLE variant (a int primary key,
+b timestamp NULL ON UPDATE CURRENT_TIMESTAMP,
+c int) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a,c) VALUES (1,1);
+SELECT * from variant;
+a	b	c
+1	NULL	1
+UPDATE variant SET c=2;
+SELECT * from variant;
+a	b	c
+1	CURRENT_TIMESTAMP	2
+DROP TABLE variant;
+Nullable timestamp auto insert+update val
+CREATE TABLE variant (a int primary key,
+b timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+Table	Create Table
+variant	CREATE TABLE `variant` (
+  `a` int(11) NOT NULL,
+  `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- variant --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+a	b
+1	CURRENT_TIMESTAMP
+DROP TABLE variant;
+*************************************************************
+* Restore data-only from old backup without native defaults *
+*************************************************************
+Create schema manually with differences for ndb_restore to 
+deal with.  See the backup (or above) for the original schema.
+- J changed from Int -> Bigint, and default changed from 6 to 6006
+requires --promote-attribute AND default ignoring
+- ch default changed from 'aaa' to 'aaaAAA', requires default ignoring
+- vch missing in DB schema, requires --exclude-missing-columns
+- timestamp_c default changed from CURRENT_TIMESTAMP to a const default (native)
+requires default ignoring
+- newOne is a new column with a default value, requires --exclude-missing-columns
+- newTwo is a new nullable column with no default value, requires --exclude-missing-columns
+CREATE TABLE t1 (  
+`i` int(11) NOT NULL AUTO_INCREMENT,
+`j` bigint(20) NOT NULL DEFAULT '6006', 
+`f` float NOT NULL DEFAULT '6.6',
+`d` double DEFAULT '8.8',
+`d2` double NOT NULL,
+`ch` char(19) DEFAULT 'aaaAAA',
+`b` binary(19) DEFAULT 'ccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+`vb` varbinary(19) DEFAULT 'ddd',
+`blob1` blob,
+`text1` text,
+`timestamp_c` timestamp NOT NULL DEFAULT '2010-06-07 13:06:22',
+`newOne` varchar(255) DEFAULT 'Comment field default',
+`newTwo` bigint(20) DEFAULT NULL,
+PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+CREATE TABLE bit1 (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`b1` bit(3) DEFAULT b'111',
+`b2` bit(9) DEFAULT b'101',
+`b3` bit(23) DEFAULT b'110',
+`b4` bit(37) DEFAULT b'11',
+`b5` bit(63) DEFAULT b'101011',
+PRIMARY KEY (`pk`)
+) ENGINE=ndbcluster AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `j` bigint(20) NOT NULL DEFAULT '6006',
+  `f` float NOT NULL DEFAULT '6.6',
+  `d` double DEFAULT '8.8',
+  `d2` double NOT NULL,
+  `ch` char(19) DEFAULT 'aaaAAA',
+  `b` binary(19) DEFAULT 'ccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `vb` varbinary(19) DEFAULT 'ddd',
+  `blob1` blob,
+  `text1` text,
+  `timestamp_c` timestamp NOT NULL DEFAULT '2010-06-07 13:06:22',
+  `newOne` varchar(255) DEFAULT 'Comment field default',
+  `newTwo` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+-- t1 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 13
+Number of primary keys: 1
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+j Bigint NOT NULL AT=FIXED ST=MEMORY DEFAULT 6006
+f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
+d2 Double NOT NULL AT=FIXED ST=MEMORY
+ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaaAAA"
+b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
+vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
+blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_8
+text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 1275905182
+newOne Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Comment field default"
+newTwo Bigint NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(i) - UniqueHashIndex
+Index
+
+
+NDBT_ProgramExit: 0 - OK
+
+SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne, newTwo from t1 order by i;
+i	j	f	d	d2	ch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	newOne	newTwo
+1	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default	NULL
+2	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default	NULL
+10	10	10	10	10	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	2008-11-16 08:13:32	Comment field default	NULL
+11	6	6.6	8.8	0	mmm	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:20	Comment field default	NULL
+drop table bit1;
+Now backup the current data and restore data-only to a different schema
+drop table t1;
+CREATE TABLE t1 (  
+`i` int(11) NOT NULL AUTO_INCREMENT,
+`j` bigint NOT NULL DEFAULT '6', 
+`f` float NOT NULL DEFAULT '6.6',
+`d` double DEFAULT '8.8',
+`d2` double NOT NULL,
+`ch` char(19) DEFAULT 'aaa',
+`b` binary(19) DEFAULT 'ccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+`vb` varbinary(19) DEFAULT 'ddd',
+`blob1` blob,
+`text1` text,
+`timestamp_c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+`newOne` varchar(256) DEFAULT 'Comment field default',
+PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne from t1 order by i;
+i	j	f	d	d2	ch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	newOne
+1	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default
+2	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default
+10	10	10	10	10	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	2008-11-16 08:13:32	Comment field default
+11	6	6.6	8.8	0	mmm	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:20	Comment field default
+Now backup the current data then restore data-only to a schema with different defaults and no special ndb_restore options
+drop table t1;
+CREATE TABLE t1 (  
+`i` int(11) NOT NULL AUTO_INCREMENT,
+`j` bigint NOT NULL DEFAULT '20', 
+`f` float NOT NULL DEFAULT '6.66',
+`d` double DEFAULT '8.88',
+`d2` double NOT NULL DEFAULT '9.99',
+`ch` char(19) DEFAULT 'aaaZZZ',
+`b` binary(19) DEFAULT 'ccccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+`vb` varbinary(19) DEFAULT 'dddDDDddd',
+`blob1` blob,
+`text1` text,
+`timestamp_c` timestamp NOT NULL DEFAULT 20100608133131,
+`newOne` varchar(256),
+PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne from t1 order by i;
+i	j	f	d	d2	ch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	newOne
+1	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default
+2	6	6.6	8.8	0	aaa	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:02	Comment field default
+10	10	10	10	10	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	2008-11-16 08:13:32	Comment field default
+11	6	6.6	8.8	0	mmm	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:20	Comment field default
+drop table t1;
 End of ndb native default support test
