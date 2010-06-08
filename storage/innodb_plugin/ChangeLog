@@ -1,3 +1,9 @@
+2010-06-08	The InnoDB Team
+
+	* dict/dict0load.c:
+	Fix Bug#54009 Server crashes when data is selected from non backed
+	up table for InnoDB plugin
+
 2010-06-02	The InnoDB Team
 
 	* include/db0err.h, include/lock0lock.h, include/row0mysql.h,
