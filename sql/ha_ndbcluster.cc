@@ -783,7 +783,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
         {
           root_key[map[i]]= builder.paramValue();
           if (unlikely(!root_key[map[i]]))
-            DBUG_RETURN(0);
+            ERR_RETURN(builder.getNdbError());
         }
         root_key[key->key_parts]= NULL;
 
@@ -835,9 +835,9 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
         DBUG_ASSERT(false);
       }
 
-      DBUG_ASSERT(operation_defs[0]);
+//    DBUG_ASSERT(operation_defs[0]);
       if (unlikely(!operation_defs[0]))
-        DBUG_RETURN(0);
+        ERR_RETURN(builder.getNdbError());
 
       push_cnt= 1;
     } // End: 'define parent'
@@ -918,7 +918,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
         }
       }
       if (unlikely(!linked_key[map[i]]))
-        DBUG_RETURN(0);
+        ERR_RETURN(builder.getNdbError());
     } // for (uint i= 0; i < key->key_parts; i++, key_part++)
 
     const NdbDictionary::Table* const table= handler->m_table;
@@ -937,9 +937,9 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       operation_defs[push_cnt]= builder.readTuple(index, table, linked_key);
     }
 
-    DBUG_ASSERT(operation_defs[push_cnt]);
+//  DBUG_ASSERT(operation_defs[push_cnt]);
     if (unlikely(!operation_defs[push_cnt]))
-      DBUG_RETURN(0);
+      ERR_RETURN(builder.getNdbError());
 
     pushed_scope.set_bit(join_tab->get_access_no());
     push_cnt++;
@@ -953,7 +953,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
 
   const NdbQueryDef* const query_def= builder.prepare();
   if (unlikely(!query_def))
-    DBUG_RETURN(0);
+    ERR_RETURN(builder.getNdbError());
 
   m_thd_ndb->m_pushed_queries_defined++;
   /* 
@@ -1000,7 +1000,10 @@ int ndbcluster_make_pushed_join(handlerton *hton, THD* thd,
 
       int error= handler->make_pushed_join(*plan,join_root);
       if (unlikely(error))
+      {
+        handler->print_error(error, MYF(0));
         DBUG_RETURN(error);
+      }
     }
   }
 
