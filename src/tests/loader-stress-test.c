@@ -21,6 +21,7 @@ int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
 enum {MAGIC=311};
 char *datadir = NULL;
+BOOL check_est = TRUE; // do check the estimates by default
 
 //
 //   Functions to create unique key/value pairs, row generators, checkers, ... for each of NUM_DBS
@@ -318,6 +319,22 @@ static void test_loader(DB **dbs)
 	if ( CHECK_RESULTS ) {
 	    check_results(dbs);
 	}
+
+	if ( check_est ) {
+	    for (int i=0; i<NUM_DBS; i++) {
+		r = env->txn_begin(env, NULL, &txn, 0);                                                               
+		CKERR(r);
+		DB_BTREE_STAT64 stats;
+		r = dbs[i]->stat64(dbs[i], txn, &stats);
+		CKERR(r);
+		printf("n_keys=%" PRIu64 " n_data=%" PRIu64 " dsize=%" PRIu64 " fsize=%" PRIu64 "\n",
+		       stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
+		assert(stats.bt_nkeys == (u_int64_t)NUM_ROWS);
+		assert(stats.bt_ndata == (u_int64_t)NUM_ROWS);
+		r = txn->commit(txn, 0);
+		CKERR(r);
+	    }
+	}
     } else {
 	r = txn->abort(txn);
 	CKERR(r);
@@ -479,6 +496,8 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "--datadir") == 0 && argc > 1) {
             argc--; argv++;
             datadir = argv[0];
+	} else if (strcmp(argv[0], "--dont_check_est") == 0) {
+	    check_est = FALSE;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
