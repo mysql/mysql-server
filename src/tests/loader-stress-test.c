@@ -331,6 +331,7 @@ static void test_loader(DB **dbs)
 		       stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
 		assert(stats.bt_nkeys == (u_int64_t)NUM_ROWS);
 		assert(stats.bt_ndata == (u_int64_t)NUM_ROWS);
+		assert(stats.bt_dsize == ((u_int64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
 		r = txn->commit(txn, 0);
 		CKERR(r);
 	    }
