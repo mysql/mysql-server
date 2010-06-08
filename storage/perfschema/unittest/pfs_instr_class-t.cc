@@ -32,7 +32,7 @@ void test_no_registration()
   PFS_cond_class *cond;
   PFS_thread_class *thread;
   PFS_file_class *file;
-  PFS_table_share *table;
+  /* PFS_table_share *table; */
 
   rc= init_sync_class(0, 0, 0);
   ok(rc == 0, "zero init (sync)");
@@ -568,7 +568,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(196);
+  plan(170);
   MY_INIT("pfs_instr_info-t");
   do_all_tests();
   return 0;
