@@ -2388,7 +2388,6 @@ static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
   if (!var->value)
     return FALSE;
 
-  var->save_result.ulonglong_value= var->value->val_int();
   val= (time_t) var->save_result.ulonglong_value;
   if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
   {
