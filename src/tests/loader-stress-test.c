@@ -327,8 +327,9 @@ static void test_loader(DB **dbs)
 		DB_BTREE_STAT64 stats;
 		r = dbs[i]->stat64(dbs[i], txn, &stats);
 		CKERR(r);
-		printf("n_keys=%" PRIu64 " n_data=%" PRIu64 " dsize=%" PRIu64 " fsize=%" PRIu64 "\n",
-		       stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
+                if (verbose)
+                    printf("n_keys=%" PRIu64 " n_data=%" PRIu64 " dsize=%" PRIu64 " fsize=%" PRIu64 "\n",
+                           stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
 		assert(stats.bt_nkeys == (u_int64_t)NUM_ROWS);
 		assert(stats.bt_ndata == (u_int64_t)NUM_ROWS);
 		assert(stats.bt_dsize == ((u_int64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
