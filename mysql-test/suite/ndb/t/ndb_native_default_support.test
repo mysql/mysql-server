@@ -343,6 +343,180 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 
+--echo ***********************************
+--echo * Test timestamp column weirdness
+--echo http://dev.mysql.com/doc/refman/5.1/en/timestamp.html
+--echo ***********************************
 
+--echo Timestamp updated on insert + update
+CREATE TABLE variant (a int primary key,
+                      b timestamp) engine =ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+--replace_column 2 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Full syntax for update on insert + update
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine =ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+--replace_column 2 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Default on insert only
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+--replace_column 2 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Set on update only
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
+                      c int) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a,c) VALUES (1,1);
+SELECT * from variant;
+UPDATE variant SET c=2;
+--replace_column 2 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo No auto-set default 0
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT 0) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo No auto-set default non-zero
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT 19770623000001) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Non-first timestamp default insert value
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT 19770623000001,
+                      c timestamp DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+--replace_column 3 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Non-first timestamp default update value
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT 19770623000001,
+                      c timestamp ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+UPDATE variant SET b=20100603000001;
+--replace_column 3 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Non-first timestamp set on insert+update
+CREATE TABLE variant (a int primary key,
+                      b timestamp DEFAULT 19770623000001,
+                      c timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+--replace_column 3 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Nullable timestamp no default
+CREATE TABLE variant (a int primary key,
+                      b timestamp NULL) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Nullable timestamp default zero
+CREATE TABLE variant (a int primary key,
+                      b timestamp NULL DEFAULT 0) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Nullable timestamp default non-zero
+CREATE TABLE variant (a int primary key,
+                      b timestamp NULL DEFAULT 19770623000001) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Nullable timestamp auto insert val
+CREATE TABLE variant (a int primary key,
+                      b timestamp NULL DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+--replace_column 2 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Nullable timestamp auto update val
+CREATE TABLE variant (a int primary key,
+                      b timestamp NULL ON UPDATE CURRENT_TIMESTAMP,
+                      c int) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a,c) VALUES (1,1);
+SELECT * from variant;
+UPDATE variant SET c=2;
+--replace_column 2 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
+
+--echo Nullable timestamp auto insert+update val
+CREATE TABLE variant (a int primary key,
+                      b timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+SHOW CREATE TABLE variant;
+--let ndb_desc_opts= -d test variant
+--source include/ndb_desc_print.inc
+INSERT INTO variant (a) VALUES (1);
+--replace_column 2 CURRENT_TIMESTAMP
+SELECT * from variant;
+DROP TABLE variant;
 
 --echo End of ndb native default support test

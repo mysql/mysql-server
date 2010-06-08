@@ -1489,9 +1489,13 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
     {
       Field* field= table->field[f]; // Use Field struct from MySQLD table rep
       const NdbDictionary::Column* ndbCol= ndbtab->getColumn(field->field_index); 
+      bool isTimeStampWithAutoValue = ((field->type() == MYSQL_TYPE_TIMESTAMP) &&
+                                       (field->table->timestamp_field == field));
+
       if ((! (field->flags & (PRI_KEY_FLAG |
                               NO_DEFAULT_VALUE_FLAG))) &&
-          (type_supports_default_value(field->real_type())))
+          (type_supports_default_value(field->real_type())) &&
+          !isTimeStampWithAutoValue)
       {
         /* We expect Ndb to have a native default for this
          * column
@@ -6667,8 +6671,13 @@ static int create_ndb_column(THD *thd,
 
     if (likely( nativeDefaults ))
     {
+      /* Ndb does not support auto-set Timestamp default values natively */
+      bool isTimeStampWithAutoValue = ((mysql_type == MYSQL_TYPE_TIMESTAMP) &&
+                                       (field->table->timestamp_field == field));
+
       if ((!(field->flags & PRI_KEY_FLAG) ) &&
-          type_supports_default_value(mysql_type))
+          type_supports_default_value(mysql_type) &&
+          !isTimeStampWithAutoValue)
       {
         if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
         {
