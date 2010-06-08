@@ -108,7 +108,6 @@ public:
   virtual bool rebuild_indexes(const TableS&);
   virtual bool has_temp_error();
   virtual bool createSystable(const TableS & table);
-  virtual bool table_equal(const TableS & table);
   virtual bool table_compatible_check(const TableS & tableS);
   virtual bool update_apply_status(const RestoreMetaData &metaData);
   virtual bool report_started(unsigned node_id, unsigned backup_id);

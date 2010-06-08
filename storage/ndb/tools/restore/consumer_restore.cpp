@@ -950,75 +950,10 @@ BackupRestore::report_completed(unsigned backup_id, unsigned node_id)
 }
 
 bool
-BackupRestore::table_equal(const TableS &tableS)
-{
-  if (!m_restore)
-    return true;
-
-  const char *tablename = tableS.getTableName();
-
-  if(tableS.m_dictTable == NULL){
-    ndbout<<"Table %s has no m_dictTable " << tablename << endl;
-    return false;
-  }
-  /**
-   * Ignore blob tables
-   */
-  if(match_blob(tablename) >= 0)
-    return true;
-
-  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
-  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
-    return true;
-  }
-
-  BaseString tmp(tablename);
-  Vector<BaseString> split;
-  if(tmp.split(split, "/") != 3){
-    err << "Invalid table name format " << tablename << endl;
-    return false;
-  }
-
-  m_ndb->setDatabaseName(split[0].c_str());
-  m_ndb->setSchemaName(split[1].c_str());
-
-  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();  
-  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
-  if(tab == 0){
-    err << "Unable to find table: " << split[2].c_str() << endl;
-    return false;
-  }
-
-  if(tab->getNoOfColumns() != tableS.m_dictTable->getNoOfColumns())
-  {
-    ndbout_c("m_columns.size %d != %d",tab->getNoOfColumns(),
-                       tableS.m_dictTable->getNoOfColumns());
-    return false;
-  }
-
- for(int i = 0; i<tab->getNoOfColumns(); i++)
-  {
-    if(!tab->getColumn(i)->equal(*(tableS.m_dictTable->getColumn(i))))
-    {
-      ndbout_c("m_columns %s != %s",tab->getColumn(i)->getName(),
-                tableS.m_dictTable->getColumn(i)->getName());
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool
 BackupRestore::table_compatible_check(const TableS & tableS)
 {
   if (!m_restore)
     return true;
-
-  if (m_tableChangesMask == 0)
-  {
-    return table_equal(tableS);
-  }
 
   const char *tablename = tableS.getTableName();
 
@@ -1073,6 +1008,11 @@ BackupRestore::table_compatible_check(const TableS & tableS)
         return false;
       }
 
+      info << "Column in backup ("
+           << tableS.m_dictTable->getName() << "."
+           << col_in_backup->getName()
+           << ") missing in DB.  Excluding column from restore." << endl;
+
       attr_desc->m_exclude = true;
     }
     else
@@ -1100,20 +1040,27 @@ BackupRestore::table_compatible_check(const TableS & tableS)
       }
 
       /**
-       * only nullable && not primary keys can be missing from backup
+       * only nullable or defaulted non primary key columns can be missing from backup
        *
-       * NOTE: In 7.1 we could allow columsn with default value as well
        */
       if (col_in_kernel->getPrimaryKey() ||
-          col_in_kernel->getNullable() == false)
+          ((col_in_kernel->getNullable() == false) &&
+           (col_in_kernel->getDefaultValue() == NULL)))
       {
         ndbout << "Missing column("
                << tableS.m_dictTable->getName() << "."
                << col_in_kernel->getName()
-               << ") in backup is primary key or not nullable in DB"
+               << ") in backup is primary key or not nullable or defaulted in DB"
                << endl;
         return false;
       }
+
+      info << "Column in DB ("
+           << tableS.m_dictTable->getName() << "."
+           << col_in_kernel->getName()
+           << ") missing in Backup.  Will be set to "
+           << ((col_in_kernel->getDefaultValue() == NULL)?"Null":"Default value")
+           << "." << endl;
     }
   }
 
@@ -1133,6 +1080,34 @@ BackupRestore::table_compatible_check(const TableS & tableS)
     }
     else
     {
+      /* Something in the columns is different, but some differences
+       * have no effect on backup + restore.
+       * Make copies of the columns with irrelevant attributes reset
+       * and see if they are still different.
+       */
+      NDBCOL col_in_kernel_copy = *col_in_kernel;
+      NDBCOL col_in_backup_copy = *col_in_backup;
+      
+      /* Native default values */
+      col_in_kernel_copy.setDefaultValue(NULL, 0);
+      col_in_backup_copy.setDefaultValue(NULL, 0);
+      
+      if (col_in_kernel_copy.equal(col_in_backup_copy))
+      {
+        /* Columns are equal apart from defaults */
+        info << "Column "
+             << tablename
+             << "."
+             << col_in_backup->getName()
+             << " has different default value in Backup and DB, ignoring difference."
+             << endl;
+        
+        continue;
+      }
+      
+      /* Columns differ apart from defaults, carry on... */
+      
+      
       if ((m_tableChangesMask & TCM_ATTRIBUTE_PROMOTION) == 0)
       {
         err << "Table: "<< tablename
@@ -1184,15 +1159,21 @@ BackupRestore::table_compatible_check(const TableS & tableS)
 
           memset(attr_desc->parameter, 0, size + 2); 
         }
+
+        info << "Data for column " 
+             << tablename << "."
+             << col_in_backup->getName()
+             << " being converted from Backup type into DB type." 
+             << endl;
+        
+        continue;
       }
-      else
-      {
-        err << "Table: "<< tablename << endl
-            << "  Column: " << col_in_backup->getName() << endl
-            << "  AttrId = " << i << endl
-            << "  Incompatible with kernel's" << endl;
-        return false; 
-      }
+
+      err << "Table: "<< tablename << endl
+          << "  Column: " << col_in_backup->getName() << endl
+          << "  AttrId = " << i << endl
+          << "  Incompatible with kernel's" << endl;
+      return false; 
     }
   }
 

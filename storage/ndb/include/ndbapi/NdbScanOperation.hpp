@@ -481,8 +481,10 @@ protected:
   int getPartValueFromInfo(const Ndb::PartitionSpec* partInfo,
                            const NdbTableImpl* table,
                            Uint32* partValue);
-  int generatePackedReadAIs(const NdbRecord *reseult_record, bool& haveBlob);
-  int scanImpl(const NdbScanOperation::ScanOptions *options);
+  int generatePackedReadAIs(const NdbRecord *reseult_record, bool& haveBlob,
+                            const Uint32 * readMask);
+  int scanImpl(const NdbScanOperation::ScanOptions *options, 
+               const Uint32 * readMask);
   int scanTableImpl(const NdbRecord *result_record,
                     NdbOperation::LockMode lock_mode,
                     const unsigned char *result_mask,
