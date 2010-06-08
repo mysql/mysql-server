@@ -51,12 +51,8 @@ CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 flush table t1;
-show binlog events in 'master-bin.000002' from <binlog_start> limit 1,4;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	#	Query	#	#	BEGIN
-master-bin.000002	#	Query	#	#	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
-master-bin.000002	#	Query	#	#	use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
-master-bin.000002	#	Query	#	#	COMMIT
+use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
+use `test`; INSERT DELAYED IGNORE INTO t1 VALUES(1)
 select * from t1;
 a
 1
