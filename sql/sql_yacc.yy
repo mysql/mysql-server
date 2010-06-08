@@ -10151,7 +10151,7 @@ drop:
             lex->sql_command = SQLCOM_DROP_TABLE;
             lex->drop_temporary= $2;
             lex->drop_if_exists= $4;
-            YYPS->m_lock_type= TL_IGNORE;
+            YYPS->m_lock_type= TL_UNLOCK;
             YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }
           table_list opt_restrict
@@ -10244,7 +10244,7 @@ drop:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DROP_VIEW;
             lex->drop_if_exists= $3;
-            YYPS->m_lock_type= TL_IGNORE;
+            YYPS->m_lock_type= TL_UNLOCK;
             YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }
           table_list opt_restrict
