@@ -742,6 +742,11 @@ o verify nodegroup mapping
 
   if (ga_promote_attributes)
   {
+    if (ga_skip_table_check)
+    {
+      err << "--skip-table-check incompatible with --attribute-promote" << endl;
+      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    }
     g_tableCompabilityMask |= TCM_ATTRIBUTE_PROMOTION;
   }
 
@@ -1262,26 +1267,9 @@ main(int argc, char** argv)
   {
     if(_restore_data || _print_data)
     {
-      if (!ga_skip_table_check && g_tableCompabilityMask == 0)
+      //if want to promote attributes, compability check is done firstly
+      if (!ga_skip_table_check)
       {
-        for(i=0; i < metaData.getNoOfTables(); i++)
-        {
-          if (checkSysTable(metaData, i) && 
-             checkDbAndTableName(metaData[i]))
-          {
-            for(Uint32 j= 0; j < g_consumers.size(); j++)
-              if (!g_consumers[j]->table_equal(* metaData[i]))
-              {
-                err << "Restore: Failed to restore data, ";
-                err << metaData[i]->getTableName() << " table structure doesn't match backup ... Exiting " << endl;
-                exitHandler(NDBT_FAILED);
-              }
-          }
-        }
-      }
-      if (g_tableCompabilityMask != 0)
-      { 
-        //if want to promote attributes, compability check is done firstly
         for (i=0; i < metaData.getNoOfTables(); i++){
           if (checkSysTable(metaData, i) &&
               checkDbAndTableName(metaData[i]))

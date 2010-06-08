@@ -821,7 +821,8 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
  * For read request, store the pointers to blob handles in the row.
  */
 int
-NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
+NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon, 
+                                      const Uint32 * m_read_mask)
 {
   NdbBlob *lastBlob= NULL;
 
@@ -864,7 +865,8 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
 */
 int
 NdbOperation::getBlobHandlesNdbRecordDelete(NdbTransaction* aCon,
-                                            bool checkReadSet)
+                                            bool checkReadSet,
+                                            const Uint32 * m_read_mask)
 {
   NdbBlob *lastBlob= NULL;
 
