@@ -1022,6 +1022,9 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     TABLE_LIST *tables_to_reopen= (tables ? tables :
                                   thd->locked_tables_list.locked_tables());
 
+    /* Close open HANLER instances to avoid self-deadlock. */
+    mysql_ha_flush_tables(thd, tables_to_reopen);
+
     for (TABLE_LIST *table_list= tables_to_reopen; table_list;
          table_list= table_list->next_global)
     {
@@ -1049,7 +1052,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   {
     found= FALSE;
     /*
-      To avoid self and other kinds of deadlock we have to flush open HANDLERs.
+      To a self-deadlock or deadlocks with other FLUSH threads
+      waiting on our open HANDLERs, we have to flush them.
     */
     mysql_ha_flush(thd);
     DEBUG_SYNC(thd, "after_flush_unlock");
@@ -1308,8 +1312,7 @@ static void close_open_tables(THD *thd)
 
 
 /**
-  Close all open instances of the table but keep the MDL lock,
-  if any.
+  Close all open instances of the table but keep the MDL lock.
 
   Works both under LOCK TABLES and in the normal mode.
   Removes all closed instances of the table from the table cache.
@@ -1323,6 +1326,8 @@ static void close_open_tables(THD *thd)
                      In that case the documented behaviour is to
                      implicitly remove the table from LOCK TABLES
                      list.
+
+  @pre Must be called with an X MDL lock on the table.
 */
 
 void
@@ -1331,6 +1336,8 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length= share->table_cache_key.length;
+  const char *db= key;
+  const char *table_name= db + share->db.length + 1;
 
   memcpy(key, share->table_cache_key.str, key_length);
 
@@ -1352,8 +1359,6 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       */
       mysql_lock_remove(thd, thd->lock, table);
 
-      /* Make sure the table is removed from the cache */
-      table->s->version= 0;
       /* Inform handler that table will be dropped after close */
       if (table->db_stat) /* Not true for partitioned tables. */
         table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
@@ -1365,7 +1370,14 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       prev= &table->next;
     }
   }
-  /* We have been removing tables from the table cache. */
+  /* Remove the table share from the cache. */
+  mysql_mutex_lock(&LOCK_open);
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name);
+  mysql_mutex_unlock(&LOCK_open);
+  /*
+    There could be a FLUSH thread waiting
+    on the table to go away. Wake it up.
+  */
   broadcast_refresh();
 }
 
