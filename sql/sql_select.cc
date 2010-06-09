@@ -6044,12 +6044,15 @@ get_best_combination(JOIN *join)
       j->use_join_cache= FALSE;
       j->on_expr_ref= (Item**) &null_ptr;
       j->cache= NULL;
+      j->keys= key_map(1); // The unique index is always in 'possible keys' in EXPLAIN
+
 
       /*
         2. Proceed with processing SJM nest's join tabs, putting them into the
            sub-order
       */
       SJ_MATERIALIZATION_INFO *sjm= cur_pos->table->emb_sj_nest->sj_mat_info;
+      j->records= j->records_read= sjm->is_sj_scan? sjm->rows : 1;
       JOIN_TAB *jt= (JOIN_TAB*)join->thd->alloc(sizeof(JOIN_TAB) * sjm->tables);
       JOIN_TAB_RANGE *jt_range= new JOIN_TAB_RANGE;
       jt_range->start= jt;
@@ -18337,6 +18340,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
                                                     join->select_lex->type;
       item_list.push_back(new Item_string(stype, strlen(stype), cs));
       
+#if 0
       /* 
         Special processing for SJ-Materialization nests: print the fake table
         and delay printing of the SJM nest contents until later.
@@ -18416,6 +18420,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         //i += join->best_positions[i].n_sj_tables-1;
         goto loop_end;
       }
+#endif      
 
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
       {
@@ -18435,6 +18440,16 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	int len= my_snprintf(table_name_buffer, sizeof(table_name_buffer)-1,
 			     "<derived%u>",
 			     table->derived_select_number);
+	item_list.push_back(new Item_string(table_name_buffer, len, cs));
+      }
+      else if (tab->bush_children)
+      {
+        JOIN_TAB *ctab= tab->bush_children->start;
+        /* table */
+        int len= my_snprintf(table_name_buffer, 
+                             sizeof(table_name_buffer)-1,
+                             "<subquery%d>", 
+                             ctab->emb_sj_nest->sj_subq_pred->get_identifier());
 	item_list.push_back(new Item_string(table_name_buffer, len, cs));
       }
       else
@@ -18531,7 +18546,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        if (table_list->schema_table &&
+        if (table_list && /* SJM bushes don't have table_list */
+            table_list->schema_table &&
             table_list->schema_table->i_s_requested_object & OPTIMIZE_I_S_TABLE)
         {
           const char *tmp_buff;
@@ -18562,7 +18578,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       
       /* Add "rows" field to item_list. */
-      if (table_list->schema_table)
+      if (table_list /* SJM bushes don't have table_list */ &&
+          table_list->schema_table)
       {
         /* in_rows */
         if (join->thd->lex->describe & DESCRIBE_EXTENDED)
@@ -18570,6 +18587,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         /* rows */
         item_list.push_back(item_null);
       }
+     // else if (tab->bush_children)
+     // {
+     //   /* psergey-todo */
+     //   SJ_MATERIALIZATION_INFO *sjm= tab->bush_children->start->emb_sj_nest->sj_mat_info;
+//
+     //   ha_rows rows= is_scan ?  ctab->emb_sj_nest->sj_mat_info->rows : 1;
+     // }
       else
       {
         ha_rows examined_rows;
@@ -18685,7 +18709,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
               extra.append(STRING_WITH_LEN("; Using where"));
           }
 	}
-        if (table_list->schema_table &&
+        if (table_list /* SJM bushes don't have table_list */ &&
+            table_list->schema_table &&
             table_list->schema_table->i_s_requested_object & OPTIMIZE_I_S_TABLE)
         {
           if (!table_list->table_open_method)
@@ -18787,7 +18812,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         }
 	item_list.push_back(new Item_string(str, len, cs));
       }
-    loop_end:
+    //loop_end:
     /* psergey2
        if (i+1 == end_table && sjm_nests_cur != sjm_nests_end)
        {

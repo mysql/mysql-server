@@ -2722,6 +2722,16 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
       cur_ref_buff+= cur_key_part->store_length;
     }
     *ref_key= NULL; /* End marker. */
+      
+    /*
+      We don't ever have guarded conditions for SJM tables, but code at SQL
+      layer depends on cond_guards array being alloced.
+    */
+    if (!(tab_ref->cond_guards= (bool**) thd->calloc(sizeof(uint*)*tmp_key_parts)))
+    {
+      DBUG_RETURN(TRUE);
+    }
+
     tab_ref->key_err= 1;
     tab_ref->key_parts= tmp_key_parts;
     sjm->tab_ref= tab_ref;
