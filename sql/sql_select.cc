@@ -8646,7 +8646,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   row_limit= unit->select_limit_cnt;
   do_send_rows= row_limit ? 1 : 0;
 
-  join_tab->use_join_cache= FALSE;
+  join_tab->use_join_cache= JOIN_CACHE::ALG_NONE;
   join_tab->cache=0;			        /* No caching */
   join_tab->cache_select= 0;
   join_tab->table=tmp_table;
@@ -9893,7 +9893,7 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
   }
   if (join_tab->use_join_cache)
   {
-    join_tab->use_join_cache= FALSE;
+    join_tab->use_join_cache= JOIN_CACHE::ALG_NONE;
     /*
       It could be only sub_select(). It could not be sub_seject_sjm because we
       don't do join buffering for the first table in sjm nest. 
@@ -10035,7 +10035,10 @@ void revise_cache_usage(JOIN_TAB *join_tab)
 #endif
 
   RETURN
-    cache level if cache is used, otherwise returns 0
+    Bitmap describing the chosen cache's properties:
+    1) the algorithm (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
+    JOIN_CACHE::ALG_BKA, JOIN_CACHE::ALG_BKA_UNIQUE)
+    2) the buffer's type (JOIN_CACHE::NON_INCREMENTAL_BUFFER or not).
 */
 
 static
@@ -10050,12 +10053,13 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
   uint cache_level= join->thd->variables.optimizer_join_cache_level;
-  bool force_unlinked_cache= test(cache_level & 1);
+  uint force_unlinked_cache= (cache_level & 1) ?
+    JOIN_CACHE::NON_INCREMENTAL_BUFFER : 0;
   uint i= tab-join->join_tab;
   *icp_other_tables_ok= TRUE;
   
   if (cache_level == 0 || i == join->const_tables)
-    return 0;
+    return JOIN_CACHE::ALG_NONE;
 
   if (options & SELECT_NO_JOIN_CACHE)
     goto no_join_cache;
@@ -10131,7 +10135,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
         !tab->cache->init())
     {
       *icp_other_tables_ok= FALSE;
-      return cache_level;
+      return JOIN_CACHE::ALG_BNL | force_unlinked_cache;
     }
     goto no_join_cache;
   case JT_SYSTEM:
@@ -10153,7 +10157,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 	  cache_level > 6 &&  
           (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache))
          ) && !tab->cache->init()))
-      return cache_level;
+    {
+      if (cache_level <= 6)
+        return JOIN_CACHE::ALG_BKA | force_unlinked_cache;
+      return JOIN_CACHE::ALG_BKA_UNIQUE | force_unlinked_cache;
+    }
     goto no_join_cache;
   default : ;
   }
@@ -10161,7 +10169,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 no_join_cache:
   if (cache_level>2)
     revise_cache_usage(tab); 
-  return 0;
+  return JOIN_CACHE::ALG_NONE;
 }
 
 /*
@@ -10549,7 +10557,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
-  uint i;
+  uint i, jcl;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool sorted= 1;
   uint first_sjm_table= MAX_TABLES;
@@ -10569,7 +10577,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
     tab->next_select=sub_select;		/* normal select */
-    tab->use_join_cache= FALSE;
+    tab->use_join_cache= JOIN_CACHE::ALG_NONE;
     tab->cache_idx_cond= 0;
     /* 
       TODO: don't always instruct first table's ref/range access method to 
@@ -10616,10 +10624,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     case JT_SYSTEM: 
     case JT_CONST:
       /* Only happens with outer joins */
-      if (check_join_cache_usage(tab, join, options, no_jbuf_after,
-                                 &icp_other_tables_ok))
+      if ((jcl= check_join_cache_usage(tab, join, options, no_jbuf_after,
+                                       &icp_other_tables_ok)))
       {
-        tab->use_join_cache= TRUE;
+        tab->use_join_cache= jcl;
         tab[-1].next_select= sub_select_cache;
       }
       if (table->covering_keys.is_set(tab->ref.key) &&
@@ -10629,10 +10637,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         push_index_cond(tab, tab->ref.key, icp_other_tables_ok);
       break;
     case JT_ALL:
-      if (check_join_cache_usage(tab, join, options, no_jbuf_after,
-                                 &icp_other_tables_ok))
+      if ((jcl= check_join_cache_usage(tab, join, options, no_jbuf_after,
+                                       &icp_other_tables_ok)))
       {
-        tab->use_join_cache= TRUE;
+        tab->use_join_cache= jcl;
         tab[-1].next_select=sub_select_cache;
       }
       /* These init changes read_record */
@@ -16533,7 +16541,7 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   /* This function cannot be called if join_tab has no associated join buffer */
   DBUG_ASSERT(cache != NULL);
 
-  join_tab->cache->reset_join(join);
+  cache->reset_join(join);
 
   DBUG_ENTER("sub_select_cache");
 
@@ -22293,11 +22301,9 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         else if (tab->select && tab->select->quick)
           keyno = tab->select->quick->index;
 
-        if (keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
-            table->file->pushed_idx_cond)
+        if ((keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
+             table->file->pushed_idx_cond) || tab->cache_idx_cond)
           extra.append(STRING_WITH_LEN("; Using index condition"));
-        else if (tab->cache_idx_cond)
-          extra.append(STRING_WITH_LEN("; Using index condition(BKA)"));
 
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
@@ -22447,7 +22453,21 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         }
 
         if (i > 0 && tab[-1].next_select == sub_select_cache)
-          extra.append(STRING_WITH_LEN("; Using join buffer"));
+        {
+          extra.append(STRING_WITH_LEN("; Using join buffer ("));
+          if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))
+            extra.append(STRING_WITH_LEN("BNL"));
+          else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA))
+            extra.append(STRING_WITH_LEN("BKA"));
+          else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA_UNIQUE))
+            extra.append(STRING_WITH_LEN("BKA_UNIQUE"));
+          else
+            DBUG_ASSERT(0);
+          if (tab->use_join_cache & JOIN_CACHE::NON_INCREMENTAL_BUFFER)
+            extra.append(STRING_WITH_LEN(", regular buffers)"));
+          else
+            extra.append(STRING_WITH_LEN(", incremental buffers)"));
+        }
 
         /* Skip initial "; "*/
         const char *str= extra.ptr();

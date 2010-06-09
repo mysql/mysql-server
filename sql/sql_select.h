@@ -249,7 +249,8 @@ typedef struct st_join_table
   */ 
   ha_rows       limit; 
   TABLE_REF	ref;
-  bool          use_join_cache;
+  /** Join cache type (same as return code of check_join_cache_level() */
+  uint          use_join_cache;
   JOIN_CACHE	*cache;
   /*
     Index condition for BKA access join
@@ -787,7 +788,11 @@ public:
     x_free(buff);
     buff= 0;
   }   
-  
+
+  /** Bits describing cache's type @sa check_join_cache_usage() */
+  enum {NON_INCREMENTAL_BUFFER= 1,
+        ALG_NONE= 0, ALG_BNL= 2, ALG_BKA= 4, ALG_BKA_UNIQUE= 8};
+
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;
   friend class JOIN_CACHE_BKA_UNIQUE;

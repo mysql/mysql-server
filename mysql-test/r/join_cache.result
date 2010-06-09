@@ -42,7 +42,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -71,8 +71,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -230,7 +230,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, incremental buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -259,8 +259,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, incremental buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -422,7 +422,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -451,8 +451,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, regular buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -610,7 +610,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, incremental buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -639,8 +639,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (BNL, incremental buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -837,7 +837,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, regular buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -866,8 +866,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA, regular buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA, regular buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1021,7 +1021,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, regular buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1049,7 +1049,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (BKA, regular buffers)
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -1144,7 +1144,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, incremental buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1173,8 +1173,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA, incremental buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA, incremental buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1328,7 +1328,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, incremental buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1356,7 +1356,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (BKA, incremental buffers)
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -1451,7 +1451,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1480,8 +1480,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1635,7 +1635,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1663,7 +1663,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -1758,7 +1758,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1787,8 +1787,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1942,7 +1942,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1970,7 +1970,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -2069,7 +2069,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, regular buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2098,8 +2098,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA, regular buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA, regular buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2253,7 +2253,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, regular buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2283,7 +2283,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, incremental buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2312,8 +2312,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA, incremental buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA, incremental buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2467,7 +2467,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA, incremental buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2497,7 +2497,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2526,8 +2526,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2681,7 +2681,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2711,7 +2711,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2740,8 +2740,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2895,7 +2895,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2980,7 +2980,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition; Using MRR
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	Using join buffer
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 Name	Name
@@ -3269,15 +3269,15 @@ t1.metaid = t2.metaid AND t1.affiliateid = '2';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	system	PRIMARY	NULL	NULL	NULL	1	
 1	SIMPLE	t1	ref	t1_affiliateid,t1_metaid	t1_affiliateid	4	const	1	
-1	SIMPLE	t4	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	Using index condition; Using where; Using join buffer
-1	SIMPLE	t5	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	Using where; Using join buffer
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using join buffer
+1	SIMPLE	t4	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	Using index condition; Using where; Using join buffer (BKA, incremental buffers)
+1	SIMPLE	t5	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	Using where; Using join buffer (BKA, incremental buffers)
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using join buffer (BKA, incremental buffers)
 1	SIMPLE	t7	ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using index
-1	SIMPLE	t3	ref	t3_metaid,t3_formatid,t3_metaidformatid	t3_metaid	4	test.t1.metaid	2	Using where; Using join buffer
-1	SIMPLE	t8	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	Using join buffer
-1	SIMPLE	t9	index	PRIMARY,t9_subgenreid,t9_metaid	PRIMARY	8	NULL	2	Using where; Using index; Using join buffer
-1	SIMPLE	t10	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	Using join buffer
-1	SIMPLE	t11	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	Using join buffer
+1	SIMPLE	t3	ref	t3_metaid,t3_formatid,t3_metaidformatid	t3_metaid	4	test.t1.metaid	2	Using where; Using join buffer (BKA, incremental buffers)
+1	SIMPLE	t8	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	Using join buffer (BKA, incremental buffers)
+1	SIMPLE	t9	index	PRIMARY,t9_subgenreid,t9_metaid	PRIMARY	8	NULL	2	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t10	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	Using join buffer (BKA, incremental buffers)
+1	SIMPLE	t11	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	Using join buffer (BKA, incremental buffers)
 SELECT t1.uniquekey, t1.xml AS affiliateXml,
 t8.name AS artistName, t8.artistid, 
 t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
@@ -3358,7 +3358,7 @@ FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	Using index
-1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where; Using join buffer
+1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where; Using join buffer (BKA, regular buffers)
 SELECT a1<>a2, a1, a2, b2, b3, c3,
 SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
@@ -3390,7 +3390,7 @@ set optimizer_join_cache_level=8;
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	7	Using where
-1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	2	Using join buffer
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	2	Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 a	b	a	b
 7	40	7	10
@@ -3417,7 +3417,7 @@ select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using temporary; Using filesort
-1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using where; Using join buffer
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using where; Using join buffer (BKA, incremental buffers)
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 a	count
@@ -3454,7 +3454,7 @@ EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	i_a	i_a	4	test.t1.a	2	Using where; Not exists; Using join buffer
+1	SIMPLE	t2	ref	i_a	i_a	4	test.t1.a	2	Using where; Not exists; Using join buffer (BKA, incremental buffers)
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 a	a	b
 3	NULL	NULL
@@ -3501,7 +3501,7 @@ a	b	a	c
 explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
 select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 a	b	a	c
 3	30	3	102
@@ -3524,7 +3524,7 @@ a	b
 explain select * from t1 left join t2 on (1=0) where a=40;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 select * from t1 left join t2 on (1=0) where a=40;
 a	b
 40	NULL
@@ -3568,7 +3568,7 @@ set join_buffer_size=1024;
 EXPLAIN SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2050	Using where
-1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	640	Using join buffer
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	640	Using join buffer (BKA, incremental buffers)
 SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 AVG(c)
 5.0000
@@ -3608,8 +3608,8 @@ WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	16384	Using where
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (BKA_UNIQUE, regular buffers)
 SELECT COUNT(*) FROM t1,t2,t3
 WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
@@ -3673,7 +3673,7 @@ WHERE t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	8	NULL	2	Using index
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using index
-1	SIMPLE	t3	ref	idx	idx	16	test.t1.a,test.t2.b	2	Using join buffer
+1	SIMPLE	t3	ref	idx	idx	16	test.t1.a,test.t2.b	2	Using join buffer (BKA, incremental buffers)
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
 FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
 WHERE t1.a=t2.a;
@@ -3698,7 +3698,7 @@ WHERE t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	8	NULL	2	Using index
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	24	Using where; Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	24	Using where; Using join buffer (BNL, incremental buffers)
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
 FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
 WHERE t1.a=t2.a;
@@ -3744,7 +3744,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition; Using join buffer (BKA, regular buffers)
 set optimizer_join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3757,7 +3757,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition; Using join buffer (BKA, incremental buffers)
 set optimizer_join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3770,7 +3770,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition; Using join buffer (BKA_UNIQUE, regular buffers)
 set optimizer_join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3783,7 +3783,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition; Using join buffer (BKA_UNIQUE, incremental buffers)
 drop table t1,t2;
 set optimizer_join_cache_level=default;
 #
@@ -3802,7 +3802,7 @@ select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1
 where t1.d=3 group by t1.id1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using where; Using index; Using temporary; Using filesort
-1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using join buffer
+1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using join buffer (BKA, incremental buffers)
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id1	sum(t2.id2)
@@ -3814,7 +3814,7 @@ select t1.id1  from t1 join t2 on t1.id1=t2.id1
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using where; Using index; Using temporary; Using filesort
-1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using where; Using join buffer
+1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using where; Using join buffer (BKA, incremental buffers)
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id1
@@ -3871,9 +3871,9 @@ select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
-1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	Using join buffer
-1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	Using join buffer
-1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	Using join buffer
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	Using join buffer (BKA, incremental buffers)
+1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	Using join buffer (BKA, incremental buffers)
+1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	Using join buffer (BKA, incremental buffers)
 select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 a	b	c	d	e	f	g
@@ -3922,10 +3922,10 @@ WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
 t5.enum2='Active' AND t3.id4=t2.id4 AND t2.id3=t1.id3 AND t3.text1<'D';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	349	Using where
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	Using where; Using join buffer
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	Using where; Using join buffer
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	Using join buffer
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	Using where; Using join buffer
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	Using join buffer (BKA_UNIQUE, incremental buffers)
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
 FROM t1 JOIN  t2 JOIN  t3 JOIN  t4 JOIN  t5 
 WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
@@ -3996,7 +3996,7 @@ FROM t1 STRAIGHT_JOIN t2
 ORDER BY t1.int_key;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	int_key	4	NULL	14	Using index
-1	SIMPLE	t2	index	NULL	int_key	4	NULL	2	Using index; Using join buffer
+1	SIMPLE	t2	index	NULL	int_key	4	NULL	2	Using index; Using join buffer (BNL, regular buffers)
 
 DROP TABLE t1,t2;
 SET optimizer_join_cache_level=default;
@@ -4050,7 +4050,7 @@ FROM t1 JOIN t2 ON t2.v
 ORDER BY t2.v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index; Using join buffer
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index; Using join buffer (BNL, regular buffers)
 
 DROP TABLE t1,t2;
 #
@@ -4066,8 +4066,8 @@ INSERT INTO t3 VALUES (1,1),(2,2);
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
 SELECT t1.* FROM t1,t2,t3;
 a	b
 1	1
@@ -4082,8 +4082,8 @@ SET optimizer_join_cache_level=2;
 EXPLAIN SELECT t1.* FROM t1,t2,t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT t1.* FROM t1,t2,t3;
 a	b
 1	1
@@ -4179,7 +4179,7 @@ FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
 ON t3.carrier = t1.carrier;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.carrier	1	
 1	SIMPLE	t4	ref	carrier_id	carrier_id	5	test.t3.id	2	Using index
 
@@ -4222,7 +4222,7 @@ set optimizer_join_cache_level = 5;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer (BKA, regular buffers)
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -4231,7 +4231,7 @@ set optimizer_join_cache_level = 8;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -4242,7 +4242,7 @@ set optimizer_join_cache_level = 5;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer (BKA, regular buffers)
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -4256,7 +4256,7 @@ set optimizer_join_cache_level = 5;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using join buffer
+1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using join buffer (BKA, regular buffers)
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -4265,7 +4265,7 @@ set optimizer_join_cache_level = 8;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using join buffer
+1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using join buffer (BKA_UNIQUE, incremental buffers)
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
