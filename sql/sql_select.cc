@@ -7146,7 +7146,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             cond_tab->select_cond->quick_fix_field();
             if (cond_tab->select)
               cond_tab->select->cond= cond_tab->select_cond;
-          }              
+          }
+          if (tab == last_tab)
+            break;
         }
         first_inner_tab= first_inner_tab->first_upper;       
       }
