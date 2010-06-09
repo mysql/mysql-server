@@ -979,7 +979,7 @@ void Dblqh::startphase3Lab(Signal* signal)
     }//for
     break;
   case NodeState::ST_INITIAL_START:
-  case NodeState::NodeState::ST_INITIAL_NODE_RESTART:
+  case NodeState::ST_INITIAL_NODE_RESTART:
     jam();
     for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
     {
