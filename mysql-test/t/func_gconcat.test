@@ -693,4 +693,19 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN
 
 DROP TABLE t1, t2;
 
+#
+# Bug #49487: crash with explain extended and group_concat in a derived table
+#
+
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (),();
+
+EXPLAIN EXTENDED SELECT 1 FROM
+ (SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
+
+SELECT 1 FROM
+ (SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests

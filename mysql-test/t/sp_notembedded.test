@@ -413,6 +413,43 @@ let $wait_condition=
 --source include/wait_condition.inc 
 DROP PROCEDURE p;
 
+#
+# Bug#47736 killing a select from a view when the view is processing a function, asserts
+#
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1);
+CREATE FUNCTION f1 (inp TEXT) RETURNS INT NO SQL RETURN sleep(60);
+CREATE VIEW v1 AS SELECT f1('a') FROM t1;
+
+--connect (con1, localhost, root,,)
+--let $ID_1= `SELECT connection_id()`
+--send SELECT * FROM v1;
+
+--connect (con2, localhost, root,,)
+--let $ID_2= `SELECT connection_id()`
+--send SELECT * FROM v1
+
+--connection default
+--disable_query_log
+--eval KILL QUERY $ID_2
+--eval KILL QUERY $ID_1
+--enable_query_log
+
+--connection con1
+--error ER_QUERY_INTERRUPTED
+--reap
+--connection con2
+--error ER_QUERY_INTERRUPTED
+--reap
+
+--connection default
+DROP VIEW v1;
+DROP TABLE t1;
+DROP FUNCTION f1;
+--disconnect con1
+--disconnect con2
+
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
