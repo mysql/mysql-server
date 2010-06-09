@@ -221,6 +221,7 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 my $opt_wait_all;
+my $opt_user_args;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
@@ -921,6 +922,7 @@ sub command_line_setup {
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_exit,
              'start'                    => \$opt_start,
+	     'user-args'                => \$opt_user_args,
              'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
 	     'repeat=i'                 => \$opt_repeat,
@@ -1332,12 +1334,23 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Check use of user-args
+  # --------------------------------------------------------------------------
+
+  if ($opt_user_args) {
+    mtr_error("--user-args only valid with --start options")
+      unless $start_only;
+    mtr_error("--user-args cannot be combined with named suites or tests")
+      if $opt_suites || @opt_cases;
+  }
+
+  # --------------------------------------------------------------------------
   # Check use of wait-all
   # --------------------------------------------------------------------------
 
   if ($opt_wait_all && ! $start_only)
   {
-    mtr_error("--wait-all can only be used with --start or --start-dirty");
+    mtr_error("--wait-all can only be used with --start options");
   }
 
   # --------------------------------------------------------------------------
@@ -4252,7 +4265,7 @@ sub mysqld_arguments ($$$) {
     }
   }
 
-  if ( $mysql_version_id >= 50106 )
+  if ( $mysql_version_id >= 50106 && !$opt_user_args)
   {
     # Turn on logging to file
     mtr_add_arg($args, "--log-output=file");
@@ -4290,7 +4303,7 @@ sub mysqld_arguments ($$$) {
     }
   }
   $opt_skip_core = $found_skip_core;
-  if ( !$found_skip_core )
+  if ( !$found_skip_core && !$opt_user_args )
   {
     mtr_add_arg($args, "%s", "--core-file");
   }
@@ -4298,7 +4311,7 @@ sub mysqld_arguments ($$$) {
   # Enable the debug sync facility, set default wait timeout.
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
-              $opt_debug_sync_timeout);
+              $opt_debug_sync_timeout) unless $opt_user_args;
 
   return $args;
 }
@@ -4596,6 +4609,9 @@ sub envsubst {
 
 
 sub get_extra_opts {
+  # No extra options if --user-args
+  return \@opt_extra_mysqld_opt if $opt_user_args;
+
   my ($mysqld, $tinfo)= @_;
 
   my $opts=
@@ -5468,8 +5484,13 @@ Misc options
                         startup settings for the first specified test case
                         Example:
                          $0 --start alias &
+  start-and-exit        Same as --start, but mysql-test-run terminates and
+                        leaves just the server running
   start-dirty           Only start the servers (without initialization) for
                         the first specified test case
+  user-args             In combination with start* and no test name, drops
+                        arguments to mysqld except those speficied with
+                        --mysqld (if any)
   wait-all              If --start or --start-dirty option is used, wait for all
                         servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
