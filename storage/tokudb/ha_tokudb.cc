@@ -2916,7 +2916,12 @@ int ha_tokudb::end_bulk_insert() {
         if (!abort_loader && !thd->killed) {
             error = loader->close(loader);
             loader = NULL;
-            if (error) { goto cleanup; }
+            if (error) { 
+                if (thd->killed) {
+                    my_error(ER_QUERY_INTERRUPTED, MYF(0));
+                }
+                goto cleanup; 
+            }
 
             for (uint i = 0; i < table_share->keys; i++) {
                 if (table_share->key_info[i].flags & HA_NOSAME) {
