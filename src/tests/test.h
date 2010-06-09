@@ -20,6 +20,7 @@ extern "C" {
 #include "toku_htonl.h"
 #include "toku_assert.h"
 #include <signal.h>
+#include <time.h>
 #if defined(USE_TDB)
 #include "ydb.h"
 //TDB uses DB_NOTFOUND for c_del and DB_CURRENT errors.
@@ -215,6 +216,31 @@ double get_tdiff(void) {
 	prev = now;
 	return diff;
     }
+}
+
+static __attribute__((__unused__))
+void format_time(const time_t *timer, char *buf) {
+    ctime_r(timer, buf);
+    size_t len = strlen(buf);
+    assert(len < 26);
+    char end;
+
+    assert(len>=1);
+    end = buf[len-1];
+    while (end == '\n' || end == '\r') {
+        buf[len-1] = '\0';
+        len--;
+        assert(len>=1);
+        end = buf[len-1];
+    }
+}
+
+static __attribute__((__unused__))
+void print_time_now(void) {
+    char timestr[80];
+    time_t now = time(NULL);
+    format_time(&now, timestr);
+    printf(timestr);
 }
 
 //Simulate as hard a crash as possible.
