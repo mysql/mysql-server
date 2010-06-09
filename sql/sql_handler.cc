@@ -834,6 +834,35 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
 
 
 /**
+  Close cursors of matching tables from the HANDLER's hash table.
+
+  @param thd Thread identifier.
+  @param tables The list of tables to flush.
+*/
+
+void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables)
+{
+  DBUG_ENTER("mysql_ha_flush_tables");
+
+  for (TABLE_LIST *table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+  {
+    TABLE_LIST *hash_tables= mysql_ha_find(thd, table_list);
+    /* Close all aliases of the same table. */
+    while (hash_tables)
+    {
+      TABLE_LIST *next_local= hash_tables->next_local;
+      if (hash_tables->table)
+        mysql_ha_close_table(thd, hash_tables);
+      hash_tables= next_local;
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Flush (close and mark for re-open) all tables that should be should
   be reopen.
 
