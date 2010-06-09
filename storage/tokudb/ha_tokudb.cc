@@ -2947,6 +2947,7 @@ int ha_tokudb::end_bulk_insert() {
         else {
             loader->abort(loader);
             loader = NULL;
+            share->try_table_lock = true;
         }
     }
 
