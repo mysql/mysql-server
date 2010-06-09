@@ -57,7 +57,6 @@ enum test_type {event,                   // any event
 		einval_o,                // return einval from open()
 		enospc_fc};              // return enospc from fclose()
 
-int abort_on_poll = 0;  // set when test_loader() called with test_type of abort_via_poll
 
 DB_ENV *env;
 enum {MAX_NAME=128};
@@ -87,7 +86,7 @@ static void free_inames(DBT* inames);
 
 
 // how many different system calls are intercepted with error injection
-#define NUM_ERR_TYPES 7
+#define NUM_ERR_TYPES 7+1         // abort_via_poll does not exactly inject errors
 
 int64_t event_count = 0;          // number of calls of all types so far (in this run)
 int64_t event_count_nominal = 0;  // number of calls of all types in the nominally error-free run.
@@ -121,6 +120,10 @@ int fclose_count = 0;
 int fclose_count_nominal = 0;  // number of fclose calls for normal operation, initially zero
 int fclose_count_trigger = 0;  // sequence number of fclose call that will fail (zero disables induced failure)
 
+int poll_count = 0;
+int poll_count_nominal = 0;    // number of fclose calls for normal operation, initially zero
+int poll_count_trigger = 0;    // sequence number of fclose call that will fail (zero disables induced failure)
+
 
 static const char *
 err_type_str (enum test_type t) {
@@ -133,10 +136,10 @@ err_type_str (enum test_type t) {
     case einval_fo:      return "fopen";
     case einval_o:       return "open";
     case enospc_fc:      return "fclose";
+    case abort_via_poll: return "abort_via_poll";
     case commit:         assert(0);
     case abort_txn:      assert(0);
     case abort_loader:   assert(0);
-    case abort_via_poll: assert(0);
     }
     // I know that Barry prefers the single-return case, but writing the code this way means that the compiler will complain if I forget something in the enum. -Bradley
     assert(0);
@@ -521,8 +524,8 @@ static void check_results(DB **dbs)
 }
 
 static void *expect_poll_void = &expect_poll_void;
-static int poll_count=0;
 static int poll_function (void *extra, float progress) {
+    int r;
     if (0) {
 	static int did_one=0;
 	static struct timeval start;
@@ -537,7 +540,14 @@ static int poll_function (void *extra, float progress) {
     assert(extra==expect_poll_void);
     assert(0.0<=progress && progress<=1.0);
     poll_count++;
-    return abort_on_poll;
+    event_count++;
+    if (poll_count_trigger == poll_count || event_count == event_count_trigger) {
+	r = 1;
+    }
+    else {
+	r = 0;
+    }
+    return r;
 }
 
 static void test_loader(enum test_type t, DB **dbs, int trigger)
@@ -553,12 +563,6 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
     else
 	error_injection = 1;
     
-
-    if (t == abort_via_poll)
-	abort_on_poll = 1;
-    else
-	abort_on_poll = 0;
-
 
     int r;
     DB_TXN    *txn;
@@ -608,7 +612,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
     }
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
         
-    poll_count=0;
+    assert(poll_count == 0);  // no polling before loader->close() is called
 
     // You cannot count the temp files here.
     if (verbose) {
@@ -677,6 +681,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	fopen_count_nominal  = fopen_count;   // capture how many fopens were required for normal operation
 	open_count_nominal   = open_count;    // capture how many opens were required for normal operation
 	fclose_count_nominal = fclose_count;  // capture how many fcloses were required for normal operation
+	poll_count_nominal   = poll_count;    // capture how many times the polling function was called
 	
 	if (verbose) {
 	    printf("Nominal calls:  function  calls (number of calls for normal operation)\n");
@@ -688,6 +693,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	    printf("                fopen     %d\n", fopen_count_nominal);
 	    printf("                open      %d\n", open_count_nominal);
 	    printf("                fclose    %d\n", fclose_count_nominal);
+	    printf("                poll      %d\n", poll_count_nominal);
 	}
 
 	r = txn->commit(txn, 0);
@@ -767,15 +773,15 @@ static void run_test(enum test_type t, int trigger)
     write_count_trigger  =  write_count = 0;
     pwrite_count_trigger = pwrite_count = 0;
     fdopen_count_trigger = fdopen_count = 0;
-    fopen_count_trigger  = fopen_count = 0;
-    open_count_trigger   = open_count = 0;
+    fopen_count_trigger  = fopen_count  = 0;
+    open_count_trigger   = open_count   = 0;
     fclose_count_trigger = fclose_count = 0;
+    poll_count_trigger   = poll_count   = 0;
 
     switch(t) {
     case commit:
     case abort_txn:
     case abort_loader:
-    case abort_via_poll:
 	break;
     case event:
 	event_count_trigger  = trigger;      break;
@@ -793,6 +799,8 @@ static void run_test(enum test_type t, int trigger)
 	open_count_trigger = trigger;        break;
     case enospc_fc:
 	fclose_count_trigger = trigger;      break;
+    case abort_via_poll:
+	poll_count_trigger  = trigger;       break;
     default:
 	assert(0);
     }
@@ -825,15 +833,11 @@ static void do_args(int argc, char * const argv[]);
 static void run_all_tests(void) {
     int trigger;
 
-    if (verbose) printf("\n\nTesting loader with close and commit (normal)\n");
+    if (verbose) printf("\n\nTesting loader with loader close and txn commit (normal)\n");
     run_test(commit, 0);
 
     if (verbose) printf("\n\nTesting loader with loader abort and txn abort\n");
     run_test(abort_loader, 0);
-    if (!USE_PUTS) {
-	if (verbose) printf("\n\nTesting loader with loader abort_via_poll and txn abort\n");
-	run_test(abort_via_poll, 0);
-    }
 
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn, 0);
@@ -845,9 +849,10 @@ static void run_all_tests(void) {
 	}
     } else {
 
-	enum test_type et[NUM_ERR_TYPES] = {enospc_f, enospc_w, enospc_p, einval_fdo, einval_fo, einval_o, enospc_fc};
+	enum test_type et[NUM_ERR_TYPES] = {enospc_f, enospc_w, enospc_p, einval_fdo, einval_fo, einval_o, enospc_fc, abort_via_poll};
 	int * nomp[NUM_ERR_TYPES] = {&fwrite_count_nominal, &write_count_nominal, &pwrite_count_nominal,
-				     &fdopen_count_nominal, &fopen_count_nominal, &open_count_nominal, &fclose_count_nominal};
+				     &fdopen_count_nominal, &fopen_count_nominal, &open_count_nominal, 
+				     &fclose_count_nominal, &poll_count_nominal};
 	int limit = NUM_DBS * 5;
 	int j;
 	for (j = 0; j<NUM_ERR_TYPES; j++) {
