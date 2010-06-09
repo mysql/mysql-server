@@ -1,5 +1,7 @@
 -- source include/have_innodb.inc
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
 
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
@@ -139,6 +141,8 @@ show create table t4;
 --error ER_CANT_CREATE_TABLE
 alter table t3 add constraint dc foreign key (a) references t1(a);
 show create table t3;
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
 alter table t2 drop index b, add index (b);
 show create table t2;
 --error ER_ROW_IS_REFERENCED_2
@@ -146,7 +150,9 @@ delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
 # there is no foreign key dc on t3
---replace_regex /'\.\/test\/#sql2-[0-9a-f-]*'/'#sql2-temporary'/
+--replace_regex /'[^']*test\/#sql2-[0-9a-f-]*'/'#sql2-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_ERROR_ON_RENAME
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;

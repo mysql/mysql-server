@@ -147,7 +147,27 @@ EXPLAIN SELECT DISTINCT 1 FROM t1,
          WHERE t1.a = d1.a;
 DROP TABLE t1;
 
-# End of 5.0 tests.
+--echo #
+--echo # Bug#48295:
+--echo # explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
+--echo #
+
+CREATE TABLE t1 (f1 INT);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+# EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+EXPLAIN EXTENDED SELECT 1 FROM t1
+                          WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
+SHOW WARNINGS;
+
+SET SESSION sql_mode=@old_sql_mode;
+
+DROP TABLE t1;
+
+--echo End of 5.0 tests.
 
 --echo #
 --echo # Bug#37870: Usage of uninitialized value caused failed assertion.
@@ -168,23 +188,14 @@ SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR
 drop tables t1, t2;
 
 --echo #
---echo # Bug#48295:
---echo # explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
+--echo # Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
 --echo #
 
-CREATE TABLE t1 (f1 INT);
-
-SELECT @@session.sql_mode INTO @old_sql_mode;
-SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
-
-# EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-EXPLAIN EXTENDED SELECT 1 FROM t1
-                          WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
-SHOW WARNINGS;
-
-SET SESSION sql_mode=@old_sql_mode;
-
-DROP TABLE t1;
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (d int);
+INSERT INTO t2 VALUES (NULL), (0);
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
+DROP TABLE t1, t2;
 
 --echo End of 5.1 tests.

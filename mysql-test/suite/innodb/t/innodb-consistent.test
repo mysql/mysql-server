@@ -26,7 +26,7 @@ replace into t1 select * from t2;
 connection b;
 set session transaction isolation level read committed;
 set autocommit=0;
-# should not cuase a lock wait.
+# should not cause a lock wait.
 delete from t2 where a=5;
 commit;
 delete from t2;
@@ -42,7 +42,7 @@ insert into t1 select * from t2;
 connection b;
 set session transaction isolation level read committed;
 set autocommit=0;
-# should not cuase a lock wait.
+# should not cause a lock wait.
 delete from t2 where a=5;
 commit;
 delete from t2;

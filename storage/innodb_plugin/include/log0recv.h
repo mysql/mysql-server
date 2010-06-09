@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -176,6 +176,12 @@ UNIV_INTERN
 void
 recv_recovery_from_checkpoint_finish(void);
 /*======================================*/
+/********************************************************//**
+Initiates the rollback of active transactions. */
+UNIV_INTERN
+void
+recv_recovery_rollback_active(void);
+/*===============================*/
 /*******************************************************//**
 Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
@@ -258,12 +264,14 @@ void
 recv_sys_init(
 /*==========*/
 	ulint	available_memory);	/*!< in: available memory in bytes */
+#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Reset the state of the recovery system variables. */
 UNIV_INTERN
 void
 recv_sys_var_init(void);
 /*===================*/
+#endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */

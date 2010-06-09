@@ -717,7 +717,7 @@ create view v1 as select a from t1;
 create view v2 as select a from t2 where a in (select a from v1);
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where `t2`.`a` in (select `v1`.`a` AS `a` from `v1`)	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where `t2`.`a` in (select `v1`.`a` from `v1`)	latin1	latin1_swedish_ci
 drop view v2, v1;
 drop table t1, t2;
 CREATE VIEW `v 1` AS select 5 AS `5`;
@@ -2982,7 +2982,7 @@ SHOW WARNINGS;
 Level	Code	Message
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`pk` AS `pk` from (`t1` join `t2` on(((`t2`.`fk` = `t1`.`pk`) and (`t2`.`ver` = (select max(`t`.`ver`) AS `MAX(t.ver)` from `t2` `t` where (`t`.`org` = `t2`.`org`))))))	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`pk` AS `pk` from (`t1` join `t2` on(((`t2`.`fk` = `t1`.`pk`) and (`t2`.`ver` = (select max(`t`.`ver`) from `t2` `t` where (`t`.`org` = `t2`.`org`))))))	latin1	latin1_swedish_ci
 DROP VIEW v1;
 DROP TABLE t1, t2;
 DROP FUNCTION IF EXISTS f1;
