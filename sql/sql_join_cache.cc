@@ -3209,6 +3209,9 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
       key_chain_ptr= key_ref_ptr+get_size_of_key_offset();
     } 
 
+    if (join_tab->keep_current_rowid)
+      join_tab->table->file->position(join_tab->table->record[0]);
+
     uchar *last_rec_ref_ptr= get_next_rec_ref(key_chain_ptr);
     uchar *next_rec_ref_ptr= last_rec_ref_ptr;
     do
