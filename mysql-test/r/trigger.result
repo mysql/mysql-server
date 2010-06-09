@@ -2087,4 +2087,45 @@ ERROR 42S02: Table 'test.a_nonextisting_table' doesn't exist
 SELECT * FROM t2;
 a	b
 DROP TABLE t1, t2;
+#
+# Bug#51650 crash with user variables and triggers
+#
+DROP TRIGGER IF EXISTS trg1;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (b VARCHAR(50) NOT NULL);
+CREATE TABLE t2 (a VARCHAR(10) NOT NULL DEFAULT '');
+CREATE TRIGGER trg1 AFTER INSERT ON t2
+FOR EACH ROW BEGIN
+SELECT 1 FROM t1 c WHERE
+(@bug51650 IS NULL OR @bug51650 != c.b) AND c.b = NEW.a LIMIT 1 INTO @foo;
+END//
+SET @bug51650 = 1;
+INSERT IGNORE INTO t2 VALUES();
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+INSERT IGNORE INTO t1 SET b = '777';
+INSERT IGNORE INTO t2 SET a = '111';
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+SET @bug51650 = 1;
+INSERT IGNORE INTO t2 SET a = '777';
+DROP TRIGGER trg1;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (id INT NOT NULL);
+CREATE TABLE t2 (id INT NOT NULL);
+INSERT t1 VALUES (1),(2),(3);
+UPDATE t1 SET id=NULL;
+Warnings:
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+INSERT INTO t2 VALUES (3);
+UPDATE t1 SET id=NULL;
+Warnings:
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+DROP TRIGGER t1_bu;
+DROP TABLE t1,t2;
 End of 5.1 tests.

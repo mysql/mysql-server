@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -485,7 +485,7 @@ next_column:
 /****************************************************************//**
 Handles user errors and lock waits detected by the database engine.
 @return TRUE if it was a lock wait and we should continue running the
-query thread */
+query thread and in that case the thr is ALREADY in the running state. */
 UNIV_INTERN
 ibool
 row_mysql_handle_errors(
@@ -3255,18 +3255,12 @@ check_next_foreign:
 			   "END;\n"
 			   , FALSE, trx);
 
-	if (err != DB_SUCCESS) {
-		ut_a(err == DB_OUT_OF_FILE_SPACE);
-
-		err = DB_MUST_GET_MORE_FILE_SPACE;
-
-		row_mysql_handle_errors(&err, trx, NULL, NULL);
-
-		ut_error;
-	} else {
-		ibool		is_path;
+	switch (err) {
+		ibool		is_temp;
 		const char*	name_or_path;
 		mem_heap_t*	heap;
+
+	case DB_SUCCESS:
 
 		heap = mem_heap_create(200);
 
@@ -3277,12 +3271,13 @@ check_next_foreign:
 		space_id = table->space;
 
 		if (table->dir_path_of_temp_table != NULL) {
-			is_path = TRUE;
 			name_or_path = mem_heap_strdup(
 				heap, table->dir_path_of_temp_table);
+			is_temp = TRUE;
 		} else {
-			is_path = FALSE;
 			name_or_path = name;
+			is_temp = (table->flags >> DICT_TF2_SHIFT)
+				& DICT_TF2_TEMPORARY;
 		}
 
 		dict_table_remove_from_cache(table);
@@ -3302,8 +3297,8 @@ check_next_foreign:
 		if (err == DB_SUCCESS && space_id > 0) {
 			if (!fil_space_for_table_exists_in_mem(space_id,
 							       name_or_path,
-							       is_path,
-							       FALSE, TRUE)) {
+							       is_temp, FALSE,
+							       !is_temp)) {
 				err = DB_SUCCESS;
 
 				fprintf(stderr,
@@ -3332,7 +3327,27 @@ check_next_foreign:
 		}
 
 		mem_heap_free(heap);
+		break;
+
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		/* Cannot even find a free slot for the
+		the undo log. We can directly exit here
+		and return the DB_TOO_MANY_CONCURRENT_TRXS
+		error. */
+		break;
+
+	case DB_OUT_OF_FILE_SPACE:
+		err = DB_MUST_GET_MORE_FILE_SPACE;
+
+		row_mysql_handle_errors(&err, trx, NULL, NULL);
+
+		/* Fall through to raise error */
+
+	default:
+		/* No other possible error returns */
+		ut_error;
 	}
+
 funct_exit:
 
 	if (locked_dictionary) {
@@ -3346,6 +3361,90 @@ funct_exit:
 	srv_wake_master_thread();
 
 	return((int) err);
+}
+
+/*********************************************************************//**
+Drop all temporary tables during crash recovery. */
+UNIV_INTERN
+void
+row_mysql_drop_temp_tables(void)
+/*============================*/
+{
+	trx_t*		trx;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
+	mem_heap_t*	heap;
+
+	trx = trx_allocate_for_background();
+	trx->op_info = "dropping temporary tables";
+	row_mysql_lock_data_dictionary(trx);
+
+	heap = mem_heap_create(200);
+
+	mtr_start(&mtr);
+
+	btr_pcur_open_at_index_side(
+		TRUE,
+		dict_table_get_first_index(dict_sys->sys_tables),
+		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+
+	for (;;) {
+		const rec_t*	rec;
+		const byte*	field;
+		ulint		len;
+		const char*	table_name;
+		dict_table_t*	table;
+
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
+		field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
+		if (len != 4 || !(mach_read_from_4(field) & 0x80000000UL)) {
+			continue;
+		}
+
+		/* Because this is not a ROW_FORMAT=REDUNDANT table,
+		the is_temp flag is valid.  Examine it. */
+
+		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
+		if (len != 4
+		    || !(mach_read_from_4(field) & DICT_TF2_TEMPORARY)) {
+			continue;
+		}
+
+		/* This is a temporary table. */
+		field = rec_get_nth_field_old(rec, 0/*NAME*/, &len);
+		if (len == UNIV_SQL_NULL || len == 0) {
+			/* Corrupted SYS_TABLES.NAME */
+			continue;
+		}
+
+		table_name = mem_heap_strdupl(heap, (const char*) field, len);
+
+		btr_pcur_store_position(&pcur, &mtr);
+		btr_pcur_commit_specify_mtr(&pcur, &mtr);
+
+		table = dict_load_table(table_name);
+
+		if (table) {
+			row_drop_table_for_mysql(table_name, trx, FALSE);
+			trx_commit_for_mysql(trx);
+		}
+
+		mtr_start(&mtr);
+		btr_pcur_restore_position(BTR_SEARCH_LEAF,
+					  &pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
+	row_mysql_unlock_data_dictionary(trx);
+	trx_free_for_background(trx);
 }
 
 /*******************************************************************//**
@@ -3899,14 +3998,15 @@ Checks that the index contains entries in an ascending order, unique
 constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
 @return	TRUE if ok */
-static
+UNIV_INTERN
 ibool
-row_scan_and_check_index(
-/*=====================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in MySQL */
-	dict_index_t*	index,		/*!< in: index */
-	ulint*		n_rows)		/*!< out: number of entries seen in the
-					current consistent read */
+row_check_index_for_mysql(
+/*======================*/
+	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
+						in MySQL handle */
+	const dict_index_t*	index,		/*!< in: index */
+	ulint*			n_rows)		/*!< out: number of entries
+						seen in the consistent read */
 {
 	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
@@ -3927,31 +4027,9 @@ row_scan_and_check_index(
 
 	*n_rows = 0;
 
-	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
-		/* A newly created index may lack some delete-marked
-		records that may exist in the read view of
-		prebuilt->trx.  Thus, such indexes must not be
-		accessed by consistent read. */
-		return(is_ok);
-	}
-
 	buf = mem_alloc(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(100);
 
-	/* Make a dummy template in prebuilt, which we will use
-	in scanning the index entries */
-
-	prebuilt->index = index;
-	/* row_merge_is_index_usable() was already checked above. */
-	prebuilt->index_usable = TRUE;
-	prebuilt->sql_stat_start = TRUE;
-	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
-	prebuilt->n_template = 0;
-	prebuilt->need_to_access_clustered = FALSE;
-
-	dtuple_set_n_fields(prebuilt->search_tuple, 0);
-
-	prebuilt->select_lock_type = LOCK_NONE;
 	cnt = 1000;
 
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
@@ -4067,119 +4145,6 @@ not_ok:
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;
-}
-
-/*********************************************************************//**
-Checks a table for corruption.
-@return	DB_ERROR or DB_SUCCESS */
-UNIV_INTERN
-ulint
-row_check_table_for_mysql(
-/*======================*/
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
-{
-	dict_table_t*	table		= prebuilt->table;
-	dict_index_t*	index;
-	ulint		n_rows;
-	ulint		n_rows_in_table	= ULINT_UNDEFINED;
-	ulint		ret		= DB_SUCCESS;
-	ulint		old_isolation_level;
-
-	if (table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you"
-			" used DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
-			table->name);
-		return(DB_ERROR);
-	}
-
-	prebuilt->trx->op_info = "checking table";
-
-	old_isolation_level = prebuilt->trx->isolation_level;
-
-	/* We must run the index record counts at an isolation level
-	>= READ COMMITTED, because a dirty read can see a wrong number
-	of records in some index; to play safe, we use always
-	REPEATABLE READ here */
-
-	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-
-	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
-
-	index = dict_table_get_first_index(table);
-
-	while (index != NULL) {
-		/* fputs("Validating index ", stderr);
-		ut_print_name(stderr, trx, FALSE, index->name);
-		putc('\n', stderr); */
-
-		if (!btr_validate_index(index, prebuilt->trx)) {
-			ret = DB_ERROR;
-		} else {
-			if (!row_scan_and_check_index(prebuilt,index, &n_rows)){
-				ret = DB_ERROR;
-			}
-
-			if (trx_is_interrupted(prebuilt->trx)) {
-				ret = DB_INTERRUPTED;
-				break;
-			}
-
-			/* fprintf(stderr, "%lu entries in index %s\n", n_rows,
-			index->name); */
-
-			if (index == dict_table_get_first_index(table)) {
-				n_rows_in_table = n_rows;
-			} else if (n_rows != n_rows_in_table) {
-
-				ret = DB_ERROR;
-
-				fputs("Error: ", stderr);
-				dict_index_name_print(stderr,
-						      prebuilt->trx, index);
-				fprintf(stderr,
-					" contains %lu entries,"
-					" should be %lu\n",
-					(ulong) n_rows,
-					(ulong) n_rows_in_table);
-			}
-		}
-
-		index = dict_table_get_next_index(index);
-	}
-
-	/* Restore the original isolation level */
-	prebuilt->trx->isolation_level = old_isolation_level;
-
-	/* We validate also the whole adaptive hash index for all tables
-	at every CHECK TABLE */
-
-	if (!btr_search_validate()) {
-
-		ret = DB_ERROR;
-	}
-
-	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
-
-	prebuilt->trx->op_info = "";
-
-	return(ret);
 }
 
 /*********************************************************************//**

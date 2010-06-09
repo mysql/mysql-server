@@ -1,3 +1,188 @@
+2010-03-18	The InnoDB Team
+
+	* CMakeLists.txt:
+	Fix Bug#52102 InnoDB Plugin shows performance drop compared to
+	InnoDB (Windows)
+
+2010-03-18	The InnoDB Team
+
+	* buf0buf.ic:
+	When comparing the time of the first access to a block against
+	innodb_old_blocks_time, use 32-bit arithmetics. The comparison was
+	incorrect on 64-bit systems.
+
+2010-03-11	The InnoDB Team
+
+	* buf0buf.h, buf0buf.ic:
+	Fix and clarify the latching of some buf_block_t members.
+	Note that check_index_page_at_flush is not protected by any mutex.
+	Note and assert that lock_hash_val is protected by the rw-latch.
+
+2010-03-10	The InnoDB Team
+
+	* trx/trx0sys.c:
+	Fix Bug#51653 outdated reference to set-variable
+
+2010-03-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug21704.result,
+	mysql-test/innodb_bug47621.result, mysql-test/innodb_bug47621.test:
+	Fix Bug#47621 MySQL and InnoDB data dictionaries will become out of
+	sync when renaming columns
+
+2010-03-10	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#51356 Many Valgrind errors in error messages
+	with concurrent DDL
+
+2010-03-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/handler0alter.cc,
+	mysql-test/innodb_bug51378.result, mysql-test/innodb_bug51378.test:
+	Fix Bug#51378 Init 'ref_length' to correct value, in case an out
+	of bound MySQL primary_key
+
+2010-03-10	The InnoDB Team
+
+	* log/log0recv.c:
+	Remove a bogus assertion about page numbers exceeding 0x90000000
+	in the redo log. Abort when encountering a corrupted redo log
+	record, unless innodb_force_recovery is set.
+
+2010-03-09	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make SHOW ENGINE INNODB MUTEX STATUS display SUM(os_waits)
+	for the buffer pool block mutexes and locks.
+
+2010-03-08	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Fix ALTER TABLE ... IMPORT TABLESPACE of compressed tables.
+
+2010-03-03	The InnoDB Team
+
+	* handler/handler0alter.cc, innodb-index.result, innodb-index.test,
+	innodb.result, innodb.test:
+	Disallow a duplicate index name when creating an index.
+
+2010-02-11	The InnoDB Team
+
+	* include/mem0mem.h, include/mem0mem.ic, mem/mem0mem.c:
+	Fix Bug#49535 Available memory check slows down crash
+	recovery tens of times
+
+2010-02-09	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix Bug#38901 InnoDB logs error repeatedly when trying to load
+	page into buffer pool
+
+2010-02-09	The InnoDB Team
+
+	* srv/srv0srv.c:
+	Let the master thread sleep if the amount of work to be done is
+	calibrated as taking less than a second.
+
+2010-02-04	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, buf/buf0buf.c,
+	include/btr0btr.h, include/btr0cur.h, include/btr0pcur.h,
+	include/btr0pcur.ic, include/buf0buf.h, row/row0ins.c, row/row0sel.c:
+	Pass the file name and line number of the caller of the
+	b-tree cursor functions to the buffer pool requests, in order
+	to make the latch diagnostics more accurate.
+
+2010-02-03	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#49001 SHOW INNODB STATUS deadlock info incorrect
+	when deadlock detection aborts
+
+2010-02-03	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix Bug#35077 Very slow DROP TABLE (ALTER TABLE, OPTIMIZE TABLE)
+	on compressed tables
+
+2010-02-03	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
+	Clean up CHECK TABLE error handling.
+
+2010-02-01	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.test,
+	mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc-44030.test,
+	mysql-test/innodb-autoinc-44030.result:
+	Fix Bug#49497 Error 1467 (ER_AUTOINC_READ_FAILED) on inserting
+	a negative value
+
+2010-01-27	The InnoDB Team
+
+	* include/row0mysql.h, log/log0recv.c, row/row0mysql.c:
+	Drop temporary tables at startup.
+	This addresses the third aspect of
+	Bug#41609 Crash recovery does not work for InnoDB temporary tables.
+
+2010-01-21	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Do not merge buffered inserts to compressed pages before
+	the redo log has been applied in crash recovery.
+
+2010-01-13	The InnoDB Team
+
+	* row/row0sel.c:
+	On the READ UNCOMMITTED isolation level, do not attempt to access
+	a clustered index record that has been marked for deletion. The
+	built-in InnoDB in MySQL 5.1 and earlier would attempt to retrieve
+	a previous version of the record in this case.
+
+2010-01-13	The InnoDB Team
+
+	* buf/buf0buf.c:
+	When disabling the adaptive hash index, check the block state
+	before checking block->is_hashed, because the latter may be
+	uninitialized right after server startup.
+
+2010-01-12	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h:
+	Fix Bug#46193 crash when accessing tables after enabling
+	innodb_force_recovery option
+
+2010-01-12	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug#49238 Creating/Dropping a temporary table while at 1023
+	transactions will cause assert.
+
+2009-12-02	The InnoDB Team
+
+	* srv/srv0start.c:
+	Display the zlib version number at startup.
+	InnoDB compressed tables use zlib, and the implementation depends
+	on the zlib function compressBound(), whose definition was slightly
+	changed in zlib version 1.2.3.1 in 2006. MySQL bundles zlib 1.2.3
+	from 2005, but some installations use a more recent zlib.
+
+2009-11-30	The InnoDB Team
+
+	* dict/dict0crea.c, dict/dict0mem.c, dict/dict0load.c,
+	dict/dict0boot.c, fil/fil0fil.c, handler/ha_innodb.cc,
+	include/dict0mem.h, row/row0mysql.c:
+	Fix the bogus warning messages for non-existing temporary
+	tables that were reported in
+	Bug#41609 Crash recovery does not work for InnoDB temporary tables.
+	The actual crash recovery bug was corrected on 2009-04-29.
+
+2009-11-27	The InnoDB Team
+
+	InnoDB Plugin 1.0.6 released
+
 2009-11-20	The InnoDB Team
 
 	* handler/ha_innodb.cc:
@@ -79,8 +264,8 @@
 	sync/sync0arr.c, sync/sync0sync.c, thr/thr0loc.c, trx/trx0i_s.c,
 	trx/trx0purge.c, trx/trx0rseg.c, trx/trx0sys.c, trx/trx0undo.c,
 	usr/usr0sess.c, ut/ut0mem.c:
-	Fix Bug #45992 innodb memory not freed after shutdown
-	Fix Bug #46656 InnoDB plugin: memory leaks (Valgrind)
+	Fix Bug#45992 innodb memory not freed after shutdown
+	Fix Bug#46656 InnoDB plugin: memory leaks (Valgrind)
 
 2009-10-29	The InnoDB Team
 
@@ -422,7 +607,7 @@
 	* dict/dict0dict.c:
 	When an index column cannot be found in the table during index
 	creation, display additional diagnostic before an assertion failure.
-	This does NOT fix Bug #44571 InnoDB Plugin crashes on ADD INDEX,
+	This does NOT fix Bug#44571 InnoDB Plugin crashes on ADD INDEX,
 	but it helps understand the reason of the crash.
 
 2009-06-17	The InnoDB Team
@@ -534,6 +719,12 @@
 	* dict/dict0dict.c:
 	Fix Bug#44320 InnoDB: missing DB_ROLL_PTR in Table Monitor COLUMNS
 	output
+
+2009-04-29	The InnoDB Team
+
+	* fil/fil0fil.c, include/fil0fil.h, include/mtr0mtr.h,
+	log/log0recv.c:
+	Fix Bug#41609 Crash recovery does not work for InnoDB temporary tables
 
 2009-04-23	The InnoDB Team
 

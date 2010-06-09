@@ -25,8 +25,8 @@ ALTER TABLE t1 CHANGE a c INT;
 ERROR HY000: Error on rename of '#sql-temporary' to './test/t1' (errno: 150)
 # Ensure that online column rename works.
 ALTER TABLE t1 CHANGE b c INT;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 0
 
 # Test renaming the column in the referencing table
 
@@ -34,8 +34,8 @@ ALTER TABLE t2 CHANGE a c INT;
 ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150)
 # Ensure that online column rename works.
 ALTER TABLE t2 CHANGE b c INT;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 0
 
 # Test with self-referential constraints
 
@@ -45,8 +45,8 @@ ALTER TABLE t3 CHANGE b d INT;
 ERROR HY000: Error on rename of '#sql-temporary' to './test/t3' (errno: 150)
 # Ensure that online column rename works.
 ALTER TABLE t3 CHANGE c d INT;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 0
 
 # Cleanup.
 

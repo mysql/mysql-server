@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
@@ -46,7 +46,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	6
+#define INNODB_VERSION_BUGFIX	7
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -229,11 +229,6 @@ by one. */
 			/* the above option prevents forcing of log to disk
 			at a buffer page write: it should be tested with this
 			option off; also some ibuf tests are suppressed */
-/*
-#define UNIV_BASIC_LOG_DEBUG
-*/
-			/* the above option enables basic recovery debugging:
-			new allocated file pages are reset */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
 that are only referenced from within InnoDB, not from MySQL */

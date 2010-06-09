@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -695,19 +695,9 @@ rec_get_nth_field_offs_old(
 	ulint	os;
 	ulint	next_os;
 
-	ut_ad(rec && len);
-	ut_ad(n < rec_get_n_fields_old(rec));
-
-	if (UNIV_UNLIKELY(n > REC_MAX_N_FIELDS)) {
-		fprintf(stderr, "Error: trying to access field %lu in rec\n",
-			(ulong) n);
-		ut_error;
-	}
-
-	if (UNIV_UNLIKELY(rec == NULL)) {
-		fputs("Error: rec is NULL pointer\n", stderr);
-		ut_error;
-	}
+	ut_ad(len);
+	ut_a(rec);
+	ut_a(n < rec_get_n_fields_old(rec));
 
 	if (rec_get_1byte_offs_flag(rec)) {
 		os = rec_1_get_field_start_offs(rec, n);

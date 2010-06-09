@@ -15,7 +15,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 {
   DBUG_ENTER("Old_rows_log_event::do_apply_event(st_relay_log_info*)");
   int error= 0;
-  THD *thd= ev->thd;
+  THD *ev_thd= ev->thd;
   uchar const *row_start= ev->m_rows_buf;
 
   /*
@@ -33,17 +33,17 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     DBUG_ASSERT(ev->get_flags(Old_rows_log_event::STMT_END_F));
 
     const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
-    thd->clear_error();
+    close_thread_tables(ev_thd);
+    ev_thd->clear_error();
     DBUG_RETURN(0);
   }
 
   /*
-    'thd' has been set by exec_relay_log_event(), just before calling
+    'ev_thd' has been set by exec_relay_log_event(), just before calling
     do_apply_event(). We still check here to prevent future coding
     errors.
   */
-  DBUG_ASSERT(rli->sql_thd == thd);
+  DBUG_ASSERT(rli->sql_thd == ev_thd);
 
   /*
     If there is no locks taken, this is the first binrow event seen
@@ -51,10 +51,10 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     used in the transaction and proceed with execution of the actual
     event.
   */
-  if (!thd->lock)
+  if (!ev_thd->lock)
   {
     /*
-      Lock_tables() reads the contents of thd->lex, so they must be
+      Lock_tables() reads the contents of ev_thd->lex, so they must be
       initialized.
 
       We also call the mysql_reset_thd_for_next_command(), since this
@@ -62,24 +62,24 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       call might reset the value of current_stmt_binlog_row_based, so
       we need to do any changes to that value after this function.
     */
-    lex_start(thd);
-    mysql_reset_thd_for_next_command(thd);
+    lex_start(ev_thd);
+    mysql_reset_thd_for_next_command(ev_thd);
 
     /*
       Check if the slave is set to use SBR.  If so, it should switch
       to using RBR until the end of the "statement", i.e., next
       STMT_END_F or next error.
     */
-    if (!thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+    if (!ev_thd->current_stmt_binlog_row_based &&
+        mysql_bin_log.is_open() && (ev_thd->options & OPTION_BIN_LOG))
     {
-      thd->set_current_stmt_binlog_row_based();
+      ev_thd->set_current_stmt_binlog_row_based();
     }
 
-    if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
+    if (simple_open_n_lock_tables(ev_thd, rli->tables_to_lock))
     {
-      uint actual_error= thd->main_da.sql_errno();
-      if (thd->is_slave_error || thd->is_fatal_error)
+      uint actual_error= ev_thd->main_da.sql_errno();
+      if (ev_thd->is_slave_error || ev_thd->is_fatal_error)
       {
         /*
           Error reporting borrowed from Query_log_event with many excessive
@@ -87,9 +87,9 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? thd->main_da.message() :
+                    (actual_error ? ev_thd->main_da.message() :
                      "unexpected success or fatal error"));
-        thd->is_slave_error= 1;
+        ev_thd->is_slave_error= 1;
       }
       const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
       DBUG_RETURN(actual_error);
@@ -109,9 +109,9 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       {
         if (ptr->m_tabledef.compatible_with(rli, ptr->table))
         {
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
-          thd->is_slave_error= 1;
+          mysql_unlock_tables(ev_thd, ev_thd->lock);
+          ev_thd->lock= 0;
+          ev_thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
           DBUG_RETURN(Old_rows_log_event::ERR_BAD_TABLE_DEF);
         }
@@ -159,23 +159,23 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t)ev->when);
+    ev_thd->set_time((time_t)ev->when);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
       the event.
     */
     if (ev->get_flags(Old_rows_log_event::NO_FOREIGN_KEY_CHECKS_F))
-        thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
+        ev_thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
     else
-        thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+        ev_thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
 
     if (ev->get_flags(Old_rows_log_event::RELAXED_UNIQUE_CHECKS_F))
-        thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
+        ev_thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
-        thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+        ev_thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
     /* A small test to verify that objects have consistent types */
-    DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
+    DBUG_ASSERT(sizeof(ev_thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -192,7 +192,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     while (error == 0 && row_start < ev->m_rows_end)
     {
       uchar const *row_end= NULL;
-      if ((error= do_prepare_row(thd, rli, table, row_start, &row_end)))
+      if ((error= do_prepare_row(ev_thd, rli, table, row_start, &row_end)))
         break; // We should perform the after-row operation even in
                // the case of error
 
@@ -202,7 +202,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       /* in_use can have been set to NULL in close_tables_for_reopen */
       THD* old_thd= table->in_use;
       if (!table->in_use)
-        table->in_use= thd;
+        table->in_use= ev_thd;
       error= do_exec_row(table);
       table->in_use = old_thd;
       switch (error)
@@ -216,11 +216,11 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   break;
 
       default:
-  rli->report(ERROR_LEVEL, thd->main_da.sql_errno(),
+  rli->report(ERROR_LEVEL, ev_thd->main_da.sql_errno(),
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
-                    thd->is_error() ? thd->main_da.message() : "");
-  thd->is_slave_error= 1;
+                    ev_thd->is_error() ? ev_thd->main_da.message() : "");
+  ev_thd->is_slave_error= 1;
   break;
       }
 
@@ -232,7 +232,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     if (!ev->cache_stmt)
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->options|= OPTION_KEEP_LOG;
+      ev_thd->options|= OPTION_KEEP_LOG;
     }
   }
 
@@ -245,12 +245,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, thd->main_da.sql_errno(),
+    rli->report(ERROR_LEVEL, ev_thd->main_da.sql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 ev->get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                thd->is_error() ? thd->main_da.message() : "");
+                ev_thd->is_error() ? ev_thd->main_da.message() : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
@@ -263,9 +263,9 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       thread is certainly going to stop.
       rollback at the caller along with sbr.
     */
-    thd->reset_current_stmt_binlog_row_based();
-    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
-    thd->is_slave_error= 1;
+    ev_thd->reset_current_stmt_binlog_row_based();
+    const_cast<Relay_log_info*>(rli)->cleanup_context(ev_thd, error);
+    ev_thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
 

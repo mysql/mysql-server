@@ -1,13 +1,21 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
 briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,32 +30,6 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
-/***********************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
-
-Portions of this file contain modifications contributed and copyrighted
-by Percona Inc.. Those modifications are
-gratefully acknowledged and are described briefly in the InnoDB
-documentation. The contributions by Percona Inc. are incorporated with
-their permission, and subject to the conditions contained in the file
-COPYING.Percona.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-***********************************************************************/
 
 /********************************************************************//**
 @file srv/srv0start.c
@@ -105,6 +87,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "btr0pcur.h"
 # include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
+# include "zlib.h" /* for ZLIB_VERSION */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -143,9 +126,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 5];
+static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1074,7 +1057,11 @@ innobase_start_or_create_for_mysql(void)
 #ifdef UNIV_IBUF_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_IBUF_DEBUG switched on !!!!!!!!!\n"
-		"InnoDB: Crash recovery will fail with UNIV_IBUF_DEBUG\n");
+# ifdef UNIV_IBUF_COUNT_DEBUG
+		"InnoDB: !!!!!!!! UNIV_IBUF_COUNT_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG\n"
+# endif
+		);
 #endif
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1101,7 +1088,15 @@ innobase_start_or_create_for_mysql(void)
 			"InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
-	fprintf(stderr, "InnoDB: %s\n", IB_ATOMICS_STARTUP_MSG);
+	fputs("InnoDB: " IB_ATOMICS_STARTUP_MSG
+	      "\nInnoDB: Compressed tables use zlib " ZLIB_VERSION
+#ifdef UNIV_ZIP_DEBUG
+	      " with validation"
+#endif /* UNIV_ZIP_DEBUG */
+#ifdef UNIV_ZIP_COPY
+	      " and extra copying"
+#endif /* UNIV_ZIP_COPY */
+	      "\n" , stderr);
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1575,6 +1570,14 @@ innobase_start_or_create_for_mysql(void)
 		dict_boot();
 		trx_sys_init_at_db_start();
 
+		/* Initialize the fsp free limit global variable in the log
+		system */
+		fsp_header_get_free_limit();
+
+		/* recv_recovery_from_checkpoint_finish needs trx lists which
+		are initialized in trx_sys_init_at_db_start(). */
+
+		recv_recovery_from_checkpoint_finish();
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
@@ -1590,26 +1593,14 @@ innobase_start_or_create_for_mysql(void)
 			every table in the InnoDB data dictionary that has
 			an .ibd file.
 
-			We also determine the maximum tablespace id used.
-
-			TODO: We may have incomplete transactions in the
-			data dictionary tables. Does that harm the scanning of
-			the data dictionary below? */
+			We also determine the maximum tablespace id used. */
 
 			dict_check_tablespaces_and_store_max_id(
 				recv_needed_recovery);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
-
-		/* recv_recovery_from_checkpoint_finish needs trx lists which
-		are initialized in trx_sys_init_at_db_start(). */
-
-		recv_recovery_from_checkpoint_finish();
+		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
 		been set. In this case we initialize it to minimum
@@ -1658,15 +1649,18 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	/* Create the thread which watches the timeouts for lock waits
-	and prints InnoDB monitor info */
-
-	os_thread_create(&srv_lock_timeout_and_monitor_thread, NULL,
+	/* Create the thread which watches the timeouts for lock waits */
+	os_thread_create(&srv_lock_timeout_thread, NULL,
 			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
 
 	/* Create the thread which warns of long semaphore waits */
 	os_thread_create(&srv_error_monitor_thread, NULL,
 			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which prints InnoDB monitor info */
+	os_thread_create(&srv_monitor_thread, NULL,
+			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
 	srv_is_being_started = FALSE;
 
 	if (trx_doublewrite == NULL) {

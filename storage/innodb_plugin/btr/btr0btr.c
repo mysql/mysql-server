@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -592,13 +592,15 @@ an x-latch on the tree.
 @return	rec_get_offsets() of the node pointer record */
 static
 ulint*
-btr_page_get_father_node_ptr(
-/*=========================*/
+btr_page_get_father_node_ptr_func(
+/*==============================*/
 	ulint*		offsets,/*!< in: work area for the return value */
 	mem_heap_t*	heap,	/*!< in: memory heap to use */
 	btr_cur_t*	cursor,	/*!< in: cursor pointing to user record,
 				out: cursor on node pointer record,
 				its page x-latched */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	dtuple_t*	tuple;
@@ -622,7 +624,8 @@ btr_page_get_father_node_ptr(
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
 
 	btr_cur_search_to_nth_level(index, level + 1, tuple, PAGE_CUR_LE,
-				    BTR_CONT_MODIFY_TREE, cursor, 0, mtr);
+				    BTR_CONT_MODIFY_TREE, cursor, 0,
+				    file, line, mtr);
 
 	node_ptr = btr_cur_get_rec(cursor);
 	ut_ad(!page_rec_is_comp(node_ptr)
@@ -669,6 +672,9 @@ btr_page_get_father_node_ptr(
 
 	return(offsets);
 }
+
+#define btr_page_get_father_node_ptr(of,heap,cur,mtr)			\
+	btr_page_get_father_node_ptr_func(of,heap,cur,__FILE__,__LINE__,mtr)
 
 /************************************************************//**
 Returns the upper level node pointer to a page. It is assumed that mtr holds
@@ -1662,11 +1668,13 @@ Inserts a data tuple to a tree on a non-leaf level. It is assumed
 that mtr holds an x-latch on the tree. */
 UNIV_INTERN
 void
-btr_insert_on_non_leaf_level(
-/*=========================*/
+btr_insert_on_non_leaf_level_func(
+/*==============================*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level, must be > 0 */
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	big_rec_t*	dummy_big_rec;
@@ -1678,7 +1686,7 @@ btr_insert_on_non_leaf_level(
 
 	btr_cur_search_to_nth_level(index, level, tuple, PAGE_CUR_LE,
 				    BTR_CONT_MODIFY_TREE,
-				    &cursor, 0, mtr);
+				    &cursor, 0, file, line, mtr);
 
 	err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG
