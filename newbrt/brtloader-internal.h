@@ -151,6 +151,8 @@ struct brtloader_s {
     int progress;       // Progress runs from 0 to PROGRESS_MAX.  When we call the poll function we convert to a float from 0.0 to 1.0
     // We use an integer so that we can add to the progress using a fetch-and-add instruction.
 
+    int progress_callback_result; // initially zero, if any call to the poll function callback returns nonzero, we save the result here (and don't call the poll callback function again).
+
     LSN load_lsn; //LSN of the fsynced 'load' log entry.  Write this LSN (as checkpoint_lsn) in brt headers made by this loader.
 
     QUEUE *fractal_queues; // an array of work queues, one for each secondary index.
