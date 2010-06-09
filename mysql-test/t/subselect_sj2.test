@@ -515,7 +515,7 @@ t1.b=t2.b);
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 
-if (`select @@optimizer_join_cache_level=6`)
+if (`select @@optimizer_join_cache_level in (6,7)`)
 {
   --echo 
   --echo # The following query gives wrong result due to Bug#49129

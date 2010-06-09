@@ -1,0 +1,11 @@
+# 
+# Run subselect_sj.test with BKA_UNIQUE enabled 
+#
+
+set optimizer_join_cache_level=7;
+show variables like 'optimizer_join_cache_level';
+
+--source t/subselect_sj.test
+
+set optimizer_join_cache_level=default;
+show variables like 'optimizer_join_cache_level';
