@@ -1699,7 +1699,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   */
   if (!in_transaction || all)
   {
-    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE, TRUE, 0);
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, TRUE, 0);
     error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
   }
 
@@ -1787,7 +1787,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
         !thd->in_multi_stmt_transaction()) ||
         (thd->options & OPTION_KEEP_LOG)))
     {
-      Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE, TRUE, 0);
+      Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, TRUE, 0);
       error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
     }
     /*
@@ -2854,7 +2854,8 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         In 4.x we set need_start_event=0 here, but in 5.0 we want a Start event
         even if this is not the very first binlog.
       */
-      Format_description_log_event s(BINLOG_VERSION);
+      Format_description_log_event s(BINLOG_VERSION,
+                                     is_relay_log? LOG_EVENT_RELAY_LOG_F : 0);
       /*
         don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
         as we won't be able to reset it later
@@ -4044,7 +4045,8 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
          an algorithm of the last relay-logged FD event.
       */
       if (is_relay_log)
-        r.checksum_alg= description_event_for_queue->checksum_alg;
+        r.checksum_alg= description_event_for_queue?
+          description_event_for_queue->checksum_alg : relay_log_checksum_alg;
       r.write(&log_file);
       bytes_written += r.data_written;
     }

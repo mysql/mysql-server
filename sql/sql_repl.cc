@@ -1901,10 +1901,8 @@ bool mysql_show_binlog_events(THD* thd)
     {
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
       {
-        uint8 found_checksum_alg= ev->checksum_alg;
         delete description_event;
         description_event= (Format_description_log_event*) ev;
-        description_event->checksum_alg= found_checksum_alg;
       }
       else
         delete ev;
@@ -1923,6 +1921,9 @@ bool mysql_show_binlog_events(THD* thd)
                                          description_event,
                                          opt_master_verify_checksum));)
     {
+      if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+        description_event->checksum_alg= ev->checksum_alg;
+
       if (event_count >= limit_start &&
 	  ev->net_send(protocol, linfo.log_file_name, pos))
       {

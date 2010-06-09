@@ -979,9 +979,10 @@ my_bool Log_event::need_checksum(IO_CACHE* file)
   */
   ret=
     (checksum_alg != 0) ||
-    (opt_binlog_checksum && (!thd  /* bootstrap */
-                             || /* the main branch */
-                             cache_type == Log_event::EVENT_NO_CACHE));
+    (!(flags & LOG_EVENT_RELAY_LOG_F) && opt_binlog_checksum &&
+     (!thd  /* bootstrap */
+      || /* the main branch */
+      cache_type == Log_event::EVENT_NO_CACHE));
   DBUG_ASSERT(get_type_code() != FORMAT_DESCRIPTION_EVENT || ret ||
               data_written == 0);
   DBUG_RETURN(ret);
@@ -3952,12 +3953,16 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
                                 old 4.0 (binlog version 2) is not supported;
                                 it should not be used for replication with
                                 5.0.
+  @param flags_arg              a value of Log_event::flags to OR with one 
+                                caclulated in the parent class constructors.
+  @param server_ver             a string containing the server version.
 */
 
 Format_description_log_event::
-Format_description_log_event(uint8 binlog_ver, const char* server_ver)
+Format_description_log_event(uint8 binlog_ver, uint16 flags_arg, const char* server_ver)
   :Start_log_event_v3(), event_type_permutation(0)
 {
+  flags |= flags_arg;
   binlog_version= binlog_ver;
   switch (binlog_ver) {
   case 4: /* MySQL 5.0 */
@@ -5930,10 +5935,12 @@ User_var_log_event(const char* buf,
       we keep the flags set to UNDEF_F.
     */
     uint bytes_read= ((val + val_len) - start);
-    DBUG_ASSERT(bytes_read==data_written || 
-                (description_event->checksum_alg != 0 &&
-                 bytes_read==data_written - BINLOG_CHECKSUM_LEN) ||
-                bytes_read==(data_written-1));
+    DBUG_ASSERT(bytes_read == data_written -
+                (description_event->checksum_alg == 0 ?
+                 0 : BINLOG_CHECKSUM_LEN) ||
+                bytes_read == data_written -1 -
+                (description_event->checksum_alg == 0 ?
+                 0 : BINLOG_CHECKSUM_LEN));
     if ((data_written - bytes_read) > 0)
     {
       flags= (uint) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
