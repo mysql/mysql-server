@@ -2742,6 +2742,7 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
                                                       emb_sj_nest->sj_subq_pred)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
     sjm_tab->type= JT_EQ_REF;
+    sjm_tab->select_cond= sjm->in_equality;
   }
   else
   {
