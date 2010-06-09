@@ -605,6 +605,15 @@ echo ;
 --error 1
 --exec echo "--exec " | $MYSQL_TEST 2>&1
 
+# Multi-line exec
+exec $MYSQL
+    test -e "select 1";
+exec $MYSQL test -e "select
+    2";
+let $query = select 3
+    as X;
+exec $MYSQL test -e "$query";
+
 # ----------------------------------------------------------------------------
 # Test let command
 # ----------------------------------------------------------------------------
@@ -911,6 +920,28 @@ sleep 0.5;
 sleep 1;
 real_sleep 1;
 
+# Parameter from variable, legal and illegal
+let $sleep_var= 0.1;
+sleep $sleep_var;
+let $sleep_var= 1;
+--real_sleep $sleep_var
+
+--write_file $MYSQL_TMP_DIR/sleep.inc
+let $sleep_var= xyz;
+--sleep $sleep_var
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
+--remove_file $MYSQL_TMP_DIR/sleep.inc
+
+--write_file $MYSQL_TMP_DIR/sleep.inc
+let $sleep_var= xyz;
+real_sleep $sleep_var;
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
+--remove_file $MYSQL_TMP_DIR/sleep.inc
+
 # Missing parameter
 --error 1
 --exec echo "sleep ;" | $MYSQL_TEST 2>&1
@@ -1005,6 +1036,37 @@ echo test2;
 echo test3stop
 --delimiter ;
 echo test4;
+
+# ----------------------------------------------------------------------------
+# Test that delimiter within if() works in in various combinations
+# ----------------------------------------------------------------------------
+
+if (0)
+{
+  delimiter ||;
+  echo false-inner||
+  if (0)
+  {
+    delimiter *||
+    echo false-innerer*
+    delimiter ||*
+  }
+  echo false-inner again||
+}
+echo outer;
+if (1)
+{
+  delimiter /;
+  echo true-inner/
+  if (0)
+  {
+    delimiter %/
+    echo true-innerer%
+  }
+  echo true-inner again/
+}
+echo true-outer/
+delimiter ;/
 
 
 # ----------------------------------------------------------------------------
@@ -1285,6 +1347,17 @@ select "a" as col1, "c" as col2;
 --error 1
 --exec echo "--replace_column 1 b c " | $MYSQL_TEST 2>&1
 
+let $long_rep= 1234567890123456789012345678901234567890;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+let $long_rep= $long_rep,$long_rep;
+
+# This tests from strings > 1024 (here 1311)
+
+--replace_result $long_rep LONG_STRING
+eval select "$long_rep" as x;
 
 # ----------------------------------------------------------------------------
 # Test sync_with_master
@@ -1606,6 +1679,57 @@ select * from t1;
 drop table t1;
 
 # ----------------------------------------------------------------------------
+# Tests of send
+# ----------------------------------------------------------------------------
+
+create table t1 ( f1 char(10));
+insert into t1 values ("Abcd");
+
+# 1. Basic test
+
+send select * from t1;
+reap;
+
+# 2. Test with error
+
+--send select * from t2;
+--error ER_NO_SUCH_TABLE
+--reap
+
+# 3. test send of next stmt
+
+--send
+select * from t1;
+--reap
+
+# 4. Non-query stmt betwen send and reap allowed
+
+--send select * from t1;
+--sleep 0.05
+--echo Result coming up
+--reap
+
+# 5. Test of send_eval
+
+--let $my_stmt= select * from t1;
+--send_eval $my_stmt
+--reap
+
+# 6. Test that mysqltest does not allow query stmt between send and reap
+# Untestable directly as it causes mysqltest to fail
+
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.in
+--send select * from t1;
+select 1;
+--reap
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.in 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.in;
+
+drop table t1;
+
+# ----------------------------------------------------------------------------
 # test for remove_file
 # ----------------------------------------------------------------------------
 
@@ -1614,6 +1738,19 @@ drop table t1;
 
 --error 1
 remove_file non_existing_file;
+
+# ----------------------------------------------------------------------------
+# test for remove_files_wildcard
+# ----------------------------------------------------------------------------
+
+--error 1
+--exec echo "remove_files_wildcard ;" | $MYSQL_TEST 2>&1
+
+--error 1
+remove_files_wildcard non_existing_dir;
+
+--error 1
+remove_files_wildcard non_existing_dir non_existing_file;
 
 # ----------------------------------------------------------------------------
 # test for write_file
@@ -1905,6 +2042,20 @@ perl;
   print "hello\n";
 EOF
 
+# Test perl within while, also with if being false first iteration
+let $outer= 3;
+let $ifval= 0;
+while ($outer) {
+  if ($ifval) {
+    perl UNTIL;
+      my $val= 5;
+      print "val is $val\n";
+UNTIL
+  }
+  inc $ifval;
+  dec $outer;
+}
+
 # ----------------------------------------------------------------------------
 # test for die
 # ----------------------------------------------------------------------------
@@ -2045,6 +2196,44 @@ INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 --enable_result_log
 DROP TABLE t1;
+
+# ----------------------------------------------------------------------------
+# test for lowercase_result
+# ----------------------------------------------------------------------------
+
+# 1. Basic test
+--lowercase_result
+SELECT "500g BLÅBÆRSYLTETØY" AS "WILL BE lower cased";
+
+# 2. test that it does not apply to next statement
+SELECT "UPPER" AS "WILL NOT BE lower cased";
+
+# 3. test that it does not affect non-SQL or the following statement
+--lowercase_result
+--echo UP
+SELECT 0 as "UP AGAIN";
+
+# 4. test that it works with eval and variables
+let $lower_stmt=SELECT "ABCdef" AS "uvwXYZ";
+--lowercase_result
+eval $lower_stmt;
+
+# 5. test that it works in combination with sort
+sorted_result;
+lowercase_result;
+SELECT "Xyz" AS Name UNION SELECT "Abc" as Name ORDER BY Name DESC;
+
+# 6. Test combination with replace, and that lower casing is done first
+--lowercase_result
+--replace_result old new
+SELECT 1 as "SOME OLD TEXT";
+
+# 7. Test missing lower casing of "unknown" characters
+--character_set utf8
+--lowercase_result
+SELECT 0 as "WILL NOT lower case ÄËÐ";
+--character_set latin1
+
 # ----------------------------------------------------------------------------
 # Some coverage tests
 # ----------------------------------------------------------------------------
@@ -2230,9 +2419,14 @@ rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 cat_file $MYSQLTEST_VARDIR/tmp/testdir/file3.txt;
 
-remove_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
-remove_file $MYSQLTEST_VARDIR/tmp/testdir/file2.txt;
-remove_file $MYSQLTEST_VARDIR/tmp/testdir/file3.txt;
+list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/file11.txt $MYSQLTEST_VARDIR/tmp/testdir file?.txt;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir file?.txt;
+list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt $MYSQLTEST_VARDIR/tmp/testdir file*.txt;
+cat_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir file*.txt;
+list_files $MYSQLTEST_VARDIR/tmp/testdir;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir;
+list_files $MYSQLTEST_VARDIR/tmp/testdir;
 rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 #

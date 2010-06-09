@@ -1644,3 +1644,14 @@ INSERT INTO t1 (col1, col2) VALUES (1, "value");
 REPAIR TABLE t1;
 DROP TABLE t1;
 remove_file $MYSQLD_DATADIR/test/t1.ARM;
+
+--echo #
+--echo # BUG#48757 - missing .ARZ file causes server crash
+--echo #
+CREATE TABLE t1(a INT) ENGINE=ARCHIVE;
+FLUSH TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.ARZ
+--error ER_FILE_NOT_FOUND
+SELECT * FROM t1;
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;

@@ -3844,6 +3844,36 @@ CREATE VIEW v1 AS SELECT a FROM t1;
 ALTER TABLE v1;
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#48449: hang on show create view after upgrading when
+#            view contains function of view
+#
+DROP VIEW IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2;
+DROP FUNCTION IF EXISTS f1;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+SELECT a FROM v2 INTO @a;
+RETURN @a;
+END//
+# Trigger pre-locking when opening v2.
+CREATE VIEW v1 AS SELECT f1() FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `f1`() AS `f1()` from `t1`	latin1	latin1_swedish_ci
+Warnings:
+Note	1599	View `test`.`v2` has no creation context
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+DROP FUNCTION f1;
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES ();
+CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE
+ROW(1,1) >= ROW(1, (SELECT 1 FROM t1 WHERE  f1 >= ANY ( SELECT '1' )));
+DROP VIEW v1;
+DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
