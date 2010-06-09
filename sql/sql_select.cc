@@ -16761,25 +16761,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     Note: psergey has added the 2nd part of the following condition; the 
     change should probably be made in 5.1, too.
   */
-  bool skip_over= FALSE;
   while (rc == NESTED_LOOP_OK && join->return_tab >= join_tab)
   {
-    if (join_tab->loosescan_match_tab && 
-        join_tab->loosescan_match_tab->found_match)
-    {
-      KEY *key= join_tab->table->key_info + join_tab->index;
-      key_copy(join_tab->loosescan_buf, info->record, key, 
-               join_tab->loosescan_key_len);
-      skip_over= TRUE;
-    }
     error= info->read_record(info);
-
-    if (skip_over && !error && 
-        !key_cmp(join_tab->table->key_info[join_tab->index].key_part,
-                 join_tab->loosescan_buf, join_tab->loosescan_key_len))
-    {
-      continue;
-    }
 
     if (join_tab->keep_current_rowid)
       join_tab->table->file->position(join_tab->table->record[0]);
@@ -17014,7 +16998,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     }
 
     JOIN_TAB *return_tab= join->return_tab;
-    join_tab->found_match= TRUE;
 
     if (join_tab->check_weed_out_table && found)
     {
@@ -17022,6 +17005,25 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       if (res == -1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
       else if (res == 1)
+        found= FALSE;
+    }
+    else if (join_tab->loosescan_match_tab && 
+             join_tab->loosescan_match_tab->found_match)
+    { 
+      /* 
+         Previous row combination for duplicate-generating range,
+         generated a match.  Compare keys of this row and previous row
+         to determine if this is a duplicate that should be skipped.
+       */
+      if (key_cmp(join_tab->table->key_info[join_tab->index].key_part,
+                  join_tab->loosescan_buf, join_tab->loosescan_key_len))
+        /* 
+           Keys do not match.  
+           Reset found_match for last table of duplicate-generating range, 
+           to avoid comparing keys until a new match has been found.
+        */
+        join_tab->loosescan_match_tab->found_match= FALSE;
+      else
         found= FALSE;
     }
     else if (join_tab->do_firstmatch)
@@ -17032,6 +17034,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       */
       return_tab= join_tab->do_firstmatch;
     }
+
+    join_tab->found_match= TRUE;
 
     /*
       It was not just a return to lower loop level when one
@@ -17050,6 +17054,20 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       join->thd->warning_info->inc_current_row_for_warning();
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
         DBUG_RETURN(rc);
+
+      if (join_tab->loosescan_match_tab && 
+          join_tab->loosescan_match_tab->found_match)
+      {
+        /* 
+           A match was found for a duplicate-generating range of a semijoin. 
+           Copy key to be able to determine whether subsequent rows
+           will give duplicates that should be skipped.
+        */
+        KEY *key= join_tab->table->key_info + join_tab->index;
+        key_copy(join_tab->loosescan_buf, join_tab->read_record.record, key, 
+                 join_tab->loosescan_key_len);
+      }
+
       if (return_tab < join->return_tab)
         join->return_tab= return_tab;
 
