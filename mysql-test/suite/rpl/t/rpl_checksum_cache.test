@@ -4,8 +4,10 @@
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function');
 
 connection master;
-set @@global.binlog_cache_size=4096;
-set @@global.binlog_checksum=1;
+set @save_binlog_cache_size = @@global.binlog_cache_size;
+set @save_binlog_checksum = @@global.binlog_checksum;
+set @@global.binlog_cache_size = 4096;
+set @@global.binlog_checksum = 1;
 
 #
 # Testing a critical part of checksum handling dealing with transaction cache.
@@ -40,30 +42,29 @@ eval create table t1 (a int, b CHAR($deviation_size)) engine=innodb;
 
 # Now we are going to create transaction which is long enough so its 
 # transaction binlog will be flushed to disk...
+
+delimiter |;
+create procedure test.p_init (n int, size int) 
+begin
+  while n > 0 do
+    select round(RAND() * size) into @act_size;
+    set @data = repeat('a', @act_size);
+    insert into t1 values(n, @data );
+    set n= n-1;
+  end while;
+end|
+
+delimiter ;|
+
 let $1 = 4000;
---disable_query_log
 begin;
-while ($1)
-{
- eval select round(RAND() * $deviation_size) into @act_size;
- set @data = repeat('a', @act_size);
- eval insert into t1 values( $1, @data );
- dec $1;
-}
+--disable_warnings
+# todo: check if it is really so.
+#+Note   1592    Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+eval call test.p_init($1, $deviation_size);
+--enable_warnings
 commit;
 
-# delimiter |;
-# create procedure test.p_init (n int, size int) 
-# begin
-#   while n > 0 do
-#     select round(RAND() * size) into @act_size;
-#     set @data = repeat('a', @act_size);
-#     insert into t1 values(n, @data );
-#     set n= n-1;
-#   end while;
-# end|
-
---enable_query_log
 show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
@@ -201,7 +202,10 @@ delimiter ;|
 
 let $1= 1000;
 set autocommit= 0;
+begin;
+--disable_warnings
 eval call test.p1($1);
+--enable_warnings
 commit;
 
 show status like "binlog_cache_use";
@@ -232,6 +236,10 @@ delete from t3;
 commit;
 
 drop table t1, t2, t3;
+set @@global.binlog_cache_size = @save_binlog_cache_size;
+set @@global.binlog_checksum = @save_binlog_checksum;
+drop procedure test.p_init;
+drop procedure test.p1;
 
 sync_slave_with_master;
 

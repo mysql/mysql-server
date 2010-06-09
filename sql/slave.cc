@@ -1185,11 +1185,13 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
       break;
     case '3':
       mi->rli.relay_log.description_event_for_queue= new
-        Format_description_log_event(1, mysql->server_version);
+        Format_description_log_event(1, LOG_EVENT_RELAY_LOG_F,
+                                     mysql->server_version);
       break;
     case '4':
       mi->rli.relay_log.description_event_for_queue= new
-        Format_description_log_event(3, mysql->server_version);
+        Format_description_log_event(3, LOG_EVENT_RELAY_LOG_F,
+                                     mysql->server_version);
       break;
     default:
       /*
@@ -1201,7 +1203,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
         master is 3.23, 4.0, etc.
       */
       mi->rli.relay_log.description_event_for_queue= new
-        Format_description_log_event(4, mysql->server_version);
+        Format_description_log_event(4, LOG_EVENT_RELAY_LOG_F,
+                                     mysql->server_version);
       break;
     }
   }
@@ -1242,7 +1245,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   */
 
   mi->rli.relay_log.description_event_for_queue->checksum_alg=
+    // continuing with the previous session
     (mi->last_master_checksum_alg != (uint8) -1) ? mi->last_master_checksum_alg :
+    // brand new relay-log of the new session
     mi->rli.relay_log.relay_log_checksum_alg;
 
   DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg != (uint8) -1);
@@ -3929,11 +3934,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       goto err;
     }
     /* 
-       Checksum special cases for Rotate event caused by protocol
-       of events serialization where Rotate of master is queued right next to
-       FD of slave.
-       Since it's only FD that carries the alg desc of checksum (FD_s, R_m) has to be
-       compatible in that R_m checksum verification is based on info inside FD_s.
+       Checksum special cases for the fake Rotate (R_f) event caused by the protocol
+       of events generation and serialization in RL where Rotate of master is 
+       queued right next to FD of slave.
+       Since it's only FD that carries the alg desc of FD_s has to apply to R_m.
+       Two special rules apply only to the first R_f which comes in before any FD_m.
+       The 2nd R_f should be compatible with the FD_s that must have taken over
+       the last seen FD_m's (A).
        
        RSC_1: If OM \and fake Rotate \and slave is configured to
               to compute checksum for its first FD event for RL
@@ -3951,6 +3958,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
       DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
+      DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg ==
+                  mi->rli.relay_log.relay_log_checksum_alg);
+      DBUG_ASSERT(mi->checksum_alg_before_fd != (uint8) -1); // the first one
       save_buf= (char *) buf;
       buf= rot_buf;
     }
@@ -3967,6 +3977,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         int4store(&rot_buf[EVENT_LEN_OFFSET],
                   uint4korr(&rot_buf[EVENT_LEN_OFFSET]) - BINLOG_CHECKSUM_LEN);
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
+        DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg ==
+                    mi->rli.relay_log.relay_log_checksum_alg);
+        DBUG_ASSERT(mi->checksum_alg_before_fd != (uint8) -1); // the first one
         save_buf= (char *) buf;
         buf= rot_buf;
       }

@@ -5,8 +5,10 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function');
-set @@global.binlog_cache_size=4096;
-set @@global.binlog_checksum=1;
+set @save_binlog_cache_size = @@global.binlog_cache_size;
+set @save_binlog_checksum = @@global.binlog_checksum;
+set @@global.binlog_cache_size = 4096;
+set @@global.binlog_checksum = 1;
 flush status;
 show status like "binlog_cache_use";
 Variable_name	Value
@@ -16,6 +18,18 @@ Variable_name	Value
 Binlog_cache_disk_use	0
 drop table if exists t1;
 create table t1 (a int, b CHAR(32)) engine=innodb;
+create procedure test.p_init (n int, size int) 
+begin
+while n > 0 do
+select round(RAND() * size) into @act_size;
+set @data = repeat('a', @act_size);
+insert into t1 values(n, @data );
+set n= n-1;
+end while;
+end|
+begin;
+call test.p_init(4000, 32);
+commit;
 show status like "binlog_cache_use";
 Variable_name	Value
 Binlog_cache_use	2
@@ -77,6 +91,7 @@ set n= n-1;
 end while;
 end|
 set autocommit= 0;
+begin;
 call test.p1(1000);
 commit;
 show status like "binlog_cache_use";
@@ -95,4 +110,8 @@ delete from t2;
 delete from t3;
 commit;
 drop table t1, t2, t3;
+set @@global.binlog_cache_size = @save_binlog_cache_size;
+set @@global.binlog_checksum = @save_binlog_checksum;
+drop procedure test.p_init;
+drop procedure test.p1;
 End of tests

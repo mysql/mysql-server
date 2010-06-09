@@ -2293,7 +2293,7 @@ public:
   uchar server_version_split[3];
   const uint8 *event_type_permutation;
 
-  Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
+  Format_description_log_event(uint8 binlog_ver, uint16 flags= 0, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_log_event
                                *description_event);
