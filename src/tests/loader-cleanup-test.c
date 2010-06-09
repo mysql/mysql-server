@@ -146,6 +146,27 @@ err_type_str (enum test_type t) {
     return NULL;
 }
 
+static const char *
+err_msg_type_str (enum test_type t) {
+    switch(t) {
+    case event:          return "ENOSPC/EINVAL/POLL";
+    case enospc_f:       return "ENOSPC";
+    case enospc_w:       return "ENOSPC";
+    case enospc_p:       return "ENOSPC";
+    case einval_fdo:     return "EINVAL";
+    case einval_fo:      return "EINVAL";
+    case einval_o:       return "EINVAL";
+    case enospc_fc:      return "EINVAL";
+    case abort_via_poll: return "non-zero";
+    case commit:         assert(0);
+    case abort_txn:      assert(0);
+    case abort_loader:   assert(0);
+    }
+    // I know that Barry prefers the single-return case, but writing the code this way means that the compiler will complain if I forget something in the enum. -Bradley
+    assert(0);
+    return NULL;
+}
+
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     fwrite_count++;
     event_count++;
@@ -857,29 +878,34 @@ static void run_all_tests(void) {
 	int j;
 	for (j = 0; j<NUM_ERR_TYPES; j++) {
 	    enum test_type t = et[j];
-	    const char * write_type = err_type_str(t);
+	    const char * err_type = err_type_str(t);
+	    const char * err_msg_type = err_msg_type_str(t);
+	    
 	    int nominal = *(nomp[j]);
 	    if (verbose)
-		printf("\nNow test with induced ENOSPC/EINVAL errors returned from %s, nominal = %d\n", write_type, nominal);
+		printf("\nNow test with induced %s returned from %s, nominal = %d\n", err_msg_type, err_type, nominal);
 	    int i;
 	    // induce write error at beginning of process
 	    for (i = 1; i < limit && i < nominal+1; i++) {
 		trigger = i;
-		if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+		if (verbose) printf("\n\nTesting loader with %s induced at %s count %d (of %d)\n", 
+				    err_msg_type, err_type, trigger, nominal);
 		run_test(t, trigger);
 	    }
 	    if (nominal > limit)  {  // if we didn't already test every possible case
 		// induce write error sprinkled through process
 		for (i = 2; i < 5; i++) {
 		    trigger = nominal / i;
-		    if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+		    if (verbose) printf("\n\nTesting loader with %s induced at %s count %d (of %d)\n", 
+					err_msg_type, err_type, trigger, nominal);
 		    run_test(t, trigger);
 		}
 		// induce write error at end of process
 		for (i = 0; i < limit; i++) {
 		    trigger =  nominal - i;
 		    assert(trigger > 0);
-		    if (verbose) printf("\n\nTesting loader with enospc/einval induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+		    if (verbose) printf("\n\nTesting loader with %s induced at %s count %d (of %d)\n", 
+					err_msg_type, err_type, trigger, nominal);
 		    run_test(t, trigger);
 		}
 	    }
@@ -887,9 +913,29 @@ static void run_all_tests(void) {
     }
 }
 
+static int test_only_abort_via_poll = 0;
+
+
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    run_all_tests();
+    if (test_only_abort_via_poll) {
+	printf("Testing only normal operation and abort via polling, but test abort_via_polling exhaustively.\n");
+	if (verbose) printf("\n\nTesting loader with loader close and txn commit (normal)\n");
+	run_test(commit, 0);
+	if (verbose) {
+	    printf("\n\nTesting loader with abort_via_polling exhaustively,\n");
+	    printf("returning 1 from polling function on each iteration from 1 to %d\n", poll_count_nominal);
+	}
+	for (int i = 1; i < poll_count_nominal+1; i++) {
+	    const char * err_type = err_type_str(abort_via_poll);
+	    const char * err_msg_type = err_msg_type_str(abort_via_poll);
+	    if (verbose) printf("\n\nTesting loader with %s induced at %s count %d (of %d)\n", 
+				err_msg_type, err_type, i, poll_count_nominal);
+	    run_test(abort_via_poll, i);
+	}
+    }
+    else
+	run_all_tests();
     printf("run_test_count=%d\n", run_test_count);
     if (free_me) toku_free(free_me);
     return 0;
@@ -900,6 +946,7 @@ static void usage(const char *cmd) {
     fprintf(stderr, "  where -h              print this message.\n");
     fprintf(stderr, "        -c              check the results.\n");
     fprintf(stderr, "        -p              LOADER_USE_PUTS.\n");
+    fprintf(stderr, "        -k              Test only normal operation and abort_via_poll (but thoroughly).\n");
     fprintf(stderr, "        -s              size_factor=1.\n");
     fprintf(stderr, "        -d <num_dbs>    Number of indexes to create (default=%d).\n", default_NUM_DBS);
     fprintf(stderr, "        -r <num_rows>   Number of rows to put (default=%d).\n", default_NUM_ROWS);
@@ -937,6 +984,9 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = LOADER_USE_PUTS;
 	    printf("Using puts\n");
+        } else if (strcmp(argv[0], "-k")==0) {
+	    test_only_abort_via_poll = 1;
+	    printf("Perform only abort_via_poll test\n");
 	} else if (strcmp(argv[0], "-t")==0 && argc > 2) {
 	    argc--; argv++;
 	    event_trigger_lo = atoi(argv[0]);
