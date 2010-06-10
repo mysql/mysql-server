@@ -2185,7 +2185,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     uint64_t  used_estimate = 0; // how much diskspace have we used up?
 
-    while (1) {
+    while (result == 0) {
 	void *item;
 	{
 	    BL_TRACE(blt_fractal_thread);
@@ -2199,7 +2199,6 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	}
 	struct rowset *output_rowset = (struct rowset *)item;
 
-        if (result == 0)
 	for (unsigned int i = 0; i < output_rowset->n_rows; i++) {
 	    DBT key = make_dbt(output_rowset->data+output_rowset->rows[i].off,                               output_rowset->rows[i].klen);
 	    DBT val = make_dbt(output_rowset->data+output_rowset->rows[i].off + output_rowset->rows[i].klen, output_rowset->rows[i].vlen);
@@ -2253,6 +2252,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
 	destroy_rowset(output_rowset);
 	toku_free(output_rowset);
+
+        if (result == 0)
+            result = brt_loader_get_error(&bl->error_callback); // check if an error was posted and terminate this quickly
     }
 
     if (lbuf) {
@@ -2269,19 +2271,18 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     if (result == 0) {
         result = brt_loader_get_error(&bl->error_callback); // if there were any prior errors then exit
-        if (result) goto error;
     }
 
+    if (result != 0) goto error;
+
     // We haven't paniced, so the sum should add up.
-    if (result==0) {
-	invariant(used_estimate == total_disksize_estimate);
-    }
+    invariant(used_estimate == total_disksize_estimate);
 
     n_pivots++;
 
     {
-	DBT key=make_dbt(0,0); // must write an extra DBT into the pivots file.
-	r=bl_write_dbt(&key, pivots_stream, NULL, bl);
+	DBT key = make_dbt(0,0); // must write an extra DBT into the pivots file.
+	r = bl_write_dbt(&key, pivots_stream, NULL, bl);
         if (r) { 
             result = r; goto error;
         }
