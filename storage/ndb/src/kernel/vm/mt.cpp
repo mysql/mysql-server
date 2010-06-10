@@ -3410,7 +3410,7 @@ ThreadConfig::~ThreadConfig()
  * constructor time the global memory manager is not available.
  */
 void
-ThreadConfig::init(EmulatorData *emulatorData)
+ThreadConfig::init()
 {
   num_lqh_workers = globalData.ndbMtLqhWorkers;
   num_lqh_threads = globalData.ndbMtLqhThreads;
@@ -3421,7 +3421,8 @@ ThreadConfig::init(EmulatorData *emulatorData)
   ndbout << "NDBMT: num_threads=" << num_threads << endl;
 
   ::map_instance_init();
-  ::rep_init(&g_thr_repository, num_threads, emulatorData->m_mem_manager);
+  ::rep_init(&g_thr_repository, num_threads,
+             globalEmulatorData.m_mem_manager);
 }
 
 static
