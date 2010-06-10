@@ -85,19 +85,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
 
-#ifndef DBUG_OFF
-
-/* Wait until we get a 'mysql_kill' signal */
-
-static void wait_for_kill_signal(THD *thd)
-{
-  while (thd->killed == 0)
-    sleep(1);
-  // Reset signal and continue as if nothing happend
-  thd->killed= THD::NOT_KILLED;
-}
-#endif
-
 
 /**
   @brief Helper function for explain_filename
@@ -4877,18 +4864,30 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       /* purecov: end */
     }
 
-    /* Close all instances of the table to allow repair to rename files */
-    if (lock_type == TL_WRITE && table->table->s->version)
+    /*
+      Close all instances of the table to allow MyISAM "repair"
+      to rename files.
+      @todo: This code does not close all instances of the table.
+      It only closes instances in other connections, but if this
+      connection has LOCK TABLE t1 a READ, t1 b WRITE,
+      both t1 instances will be kept open.
+      There is no need to execute this branch for InnoDB, which does
+      repair by recreate. There is no need to do it for OPTIMIZE,
+      which doesn't move files around.
+      Hence, this code should be moved to prepare_for_repair(),
+      and executed only for MyISAM engine.
+    */
+    if (lock_type == TL_WRITE && !table->table->s->tmp_table)
     {
       if (wait_while_table_is_used(thd, table->table,
                                    HA_EXTRA_PREPARE_FOR_RENAME))
         goto err;
-      DBUG_EXECUTE_IF("wait_in_mysql_admin_table",
-                      wait_for_kill_signal(thd);
-                      if (thd->killed)
-                        goto err;);
       /* Flush entries in the query cache involving this table. */
       query_cache_invalidate3(thd, table->table, 0);
+      /*
+        XXX: hack: switch off open_for_modify to skip the
+        flush that is made later in the execution flow. 
+      */
       open_for_modify= 0;
     }
 
@@ -5148,20 +5147,21 @@ send_result_message:
     }
     if (table->table)
     {
-      if (fatal_error)
-        table->table->s->version=0;               // Force close of table
-      else if (open_for_modify)
+      if (table->table->s->tmp_table)
       {
-        if (table->table->s->tmp_table)
+        if (open_for_modify)
           table->table->file->info(HA_STATUS_CONST);
-        else
-        {
-          TABLE_LIST *save_next_global= table->next_global;
-          table->next_global= 0;
-          close_cached_tables(thd, table, FALSE, FALSE);
-          table->next_global= save_next_global;
-        }
-        /* May be something modified consequently we have to invalidate cache */
+      }
+      else if (open_for_modify || fatal_error)
+      {
+        mysql_mutex_lock(&LOCK_open);
+        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
+                         table->db, table->table_name);
+        mysql_mutex_unlock(&LOCK_open);
+        /*
+          May be something modified. Consequently, we have to
+          invalidate the query cache.
+        */
         query_cache_invalidate3(thd, table->table, 0);
       }
     }
