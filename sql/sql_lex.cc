@@ -1641,7 +1641,7 @@ void st_select_lex::init_select()
   linkage= UNSPECIFIED_TYPE;
   order_list.elements= 0;
   order_list.first= 0;
-  order_list.next= (uchar**) &order_list.first;
+  order_list.next= &order_list.first;
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -1963,7 +1963,7 @@ uint st_select_lex::get_in_sum_expr()
 
 TABLE_LIST* st_select_lex::get_table_list()
 {
-  return (TABLE_LIST*) table_list.first;
+  return table_list.first;
 }
 
 List<Item>* st_select_lex::get_item_list()
@@ -2020,9 +2020,8 @@ void st_select_lex_unit::print(String *str, enum_query_type query_type)
     if (fake_select_lex->order_list.elements)
     {
       str->append(STRING_WITH_LEN(" order by "));
-      fake_select_lex->print_order(
-        str,
-        (ORDER *) fake_select_lex->order_list.first,
+      fake_select_lex->print_order(str,
+        fake_select_lex->order_list.first,
         query_type);
     }
     fake_select_lex->print_limit(thd, str, query_type);
@@ -2667,7 +2666,7 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     {
       select_lex.context.table_list= 
         select_lex.context.first_name_resolution_table= first->next_local;
-      select_lex.table_list.first= (uchar*) (first->next_local);
+      select_lex.table_list.first= first->next_local;
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -2699,7 +2698,7 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
 
 void st_lex::first_lists_tables_same()
 {
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
+  TABLE_LIST *first_table= select_lex.table_list.first;
   if (query_tables != first_table && first_table != 0)
   {
     TABLE_LIST *next;
@@ -2746,9 +2745,9 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
 
     if (link_to_local)
     {
-      first->next_local= (TABLE_LIST*) select_lex.table_list.first;
+      first->next_local= select_lex.table_list.first;
       select_lex.context.table_list= first;
-      select_lex.table_list.first= (uchar*) first;
+      select_lex.table_list.first= first;
       select_lex.table_list.elements++;	//safety
     }
   }
@@ -2914,7 +2913,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       prep_having= *having_conds;
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
-    fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
+    fix_prepare_info_in_table_list(thd, table_list.first);
   }
 }
 

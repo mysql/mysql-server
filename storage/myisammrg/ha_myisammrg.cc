@@ -1130,8 +1130,8 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 	goto err;
 
       create_info->merge_list.elements++;
-      (*create_info->merge_list.next) = (uchar*) ptr;
-      create_info->merge_list.next= (uchar**) &ptr->next_local;
+      (*create_info->merge_list.next) = ptr;
+      create_info->merge_list.next= &ptr->next_local;
     }
     *create_info->merge_list.next=0;
   }
@@ -1153,7 +1153,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 {
   char buff[FN_REFLEN];
   const char **table_names, **pos;
-  TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
+  TABLE_LIST *tables= create_info->merge_list.first;
   THD *thd= current_thd;
   size_t dirlgt= dirname_length(name);
   DBUG_ENTER("ha_myisammrg::create");

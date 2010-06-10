@@ -514,8 +514,7 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
     Let us add this item to list of all Item_trigger_field
     objects in trigger.
   */
-  lex->trg_table_fields.link_in_list((uchar *) trg_fld,
-                                     (uchar **) &trg_fld->next_trg_field);
+  lex->trg_table_fields.link_in_list(trg_fld, &trg_fld->next_trg_field);
 
   return lex->sphead->add_instr(sp_fld);
 }
@@ -4678,11 +4677,9 @@ create_table_option:
             TABLE_LIST *table_list= lex->select_lex.get_table_list();
             lex->create_info.merge_list= lex->select_lex.table_list;
             lex->create_info.merge_list.elements--;
-            lex->create_info.merge_list.first=
-              (uchar*) (table_list->next_local);
+            lex->create_info.merge_list.first= table_list->next_local;
             lex->select_lex.table_list.elements=1;
-            lex->select_lex.table_list.next=
-              (uchar**) &(table_list->next_local);
+            lex->select_lex.table_list.next= &(table_list->next_local);
             table_list->next_local= 0;
             lex->create_info.used_fields|= HA_CREATE_USED_UNION;
           }
@@ -5638,8 +5635,7 @@ alter:
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->select_lex.init_order();
-            lex->select_lex.db=
-              ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
+            lex->select_lex.db= (lex->select_lex.table_list.first)->db;
             bzero((char*) &lex->create_info,sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
@@ -8348,9 +8344,8 @@ opt_gorder_clause:
         | order_clause
           {
             SELECT_LEX *select= Select;
-            select->gorder_list=
-              (SQL_LIST*) sql_memdup((char*) &select->order_list,
-                                     sizeof(st_sql_list));
+            select->gorder_list= new (YYTHD->mem_root)
+                                   SQL_I_List<ORDER>(select->order_list);
             if (select->gorder_list == NULL)
               MYSQL_YYABORT;
             select->order_list.empty();
@@ -9294,7 +9289,7 @@ procedure_clause:
             }
             lex->proc_list.elements=0;
             lex->proc_list.first=0;
-            lex->proc_list.next= (uchar**) &lex->proc_list.first;
+            lex->proc_list.next= &lex->proc_list.first;
             Item_field *item= new (YYTHD->mem_root)
                                 Item_field(&lex->current_select->context,
                                            NULL, NULL, $2.str);
@@ -11252,8 +11247,8 @@ simple_ident_q:
                 Let us add this item to list of all Item_trigger_field objects
                 in trigger.
               */
-              lex->trg_table_fields.link_in_list((uchar*) trg_fld,
-                                                 (uchar**) &trg_fld->next_trg_field);
+              lex->trg_table_fields.link_in_list(trg_fld,
+                                                 &trg_fld->next_trg_field);
 
               $$= trg_fld;
             }
@@ -11339,7 +11334,7 @@ field_ident:
           ident { $$=$1;}
         | ident '.' ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->db))
             {
               my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
@@ -11355,7 +11350,7 @@ field_ident:
           }
         | ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
