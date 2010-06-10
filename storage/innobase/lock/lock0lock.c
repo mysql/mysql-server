@@ -4049,8 +4049,6 @@ lock_release(
 	lock_t*		lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_mutex_own(trx));
-	ut_ad(trx_sys_mutex_own());
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
