@@ -45,10 +45,10 @@ struct my_option
   const char *name;                     /* Name of the option */
   int        id;                        /* unique id or short option */
   const char *comment;                  /* option comment, for autom. --help */
-  uchar      **value;                   /* The variable value */
-  uchar      **u_max_value;             /* The user def. max variable value */
+  void       *value;                    /* The variable value */
+  void       *u_max_value;              /* The user def. max variable value */
   struct st_typelib *typelib;           /* Pointer to possible values */
-  ulong     var_type;
+  ulong      var_type;                  /* Must match the variable type */
   enum get_opt_arg_type arg_type;
   longlong   def_value;                 /* Default value */
   longlong   min_value;                 /* Min allowed value */
@@ -58,8 +58,16 @@ struct my_option
   void       *app_type;                 /* To be used by an application */
 };
 
-typedef my_bool (* my_get_one_option) (int, const struct my_option *, char * );
-typedef void (* my_error_reporter) (enum loglevel level, const char *format, ... );
+typedef my_bool (*my_get_one_option)(int, const struct my_option *, char *);
+typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
+/**
+  Used to retrieve a reference to the object (variable) that holds the value
+  for the given option. For example, if var_type is GET_UINT, the function
+  must return a pointer to a variable of type uint. A argument is stored in
+  the location pointed to by the returned pointer.
+*/
+typedef void *(*my_getopt_value)(const char *, uint, const struct my_option *,
+                                 int *);
 
 extern char *disabled_my_option;
 extern my_bool my_getopt_print_errors;
@@ -71,8 +79,7 @@ extern int handle_options (int *argc, char ***argv,
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
-extern void my_getopt_register_get_addr(uchar ** (*func_addr)(const char *, uint,
-                                        const struct my_option *, int *));
+extern void my_getopt_register_get_addr(my_getopt_value);
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  my_bool *fix);
