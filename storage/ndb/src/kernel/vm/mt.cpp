@@ -1656,7 +1656,7 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
     wi[thr] = src[thr].m_write_index;
   }
 
-  Uint32 sentinel[thr_send_page::HEADER_SIZE];
+  Uint64 sentinel[thr_send_page::HEADER_SIZE >> 1];
   thr_send_page* sentinel_page = (thr_send_page*)sentinel;
   sentinel_page->m_next = 0;
 

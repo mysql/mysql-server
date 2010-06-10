@@ -155,9 +155,11 @@ extern "C" {
 
 #ifndef STATIC_ASSERT
 #if defined VM_TRACE
-// Compile-time assert for use from procedure body
-// Zero length array not allowed in C
-// Add use of array to avoid compiler warning
+/**
+ * Compile-time assert for use from procedure body
+ * Zero length array not allowed in C
+ * Add use of array to avoid compiler warning
+ */
 #define STATIC_ASSERT(expr) { char static_assert[(expr)? 1 : 0] = {'\0'}; if (static_assert[0]) {}; }
 #else
 #define STATIC_ASSERT(expr)
@@ -213,9 +215,9 @@ extern "C" {
 
 /*
  * require is like a normal assert, only it's always on (eg. in release)
-*/
+ */
 C_MODE_START
-// see below
+/** see below */
 typedef int(*RequirePrinter)(const char *fmt, ...);
 void require_failed(int exitcode, RequirePrinter p,
                     const char* expr, const char* file, int line);
@@ -224,7 +226,7 @@ C_MODE_END
 /*
  *  this allows for an exit() call if exitcode is not zero
  *  and takes a Printer to print the error
-*/
+ */
 #define require_exit_or_core_with_printer(v, exitcode, printer) \
   do { if (likely(!(!(v)))) break;                                    \
        require_failed((exitcode), (printer), #v, __FILE__, __LINE__); \
