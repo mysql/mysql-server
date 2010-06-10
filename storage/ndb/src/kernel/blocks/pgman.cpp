@@ -2471,7 +2471,6 @@ Pgman::dump_page_lists(Uint32 ptrI)
   if (ptrI != RNIL)
     debugOut << "PGMAN: error on PE [" << ptrI << "]" << "\n";
 
-  Page_hashlist& pl_hash = m_page_hashlist;
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
   Ptr<Page_entry> ptr;

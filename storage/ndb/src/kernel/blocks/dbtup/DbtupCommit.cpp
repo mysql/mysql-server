@@ -204,6 +204,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     * ptr->get_mm_gci(regTabPtr) = gci;
   }
 }
+
 #if 0
 static void dump_buf_hex(unsigned char *p, Uint32 bytes)
 {

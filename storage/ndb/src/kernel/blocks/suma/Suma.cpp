@@ -2728,7 +2728,8 @@ Suma::execSUB_START_REQ(Signal* signal){
   Uint32 senderData           = req->senderData;
   Uint32 subscriberData       = req->subscriberData;
   Uint32 subscriberRef        = req->subscriberRef;
-  //SubscriptionData::Part part = (SubscriptionData::Part)req->part;
+  SubscriptionData::Part part = (SubscriptionData::Part)req->part;
+  (void)part; // TODO validate part
 
   Subscription key; 
   key.m_subscriptionId        = req->subscriptionId;
