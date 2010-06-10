@@ -27,12 +27,12 @@ int NdbHost_GetHostName(char* buf)
   return 0;
 }
 
-#ifdef NDB_WIN
-#include <process.h>
-#define getpid _getpid
-#endif
 int NdbHost_GetProcessId(void)
 {
+#ifdef _WIN32
+  return GetCurrentProcessId();
+#else
   return getpid();
+#endif
 }
 
