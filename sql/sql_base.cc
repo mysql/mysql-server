@@ -440,7 +440,7 @@ static void table_def_unuse_table(TABLE *table)
   DBUG_ASSERT(table->in_use);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
-  DBUG_ASSERT(table->s->version == refresh_version);
+  DBUG_ASSERT(! table->s->needs_reopen());
 
   table->in_use= 0;
   /* Remove table from the list of tables used in this share. */
@@ -562,7 +562,9 @@ found:
     DBUG_RETURN(0);
   }
 
-  if (!share->ref_count++ && share->prev)
+  ++share->ref_count;
+
+  if (share->ref_count == 1 && share->prev)
   {
     /*
       Share was not used before and it was in the old_unused_share list
@@ -700,8 +702,7 @@ void release_table_share(TABLE_SHARE *share)
   DBUG_ASSERT(share->ref_count);
   if (!--share->ref_count)
   {
-    if (share->version != refresh_version ||
-        table_def_shutdown_in_progress)
+    if (share->needs_reopen() || table_def_shutdown_in_progress)
       my_hash_delete(&table_def_cache, (uchar*) share);
     else
     {
@@ -836,7 +837,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
     I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
     while (it++)
       ++(*start_list)->in_use;
-    (*start_list)->locked= (share->version == 0) ? 1 : 0;
+    (*start_list)->locked= 0;                   /* Obsolete. */
     start_list= &(*start_list)->next;
     *start_list=0;
   }
@@ -1071,7 +1072,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
       {
         TABLE_SHARE *share=(TABLE_SHARE*) my_hash_element(&table_def_cache,
                                                           idx);
-        if (share->version != refresh_version)
+        if (share->needs_reopen())
         {
           found= TRUE;
           break;
@@ -1083,7 +1084,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
       for (TABLE_LIST *table= tables; table; table= table->next_local)
       {
         TABLE_SHARE *share= get_cached_table_share(table->db, table->table_name);
-        if (share && share->version != refresh_version)
+        if (share && share->needs_reopen())
         {
 	  found= TRUE;
           break;
@@ -2979,7 +2980,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
 #endif
 
-  if (share->version != refresh_version)
+  if (share->needs_reopen())
   {
     if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
     {
@@ -8608,7 +8609,7 @@ my_bool mysql_rm_tmp_tables(void)
     all not used tables.
 */
 
-void flush_tables()
+void tdc_flush_unused_tables()
 {
   mysql_mutex_lock(&LOCK_open);
   while (unused_tables)
@@ -8820,7 +8821,7 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests,
 
       if ((share= get_cached_table_share(mdl_request->key.db_name(),
                                          mdl_request->key.name())) &&
-          share->version != refresh_version)
+          share->needs_reopen())
         break;
     }
     if (!mdl_request)

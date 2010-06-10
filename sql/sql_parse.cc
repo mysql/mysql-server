@@ -497,7 +497,6 @@ static void handle_bootstrap_impl(THD *thd)
 #endif /* EMBEDDED_LIBRARY */
 
   thd_proc_info(thd, 0);
-  thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
   thd->security_ctx->priv_host[0]=0;
