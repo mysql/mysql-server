@@ -1801,12 +1801,12 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb)
 #ifdef VM_TRACE
   // replace by STATIC_ASSERT in 7.x
   assert(
-    WarnUndobufferRoundUp == CreateFilegroupConf::WarnUndobufferRoundUp &&
-    WarnUndofileRoundDown == CreateFileConf::WarnUndofileRoundDown &&
-    WarnExtentRoundUp == CreateFilegroupConf::WarnExtentRoundUp &&
-    WarnDatafileRoundDown == CreateFileConf::WarnDatafileRoundDown &&
-    WarnDatafileRoundUp == CreateFileConf::WarnDatafileRoundUp
-  );
+         (int)WarnUndobufferRoundUp == (int)CreateFilegroupConf::WarnUndobufferRoundUp &&
+         (int)WarnUndofileRoundDown == (int)CreateFileConf::WarnUndofileRoundDown &&
+         (int)WarnExtentRoundUp == (int)CreateFilegroupConf::WarnExtentRoundUp &&
+         (int)WarnDatafileRoundDown == (int)CreateFileConf::WarnDatafileRoundDown &&
+         (int)WarnDatafileRoundUp == (int)CreateFileConf::WarnDatafileRoundUp
+     );
 #endif
 }
 

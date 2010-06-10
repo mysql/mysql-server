@@ -206,6 +206,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   }
 }
 
+#if 0
 static void dump_buf_hex(unsigned char *p, Uint32 bytes)
 {
   char buf[3001];
@@ -223,6 +224,8 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
   }
   ndbout_c("%8p: %s", p, buf);
 }
+#endif
+
 void
 Dbtup::commit_operation(Signal* signal,
 			Uint32 gci,

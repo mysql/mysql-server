@@ -1882,8 +1882,6 @@ int Ndb::dropEventOperation(NdbEventOperation* tOp)
   DBUG_ENTER("Ndb::dropEventOperation");
   DBUG_PRINT("info", ("name: %s", tOp->getEvent()->getTable()->getName()));
   // remove it from list
-  NdbEventOperationImpl *op=
-    NdbEventBuffer::getEventOperationImpl(tOp);
   
   theEventBuffer->dropEventOperation(tOp);
   DBUG_RETURN(0);

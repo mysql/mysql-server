@@ -669,8 +669,8 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
     }
   }
   
-done:  
-  if (userRef != 0) {
+  if (userRef != 0)
+  {
     jam(); 
     signal->theData[0] = tStartingNode;
     signal->theData[1] = tData2;
@@ -703,7 +703,6 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
 {
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 hostId = rep->nodeId;
-  const Uint32 errNo  = rep->err;
   
   jamEntry();
 

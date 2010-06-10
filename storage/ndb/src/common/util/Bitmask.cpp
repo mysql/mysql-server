@@ -131,7 +131,6 @@ BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
     list[i].trim();
     if (list[i].empty())
       continue;
-    unsigned num = 0;
     char * delim = (char*)strchr(list[i].c_str(), '-');
     unsigned first = 0;
     unsigned last = 0;
