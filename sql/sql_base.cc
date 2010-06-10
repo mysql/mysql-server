@@ -439,6 +439,9 @@ static void table_def_unuse_table(TABLE *table)
 {
   DBUG_ASSERT(table->in_use);
 
+  /* We shouldn't put the table to 'unused' list if the share is old. */
+  DBUG_ASSERT(table->s->version == refresh_version);
+
   table->in_use= 0;
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);
@@ -2233,11 +2236,14 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     DBUG_ASSERT(table == thd->open_tables);
 
     handlerton *table_type= table->s->db_type();
-    /* Ensure the table is removed from the cache. */
-    table->s->version= 0;
 
     table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     close_thread_table(thd, &thd->open_tables);
+    /* Remove the table share from the table cache. */
+    mysql_mutex_lock(&LOCK_open);
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db_name, table_name);
+    mysql_mutex_unlock(&LOCK_open);
+    /* Remove the table from the storage engine and rm the .frm. */
     quick_rm_table(table_type, db_name, table_name, 0);
   }
   DBUG_VOID_RETURN;
@@ -3028,17 +3034,11 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       my_free(table, MYF(0));
 
       if (error == 7)
-      {
-        share->version= 0;
         (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
                                               table_list);
-      }
       else if (share->crashed)
-      {
-        share->version= 0;
         (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
                                               table_list);
-      }
 
       goto err_unlock;
     }
@@ -3824,7 +3824,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
   TABLE_SHARE *share;
   TABLE *entry;
   int not_used;
-  bool result= FALSE;
+  bool result= TRUE;
   my_hash_value_type hash_value;
 
   cache_key_length= create_table_def_key(thd, cache_key, table_list, 0);
@@ -3839,20 +3839,19 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                                            cache_key_length,
                                            OPEN_VIEW, &not_used,
                                            hash_value)))
-  {
-    mysql_mutex_unlock(&LOCK_open);
-    return TRUE;
-  }
+    goto end_unlock;
 
   if (share->is_view)
-    goto end_with_lock_open;
+  {
+    release_table_share(share);
+    goto end_unlock;
+  }
 
   if (!(entry= (TABLE*)my_malloc(sizeof(TABLE), MYF(MY_WME))))
   {
-    result= TRUE;
-    goto end_with_lock_open;
+    release_table_share(share);
+    goto end_unlock;
   }
-  share->version= 0;
   mysql_mutex_unlock(&LOCK_open);
 
   if (open_table_from_share(thd, share, table_list->alias,
@@ -3871,19 +3870,21 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                     share->table_name.str);
     if (entry->file)
       closefrm(entry, 0);
-    result= TRUE;
   }
   else
   {
     thd->clear_error();			// Clear error message
     closefrm(entry, 0);
+    result= FALSE;
   }
   my_free(entry, MYF(0));
 
   mysql_mutex_lock(&LOCK_open);
-
-end_with_lock_open:
   release_table_share(share);
+  /* Remove the repaired share from the table cache. */
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                   table_list->db, table_list->table_name);
+end_unlock:
   mysql_mutex_unlock(&LOCK_open);
   return result;
 }
