@@ -28,7 +28,7 @@
 /* Memory barriers, these definitions are for x64_64. */
 #define mb()    asm volatile("mfence":::"memory")
 /* According to Intel docs, it does not reorder loads. */
-//#define rmb() asm volatile("lfence":::"memory")                               
+/* #define rmb() asm volatile("lfence":::"memory") */                      
 #define rmb()   asm volatile("" ::: "memory")
 #define wmb()   asm volatile("" ::: "memory")
 #define read_barrier_depends()  do {} while(0)
@@ -72,7 +72,7 @@ xcng(volatile unsigned * addr, int val)
 #define cpu_pause()
 #define NDB_HAVE_XCNG
 #else
-// link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG)
+/* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
 extern  int xcng(volatile unsigned * addr, int val);
 extern void cpu_pause();
 #endif
@@ -93,7 +93,7 @@ extern void cpu_pause();
 #if defined(__x86_64__)
 #define mb()    asm ("mfence")
 /* According to Intel docs, it does not reorder loads. */
-//#define rmb() asm ("lfence")
+/* #define rmb() asm ("lfence") */
 #define rmb()   asm ("")
 #define wmb()   asm ("")
 #define read_barrier_depends()  do {} while(0)
@@ -148,7 +148,7 @@ cpu_pause()
 }
 #endif
 #else
-// link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG)
+/* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
 extern  int xcng(volatile unsigned * addr, int val);
 extern void cpu_pause();
 #endif
@@ -164,7 +164,7 @@ extern void cpu_pause();
 /********************
  * Microsoft
  *******************/
-// Using instrinsics available on all architectures
+/* Using instrinsics available on all architectures */
 #define rmb()   _ReadBarrier()
 #define wmb()   _WriteBarrier()
 #endif
