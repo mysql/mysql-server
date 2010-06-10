@@ -227,7 +227,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (thread_stack_size < PTHREAD_STACK_MIN)
     thread_stack_size = PTHREAD_STACK_MIN;
 #endif
-  DBUG_PRINT("info", ("stack_size: %llu", (ulong)thread_stack_size));
+  DBUG_PRINT("info", ("stack_size: %llu", (ulonglong)thread_stack_size));
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
 #ifdef USE_PTHREAD_EXTRAS
   /* Guard stack overflow with a 2k databuffer */

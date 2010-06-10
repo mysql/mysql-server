@@ -38,7 +38,7 @@ Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
     Uint32 attrDescr= tableDescriptor[attrDescrStart].tabDescr;
     Uint32 attrOffset= tableDescriptor[attrDescrStart + 1].tabDescr;
 
-    Uint32 type = AttributeDescriptor::getType(attrDescr);
+    //Uint32 type = AttributeDescriptor::getType(attrDescr);
     Uint32 array = AttributeDescriptor::getArrayType(attrDescr);
     Uint32 charset = AttributeOffset::getCharsetFlag(attrOffset);
     Uint32 size = AttributeDescriptor::getSize(attrDescr);
