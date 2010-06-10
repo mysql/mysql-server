@@ -574,24 +574,26 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
 
   /* Get value byte length rounded up to nearest 32-bit word */
   Uint32 len2 = Interpreter::mod4(sendLen);
-  if((len2 == sendLen) && 
-     (lastWordMask == (Uint32)~0)){
+  if((len2 == sendLen) && (lastWordMask == (Uint32)~0))
+  {
     /* Whole number of 32-bit words */
     DBUG_RETURN(addN((Uint32*)val, len2 >> 2));
-  } else {
-    /* Partial last word */
-    len2 -= 4;
-    if (addN((Uint32*)val, len2 >> 2) != 0)
-      DBUG_RETURN(-1);
+  } 
 
-    /* Zero insignificant bytes in last word */
-    Uint32 tmp = 0;
-    for (Uint32 i = 0; i < sendLen-len2; i++) {
-      char* p = (char*)&tmp;
-      p[i] = ((char*)val)[len2+i];
-    }
-    DBUG_RETURN(add1((tmp & lastWordMask)));
+  /** else */
+  /* Partial last word */
+  len2 -= 4;
+  if (addN((Uint32*)val, len2 >> 2) != 0)
+    DBUG_RETURN(-1);
+  
+  /* Zero insignificant bytes in last word */
+  Uint32 tmp = 0;
+  for (Uint32 i = 0; i < sendLen-len2; i++)
+  {
+    char* p = (char*)&tmp;
+    p[i] = ((char*)val)[len2+i];
   }
+  DBUG_RETURN(add1((tmp & lastWordMask)));
 }
 
 int 

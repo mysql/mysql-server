@@ -341,7 +341,6 @@ Dbtux::execALTER_INDX_REQ(Signal* signal)
   IndexPtr indexPtr;
   c_indexPool.getPtr(indexPtr, req->getIndexId());
 
-  Uint32 save = indexPtr.p->m_state;
   if (refToBlock(req->getUserRef()) != DBDICT)
   {
     /**

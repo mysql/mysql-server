@@ -381,8 +381,6 @@ operator<<(NdbOut& out, const Dbtup::Operationrec& op)
 NdbOut&
 operator<<(NdbOut& out, const Dbtup::Th& th)
 {
-  // ugly
-  Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP);
   unsigned i = 0;
   out << "[Th " << hex << &th;
   out << " [op " << hex << th.data[i++] << "]";

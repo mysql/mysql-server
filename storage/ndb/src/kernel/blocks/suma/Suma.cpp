@@ -1792,9 +1792,9 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     return;
   }
 
-  bool ok = false;
   SubscriptionData::Part part = (SubscriptionData::Part)req->part;
-  
+  (void)part; // TODO check for valid part
+
   Ptr<SyncRecord> syncPtr;
   LocalDLList<SyncRecord> list(c_syncPool, subPtr.p->m_syncRecords);
   if(!list.seize(syncPtr))
@@ -2399,6 +2399,7 @@ Suma::execSUB_START_REQ(Signal* signal){
   Uint32 subscriberData       = req->subscriberData;
   Uint32 subscriberRef        = req->subscriberRef;
   SubscriptionData::Part part = (SubscriptionData::Part)req->part;
+  (void)part; // TODO validate part
 
   Subscription key; 
   key.m_subscriptionId        = req->subscriptionId;
@@ -2605,7 +2606,7 @@ Suma::execCREATE_TRIG_CONF(Signal* signal)
   CreateTrigConf * conf = (CreateTrigConf*)signal->getDataPtr();
   const Uint32 triggerId = conf->getTriggerId();
   Uint32 type = (triggerId >> 16) & 0x3;
-  Uint32 tableId = conf->getTableId();
+  //Uint32 tableId = conf->getTableId();
 
   TablePtr tabPtr;
   SubscriptionPtr subPtr;
@@ -2653,7 +2654,7 @@ Suma::execCREATE_TRIG_REF(Signal* signal)
   CreateTrigRef * const ref = (CreateTrigRef*)signal->getDataPtr();
   const Uint32 triggerId = ref->getTriggerId();
   Uint32 type = (triggerId >> 16) & 0x3;
-  Uint32 tableId = ref->getTableId();
+  //Uint32 tableId = ref->getTableId();
 
   TablePtr tabPtr;
   SubscriptionPtr subPtr;
