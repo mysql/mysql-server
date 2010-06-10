@@ -1814,7 +1814,6 @@ public:
     thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
     thd.current_tablenr=0;
-    thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()

@@ -740,7 +740,7 @@ struct TABLE_SHARE
   /*
     Must all TABLEs be reopened?
   */
-  inline bool needs_reopen()
+  inline bool needs_reopen() const
   {
     return version != refresh_version;
   }

@@ -233,7 +233,6 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 void remove_db_from_cache(const char *db);
-void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
@@ -263,6 +262,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);
+void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
                                   const char *table_name,
                                   bool no_error);
