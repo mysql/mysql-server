@@ -83,8 +83,8 @@ a1	a2
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	SUBQUERY	t2i	index	it2i1,it2i3	it2i1	9	NULL	5	100.00	Using where; Using index
+1	PRIMARY	t1i	index	NULL	_it1_idx	#	NULL	3	100.00	Using where; Using_where_or_index
+2	SUBQUERY	t2i	index	it2i1,it2i3	it2i1	#	NULL	5	100.00	Using where; Using_where_or_index
 Warnings:
 Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,`test`.`t1i`.`a1` in ( <materialize> (select `test`.`t2i`.`b1` AS `b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `<subquery2>`.`b1`)))))
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
