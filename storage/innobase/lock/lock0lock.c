@@ -2207,7 +2207,13 @@ lock_grant(
 	for it */
 
 	if (lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-		que_thr_end_lock_wait(lock->trx);
+		que_thr_t*	thr;
+
+		thr = que_thr_end_lock_wait(lock->trx);
+
+		if (thr != NULL) {
+			lock_wait_release_thread_if_suspended(thr);
+		}
 	}
 
 	trx_mutex_exit(lock->trx);
@@ -2223,6 +2229,8 @@ lock_rec_cancel(
 /*============*/
 	lock_t*	lock)	/*!< in: waiting record lock request */
 {
+	que_thr_t*	thr;
+
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
@@ -2237,7 +2245,11 @@ lock_rec_cancel(
 
 	/* The following function releases the trx from lock wait */
 
-	que_thr_end_lock_wait(lock->trx);
+	thr = que_thr_end_lock_wait(lock->trx);
+
+	if (thr != NULL) {
+		lock_wait_release_thread_if_suspended(thr);
+	}
 
 	trx_mutex_exit(lock->trx);
 }
@@ -5767,6 +5779,8 @@ lock_cancel_waiting_and_release(
 /*============================*/
 	lock_t*	lock)	/*!< in: waiting lock request */
 {
+	que_thr_t*	thr;
+
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
 
@@ -5790,5 +5804,9 @@ lock_cancel_waiting_and_release(
 
 	/* The following function releases the trx from lock wait. */
 
-	que_thr_end_lock_wait(lock->trx);
+	thr = que_thr_end_lock_wait(lock->trx);
+
+	if (thr != NULL) {
+		lock_wait_release_thread_if_suspended(thr);
+	}
 }

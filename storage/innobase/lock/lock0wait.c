@@ -407,6 +407,8 @@ lock_wait_check_and_cancel(
 
 	trx = thr_get_trx(slot->thr);
 
+	lock_mutex_enter();
+
 	trx_mutex_enter(trx);
 
 	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
@@ -427,13 +429,13 @@ lock_wait_check_and_cancel(
 
 			ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
-			printf("Timeout: %p\n", trx);
-
 			lock_cancel_waiting_and_release(trx->lock.wait_lock);
 		}
 	}
 
 	trx_mutex_exit(trx);
+	
+	lock_mutex_exit();
 }
 
 /*********************************************************************//**
