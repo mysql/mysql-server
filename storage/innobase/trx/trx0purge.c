@@ -44,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "os0thread.h"
+#include "srv0mon.h"
 
 /** The global data structure coordinating a purge */
 UNIV_INTERN trx_purge_t*	purge_sys = NULL;
@@ -1089,6 +1090,8 @@ trx_purge_dml_delay(void)
 			by at least 5000 microseconds. */
 			delay = (ulint) ((ratio - .5) * 10000);
 		}
+
+		MONITOR_SET(MONITOR_DML_PURGE_DELAY, srv_dml_needed_delay);
 	}
 
 	return(delay);

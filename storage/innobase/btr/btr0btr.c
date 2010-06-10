@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,6 +41,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
 #include "trx0trx.h"
+#include "srv0mon.h"
 
 /*
 Latching strategy of the InnoDB B-tree
@@ -2229,6 +2230,7 @@ func_exit:
 		buf_block_get_page_no(left_block),
 		buf_block_get_page_no(right_block));
 #endif
+	MONITOR_INC(MONITOR_INDEX_SPLIT);
 
 	ut_ad(page_validate(buf_block_get_frame(left_block), cursor->index));
 	ut_ad(page_validate(buf_block_get_frame(right_block), cursor->index));

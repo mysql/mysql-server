@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -84,6 +84,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "srv0mon.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -2206,6 +2207,7 @@ srv_master_thread(
 	ulint		n_pend_ios;
 	ulint		next_itr_time;
 	ulint		i;
+	ibool		max_modified_ratio_exceeded = FALSE;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2332,6 +2334,9 @@ loop:
 			n_pages_flushed = buf_flush_list(
 				PCT_IO(100), IB_ULONGLONG_MAX);
 
+			/* Record 100% srv_io_capacity for the buffer
+			flush rate */
+			MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
 		} else if (srv_adaptive_flushing) {
 
 			/* Try to keep the rate of flushing of dirty
@@ -2347,6 +2352,11 @@ loop:
 					buf_flush_list(
 						n_flush,
 						IB_ULONGLONG_MAX);
+
+				/* Record the IO capacity percentage used
+				for the flush */
+				MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY,
+					    n_flush * 100 / srv_io_capacity)
 			}
 		}
 
@@ -2388,6 +2398,8 @@ loop:
 		srv_main_thread_op_info = "flushing buffer pool pages";
 		buf_flush_list(PCT_IO(100), IB_ULONGLONG_MAX);
 
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
+
 		/* Flush logs if needed */
 		srv_sync_log_buffer_in_background();
 	}
@@ -2425,6 +2437,7 @@ loop:
 		n_pages_flushed = buf_flush_list(
 			PCT_IO(100), IB_ULONGLONG_MAX);
 
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
@@ -2432,6 +2445,8 @@ loop:
 
 		n_pages_flushed = buf_flush_list(
 			  PCT_IO(10), IB_ULONGLONG_MAX);
+
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 10);
 	}
 
 	srv_main_thread_op_info = "making checkpoint";
@@ -2507,9 +2522,16 @@ background_loop:
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 	srv_main_flush_loops++;
+
 	if (srv_fast_shutdown < 2) {
 		n_pages_flushed = buf_flush_list(
 			  PCT_IO(100), IB_ULONGLONG_MAX);
+
+		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
+
+		if (max_modified_ratio_exceeded) {
+			MONITOR_INC(MONITOR_FLUSH_DIRTY_PAGE_EXCEED);
+		}
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
@@ -2534,12 +2556,14 @@ flush_loop:
 	log_checkpoint(TRUE, FALSE);
 
 	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
+		max_modified_ratio_exceeded = TRUE;
 
 		/* Try to keep the number of modified pages in the
 		buffer pool under the limit wished by the user */
 
 		goto flush_loop;
 	}
+	max_modified_ratio_exceeded = FALSE;
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 

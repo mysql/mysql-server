@@ -426,6 +426,25 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 
 /**
+  Check if given string begins with "#mysql50#" prefix
+  
+  @param   name          string to check cut 
+  
+  @retval
+    FALSE  no prefix found
+  @retval
+    TRUE   prefix found
+*/
+
+bool check_mysql50_prefix(const char *name)
+{
+  return (name[0] == '#' && 
+         !strncmp(name, MYSQL50_TABLE_NAME_PREFIX,
+                  MYSQL50_TABLE_NAME_PREFIX_LENGTH));
+}
+
+
+/**
   Check if given string begins with "#mysql50#" prefix, cut it if so.
   
   @param   from          string to check and cut 
@@ -440,9 +459,7 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
 {
-  if (from[0] == '#' && 
-      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+  if (check_mysql50_prefix(from))
     return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
                            to_length - 1) - to);
   return 0;
@@ -469,7 +486,21 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   DBUG_PRINT("enter", ("from '%s'", from));
 
   if ((length= check_n_cut_mysql50_prefix(from, to, to_length)))
+  {
+    /*
+      Check if the name supplied is a valid mysql 5.0 name and 
+      make the name a zero length string if it's not.
+      Note that just returning zero length is not enough : 
+      a lot of places don't check the return value and expect 
+      a zero terminated string.
+    */  
+    if (check_table_name(to, length, TRUE))
+    {
+      to[0]= 0;
+      length= 0;
+    }
     DBUG_RETURN(length);
+  }
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&
@@ -1751,11 +1782,12 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           error= 1;
           goto err;
         }
-        share->partition_info= tmp_part_syntax_str;
+        share->partition_info_str= tmp_part_syntax_str;
       }
       else
-        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
-      share->partition_info_len= part_info->part_info_len= syntax_len;
+        memcpy((char*) share->partition_info_str, part_syntax_buf,
+               syntax_len + 1);
+      share->partition_info_str_len= part_info->part_info_len= syntax_len;
       part_info->part_info_string= part_syntax_buf;
     }
 #endif
@@ -1898,8 +1930,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool dont_log_query)
 {
   TABLE_LIST *table;
-  char path[FN_REFLEN + 1], *alias;
-  uint path_length;
+  char path[FN_REFLEN + 1], *alias= NULL;
+  uint path_length= 0;
   String wrong_tables;
   int error= 0;
   int non_temp_tables_count= 0;
@@ -1907,9 +1939,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_query;
   String built_tmp_query;
   DBUG_ENTER("mysql_rm_table_part2");
-
-  LINT_INIT(alias);
-  LINT_INIT(path_length);
 
   if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
   {
@@ -6941,7 +6970,14 @@ view_err:
                        &index_add_buffer, &index_add_count,
                        &candidate_key_count))
       goto err;
-
+   
+    DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
+      if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
+        goto err; });
+    DBUG_EXECUTE_IF("alter_table_only_index_change", {
+      if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
+        goto err; });
+   
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
   }

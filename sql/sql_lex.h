@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,6 +152,7 @@ enum enum_sql_command {
 };
 
 // describe/explain types
+#define DESCRIBE_NONE		0 // Not explain query
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 /*
@@ -2040,6 +2041,7 @@ struct LEX: public Query_tables_list
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+      - CREATE EVENT (points to "EVENT")
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.

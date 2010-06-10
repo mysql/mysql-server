@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -15,6 +15,8 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
+pkgpsiincludedir =      $(pkgincludedir)/psi
+
 BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources probes_mysql_nodtrace.h
 HEADERS_GEN_CONFIGURE =		mysql_version.h
 HEADERS_GEN_MAKE =		my_config.h
@@ -25,8 +27,6 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h mysql/services.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
 		  	my_pthread.h my_no_pthread.h \
-			mysql/psi/psi.h mysql/psi/mysql_thread.h \
-			mysql/psi/mysql_file.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
@@ -46,6 +46,9 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
 			atomic/solaris.h mysql/innodb_priv.h
+
+pkgpsiinclude_HEADERS = mysql/psi/psi.h mysql/psi/mysql_thread.h \
+			mysql/psi/mysql_file.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
 			CMakeLists.txt \

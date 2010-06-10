@@ -14,6 +14,28 @@
 drop table if exists t1, t2;
 --enable_warnings
 
+--echo # Bug#39338: Fieldnames in
+--echo #   INFORMATIONSCHEMA.PARTITIONS.PARTITION_EXPRESSION become unescaped
+--echo # NOTE: the partition expression is saved as a string, so changing from
+--echo #       normal quotes to ansi quotes does not change the expression, only
+--echo #       for partition by KEY.
+CREATE TABLE t1 (
+    ID int(11) NOT NULL,
+    `aaaa,aaaaa` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+    ddddddddd int(11) NOT NULL DEFAULT '0',
+    new_field0 varchar(50),
+    PRIMARY KEY(ID, `aaaa,aaaaa`, ddddddddd))
+PARTITION BY RANGE(ID)
+PARTITIONS 3
+SUBPARTITION BY LINEAR KEY(ID,`aaaa,aaaaa`)
+SUBPARTITIONS 2 (
+    PARTITION p01 VALUES LESS THAN(100),
+    PARTITION p11 VALUES LESS THAN(200),
+    PARTITION p21 VALUES LESS THAN MAXVALUE);
+SELECT PARTITION_EXPRESSION, SUBPARTITION_EXPRESSION FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+show create table t1;
+drop table t1;
+
 #
 # Bug#48276: can't add column if subpartition exists
 CREATE TABLE t1 (a INT, b INT)
@@ -2162,5 +2184,17 @@ ALTER TABLE t1 ADD COLUMN (s3 VARCHAR(5) UNIQUE);
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#51868 - crash with myisam_use_mmap and partitioned myisam tables
+--echo #
+SET GLOBAL myisam_use_mmap=1;
+CREATE TABLE t1(a INT) PARTITION BY HASH(a) PARTITIONS 1;
+INSERT INTO t1 VALUES(0);
+FLUSH TABLE t1;
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(0);
+DROP TABLE t1;
+SET GLOBAL myisam_use_mmap=default;
 
 --echo End of 5.1 tests

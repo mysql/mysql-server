@@ -961,7 +961,7 @@ typedef struct {
   ulong check_time;
   ulong update_time;
   ulonglong check_sum;
-} PARTITION_INFO;
+} PARTITION_STATS;
 
 #define UNDEF_NODEGROUP 65535
 class Item;
@@ -1560,7 +1560,7 @@ public:
     { return (ha_rows) 10; }
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
-  virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
+  virtual void get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                           uint part_id);
   virtual int extra(enum ha_extra_function operation)
   { return 0; }
@@ -2066,7 +2066,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton);
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
                          handlerton *db_type);

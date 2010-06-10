@@ -305,6 +305,37 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
+
+/**
+  Provide a handler data getter to simplify coding
+*/
+extern "C"
+void *thd_get_ha_data(const THD *thd, const struct handlerton *hton)
+{
+  return *thd_ha_data(thd, hton);
+}
+
+
+/**
+  Provide a handler data setter to simplify coding
+  @see thd_set_ha_data() definition in plugin.h
+*/
+extern "C"
+void thd_set_ha_data(THD *thd, const struct handlerton *hton,
+                     const void *ha_data)
+{
+  plugin_ref *lock= &thd->ha_data[hton->slot].lock;
+  if (ha_data && !*lock)
+    *lock= ha_lock_engine(NULL, (handlerton*) hton);
+  else if (!ha_data && *lock)
+  {
+    plugin_unlock(NULL, *lock);
+    *lock= NULL;
+  }
+  *thd_ha_data(thd, hton)= (void*) ha_data;
+}
+
+
 extern "C"
 long long thd_test_options(const THD *thd, long long test_options)
 {
@@ -460,7 +491,6 @@ THD::THD()
    rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   sql_log_bin_toplevel(false),
    binlog_unsafe_warning_flags(0), binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -929,7 +959,11 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_format_row();
   bzero((char *) &status_var, sizeof(status_var));
-  sql_log_bin_toplevel= variables.option_bits & OPTION_BIN_LOG;
+
+  if (variables.sql_log_bin)
+    variables.option_bits|= OPTION_BIN_LOG;
+  else
+    variables.option_bits&= ~OPTION_BIN_LOG;
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
@@ -1884,8 +1918,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   else
     (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
 
-  if (opt_secure_file_priv &&
-      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  if (!is_secure_file_path(path))
   {
     /* Write only allowed to dir or subdir specified by secure_file_priv */
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
@@ -2054,9 +2087,21 @@ bool select_export::send_data(List<Item> &items)
       const char *from_end_pos;
       const char *error_pos;
       uint32 bytes;
-      bytes= well_formed_copy_nchars(write_cs, cvt_buff, sizeof(cvt_buff),
+      uint64 estimated_bytes=
+        ((uint64) res->length() / res->charset()->mbminlen + 1) *
+        write_cs->mbmaxlen + 1;
+      set_if_smaller(estimated_bytes, UINT_MAX32);
+      if (cvt_str.realloc((uint32) estimated_bytes))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(0), (uint32) estimated_bytes);
+        goto err;
+      }
+
+      bytes= well_formed_copy_nchars(write_cs, (char *) cvt_str.ptr(),
+                                     cvt_str.alloced_length(),
                                      res->charset(), res->ptr(), res->length(),
-                                     sizeof(cvt_buff),
+                                     UINT_MAX32, // copy all input chars,
+                                                 // i.e. ignore nchars parameter
                                      &well_formed_error_pos,
                                      &cannot_convert_error_pos,
                                      &from_end_pos);
@@ -2073,6 +2118,15 @@ bool select_export::send_data(List<Item> &items)
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
                             item->name, row_count);
+      }
+      else if (from_end_pos < res->ptr() + res->length())
+      { 
+        /*
+          result is longer than UINT_MAX32 and doesn't fit into String
+        */
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                            item->full_name(), row_count);
       }
       cvt_str.length(bytes);
       res= &cvt_str;
@@ -3138,6 +3192,11 @@ extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 {
   return binlog_filter->db_ok(thd->db);
 }
+
+extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
+{
+  return sqlcom_can_generate_row_events(thd);
+}
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
@@ -3185,6 +3244,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 #endif
   
   backup->option_bits=     variables.option_bits;
+  backup->count_cuted_fields= count_cuted_fields;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
   backup->limit_found_rows= limit_found_rows;
@@ -3222,6 +3282,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
+  DBUG_ENTER("THD::restore_sub_statement_state");
 #ifndef EMBEDDED_LIBRARY
   /* BUG#33029, if we are replicating from a buggy master, restore
      auto_inc_intervals_forced so that the top statement can use the
@@ -3248,6 +3309,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     /* ha_release_savepoint() never returns error. */
     (void)ha_release_savepoint(this, sv);
   }
+  count_cuted_fields= backup->count_cuted_fields;
   transaction.savepoints= backup->savepoints;
   variables.option_bits= backup->option_bits;
   in_sub_stmt=      backup->in_sub_stmt;
@@ -3277,6 +3339,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3859,7 +3922,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         */
         my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE), MYF(0));
       }
-      else if (variables.binlog_format == BINLOG_FORMAT_ROW)
+      else if (variables.binlog_format == BINLOG_FORMAT_ROW &&
+               sqlcom_can_generate_row_events(this))
       {
         /*
           2. Error: Cannot modify table that uses a storage engine
@@ -3897,7 +3961,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           */
           my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_MODE), MYF(0));
         }
-        else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0 &&
+                 sqlcom_can_generate_row_events(this))
         {
           /*
             5. Error: Cannot modify table that uses a storage engine
@@ -4406,7 +4471,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional)
     if (stmt_end)
     {
       pending->set_flags(Rows_log_event::STMT_END_F);
-      pending->flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       binlog_table_maps= 0;
     }
 
@@ -4554,8 +4618,13 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     because the warnings should be printed only if the statement is
     actually logged. When executing decide_logging_format(), we cannot
     know for sure if the statement will be logged.
+
+    Besides, we should not try to print these warnings if it is not
+    possible to write statements to the binary log as it happens when
+    the execution is inside a function, or generaly speaking, when
+    the variables.option_bits & OPTION_BIN_LOG is false.
   */
-  if (sql_log_bin_toplevel)
+  if (variables.option_bits & OPTION_BIN_LOG)
     issue_unsafe_warnings();
 
   switch (qtype) {
@@ -4592,7 +4661,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, direct,
                             suppress_use, errcode);
-      qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event
         (they are just removed on the slave side) so after the query

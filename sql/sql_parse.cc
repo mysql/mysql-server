@@ -247,8 +247,19 @@ void init_update_queries(void)
   /* Initialize the sql command flags array. */
   memset(sql_command_flags, 0, sizeof(sql_command_flags));
 
+  /*
+    In general, DDL statements do not generate row events and do not go
+    through a cache before being written to the binary log. However, the
+    CREATE TABLE...SELECT is an exception because it may generate row
+    events. For that reason,  the SQLCOM_CREATE_TABLE  which represents
+    a CREATE TABLE, including the CREATE TABLE...SELECT, has the
+    CF_CAN_GENERATE_ROW_EVENTS flag. The distinction between a regular
+    CREATE TABLE and the CREATE TABLE...SELECT is made in other parts of
+    the code, in particular in the Query_log_event's constructor.
+  */
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
@@ -256,7 +267,8 @@ void init_update_queries(void)
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
@@ -275,22 +287,32 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
+                                            CF_PROTECT_AGAINST_GRL |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
+                                            CF_CAN_GENERATE_ROW_EVENTS;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -365,7 +387,9 @@ void init_update_queries(void)
     last called (or executed) statement is preserved.
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
-  sql_command_flags[SQLCOM_CALL]=      CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_CALL]=      CF_REEXECUTION_FRAGILE |
+                                       CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_EXECUTE]=   CF_CAN_GENERATE_ROW_EVENTS;
 
   /*
     The following admin table operations are allowed
@@ -390,7 +414,12 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CHECK]=              CF_AUTO_COMMIT_TRANS;
 }
 
-
+bool sqlcom_can_generate_row_events(const THD *thd)
+{
+  return (sql_command_flags[thd->lex->sql_command] &
+          CF_CAN_GENERATE_ROW_EVENTS);
+}
+ 
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
@@ -1160,8 +1189,23 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       We have name + wildcard in packet, separated by endzero
     */
     arg_end= strend(packet);
+    uint arg_length= arg_end - packet;
+    
+    /* Check given table name length. */
+    if (arg_length >= packet_length || arg_length > NAME_LEN)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
     thd->convert_string(&conv_name, system_charset_info,
-			packet, (uint) (arg_end - packet), thd->charset());
+			packet, arg_length, thd->charset());
+    if (check_table_name(conv_name.str, conv_name.length, FALSE))
+    {
+      /* this is OK due to convert_string() null-terminating the string */
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), conv_name.str);
+      break;
+    }
+
     table_list.alias= table_list.table_name= conv_name.str;
     packet= arg_end + 1;
 
@@ -2655,6 +2699,10 @@ case SQLCOM_PREPARE:
         */
         lex->unlink_first_table(&link_to_local);
 
+        /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+        if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
+          thd->variables.option_bits|= OPTION_KEEP_LOG;
+
         /*
           select_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
@@ -2943,7 +2991,7 @@ end_with_restore_list:
           access is granted. We need to check if first_table->grant.privilege
           contains any table-specific privilege.
         */
-        DBUG_PRINT("debug", ("first_table->grant.privilege: %x",
+        DBUG_PRINT("debug", ("first_table->grant.privilege: %lx",
                              first_table->grant.privilege));
         if (check_some_access(thd, SHOW_CREATE_TABLE_ACLS, first_table) ||
             (first_table->grant.privilege & SHOW_CREATE_TABLE_ACLS) == 0)
@@ -3238,7 +3286,7 @@ end_with_restore_list:
           TODO: this is workaround. right way will be move invalidating in
           the unlock procedure.
         */
-        if (first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
+        if (!res && first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
             thd->lock)
         {
           /* INSERT ... SELECT should invalidate only the very first table */
@@ -6042,7 +6090,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
   if (!test(table_options & TL_OPTION_ALIAS) && 
-      check_table_name(table->table.str, table->table.length))
+      check_table_name(table->table.str, table->table.length, FALSE))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
     DBUG_RETURN(0);

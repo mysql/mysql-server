@@ -34,7 +34,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_vle.c my_atomic.c lf_hash.c \
 			lf_dynarray.c lf_alloc-pin.c \
 			my_fopen.c my_fstream.c my_getsystime.c \
-			my_error.c errors.c my_div.c my_messnc.c \
+			my_error.c errors.c my_div.c my_mess.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \
 			mf_pack.c mf_unixpath.c mf_arr_appstr.c \
@@ -61,7 +61,7 @@ if NEED_THREAD
 # mf_keycache is used only in the server, so it is safe to leave the file
 # out of the non-threaded library.
 # In fact, it will currently not compile without thread support.
-libmysys_a_SOURCES +=   mf_keycache.c
+libmysys_a_SOURCES +=   mf_keycache.c waiting_threads.c
 endif
 
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \

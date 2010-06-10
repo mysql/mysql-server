@@ -488,6 +488,19 @@ typedef struct st_table_field_def
 } TABLE_FIELD_DEF;
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  Partition specific ha_data struct.
+*/
+typedef struct st_ha_data_partition
+{
+  bool auto_inc_initialized;
+  mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
+  ulonglong next_auto_inc_val;                 /**< first non reserved value */
+} HA_DATA_PARTITION;
+#endif
+
+
 class Table_check_intact
 {
 protected:
@@ -617,7 +630,6 @@ struct TABLE_SHARE
   bool crashed;
   bool is_view;
   ulong table_map_id;                   /* for row-based replication */
-  ulonglong table_map_version;
 
   /*
     Cache for row-based replication table share checks that does not
@@ -628,13 +640,11 @@ struct TABLE_SHARE
   int cached_row_logging_check;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  /** @todo: Move into *ha_data for partitioning */
+  /* filled in when reading from frm */
   bool auto_partitioned;
-  const char *partition_info;
-  uint  partition_info_len;
+  const char *partition_info_str;
+  uint  partition_info_str_len;
   uint  partition_info_buffer_size;
-  const char *part_state;
-  uint part_state_len;
   handlerton *default_part_db_type;
 #endif
 
@@ -653,6 +663,14 @@ struct TABLE_SHARE
   /** place to store storage engine specific data */
   void *ha_data;
   void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /** place to store partition specific data, LOCK_ha_data hold while init. */
+  HA_DATA_PARTITION *ha_part_data;
+  /* Destructor for ha_part_data */
+  void (*ha_part_data_destroy)(HA_DATA_PARTITION *);
+#endif
+
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
@@ -1894,7 +1912,11 @@ typedef struct st_nested_join
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
   table_map         used_tables;     /* bitmap of tables in the nested join */
   table_map         not_null_tables; /* tables that rejects nulls           */
-  struct st_join_table *first_nested;/* the first nested table in the plan  */
+  /**
+    Used for pointing out the first table in the plan being covered by this
+    join nest. It is used exclusively within make_outerjoin_info().
+   */
+  struct st_join_table *first_nested;
   /* 
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
@@ -1904,6 +1926,15 @@ typedef struct st_nested_join
   */
   uint              counter;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /**
+     True if this join nest node is completely covered by the query execution
+     plan. This means two things.
+
+     1. All tables on its @c join_list are covered by the plan.
+
+     2. All child join nest nodes are fully covered.
+   */
+  bool is_fully_covered() const { return join_list.elements == counter; }
 } NESTED_JOIN;
 
 
@@ -2007,7 +2038,7 @@ void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 bool check_and_convert_db_name(LEX_STRING *db, bool preserve_lettercase);
 bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
-bool check_table_name(const char *name, uint length);
+bool check_table_name(const char *name, uint length, bool check_for_path_chars);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);

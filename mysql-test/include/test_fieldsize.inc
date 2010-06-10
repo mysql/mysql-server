@@ -24,7 +24,7 @@ connection slave;
 START SLAVE;
 --source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 # 41 #
 --query_vertical SHOW SLAVE STATUS
 
 # The following should be 0

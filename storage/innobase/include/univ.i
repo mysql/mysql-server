@@ -45,8 +45,8 @@ Created 1/20/1994 Heikki Tuuri
 #endif /* UNIV_HOTBACKUP */
 
 #define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	1
-#define INNODB_VERSION_BUGFIX	1
+#define INNODB_VERSION_MINOR	2
+#define INNODB_VERSION_BUGFIX	0
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;

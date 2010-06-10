@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0vers.h"
 #include "row0mysql.h"
 #include "log0log.h"
+#include "srv0mon.h"
 
 /********************************************************************//**
 Creates a purge node to a query graph.
@@ -718,6 +719,8 @@ row_purge_record(
 		row_purge_upd_exist_or_extern(node, undo_rec);
 	}
 
+	MONITOR_INC(MONITOR_NUM_ROW_PURGE);
+
 	if (node->found_clust) {
 		btr_pcur_close(&node->pcur);
 	}
@@ -793,10 +796,6 @@ row_purge_step(
 
 	node = thr->run_node;
 
-	ut_a(!node->done);
-
-	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
-
 	// FIXME: DEBUG code , in general we don't really need to
 	// waste CPU cycles initing these.
 	memset(&node->roll_ptr, 0xf, sizeof(node->roll_ptr));
@@ -812,6 +811,10 @@ row_purge_step(
 	node->found_clust = FALSE;
 	node->rec_type = ULINT_UNDEFINED;
 	node->cmpl_info = ULINT_UNDEFINED;
+
+	ut_a(!node->done);
+
+	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
 	if (!(node->undo_recs == NULL || ib_vector_is_empty(node->undo_recs))) {
 		trx_purge_rec_t*purge_rec;
