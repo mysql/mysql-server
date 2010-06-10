@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ struct pos_all_instr_class : public PFS_double_index,
   - a view on all cond classes,
   - a view on all file classes
 */
-class table_all_instr_class : public PFS_readonly_table
+class table_all_instr_class : public PFS_engine_table
 {
 public:
   virtual int rnd_next();
@@ -122,7 +122,7 @@ struct pos_all_instr : public PFS_double_index,
   - a view on all cond instances,
   - a view on all file instances
 */
-class table_all_instr : public PFS_readonly_table
+class table_all_instr : public PFS_engine_table
 {
 public:
   virtual int rnd_next();

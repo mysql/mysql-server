@@ -20,8 +20,8 @@ ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'PROCESS
 delete from performance_schema.PROCESSLIST;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'PROCESSLIST'
 LOCK TABLES performance_schema.PROCESSLIST READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'PROCESSLIST'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'PROCESSLIST'
 UNLOCK TABLES;
 LOCK TABLES performance_schema.PROCESSLIST WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'PROCESSLIST'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'PROCESSLIST'
 UNLOCK TABLES;

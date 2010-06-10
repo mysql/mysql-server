@@ -3288,25 +3288,25 @@ ER_NONEXISTING_GRANT 42000
         swe "Det finns inget privilegium definierat för användare '%-.48s' på '%-.64s'"
         ukr "Повноважень не визначено для користувача '%-.48s' з хосту '%-.64s'"
 ER_TABLEACCESS_DENIED_ERROR 42000 
-        cze "%-.16s p-Bříkaz nepřístupný pro uživatele: '%-.48s'@'%-.64s' pro tabulku '%-.192s'"
-        dan "%-.16s-kommandoen er ikke tilladt for brugeren '%-.48s'@'%-.64s' for tabellen '%-.192s'"
-        nla "%-.16s commando geweigerd voor gebruiker: '%-.48s'@'%-.64s' voor tabel '%-.192s'"
-        eng "%-.16s command denied to user '%-.48s'@'%-.64s' for table '%-.192s'"
-        jps "コマンド %-.16s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.192s' に対して許可されていません",
-        est "%-.16s käsk ei ole lubatud kasutajale '%-.48s'@'%-.64s' tabelis '%-.192s'"
-        fre "La commande '%-.16s' est interdite à l'utilisateur: '%-.48s'@'@%-.64s' sur la table '%-.192s'"
-        ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.48s'@'%-.64s' auf Tabelle '%-.192s'"
-        hun "%-.16s parancs a '%-.48s'@'%-.64s' felhasznalo szamara nem engedelyezett a '%-.192s' tablaban"
-        ita "Comando %-.16s negato per l'utente: '%-.48s'@'%-.64s' sulla tabella '%-.192s'"
-        jpn "コマンド %-.16s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.192s' に対して許可されていません"
-        kor "'%-.16s' 명령은 다음 사용자에게 거부되었습니다. : '%-.48s'@'%-.64s' for 테이블 '%-.192s'"
-        por "Comando '%-.16s' negado para o usuário '%-.48s'@'%-.64s' na tabela '%-.192s'"
-        rum "Comanda %-.16s interzisa utilizatorului: '%-.48s'@'%-.64s' pentru tabela '%-.192s'"
-        rus "Команда %-.16s запрещена пользователю '%-.48s'@'%-.64s' для таблицы '%-.192s'"
-        serbian "%-.16s komanda zabranjena za korisnika '%-.48s'@'%-.64s' za tabelu '%-.192s'"
-        spa "%-.16s comando negado para usuario: '%-.48s'@'%-.64s' para tabla '%-.192s'"
-        swe "%-.16s ej tillåtet för '%-.48s'@'%-.64s' för tabell '%-.192s'"
-        ukr "%-.16s команда заборонена користувачу: '%-.48s'@'%-.64s' у таблиці '%-.192s'"
+        cze "%-.128s p-Bříkaz nepřístupný pro uživatele: '%-.48s'@'%-.64s' pro tabulku '%-.64s'"
+        dan "%-.128s-kommandoen er ikke tilladt for brugeren '%-.48s'@'%-.64s' for tabellen '%-.64s'"
+        nla "%-.128s commando geweigerd voor gebruiker: '%-.48s'@'%-.64s' voor tabel '%-.64s'"
+        eng "%-.128s command denied to user '%-.48s'@'%-.64s' for table '%-.64s'"
+        jps "コマンド %-.128s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.64s' に対して許可されていません",
+        est "%-.128s käsk ei ole lubatud kasutajale '%-.48s'@'%-.64s' tabelis '%-.64s'"
+        fre "La commande '%-.128s' est interdite à l'utilisateur: '%-.48s'@'@%-.64s' sur la table '%-.64s'"
+        ger "%-.128s Befehl nicht erlaubt für Benutzer '%-.48s'@'%-.64s' auf Tabelle '%-.64s'"
+        hun "%-.128s parancs a '%-.48s'@'%-.64s' felhasznalo szamara nem engedelyezett a '%-.64s' tablaban"
+        ita "Comando %-.128s negato per l'utente: '%-.48s'@'%-.64s' sulla tabella '%-.64s'"
+        jpn "コマンド %-.128s は ユーザー '%-.48s'@'%-.64s' ,テーブル '%-.64s' に対して許可されていません"
+        kor "'%-.128s' 명령은 다음 사용자에게 거부되었습니다. : '%-.48s'@'%-.64s' for 테이블 '%-.64s'"
+        por "Comando '%-.128s' negado para o usuário '%-.48s'@'%-.64s' na tabela '%-.64s'"
+        rum "Comanda %-.128s interzisa utilizatorului: '%-.48s'@'%-.64s' pentru tabela '%-.64s'"
+        rus "Команда %-.128s запрещена пользователю '%-.48s'@'%-.64s' для таблицы '%-.64s'"
+        serbian "%-.128s komanda zabranjena za korisnika '%-.48s'@'%-.64s' za tabelu '%-.64s'"
+        spa "%-.128s comando negado para usuario: '%-.48s'@'%-.64s' para tabla '%-.64s'"
+        swe "%-.128s ej tillåtet för '%-.48s'@'%-.64s' för tabell '%-.64s'"
+        ukr "%-.128s команда заборонена користувачу: '%-.48s'@'%-.64s' у таблиці '%-.64s'"
 ER_COLUMNACCESS_DENIED_ERROR 42000 
         cze "%-.16s p-Bříkaz nepřístupný pro uživatele: '%-.48s'@'%-.64s' pro sloupec '%-.192s' v tabulce '%-.192s'"
         dan "%-.16s-kommandoen er ikke tilladt for brugeren '%-.48s'@'%-.64s' for kolonne '%-.192s' in tabellen '%-.192s'"
@@ -5905,12 +5905,17 @@ ER_EVENT_OPEN_TABLE_FAILED
 ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
         ger "Kein DATETIME-Ausdruck angegeben"
-ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+
+# OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+ER_OBSOLETE_COL_COUNT_DOESNT_MATCH_CORRUPTED
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. The table is probably corrupted"
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
-ER_CANNOT_LOAD_FROM_TABLE
+
+# OBSOLETE, USE ER_CANNOT_LOAD_FROM_TABLE_V2
+ER_OBSOLETE_CANNOT_LOAD_FROM_TABLE
         eng "Cannot load from mysql.%s. The table is probably corrupted"
         ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
         ger "Löschen des Events aus mysql.event fehlgeschlagen"
@@ -6335,4 +6340,19 @@ ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
   eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
 
 ER_BINLOG_UNSAFE_MIXED_STATEMENT
-  eng "Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe."
+  eng "Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them."
+
+ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+  ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+
+ER_CANNOT_LOAD_FROM_TABLE_V2
+  eng "Cannot load from %s.%s. The table is probably corrupted"
+  ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot modify @@session.sql_log_bin inside a transaction"
+
+ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot change the sql_log_bin inside a stored function or trigger"
+

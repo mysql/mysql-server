@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0mysql.h"
 #include "lock0lock.h"
 #include "pars0pars.h"
+#include "srv0mon.h"
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
@@ -117,6 +118,9 @@ trx_general_rollback_for_mysql_low(
 	}
 
 	mem_heap_free(heap);
+
+	MONITOR_INC(MONITOR_TRX_ABORT);
+	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
 /*******************************************************************//**

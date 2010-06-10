@@ -45,6 +45,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 stop slave;
 change master to master_user='test';
 SHOW SLAVE STATUS;
@@ -88,6 +89,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -130,6 +132,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 change master to master_user='root';
 start slave;
 SHOW SLAVE STATUS;
@@ -173,6 +176,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 stop slave;
 reset slave;
 start slave;

@@ -1,3 +1,5 @@
+--source include/not_var_link.inc
+
 #
 # only global
 #

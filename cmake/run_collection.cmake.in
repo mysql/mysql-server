@@ -1,0 +1,54 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+SET(SCRIPT "@SCRIPT@")
+SET(WITH_EMBEDDED_SERVER "@WITH_EMBEDDED_SERVER@")
+SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
+
+FILE(STRINGS "${SCRIPT}"  commands)
+FOREACH(command ${commands})
+  SET(SKIP_COMMAND 0)
+
+  IF(NOT WITH_EMBEDDED_SERVER)
+    IF(command MATCHES "--embedded")
+      MESSAGE(STATUS 
+       "Skipping command ${command}, because embedded server was not built")
+      SET(SKIP_COMMAND 1)
+    ENDIF()
+  ENDIF()
+ 
+  IF(command MATCHES "--suite=nist")
+    IF(NOT EXISTS ${CMAKE_SOURCE_DIR}/mysql-test/suite/nist)
+      MESSAGE(STATUS 
+        "Skipping command ${command}, because NIST test suite does not exist")
+      SET(SKIP_COMMAND 1)
+    ENDIF()
+  ENDIF()
+ 
+  IF(NOT SKIP_COMMAND)
+    # Convert string to list (EXECUTE_PROCESS needs lists)
+    STRING(REGEX REPLACE "[ ]+" ";" command "${command}" )
+    EXECUTE_PROCESS(COMMAND ${command} RESULT_VARIABLE result)
+    IF(NOT result EQUAL 0)
+      # Give a non-fatal warning if process failed
+      LIST(LENGTH command length)
+      IF(length)
+        LIST(GET command 0 exe)
+        MESSAGE(STATUS "EXECUTE_PROCESS ${exe} failed with ${result}")
+      ENDIF()
+    ENDIF()
+  ENDIF()
+ENDFOREACH()
+

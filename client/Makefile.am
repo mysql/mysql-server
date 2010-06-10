@@ -57,14 +57,12 @@ mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ \
 				$(LDADD) $(CXXLDFLAGS)
 mysqladmin_SOURCES =		mysqladmin.cc
 
-mysqlbinlog_SOURCES =		mysqlbinlog.cc \
-				$(top_srcdir)/mysys/mf_tempdir.c \
-				$(top_srcdir)/mysys/my_new.cc \
-				$(top_srcdir)/mysys/my_bit.c \
-				$(top_srcdir)/mysys/my_bitmap.c \
-				$(top_srcdir)/mysys/my_vle.c \
-				$(top_srcdir)/mysys/base64.c
-mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
+mysqlbinlog_SOURCES =		mysqlbinlog.cc 
+mysqlbinlog_CXXFLAGS=           -DTHREAD -UMYSQL_CLIENT_NO_THREADS
+mysqlbinlog_LDADD =             $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+                                @CLIENT_EXTRA_LDFLAGS@ \
+                                $(LIBMYSQLCLIENT_LA) \
+				$(top_builddir)/mysys/libmysys.a   
 
 mysqldump_SOURCES=              mysqldump.c \
 				my_user.c \

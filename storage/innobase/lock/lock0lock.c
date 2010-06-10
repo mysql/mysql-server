@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "dict0mem.h"
 #include "trx0sys.h"
+#include "srv0mon.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -1720,6 +1721,9 @@ lock_rec_create(
 		UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
 	}
 
+	MONITOR_INC(MONITOR_RECLOCK_CREATED);
+	MONITOR_INC(MONITOR_NUM_RECLOCK);
+
 	return(lock);
 }
 
@@ -1727,11 +1731,11 @@ lock_rec_create(
 Enqueues a waiting request for a lock which cannot be granted immediately.
 Checks for deadlocks.
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
-DB_SUCCESS; DB_SUCCESS means that there was a deadlock, but another
-transaction was chosen as a victim, and we got the lock immediately:
-no need to wait then */
+DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
+there was a deadlock, but another transaction was chosen as a victim,
+and we got the lock immediately: no need to wait then */
 static
-ulint
+enum db_err
 lock_rec_enqueue_waiting(
 /*=====================*/
 	ulint			type_mode,/*!< in: lock mode this
@@ -1803,7 +1807,7 @@ lock_rec_enqueue_waiting(
 
 	if (trx->lock.wait_lock == NULL) {
 
-		return(DB_SUCCESS);
+		return(DB_SUCCESS_LOCKED_REC);
 	}
 
 	trx->lock.que_state = TRX_QUE_LOCK_WAIT;
@@ -1820,6 +1824,8 @@ lock_rec_enqueue_waiting(
 		ut_print_name(stderr, trx, FALSE, index->name);
 	}
 #endif /* UNIV_DEBUG */
+
+	MONITOR_INC(MONITOR_LOCKREC_WAIT);
 
 	return(DB_LOCK_WAIT);
 }
@@ -1920,6 +1926,16 @@ somebody_waits:
 	return(lock_rec_create(type_mode, block, heap_no, index, trx, TRUE));
 }
 
+/** Record locking request status */
+enum lock_rec_req_status {
+	/** Failed to acquire a lock */
+	LOCK_REC_FAIL,
+	/** Succeeded in acquiring a lock (implicit or already acquired) */
+	LOCK_REC_SUCCESS,
+	/** Explicitly created a new lock */
+	LOCK_REC_SUCCESS_CREATED
+};
+
 /*********************************************************************//**
 This is a fast routine for locking a record in the most common cases:
 there are no explicit locks on the page, or there is just one lock, owned
@@ -1927,9 +1943,9 @@ by this transaction, and of the right type_mode. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
 explicit locks. This function sets a normal next-key lock, or in the case of
 a page supremum record, a gap type lock.
-@return	TRUE if locking succeeded */
+@return whether the locking succeeded */
 UNIV_INLINE
-ibool
+enum lock_rec_req_status
 lock_rec_lock_fast(
 /*===============*/
 	ibool			impl,	/*!< in: if TRUE, no lock is set
@@ -1947,7 +1963,7 @@ lock_rec_lock_fast(
 {
 	lock_t*			lock;
 	trx_t*			trx;
-	ibool			success;
+	enum lock_rec_req_status status = LOCK_REC_SUCCESS;
 
 	ut_ad(lock_mutex_own());
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
@@ -1974,20 +1990,18 @@ lock_rec_lock_fast(
 			UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
 
 			trx_mutex_exit(trx);
-		}
 
-		success = TRUE;
+			status = LOCK_REC_SUCCESS_CREATED;
+		}
 	} else {
 		trx_mutex_enter(trx);
 
-		if (lock_rec_get_next_on_page(lock)) {
+		if (lock_rec_get_next_on_page(lock)
+		     || lock->trx != trx
+		     || lock->type_mode != (mode | LOCK_REC)
+		     || lock_rec_get_n_bits(lock) <= heap_no) {
 
-			success = FALSE;
-		} else if (lock->trx != trx
-		           || lock->type_mode != (mode | LOCK_REC)
-			   || lock_rec_get_n_bits(lock) <= heap_no) {
-
-			success = FALSE;
+			status = LOCK_REC_FAIL;
 		} else if (!impl) {
 			/* If the nth bit of the record lock is already
 		       	set then we do not set a new lock bit, otherwise
@@ -1997,13 +2011,13 @@ lock_rec_lock_fast(
 				lock_rec_set_nth_bit(lock, heap_no);
 			}
 
-			success = TRUE;
+			status = LOCK_REC_SUCCESS_CREATED;
 		}
 
 		trx_mutex_exit(trx);
 	}
 
-	return(success);
+	return(status);
 }
 
 /*********************************************************************//**
@@ -2011,9 +2025,10 @@ This is the general, and slower, routine for locking a record. This is a
 low-level function which does NOT look at implicit locks! Checks lock
 compatibility within explicit locks. This function sets a normal next-key
 lock, or in the case of a page supremum record, a gap type lock.
-@return	DB_SUCCESS, DB_LOCK_WAIT, or error code */
+@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+or DB_QUE_THR_SUSPENDED */
 static
-ulint
+enum db_err
 lock_rec_lock_slow(
 /*===============*/
 	ibool			impl,	/*!< in: if TRUE, no lock is set
@@ -2029,8 +2044,8 @@ lock_rec_lock_slow(
 	dict_index_t*		index,	/*!< in: index of record */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	trx_t*	trx;
-	ulint	err;
+	trx_t*			trx;
+	enum db_err		err = DB_SUCCESS;
 
 	ut_ad(lock_mutex_own());
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
@@ -2051,7 +2066,6 @@ lock_rec_lock_slow(
 		/* The trx already has a strong enough lock on rec: do
 		nothing */
 
-		err = DB_SUCCESS;
 	} else if (lock_rec_other_has_conflicting(mode, block, heap_no, trx)) {
 
 		/* If another transaction has a non-gap conflicting request in
@@ -2059,16 +2073,13 @@ lock_rec_lock_slow(
 		enough already granted on the record, we have to wait. */
 
 		err = lock_rec_enqueue_waiting(mode, block, heap_no,
-					       index, thr);
-	} else {
-		if (!impl) {
-			/* Set the requested lock on the record */
+						index, thr);
+	} else if (!impl) {
+		/* Set the requested lock on the record */
 
-			lock_rec_add_to_queue(LOCK_REC | mode, block,
-					      heap_no, index, trx);
-		}
-
-		err = DB_SUCCESS;
+		lock_rec_add_to_queue(LOCK_REC | mode, block,
+				      heap_no, index, trx);
+		err = DB_SUCCESS_LOCKED_REC;
 	}
 
 	trx_mutex_exit(trx);
@@ -2082,9 +2093,10 @@ possible, enqueues a waiting lock request. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
 explicit locks. This function sets a normal next-key lock, or in the case
 of a page supremum record, a gap type lock.
-@return	DB_SUCCESS, DB_LOCK_WAIT, or error code */
+@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+or DB_QUE_THR_SUSPENDED */
 static
-ulint
+enum db_err
 lock_rec_lock(
 /*==========*/
 	ibool			impl,	/*!< in: if TRUE, no lock is set
@@ -2100,8 +2112,6 @@ lock_rec_lock(
 	dict_index_t*		index,	/*!< in: index of record */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	ulint	err;
-
 	ut_ad(lock_mutex_own());
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
@@ -2113,18 +2123,20 @@ lock_rec_lock(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0);
 
-	if (lock_rec_lock_fast(impl, mode, block, heap_no, index, thr)) {
-
-		/* We try a simplified and faster subroutine for the most
-		common cases */
-
-		err = DB_SUCCESS;
-	} else {
-		err = lock_rec_lock_slow(impl, mode, block,
-					 heap_no, index, thr);
+	/* We try a simplified and faster subroutine for the most
+	common cases */
+	switch (lock_rec_lock_fast(impl, mode, block, heap_no, index, thr)) {
+	case LOCK_REC_SUCCESS:
+		return(DB_SUCCESS);
+	case LOCK_REC_SUCCESS_CREATED:
+		return(DB_SUCCESS_LOCKED_REC);
+	case LOCK_REC_FAIL:
+		return(lock_rec_lock_slow(impl, mode, block,
+					  heap_no, index, thr));
 	}
 
-	return(err);
+	ut_error;
+	return(DB_ERROR);
 }
 
 /*********************************************************************//**
@@ -2285,6 +2297,9 @@ lock_rec_dequeue_from_page(
 
 	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, in_lock);
 
+	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
+	MONITOR_DEC(MONITOR_NUM_RECLOCK);
+
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
 
@@ -2327,6 +2342,9 @@ lock_rec_discard(
 		    lock_rec_fold(space, page_no), in_lock);
 
 	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, in_lock);
+
+	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
+	MONITOR_DEC(MONITOR_NUM_RECLOCK);
 }
 
 /*************************************************************//**
@@ -3375,105 +3393,6 @@ retry:
 }
 
 /********************************************************************//**
-Choose the victim for rollback and print diagnostics to the lock err file.
-@return LOCK_VICTIM_IS_START or LOCK_VICTIM_IS_OTHER */
-static
-ulint
-lock_choose_trx_for_rollback(
-/*=========================*/
-	trx_t*		start,		/*!< Transaction starting point */
-	lock_t*		wait_lock,	/*!< in: lock that is waiting to
-				       	be granted */
-	lock_t*		lock)
-{
-	/* We came back to the recursion starting
-	point: a deadlock detected; or we have
-	searched the waits-for graph too long */
-
-	FILE*	ef = lock_latest_err_file;
-
-	rewind(ef);
-	ut_print_timestamp(ef);
-
-	trx_mutex_enter(wait_lock->trx);
-
-	fputs("\n*** (1) TRANSACTION:\n", ef);
-
-	trx_print(ef, wait_lock->trx, 3000);
-
-	fputs("*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
-
-	if (lock_get_type_low(wait_lock) == LOCK_REC) {
-		lock_rec_print(ef, wait_lock);
-	} else {
-		lock_table_print(ef, wait_lock);
-	}
-
-	fputs("*** (2) TRANSACTION:\n", ef);
-
-	trx_print(ef, lock->trx, 3000);
-
-	fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
-
-	if (lock_get_type_low(lock) == LOCK_REC) {
-		lock_rec_print(ef, lock);
-	} else {
-		lock_table_print(ef, lock);
-	}
-
-	fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
-
-	if (lock_get_type_low(start->lock.wait_lock) == LOCK_REC) {
-		lock_rec_print(ef, start->lock.wait_lock);
-	} else {
-		lock_table_print(ef, start->lock.wait_lock);
-	}
-#ifdef UNIV_DEBUG
-	if (lock_print_waits) {
-		fputs("Deadlock detected\n", stderr);
-	}
-#endif /* UNIV_DEBUG */
-
-	if (trx_weight_cmp(wait_lock->trx, start) >= 0) {
-		/* Our recursion starting point transaction is 'smaller',
-	       	let us choose 'start' as the victim and roll back it */
-
-		trx_mutex_exit(wait_lock->trx);
-
-		return(LOCK_VICTIM_IS_START);
-	}
-
-	lock_deadlock_found = TRUE;
-
-	/* Let us choose the transaction of wait_lock
-	as a victim to try to avoid deadlocking our
-	recursion starting point transaction */
-
-	fputs("*** WE ROLL BACK TRANSACTION (1)\n", ef);
-
-	wait_lock->trx->lock.was_chosen_as_deadlock_victim = TRUE;
-
-	/* This transaction will get its locks granted and so we release the
-	mutex so to avoid acquiring it during the grant phase. */
-	trx_mutex_exit(start);
-
-	lock_cancel_waiting_and_release(wait_lock);
-
-	trx_mutex_exit(wait_lock->trx);
-
-	trx_mutex_enter(start);
-
-	/* Since trx and wait_lock are no longer
-	in the waits-for graph, we can return FALSE;
-	note that our selective algorithm can choose
-	several transactions as victims, but still
-	we may end up rolling back also the recursion
-	starting point transaction! */
-
-	return(LOCK_VICTIM_IS_OTHER);
-}
-
-/********************************************************************//**
 Looks recursively for a deadlock.
 @return LOCK_VICTIM_NONE if no deadlock found, LOCK_VICTIM_IS_START
 if there was a deadlock and we chose 'start' as the victim,
@@ -3558,9 +3477,111 @@ lock_deadlock_recursive(
 			lock_trx = lock->trx;
 
 			if (lock_trx == start) {
-				return(lock_choose_trx_for_rollback(
-					start, wait_lock, lock));
-			} else if (too_far) {
+
+				/* We came back to the recursion starting
+				point: a deadlock detected; or we have
+				searched the waits-for graph too long */
+
+				FILE*	ef = lock_latest_err_file;
+
+				rewind(ef);
+				ut_print_timestamp(ef);
+
+				fputs("\n*** (1) TRANSACTION:\n", ef);
+
+				if (wait_lock->trx != start) {
+					trx_mutex_enter(wait_lock->trx);
+				}
+
+				trx_print(ef, wait_lock->trx, 3000);
+
+				if (wait_lock->trx != start) {
+					trx_mutex_exit(wait_lock->trx);
+				}
+
+				fputs("*** (1) WAITING FOR THIS LOCK"
+				      " TO BE GRANTED:\n", ef);
+
+				if (lock_get_type_low(wait_lock) == LOCK_REC) {
+					lock_rec_print(ef, wait_lock);
+				} else {
+					lock_table_print(ef, wait_lock);
+				}
+
+				fputs("*** (2) TRANSACTION:\n", ef);
+
+				if (lock->trx != trx) {
+					trx_mutex_enter(lock->trx);
+				}
+
+				trx_print(ef, lock->trx, 3000);
+
+				if (lock->trx != trx) {
+					trx_mutex_exit(lock->trx);
+				}
+
+				fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
+
+				if (lock_get_type_low(lock) == LOCK_REC) {
+					lock_rec_print(ef, lock);
+				} else {
+					lock_table_print(ef, lock);
+				}
+
+				fputs("*** (2) WAITING FOR THIS LOCK"
+				      " TO BE GRANTED:\n", ef);
+
+				if (lock_get_type_low(start->lock.wait_lock)
+				    == LOCK_REC) {
+					lock_rec_print(ef,
+						       start->lock.wait_lock);
+				} else {
+					lock_table_print(ef,
+							 start->lock.wait_lock);
+				}
+#ifdef UNIV_DEBUG
+				if (lock_print_waits) {
+					fputs("Deadlock detected\n",
+					      stderr);
+				}
+#endif /* UNIV_DEBUG */
+				MONITOR_INC(MONITOR_DEADLOCK);
+
+				if (trx_weight_cmp(wait_lock->trx,
+						   start) >= 0) {
+					/* Our recursion starting point
+					transaction is 'smaller', let us
+					choose 'start' as the victim and roll
+					back it */
+
+					return(LOCK_VICTIM_IS_START);
+				}
+
+				lock_deadlock_found = TRUE;
+
+				/* Let us choose the transaction of wait_lock
+				as a victim to try to avoid deadlocking our
+				recursion starting point transaction */
+
+				fputs("*** WE ROLL BACK TRANSACTION (1)\n",
+				      ef);
+
+				wait_lock->trx->lock.was_chosen_as_deadlock_victim
+					= TRUE;
+
+				lock_cancel_waiting_and_release(wait_lock);
+
+				/* Since trx and wait_lock are no longer
+				in the waits-for graph, we can return FALSE;
+				note that our selective algorithm can choose
+				several transactions as victims, but still
+				we may end up rolling back also the recursion
+				starting point transaction! */
+
+				return(LOCK_VICTIM_IS_OTHER);
+			}
+
+			if (too_far) {
 
 #ifdef UNIV_DEBUG
 				if (lock_print_waits) {
@@ -3581,10 +3602,14 @@ lock_deadlock_recursive(
 				incompatible mode, and is itself waiting for
 				a lock */
 
+				trx_mutex_enter(lock_trx);
+
 				ret = lock_deadlock_recursive(
 					start, lock_trx,
 					lock_trx->lock.wait_lock,
 				       	cost, depth + 1);
+
+				trx_mutex_exit(lock_trx);
 
 				if (ret != 0) {
 
@@ -3654,6 +3679,9 @@ lock_table_create(
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
 
+	MONITOR_INC(MONITOR_TABLELOCK_CREATED);
+	MONITOR_INC(MONITOR_NUM_TABLELOCK);
+
 	return(lock);
 }
 
@@ -3708,6 +3736,9 @@ lock_table_remove_low(
 
 	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, lock);
 	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
+
+	MONITOR_INC(MONITOR_TABLELOCK_REMOVED);
+	MONITOR_DEC(MONITOR_NUM_TABLELOCK);
 }
 
 /*********************************************************************//**
@@ -3983,8 +4014,8 @@ lock_rec_unlock(
 	const rec_t*		rec,	/*!< in: record */
 	enum lock_mode		lock_mode)/*!< in: LOCK_S or LOCK_X */
 {
+	lock_t*	first_lock;
 	lock_t*	lock;
-	lock_t*	release_lock	= NULL;
 	ulint	heap_no;
 
 	ut_ad(trx && rec);
@@ -3996,51 +4027,43 @@ lock_rec_unlock(
 
 	trx_mutex_enter(trx);
 
-	lock = lock_rec_get_first(block, heap_no);
+	first_lock = lock_rec_get_first(block, heap_no);
 
 	/* Find the last lock with the same lock_mode and transaction
 	from the record. */
 
-	while (lock != NULL) {
+	for (lock = first_lock; lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 		if (lock->trx == trx && lock_get_mode(lock) == lock_mode) {
-			release_lock = lock;
 			ut_a(!lock_get_wait(lock));
+			lock_rec_reset_nth_bit(lock, heap_no);
+			goto released;
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 
-	/* If a record lock is found, release the record lock */
+	trx_mutex_exit(trx);
 
-	if (UNIV_LIKELY(release_lock != NULL)) {
-		lock_rec_reset_nth_bit(release_lock, heap_no);
-	} else {
-		trx_mutex_exit(trx);
+	lock_mutex_exit();
 
-		lock_mutex_exit();
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Error: unlock row could not"
+		" find a %lu mode lock on the record\n",
+		(ulong) lock_mode);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: unlock row could not"
-			" find a %lu mode lock on the record\n",
-			(ulong) lock_mode);
+	return;
 
-		return;
-	}
-
+released:
 	/* Check if we can now grant waiting lock requests */
 
-	lock = lock_rec_get_first(block, heap_no);
-
-	while (lock != NULL) {
+	for (lock = first_lock; lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 		if (lock_get_wait(lock)
 		    && !lock_rec_has_to_wait_in_queue(lock)) {
 
 			/* Grant the lock */
 			lock_grant(lock);
 		}
-
-		lock = lock_rec_get_next(heap_no, lock);
 	}
 
 	trx_mutex_exit(trx);
@@ -4462,7 +4485,9 @@ lock_print_info_all_transactions(
 	while (trx) {
 		if (trx->lock.conc_state == TRX_NOT_STARTED) {
 			fputs("---", file);
+			trx_mutex_enter(trx);
 			trx_print(file, trx, 600);
+			trx_mutex_exit(trx);
 		}
 
 		trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
@@ -5115,7 +5140,14 @@ lock_rec_insert_check_and_lock(
 
 	lock_mutex_exit();
 
-	if ((err == DB_SUCCESS) && !dict_index_is_clust(index)) {
+	switch (err) {
+	case DB_SUCCESS_LOCKED_REC:
+		err = DB_SUCCESS;
+		/* fall through */
+	case DB_SUCCESS:
+		if (dict_index_is_clust(index)) {
+			break;
+		}
 		/* Update the page max trx id field */
 		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
@@ -5238,6 +5270,12 @@ lock_clust_rec_modify_check_and_lock(
 
 	ut_ad(lock_rec_queue_validate(block, rec, index, offsets));
 
+	if (UNIV_UNLIKELY(err == DB_SUCCESS_LOCKED_REC)) {
+		err = DB_SUCCESS;
+	}
+
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
+
 	return(err);
 }
 
@@ -5304,22 +5342,27 @@ lock_sec_rec_modify_check_and_lock(
 	}
 #endif /* UNIV_DEBUG */
 
-	if (err == DB_SUCCESS) {
+	if (err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC) {
 		/* Update the page max trx id field */
+		/* It might not be necessary to do this if
+		err == DB_SUCCESS (no new lock created),
+		but it should not cost too much performance. */
 		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
 				       thr_get_trx(thr)->id, mtr);
+		err = DB_SUCCESS;
 	}
 
 	return(err);
 }
 
 /*********************************************************************//**
-Like the counterpart for a clustered index below, but now we read a
+Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+enum db_err
 lock_sec_rec_read_check_and_lock(
 /*=============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -5340,8 +5383,8 @@ lock_sec_rec_read_check_and_lock(
 					LOCK_REC_NOT_GAP */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	ulint	err;
-	ulint	heap_no;
+	enum db_err	err;
+	ulint		heap_no;
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5392,9 +5435,10 @@ if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+enum db_err
 lock_clust_rec_read_check_and_lock(
 /*===============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -5415,8 +5459,8 @@ lock_clust_rec_read_check_and_lock(
 					LOCK_REC_NOT_GAP */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	ulint	err;
-	ulint	heap_no;
+	enum db_err	err;
+	ulint		heap_no;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -5487,17 +5531,22 @@ lock_clust_rec_read_check_and_lock_alt(
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	ulint		ret;
+	ulint		err;
 	rec_offs_init(offsets_);
 
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, &tmp_heap);
-	ret = lock_clust_rec_read_check_and_lock(flags, block, rec, index,
+	err = lock_clust_rec_read_check_and_lock(flags, block, rec, index,
 						 offsets, mode, gap_mode, thr);
 	if (tmp_heap) {
 		mem_heap_free(tmp_heap);
 	}
-	return(ret);
+
+	if (UNIV_UNLIKELY(err == DB_SUCCESS_LOCKED_REC)) {
+		err = DB_SUCCESS;
+	}
+
+	return(err);
 }
 
 /*******************************************************************//**

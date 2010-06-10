@@ -81,6 +81,14 @@ ut_conv_dulint_to_longlong(
 /*=======================*/
 	dulint	d);	/*!< in: dulint */
 /*******************************************************//**
+Converts a ib_int64_t to a dulint (a struct of 2 ulints).
+@return	value in dulint type */
+UNIV_INLINE
+dulint
+ut_conv_longlong_to_dulint(
+/*=======================*/
+	ib_int64_t	v);	/*!< in: ib_int64_t*/
+/*******************************************************//**
 Tests if a dulint is zero.
 @return	TRUE if zero */
 UNIV_INLINE

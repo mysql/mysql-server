@@ -1802,7 +1802,8 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              FN_REFLEN));
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
-
+  field_list.push_back(new Item_empty_string("Master_Info_File",
+                                             sizeof(mi->info_file_name)));
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
@@ -1950,6 +1951,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     }
     // Master_Server_id
     protocol->store((uint32) mi->master_id);
+    protocol->store(mi->info_file_name, &my_charset_bin);
 
     mysql_mutex_unlock(&mi->rli.err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -3124,6 +3126,11 @@ pthread_handler_t handle_slave_sql(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
   char llbuff[22],llbuff1[22];
+  char saved_log_name[FN_REFLEN];
+  char saved_master_log_name[FN_REFLEN];
+  my_off_t saved_log_pos;
+  my_off_t saved_master_log_pos;
+  my_off_t saved_skip= 0;
 
   Relay_log_info* rli = &((Master_info*)arg)->rli;
   const char *errmsg;
@@ -3269,6 +3276,17 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
     do not want to wait for next event in this case.
   */
   mysql_mutex_lock(&rli->data_lock);
+  if (rli->slave_skip_counter)
+  {
+    char *pos;
+    pos= strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
+    pos= '\0';
+    pos= strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
+    pos= '\0';
+    saved_log_pos= rli->group_relay_log_pos;
+    saved_master_log_pos= rli->group_master_log_pos;
+    saved_skip= rli->slave_skip_counter;
+  }
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
       rli->is_until_satisfied(thd, NULL))
   {
@@ -3287,6 +3305,21 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
     thd_proc_info(thd, "Reading event from the relay log");
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
+
+    if (saved_skip && rli->slave_skip_counter == 0)
+    {
+      sql_print_information("'SQL_SLAVE_SKIP_COUNTER=%ld' executed at "
+        "relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', "
+        "master_log_pos='%ld' and new position at "
+        "relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', "
+        "master_log_pos='%ld' ",
+        (ulong) saved_skip, saved_log_name, (ulong) saved_log_pos,
+        saved_master_log_name, (ulong) saved_master_log_pos,
+        rli->group_relay_log_name, (ulong) rli->group_relay_log_pos,
+        rli->group_master_log_name, (ulong) rli->group_master_log_pos);
+      saved_skip= 0;
+    }
+    
     if (exec_relay_log_event(thd,rli))
     {
       DBUG_PRINT("info", ("exec_relay_log_event() failed"));

@@ -637,6 +637,8 @@ ut_strerr(
 	switch (num) {
 	case DB_SUCCESS:
 		return("Success");
+	case DB_SUCCESS_LOCKED_REC:
+		return("Success, record lock created");
 	case DB_ERROR:
 		return("Generic error");
 	case DB_INTERRUPTED:

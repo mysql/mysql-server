@@ -359,7 +359,7 @@ pfs_mutex_free_func(
 {
 	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
 		PSI_server->destroy_mutex(mutex->pfs_psi);
-		mutex->pfs_psi= NULL;
+		mutex->pfs_psi = NULL;
 	}
 
 	mutex_free_func(mutex);

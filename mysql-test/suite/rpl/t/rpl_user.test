@@ -25,8 +25,15 @@ create user 'foo'@'fakehost', 'bar'@'fakehost';
 --error ER_CANNOT_USER
 create user 'foo'@'fakehost', 'bar'@'fakehost';
 
+# In log event, Plaintext password 'foo1' is replaced by ciphertext.
+create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
+  IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
+  'foo3'@'fakehost';
 sync_slave_with_master;
 select Host,User from mysql.user where Host='fakehost';
+let $diff_table_1= master:mysql.user;
+let $diff_table_2= slave:mysql.user;
+source include/diff_tables.inc;
 
 #
 # Test rename user
@@ -46,6 +53,7 @@ select Host,User from mysql.user where Host='fakehost';
 #
 connection master;
 drop user 'foofoo'@'fakehost';
+drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost';
 --error ER_CANNOT_USER
 drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
 --error ER_CANNOT_USER

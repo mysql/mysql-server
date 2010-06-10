@@ -143,7 +143,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	       (uchar*) myisam_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
-      DBUG_DUMP("error_dump",(char*) share->state.header.file_version,
+      DBUG_DUMP("error_dump", share->state.header.file_version,
 		head_length);
       my_errno=HA_ERR_NOT_A_TABLE;
       goto err;
@@ -658,6 +658,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   myisam_open_list=list_add(myisam_open_list,&m_info->open_list);
 
   mysql_mutex_unlock(&THR_LOCK_myisam);
+
+  bzero(info.buff, share->base.max_key_block_length * 2);
+
   if (myisam_log_file >= 0)
   {
     intern_filename(name_buff,share->index_file_name);

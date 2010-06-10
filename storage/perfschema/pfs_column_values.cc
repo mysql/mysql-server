@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
   schema tables (implementation).
 */
 
-#include "sql_priv.h"
 #include "pfs_column_values.h"
 
 LEX_STRING PERFORMANCE_SCHEMA_str=

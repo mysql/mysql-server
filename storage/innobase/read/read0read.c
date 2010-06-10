@@ -152,13 +152,13 @@ read_view_validate(
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
-		trx_id_t	id;
-		trx_id_t	prev_id;
+		ib_int64_t	id;
+		ib_int64_t	prev_id;
 
 		id = read_view_get_nth_trx_id(view, i);
 		prev_id = read_view_get_nth_trx_id(view, i - 1);
 
-		ut_a(ut_dulint_cmp(id, prev_id) < 0);
+		ut_a(id < prev_id);
 	}
 
 	return(TRUE);
@@ -202,7 +202,7 @@ read_view_purge_open(
 	ulint		n;
 	read_view_t*	view;
 	read_view_t*	oldest_view;
-	trx_id_t	creator_trx_id;
+	ib_int64_t	creator_trx_id;
 	ulint		insert_done	= 0;
 
 	ut_ad(trx_sys_mutex_own());
@@ -217,9 +217,9 @@ read_view_purge_open(
 	ut_ad(read_view_validate(oldest_view));
 
 	n = oldest_view->n_trx_ids + 1;
-	creator_trx_id = oldest_view->creator_trx_id;
 
-	ut_a(!ut_dulint_is_zero(creator_trx_id));
+	creator_trx_id = ut_conv_dulint_to_longlong(oldest_view->creator_trx_id);
+	ut_a(creator_trx_id > 0);
 
 	view = read_view_create_low(n, heap);
 
@@ -227,11 +227,11 @@ read_view_purge_open(
 	array of ids, if needs_insert is TRUE: */
 
 	for (i = 0; i < oldest_view->n_trx_ids; ++i) {
-		trx_id_t	id;
+		ib_int64_t	id;
 
 		id = read_view_get_nth_trx_id(oldest_view, i - insert_done);
 
-		if (insert_done == 0 && ut_dulint_cmp(creator_trx_id, id) > 0) {
+		if (insert_done == 0 && creator_trx_id > id) {
 			id = creator_trx_id;
 			insert_done = 1;
 		}
@@ -242,7 +242,7 @@ read_view_purge_open(
 	if (insert_done == 0) {
 		read_view_set_nth_trx_id(view, i, creator_trx_id);
 	} else {
-		trx_id_t	id;
+		ib_int64_t	id;
 
 		id = read_view_get_nth_trx_id(oldest_view, i - 1);
 		read_view_set_nth_trx_id( view, i, id);
@@ -258,8 +258,8 @@ read_view_purge_open(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id(
-			view, n - 1);
+		view->up_limit_id = ut_conv_longlong_to_dulint(
+			read_view_get_nth_trx_id( view, n - 1));
 	} else {
 		view->up_limit_id = oldest_view->up_limit_id;
 	}
@@ -316,7 +316,8 @@ read_view_open_now(
 		    && (trx->lock.conc_state == TRX_ACTIVE
 			|| trx->lock.conc_state == TRX_PREPARED)) {
 
-			read_view_set_nth_trx_id(view, n, trx->id);
+			read_view_set_nth_trx_id(
+				view, n, ut_conv_dulint_to_longlong(trx->id));
 
 			n++;
 
@@ -341,7 +342,8 @@ read_view_open_now(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
+		view->up_limit_id = ut_conv_longlong_to_dulint(
+			read_view_get_nth_trx_id(view, n - 1));
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
@@ -428,7 +430,8 @@ read_view_print(
 	for (i = 0; i < n_ids; i++) {
 		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
 			TRX_ID_PREP_PRINTF(
-				read_view_get_nth_trx_id(view, i)));
+				ut_conv_longlong_to_dulint(
+					read_view_get_nth_trx_id(view, i))));
 	}
 }
 
@@ -492,7 +495,8 @@ read_cursor_view_create_for_mysql(
 		if (trx->lock.conc_state == TRX_ACTIVE
 		    || trx->lock.conc_state == TRX_PREPARED) {
 
-			read_view_set_nth_trx_id(view, n, trx->id);
+			read_view_set_nth_trx_id(
+				view, n, ut_conv_dulint_to_longlong(trx->id));
 
 			n++;
 
@@ -517,7 +521,8 @@ read_cursor_view_create_for_mysql(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
+		view->up_limit_id = ut_conv_longlong_to_dulint(
+			read_view_get_nth_trx_id(view, n - 1));
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}

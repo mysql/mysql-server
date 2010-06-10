@@ -23,6 +23,7 @@ The transaction lock system
 Created 25/5/2010 Sunny Bains
 *******************************************************/
 
+#include "srv0mon.h"
 #include "que0que.h"
 #include "lock0lock.h"
 #include "row0mysql.h"
@@ -251,6 +252,8 @@ lock_wait_suspend_thread(
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
 
+		MONITOR_INC(MONITOR_ROW_LOCK_CURRENT_WAIT);
+
 		if (ut_usectime(&sec, &ms) == -1) {
 			start_time = -1;
 		} else {
@@ -335,6 +338,8 @@ lock_wait_suspend_thread(
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
 
+		MONITOR_DEC(MONITOR_ROW_LOCK_CURRENT_WAIT);
+
 		if (diff_time > srv_n_lock_max_wait_time &&
 		    /* only update the variable if we successfully
 		    retrieved the start and finish times. See Bug#36819. */
@@ -382,6 +387,8 @@ lock_wait_release_thread_if_suspended(
 			trx->error_state = DB_DEADLOCK;
 			trx->lock.was_chosen_as_deadlock_victim = FALSE;
 		}
+
+		MONITOR_INC(MONITOR_TIMEOUT);
 
 		os_event_set(thr->slot->event);
 	}

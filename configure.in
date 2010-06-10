@@ -1,7 +1,7 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 2008-2009 Sun Microsystems, Inc
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,15 +19,15 @@ dnl Process this file with autoconf to produce a configure script.
 # Minimum Autoconf version required.
 AC_PREREQ(2.59)
 
-# Various people throughout the community may parse configure.in to
-# get the MySQL version from the source branch.  If the formatting
-# of this line is going to be changed, please announce the change to
-# internals@lists.mysql.com in advance of pushing the change.
-#
-# Remember to also update version.c in ndb.
-# When changing major version number please also check switch statement
-# in client/mysqlbinlog.cc:check_master_version().
-AC_INIT([MySQL Server], [5.5.5-m3], [], [mysql])
+dnl Various people throughout the community may parse configure.in to
+dnl get the MySQL version from the source branch.  If the formatting
+dnl of this line is going to be changed, please announce the change to
+dnl internals@lists.mysql.com in advance of pushing the change.
+dnl
+dnl When changing the major version number please also check the switch
+dnl statement in mysqlbinlog::check_master_version().  You may also need
+dnl to update version.c in ndb.
+AC_INIT([MySQL Server], [5.6.99-m4], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
@@ -1295,14 +1295,22 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *freebsd*|*dragonfly*)
-    AC_MSG_WARN([Adding fix for interrupted reads])
+    dnl These dependencies have not really been checked for some time
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
-    if test "$OSVERSION" -gt "480100" && \
+    if test "$OSVERSION" -gt "600000"
+    then
+       # Post user-level threads, MYSQLD_NET_RETRY_COUNT is not needed any more
+       AC_MSG_WARN([Adding fix for broken realpath])
+       CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
+       CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_REALPATH"
+    elif test "$OSVERSION" -gt "480100" && \
        test "$OSVERSION" -lt "500000" || \
        test "$OSVERSION" -gt "500109"
     then
+       AC_MSG_WARN([Adding fix for interrupted reads])
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
     else
+       AC_MSG_WARN([Adding fix for interrupted reads and broken realpath])
        CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
     fi

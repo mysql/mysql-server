@@ -91,6 +91,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 
 *** Test lock wait timeout ***
 include/stop_slave.inc
@@ -155,6 +156,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 
 *** Test lock wait timeout and purged relay logs ***
 SET @my_max_relay_log_size= @@global.max_relay_log_size;
@@ -224,6 +226,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 
 *** Clean up ***
 DROP TABLE t1,t2,t3;

@@ -732,3 +732,47 @@ DROP TABLE t1, t2, t3;
 --echo #
 --echo # End of 5.1 tests
 --echo #
+
+#
+# Bug#31293 - Incorrect parser errors for create/alter/drop logfile group/tablespace
+#
+
+--echo # Should use myisam
+
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+create logfile group ndb_lg1 add undofile 'ndb_undo1' initial_size=32M; 
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+create logfile group ndb_lg1 add undofile 'ndb_undo1' engine=myisam;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+create logfile group ndb_lg1 add undofile 'ndb_undo1';
+
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1;
+
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+alter logfile group ndb_lg1 add undofile 'ndb_undo1' wait;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+alter logfile group ndb_lg1 add undofile 'ndb_undo1' engine=myisam;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+alter logfile group ndb_lg1 add undofile 'ndb_undo1';
+
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat';
+
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+drop logfile group ndb_lg1 engine=myisam;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+drop logfile group ndb_lg1;
+
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+drop tablespace ndb_ts1 engine=myisam;
+-- error ER_ILLEGAL_HA_CREATE_OPTION
+drop tablespace ndb_ts1;

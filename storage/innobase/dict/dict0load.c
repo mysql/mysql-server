@@ -314,11 +314,11 @@ dict_process_sys_tables_rec(
 					first */
 {
 	ulint		len;
-	const byte*	field;
+	const char*	field;
 	const char*	err_msg = NULL;
 	char*		table_name;
 
-	field = rec_get_nth_field_old(rec, 0, &len);
+	field = (const char*) rec_get_nth_field_old(rec, 0, &len);
 
 	ut_a(!rec_get_deleted_flag(rec, 0));
 
@@ -1168,6 +1168,10 @@ static const char* dict_load_index_id_err = "SYS_INDEXES.TABLE_ID mismatch";
 
 /********************************************************************//**
 Loads an index definition from a SYS_INDEXES record to dict_index_t.
+If "cached" is set to "TRUE", we will create a dict_index_t structure
+and fill it accordingly. Otherwise, the dict_index_t will
+be supplied by the caller and filled with information read from
+the record.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
@@ -1192,7 +1196,11 @@ dict_load_index_low(
 	ulint		type;
 	ulint		space;
 
-	*index = NULL;
+	if (cached) {
+		/* If "cached" is set to TRUE, no dict_index_t will
+		be supplied. Initialize "*index" to NULL */
+		*index = NULL;
+	}
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 		return(dict_load_index_del);
@@ -1333,7 +1341,7 @@ dict_load_indexes(
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (;;) {
-		dict_index_t*	index;
+		dict_index_t*	index = NULL;
 		const char*	err_msg;
 
 		if (!btr_pcur_is_on_user_rec(&pcur)) {
