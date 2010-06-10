@@ -3960,6 +3960,7 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
       const NodeId nodeid = refToNode(signal->header.theSendersBlockRef);
       const EventReport * const event =
         (const EventReport*)signal->getDataPtr();
+      (void)event; // kill warning
 
       if (!nodes.get(nodeid))
       {
