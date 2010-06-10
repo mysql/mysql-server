@@ -152,7 +152,7 @@ read_view_create_low(
 	view = mem_heap_alloc(heap, sizeof(read_view_t));
 
 	view->n_trx_ids = n;
-	view->trx_ids = mem_heap_alloc(heap, n * sizeof *view->trx_ids);
+	view->trx_ids = mem_heap_alloc(heap, n * sizeof(*view->trx_ids));
 
 	return(view);
 }
@@ -179,6 +179,7 @@ read_view_oldest_copy_or_open_new(
 	ulint		insert_done	= 0;
 	ulint		n;
 	ulint		i;
+	ib_int64_t	trx_id;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -189,9 +190,11 @@ read_view_oldest_copy_or_open_new(
 		return(read_view_open_now(cr_trx_id, heap));
 	}
 
+	trx_id = ut_conv_dulint_to_longlong(old_view->creator_trx_id);
+
 	n = old_view->n_trx_ids;
 
-	if (!ut_dulint_is_zero(old_view->creator_trx_id)) {
+	if (trx_id != 0) {
 		n++;
 	} else {
 		needs_insert = FALSE;
@@ -206,12 +209,9 @@ read_view_oldest_copy_or_open_new(
 	while (i < n) {
 		if (needs_insert
 		    && (i >= old_view->n_trx_ids
-			|| ut_dulint_cmp(old_view->creator_trx_id,
-					 read_view_get_nth_trx_id(old_view, i))
-			> 0)) {
+			|| trx_id > read_view_get_nth_trx_id(old_view, i))) {
 
-			read_view_set_nth_trx_id(view_copy, i,
-						 old_view->creator_trx_id);
+			read_view_set_nth_trx_id(view_copy, i, trx_id);
 			needs_insert = FALSE;
 			insert_done = 1;
 		} else {
@@ -232,8 +232,8 @@ read_view_oldest_copy_or_open_new(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view_copy->up_limit_id = read_view_get_nth_trx_id(
-			view_copy, n - 1);
+		view_copy->up_limit_id = ut_conv_longlong_to_dulint(
+			read_view_get_nth_trx_id(view_copy, n - 1));
 	} else {
 		view_copy->up_limit_id = old_view->up_limit_id;
 	}
@@ -284,7 +284,9 @@ read_view_open_now(
 		    && (trx->conc_state == TRX_ACTIVE
 			|| trx->conc_state == TRX_PREPARED)) {
 
-			read_view_set_nth_trx_id(view, n, trx->id);
+			read_view_set_nth_trx_id(
+				view, n,
+				ut_conv_dulint_to_longlong(trx->id));
 
 			n++;
 
@@ -307,7 +309,8 @@ read_view_open_now(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
+		view->up_limit_id = ut_conv_longlong_to_dulint(
+			read_view_get_nth_trx_id(view, n - 1));
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
@@ -390,8 +393,7 @@ read_view_print(
 
 	for (i = 0; i < n_ids; i++) {
 		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
-			TRX_ID_PREP_PRINTF(
-				read_view_get_nth_trx_id(view, i)));
+				read_view_get_nth_trx_id(view, i));
 	}
 }
 
@@ -404,7 +406,7 @@ UNIV_INTERN
 cursor_view_t*
 read_cursor_view_create_for_mysql(
 /*==============================*/
-	trx_t*	cr_trx)	/*!< in: trx where cursor view is created */
+	trx_t*		cr_trx)	/*!< in: trx where cursor view is created */
 {
 	cursor_view_t*	curview;
 	read_view_t*	view;
@@ -452,7 +454,9 @@ read_cursor_view_create_for_mysql(
 		if (trx->conc_state == TRX_ACTIVE
 		    || trx->conc_state == TRX_PREPARED) {
 
-			read_view_set_nth_trx_id(view, n, trx->id);
+			read_view_set_nth_trx_id(
+				view, n,
+				ut_conv_dulint_to_longlong(trx->id));
 
 			n++;
 
@@ -475,7 +479,8 @@ read_cursor_view_create_for_mysql(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
+		view->up_limit_id = ut_conv_longlong_to_dulint(
+			read_view_get_nth_trx_id(view, n - 1));
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
