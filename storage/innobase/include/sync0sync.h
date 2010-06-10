@@ -589,7 +589,7 @@ V
 File system pages
 |
 V
-lock_sys_wait_mutex			Mutex protecting lock_sys_t
+lock_sys_wait_mutex			Mutex protecting lock timeout data
 |
 V
 lock_sys_mutex				Mutex protecting lock_sys_t
