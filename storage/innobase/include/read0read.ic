@@ -27,7 +27,7 @@ Created 2/16/1997 Heikki Tuuri
 Gets the nth trx id in a read view.
 @return	trx id */
 UNIV_INLINE
-trx_id_t
+ib_int64_t
 read_view_get_nth_trx_id(
 /*=====================*/
 	const read_view_t*	view,	/*!< in: read view */
@@ -46,7 +46,7 @@ read_view_set_nth_trx_id(
 /*=====================*/
 	read_view_t*	view,	/*!< in: read view */
 	ulint		n,	/*!< in: position */
-	trx_id_t	trx_id)	/*!< in: trx id to set */
+	ib_int64_t	trx_id)	/*!< in: trx id to set */
 {
 	ut_ad(n < view->n_trx_ids);
 
@@ -60,38 +60,39 @@ UNIV_INLINE
 ibool
 read_view_sees_trx_id(
 /*==================*/
-	const read_view_t*	view,	/*!< in: read view */
-	trx_id_t		trx_id)	/*!< in: trx id */
+	const read_view_t*	view,		/*!< in: read view */
+	trx_id_t		in_trx_id)	/*!< in: trx id */
 {
-	ulint	n_ids;
-	int	cmp;
-	ulint	i;
-
-	if (ut_dulint_cmp(trx_id, view->up_limit_id) < 0) {
-
+	/* This value is the same as view->trx_ids[view->n_trx_ids-1]. */
+	if (ut_dulint_cmp(in_trx_id, view->up_limit_id) < 0) {
 		return(TRUE);
-	}
-
-	if (ut_dulint_cmp(trx_id, view->low_limit_id) >= 0) {
-
+	} else if (ut_dulint_cmp(in_trx_id, view->low_limit_id) >= 0) {
 		return(FALSE);
-	}
+	} else {
+		ulint		lower = 0;
+		ulint		upper = view->n_trx_ids - 1;
+		ib_int64_t	trx_id = ut_conv_dulint_to_longlong(in_trx_id);
 
-	/* We go through the trx ids in the array smallest first: this order
-	may save CPU time, because if there was a very long running
-	transaction in the trx id array, its trx id is looked at first, and
-	the first two comparisons may well decide the visibility of trx_id. */
+		ut_a(view->n_trx_ids > 0);
 
-	n_ids = view->n_trx_ids;
+		do {
+			ib_int64_t	cmp;
+			ulint		mid = (lower + upper) >> 1;
 
-	for (i = 0; i < n_ids; i++) {
+			cmp = view->trx_ids[mid] - trx_id;
 
-		cmp = ut_dulint_cmp(
-			trx_id,
-			read_view_get_nth_trx_id(view, n_ids - i - 1));
-		if (cmp <= 0) {
-			return(cmp < 0);
-		}
+			if (cmp == 0) {
+				return(FALSE);
+			} else if (cmp < 0) {
+				if (mid > 0) {
+					upper = mid - 1;
+				} else {
+					break;
+				}
+			} else {
+				lower = mid + 1;
+			}
+		} while (lower <= upper);
 	}
 
 	return(TRUE);
