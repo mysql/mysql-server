@@ -206,8 +206,6 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	trx_mutex_enter(trx);
-
 	if (trx->declared_to_be_inside_innodb) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: Freeing a trx which is declared"
@@ -237,6 +235,8 @@ trx_free(
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
 	}
+
+	trx_mutex_enter(trx);
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
