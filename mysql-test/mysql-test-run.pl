@@ -187,7 +187,7 @@ our $opt_client_debugger;
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
-our $opt_experimental;
+our @opt_experimentals;
 our $experimental_test_cases;
 
 my $baseport;
@@ -846,7 +846,7 @@ sub command_line_setup {
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
-             'experimental=s'           => \$opt_experimental,
+             'experimental=s'           => \@opt_experimentals,
 	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
@@ -1028,43 +1028,47 @@ sub command_line_setup {
     mtr_print_thick_line('#');
   }
 
-  if ( $opt_experimental )
+  if ( @opt_experimentals )
   {
     # $^O on Windows considered not generic enough
     my $plat= (IS_WINDOWS) ? 'windows' : $^O;
 
-    # read the list of experimental test cases from the file specified on
+    # read the list of experimental test cases from the files specified on
     # the command line
-    open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
-    mtr_report("Using experimental file: $opt_experimental");
     $experimental_test_cases = [];
-    while(<FILE>) {
-      chomp;
-      # remove comments (# foo) at the beginning of the line, or after a 
-      # blank at the end of the line
-      s/( +|^)#.*$//;
-      # If @ platform specifier given, use this entry only if it contains
-      # @<platform> or @!<xxx> where xxx != platform
-      if (/\@.*/)
-      {
-	next if (/\@!$plat/);
-	next unless (/\@$plat/ or /\@!/);
-	# Then remove @ and everything after it
-	s/\@.*$//;
+    foreach my $exp_file (@opt_experimentals)
+    {
+      open(FILE, "<", $exp_file)
+	or mtr_error("Can't read experimental file: $exp_file");
+      mtr_report("Using experimental file: $exp_file");
+      while(<FILE>) {
+	chomp;
+	# remove comments (# foo) at the beginning of the line, or after a 
+	# blank at the end of the line
+	s/( +|^)#.*$//;
+	# If @ platform specifier given, use this entry only if it contains
+	# @<platform> or @!<xxx> where xxx != platform
+	if (/\@.*/)
+	{
+	  next if (/\@!$plat/);
+	  next unless (/\@$plat/ or /\@!/);
+	  # Then remove @ and everything after it
+	  s/\@.*$//;
+	}
+	# remove whitespace
+	s/^ +//;              
+	s/ +$//;
+	# if nothing left, don't need to remember this line
+	if ( $_ eq "" ) {
+	  next;
+	}
+	# remember what is left as the name of another test case that should be
+	# treated as experimental
+	print " - $_\n";
+	push @$experimental_test_cases, $_;
       }
-      # remove whitespace
-      s/^ +//;              
-      s/ +$//;
-      # if nothing left, don't need to remember this line
-      if ( $_ eq "" ) {
-        next;
-      }
-      # remember what is left as the name of another test case that should be
-      # treated as experimental
-      print " - $_\n";
-      push @$experimental_test_cases, $_;
+      close FILE;
     }
-    close FILE;
   }
 
   foreach my $arg ( @ARGV )
