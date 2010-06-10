@@ -43,6 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rec.h"
 #include "srv0srv.h"
 #include "os0thread.h"
+#include "srv0mon.h"
 
 /** The global data structure coordinating a purge */
 UNIV_INTERN trx_purge_t*	purge_sys = NULL;
@@ -1156,6 +1157,8 @@ trx_purge(
 			srv_dml_needed_delay = (ulint) ((ratio - .5) * 10000);
 		}
 	}
+
+	MONITOR_SET(MONITOR_DML_PURGE_DELAY, srv_dml_needed_delay);
 
 	purge_sys->view = read_view_oldest_copy_or_open_new(ut_dulint_zero,
 							    purge_sys->heap);
