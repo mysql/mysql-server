@@ -2048,11 +2048,6 @@ int Ndb::dropEventOperation(NdbEventOperation* tOp)
   DBUG_ENTER("Ndb::dropEventOperation");
   DBUG_PRINT("info", ("name: %s", tOp->getEvent()->getTable()->getName()));
   // remove it from list
-
-#ifdef REMOVED_WARNING_SURROUNDING_WEIRD_CODE
-  NdbEventOperationImpl *op=
-    NdbEventBuffer::getEventOperationImpl(tOp);
-#endif  
   
   theEventBuffer->dropEventOperation(tOp);
   DBUG_RETURN(0);

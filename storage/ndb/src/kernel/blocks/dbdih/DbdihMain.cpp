@@ -115,16 +115,6 @@ extern EventLogger * g_eventLogger;
   } while (specNodePtr.i != RNIL);                                      \
 }
 
-#if 0
-static
-Uint32
-oldPrevLcpNo(Uint32 lcpNo){
-  if(lcpNo == 0)
-    return MAX_LCP_STORED - 1;
-  return lcpNo - 1;
-}
-#endif
-
 static
 Uint32
 prevLcpNo(Uint32 lcpNo){
@@ -3857,6 +3847,7 @@ Dbdih::execSTART_TOREF(Signal* signal)
 
   StartToRef* ref = (StartToRef*)signal->getDataPtr();
   Uint32 errCode = ref->errorCode;
+  (void)errCode; // TODO check for "valid" error
 
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
@@ -4081,6 +4072,7 @@ Dbdih::execUPDATE_TOREF(Signal* signal)
   jamEntry();
   UpdateToRef* ref = (UpdateToRef*)signal->getDataPtr();
   Uint32 errCode = ref->errorCode;
+  (void)errCode; // TODO check for "valid" error
 
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
@@ -7564,7 +7556,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     Uint16 fragments[2 + MAX_FRAG_PER_NODE*MAX_REPLICAS*MAX_NDB_NODES];
     Uint32 align;
   };
-  (void)align;
+  (void)align; // kill warning
   SectionHandle handle(this, signal);
   SegmentedSectionPtr fragDataPtr;
   ndbrequire(handle.getSection(fragDataPtr, DiAddTabReq::FRAGMENTATION));
@@ -9370,6 +9362,9 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   const Uint32 failureNr = signal->theData[2];
   const Uint32 gci_lo = signal->theData[3];
   const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+
+  (void)gci; // TODO validate
+  (void)failureNr; // kill warning
 
   ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT);
   receiveLoopMacro(GCP_COMMIT, senderNodeId);

@@ -2158,6 +2158,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
     Uint32 TregMemBuffer[32];
     Uint64 align[16];
   };
+  (void)align; // kill warning
   Uint32 TstackMemBuffer[32];
 
   /* ---------------------------------------------------------------- */
@@ -3049,7 +3050,7 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
 {
   Uint16 mm_vars= tabPtrP->m_attributes[MM].m_no_of_varsize;
   Uint16 mm_dyns= tabPtrP->m_attributes[MM].m_no_of_dynamic;
-  Uint16 dd_tot= tabPtrP->m_no_of_disk_attributes;
+  //Uint16 dd_tot= tabPtrP->m_no_of_disk_attributes;
   const Tuple_header* ptr= req_struct->m_tuple_ptr;
   Uint32 bits= ptr->m_header_bits;
   const Uint32 *tuple_words= (Uint32 *)ptr;
@@ -3057,6 +3058,8 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
   Uint32 fix_len;
   const Uint32 *var_p;
   Uint32 var_len;
+  //const Uint32 *disk_p;
+  //Uint32 disk_len;
   const char *typ;
 
   fix_p= tuple_words;
@@ -3076,7 +3079,7 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
     typ= "stored";
     if(mm_vars+mm_dyns)
     {
-      const KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
+      //const KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
       const Var_part_ref *varref= ptr->get_var_part_ref_ptr(tabPtrP);
       Ptr<Page> tmp;
       var_p= get_ptr(&tmp, * varref);
