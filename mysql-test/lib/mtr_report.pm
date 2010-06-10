@@ -124,7 +124,7 @@ sub mtr_report_test ($) {
     my $timest = format_time();
     my $fail = "fail";
 
-    if ( $::opt_experimental )
+    if ( @$::experimental_test_cases )
     {
       # Find out if this test case is an experimental one, so we can treat
       # the failure as an expected failure instead of a regression.
