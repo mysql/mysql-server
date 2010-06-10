@@ -318,7 +318,7 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
     g_eventLogger->warning("Configuration didn't contain generation "
                            "(likely old ndb_mgmd");
   }
-  g_eventLogger->info("Using configuration with generation %u", generation);
+  g_eventLogger->debug("Using configuration with generation %u", generation);
 
   ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, nodeid))
