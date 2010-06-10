@@ -23,13 +23,21 @@
 #ifndef yaSSL_LOCK_HPP
 #define yaSSL_LOCK_HPP
 
+/*
+  Visual Studio Source Annotations header (sourceannotations.h) fails
+  to compile if outside of the global namespace.
+*/
+#ifdef YASSL_THREAD_SAFE
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#endif
 
 namespace yaSSL {
 
 
 #ifdef YASSL_THREAD_SAFE
     #ifdef _WIN32
-        #include <windows.h>
 
         class Mutex {
             CRITICAL_SECTION cs_;
