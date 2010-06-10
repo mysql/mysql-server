@@ -14,12 +14,13 @@
 # Place, Suite 330, Boston, MA 02111-1307 USA
 #
 
-MYSQL_STORAGE_ENGINE(xtradb,  innodb, [XtraDB Storage Engine],
+MYSQL_STORAGE_ENGINE(xtradb,  xtradb, [XtraDB Storage Engine],
         [XtraDB - a drop-in replacement for InnoDB], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(xtradb, [storage/xtradb])
 MYSQL_PLUGIN_STATIC(xtradb,   [libxtradb.a])
 MYSQL_PLUGIN_DYNAMIC(xtradb,  [ha_xtradb.la])
 MYSQL_PLUGIN_ACTIONS(xtradb,  [
+  with_plugin_innobase=$with_plugin_xtradb # for legacy code in configure.in
   AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
   AC_SUBST(innodb_system_libs)
   AC_CHECK_HEADERS(aio.h sched.h)
