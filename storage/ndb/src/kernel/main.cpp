@@ -130,7 +130,6 @@ int main(int argc, char** argv)
   BaseString original_args;
   for (int i = 0; i < argc; i++)
     original_args.appfmt("%s ", argv[i]);
-  ndbout_c("original_args: %s ", original_args.c_str());
 
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
@@ -145,15 +144,6 @@ int main(int argc, char** argv)
   // Turn on debug printouts if --verbose
   if (opt_verbose)
     g_eventLogger->enable(Logger::LL_DEBUG);
-
-  DBUG_PRINT("info", ("no_start=%d", opt_no_start));
-  DBUG_PRINT("info", ("initial=%d", opt_initial));
-  DBUG_PRINT("info", ("daemon=%d", opt_daemon));
-  DBUG_PRINT("info", ("foreground=%d", opt_foreground));
-  DBUG_PRINT("info", ("ndb_connectstring=%s", opt_ndb_connectstring));
-  DBUG_PRINT("info", ("ndb_nodeid=%d", opt_ndb_nodeid));
-  ndbout_c("opt_report_fd: %d", opt_report_fd);
-  ndbout_c("opt_allocated_nodeid: %d", opt_allocated_nodeid);
 
   if (opt_nowait_nodes)
   {
