@@ -156,14 +156,14 @@ que_run_threads(
 Moves a suspended query thread to the QUE_THR_RUNNING state and release
 a worker thread to execute it. This function should be used to end
 the wait state of a query thread waiting for a lock or a stored procedure
-completion. */
+completion.
+@return query thread instance of thread to wakeup or NULL  */
 UNIV_INTERN
-void
-que_thr_end_wait(
-/*=============*/
+que_thr_t*
+que_thr_end_lock_wait(
+/*==================*/
 	trx_t*		trx);		/*!< in: transaction in the
-					QUE_THR_LOCK_WAIT, or
-				       	QUE_THR_PROCEDURE_WAIT, state */
+					QUE_THR_LOCK_WAIT state */
 /**********************************************************************//**
 Starts execution of a command in a query fork. Picks a query thread which
 is not in the QUE_THR_RUNNING state and moves it to that state. If none

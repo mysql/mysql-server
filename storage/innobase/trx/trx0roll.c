@@ -107,8 +107,6 @@ trx_general_rollback_for_mysql_low(
 
 		trx_finish_rollback(trx);
 
-		mem_heap_free(heap);
-
 		trx_mutex_enter(trx);
 
 		ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
@@ -117,6 +115,8 @@ trx_general_rollback_for_mysql_low(
 
 		trx_mutex_exit(trx);
 	}
+
+	mem_heap_free(heap);
 }
 
 /*******************************************************************//**
@@ -528,10 +528,10 @@ trx_rollback_active(
 
 	que_run_threads(roll_node->undo_thr);
 
+	trx_finish_rollback(thr_get_trx(roll_node->undo_thr));
+
 	/* Free the memory reserved by the undo graph */
 	que_graph_free(roll_node->undo_thr->common.parent);
-
-	trx_finish_rollback(thr_get_trx(roll_node->undo_thr));
 
 	ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
 

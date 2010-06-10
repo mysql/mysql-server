@@ -2207,7 +2207,7 @@ lock_grant(
 	for it */
 
 	if (lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-		que_thr_end_wait(lock->trx);
+		que_thr_end_lock_wait(lock->trx);
 	}
 
 	trx_mutex_exit(lock->trx);
@@ -2237,7 +2237,7 @@ lock_rec_cancel(
 
 	/* The following function releases the trx from lock wait */
 
-	que_thr_end_wait(lock->trx);
+	que_thr_end_lock_wait(lock->trx);
 
 	trx_mutex_exit(lock->trx);
 }
@@ -3378,48 +3378,48 @@ lock_choose_trx_for_rollback(
 	point: a deadlock detected; or we have
 	searched the waits-for graph too long */
 
-	//FILE*	ef = lock_latest_err_file;
+	FILE*	ef = lock_latest_err_file;
 
-	//rewind(ef);
-	//ut_print_timestamp(ef);
+	rewind(ef);
+	ut_print_timestamp(ef);
 
-	//trx_mutex_enter(wait_lock->trx);
+	trx_mutex_enter(wait_lock->trx);
 
-	//fputs("\n*** (1) TRANSACTION:\n", ef);
+	fputs("\n*** (1) TRANSACTION:\n", ef);
 
-	//trx_print(ef, wait_lock->trx, 3000);
+	trx_print(ef, wait_lock->trx, 3000);
 
-	//fputs("*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
+	fputs("*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
 
-	//if (lock_get_type_low(wait_lock) == LOCK_REC) {
-		//lock_rec_print(ef, wait_lock);
-	//} else {
-		//lock_table_print(ef, wait_lock);
-	//}
+	if (lock_get_type_low(wait_lock) == LOCK_REC) {
+		lock_rec_print(ef, wait_lock);
+	} else {
+		lock_table_print(ef, wait_lock);
+	}
 
-	//fputs("*** (2) TRANSACTION:\n", ef);
+	fputs("*** (2) TRANSACTION:\n", ef);
 
-	//trx_print(ef, lock->trx, 3000);
+	trx_print(ef, lock->trx, 3000);
 
-	//fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
+	fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
 
-	//if (lock_get_type_low(lock) == LOCK_REC) {
-		//lock_rec_print(ef, lock);
-	//} else {
-		//lock_table_print(ef, lock);
-	//}
+	if (lock_get_type_low(lock) == LOCK_REC) {
+		lock_rec_print(ef, lock);
+	} else {
+		lock_table_print(ef, lock);
+	}
 
-	//fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
+	fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n", ef);
 
-	//if (lock_get_type_low(start->lock.wait_lock) == LOCK_REC) {
-		//lock_rec_print(ef, start->lock.wait_lock);
-	//} else {
-		//lock_table_print(ef, start->lock.wait_lock);
-	//}
+	if (lock_get_type_low(start->lock.wait_lock) == LOCK_REC) {
+		lock_rec_print(ef, start->lock.wait_lock);
+	} else {
+		lock_table_print(ef, start->lock.wait_lock);
+	}
 #ifdef UNIV_DEBUG
-	//if (lock_print_waits) {
-		//fputs("Deadlock detected\n", stderr);
-	//}
+	if (lock_print_waits) {
+		fputs("Deadlock detected\n", stderr);
+	}
 #endif /* UNIV_DEBUG */
 
 	if (trx_weight_cmp(wait_lock->trx, start) >= 0) {
@@ -3437,7 +3437,7 @@ lock_choose_trx_for_rollback(
 	as a victim to try to avoid deadlocking our
 	recursion starting point transaction */
 
-	//fputs("*** WE ROLL BACK TRANSACTION (1)\n", ef);
+	fputs("*** WE ROLL BACK TRANSACTION (1)\n", ef);
 
 	wait_lock->trx->lock.was_chosen_as_deadlock_victim = TRUE;
 
@@ -3563,13 +3563,7 @@ lock_deadlock_recursive(
 				return(LOCK_VICTIM_EXCEED_MAX_DEPTH);
 			}
 
-			/* The transaction's que_state can't change since
-			we hold the lock mutex. FIXME: Confirm. */
-			//trx_mutex_enter(lock_trx);
-
 			if (lock_trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-
-				//trx_mutex_exit(lock_trx);
 
 				/* Another trx ahead has requested lock	in an
 				incompatible mode, and is itself waiting for
@@ -3585,7 +3579,6 @@ lock_deadlock_recursive(
 					return(ret);
 				}
 			}
-			//trx_mutex_exit(lock_trx);
 		}
 		/* Get the next record lock to check. */
 		if (heap_no != ULINT_UNDEFINED) {
@@ -5799,5 +5792,5 @@ lock_cancel_waiting_and_release(
 
 	/* The following function releases the trx from lock wait. */
 
-	que_thr_end_wait(lock->trx);
+	que_thr_end_lock_wait(lock->trx);
 }
