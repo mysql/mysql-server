@@ -43,7 +43,7 @@ ThreadConfig::~ThreadConfig()
 }
 
 void
-ThreadConfig::init(EmulatorData *emulatorData)
+ThreadConfig::init()
 {
 }
 
