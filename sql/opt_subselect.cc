@@ -3950,7 +3950,11 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 
 
 /*
-  Join tab execution startup function. 
+  Join tab execution startup function.
+
+  SYNOPSIS
+    join_tab_execution_startup()
+      tab  Join tab to perform startup actions for
 
   DESCRIPTION
     Join tab execution startup function. This is different from
