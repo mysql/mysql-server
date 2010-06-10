@@ -44,7 +44,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "log0log.h"
 
-/*********************************************************************//**
+/*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
 done by calling log_free_check(). The reason for checking the
