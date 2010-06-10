@@ -9,5 +9,5 @@
 #
 --require r/have_udf_example.require
 disable_query_log;
-eval select LENGTH('$UDF_EXAMPLE_LIB') > 0 as 'have_udf_example_lib';
+eval select LENGTH('$UDF_EXAMPLE_SO') > 0 as 'have_udf_example_lib';
 enable_query_log;

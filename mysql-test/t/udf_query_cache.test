@@ -14,8 +14,8 @@ drop table if exists t1;
 # Bug #28921: Queries containing UDF functions are cached
 #
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
 create table t1 (a char);
 
 set GLOBAL query_cache_size=1355776;

@@ -18,7 +18,7 @@ use strict;
 
 use Exporter;
 use base "Exporter";
-our @EXPORT= qw / rmtree mkpath copytree /;
+our @EXPORT= qw /rmtree mkpath copytree/;
 
 use File::Find;
 use File::Copy;

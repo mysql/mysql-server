@@ -9,5 +9,5 @@
 #
 --require r/have_simple_parser.require
 disable_query_log;
-eval select LENGTH('$SIMPLE_PARSER') > 0 as 'have_simple_parser';
+eval select LENGTH('$MYPLUGLIB_SO') > 0 as 'have_simple_parser';
 enable_query_log;
