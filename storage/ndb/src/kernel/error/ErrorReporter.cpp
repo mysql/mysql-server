@@ -28,6 +28,9 @@
 #include <NdbConfig.h>
 #include <Configuration.hpp>
 #include "EventLogger.hpp"
+extern EventLogger * g_eventLogger;
+
+#include "TimeModule.hpp"
 
 #include <NdbAutoPtr.hpp>
 
@@ -43,7 +46,7 @@ static void dumpJam(FILE* jamStream,
 		    const Uint32 thrdTheEmulatedJam[],
                     Uint32 aBlockNumber);
 
-extern EventLogger * g_eventLogger;
+
 const char*
 ErrorReporter::formatTimeStampString(){
   TimeModule DateTime;          /* To create "theDateTimeString" */
@@ -190,14 +193,6 @@ ErrorReporter::formatMessage(int thr_no,
 NdbShutdownType ErrorReporter::s_errorHandlerShutdownType = NST_ErrorHandler;
 
 void
-ErrorReporter::setErrorHandlerShutdownType(NdbShutdownType nst)
-{
-  s_errorHandlerShutdownType = nst;
-}
-
-void childReportError(int error);
-
-void
 ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
 {
   char refMessage[100];
@@ -221,9 +216,7 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line, int
   NdbShutdownType nst = s_errorHandlerShutdownType;
   WriteMessage(ec, message, refMessage, nst);
 
-  childReportError(ec);
-
-  NdbShutdown(nst);
+  NdbShutdown(ec, nst);
   exit(1);                                      // Deadcode
 }
 
@@ -248,9 +241,7 @@ ErrorReporter::handleError(int messageID,
   g_eventLogger->info(problemData);
   g_eventLogger->info(objRef);
 
-  childReportError(messageID);
-
-  NdbShutdown(nst);
+  NdbShutdown(messageID, nst);
 }
 
 int 

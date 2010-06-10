@@ -857,7 +857,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
       type = NRT_DoStart_InitialStart;
     if(!StopReq::getNoStart(tmp)&&!StopReq::getInitialStart(tmp))
       type = NRT_DoStart_Restart;
-    NdbShutdown(NST_Restart, type);
+    NdbShutdown(0, NST_Restart, type);
   }
 
   if(globalData.theRestartFlag == system_started){
