@@ -104,8 +104,6 @@ my_bool my_basic_init(void)
   mysql_stdin= & instrumented_stdin;
 
 #if defined(THREAD)
-  if (my_thread_global_init())
-    return 1;
 #  if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #  endif
