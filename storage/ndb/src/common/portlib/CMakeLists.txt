@@ -25,10 +25,8 @@ ENDIF(WIN32)
 ADD_LIBRARY(ndbportlib STATIC
             NdbCondition.c NdbMutex.c ndb_socket.cpp
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
-            NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp NdbDaemon.c
-            my_daemon.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
-            ${EXTRA_SRC}
-)
+            NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
+            ndb_daemon.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 TARGET_LINK_LIBRARIES(ndbportlib mysys ${EXTRA_LIB})
 
 ADD_EXECUTABLE(NdbDir-t
@@ -46,7 +44,4 @@ TARGET_LINK_LIBRARIES(NdbDir-t ndbportlib)
 
 #ADD_EXECUTABLE(munmaptest munmaptest.cpp)
 #TARGET_LINK_LIBRARIES(munmaptest ndbportlib wsock32)
-
-#ADD_DEFINITIONS(-DNDB_DAEMON_TEST)
-#ADD_EXECUTABLE(ndbdaemon_test NdbDaemon.c)
 

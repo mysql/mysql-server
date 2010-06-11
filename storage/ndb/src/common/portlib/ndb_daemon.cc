@@ -20,7 +20,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include <my_daemon.h>
+#include <ndb_daemon.h>
 
 #include <BaseString.hpp>
 #include <portlib/NdbHost.h>
@@ -30,12 +30,12 @@ static FILE *dlog_file;
 static int ERR1(const char* fmt, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 
-char my_daemon_error[1024];
+char ndb_daemon_error[1024];
 static int ERR1(const char* fmt, ...)
 {
   va_list argptr;
   va_start(argptr, fmt);
-  my_vsnprintf(my_daemon_error,sizeof(my_daemon_error),fmt,argptr);
+  my_vsnprintf(ndb_daemon_error,sizeof(ndb_daemon_error),fmt,argptr);
   va_end(argptr);
   return 1;
 }
@@ -50,8 +50,8 @@ static int g_argc;
 static char** g_argv;
 
 static HANDLE g_shutdown_event;
-static my_daemon_stop_t g_stop_func;
-static my_daemon_run_t g_run_func;
+static ndb_daemon_stop_t g_stop_func;
+static ndb_daemon_run_t g_run_func;
 
 static void stopper_thread(void*)
 {
@@ -163,8 +163,8 @@ install_or_remove_service(int argc, char** argv,
 #endif
 
 
-int my_daemon_init(int argc, char** argv,
-                   my_daemon_run_t run, my_daemon_stop_t stop,
+int ndb_daemon_init(int argc, char** argv,
+                   ndb_daemon_run_t run, ndb_daemon_stop_t stop,
                    const char* name, const char* display_name)
 {
 #ifdef _WIN32
@@ -341,7 +341,7 @@ do_files(const char *pidfile_name, int pidfd, int logfd)
 }
 
 
-int my_daemonize(const char* pidfile_name, const char *logfile_name)
+int ndb_daemonize(const char* pidfile_name, const char *logfile_name)
 {
   int pidfd = -1, logfd = -1;
 
@@ -371,7 +371,7 @@ int my_daemonize(const char* pidfile_name, const char *logfile_name)
   return 0;
 }
 
-void my_daemon_exit(int status)
+void ndb_daemon_exit(int status)
 {
   if (g_pidfd != -1)
     close(g_pidfd);
