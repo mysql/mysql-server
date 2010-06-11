@@ -58,10 +58,19 @@ insert into t1 values (4, 5);
 #
 # Restart all initial
 #
+
+# need to save/restore backup-id
+--disable_query_log
+--source include/ndb_backup_id.inc
+--enable_query_log
+
 --exec $ndb_mgm_cmd -e "ALL RESTART -N -I"
 --exec $ndb_waiter_cmd --not-started > /dev/null
 --exec $ndb_mgm_cmd -e "ALL START"
 --exec $ndb_waiter_cmd > /dev/null
+
+--inc $the_backup_id
+--exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 
 # Wait for mysqld to reconnect
 --disable_result_log
