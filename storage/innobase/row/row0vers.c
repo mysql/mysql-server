@@ -48,13 +48,12 @@ Created 2/6/1997 Heikki Tuuri
 
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
-index record. NOTE: the kernel mutex is temporarily released in this
-function!
+index record.
 @return NULL if committed, else the active transaction */
 UNIV_INTERN
 trx_t*
-row_vers_impl_x_locked_off_kernel(
-/*==============================*/
+row_vers_impl_x_locked(
+/*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
@@ -75,13 +74,9 @@ row_vers_impl_x_locked_off_kernel(
 	mtr_t		mtr;
 	ulint		comp;
 
-	ut_ad(lock_mutex_own());
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
-
-	lock_mutex_exit();
 
 	mtr_start(&mtr);
 
@@ -106,7 +101,6 @@ row_vers_impl_x_locked_off_kernel(
 		a rollback we always undo the modifications to secondary index
 		records before the clustered index record. */
 
-		lock_mutex_enter();
 		mtr_commit(&mtr);
 
 		return(NULL);
@@ -118,8 +112,6 @@ row_vers_impl_x_locked_off_kernel(
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 
 	mtr_s_lock(&purge_sys->latch, &mtr);
-
-	lock_mutex_enter();
 
 	trx = NULL;
 	if (!trx_is_active(trx_id)) {
@@ -159,8 +151,6 @@ row_vers_impl_x_locked_off_kernel(
 		row_ext_t*	ext;
 		trx_id_t	prev_trx_id;
 
-		lock_mutex_exit();
-
 		/* While we retrieve an earlier version of clust_rec, we
 		release the kernel mutex, because it may take time to access
 		the disk. After the release, we have to check if the trx_id
@@ -176,7 +166,6 @@ row_vers_impl_x_locked_off_kernel(
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version == NULL) {
-			lock_mutex_enter();
 			if (!trx_is_active(trx_id)) {
 				/* Transaction no longer active: no
 				implicit x-lock */
@@ -211,7 +200,6 @@ row_vers_impl_x_locked_off_kernel(
 		cannot hold any implicit lock. */
 		if (vers_del && 0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
 
-			lock_mutex_enter();
 			break;
 		}
 
@@ -226,8 +214,6 @@ row_vers_impl_x_locked_off_kernel(
 		record were not initialized yet.  But in that case,
 		prev_version should be NULL. */
 		ut_a(entry);
-
-		lock_mutex_enter();
 
 		if (!trx_is_active(trx_id)) {
 			/* Transaction no longer active: no implicit x-lock */

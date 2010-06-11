@@ -49,9 +49,9 @@ graph of transactions */
 #define LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK 200
 
 /* When releasing transaction locks, this specifies how often we release
-the kernel mutex for a moment to give also others access to it */
+the lock mutex for a moment to give also others access to it */
 
-#define LOCK_RELEASE_KERNEL_INTERVAL	1000
+#define LOCK_RELEASE_INTERVAL		1000
 
 /* Safety margin when creating a new record lock: this many extra records
 can be inserted to the page without need to create a lock with a bigger
@@ -511,8 +511,7 @@ lock_clust_rec_cons_read_sees(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	/* NOTE that we call this function while holding the search
-	system latch. To obey the latching order we must NOT reserve the
-	kernel mutex here! */
+	system latch. */
 
 	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
@@ -543,8 +542,7 @@ lock_sec_rec_cons_read_sees(
 	ut_ad(page_rec_is_user_rec(rec));
 
 	/* NOTE that we might call this function while holding the search
-	system latch. To obey the latching order we must NOT reserve the
-	kernel mutex here! */
+	system latch. */
 
 	if (recv_recovery_is_on()) {
 
@@ -1567,15 +1565,15 @@ index.
 @return	transaction which has the x-lock, or NULL */
 static
 trx_t*
-lock_sec_rec_some_has_impl_off_kernel(
-/*==================================*/
+lock_sec_rec_some_has_impl(
+/*=======================*/
 	const rec_t*	rec,	/*!< in: user record */
 	dict_index_t*	index,	/*!< in: secondary index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	const page_t*	page = page_align(rec);
 
-	ut_ad(lock_mutex_own());
+	ut_ad(!lock_mutex_own());
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -1605,7 +1603,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 		return(NULL);
 	}
 
-	return(row_vers_impl_x_locked_off_kernel(rec, index, offsets));
+	return(row_vers_impl_x_locked(rec, index, offsets));
 }
 
 /*********************************************************************//**
@@ -4084,14 +4082,15 @@ lock_release(
 /*=========*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	dict_table_t*	table;
 	lock_t*		lock;
+	dict_table_t*	table;
+	ulint		count = 0;
 
 	ut_ad(lock_mutex_own());
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
-	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
+	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks), ++count) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
 			lock_rec_dequeue_from_page(lock);
@@ -4113,6 +4112,18 @@ lock_release(
 			}
 
 			lock_table_dequeue(lock);
+		}
+
+
+		if (count == LOCK_RELEASE_INTERVAL) {
+			/* Release the  mutex for a while, so that we
+			do not monopolize it */
+
+			lock_mutex_exit();
+
+			lock_mutex_enter();
+
+			count = 0;
 		}
 	}
 
@@ -4409,22 +4420,22 @@ lock_get_n_rec_locks(void)
 
 /*********************************************************************//**
 Prints info of locks for all transactions.
-@return FALSE if not able to obtain kernel mutex
+@return FALSE if not able to obtain lock mutex
 and exits without printing info */
 UNIV_INTERN
 ibool
 lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
-	ibool   nowait)	/*!< in: whether to wait for the kernel mutex */
+	ibool   nowait)	/*!< in: whether to wait for the lock mutex */
 {
-	/* if nowait is FALSE, wait on the kernel mutex,
+	/* if nowait is FALSE, wait on the lock mutex,
 	otherwise return immediately if fail to obtain the
 	mutex. */
 	if (!nowait) {
 		lock_mutex_enter();
 	} else if (lock_mutex_enter_nowait()) {
-		fputs("FAIL TO OBTAIN KERNEL MUTEX, "
+		fputs("FAIL TO OBTAIN LOCK MUTEX, "
 		      "SKIP LOCK INFO PRINTING\n", file);
 		return(FALSE);
 	}
@@ -4711,9 +4722,9 @@ lock_rec_queue_validate(
 
 	heap_no = page_rec_get_heap_no(rec);
 
-	lock_mutex_enter();
-
 	if (!page_rec_is_user_rec(rec)) {
+
+		lock_mutex_enter();
 
 		lock = lock_rec_get_first(block, heap_no);
 
@@ -4750,6 +4761,8 @@ lock_rec_queue_validate(
 
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 
+		lock_mutex_enter();
+
 		if (impl_trx
 		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
 						   block, heap_no, impl_trx)) {
@@ -4757,12 +4770,10 @@ lock_rec_queue_validate(
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       block, heap_no, impl_trx));
 		}
+
+		lock_mutex_exit();
 #if 0
 	} else {
-
-		/* The kernel mutex may get released temporarily in the
-		next function call: we have to release lock table mutex
-		to obey the latching order */
 
 		/* If this thread is holding the file space latch
 		(fil_space_t::latch), the following check WILL break
@@ -4789,7 +4800,7 @@ lock_rec_queue_validate(
 		record may need to wait for a lock on the
 		corresponding record in a secondary index. */
 
-		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
+		impl_trx = lock_sec_rec_some_has_impl(
 			rec, index, offsets);
 
 		if (impl_trx
@@ -4801,6 +4812,8 @@ lock_rec_queue_validate(
 		}
 #endif
 	}
+
+	lock_mutex_enter();
 
 	lock = lock_rec_get_first(block, heap_no);
 
@@ -5180,8 +5193,7 @@ lock_rec_insert_check_and_lock(
 
 /*********************************************************************//**
 If a transaction has an implicit x-lock on a record, but no explicit x-lock
-set on the record, sets one for it. NOTE that in the case of a secondary
-index, the kernel mutex may get temporarily released. */
+set on the record, sets one for it. */
 static
 void
 lock_rec_convert_impl_to_expl(
@@ -5193,7 +5205,7 @@ lock_rec_convert_impl_to_expl(
 {
 	trx_t*	impl_trx;
 
-	ut_ad(lock_mutex_own());
+	ut_ad(!lock_mutex_own());
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
@@ -5201,12 +5213,13 @@ lock_rec_convert_impl_to_expl(
 	if (dict_index_is_clust(index)) {
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 	} else {
-		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
-			rec, index, offsets);
+		impl_trx = lock_sec_rec_some_has_impl(rec, index, offsets);
 	}
 
 	if (impl_trx) {
 		ulint	heap_no = page_rec_get_heap_no(rec);
+
+		lock_mutex_enter();
 
 		/* If the transaction has no explicit x-lock set on the
 		record, set one for it */
@@ -5218,6 +5231,8 @@ lock_rec_convert_impl_to_expl(
 				LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP,
 				block, heap_no, index, impl_trx);
 		}
+
+		lock_mutex_exit();
 	}
 }
 
@@ -5258,14 +5273,14 @@ lock_clust_rec_modify_check_and_lock(
 		? rec_get_heap_no_new(rec)
 		: rec_get_heap_no_old(rec);
 
-	lock_mutex_enter();
-
-	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
-
 	/* If a transaction has no explicit x-lock set on the record, set one
 	for it */
 
 	lock_rec_convert_impl_to_expl(block, rec, index, offsets);
+
+	lock_mutex_enter();
+
+	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
 	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
@@ -5403,13 +5418,6 @@ lock_sec_rec_read_check_and_lock(
 
 	heap_no = page_rec_get_heap_no(rec);
 
-	lock_mutex_enter();
-
-	ut_ad(mode != LOCK_X
-	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
-	ut_ad(mode != LOCK_S
-	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
-
 	/* Some transaction may have an implicit x-lock on the record only
 	if the max trx id for the page >= min trx id for the trx list or a
 	database recovery is running. */
@@ -5421,6 +5429,13 @@ lock_sec_rec_read_check_and_lock(
 
 		lock_rec_convert_impl_to_expl(block, rec, index, offsets);
 	}
+
+	lock_mutex_enter();
+
+	ut_ad(mode != LOCK_X
+	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	ut_ad(mode != LOCK_S
+	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
 	err = lock_rec_lock(FALSE, mode | gap_mode,
 			    block, heap_no, index, thr);
@@ -5480,17 +5495,17 @@ lock_clust_rec_read_check_and_lock(
 
 	heap_no = page_rec_get_heap_no(rec);
 
+	if (UNIV_LIKELY(heap_no != PAGE_HEAP_NO_SUPREMUM)) {
+
+		lock_rec_convert_impl_to_expl(block, rec, index, offsets);
+	}
+
 	lock_mutex_enter();
 
 	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
-
-	if (UNIV_LIKELY(heap_no != PAGE_HEAP_NO_SUPREMUM)) {
-
-		lock_rec_convert_impl_to_expl(block, rec, index, offsets);
-	}
 
 	err = lock_rec_lock(FALSE, mode | gap_mode,
 			    block, heap_no, index, thr);
