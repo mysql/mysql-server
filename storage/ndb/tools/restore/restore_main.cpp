@@ -1268,7 +1268,7 @@ main(int argc, char** argv)
   {
     if(_restore_data || _print_data)
     {
-      //if want to promote attributes, compability check is done firstly
+      // Check table compatibility
       for (i=0; i < metaData.getNoOfTables(); i++){
         if (checkSysTable(metaData, i) &&
             checkDbAndTableName(metaData[i]))
