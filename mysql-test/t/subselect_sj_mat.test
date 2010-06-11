@@ -71,7 +71,7 @@ select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' gr
 
 # indexed columns
 --replace_column 7 #
---replace_regex /it1.*/_it1_idx/  /test.t2i.*/_ref_/  /Using index$/Using_where_or_index/ /Using where$/Using_where_or_index/
+--replace_regex /it1.*/_it1_idx/  /test.t2i.*/_ref_/  /Using index$// /Using where$//
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
@@ -81,6 +81,8 @@ explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 
+--replace_column 7 #
+--replace_regex /it1.*/_it1_idx/  /test.t2i.*/_ref_/  /Using index$// /Using where$//
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');

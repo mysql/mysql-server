@@ -10402,6 +10402,9 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
   for (i= first_tab; i <= last_tab; i++)
     reopt_remaining_tables |= join->positions[i].table->table->map;
 
+  table_map save_cur_sj_inner_tables= join->cur_sj_inner_tables;
+  join->cur_sj_inner_tables= 0;
+
   for (i= first_tab; i <= last_tab; i++)
   {
     JOIN_TAB *rs= join->positions[i].table;
@@ -10427,6 +10430,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     if (rs->emb_sj_nest)
       inner_fanout *= pos.records_read;
   }
+  join->cur_sj_inner_tables= save_cur_sj_inner_tables;
 
   *reopt_rec_count= rec_count;
   *reopt_cost= cost;
@@ -11431,7 +11435,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                            for distinct, as we want the distinct index to be
                            usable in this case too.
                          */
-                         item->marker == 4  || param->bit_fields_as_long, // psergey-feb17
+                         item->marker == 4  || param->bit_fields_as_long,
                          force_copy_fields,
                          param->convert_blob_length);
 
@@ -11772,7 +11776,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         indexes on blobs with arbitrary length. Such indexes cannot be
         used for lookups.
       */
-      //// psergey-merge: using_unique_constraint=1;
       share->uniques= 1;
     }
     null_pack_length-=hidden_null_pack_length;
