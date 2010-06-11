@@ -239,7 +239,7 @@ int WTERMSIG(int status)
 }
 #endif
 
-extern int main(int, char**);
+extern int real_main(int, char**);
 
 static pid_t
 spawn_process(const char* progname, const BaseString& args)
@@ -294,7 +294,7 @@ spawn_process(const char* progname, const BaseString& args)
 
   // Calling 'main' to start program from beginning
   // without loading (possibly new version) from disk
-  (void)main(argc, argv);
+  (void)real_main(argc, argv);
   assert(false); // main should never return
   exit(1);
   return -1; // Never reached
