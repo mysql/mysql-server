@@ -105,7 +105,14 @@ extern "C" void ndbSetOwnVersion();
 
 extern int g_ndb_init_need_monotonic;
 
-int main(int argc, char** argv)
+/**
+ * C++ Standard 3.6.1/3:
+ *  The function main shall not be used (3.2) within a program.
+ *
+ * So call "main" "real_main" to avoid this rule...
+ */
+int
+real_main(int argc, char** argv)
 {
   g_ndb_init_need_monotonic = 1;
   NDB_INIT(argv[0]);
@@ -183,3 +190,8 @@ int main(int argc, char** argv)
   return 1; // Never reached
 }
 
+int
+main(int argc, char** argv)
+{
+  return real_main(argc, argv);
+}
