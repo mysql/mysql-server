@@ -1284,6 +1284,12 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
     JOIN_TAB *tab=join->join_tab + i;
     POSITION *pos= join->best_positions + i;
     uint keylen, keyno;
+    if (pos->sj_strategy == SJ_OPT_NONE)
+    {
+      i++;  // nothing to do
+      continue;
+    }
+    JOIN_TAB *tab_end= tab + pos->n_sj_tables - 1;
     switch (pos->sj_strategy) {
       case SJ_OPT_MATERIALIZE_LOOKUP:
       case SJ_OPT_MATERIALIZE_SCAN:
@@ -1294,7 +1300,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         /* We jump from the last table to the first one */
-        tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
+        tab->loosescan_match_tab= tab_end;
 
         /* For LooseScan, duplicate elimination is based on rows being sorted 
            on key. We need to make sure that range select keep the sorted index
@@ -1316,7 +1322,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
 
         tab->loosescan_key_len= keylen;
         if (pos->n_sj_tables > 1) 
-          tab[pos->n_sj_tables - 1].do_firstmatch= tab;
+          tab_end->do_firstmatch= tab;
         i+= pos->n_sj_tables;
         break;
       }
@@ -1346,8 +1352,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
            - tables that need their rowids to be put into temptable
            - the last outer table
         */
-        for (JOIN_TAB *j=join->join_tab + first_table; 
-             j < join->join_tab + i + pos->n_sj_tables; j++)
+        for (JOIN_TAB *j=join->join_tab + first_table; j <= tab_end; j++)
         {
           if (sj_table_is_included(join, j))
           {
@@ -1399,33 +1404,34 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           sjtbl->have_confluent_row= FALSE;
         }
         join->join_tab[first_table].flush_weedout_table= sjtbl;
-        join->join_tab[i + pos->n_sj_tables - 1].check_weed_out_table= sjtbl;
+        tab_end->check_weed_out_table= sjtbl;
 
         i+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_FIRST_MATCH:
       {
-        JOIN_TAB *j, *jump_to= tab-1;
+        JOIN_TAB *jump_to= tab - 1;
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
-        for (j= tab; j != tab + pos->n_sj_tables; j++)
-        {
-          if (!tab->emb_sj_nest) /// @todo fix this (BUG#51457)
-            jump_to= tab;
-          else
-          {
-            /* inner table, remember the interval of them */
-            j->first_sj_inner_tab= tab;
-            j->last_sj_inner_tab= tab + pos->n_sj_tables - 1;
-          }
-        }
-        j[-1].do_firstmatch= jump_to;
+        if (!tab->emb_sj_nest)
+          jump_to= tab;         /// @todo fix this (BUG#51457)
+        tab_end->do_firstmatch= jump_to;
         i+= pos->n_sj_tables;
         break;
       }
-      case SJ_OPT_NONE:
-        i++;
-        break;
+    }
+    /*
+      Remember the first and last semijoin inner tables; this serves to tell
+      a JOIN_TAB's semijoin strategy (like in check_join_cache_usage()).
+    */
+    JOIN_TAB *last_sj_inner=
+      (pos->sj_strategy == SJ_OPT_DUPS_WEEDOUT) ?
+      /* Range may end with non-inner table so cannot set last_sj_inner_tab */
+      NULL : tab_end;
+    for (JOIN_TAB *j= tab; j <= tab_end; j++)
+    {
+      j->first_sj_inner_tab= tab;
+      j->last_sj_inner_tab=  last_sj_inner;
     }
   }
   DBUG_RETURN(FALSE);
@@ -5754,7 +5760,14 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       /* Mark that we can optimize LEFT JOIN */
       if (field->val->type() == Item::NULL_ITEM &&
 	  !field->field->real_maybe_null())
-	field->field->table->reginfo.not_exists_optimize=1;
+      {
+        /*
+          Example:
+          SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
+          this just wants rows of t1 where t1.a does not exist in t2.
+        */
+        field->field->table->reginfo.not_exists_optimize=1;
+      }
     }
   }
   for (i=0 ; i < tables ; i++)
@@ -9937,7 +9950,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
       end_tab= first_inner;
     }
   }
-  else if (join_tab->first_sj_inner_tab)
+  else if (join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH)
   {
     first_inner= join_tab->first_sj_inner_tab;
     for (tab= join_tab-1; tab >= first_inner; tab--)
@@ -10056,6 +10069,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   uint force_unlinked_cache= (cache_level & 1) ?
     JOIN_CACHE::NON_INCREMENTAL_BUFFER : 0;
   uint i= tab-join->join_tab;
+  const uint tab_sj_strategy= tab->get_sj_strategy();
   *icp_other_tables_ok= TRUE;
   
   if (cache_level == 0 || i == join->const_tables)
@@ -10074,8 +10088,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     Use join cache with FirstMatch semi-join strategy only when semi-join
     contains only one table.
   */
-  if (tab->is_inner_table_of_semi_join_with_first_match() &&
-      !tab->is_single_inner_of_semi_join_with_first_match())
+  if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
+      !tab->is_single_inner_of_semi_join())
     goto no_join_cache;
   /*
     Non-linked join buffers can't guarantee one match
@@ -10085,12 +10099,12 @@ uint check_join_cache_usage(JOIN_TAB *tab,
       !tab->is_single_inner_of_outer_join())
     goto no_join_cache;
 
-  /*
-    Don't use join buffering if we're dictated not to by no_jbuf_after (this
-    ...)
-  */
-  if (!(i <= no_jbuf_after) || tab->loosescan_match_tab || 
-      sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
+  /* No join buffering if prevented by no_jbuf_after */
+  if (!(i <= no_jbuf_after) || tab->loosescan_match_tab)
+    goto no_join_cache;
+
+  /* Neither if semijoin Materialization */
+  if (sj_is_materialize_strategy(tab_sj_strategy))
     goto no_join_cache;
 
   for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
@@ -10099,7 +10113,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     if (first_inner != tab && !first_inner->use_join_cache)
       goto no_join_cache;
   }
-  if (tab->first_sj_inner_tab && tab->first_sj_inner_tab != tab &&
+  if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
+      tab->first_sj_inner_tab != tab &&
       !tab->first_sj_inner_tab->use_join_cache)
     goto no_join_cache;
   if (!tab[-1].use_join_cache)
@@ -10118,7 +10133,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
           goto no_join_cache;
       }
     }
-    else if (tab->first_sj_inner_tab &&
+    else if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
              tab->first_sj_inner_tab == tab[-1].first_sj_inner_tab)
       goto no_join_cache; 
   }       
@@ -10128,7 +10143,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   switch (tab->type) {
   case JT_ALL:
-    if (cache_level <= 2 && (tab->first_inner || tab->first_sj_inner_tab))
+    if (cache_level <= 2 &&
+        (tab->first_inner || tab_sj_strategy == SJ_OPT_FIRST_MATCH))
       goto no_join_cache;
     if ((options & SELECT_DESCRIBE) ||
         ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache))) &&
@@ -10812,6 +10828,21 @@ void JOIN_TAB::cleanup()
     table->reginfo.join_tab= 0;
   }
   end_read_record(&read_record);
+}
+
+
+/**
+  @returns semijoin strategy for this table.
+*/
+inline uint JOIN_TAB::get_sj_strategy() const
+{
+  if (first_sj_inner_tab == NULL)
+    return SJ_OPT_NONE;
+  const int j= first_sj_inner_tab - join->join_tab;
+  DBUG_ASSERT(j >= 0);
+  uint s= join->best_positions[j].sj_strategy;
+  DBUG_ASSERT(s != SJ_OPT_NONE);
+  return s;
 }
 
 
