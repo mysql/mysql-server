@@ -13,14 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#ifndef MY_DAEMON_H
-#define MY_DAEMON_H
+#ifndef NDB_DAEMON_H
+#define NDB_DAEMON_H
 
 C_MODE_START
 
 
-typedef int (*my_daemon_run_t)(int, char**);
-typedef void (*my_daemon_stop_t)(void);
+typedef int (*ndb_daemon_run_t)(int, char**);
+typedef void (*ndb_daemon_stop_t)(void);
 
 /*
   Used from "mini" main to run an application as a
@@ -31,9 +31,9 @@ typedef void (*my_daemon_stop_t)(void);
   with argc/argv
 
 */
-int my_daemon_init(int argc, char** argv,
-                   my_daemon_run_t run, my_daemon_stop_t stop,
-                   const char* name, const char* display_name);
+int ndb_daemon_init(int argc, char** argv,
+                    ndb_daemon_run_t run, ndb_daemon_stop_t stop,
+                    const char* name, const char* display_name);
 
 /*
   To be called at the point where an application needs to daemonize
@@ -44,7 +44,7 @@ int my_daemon_init(int argc, char** argv,
 
   On windows, only create pidfile and redirect.
 */
-int my_daemonize(const char* pidfile_name, const char *logfile_name);
+int ndb_daemonize(const char* pidfile_name, const char *logfile_name);
 
 
 /*
@@ -52,16 +52,16 @@ int my_daemonize(const char* pidfile_name, const char *logfile_name);
 
   Performs an ordered shutdown of service if running as a serevice.
  */
-void my_daemon_exit(int status);
+void ndb_daemon_exit(int status);
 
 
 /*
-   if any of the functions in my_daemon return non-zero (failure)
-   then my_daemon_error contains the error message
+   if any of the functions in ndb_daemon return non-zero (failure)
+   then ndb_daemon_error contains the error message
 */
 
-extern char my_daemon_error[];
+extern char ndb_daemon_error[];
 
 C_MODE_END
 
-#endif //MY_DAEMON_H
+#endif
