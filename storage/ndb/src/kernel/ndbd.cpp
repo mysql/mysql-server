@@ -503,6 +503,20 @@ catchsigs(bool foreground){
 
 }
 
+#ifdef _WIN32
+static HANDLE g_shutdown_event;
+
+DWORD WINAPI shutdown_thread(LPVOID)
+{
+  // Wait forever until the shutdown event is signaled
+  WaitForSingleObject(g_shutdown_event, INFINITE);
+
+  g_eventLogger->info("Performing stop");
+  globalData.theRestartFlag = perform_stop;
+  return 0;
+}
+#endif
+
 
 void
 ndbd_run(bool foreground, int report_fd,
@@ -510,6 +524,30 @@ ndbd_run(bool foreground, int report_fd,
          bool no_start, bool initial, bool initialstart,
          unsigned allocated_nodeid)
 {
+#ifdef _WIN32
+  {
+    char shutdown_event_name[32];
+    _snprintf(shutdown_event_name, sizeof(shutdown_event_name),
+              "ndbd_shutdown_%d", GetCurrentProcessId());
+
+    g_shutdown_event = CreateEvent(NULL, TRUE, FALSE, shutdown_event_name);
+    if (g_shutdown_event == NULL)
+    {
+      g_eventLogger->error("Failed to create shutdown event, error: %d",
+                           GetLastError());
+     ndbd_exit(1);
+    }
+
+    HANDLE thread = CreateThread(NULL, 0, &shutdown_thread, NULL, 0, NULL);
+    if (thread == NULL)
+    {
+      g_eventLogger->error("couldn't start shutdown thread, error: %d",
+                           GetLastError());
+      ndbd_exit(1);
+    }
+  }
+#endif
+
   if (foreground)
     g_eventLogger->info("Ndb started in foreground");
 

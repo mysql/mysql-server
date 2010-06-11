@@ -19,6 +19,7 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <kernel/NodeBitmask.hpp>
+#include <portlib/my_daemon.h>
 
 #include "ndbd.hpp"
 #include "angel.hpp"
@@ -51,11 +52,11 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Start ndbd as daemon (default)",
     (uchar**) &opt_daemon, (uchar**) &opt_daemon, 0,
-    GET_BOOL, NO_ARG, IF_WIN(0,1), 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "nodaemon", NDB_OPT_NOSHORT,
     "Do not start ndbd as daemon, provided for testing purposes",
     (uchar**) &opt_no_daemon, (uchar**) &opt_no_daemon, 0,
-    GET_BOOL, NO_ARG, IF_WIN(1,0), 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "foreground", NDB_OPT_NOSHORT,
     "Run real ndbd in foreground, provided for debugging purposes"
     " (implies --nodaemon)",
@@ -193,5 +194,6 @@ real_main(int argc, char** argv)
 int
 main(int argc, char** argv)
 {
-  return real_main(argc, argv);
+  return my_daemon_init(argc, argv, real_main, angel_stop,
+                        "ndbd", "MySQL Cluster Data Node Daemon");
 }
