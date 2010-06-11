@@ -750,44 +750,7 @@ trx_commit(
 
 	trx->must_flush_log_later = FALSE;
 
-	lock_mutex_enter();
-
-	ut_ad(trx->lock.conc_state == TRX_ACTIVE
-	      || trx->lock.conc_state == TRX_PREPARED);
-
-	/* The following assignment makes the transaction committed in memory
-	and makes its changes to data visible to other transactions.
-	NOTE that there is a small discrepancy from the strict formal
-	visibility rules here: a human user of the database can see
-	modifications made by another transaction T even before the necessary
-	log segment has been flushed to the disk. If the database happens to
-	crash before the flush, the user has seen modifications from T which
-	will never be a committed transaction. However, any transaction T2
-	which sees the modifications of the committing transaction T, and
-	which also itself makes modifications to the database, will get an lsn
-	larger than the committing transaction T. In the case where the log
-	flush fails, and T never gets committed, also T2 will never get
-	committed. */
-
-	/*--------------------------------------*/
-	trx->lock.conc_state = TRX_COMMITTED_IN_MEMORY;
-	/*--------------------------------------*/
-
-	/* If we release transaction mutex below and we are still doing
-	recovery i.e.: back ground rollback thread is still active
-	then there is a chance that the rollback thread may see
-	this trx as COMMITTED_IN_MEMORY and goes adhead to clean it
-	up calling trx_cleanup_at_db_startup(). This can happen
-	in the case we are committing a trx here that is left in
-	PREPARED state during the crash. Note that commit of the
-	rollback of a PREPARED trx happens in the recovery thread
-	while the rollback of other transactions happen in the
-	background thread. To avoid this race we unconditionally
-	unset the is_recovered flag from the trx. */
-
-	lock_release(trx);
-
-	lock_mutex_exit();
+	lock_trx_release_locks(trx);
 
 	trx_sys_mutex_enter();
 

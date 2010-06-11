@@ -23,12 +23,15 @@ The transaction lock system
 Created 25/5/2010 Sunny Bains
 *******************************************************/
 
+#define LOCK_MODULE_IMPLEMENTATION
+
 #include "srv0mon.h"
 #include "que0que.h"
 #include "lock0lock.h"
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "ha_prototypes.h"
+#include "lock0priv.h"
 
 UNIV_INTERN ibool	srv_lock_timeout_active 	= FALSE;
 UNIV_INTERN ulint	srv_n_lock_wait_count		= 0;

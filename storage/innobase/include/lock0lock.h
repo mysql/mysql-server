@@ -484,23 +484,14 @@ lock_rec_unlock(
 	const rec_t*		rec,	/*!< in: record */
 	enum lock_mode		lock_mode);/*!< in: LOCK_S or LOCK_X */
 /*********************************************************************//**
-Releases transaction locks, and releases possible other transactions waiting
-because of these locks. Caller must reserve the followin locks before
-calling: lock_mutex, trx_sys_mutex and the trx mutex. */
+Releases a transaction's locks, and releases possible other transactions
+waiting because of these locks. Change the state of the transaction to
+TRX_COMMITTED_IN_MEMORY. */
 UNIV_INTERN
 void
-lock_release(
-/*=========*/
+lock_trx_release_locks(
+/*===================*/
 	trx_t*	trx);	/*!< in: transaction */
-/*********************************************************************//**
-Cancels a waiting lock request and releases possible other transactions
-waiting behind it. */
-UNIV_INTERN
-void
-lock_cancel_waiting_and_release(
-/*============================*/
-	lock_t*	lock);	/*!< in: waiting lock request */
-
 /*********************************************************************//**
 Removes locks on a table to be dropped or truncated.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
@@ -792,6 +783,24 @@ void
 lock_unlock_table_autoinc_for_mysql(
 /*===============================*/
 	trx_t*	trx);			/*!< in/out: transaction */
+/*********************************************************************//**
+Check whether the transaction has already been rolled back because it
+was selected as a deadlock victim, or if it has to wait then cancel
+the wait lock.
+@return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
+UNIV_INTERN
+enum db_err
+lock_trx_handle_wait(
+/*=================*/
+	trx_t*		trx); 	/*!< in, out: trx lock state */
+/*********************************************************************//**
+Get the number of locks on a table.
+@return number of locks */
+UNIV_INTERN
+ulint
+lock_table_get_n_locks(
+/*===================*/
+	dict_table_t*	table);
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the
