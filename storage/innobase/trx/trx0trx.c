@@ -212,7 +212,9 @@ trx_free(
 		fputs("  InnoDB: Error: Freeing a trx which is declared"
 		      " to be processing\n"
 		      "InnoDB: inside InnoDB.\n", stderr);
+		trx_sys_mutex_enter();
 		trx_print(stderr, trx, 600);
+		trx_sys_mutex_exit();
 		putc('\n', stderr);
 
 		/* This is an error but not a fatal error. We must keep
@@ -231,7 +233,9 @@ trx_free(
 			(ulong)trx->n_mysql_tables_in_use,
 			(ulong)trx->mysql_n_tables_locked);
 
+		trx_sys_mutex_enter();
 		trx_print(stderr, trx, 600);
+		trx_sys_mutex_exit();
 
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
@@ -827,6 +831,8 @@ trx_commit(
 		trx->commit_lsn = lsn;
 	}
 
+	trx_sys_mutex_enter();
+
 	trx_mutex_enter(trx);
 
 	/* Free all savepoints */
@@ -842,8 +848,6 @@ trx_commit(
 	trx->lock.conc_state = TRX_NOT_STARTED;
 
 	trx_mutex_exit(trx);
-
-	trx_sys_mutex_enter();
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
@@ -1119,8 +1123,7 @@ trx_mark_sql_stat_end(
 }
 
 /**********************************************************************//**
-Prints info about a transaction to the given file. The caller must own the
-kernel mutex. */
+Prints info about a transaction to the given file. */
 UNIV_INTERN
 void
 trx_print(
@@ -1132,7 +1135,7 @@ trx_print(
 {
 	ibool	newline;
 
-	ut_ad(trx_mutex_own(trx));
+	ut_ad(trx_sys_mutex_own());
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, TRX_ID_PREP_PRINTF(trx->id));
 

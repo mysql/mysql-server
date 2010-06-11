@@ -780,8 +780,8 @@ function should be called at the the end of an SQL statement, by the
 connection thread that owns the transaction (trx->mysql_thd). */
 UNIV_INTERN
 void
-lock_unlock_table_autoinc_for_mysql(
-/*===============================*/
+lock_unlock_table_autoinc(
+/*======================*/
 	trx_t*	trx);			/*!< in/out: transaction */
 /*********************************************************************//**
 Check whether the transaction has already been rolled back because it

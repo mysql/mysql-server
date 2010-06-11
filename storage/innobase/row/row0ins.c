@@ -636,7 +636,6 @@ row_ins_foreign_report_err(
 	row_ins_set_detailed(trx, foreign);
 
 	trx_sys_mutex_enter();
-	trx_mutex_enter(trx);
 
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
@@ -645,7 +644,6 @@ row_ins_foreign_report_err(
 
 	trx_print(ef, trx, 600);
 
-	trx_mutex_exit(trx);
 	trx_sys_mutex_exit();
 
 	fputs("Foreign key constraint fails for table ", ef);
@@ -697,7 +695,6 @@ row_ins_foreign_report_add_err(
 	row_ins_set_detailed(trx, foreign);
 
 	trx_sys_mutex_enter();
-	trx_mutex_enter(trx);
 
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
@@ -706,7 +703,6 @@ row_ins_foreign_report_add_err(
 
 	trx_print(ef, trx, 600);
 
-	trx_mutex_exit(trx);
 	trx_sys_mutex_exit();
 
 	fputs("Foreign key constraint fails for table ", ef);
@@ -1294,7 +1290,6 @@ run_again:
 			row_ins_set_detailed(trx, foreign);
 
 			trx_sys_mutex_enter();
-			trx_mutex_enter(trx);
 
 			mutex_enter(&dict_foreign_err_mutex);
 			rewind(ef);
@@ -1303,8 +1298,6 @@ run_again:
 
 			trx_print(ef, trx, 600);
 
-
-			trx_mutex_exit(trx);
 			trx_sys_mutex_exit();
 
 			fputs("Foreign key constraint fails for table ", ef);

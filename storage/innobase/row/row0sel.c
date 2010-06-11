@@ -2894,7 +2894,9 @@ row_sel_get_clust_rec_for_mysql(
 			      "InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
+			trx_sys_mutex_enter();
 			trx_print(stderr, trx, 600);
+			trx_sys_mutex_exit();
 
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
@@ -3373,7 +3375,9 @@ row_search_for_mysql(
 		      "InnoDB: but it has not locked"
 		      " any tables in ::external_lock()!\n",
 		      stderr);
+		trx_sys_mutex_enter();
 		trx_print(stderr, trx, 600);
+		trx_sys_mutex_exit();
 		fputc('\n', stderr);
 	}
 #endif
@@ -3756,7 +3760,9 @@ shortcut_fails_too_big_rec:
 			      " perform a consistent read\n"
 			      "InnoDB: but the read view is not assigned!\n",
 			      stderr);
+			trx_sys_mutex_enter();
 			trx_print(stderr, trx, 600);
+			trx_sys_mutex_exit();
 			fputc('\n', stderr);
 			ut_a(0);
 		}
@@ -4611,7 +4617,7 @@ row_search_check_if_query_cache_permitted(
 	We do not check what type locks there are on the table, though only
 	IX type locks actually would require ret = FALSE. */
 
-	if (lock_get_table_n_locks(table) == 0
+	if (lock_table_get_n_locks(table) == 0
 	    && ut_dulint_cmp(trx->id, table->query_cache_inv_trx_id) >= 0) {
 
 		ret = TRUE;

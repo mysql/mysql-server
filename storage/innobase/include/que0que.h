@@ -515,19 +515,6 @@ struct que_fork_struct{
 #define QUE_CUR_START		2
 #define	QUE_CUR_END		3
 
-/** Test if query thr mutex is owned. */
-#define query_mutex_own(t) mutex_own(&thr_get_trx(t)->mutex)
-
-/** Acquire the query thr mutex. */
-#define query_mutex_enter(t) do {		\
-	mutex_enter(&thr_get_trx(t)->mutex);	\
-} while (0)
-
-/** Release the query thr mutex. */
-#define query_mutex_exit(t) do {		\
-	mutex_exit(&thr_get_trx(t)->mutex);	\
-} while (0)
-
 #ifndef UNIV_NONINL
 #include "que0que.ic"
 #endif

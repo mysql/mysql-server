@@ -1573,7 +1573,6 @@ lock_sec_rec_some_has_impl(
 {
 	const page_t*	page = page_align(rec);
 
-	ut_ad(!lock_mutex_own());
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -3363,7 +3362,15 @@ retry:
 		      lock_latest_err_file);
 
 		fputs("\n*** TRANSACTION:\n", lock_latest_err_file);
+
+		/* To obey the latching order */
+		trx_mutex_exit(trx);
+
+		trx_sys_mutex_enter();
 		trx_print(lock_latest_err_file, trx, 3000);
+		trx_sys_mutex_exit();
+
+		trx_mutex_enter(trx);
 
 		fputs("*** WAITING FOR THIS LOCK TO BE GRANTED:\n",
 		      lock_latest_err_file);
@@ -3412,10 +3419,9 @@ lock_deadlock_recursive(
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_EXCEED_MAX_DEPTH */
 {
-	ulint	ret;
-	lock_t*	lock;
-	trx_t*	lock_trx;
-	ulint	heap_no		= ULINT_UNDEFINED;
+	lock_victim_t	ret;
+	lock_t*		lock;
+	ulint		heap_no		= ULINT_UNDEFINED;
 
 	ut_a(trx);
 	ut_a(start);
@@ -3426,7 +3432,7 @@ lock_deadlock_recursive(
 		/* We have already exhaustively searched the subtree starting
 		from this trx */
 
-		return(0);
+		return(LOCK_VICTIM_NONE);
 	}
 
 	(*cost)++;
@@ -3463,10 +3469,12 @@ lock_deadlock_recursive(
 			/* We can mark this subtree as searched */
 			trx->lock.deadlock_mark = 1;
 
-			return(FALSE);
+			return(LOCK_VICTIM_NONE);
 		}
 
 		if (lock_has_to_wait(wait_lock, lock)) {
+
+			trx_t*	lock_trx;
 
 			ibool	too_far
 				= depth > LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK
@@ -3475,6 +3483,9 @@ lock_deadlock_recursive(
 			lock_trx = lock->trx;
 
 			if (lock_trx == start) {
+
+				/* To obey the latching levels */
+				trx_mutex_exit(start);
 
 				/* We came back to the recursion starting
 				point: a deadlock detected; or we have
@@ -3492,12 +3503,9 @@ lock_deadlock_recursive(
 					trx_mutex_enter(wait_lock->trx);
 				}
 
+				trx_sys_mutex_enter();
 				trx_print(ef, wait_lock->trx, 3000);
-
-				if (wait_lock->trx != trx
-				    && wait_lock->trx != start) {
-					trx_mutex_exit(wait_lock->trx);
-				}
+				trx_sys_mutex_exit();
 
 				fputs("*** (1) WAITING FOR THIS LOCK"
 				      " TO BE GRANTED:\n", ef);
@@ -3510,17 +3518,9 @@ lock_deadlock_recursive(
 
 				fputs("*** (2) TRANSACTION:\n", ef);
 
-				if (wait_lock->trx != trx
-				    && wait_lock->trx != start) {
-					trx_mutex_enter(lock->trx);
-				}
-
+				trx_sys_mutex_enter();
 				trx_print(ef, lock->trx, 3000);
-
-				if (wait_lock->trx != trx
-				    && wait_lock->trx != start) {
-					trx_mutex_exit(lock->trx);
-				}
+				trx_sys_mutex_exit();
 
 				fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
 
@@ -3549,6 +3549,8 @@ lock_deadlock_recursive(
 #endif /* UNIV_DEBUG */
 				MONITOR_INC(MONITOR_DEADLOCK);
 
+				trx_mutex_enter(start);
+
 				if (trx_weight_cmp(wait_lock->trx,
 						   start) >= 0) {
 					/* Our recursion starting point
@@ -3571,7 +3573,11 @@ lock_deadlock_recursive(
 				wait_lock->trx->lock.was_chosen_as_deadlock_victim
 					= TRUE;
 
+				trx_mutex_enter(wait_lock->trx);
+
 				lock_cancel_waiting_and_release(wait_lock);
+
+				trx_mutex_exit(wait_lock->trx);
 
 				/* Since trx and wait_lock are no longer
 				in the waits-for graph, we can return FALSE;
@@ -3604,16 +3610,12 @@ lock_deadlock_recursive(
 				incompatible mode, and is itself waiting for
 				a lock */
 
-				trx_mutex_enter(lock_trx);
-
 				ret = lock_deadlock_recursive(
 					start, lock_trx,
 					lock_trx->lock.wait_lock,
-				       	cost, depth + 1);
+					cost, depth + 1);
 
-				trx_mutex_exit(lock_trx);
-
-				if (ret != 0) {
+				if (ret != LOCK_VICTIM_NONE) {
 
 					return(ret);
 				}
@@ -4114,7 +4116,6 @@ lock_release(
 			lock_table_dequeue(lock);
 		}
 
-
 		if (count == LOCK_RELEASE_INTERVAL) {
 			/* Release the  mutex for a while, so that we
 			do not monopolize it */
@@ -4500,9 +4501,7 @@ lock_print_info_all_transactions(
 	while (trx) {
 		if (trx->lock.conc_state == TRX_NOT_STARTED) {
 			fputs("---", file);
-			trx_mutex_enter(trx);
 			trx_print(file, trx, 600);
-			trx_mutex_exit(trx);
 		}
 
 		trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
@@ -4534,10 +4533,9 @@ loop:
 		return;
 	}
 
-	trx_mutex_enter(trx);
-
 	if (nth_lock == 0) {
 		fputs("---", file);
+
 		trx_print(file, trx, 600);
 
 		if (trx->read_view) {
@@ -4568,8 +4566,6 @@ loop:
 			fputs("------------------\n", file);
 		}
 	}
-
-	trx_mutex_exit(trx);
 
 	if (!srv_print_innodb_lock_monitor) {
 		nth_trx++;
@@ -4726,6 +4722,8 @@ lock_rec_queue_validate(
 
 		lock_mutex_enter();
 
+		trx_sys_mutex_enter();
+
 		lock = lock_rec_get_first(block, heap_no);
 
 		while (lock) {
@@ -4751,6 +4749,8 @@ lock_rec_queue_validate(
 			lock = lock_rec_get_next(heap_no, lock);
 		}
 
+		trx_sys_mutex_exit();
+
 		lock_mutex_exit();
 
 		return(TRUE);
@@ -4759,9 +4759,12 @@ lock_rec_queue_validate(
 	if (!index);
 	else if (dict_index_is_clust(index)) {
 
-		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
+		/* Unlike the non-debug code, this invariant can only succeed
+		if the check and assertion are covered by the lock mutex. */
 
 		lock_mutex_enter();
+
+		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 
 		if (impl_trx
 		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
@@ -4815,9 +4818,12 @@ lock_rec_queue_validate(
 
 	lock_mutex_enter();
 
+	trx_sys_mutex_enter();
+
 	lock = lock_rec_get_first(block, heap_no);
 
 	while (lock) {
+
 		ut_a(lock->trx->lock.conc_state == TRX_ACTIVE
 		     || lock->trx->lock.conc_state == TRX_PREPARED
 		     || lock->trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY);
@@ -4846,6 +4852,8 @@ lock_rec_queue_validate(
 
 		lock = lock_rec_get_next(heap_no, lock);
 	}
+
+	trx_sys_mutex_exit();
 
 	lock_mutex_exit();
 
@@ -4889,6 +4897,9 @@ lock_rec_validate_page(
 	page = block->frame;
 
 	lock_mutex_enter();
+
+	trx_sys_mutex_enter();
+
 loop:
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
 
@@ -4932,6 +4943,8 @@ loop:
 				"Validating %lu %lu\n",
 				(ulong) space, (ulong) page_no);
 
+			trx_sys_mutex_exit();
+
 			lock_mutex_exit();
 
 			/* If this thread is holding the file space
@@ -4942,6 +4955,8 @@ loop:
 			lock_rec_queue_validate(block, rec, index, offsets);
 
 			lock_mutex_enter();
+
+			trx_sys_mutex_enter();
 
 			nth_bit = i + 1;
 
@@ -4955,6 +4970,9 @@ loop:
 	goto loop;
 
 function_exit:
+
+	trx_sys_mutex_exit();
+
 	lock_mutex_exit();
 
 	mtr_commit(&mtr);
@@ -5008,8 +5026,6 @@ lock_validate(void)
 		trx_mutex_exit(prev_trx);
 	}
 
-	trx_sys_mutex_exit();
-
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
 
 		limit = ut_dulint_zero;
@@ -5037,6 +5053,8 @@ lock_validate(void)
 				break;
 			}
 
+			trx_sys_mutex_exit();
+
 			lock_mutex_exit();
 
 			lock_rec_validate_page(space,
@@ -5045,9 +5063,13 @@ lock_validate(void)
 
 			lock_mutex_enter();
 
+			trx_sys_mutex_enter();
+
 			limit = ut_dulint_create(space, page_no + 1);
 		}
 	}
+
+	trx_sys_mutex_exit();
 
 	lock_mutex_exit();
 

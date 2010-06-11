@@ -380,7 +380,7 @@ lock_wait_release_thread_if_suspended(
 				user OS thread	 */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(query_mutex_own(thr));
+	ut_ad(trx_mutex_own(thr_get_trx(thr)));
 
 	if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
 		trx_t*	trx = thr_get_trx(thr);

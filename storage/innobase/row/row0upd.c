@@ -1495,7 +1495,9 @@ row_upd_sec_index_entry(
 		rec_print(stderr, rec, index);
 		putc('\n', stderr);
 
+		trx_sys_mutex_enter();
 		trx_print(stderr, trx, 0);
+		trx_sys_mutex_exit();
 
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"

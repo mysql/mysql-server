@@ -648,11 +648,11 @@ que_thr_node_step(
 		return(thr);
 	}
 
-	query_mutex_enter(thr);
+	trx_mutex_enter(thr_get_trx(thr));
 
 	if (que_thr_peek_stop(thr)) {
 
-		query_mutex_exit(thr);
+		trx_mutex_exit(thr_get_trx(thr));
 
 		return(thr);
 	}
@@ -661,7 +661,7 @@ que_thr_node_step(
 
 	thr->state = QUE_THR_COMPLETED;
 
-	query_mutex_exit(thr);
+	trx_mutex_exit(thr_get_trx(thr));
 
 	return(NULL);
 }
@@ -761,9 +761,9 @@ que_thr_dec_refer_count(
 {
 	trx_t*		trx;
 
-	ut_ad(query_mutex_own(thr));
-
 	trx = thr_get_trx(thr);
+
+	ut_ad(trx_mutex_own(trx));
 
 	ut_a(thr->is_active);
 
@@ -820,7 +820,7 @@ que_thr_stop_for_mysql(
 	/* Can't be the purge transaction. */
 	ut_a(!ut_dulint_is_zero(trx->id));
 
-	query_mutex_enter(thr);
+	trx_mutex_enter(trx);
 
 	if (thr->state == QUE_THR_RUNNING) {
 
@@ -834,7 +834,7 @@ que_thr_stop_for_mysql(
 			already released, or this transaction was chosen
 			as a victim in selective deadlock resolution */
 
-			query_mutex_exit(thr);
+			trx_mutex_exit(trx);
 
 			return;
 		}
@@ -849,7 +849,7 @@ que_thr_stop_for_mysql(
 
 	trx->lock.n_active_thrs--;
 
-	query_mutex_exit(thr);
+	trx_mutex_exit(trx);
 }
 
 /**********************************************************************//**
@@ -1146,7 +1146,7 @@ que_run_threads_low(
 
 	ut_ad(thr->state == QUE_THR_RUNNING);
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
-	ut_ad(!query_mutex_own(thr));
+	ut_ad(!trx_mutex_own(thr_get_trx(thr)));
 
 	/* cumul_resource counts how much resources the OS thread (NOT the
 	query thread) has spent in this function */
@@ -1168,7 +1168,7 @@ loop:
 	next_thr = que_thr_step(thr);
 	/*-------------------------*/
 
-	query_mutex_enter(thr);
+	trx_mutex_enter(thr_get_trx(thr));
 
 	ut_a(!next_thr || (thr_get_trx(next_thr)->error_state == DB_SUCCESS));
 
@@ -1183,7 +1183,7 @@ loop:
 
 		if (next_thr == NULL) {
 
-			query_mutex_exit(thr);
+			trx_mutex_exit(thr_get_trx(thr));
 
 			return;
 		}
@@ -1193,7 +1193,7 @@ loop:
 		thr = next_thr;
 	}
 
-	query_mutex_exit(thr);
+	trx_mutex_exit(thr_get_trx(thr));
 
 	goto loop;
 }
@@ -1206,7 +1206,7 @@ que_run_threads(
 /*============*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ut_ad(!query_mutex_own(thr));
+	ut_ad(!trx_mutex_own(thr_get_trx(thr)));
 
 loop:
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
@@ -1227,7 +1227,7 @@ loop:
 
 		lock_wait_suspend_thread(thr);
 
-		query_mutex_enter(thr);
+		trx_mutex_enter(thr_get_trx(thr));
 
 		ut_a(!ut_dulint_is_zero(thr_get_trx(thr)->id));
 
@@ -1236,11 +1236,11 @@ loop:
 			a lock wait timeout */
 
 			que_thr_dec_refer_count(thr, NULL);
-			query_mutex_exit(thr);
+			trx_mutex_exit(thr_get_trx(thr));
 			break;
 		}
 
-		query_mutex_exit(thr);
+		trx_mutex_exit(thr_get_trx(thr));
 		goto loop;
 
 	case QUE_THR_COMPLETED:
