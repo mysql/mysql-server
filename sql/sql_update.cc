@@ -1288,7 +1288,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
-  SQL_LIST update;
+  SQL_I_List<TABLE_LIST> update;
   table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
@@ -1369,11 +1369,11 @@ int multi_update::prepare(List<Item> &not_used_values,
     leaf_table_count++;
     if (tables_to_update & table->map)
     {
-      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
+      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((uchar*) tl, (uchar**) &tl->next_local);
+      update.link_in_list(tl, &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
@@ -1394,7 +1394,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
 
   table_count=  update.elements;
-  update_tables= (TABLE_LIST*) update.first;
+  update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
