@@ -720,11 +720,18 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   Silence_deprecated_warning warning_handler;
+  Parser_state parser_state;
 
   thd->variables.sql_mode= sql_mode;
   thd->variables.select_limit= HA_POS_ERROR;
 
-  Parser_state parser_state(thd, defstr->c_ptr(), defstr->length());
+  if (parser_state.init(thd, defstr->c_ptr(), defstr->length()))
+  {
+    thd->variables.sql_mode= old_sql_mode;
+    thd->variables.select_limit= old_select_limit;
+    return NULL;
+  }
+
   lex_start(thd);
   thd->push_internal_handler(&warning_handler);
   thd->spcont= 0;

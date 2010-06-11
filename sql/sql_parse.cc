@@ -559,7 +559,14 @@ static void handle_bootstrap_impl(THD *thd)
       mode we have only one thread.
     */
     thd->set_time();
-    Parser_state parser_state(thd, thd->query(), length);
+    Parser_state parser_state;
+    if (parser_state.init(thd, thd->query(), length))
+    {
+      thd->protocol->end_statement();
+      bootstrap_error= 1;
+      break;
+    }
+
     mysql_parse(thd, thd->query(), length, &parser_state);
     close_thread_tables(thd);			// Free tables
 
@@ -1121,7 +1128,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #if defined(ENABLED_PROFILING)
     thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
-    Parser_state parser_state(thd, thd->query(), thd->query_length());
+    Parser_state parser_state;
+    if (parser_state.init(thd, thd->query(), thd->query_length()))
+      break;
 
     mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
 
@@ -5907,14 +5916,17 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  Parser_state parser_state(thd, inBuf, length);
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
+  Parser_state parser_state;
+  if (!(error= parser_state.init(thd, inBuf, length)))
+  {
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
 
-  if (!parse_sql(thd, & parser_state, NULL) &&
-      all_tables_not_ok(thd, lex->select_lex.table_list.first))
-    error= 1;                  /* Ignore question */
-  thd->end_statement();
+    if (!parse_sql(thd, & parser_state, NULL) &&
+        all_tables_not_ok(thd, lex->select_lex.table_list.first))
+      error= 1;                  /* Ignore question */
+    thd->end_statement();
+  }
   thd->cleanup_after_query();
   DBUG_RETURN(error);
 }

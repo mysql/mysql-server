@@ -147,20 +147,30 @@ st_parsing_options::reset()
   Perform initialization of Lex_input_stream instance.
 
   Basically, a buffer for pre-processed query. This buffer should be large
-  enough to keep multi-statement query. The allocation is done once in the
-  Lex_input_stream constructor in order to prevent memory pollution when
+  enough to keep multi-statement query. The allocation is done once in
+  Lex_input_stream::init() in order to prevent memory pollution when
   the server is processing large multi-statement queries.
-
-  @todo Check return value of THD::alloc().
 */
 
-Lex_input_stream::Lex_input_stream(THD *thd,
-                                   const char* buffer,
-                                   unsigned int length)
-  :m_thd(thd)
+bool Lex_input_stream::init(THD *thd,
+			    const char* buff,
+			    unsigned int length)
 {
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   m_cpp_buf= (char*) thd->alloc(length + 1);
-  reset(buffer, length);
+
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("-d,bug42064_simulate_oom");); 
+
+  if (m_cpp_buf == NULL)
+    return TRUE;
+
+  m_thd= thd;
+  reset(buff, length);
+
+  return FALSE;
 }
 
 
@@ -203,8 +213,6 @@ Lex_input_stream::reset(const char *buffer, unsigned int length)
   m_cpp_ptr= m_cpp_buf;
 }
 
-Lex_input_stream::~Lex_input_stream()
-{}
 
 /**
   The operation is called from the parser in order to
