@@ -25,7 +25,7 @@
 
 #include <version.h>
 #include <kernel_types.h>
-#include <my_daemon.h>
+#include <portlib/ndb_daemon.h>
 #include <NdbConfig.h>
 #include <NdbSleep.h>
 #include <ndb_version.h>
@@ -175,7 +175,7 @@ static void mgmd_exit(int result)
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
-  my_daemon_exit(result);
+  ndb_daemon_exit(result);
 }
 
 
@@ -279,10 +279,10 @@ static int mgmd_main(int argc, char** argv)
 
       char *lockfile= NdbConfig_PidFileName(localNodeId);
       char *logfile=  NdbConfig_StdoutFileName(localNodeId);
-      if (my_daemonize(lockfile, logfile))
+      if (ndb_daemonize(lockfile, logfile))
       {
         g_eventLogger->error("Couldn't start as daemon, error: '%s'",
-                             my_daemon_error);
+                             ndb_daemon_error);
         mgmd_exit(1);
       }
     }
@@ -334,6 +334,6 @@ static void mgmd_stop(void)
 
 int main(int argc, char** argv)
 {
-  return my_daemon_init(argc, argv, mgmd_main, mgmd_stop,
-                        "ndb_mgmd", "MySQL Cluster Management Server");
+  return ndb_daemon_init(argc, argv, mgmd_main, mgmd_stop,
+                         "ndb_mgmd", "MySQL Cluster Management Server");
 }
