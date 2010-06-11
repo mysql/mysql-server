@@ -2944,7 +2944,9 @@ Execute_sql_statement::execute_server_code(THD *thd)
   if (alloc_query(thd, m_sql_text.str, m_sql_text.length))
     return TRUE;
 
-  Parser_state parser_state(thd, thd->query(), thd->query_length());
+  Parser_state parser_state;
+  if (parser_state.init(thd, thd->query(), thd->query_length()))
+    return TRUE;
 
   parser_state.m_lip.multi_statements= FALSE;
   lex_start(thd);
@@ -3184,14 +3186,17 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
-  Parser_state parser_state(thd, thd->query(), thd->query_length());
-  parser_state.m_lip.stmt_prepare_mode= TRUE;
-  parser_state.m_lip.multi_statements= FALSE;
-  lex_start(thd);
+  Parser_state parser_state;
+  if (!parser_state.init(thd, thd->query(), thd->query_length()))
+  {
+    parser_state.m_lip.stmt_prepare_mode= TRUE;
+    parser_state.m_lip.multi_statements= FALSE;
+    lex_start(thd);
 
-  error= parse_sql(thd, & parser_state, NULL) ||
-         thd->is_error() ||
-         init_param_array(this);
+    error= parse_sql(thd, & parser_state, NULL) ||
+	thd->is_error() ||
+	init_param_array(this);
+  }
 
   lex->set_trg_event_type_for_tables();
 
