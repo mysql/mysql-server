@@ -3254,9 +3254,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       thd->table_map_for_update= (table_map)table_map_for_update;
       
       /* Execute the query (note that we bypass dispatch_command()) */
-      Parser_state parser_state(thd, thd->query(), thd->query_length());
-      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
-      log_slow_statement(thd);
+      Parser_state parser_state;
+      if (!parser_state.init(thd, thd->query(), thd->query_length()))
+      {
+        mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        log_slow_statement(thd);
+      }
 
       /*
         Resetting the enable_slow_log thd variable.
