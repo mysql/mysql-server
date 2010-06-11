@@ -1006,7 +1006,6 @@ public:
     of the main statement is called.
   */
   enum enum_locked_tables_mode locked_tables_mode;
-  ulong	version;
   uint current_tablenr;
 
   enum enum_flags {
@@ -1024,15 +1023,6 @@ public:
      call init_open_tables_state().
   */
   Open_tables_state() : state_flags(0U) { }
-
-  /**
-     Prepare Open_tables_state instance for operations dealing with tables.
-  */
-  void init_open_tables_state(THD *thd, ulong version_arg)
-  {
-    reset_open_tables_state(thd);
-    version= version_arg;
-  }
 
   void set_open_tables_state(Open_tables_state *state)
   {

@@ -267,6 +267,7 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
                                   const char *table_name,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
+bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 
 extern uint  table_cache_count;
 extern TABLE *unused_tables;
