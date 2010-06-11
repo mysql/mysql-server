@@ -29,7 +29,6 @@
 #include <EventLogger.hpp>
 
 #include <SignalSender.hpp>
-#include <my_daemon.h>
 
 #define MGM_ERROR_MAX_INJECT_SESSION_ONLY 10000
 
