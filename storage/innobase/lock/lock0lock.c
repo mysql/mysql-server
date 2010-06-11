@@ -3489,13 +3489,15 @@ lock_deadlock_recursive(
 
 				fputs("\n*** (1) TRANSACTION:\n", ef);
 
-				if (wait_lock->trx != start) {
+				if (wait_lock->trx != trx
+				    && wait_lock->trx != start) {
 					trx_mutex_enter(wait_lock->trx);
 				}
 
 				trx_print(ef, wait_lock->trx, 3000);
 
-				if (wait_lock->trx != start) {
+				if (wait_lock->trx != trx
+				    && wait_lock->trx != start) {
 					trx_mutex_exit(wait_lock->trx);
 				}
 
@@ -3510,13 +3512,15 @@ lock_deadlock_recursive(
 
 				fputs("*** (2) TRANSACTION:\n", ef);
 
-				if (lock->trx != trx) {
+				if (wait_lock->trx != trx
+				    && wait_lock->trx != start) {
 					trx_mutex_enter(lock->trx);
 				}
 
 				trx_print(ef, lock->trx, 3000);
 
-				if (lock->trx != trx) {
+				if (wait_lock->trx != trx
+				    && wait_lock->trx != start) {
 					trx_mutex_exit(lock->trx);
 				}
 
