@@ -167,6 +167,17 @@ typedef enum_nested_loop_state
 Next_select_func setup_end_select_func(JOIN *join);
 int rr_sequential(READ_RECORD *info);
 
+#define SJ_OPT_NONE 0
+#define SJ_OPT_DUPS_WEEDOUT 1
+#define SJ_OPT_LOOSE_SCAN   2
+#define SJ_OPT_FIRST_MATCH  3
+#define SJ_OPT_MATERIALIZE_LOOKUP  4
+#define SJ_OPT_MATERIALIZE_SCAN  5
+
+inline bool sj_is_materialize_strategy(uint strategy)
+{
+  return strategy >= SJ_OPT_MATERIALIZE_LOOKUP;
+}
 
 typedef struct st_join_table
 {
@@ -266,7 +277,12 @@ typedef struct st_join_table
   */
   TABLE_LIST    *emb_sj_nest;
 
-  /* FirstMatch variables (final QEP) */
+  /**
+    Boundaries of semijoin inner tables around this table. Valid only once
+    final QEP has been chosen. Depending on the strategy, they may define an
+    interval (all tables inside are inner of a semijoin) or
+    not. last_sj_inner_tab is not set for Duplicates Weedout.
+  */
   struct st_join_table *first_sj_inner_tab;
   struct st_join_table *last_sj_inner_tab;
 
@@ -331,17 +347,13 @@ typedef struct st_join_table
     }
     return test(used_rowid_fields);
   }
-  bool is_inner_table_of_semi_join_with_first_match()
-  {
-    return first_sj_inner_tab != NULL;
-  }
   bool is_inner_table_of_outer_join()
   {
     return first_inner != NULL;
   }
-  bool is_single_inner_of_semi_join_with_first_match()
+  bool is_single_inner_of_semi_join()
   {
-    return first_sj_inner_tab == this && last_sj_inner_tab == this;            
+    return first_sj_inner_tab == this && last_sj_inner_tab == this;
   }
   bool is_single_inner_of_outer_join()
   {
@@ -350,27 +362,6 @@ typedef struct st_join_table
   bool is_first_inner_for_outer_join()
   {
     return first_inner && first_inner == this;
-  }
-  bool use_match_flag()
-  {
-    return is_first_inner_for_outer_join() || first_sj_inner_tab == this ; 
-  }
-  bool check_only_first_match()
-  {
-    return  last_sj_inner_tab == this ||
-           (first_inner && first_inner->last_inner == this &&
-            table->reginfo.not_exists_optimize);
-  }
-  bool is_last_inner_table()
-  {
-    return (first_inner && first_inner->last_inner == this) ||
-           last_sj_inner_tab == this;
-  }
-  struct st_join_table *get_first_inner_table()
-  {
-    if (first_inner)
-      return first_inner;
-    return first_sj_inner_tab; 
   }
   void set_select_cond(COND *to, uint line)
   {
@@ -386,6 +377,7 @@ typedef struct st_join_table
       select->cond= new_cond;
     return tmp_select_cond;
   }
+  uint get_sj_strategy() const;
 } JOIN_TAB;
 
 /* 
@@ -631,6 +623,9 @@ protected:
     to records in the buffer.   */
   uchar *curr_rec_link;
 
+  /** Cached value of calc_check_only_first_match(join_tab) */
+  bool check_only_first_match;
+
   void calc_record_fields();     
   int alloc_fields(uint external_fields);
   void create_flag_fields();
@@ -725,6 +720,15 @@ protected:
 
   /* Check matching to a partial join record from the join buffer */
   bool check_match(uchar *rec_ptr);
+
+  /** @returns whether we should check only the first match for this table */
+  bool calc_check_only_first_match(const JOIN_TAB *t) const
+  {
+    return (t->last_sj_inner_tab == t &&
+            t->get_sj_strategy() == SJ_OPT_FIRST_MATCH) ||
+      (t->first_inner && t->first_inner->last_inner == t &&
+       t->table->reginfo.not_exists_optimize);
+  }
 
 public:
 
@@ -1466,17 +1470,6 @@ public:
   SJ_TMP_TABLE *next; 
 };
 
-#define SJ_OPT_NONE 0
-#define SJ_OPT_DUPS_WEEDOUT 1
-#define SJ_OPT_LOOSE_SCAN   2
-#define SJ_OPT_FIRST_MATCH  3
-#define SJ_OPT_MATERIALIZE_LOOKUP  4
-#define SJ_OPT_MATERIALIZE_SCAN  5
-
-inline bool sj_is_materialize_strategy(uint strategy)
-{
-  return strategy >= SJ_OPT_MATERIALIZE_LOOKUP;
-}
 
 class JOIN :public Sql_alloc
 {
