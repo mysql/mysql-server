@@ -5966,10 +5966,15 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
 
-    Parser_state parser_state(thd, inBuf, length);
-
-    bool err= parse_sql(thd, & parser_state, NULL);
-    *found_semicolon= parser_state.m_lip.found_semicolon;
+    Parser_state parser_state;
+    bool err;
+    if (!(err= parser_state.init(thd, inBuf, length)))
+    {
+      err= parse_sql(thd, & parser_state, NULL);
+      *found_semicolon= parser_state.m_lip.found_semicolon;
+    }
+    else
+      *found_semicolon= NULL;
 
     if (!err)
     {
@@ -6055,14 +6060,17 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  Parser_state parser_state(thd, inBuf, length);
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
+  Parser_state parser_state;
+  if (!(error= parser_state.init(thd, inBuf, length)))
+  {
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
 
-  if (!parse_sql(thd, & parser_state, NULL) &&
-      all_tables_not_ok(thd, lex->select_lex.table_list.first))
-    error= 1;                  /* Ignore question */
-  thd->end_statement();
+    if (!parse_sql(thd, & parser_state, NULL) &&
+        all_tables_not_ok(thd, lex->select_lex.table_list.first))
+      error= 1;                  /* Ignore question */
+    thd->end_statement();
+  }
   thd->cleanup_after_query();
   DBUG_RETURN(error);
 }
