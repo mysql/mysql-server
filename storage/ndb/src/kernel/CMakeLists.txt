@@ -45,10 +45,16 @@ SET(NDBD_LIBS ndbblocks ndbkernel ndberror ndbtransport
     ndbportlib ndbgeneral dbug mysys strings
 )
 
-ADD_EXECUTABLE(ndbd main.cpp ndbd.cpp angel.cpp SimBlockList.cpp)
+ADD_EXECUTABLE(ndbd
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/message.rc
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin
+  main.cpp ndbd.cpp angel.cpp SimBlockList.cpp)
 TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched)
 INSTALL(TARGETS ndbd DESTINATION libexec)
 
-ADD_EXECUTABLE(ndbmtd main.cpp ndbd.cpp angel.cpp SimBlockList.cpp)
+ADD_EXECUTABLE(ndbmtd
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/message.rc
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin
+  main.cpp ndbd.cpp angel.cpp SimBlockList.cpp)
 TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt)
 INSTALL(TARGETS ndbmtd DESTINATION libexec)
