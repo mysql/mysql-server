@@ -26,4 +26,8 @@ angel_run(const BaseString& original_args,
           bool initial,
           bool no_start,
           bool daemon);
+
+void
+angel_stop(void);
+
 #endif

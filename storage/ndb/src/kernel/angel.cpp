@@ -23,7 +23,8 @@
 
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
-#include <NdbDaemon.h>
+#include <portlib/my_daemon.h>
+#include <portlib/NdbSleep.h>
 
 #include <ConfigRetriever.hpp>
 
@@ -33,11 +34,7 @@ extern EventLogger * g_eventLogger;
 static void
 angel_exit(int code)
 {
-#ifdef HAVE_gcov
-  exit(code);
-#else
-  _exit(code);
-#endif
+  my_daemon_exit(code);
 }
 
 #include "../mgmapi/mgmapi_configuration.hpp"
@@ -194,9 +191,15 @@ int pipe(int pipefd[2]){
 
 typedef DWORD pid_t;
 
+static const int WNOHANG = 37;
+
 static inline
 pid_t waitpid(pid_t pid, int *stat_loc, int options)
 {
+  /* Only support waitpid(,,WNOHANG) */
+  assert(options == WNOHANG);
+  assert(stat_loc);
+
   HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
   if (handle == NULL)
   {
@@ -204,14 +207,26 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
                          "error: %d", pid, GetLastError());
     return -1;
   }
- intptr_t ret_handle = _cwait(stat_loc, (intptr_t)handle, 0);
- if (ret_handle == -1)
- {
-    g_eventLogger->error("waitpid: Failed to wait for pid %d, "
-                         "errno: %d", pid, errno);
+
+  DWORD exit_code;
+  if (!GetExitCodeProcess(handle, &exit_code))
+  {
+    g_eventLogger->error("waitpid: GetExitCodeProcess failed, pid: %d, "
+                         "error: %d", pid, GetLastError());
+    CloseHandle(handle);
     return -1;
- }
- return pid;
+  }
+  CloseHandle(handle);
+
+  if (exit_code == STILL_ACTIVE)
+  {
+    /* Still alive */
+    return 0;
+  }
+
+  *stat_loc = exit_code;
+
+  return pid;
 }
 
 static inline
@@ -236,6 +251,67 @@ static inline
 int WTERMSIG(int status)
 {
   return 0;
+}
+
+static int
+kill(pid_t pid, int sig)
+{
+  int retry_open_event = 10;
+
+  char shutdown_event_name[32];
+  _snprintf(shutdown_event_name, sizeof(shutdown_event_name),
+            "ndbd_shutdown_%d", pid);
+
+  /* Open the event to signal */
+  HANDLE shutdown_event;
+  while ((shutdown_event =
+          OpenEvent(EVENT_MODIFY_STATE, FALSE, shutdown_event_name)) == NULL)
+  {
+     /*
+      Check if the process is alive, otherwise there is really
+      no sense to retry the open of the event
+     */
+    DWORD exit_code;
+    HANDLE process = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION,
+                                  FALSE, pid);
+    if (!process)
+    {
+      /* Already died */
+      return -1;
+    }
+
+    if (!GetExitCodeProcess(process,&exit_code))
+    {
+      g_eventLogger->error("GetExitCodeProcess failed, pid: %d, error: %d",
+                           pid, GetLastError());
+      CloseHandle(process);
+      return -1;
+    }
+    CloseHandle(process);
+
+    if (exit_code != STILL_ACTIVE)
+    {
+      /* Already died */
+      return -1;
+    }
+
+    if (retry_open_event--)
+      Sleep(100);
+    else
+    {
+      g_eventLogger->error("Failed to open shutdown_event '%s', error: %d",
+                            shutdown_event_name, GetLastError());
+      return -1;
+    }
+  }
+
+  if (SetEvent(shutdown_event) == 0)
+  {
+    g_eventLogger->error("Failed to signal shutdown_event '%s', error: %d",
+                         shutdown_event_name, GetLastError());
+  }
+  CloseHandle(shutdown_event);
+  return pid;
 }
 #endif
 
@@ -352,6 +428,7 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
   return true;
 }
 
+bool stop_child = false;
 
 void
 angel_run(const BaseString& original_args,
@@ -422,9 +499,10 @@ angel_run(const BaseString& original_args,
     NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
 
 #ifndef NDB_WIN32
-    if (NdbDaemon_Make(lockfile, logfile, 0) == -1)
+    if (my_daemonize(lockfile, logfile) != 0)
     {
-      ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
+      g_eventLogger->error("Couldn't start as daemon, error: '%s'",
+                           my_daemon_error);
       angel_exit(1);
     }
 #endif
@@ -482,14 +560,26 @@ angel_run(const BaseString& original_args,
     int status=0, error_exit=0;
     while(true)
     {
-      pid_t ret_pid = waitpid(child, &status, 0);
+      pid_t ret_pid = waitpid(child, &status, WNOHANG);
       if (ret_pid == child)
+      {
+        g_eventLogger->debug("Angel got child %d", child);
         break;
-      g_eventLogger->warning("Angel got unexpected pid %d when waiting for %d",
-                             ret_pid, child);
-    }
+      }
+      if (ret_pid > 0)
+      {
+        g_eventLogger->warning("Angel got unexpected pid %d "
+                               "when waiting for %d",
+                               ret_pid, child);
+      }
 
-    g_eventLogger->debug("Angel got child %d", child);
+      if (stop_child)
+      {
+        g_eventLogger->info("Angel shutting down ndbd with pid %d", child);
+        kill(child, SIGINT);
+       }
+      NdbSleep_MilliSleep(100);
+    }
 
     // Close the write end of pipe
     close(fds[1]);
@@ -648,4 +738,13 @@ angel_run(const BaseString& original_args,
   }
 
   abort(); // Never reached
+}
+
+
+/*
+  Order angel to shutdown it's ndbd
+*/
+void angel_stop(void)
+{
+  stop_child = true;
 }

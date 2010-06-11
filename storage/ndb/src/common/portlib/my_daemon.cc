@@ -391,5 +391,10 @@ void my_daemon_exit(int status)
     g_ntsvc.Stop();
 #endif
 
-  exit(status);
+#ifdef HAVE_gcov
+   exit(status);
+#else
+  _exit(status);
+#endif
+
 }
