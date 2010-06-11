@@ -281,6 +281,10 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
 {
   DBUG_ENTER("NdbColumnImpl::equal");
   DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
+  /* New member comparisons added here should also be
+   * handled in the BackupRestore::column_compatible_check()
+   * member of tools/restore/consumer_restore.cpp
+   */
   if(strcmp(m_name.c_str(), col.m_name.c_str()) != 0){
     DBUG_RETURN(false);
   }
