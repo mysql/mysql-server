@@ -187,11 +187,11 @@ typedef struct st_join_table {
   st_join_table *first_unmatched; /**< used for optimization purposes only     */
 
   /*
-    psergey2:  for join tabs that are inside a bush: root of this bush.
+    For join tabs that are inside an SJM bush: root of the bush
   */
   st_join_table *bush_root_tab;
 
-  /* TRUE <=> This join_tab is inside a join bush and is the last leaf tab here */
+  /* TRUE <=> This join_tab is inside an SJM bush and is the last leaf tab here */
   bool          last_leaf_in_bush;
   
   /*

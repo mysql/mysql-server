@@ -1398,7 +1398,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	SUBQUERY	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	
 Warnings:
-Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`cona`.`idContact` = `test`.`c`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
+Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
 drop table t1,t2,t3;
 #
 # BUG#47367 Crash in Name_resolution_context::process_error

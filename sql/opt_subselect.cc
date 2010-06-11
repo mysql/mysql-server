@@ -2663,7 +2663,7 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
     DBUG_RETURN(TRUE); /* purecov: inspected */
   sjm->table->file->extra(HA_EXTRA_WRITE_CACHE);
   sjm->table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  //psergey2-todo: need this or can take advantage of re-init functionality?
+
   tab->join->sj_tmp_tables.push_back(sjm->table);
   tab->join->sjm_info_list.push_back(sjm);
   

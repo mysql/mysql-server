@@ -384,14 +384,7 @@ public:
   enum_exec_method exec_method;
 
   /*
-    JTBM: temporary measure to tell JTBM predicates from SJ predicates
-    psergey-jtbm-todo: can't we do without this?
-     - either remove it altogether
-     - or put into enum_exec_method
-    
-    We can't remove it altogether as it is used to classify contents in
-    join->sj_subselects.
-    jtbm-todo: option 1: let sj_subselects list pairs.
+    TRUE<=>this is a flattenable semi-join, false overwise.
   */
   bool is_flattenable_semijoin;
   

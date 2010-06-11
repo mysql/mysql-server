@@ -2112,7 +2112,7 @@ JOIN::exec()
 	  WHERE clause for any tables after the sorted one.
 	*/
 	JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
-	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->tables]; //psergey2-todo: check this!
+	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->top_jtrange_tables];
 	for (; curr_table < end_table ; curr_table++)
 	{
 	  /*
@@ -5750,8 +5750,8 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
     rec_length+=(uint) max(4,blob_length);
   }  
   /*
-    psergey-todo: why we don't count here rowid that we might need to store
-    when using DuplicateElimination?
+    TODO: why we don't count here rowid that we might need to store when 
+    using DuplicateElimination?
   */
   join_tab->used_fields=fields;
   join_tab->used_fieldlength=rec_length;
@@ -6628,8 +6628,12 @@ make_outerjoin_info(JOIN *join)
          tab != jt_range->end; tab++)
     {
       TABLE *table=tab->table;
+      /* 
+        psergey: The following is probably incorrect, fix it when we get 
+        semi+outer joins processing to work: 
+      */
       if (!table)
-        continue; //psergey2: fix this when we get SJM+outer joins really working.
+        continue;
       TABLE_LIST *tbl= table->pos_in_table_list;
       TABLE_LIST *embedding= tbl->embedding;
 
@@ -6766,15 +6770,13 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     uint i= join->const_tables;
     for (tab= next_depth_first_tab(join, NULL); tab; 
          tab= next_depth_first_tab(join, tab), i++)
-    //for (uint i=join->const_tables ; i < join->tables ; i++)
     {
-      //tab= join->join_tab+i;
       /*
         first_inner is the X in queries like:
         SELECT * FROM t1 LEFT OUTER JOIN (t2 JOIN t3) ON X
       */
       JOIN_TAB *first_inner_tab= tab->first_inner;
-      //psergey2-todo: change this to table bitmap.
+
       if (tab->table)
         current_map= tab->table->map;
       else
@@ -7051,8 +7053,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       */ 
 
       /* First push down constant conditions from on expressions */
-      //for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
-      //     join_tab < join->join_tab+join->tables ; join_tab++)
       for (JOIN_TAB *join_tab= first_linear_tab(join, TRUE); 
            join_tab; 
            join_tab= next_linear_tab(join, join_tab, FALSE))
@@ -7098,7 +7098,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         {
           if (!tab->table)
           {
-            //psergey3-todo: this is probably incorrect:
+            /* 
+              psergey-todo: this is probably incorrect, fix this when we get
+              correct processing for outer joins + semi joins 
+            */
             continue;
           }
           current_map= tab->table->map;
@@ -7503,10 +7506,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   if (options & SELECT_NO_JOIN_CACHE)
     goto no_join_cache;
-  /* 
-    psergey-todo: why the below when execution code seems to handle the
-    "range checked for each record" case?
-  */
+
   if (tab->use_quick == 2)
     goto no_join_cache;
   /*
@@ -7937,7 +7937,6 @@ void JOIN_TAB::cleanup()
   select= 0;
   delete quick;
   quick= 0;
-  //psergey3-todo: empty merged SJM temptables here.
   if (cache)
   {
     cache->free();
@@ -8455,7 +8454,6 @@ static void clear_tables(JOIN *join)
     must clear only the non-const tables, as const tables
     are not re-calculated.
   */
-  // psergey2: What is this for? perhaps, we should reset the SJM temptables, too??
   for (uint i= 0 ; i < join->tables ; i++)
   {
     if (!(join->table[i]->map & join->const_table_map))
@@ -9282,16 +9280,20 @@ static int compare_fields_by_table_order(Item_field *field1,
   JOIN_TAB **idx= (JOIN_TAB **) table_join_idx;
   
   JOIN_TAB *tab1= idx[field1->field->table->tablenr];
-  /* 
-    if a table is inside a merged sjm nest, then it compares as its join-bush
-    psergey-5-todo: compare fairly!
-  */
-  if (tab1->bush_root_tab)
-    tab1= tab1->bush_root_tab;
-
   JOIN_TAB *tab2= idx[field2->field->table->tablenr];
-  if (tab2->bush_root_tab)
-    tab2= tab2->bush_root_tab;
+  
+  /* 
+    if one of the table is inside a merged SJM nest and another one isn't,
+    compare SJM bush roots of the tables.
+  */
+  if (tab1->bush_root_tab != tab2->bush_root_tab)
+  {
+    if (tab1->bush_root_tab)
+      tab1= tab1->bush_root_tab;
+
+    if (tab2->bush_root_tab)
+      tab2= tab2->bush_root_tab;
+  }
   
   cmp= tab2 - tab1;
 
