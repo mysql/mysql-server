@@ -950,6 +950,154 @@ BackupRestore::report_completed(unsigned backup_id, unsigned node_id)
 }
 
 bool
+BackupRestore::column_compatible_check(const char* tableName, 
+                                       const NDBCOL* backupCol, 
+                                       const NDBCOL* dbCol)
+{
+  if (backupCol->equal(*dbCol))
+    return true;
+
+  /* Something is different between the columns, but some differences don't
+   * matter.
+   * Investigate which parts are different, and inform user
+   */
+  bool similarEnough = true;
+
+  /* We check similar things to NdbColumnImpl::equal() here */
+  if (strcmp(backupCol->getName(), dbCol->getName()) != 0)
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " has different name in DB (" << dbCol->getName() << ")"
+         << endl;
+    similarEnough = false;
+  }
+  
+  if (backupCol->getType() != dbCol->getType())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " has different type in DB.  Promotion may be required." << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getPrimaryKey() != dbCol->getPrimaryKey())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getPrimaryKey()?" is":" is not")
+         << " a primary key in the DB." << endl;
+    similarEnough = false;
+  }
+  else
+  {
+    if (backupCol->getPrimaryKey())
+    {
+      if (backupCol->getDistributionKey() != dbCol->getDistributionKey())
+      {
+        info << "Column " << tableName << "." << backupCol->getName()
+             << (dbCol->getDistributionKey()?" is":" is not")
+             << " a distribution key in the DB." << endl;
+        /* Not a problem for restore though */
+      }
+    }
+  }
+
+  if (backupCol->getNullable() != dbCol->getNullable())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getNullable()?" is":" is not")
+         << " nullable in the DB." << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getPrecision() != dbCol->getPrecision())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " precision is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getScale() != dbCol->getScale())
+  {
+    info <<  "Column " << tableName << "." << backupCol->getName()
+         << " scale is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getLength() != dbCol->getLength())
+  {
+    info <<  "Column " << tableName << "." << backupCol->getName()
+         << " length is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getCharset() != dbCol->getCharset())
+  {
+    info <<  "Column " << tableName << "." << backupCol->getName()
+         << " charset is different in the DB" << endl;
+    similarEnough = false;
+  }
+  
+  if (backupCol->getAutoIncrement() != dbCol->getAutoIncrement())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getAutoIncrement()?" is":" is not")
+         << " AutoIncrementing in the DB" << endl;
+    /* TODO : Can this be ignored? */
+    similarEnough = false;
+  }
+  
+  {
+    unsigned int backupDefaultLen, dbDefaultLen;
+    const void *backupDefaultPtr, *dbDefaultPtr;
+    backupDefaultPtr = backupCol->getDefaultValue(&backupDefaultLen);
+    dbDefaultPtr = dbCol->getDefaultValue(&dbDefaultLen);
+    
+    if ((backupDefaultLen != dbDefaultLen) ||
+        (memcmp(backupDefaultPtr, dbDefaultPtr, backupDefaultLen) != 0))
+    {
+      info << "Column " << tableName << "." << backupCol->getName()
+           << " Default value is different in the DB" << endl;
+      /* This doesn't matter */
+    }
+  }
+
+  if (backupCol->getArrayType() != dbCol->getArrayType())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " ArrayType is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getStorageType() != dbCol->getStorageType())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " Storagetype is different in the DB" << endl;
+    /* This doesn't matter */
+  }
+
+  if (backupCol->getBlobVersion() != dbCol->getBlobVersion())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " Blob version is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getDynamic() != dbCol->getDynamic())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getDynamic()?" is":" is not")
+         << " Dynamic in the DB" << endl;
+    /* This doesn't matter */
+  }
+
+  if (similarEnough)
+    info << "  Difference(s) will be ignored during restore." << endl;
+  else
+    info << "  Difference(s) cannot be ignored.  Cannot restore this column as is." << endl;
+
+  return similarEnough;
+}
+
+bool
 BackupRestore::table_compatible_check(const TableS & tableS)
 {
   if (!m_restore)
@@ -1074,40 +1222,14 @@ BackupRestore::table_compatible_check(const TableS & tableS)
     const NDBCOL * col_in_kernel = tab->getColumn(attr_desc->attrId);
     const NDBCOL * col_in_backup = tableS.m_dictTable->getColumn(i);
 
-    if(col_in_kernel->equal(*col_in_backup))
+    if(column_compatible_check(tablename,
+                               col_in_backup, 
+                               col_in_kernel))
     {
       continue;
     }
     else
     {
-      /* Something in the columns is different, but some differences
-       * have no effect on backup + restore.
-       * Make copies of the columns with irrelevant attributes reset
-       * and see if they are still different.
-       */
-      NDBCOL col_in_kernel_copy = *col_in_kernel;
-      NDBCOL col_in_backup_copy = *col_in_backup;
-      
-      /* Native default values */
-      col_in_kernel_copy.setDefaultValue(NULL, 0);
-      col_in_backup_copy.setDefaultValue(NULL, 0);
-      
-      if (col_in_kernel_copy.equal(col_in_backup_copy))
-      {
-        /* Columns are equal apart from defaults */
-        info << "Column "
-             << tablename
-             << "."
-             << col_in_backup->getName()
-             << " has different default value in Backup and DB, ignoring difference."
-             << endl;
-        
-        continue;
-      }
-      
-      /* Columns differ apart from defaults, carry on... */
-      
-      
       if ((m_tableChangesMask & TCM_ATTRIBUTE_PROMOTION) == 0)
       {
         err << "Table: "<< tablename
@@ -1163,17 +1285,16 @@ BackupRestore::table_compatible_check(const TableS & tableS)
         info << "Data for column " 
              << tablename << "."
              << col_in_backup->getName()
-             << " being converted from Backup type into DB type." 
-             << endl;
-        
-        continue;
+             << " will be converted from Backup type into DB type." << endl;
       }
-
-      err << "Table: "<< tablename << endl
-          << "  Column: " << col_in_backup->getName() << endl
-          << "  AttrId = " << i << endl
-          << "  Incompatible with kernel's" << endl;
-      return false; 
+      else
+      {
+        err << "Table: "<< tablename << endl
+            << "  Column: " << col_in_backup->getName() << endl
+            << "  AttrId = " << i << endl
+            << "  Incompatible with kernel's" << endl;
+        return false; 
+      }
     }
   }
 
