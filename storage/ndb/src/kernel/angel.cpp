@@ -273,7 +273,7 @@ kill(pid_t pid, int sig)
      */
     DWORD exit_code;
     HANDLE process = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION,
-                                  FALSE, child);
+                                  FALSE, pid);
     if (!process)
     {
       /* Already died */
