@@ -4076,7 +4076,7 @@ released:
 /*********************************************************************//**
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
-UNIV_INTERN
+static
 void
 lock_release(
 /*=========*/
@@ -5879,7 +5879,6 @@ lock_cancel_waiting_and_release(
 	}
 }
 
-
 /*********************************************************************//**
 Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
 function should be called at the the end of an SQL statement, by the
@@ -5899,3 +5898,106 @@ lock_unlock_table_autoinc(
 	}
 }
 
+/*********************************************************************//**
+Releases a transaction's locks, and releases possible other transactions
+waiting because of these locks. Change the state of the transaction to
+TRX_COMMITTED_IN_MEMORY. */
+UNIV_INTERN
+void
+lock_trx_release_locks(
+/*===================*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	lock_mutex_enter();
+
+	ut_ad(trx->lock.conc_state == TRX_ACTIVE
+	      || trx->lock.conc_state == TRX_PREPARED);
+
+	/* The following assignment makes the transaction committed in memory
+	and makes its changes to data visible to other transactions.
+	NOTE that there is a small discrepancy from the strict formal
+	visibility rules here: a human user of the database can see
+	modifications made by another transaction T even before the necessary
+	log segment has been flushed to the disk. If the database happens to
+	crash before the flush, the user has seen modifications from T which
+	will never be a committed transaction. However, any transaction T2
+	which sees the modifications of the committing transaction T, and
+	which also itself makes modifications to the database, will get an lsn
+	larger than the committing transaction T. In the case where the log
+	flush fails, and T never gets committed, also T2 will never get
+	committed. */
+
+	/*--------------------------------------*/
+	trx->lock.conc_state = TRX_COMMITTED_IN_MEMORY;
+	/*--------------------------------------*/
+
+	/* If we release transaction mutex below and we are still doing
+	recovery i.e.: back ground rollback thread is still active
+	then there is a chance that the rollback thread may see
+	this trx as COMMITTED_IN_MEMORY and goes adhead to clean it
+	up calling trx_cleanup_at_db_startup(). This can happen
+	in the case we are committing a trx here that is left in
+	PREPARED state during the crash. Note that commit of the
+	rollback of a PREPARED trx happens in the recovery thread
+	while the rollback of other transactions happen in the
+	background thread. To avoid this race we unconditionally
+	unset the is_recovered flag from the trx. */
+
+	lock_release(trx);
+
+	lock_mutex_exit();
+}
+
+/*********************************************************************//**
+Check whether the transaction has already been rolled back because it
+was selected as a deadlock victim, or if it has to wait then cancel
+the wait lock.
+@return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
+UNIV_INTERN
+enum db_err
+lock_trx_handle_wait(
+/*=================*/
+	trx_t*		trx) 	/*!< in, out: trx lock state */
+{
+	enum db_err	err;
+
+	lock_mutex_enter();
+
+	trx_mutex_enter(trx);
+
+	if (trx->lock.was_chosen_as_deadlock_victim) {
+		err = DB_DEADLOCK;
+	} else if (trx->lock.wait_lock != NULL) {
+		lock_cancel_waiting_and_release(trx->lock.wait_lock);
+		err = DB_LOCK_WAIT;
+	} else {
+		/* The lock was probably granted before we got here. */
+		err = DB_SUCCESS;
+	}
+
+	trx_mutex_exit(trx);
+
+	lock_mutex_exit();
+
+	return(err);
+}
+
+/*********************************************************************//**
+Get the number of locks on a table.
+@return number of locks */
+UNIV_INTERN
+ulint
+lock_table_get_n_locks(
+/*===================*/
+	dict_table_t*	table)
+{
+	ulint		n_table_locks;
+
+	lock_mutex_enter();
+
+	n_table_locks = UT_LIST_GET_LEN(table->locks);
+
+	lock_mutex_exit();
+
+	return(n_table_locks);
+}

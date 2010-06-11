@@ -4110,23 +4110,13 @@ no_gap_lock:
 				goto lock_wait_or_error;
 			}
 
-			lock_mutex_enter();
-                        trx_mutex_enter(trx);
-			if (trx->lock.was_chosen_as_deadlock_victim) {
-                                trx_mutex_exit(trx);
-				lock_mutex_exit();
-				err = DB_DEADLOCK;
+			/* Check whether it was a deadlock or not, if not
+			a deadlock and the transaction had to wait then
+			release the lock it is waiting on. */
 
-				goto lock_wait_or_error;
-			}
-			if (trx->lock.wait_lock != NULL) {
+			err = lock_trx_handle_wait(trx);
 
-				lock_cancel_waiting_and_release(
-					trx->lock.wait_lock);
-			} else {
-                                trx_mutex_exit(trx);
-				lock_mutex_exit();
-
+			if (err == DB_SUCCESS) {
 				/* The lock was granted while we were
 				searching for the last committed version.
 				Do a normal locking read. */
@@ -4134,11 +4124,10 @@ no_gap_lock:
 				offsets = rec_get_offsets(rec, index, offsets,
 							  ULINT_UNDEFINED,
 							  &heap);
-				err = DB_SUCCESS;
 				break;
+			} else {
+				goto lock_wait_or_error;
 			}
-                        trx_mutex_exit(trx);
-			lock_mutex_exit();
 
 			if (old_vers == NULL) {
 				/* The row was not yet committed */
@@ -4622,11 +4611,8 @@ row_search_check_if_query_cache_permitted(
 	We do not check what type locks there are on the table, though only
 	IX type locks actually would require ret = FALSE. */
 
-	lock_mutex_enter();
-
-	if (UT_LIST_GET_LEN(table->locks) == 0
-	    && ut_dulint_cmp(trx->id,
-			     table->query_cache_inv_trx_id) >= 0) {
+	if (lock_get_table_n_locks(table) == 0
+	    && ut_dulint_cmp(trx->id, table->query_cache_inv_trx_id) >= 0) {
 
 		ret = TRUE;
 
@@ -4646,8 +4632,6 @@ row_search_check_if_query_cache_permitted(
 			trx_sys_mutex_exit();
 		}
 	}
-
-	lock_mutex_exit();
 
 	return(ret);
 }

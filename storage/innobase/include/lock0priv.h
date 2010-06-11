@@ -101,6 +101,15 @@ lock_rec_get_prev(
 	const lock_t*	in_lock,/*!< in: record lock */
 	ulint		heap_no);/*!< in: heap number of the record */
 
+/*********************************************************************//**
+Cancels a waiting lock request and releases possible other transactions
+waiting behind it. */
+UNIV_INTERN
+void
+lock_cancel_waiting_and_release(
+/*============================*/
+	lock_t*		lock);	/*!< in: waiting lock request */
+
 #ifndef UNIV_NONINL
 #include "lock0priv.ic"
 #endif
