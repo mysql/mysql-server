@@ -622,6 +622,7 @@ leave_func:
 	ut_free(unaligned_read_buf);
 }
 
+#ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks that trx is in the trx list.
 @return	TRUE if is in */
@@ -633,7 +634,7 @@ trx_in_trx_list(
 {
 	trx_t*	trx;
 
-	trx_sys_mutex_enter();
+	ut_ad(trx_sys_mutex_own());
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL && trx != in_trx;
@@ -642,10 +643,9 @@ trx_in_trx_list(
 		/* No op */
 	}
 
-	trx_sys_mutex_exit();
-
 	return(trx != NULL);
 }
+#endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */

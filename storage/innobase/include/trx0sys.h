@@ -276,6 +276,7 @@ ibool
 trx_is_active(
 /*==========*/
 	trx_id_t	trx_id);/*!< in: trx id of the transaction */
+#ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks that trx is in the trx list.
 @return	TRUE if is in */
@@ -284,6 +285,7 @@ ibool
 trx_in_trx_list(
 /*============*/
 	trx_t*	in_trx);/*!< in: trx */
+#endif /* UNIV_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
