@@ -5878,3 +5878,24 @@ lock_cancel_waiting_and_release(
 		lock_wait_release_thread_if_suspended(thr);
 	}
 }
+
+
+/*********************************************************************//**
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
+function should be called at the the end of an SQL statement, by the
+connection thread that owns the transaction (trx->mysql_thd). */
+UNIV_INTERN
+void
+lock_unlock_table_autoinc(
+/*======================*/
+	trx_t*	trx)	/*!< in/out: transaction */
+{
+	if (lock_trx_holds_autoinc_locks(trx)) {
+		lock_mutex_enter();
+
+		lock_release_autoinc_locks(trx);
+
+		lock_mutex_exit();
+	}
+}
+
