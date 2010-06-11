@@ -122,6 +122,12 @@ real_main(int argc, char** argv)
 
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
+
+#ifdef _WIN32
+  /* Output to Windows event log */
+  g_eventLogger->createEventLogHandler("MySQL Cluster Data Node Daemon");
+#endif
+
   g_eventLogger->setCategory("ndbd");
 
   // Turn on max loglevel for startup messages
