@@ -3033,13 +3033,16 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
-  Parser_state parser_state(thd, thd->query(), thd->query_length());
-  parser_state.m_lip.stmt_prepare_mode= TRUE;
-  lex_start(thd);
+  Parser_state parser_state;
+  if (!parser_state.init(thd, thd->query(), thd->query_length()))
+  {
+    parser_state.m_lip.stmt_prepare_mode= TRUE;
+    lex_start(thd);
 
-  error= parse_sql(thd, & parser_state, NULL) ||
-         thd->is_error() ||
-         init_param_array(this);
+    error= parse_sql(thd, & parser_state, NULL) ||
+      thd->is_error() ||
+      init_param_array(this);
+  }
 
   lex->set_trg_event_type_for_tables();
 
