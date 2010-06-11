@@ -896,7 +896,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
   {
     /* TODO: change here when we will support UNIONs */
-    for (TABLE_LIST *tbl= (TABLE_LIST *)lex->select_lex.table_list.first;
+    for (TABLE_LIST *tbl= lex->select_lex.table_list.first;
 	 tbl;
 	 tbl= tbl->next_local)
     {
@@ -1015,7 +1015,7 @@ loop_out:
   */
   if (view->updatable_view &&
       !lex->select_lex.master_unit()->is_union() &&
-      !((TABLE_LIST*)lex->select_lex.table_list.first)->next_local &&
+      !(lex->select_lex.table_list.first)->next_local &&
       find_table_in_global_list(lex->query_tables->next_global,
 				lex->query_tables->db,
 				lex->query_tables->table_name))
@@ -1376,8 +1376,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         This may change in future, for example if we enable merging of
         views with subqueries in select list.
       */
-      view_main_select_tables=
-        (TABLE_LIST*)lex->select_lex.table_list.first;
+      view_main_select_tables= lex->select_lex.table_list.first;
 
       /*
         Let us set proper lock type for tables of the view's main

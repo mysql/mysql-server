@@ -1716,7 +1716,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     rn->mdl_request.init(key, MDL_SHARED);
     if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
       return FALSE;
-    prelocking_ctx->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
+    prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
     rn->m_sp_cache_version= 0;
     return TRUE;
@@ -1766,8 +1766,7 @@ void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
 {
   Sroutine_hash_entry *not_own_rt, *next_rt;
-  for (not_own_rt= 
-         *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last;
+  for (not_own_rt= *prelocking_ctx->sroutines_list_own_last;
        not_own_rt; not_own_rt= next_rt)
   {
     /*
@@ -1778,7 +1777,7 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
     my_hash_delete(&prelocking_ctx->sroutines, (uchar *)not_own_rt);
   }
 
-  *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last= NULL;
+  *prelocking_ctx->sroutines_list_own_last= NULL;
   prelocking_ctx->sroutines_list.next= prelocking_ctx->sroutines_list_own_last;
   prelocking_ctx->sroutines_list.elements= 
                     prelocking_ctx->sroutines_list_own_elements;
@@ -1863,10 +1862,10 @@ sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                                  SQL_LIST *src, TABLE_LIST *belong_to_view)
+                                  SQL_I_List<Sroutine_hash_entry> *src,
+                                  TABLE_LIST *belong_to_view)
 {
-  for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
-       rt; rt= rt->next)
+  for (Sroutine_hash_entry *rt= src->first; rt; rt= rt->next)
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
                               &rt->mdl_request.key, belong_to_view);
 }
@@ -1892,8 +1891,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
     in sroutines_list has an MDL lock unless it's a top-level call, or a
     trigger, but triggers can't occur here (see the preceding assert).
   */
-  DBUG_ASSERT(rt->mdl_request.ticket ||
-              rt == (Sroutine_hash_entry*) thd->lex->sroutines_list.first);
+  DBUG_ASSERT(rt->mdl_request.ticket || rt == thd->lex->sroutines_list.first);
 
   return sp_cache_routine(thd, type, &name, lookup_only, sp);
 }
