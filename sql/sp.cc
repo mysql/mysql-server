@@ -782,7 +782,12 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   thd->spcont= NULL;
 
   {
-    Parser_state parser_state(thd, defstr.c_ptr(), defstr.length());
+    Parser_state parser_state;
+    if (parser_state.init(thd, defstr.c_ptr(), defstr.length()))
+    {
+      ret= SP_INTERNAL_ERROR;
+      goto end;
+    }
 
     lex_start(thd);
 

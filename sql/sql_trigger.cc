@@ -1297,9 +1297,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
-        Parser_state parser_state(thd,
-                                  trg_create_str->str,
-                                  trg_create_str->length);
+        Parser_state parser_state;
+        if (parser_state.init(thd, trg_create_str->str, trg_create_str->length))
+          goto err_with_lex_cleanup;
 
         Trigger_creation_ctx *creation_ctx=
           Trigger_creation_ctx::create(thd,
