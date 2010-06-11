@@ -592,7 +592,7 @@ THD::THD()
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
-  init_open_tables_state(this, refresh_version);
+  reset_open_tables_state(this);
 
   init();
 #if defined(ENABLED_PROFILING)

@@ -21,24 +21,30 @@ static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
 
 /* Create a heap table */
 
-int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
-		uint reclength, ulong max_records, ulong min_records,
-		HP_CREATE_INFO *create_info, HP_SHARE **res)
+int heap_create(const char *name, HP_CREATE_INFO *create_info,
+                HP_SHARE **res, my_bool *created_new_share)
 {
   uint i, j, key_segs, max_length, length;
   HP_SHARE *share= 0;
   HA_KEYSEG *keyseg;
+  HP_KEYDEF *keydef= create_info->keydef;
+  uint reclength= create_info->reclength;
+  uint keys= create_info->keys;
+  ulong min_records= create_info->min_records;
+  ulong max_records= create_info->max_records;
   DBUG_ENTER("heap_create");
 
   if (!create_info->internal_table)
   {
     mysql_mutex_lock(&THR_LOCK_heap);
-    if ((share= hp_find_named_heap(name)) && share->open_count == 0)
+    share= hp_find_named_heap(name);
+    if (share && share->open_count == 0)
     {
       hp_free(share);
       share= 0;
     }
-  }  
+  }
+  *created_new_share= (share == NULL);
 
   if (!share)
   {
@@ -200,7 +206,11 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       share->delete_on_close= 1;
   }
   if (!create_info->internal_table)
+  {
+    if (create_info->pin_share)
+      ++share->open_count;
     mysql_mutex_unlock(&THR_LOCK_heap);
+  }
 
   *res= share;
   DBUG_RETURN(0);

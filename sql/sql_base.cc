@@ -1589,10 +1589,18 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   *table_ptr=table->next;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
+  if (! table->needs_reopen())
+  {
+    /* Avoid having MERGE tables with attached children in unused_tables. */
+    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+    /* Free memory and reset for next loop. */
+    free_field_buffers_larger_than(table, MAX_TDC_BLOB_SIZE);
+    table->file->ha_reset();
+  }
+
   mysql_mutex_lock(&LOCK_open);
 
-  if (table->s->needs_reopen() ||
-      thd->version != refresh_version || table->needs_reopen() ||
+  if (table->s->needs_reopen() || table->needs_reopen() ||
       table_def_shutdown_in_progress)
   {
     free_cache_entry(table);
@@ -1600,14 +1608,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   }
   else
   {
-    /* Avoid to have MERGE tables with attached children in unused_tables. */
     DBUG_ASSERT(table->file);
-    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
-
-    /* Free memory and reset for next loop */
-    free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
-
-    table->file->ha_reset();
     table_def_unuse_table(table);
     /*
       We free the least used table, not the subject table,
@@ -2305,7 +2306,7 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
     @param[out]  exists  Out parameter which is set to TRUE if table
                          exists and to FALSE otherwise.
 
-    @note This function assumes that caller owns LOCK_open mutex.
+    @note This function acquires LOCK_open internally.
           It also assumes that the fact that there are no exclusive
           metadata locks on the table was checked beforehand.
 
@@ -2313,28 +2314,30 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
           of engines (e.g. it was created on another node of NDB cluster)
           this function will fetch and create proper .FRM file for it.
 
-    @retval  TRUE   Some error occured
+    @retval  TRUE   Some error occurred
     @retval  FALSE  No error. 'exists' out parameter set accordingly.
 */
 
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 {
   char path[FN_REFLEN + 1];
-  int rc;
+  int rc= 0;
   DBUG_ENTER("check_if_table_exists");
 
-  mysql_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   *exists= TRUE;
 
+  mysql_mutex_lock(&LOCK_open);
+
   if (get_cached_table_share(table->db, table->table_name))
-    DBUG_RETURN(FALSE);
+    goto end;
 
   build_table_filename(path, sizeof(path) - 1, table->db, table->table_name,
                        reg_ext, 0);
 
   if (!access(path, F_OK))
-    DBUG_RETURN(FALSE);
+    goto end;
 
   /* .FRM file doesn't exist. Check if some engine can provide it. */
 
@@ -2344,19 +2347,17 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
   {
     /* Table does not exists in engines as well. */
     *exists= FALSE;
-    DBUG_RETURN(FALSE);
+    rc= 0;
   }
-  else if (!rc)
-  {
-    /* Table exists in some engine and .FRM for it was created. */
-    DBUG_RETURN(FALSE);
-  }
-  else /* (rc > 0) */
+  else if (rc)
   {
     my_printf_error(ER_UNKNOWN_ERROR, "Failed to open '%-.64s', error while "
                     "unpacking from engine", MYF(0), table->table_name);
-    DBUG_RETURN(TRUE);
   }
+
+end:
+  mysql_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(test(rc));
 }
 
 
@@ -2651,7 +2652,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     if (thd->global_read_lock.wait_if_global_read_lock(thd, 1, 1))
       DBUG_RETURN(TRUE);
 
-    if (thd->version != refresh_version)
+    if (thd->open_tables && thd->open_tables->s->version != refresh_version)
     {
       (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
                                             NULL);
@@ -2848,48 +2849,24 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
 
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
-  mysql_mutex_lock(&LOCK_open);
 
-  /*
-    If it's the first table from a list of tables used in a query,
-    remember refresh_version (the version of open_cache state).
-    If the version changes while we're opening the remaining tables,
-    we will have to back off, close all the tables opened-so-far,
-    and try to reopen them.
-    Note: refresh_version is currently changed only during FLUSH TABLES.
-  */
-  if (!thd->open_tables)
-    thd->version=refresh_version;
-  else if ((thd->version != refresh_version) &&
-           ! (flags & MYSQL_OPEN_IGNORE_FLUSH))
-  {
-    /* Someone did a refresh while thread was opening tables */
-    mysql_mutex_unlock(&LOCK_open);
-    (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
-                                          NULL);
-    DBUG_RETURN(TRUE);
-  }
 
   if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS)
   {
     bool exists;
 
     if (check_if_table_exists(thd, table_list, &exists))
-      goto err_unlock2;
+      DBUG_RETURN(TRUE);
 
     if (!exists)
-    {
-      mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(FALSE);
-    }
+
     /* Table exists. Let us try to open it. */
   }
   else if (table_list->open_strategy == TABLE_LIST::OPEN_STUB)
-  {
-    mysql_mutex_unlock(&LOCK_open);
     DBUG_RETURN(FALSE);
-  }
 
+  mysql_mutex_lock(&LOCK_open);
 #ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
   if (!(share= (TABLE_SHARE *) mdl_ticket->get_cached_object()))
 #endif
@@ -2911,7 +2888,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         my_error(ER_WRONG_MRG_TABLE, MYF(0));
         goto err_unlock;
       }
-      
+
       /*
         This table is a view. Validate its metadata version: in particular,
         that it was a view when the statement was prepared.
@@ -2980,7 +2957,15 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
 #endif
 
-  if (share->needs_reopen())
+
+  /*
+    If the version changes while we're opening the tables,
+    we have to back off, close all the tables opened-so-far,
+    and try to reopen them. Note: refresh_version is currently
+    changed only during FLUSH TABLES.
+  */
+  if (share->needs_reopen() ||
+      (thd->open_tables && thd->open_tables->s->version != share->version))
   {
     if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
     {
@@ -3000,8 +2985,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                                             NULL);
       DBUG_RETURN(TRUE);
     }
-    /* Force close at once after usage */
-    thd->version= share->version;
   }
 
   if (!share->free_tables.is_empty())
@@ -3017,9 +3000,11 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     while (table_cache_count > table_cache_size && unused_tables)
       free_cache_entry(unused_tables);
 
+    mysql_mutex_unlock(&LOCK_open);
+
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
-      goto err_unlock;
+      goto err_lock;
 
     error= open_table_from_share(thd, share, alias,
                                  (uint) (HA_OPEN_KEYFILE |
@@ -3041,16 +3026,17 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
                                               table_list);
 
-      goto err_unlock;
+      goto err_lock;
     }
 
     if (open_table_entry_fini(thd, share, table))
     {
       closefrm(table, 0);
       my_free((uchar*)table, MYF(0));
-      goto err_unlock;
+      goto err_lock;
     }
 
+    mysql_mutex_lock(&LOCK_open);
     /* Add table to the share's used tables list. */
     table_def_add_used_table(thd, table);
   }
@@ -3112,6 +3098,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     table->file->extra(HA_EXTRA_DETACH_CHILDREN);
   DBUG_RETURN(FALSE);
 
+err_lock:
+  mysql_mutex_lock(&LOCK_open);
 err_unlock:
   release_table_share(share);
 err_unlock2:
