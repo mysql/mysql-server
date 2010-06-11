@@ -1149,9 +1149,38 @@ enum enum_comment_state
 class Lex_input_stream
 {
 public:
-  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
-  ~Lex_input_stream();
+  Lex_input_stream() :
+    yylineno(1),
+    yytoklen(0),
+    yylval(NULL),
+    m_tok_start(NULL),
+    m_tok_end(NULL),
+    m_tok_start_prev(NULL),
+    m_echo(TRUE),
+    m_cpp_tok_start(NULL),
+    m_cpp_tok_start_prev(NULL),
+    m_cpp_tok_end(NULL),
+    m_body_utf8(NULL),
+    m_cpp_utf8_processed_ptr(NULL),
+    next_state(MY_LEX_START),
+    found_semicolon(NULL),
+    stmt_prepare_mode(FALSE),
+    in_comment(NO_COMMENT),
+    m_underscore_cs(NULL)
+  {
+  }
 
+  ~Lex_input_stream()
+  {
+  }
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length);
   /**
     Set the echo mode.
 
@@ -1933,9 +1962,20 @@ public:
 class Parser_state
 {
 public:
-  Parser_state(THD *thd, const char* buff, unsigned int length)
-    : m_lip(thd, buff, length), m_yacc()
+  Parser_state()
+    : m_yacc()
   {}
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length)
+  {
+    return m_lip.init(thd, buff, length);
+  }
 
   ~Parser_state()
   {}
