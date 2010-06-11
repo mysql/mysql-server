@@ -603,7 +603,7 @@ alter table t1 change c c int;
 Column length change, should fail
 alter table t1 change g g char(22);
 Character set difference, should fail
-alter table t1 change g g char(20) character set ascii;
+alter table t1 change g g char(20) character set binary;
 alter table t1 change g g char(20);
 AutoIncrement difference, should fail
 alter table t1 change b b int auto_increment;

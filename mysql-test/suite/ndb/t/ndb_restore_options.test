@@ -439,7 +439,7 @@ alter table t1 change g g char(22);
 
 --echo Character set difference, should fail
 
-alter table t1 change g g char(20) character set ascii;
+alter table t1 change g g char(20) character set binary;
 
 --error 1
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
