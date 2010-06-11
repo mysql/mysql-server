@@ -23,7 +23,7 @@
 
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
-#include <NdbDaemon.h>
+#include <portlib/my_daemon.h>
 #include <portlib/NdbSleep.h>
 
 #include <ConfigRetriever.hpp>
@@ -34,11 +34,7 @@ extern EventLogger * g_eventLogger;
 static void
 angel_exit(int code)
 {
-#ifdef HAVE_gcov
-  exit(code);
-#else
-  _exit(code);
-#endif
+  my_daemon_exit(code);
 }
 
 #include "../mgmapi/mgmapi_configuration.hpp"
@@ -503,9 +499,10 @@ angel_run(const BaseString& original_args,
     NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
 
 #ifndef NDB_WIN32
-    if (NdbDaemon_Make(lockfile, logfile, 0) == -1)
+    if (my_daemonize(lockfile, logfile) != 0)
     {
-      ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
+      g_eventLogger->error("Couldn't start as daemon, error: '%s'",
+                           my_daemon_error);
       angel_exit(1);
     }
 #endif
