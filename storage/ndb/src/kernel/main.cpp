@@ -19,6 +19,7 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <kernel/NodeBitmask.hpp>
+#include <portlib/my_daemon.h>
 
 #include "ndbd.hpp"
 #include "angel.hpp"
@@ -193,5 +194,6 @@ real_main(int argc, char** argv)
 int
 main(int argc, char** argv)
 {
-  return real_main(argc, argv);
+  return my_daemon_init(argc, argv, real_main, angel_stop,
+                        "ndbd", "MySQL Cluster Data Node Daemon");
 }
