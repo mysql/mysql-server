@@ -783,6 +783,15 @@ lock_wait_suspend_thread(
 /*=====================*/
 	que_thr_t*	thr);	/*!< in: query thread associated with the
 				user OS thread */
+/*********************************************************************//**
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
+function should be called at the the end of an SQL statement, by the
+connection thread that owns the transaction (trx->mysql_thd). */
+UNIV_INTERN
+void
+lock_unlock_table_autoinc_for_mysql(
+/*===============================*/
+	trx_t*	trx);			/*!< in/out: transaction */
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the

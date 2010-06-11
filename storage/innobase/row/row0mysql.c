@@ -878,25 +878,6 @@ row_update_statistics_if_needed(
 }
 
 /*********************************************************************//**
-Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
-function should be called at the the end of an SQL statement, by the
-connection thread that owns the transaction (trx->mysql_thd). */
-UNIV_INTERN
-void
-row_unlock_table_autoinc_for_mysql(
-/*===============================*/
-	trx_t*	trx)	/*!< in/out: transaction */
-{
-	if (lock_trx_holds_autoinc_locks(trx)) {
-		lock_mutex_enter();
-
-		lock_release_autoinc_locks(trx);
-
-		lock_mutex_exit();
-	}
-}
-
-/*********************************************************************//**
 Sets an AUTO_INC type lock on the table mentioned in prebuilt. The
 AUTO_INC lock gives exclusive access to the auto-inc counter of the
 table. The lock is reserved only for the duration of an SQL statement.

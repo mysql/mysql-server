@@ -2740,7 +2740,7 @@ retry:
 		/* If we had reserved the auto-inc lock for some
 		table in this SQL statement we release it now */
 
-		row_unlock_table_autoinc_for_mysql(trx);
+		lock_unlock_table_autoinc_for_mysql(trx);
 
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
@@ -2798,7 +2798,7 @@ innobase_rollback(
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
 
-	row_unlock_table_autoinc_for_mysql(trx);
+	lock_unlock_table_autoinc_for_mysql(trx);
 
 	if (all
 		|| !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -2836,7 +2836,7 @@ innobase_rollback_trx(
 	we come here to roll back the latest SQL statement) we
 	release it now before a possibly lengthy rollback */
 
-	row_unlock_table_autoinc_for_mysql(trx);
+	lock_unlock_table_autoinc_for_mysql(trx);
 
 	error = trx_rollback_for_mysql(trx);
 
@@ -9987,7 +9987,7 @@ innobase_xa_prepare(
 		/* If we had reserved the auto-inc lock for some
 		table in this SQL statement we release it now */
 
-		row_unlock_table_autoinc_for_mysql(trx);
+		lock_unlock_table_autoinc_for_mysql(trx);
 
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
