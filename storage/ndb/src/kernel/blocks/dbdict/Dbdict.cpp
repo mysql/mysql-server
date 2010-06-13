@@ -2332,14 +2332,6 @@ void Dbdict::initSchemaRecord()
   c_schemaRecord.oldSchemaPage = RNIL;
 }//Dbdict::initSchemaRecord()
 
-void Dbdict::initRestartRecord() 
-{
-  c_restartRecord.gciToRestart = 0;
-  c_restartRecord.activeTable = ZNIL;
-  c_restartRecord.m_pass = 0;
-  c_restartRecord.m_op_cnt = 0;
-}//Dbdict::initRestartRecord()
-
 void Dbdict::initNodeRecords() 
 {
   jam();
@@ -3333,10 +3325,6 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
   c_schemaRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::masterRestart_checkSchemaStatusComplete);
 
-  c_restartRecord.m_pass = 0;
-  c_restartRecord.activeTable = 0;
-  c_restartRecord.m_op_cnt = 0;
-
   /**
    * master has same new/old schema file...
    *   copy old(read from disk) to new
@@ -3351,22 +3339,9 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
            oldxsf->schemaPage[0].FileSize);
   }
 
-  TxHandlePtr tx_ptr;
-  seizeTxHandle(tx_ptr);
-  ndbrequire(!tx_ptr.isNull());
-
-  c_restartRecord.m_tx_ptr_i = tx_ptr.i;
-  tx_ptr.p->m_requestInfo = DictSignal::RF_LOCAL_TRANS;
-  tx_ptr.p->m_userData = 0;
-
-  Callback c = {
-    safe_cast(&Dbdict::restart_fromBeginTrans),
-    tx_ptr.p->tx_key
-  };
-  tx_ptr.p->m_callback = c;
-  beginSchemaTrans(signal, tx_ptr);
-
-  infoEvent("Starting to restore schema");
+  Callback cb =
+    { safe_cast(&Dbdict::masterRestart_checkSchemaStatusComplete), 0 };
+  startRestoreSchema(signal, cb);
 }//execDICTSTARTREQ()
 
 void
@@ -3374,8 +3349,6 @@ Dbdict::masterRestart_checkSchemaStatusComplete(Signal* signal,
 						Uint32 callbackData,
 						Uint32 returnCode)
 {
-  infoEvent("Restore of schema complete");
-
   XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
   ndbrequire(oldxsf->noOfPages != 0);
 
@@ -3509,31 +3482,9 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
   // tables have been deleted but not completed the deletion yet and
   // other scenarios needing synchronisation.
   /* ---------------------------------------------------------------- */
-  c_schemaRecord.m_callback.m_callbackData = 0;
-  c_schemaRecord.m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restart_checkSchemaStatusComplete);
-
-  c_restartRecord.m_pass = 0;
-  c_restartRecord.activeTable = 0;
-  c_restartRecord.m_op_cnt = 0;
-
-
-  TxHandlePtr tx_ptr;
-  seizeTxHandle(tx_ptr);
-  ndbrequire(!tx_ptr.isNull());
-
-  c_restartRecord.m_tx_ptr_i = tx_ptr.i;
-  tx_ptr.p->m_requestInfo = DictSignal::RF_LOCAL_TRANS;
-  tx_ptr.p->m_userData = 0;
-
-  Callback c = {
-    safe_cast(&Dbdict::restart_fromBeginTrans),
-    tx_ptr.p->tx_key
-  };
-  tx_ptr.p->m_callback = c;
-  beginSchemaTrans(signal, tx_ptr);
-
-  infoEvent("Starting to restore schema");
+  Callback cb =
+    { safe_cast(&Dbdict::restart_checkSchemaStatusComplete), 0 };
+  startRestoreSchema(signal, cb);
 }//execSCHEMA_INFO()
 
 void
@@ -3543,9 +3494,8 @@ Dbdict::restart_checkSchemaStatusComplete(Signal * signal,
 {
   jam();
 
-  infoEvent("Restore of schema complete");
-
-  if(c_systemRestart){
+  if(c_systemRestart)
+  {
     jam();
     signal->theData[0] = getOwnNodeId();
     sendSignal(calcDictBlockRef(c_masterNodeId), GSN_SCHEMA_INFOCONF,
@@ -3630,6 +3580,30 @@ operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
   out << " ]";
   return out;
 }
+
+void Dbdict::initRestartRecord(Uint32 startpass, Uint32 lastpass,
+                               const char * sb, const char * eb)
+{
+  c_restartRecord.gciToRestart = 0;
+  c_restartRecord.activeTable = 0;
+  c_restartRecord.m_op_cnt = 0;
+  if (startpass == 0 && lastpass == 0)
+  {
+    jam();
+    c_restartRecord.m_pass = 0;
+    c_restartRecord.m_end_pass = LAST_PASS;
+    c_restartRecord.m_start_banner = "Starting to restore schema";
+    c_restartRecord.m_end_banner = "Restore of schema complete";
+  }
+  else
+  {
+    jam();
+    c_restartRecord.m_pass = startpass;
+    c_restartRecord.m_end_pass = lastpass;
+    c_restartRecord.m_start_banner = sb;
+    c_restartRecord.m_end_banner = eb;
+  }
+}//Dbdict::initRestartRecord()
 
 /**
  * Pass 0 Create old LogfileGroup
@@ -3878,6 +3852,36 @@ Dbdict::checkPendingSchemaTrans(XSchemaFile* xsf)
 }
 
 void
+Dbdict::startRestoreSchema(Signal* signal, Callback cb)
+{
+  jam();
+
+  initRestartRecord();
+  c_schemaRecord.m_callback = cb;
+
+  TxHandlePtr tx_ptr;
+  seizeTxHandle(tx_ptr);
+  ndbrequire(!tx_ptr.isNull());
+
+  c_restartRecord.m_tx_ptr_i = tx_ptr.i;
+  tx_ptr.p->m_requestInfo = DictSignal::RF_LOCAL_TRANS;
+  tx_ptr.p->m_userData = 0;
+
+  Callback c = {
+    safe_cast(&Dbdict::restart_fromBeginTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+  beginSchemaTrans(signal, tx_ptr);
+
+  if (c_restartRecord.m_start_banner)
+  {
+    jam();
+    infoEvent(c_restartRecord.m_start_banner);
+  }
+}
+
+void
 Dbdict::restart_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 {
   ndbrequire(ret == 0);
@@ -3887,6 +3891,47 @@ Dbdict::restart_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   ndbrequire(!tx_ptr.isNull());
 
   checkSchemaStatus(signal);
+}
+
+void
+Dbdict::restart_nextOp(Signal* signal)
+{
+  c_restartRecord.m_op_cnt++;
+
+  if (OpSectionBuffer::getSegmentSize() *
+      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
+  {
+    jam();
+    /**
+     * Commit transaction now...so we don't risk overflowing
+     *   c_opSectionBufferPool
+     */
+    c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
+  }
+
+  if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
+  {
+    jam();
+    c_restartRecord.m_op_cnt = 0;
+
+    Ptr<TxHandle> tx_ptr;
+    c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
+
+    Callback c = {
+      safe_cast(&Dbdict::restart_fromEndTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+
+    Uint32 flags = 0;
+    endSchemaTrans(signal, tx_ptr, flags);
+  }
+  else
+  {
+    jam();
+    c_restartRecord.activeTable++;
+    checkSchemaStatus(signal);
+  }
 }
 
 void
@@ -3962,7 +4007,7 @@ Dbdict::restartNextPass(Signal* signal)
   c_restartRecord.m_pass++;
   c_restartRecord.activeTable= 0;
 
-  if(c_restartRecord.m_pass <= LAST_PASS)
+  if (c_restartRecord.m_pass <= c_restartRecord.m_end_pass)
   {
     TxHandlePtr tx_ptr;
     if (c_restartRecord.m_tx_ptr_i == RNIL)
@@ -4029,13 +4074,29 @@ Dbdict::restartNextPass(Signal* signal)
     c_writeSchemaRecord.newFile = false;
     c_writeSchemaRecord.firstPage = 0;
     c_writeSchemaRecord.noOfPages = xsf->noOfPages;
-    c_writeSchemaRecord.m_callback = c_schemaRecord.m_callback;
+    c_writeSchemaRecord.m_callback.m_callbackData = 0;
+    c_writeSchemaRecord.m_callback.m_callbackFunction =
+      safe_cast(&Dbdict::restart_fromWriteSchemaFile);
 
     for(Uint32 i = 0; i<xsf->noOfPages; i++)
       computeChecksum(xsf, i);
 
     startWriteSchemaFile(signal);
   }
+}
+
+void
+Dbdict::restart_fromWriteSchemaFile(Signal* signal,
+                                    Uint32 senderData,
+                                    Uint32 retCode)
+{
+  if (c_restartRecord.m_end_banner)
+  {
+    jam();
+    infoEvent(c_restartRecord.m_end_banner);
+  }
+
+  execute(signal, c_schemaRecord.m_callback, retCode);
 }
 
 void
@@ -4260,39 +4321,7 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   }
   ndbrequire(!hasError(error));
 
-  c_restartRecord.m_op_cnt++;
-
-  if (OpSectionBuffer::getSegmentSize() * 
-      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
-  {
-    jam();
-    /**
-     * Commit transaction now...so we don't risk overflowing
-     *   c_opSectionBufferPool
-     */
-    c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
-  }
-
-  if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
-  {
-    jam();
-    c_restartRecord.m_op_cnt = 0;
-
-    Callback c = {
-      safe_cast(&Dbdict::restart_fromEndTrans),
-      tx_ptr.p->tx_key
-    };
-    tx_ptr.p->m_callback = c;
-
-    Uint32 flags = 0;
-    endSchemaTrans(signal, tx_ptr, flags);
-  }
-  else
-  {
-    jam();
-    c_restartRecord.activeTable++;
-    checkSchemaStatus(signal);
-  }
+  restart_nextOp(signal);
 }
 
 /**
@@ -4368,39 +4397,7 @@ Dbdict::restartDropObj(Signal* signal,
   }
   ndbrequire(!hasError(error));
 
-  c_restartRecord.m_op_cnt++;
-
-  if (OpSectionBuffer::getSegmentSize() * 
-      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
-  {
-    jam();
-    /**
-     * Commit transaction now...so we don't risk overflowing
-     *   c_opSectionBufferPool
-     */
-    c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
-  }
-
-  if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
-  {
-    jam();
-    c_restartRecord.m_op_cnt = 0;
-
-    Callback c = {
-      safe_cast(&Dbdict::restart_fromEndTrans),
-      tx_ptr.p->tx_key
-    };
-    tx_ptr.p->m_callback = c;
-
-    Uint32 flags = 0;
-    endSchemaTrans(signal, tx_ptr, flags);
-  }
-  else
-  {
-    jam();
-    c_restartRecord.activeTable++;
-    checkSchemaStatus(signal);
-  }
+  restart_nextOp(signal);
 }
 
 /* **************************************************************** */

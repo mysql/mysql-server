@@ -1041,7 +1041,10 @@ private:
     /**    The active table at restart process */
     BlockReference returnBlockRef;
     
-    Uint32 m_pass; // 0 tablespaces/logfilegroups, 1 tables, 2 indexes
+    Uint32 m_pass;     // 0 tablespaces/logfilegroups, 1 tables, 2 indexes
+    Uint32 m_end_pass; //
+    const char * m_start_banner;
+    const char * m_end_banner;
 
     Uint32 m_tx_ptr_i;
     Uint32 m_op_cnt;
@@ -3704,7 +3707,8 @@ private:
   void initConnectRecord();
   void initRetrieveRecord(Signal*, Uint32, Uint32 returnCode);
   void initSchemaRecord();
-  void initRestartRecord();
+  void initRestartRecord(Uint32 sp = 0, Uint32 lp = 0,
+                         const char * sb = 0, const char * eb = 0);
   void initSendSchemaRecord();
   void initReadTableRecord();
   void initWriteTableRecord();
@@ -3724,10 +3728,14 @@ private:
 
   void printTables(); // For debugging only
 
+  void startRestoreSchema(Signal*, Callback);
   void restartNextPass(Signal*);
   void restart_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void restart_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void restartEndPass_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void restart_fromWriteSchemaFile(Signal*, Uint32, Uint32);
+  void restart_nextOp(Signal*);
+
   void checkSchemaStatus(Signal* signal);
   void checkPendingSchemaTrans(XSchemaFile* xsf);
 
