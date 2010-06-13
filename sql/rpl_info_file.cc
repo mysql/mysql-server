@@ -200,7 +200,8 @@ bool Rpl_info_file::do_set_info(const int pos, const int value)
 bool Rpl_info_file::do_set_info(const int pos, const float value)
 {
   /* This is enough to handle the float conversion */
-  char buffer[sizeof(value) * 4];
+  const int array_size= sizeof(value) * 32;
+  char buffer[array_size];
 
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
@@ -228,8 +229,9 @@ bool Rpl_info_file::do_set_info(const int pos, const my_off_t value)
 bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 {
   bool error= TRUE;
-  char server_ids_buffer[(sizeof(::server_id) * 3 + 1) * 
-                         (1 + value->server_ids.elements)];
+  const int array_size= (sizeof(::server_id) * 3 + 1) *
+                         (1 + value->server_ids.elements);
+  char server_ids_buffer[array_size];
 
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
@@ -305,7 +307,8 @@ bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
     Static buffer to use most of times. However, if it is not big
     enough to accommodate the server ids, a new buffer is allocated.
   */
-  char buffer[16 * (sizeof(long)*4 + 1)];
+  const int array_size= 16 * (sizeof(long)*4 + 1);
+  char buffer[array_size];
   char *buffer_act= buffer;
 
   bool error= init_dynarray_intvar_from_file(buffer, &buffer_act,

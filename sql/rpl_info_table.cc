@@ -461,8 +461,10 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
   if (pos >= ninfo || prv_error)
     return TRUE;
 
-  *value= (use_default ? default_value :
-           strtof(field_values->field[pos].use.str, 0));
+  *value= default_value;
+  if (!use_default &&
+      sscanf(field_values->field[pos].use.str, "%f", value) != 1)
+    return TRUE;
 
   return FALSE;
 }

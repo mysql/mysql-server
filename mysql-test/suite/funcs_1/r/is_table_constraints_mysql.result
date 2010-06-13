@@ -24,6 +24,8 @@ NULL	mysql	PRIMARY	mysql	plugin	PRIMARY KEY
 NULL	mysql	PRIMARY	mysql	proc	PRIMARY KEY
 NULL	mysql	PRIMARY	mysql	procs_priv	PRIMARY KEY
 NULL	mysql	PRIMARY	mysql	servers	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	slave_master_info	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	slave_relay_log_info	PRIMARY KEY
 NULL	mysql	PRIMARY	mysql	tables_priv	PRIMARY KEY
 NULL	mysql	PRIMARY	mysql	time_zone	PRIMARY KEY
 NULL	mysql	PRIMARY	mysql	time_zone_leap_second	PRIMARY KEY
