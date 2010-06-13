@@ -2006,6 +2006,7 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
 void var_free(void *v)
 {
   my_free(((VAR*) v)->str_val, MYF(MY_WME));
+  my_free(((VAR*) v)->env_s, MYF(MY_ALLOW_ZERO_PTR));
   if (((VAR*)v)->alloced)
     my_free(v, MYF(MY_WME));
 }

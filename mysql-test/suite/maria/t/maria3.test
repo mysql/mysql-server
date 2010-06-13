@@ -433,6 +433,24 @@ select count(*) from t1;
 select count(*) from t1 where a >= 4;
 drop table t1, t2;
 
+create temporary table t1 (a int, key(a)) transactional=0 row_format=page;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=page;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+select count(*) from t1 where a >= 4;
+drop table t1, t2;
+
+create temporary table t1 (a int, key(a)) transactional=0 row_format=fixed;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=dynamic;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+select count(*) from t1 where a >= 4;
+drop table t1, t2;
+
 #
 # Test problems with small rows and row_type=page 
 # Bug 35048 "maria table corruption reported when transactional=0"
