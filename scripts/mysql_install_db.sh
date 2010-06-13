@@ -63,7 +63,7 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-  --engine_rep=engine  The type of the engine where the mysql.slave_master_info and
+  --engine-rep=engine  The type of the engine where the mysql.slave_master_info and
                        mysql.slave_relay_log_info tables will be created. By default
                        both tables will be created in the MyIsam engine. However, a
                        user may choose any available engine. If a crash-safe slave
@@ -120,7 +120,7 @@ parse_arguments()
       --no-defaults|--defaults-file=*|--defaults-extra-file=*)
         defaults="$arg" ;;
 
-      --engine_rep=*) engine_rep=`parse_arg "$arg"` ;;
+      --engine-rep=*) engine_rep=`parse_arg "$arg"` ;;
 
       --cross-bootstrap|--windows)
         # Used when building the MySQL system tables on a different host than
