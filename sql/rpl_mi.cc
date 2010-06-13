@@ -70,6 +70,7 @@ Master_info::Master_info()
    :Rpl_info("I/O"),
    ssl(0), ssl_verify_server_cert(0),
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
+   clock_diff_with_master(0),
    heartbeat_period(min(SLAVE_MAX_HEARTBEAT_PERIOD, (slave_net_timeout/2.0))),
    received_heartbeats(0), master_id(0), retry_count(master_retry_count)
 {

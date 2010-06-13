@@ -1903,7 +1903,7 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
       Step the group log position if we are not in a transaction,
       otherwise increase the event log position.
      */
-    rli->stmt_done(log_pos, when);
+    rli->stmt_done(log_pos);
     /*
       Clear any errors in thd->net.last_err*. It is not known if this is
       needed or not. It is believed that any errors that may exist in
