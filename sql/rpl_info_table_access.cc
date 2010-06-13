@@ -128,20 +128,22 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
 
   In case search succeeded, the table cursor points to the found row.
 
-  @param[in]      idx    Index field
-  @param[in]      id     Server id
-  @param[in,out]  table  Table
+  @param[in]      idx        Index field
+  @param[in]      id         Server id
+  @param[in,out]  table      Table
+  @param[out]     type_error Type of the result: FOUND, NOT_FOUND or ERROR.
 
   @return
     @retval FALSE No error
     @retval TRUE  Failure
 */
-bool Rpl_info_table_access::find_info_id(uint idx, LEX_STRING id, TABLE *table)
+bool Rpl_info_table_access::find_info_id(uint idx, LEX_STRING id, TABLE *table, int *type_error)
 {
   uchar key[MAX_KEY_LENGTH];
   DBUG_ENTER("Relay_log_info_table::find_info_id");
   DBUG_PRINT("enter", ("name: %.*s", (int) id.length, id.str));
 
+  (*type_error)= ERROR;
   if (id.length > table->field[idx]->field_length)
     DBUG_RETURN(TRUE);
 
@@ -155,11 +157,11 @@ bool Rpl_info_table_access::find_info_id(uint idx, LEX_STRING id, TABLE *table)
   if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
                                       HA_READ_KEY_EXACT))
   {
-    DBUG_PRINT("info", ("Row not found"));
+    (*type_error)= NOT_FOUND;
     DBUG_RETURN(TRUE);
   }
 
-  DBUG_PRINT("info", ("Row found!"));
+  (*type_error)= FOUND;
   DBUG_RETURN(FALSE);
 }
 

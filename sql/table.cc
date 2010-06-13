@@ -34,10 +34,10 @@ LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
 LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
 
 /* RLI_INFO name */
-LEX_STRING RLI_INFO_NAME= {C_STRING_WITH_LEN("rli_info")};
+LEX_STRING RLI_INFO_NAME= {C_STRING_WITH_LEN("slave_relay_log_info")};
 
 /* MI_INFO name */
-LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("mi_info")};
+LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 
 	/* Functions defined in this file */
 

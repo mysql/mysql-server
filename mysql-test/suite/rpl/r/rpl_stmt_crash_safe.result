@@ -11,28 +11,28 @@ call mtr.add_suppression("Unsafe statement binlogged in statement format since B
 #                               PREPARE EXECUTION
 ###################################################################################
 SET @commands= 'configure';
-SHOW CREATE TABLE mysql.rli_info;
+SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
-rli_info	CREATE TABLE `rli_info` (
-  `master_id` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `rli_relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `rli_relay_log_pos` int(10) unsigned NOT NULL,
-  `rli_master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `rli_master_log_pos` int(10) unsigned NOT NULL,
-  PRIMARY KEY (`master_id`(128))
+slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
+  `Master_id` int(10) unsigned NOT NULL,
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `Relay_log_pos` int(10) unsigned NOT NULL,
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `Master_log_pos` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`Master_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
-ALTER TABLE mysql.rli_info ENGINE= Innodb;
+ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log or slow_log table. This is unsafe because system tables may differ on slave.
-SHOW CREATE TABLE mysql.rli_info;
+SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
-rli_info	CREATE TABLE `rli_info` (
-  `master_id` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `rli_relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `rli_relay_log_pos` int(10) unsigned NOT NULL,
-  `rli_master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `rli_master_log_pos` int(10) unsigned NOT NULL,
-  PRIMARY KEY (`master_id`(128))
+slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
+  `Master_id` int(10) unsigned NOT NULL,
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `Relay_log_pos` int(10) unsigned NOT NULL,
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `Master_log_pos` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`Master_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 SET SQL_LOG_BIN=0;
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -141,8 +141,8 @@ INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
 END|
 SET @commands= '';
-SELECT * FROM mysql.rli_info;
-master_id	rli_relay_log_name	rli_relay_log_pos	rli_master_log_name	rli_master_log_pos
+SELECT * FROM mysql.slave_relay_log_info;
+Master_id	Relay_log_name	Relay_log_pos	Master_log_name	Master_log_pos
 2	./slave-relay-bin.000003	4036	master-bin.000001	3889
 ###################################################################################
 #                         EXECUTE CASES CRASHING THE XID
