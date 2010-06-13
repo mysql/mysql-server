@@ -428,7 +428,7 @@ else
   exit 1
 fi
 
-if { -n "$engine_rep" }
+if test -n "$engine_rep"
 then
   s_echo "Setting engine for mysql.slave_master_info mysql.slave_relay_log_info tables..."
   if { echo "use mysql;"; echo "ALTER TABLE mysql.slave_master_info ENGINE= $engine_rep;"; echo "ALTER TABLE mysql.slave_relay_log_info ENGINE= $engine_rep;"; } | $mysqld_install_cmd_line > /dev/null
