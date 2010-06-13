@@ -22,12 +22,12 @@
 #define MI_FIELD_ID 0
 
 #define MI_SCHEMA "mysql"
-#define MI_TABLE  "mi_info"
+#define MI_TABLE  "slave_master_info"
 
 #define RLI_FIELD_ID 0
 
 #define RLI_SCHEMA "mysql"
-#define RLI_TABLE  "rli_info"
+#define RLI_TABLE  "slave_relay_log_info"
 
 class Rpl_info_factory
 {

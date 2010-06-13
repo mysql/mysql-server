@@ -1,15 +1,15 @@
 if (`SELECT HEX(@commands) = HEX('configure')`)
 {
   --sync_slave_with_master
-  SHOW CREATE TABLE mysql.rli_info;
-  ALTER TABLE mysql.rli_info ENGINE= Innodb;
-  SHOW CREATE TABLE mysql.rli_info;
+  SHOW CREATE TABLE mysql.slave_relay_log_info;
+  ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
+  SHOW CREATE TABLE mysql.slave_relay_log_info;
 
   connection master;
   --source extra/rpl_tests/rpl_mixing_engines.inc
 
   --sync_slave_with_master
-  SELECT * FROM mysql.rli_info;
+  SELECT * FROM mysql.slave_relay_log_info;
 }
 
 if (`SELECT HEX(@commands) = HEX('clean')`)
@@ -43,14 +43,14 @@ if (`SELECT HEX(@commands) != HEX('')`)
     --enable_reconnect
     --source include/wait_until_connected_again.inc
     connection slave;
-    --let $slave_before= `SELECT rli_master_log_pos FROM mysql.rli_info`
+    --let $slave_before= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
     START SLAVE;
     source include/wait_for_slave_to_start.inc;
   }
 
   connection master;
   sync_slave_with_master;
-  --let $slave_after= `SELECT rli_master_log_pos FROM mysql.rli_info`
+  --let $slave_after= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
   connection master;
   SHOW MASTER STATUS;
 }

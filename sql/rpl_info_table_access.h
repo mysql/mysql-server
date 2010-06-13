@@ -25,6 +25,10 @@
 class Rpl_info_table_access
 {
 public:
+  static const int FOUND= 1;
+  static const int NOT_FOUND= 2;
+  static const int ERROR= 3;
+
   Rpl_info_table_access();
   virtual ~Rpl_info_table_access();
 
@@ -32,7 +36,7 @@ public:
                   uint max_num_field, enum thr_lock_type lock_type,
                   TABLE** table, Open_tables_state* backup);
   bool close_table(THD* thd, TABLE* table, Open_tables_state* backup);
-  bool find_info_id(uint idx, LEX_STRING, TABLE*);
+  bool find_info_id(uint idx, LEX_STRING, TABLE*, int*);
   bool load_info_fields(uint max_num_field, Field **fields, ...);
   bool load_info_fields(uint max_num_field, Field **fields,
                         Rpl_info_fields *field_values);

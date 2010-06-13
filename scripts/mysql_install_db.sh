@@ -63,11 +63,11 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-  --engine_rep=engine  The type of the engine where the mysql.mi_info and
-                       mysql.rli_info tables will be created. By default both
-                       tables will be created in the MyIsam engine. However, a
-                       user may choose any available engine. If a crash-safe
-                       slave is desired the engine must be transactional.
+  --engine_rep=engine  The type of the engine where the mysql.slave_master_info and
+                       mysql.slave_relay_log_info tables will be created. By default
+                       both tables will be created in the MyIsam engine. However, a
+                       user may choose any available engine. If a crash-safe slave
+                       is desired the engine must be transactional.
 
 All other options are passed to the mysqld program
 
@@ -430,8 +430,8 @@ fi
 
 if { -n "$engine_rep" }
 then
-  s_echo "Setting engine for mysql.mi_info mysql.rli_info tables..."
-  if { echo "use mysql;"; echo "ALTER TABLE mysql.mi_info ENGINE= $engine_rep;"; echo "ALTER TABLE mysql.rli_info ENGINE= $engine_rep;"; } | $mysqld_install_cmd_line > /dev/null
+  s_echo "Setting engine for mysql.slave_master_info mysql.slave_relay_log_info tables..."
+  if { echo "use mysql;"; echo "ALTER TABLE mysql.slave_master_info ENGINE= $engine_rep;"; echo "ALTER TABLE mysql.slave_relay_log_info ENGINE= $engine_rep;"; } | $mysqld_install_cmd_line > /dev/null
   then
     s_echo "OK"
   else

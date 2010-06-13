@@ -81,8 +81,8 @@ bool Rpl_info_fields::resize(int needed_size, int pos)
 }
 
 /**
-  Restore the pointer from "saved" to "use". This method must be called
-  if the "use" points to another space in memory that it is not the
+  Restore the pointer from "saved" to "use". This member function must be
+  called if the "use" points to another space in memory that it is not the
   original one initially allocated. For instance, this may happen when
   a the repository is a table and one reads from it.
 */

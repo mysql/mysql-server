@@ -768,8 +768,6 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
   ulong start_id;
   DBUG_ENTER("start_slave_thread");
 
-  DBUG_ASSERT(mi->inited);
-
   if (start_lock)
     pthread_mutex_lock(start_lock);
   if (!server_id)
@@ -2352,6 +2350,7 @@ static int has_temporary_error(THD *thd)
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
+  bool skip_event= FALSE;
 
   DBUG_ENTER("apply_event_and_update_pos");
 
@@ -2396,10 +2395,13 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 
   int reason= ev->shall_skip(rli);
   if (reason == Log_event::EVENT_SKIP_COUNT)
+  {
     --rli->slave_skip_counter;
+    skip_event= TRUE;
+  }
   pthread_mutex_unlock(&rli->data_lock);
   if (reason == Log_event::EVENT_SKIP_NOT)
-     exec_res= ev->apply_event(rli);
+    exec_res= ev->apply_event(rli);
 
 #ifndef DBUG_OFF
   /*
@@ -2425,7 +2427,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
   if (exec_res == 0)
   {
-    int error= ev->update_pos(rli);
+    int error= (ev->get_type_code() != XID_EVENT || skip_event) ?
+                ev->update_pos(rli) : 0;
 #ifdef HAVE_purify
     if (!rli->is_fake)
 #endif
@@ -4444,8 +4447,10 @@ static Log_event* next_event(Relay_log_info* rli)
       goto err;
 #ifndef DBUG_OFF
     {
-      DBUG_PRINT("info", ("assertion file %lu  event relay log pos %lu\n",
-        (ulong) my_b_tell(cur_log), (ulong) rli->get_event_relay_log_pos()));
+      DBUG_PRINT("info", ("assertion skip %lu file pos %lu event relay log pos %lu file %s\n",
+        (ulong) rli->slave_skip_counter, (ulong) my_b_tell(cur_log),
+        (ulong) rli->get_event_relay_log_pos(),
+        rli->get_event_relay_log_name()));
 
       /* This is an assertion which sometimes fails, let's try to track it */
       char llbuf1[22], llbuf2[22];
@@ -4455,7 +4460,7 @@ static Log_event* next_event(Relay_log_info* rli)
       DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
       DBUG_ASSERT(my_b_tell(cur_log) == rli->get_event_relay_log_pos());
 
-      DBUG_PRINT("info", ("next_event group master %s %lu  group relay %s %lu event %s %lu\n",
+      DBUG_PRINT("info", ("next_event group master %s %lu group relay %s %lu event %s %lu\n",
         rli->get_group_master_log_name(),
         (ulong) rli->get_group_master_log_pos(),
         rli->get_group_relay_log_name(),

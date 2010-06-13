@@ -5556,11 +5556,6 @@ Xid_log_event::do_shall_skip(Relay_log_info *rli)
   }
   DBUG_RETURN(Log_event::do_shall_skip(rli));
 }
-
-int Xid_log_event::do_update_pos(Relay_log_info *rli)
-{
-  return (0);
-}
 #endif /* !MYSQL_CLIENT */
 
 

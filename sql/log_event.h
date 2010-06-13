@@ -2464,7 +2464,6 @@ class Xid_log_event: public Log_event
   Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg,0,0), xid(x) {}
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
-  int do_update_pos(Relay_log_info *rli);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);

@@ -16,13 +16,13 @@ help_keyword
 help_relation
 help_topic
 host
-mi_info
 ndb_binlog_index
 plugin
 proc
 procs_priv
-rli_info
 servers
+slave_master_info
+slave_relay_log_info
 slow_log
 tables_priv
 time_zone
