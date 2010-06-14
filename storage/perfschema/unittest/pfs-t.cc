@@ -94,6 +94,7 @@ void test_bootstrap()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -136,6 +137,7 @@ PSI * load_perfschema()
   param.m_file_handle_sizing= 50;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10;
+  param.m_setup_actor_sizing= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
