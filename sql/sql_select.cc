@@ -10834,7 +10834,7 @@ void JOIN_TAB::cleanup()
 /**
   @returns semijoin strategy for this table.
 */
-inline uint JOIN_TAB::get_sj_strategy() const
+uint JOIN_TAB::get_sj_strategy() const
 {
   if (first_sj_inner_tab == NULL)
     return SJ_OPT_NONE;
