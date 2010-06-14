@@ -892,6 +892,11 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           share->lock_restore_status= _ma_restore_status;
         }
       }
+      else if (share->now_transactional)
+      {
+        DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
+        share->lock.get_status=     _ma_block_get_status_no_versioning;
+      }
     }
 #endif
     /*

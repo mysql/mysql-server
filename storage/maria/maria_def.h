@@ -482,7 +482,8 @@ typedef struct st_maria_block_scan
 struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
-  struct st_ma_transaction *trn;           /* Pointer to active transaction */
+  struct st_ma_transaction *trn;        /* Pointer to active transaction */
+  void *external_ptr;           	/* Pointer to THD in mysql */
   MARIA_STATUS_INFO *state, state_save;
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
@@ -788,8 +789,9 @@ extern uint32 maria_read_vec[], maria_readnext_vec[];
 extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
-extern my_bool maria_inited, maria_in_ha_maria;
+extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
 extern HASH maria_stored_state;
+extern int (*maria_create_trn_hook)(MARIA_HA *);
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -1242,5 +1244,4 @@ extern my_bool maria_flush_log_for_page(uchar *page,
 extern my_bool maria_flush_log_for_page_none(uchar *page,
                                              pgcache_page_no_t page_no,
                                              uchar *data_ptr);
-void maria_concurrent_inserts(MARIA_HA *info, my_bool concurrent_insert);
 extern PAGECACHE *maria_log_pagecache;
