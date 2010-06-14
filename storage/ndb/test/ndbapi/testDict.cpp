@@ -3737,7 +3737,7 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   const NdbDictionary::Table* pTab = 0;
-  const NdbDictionary::Index* pInd = 0;
+  //const NdbDictionary::Index* pInd = 0;
   int loc = step->getStepNo() - 1;
   assert(loc > 0);
   g_err << "ops: loc:" << loc << endl;
@@ -6211,7 +6211,7 @@ static int
 st_test_mnf_prepare(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   ST_Errins errins = st_get_errins(c, st_errins_end_trans1);
   int i;
 
@@ -6246,7 +6246,7 @@ static int
 st_test_mnf_commit1(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   ST_Errins errins = st_get_errins(c, st_errins_end_trans2);
   int i;
 
@@ -6278,7 +6278,7 @@ static int
 st_test_mnf_commit2(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   ST_Errins errins = st_get_errins(c, st_errins_end_trans3);
   int i;
 
@@ -6312,7 +6312,7 @@ st_test_mnf_run_commit(ST_Con& c, int arg = -1)
 {
   const NdbDictionary::Table* pTab;
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   int i;
 
   if (arg == FAIL_BEGIN)
@@ -6375,7 +6375,7 @@ static int
 st_test_mnf_run_abort(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   const NdbDictionary::Table* pTab;
   bool do_abort = (arg == SUCCEED_ABORT);
   int i;
@@ -7754,7 +7754,7 @@ runBug53944(NDBT_Context* ctx, NDBT_Step* step)
    * With Bug53944 - none of the table-id have been reused in this scenario
    *   check that atleast 15 of the 25 have been to return OK
    */
-  int reused = 0;
+  size_t reused = 0;
   for (size_t i = 0; i<ids.size(); i++)
   {
     int id = ids[i];
@@ -7768,8 +7768,8 @@ runBug53944(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
-  ndbout_c("reused %d table-ids out of %u", 
-           reused, (unsigned)ids.size());
+  ndbout_c("reused %u table-ids out of %u", 
+           (unsigned)reused, (unsigned)ids.size());
 
   if (reused >= (ids.size() >> 2))
   {
