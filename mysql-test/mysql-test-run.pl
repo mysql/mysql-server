@@ -1566,7 +1566,9 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--language=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
-  mtr_add_arg($args, $_) for (@opt_extra_mysqld_opt);
+  for (@opt_extra_mysqld_opt) {
+    mtr_add_arg($args, $_) unless /^--binlog-format\b/;
+  }
   my $euid= $>;
   if (!IS_WINDOWS and $euid == 0) {
     mtr_add_arg($args, "--user=root");
