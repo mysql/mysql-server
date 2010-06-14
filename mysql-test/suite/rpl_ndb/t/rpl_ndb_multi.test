@@ -39,7 +39,7 @@ let $the_file= `SELECT @the_file` ;
 
 # now connect the slave to the _other_ "master"
 connection slave;
---replace_result $MASTER_MYPORT1 <MASTER_PORT1>
+--replace_result $MASTER_MYPORT1 <MASTER_PORT1> $the_pos MASTER_LOG_POS $the_file MASTER_LOG_FILE
 eval CHANGE MASTER TO
   master_port=$MASTER_MYPORT1,
   master_log_file = '$the_file',

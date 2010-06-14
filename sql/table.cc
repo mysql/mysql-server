@@ -297,13 +297,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->version=       refresh_version;
 
     /*
-      This constant is used to mark that no table map version has been
-      assigned.  No arithmetic is done on the value: it will be
-      overwritten with a value taken from MYSQL_BIN_LOG.
-    */
-    share->table_map_version= ~(ulonglong)0;
-
-    /*
       Since alloc_table_share() can be called without any locking (for
       example, ha_create_table... functions), we do not assign a table
       map id here.  Instead we assign a value that is not used
@@ -366,11 +359,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   share->path.length= share->normalized_path.length= strlen(path);
   share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
 
-  /*
-    Temporary tables are not replicated, but we set up these fields
-    anyway to be able to catch errors.
-   */
-  share->table_map_version= ~(ulonglong)0;
   share->cached_row_logging_check= -1;
 
   /*
@@ -2701,43 +2689,29 @@ bool check_db_name(LEX_STRING *org_name)
 {
   char *name= org_name->str;
   uint name_length= org_name->length;
+  bool check_for_path_chars;
 
   if (!name_length || name_length > NAME_LEN)
     return 1;
 
+  if ((check_for_path_chars= check_mysql50_prefix(name)))
+  {
+    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+    name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+  }
+
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-#if defined(USE_MB) && defined(USE_MB_IDENT)
-  if (use_mb(system_charset_info))
-  {
-    name_length= 0;
-    bool last_char_is_space= TRUE;
-    char *end= name + org_name->length;
-    while (name < end)
-    {
-      int len;
-      last_char_is_space= my_isspace(system_charset_info, *name);
-      len= my_ismbchar(system_charset_info, name, end);
-      if (!len)
-        len= 1;
-      name+= len;
-      name_length++;
-    }
-    return (last_char_is_space || name_length > NAME_CHAR_LEN);
-  }
-  else
-#endif
-    return ((org_name->str[org_name->length - 1] != ' ') ||
-            (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
+  return check_table_name(name, name_length, check_for_path_chars);
 }
+
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
   ' ' at the end
   returns 1 on error
 */
-
 
 bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
@@ -2766,10 +2740,10 @@ bool check_table_name(const char *name, uint length, bool check_for_path_chars)
         continue;
       }
     }
+#endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
       return 1;
-#endif
     name++;
     name_length++;
   }
@@ -4399,6 +4373,27 @@ void st_table::mark_columns_used_by_index(uint index)
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Add fields used by a specified index to the table's read_set.
+
+  NOTE:
+    The original state can be restored with
+    restore_column_maps_after_mark_index().
+*/
+
+void st_table::add_read_columns_used_by_index(uint index)
+{
+  MY_BITMAP *bitmap= &tmp_set;
+  DBUG_ENTER("st_table::add_read_columns_used_by_index");
+
+  set_keyread(TRUE);
+  bitmap_copy(bitmap, read_set);
+  mark_columns_used_by_index_no_reset(index, bitmap);
+  column_bitmaps_set(bitmap, write_set);
   DBUG_VOID_RETURN;
 }
 

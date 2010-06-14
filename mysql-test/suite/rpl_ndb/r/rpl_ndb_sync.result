@@ -68,45 +68,7 @@ CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;
 START SLAVE;
-SHOW SLAVE STATUS;
-Slave_IO_State	<Slave_IO_State>
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	<Read_Master_Log_Pos>
-Relay_Log_File	<Relay_Log_File>
-Relay_Log_Pos	<Relay_Log_Pos>
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	Yes
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	<Replicate_Ignore_Table>
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
-Skip_Counter	0
-Exec_Master_Log_Pos	<Exec_Master_Log_Pos>
-Relay_Log_Space	<Relay_Log_Space>
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	<Seconds_Behind_Master>
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	<Last_IO_Errno>
-Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	0
-Last_SQL_Error	
+Checking that both slave threads are running.
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
 1	1	row1

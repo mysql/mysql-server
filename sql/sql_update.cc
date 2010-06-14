@@ -397,7 +397,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->mark_columns_used_by_index(used_index);
+      table->add_read_columns_used_by_index(used_index);
     else
     {
       table->use_all_columns();
@@ -425,6 +425,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -471,6 +472,7 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
+        thd->examined_row_count++;
 	if (!(select && select->skip_record()))
 	{
           if (table->file->was_semi_consistent_read())
@@ -577,6 +579,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
+    thd->examined_row_count++;
     if (!(select && select->skip_record()))
     {
       if (table->file->was_semi_consistent_read())
@@ -1050,7 +1053,7 @@ reopen_tables:
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
       */
-      tl->lock_type= read_lock_type_for_table(thd, table);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
