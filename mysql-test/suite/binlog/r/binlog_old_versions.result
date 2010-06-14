@@ -40,7 +40,7 @@ COUNT(*)
 17920
 DROP TABLE t1, t3;
 *** wl#2540 Replication events checksum is not yet defined 
-*** is the born-version. One that is temporarily chosen conflicts with 
+*** its born-version. One that is temporarily chosen conflicts with 
 *** the version in the following pre-recorded binlogs
 *** TODO: uncomment this snippet when the WL patches will be about to push
 ==== Read binlog from alcatel tree (mysql-5.1-wl2325-5.0-drop6) ====

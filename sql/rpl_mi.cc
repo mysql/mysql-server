@@ -37,7 +37,7 @@ Master_info::Master_info(bool is_slave_recovery)
    rli(is_slave_recovery), abort_slave(0), 
    slave_running(0), slave_run_id(0), sync_counter(0),
    heartbeat_period(0), received_heartbeats(0), master_id(0),
-   checksum_alg_before_fd((uint8) -1), last_master_checksum_alg((uint8) -1)
+   checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_ILL)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
@@ -499,7 +499,6 @@ void end_master_info(Master_info* mi)
     mi->fd = -1;
   }
   mi->inited = 0;
-  mi->last_master_checksum_alg= (uint8) -1;
 
   DBUG_VOID_RETURN;
 }

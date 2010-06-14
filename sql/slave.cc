@@ -1229,29 +1229,16 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   }
 
   /*
-    to set up the new session checksum_alg that could be one of two:
-    Relay log initial or the preceeding session's description_event_for_queue 
-    (FD_q).
-    The value is necessary to relay-log the first slave's Rotate.
-    Notice, the value won't be used at time the fake Rotate from master is received.
-    The one, if with checksum, will be verified by means
-    @c mi->checksum_alg_before_fd alg. The first appearence of the master' FD
-    will cancel mi->checksum_alg_before_fd usage.
-    In the following course FD_q will
-    change each time a FD from master has arrived and with it the
-    actual checksum_alg can be altered. The actual master's value
-    affect on how slave threads create own relay-log events (Rotate,
-    FD, Stop) execept the FD of the very first relay log.
+    FD_q's (A) is made compatible with RL's (A). That is natural property for
+    FD_q derived (in queue_event) from FD_m where the Relay-Log's checksum alg
+    is set to a new value as well: RL.(A) := FD_q.(A). 
+    For the first FD_q it's in reverse FD_q.(A) := RL.(A).
   */
-
   mi->rli.relay_log.description_event_for_queue->checksum_alg=
-    // continuing with the previous session
-    (mi->last_master_checksum_alg != (uint8) -1) ? mi->last_master_checksum_alg :
-    // brand new relay-log of the new session
     mi->rli.relay_log.relay_log_checksum_alg;
 
-  DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg != (uint8) -1);
-  DBUG_ASSERT(mi->rli.relay_log.relay_log_checksum_alg != (uint8) -1); 
+  DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
+  DBUG_ASSERT(mi->rli.relay_log.relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_ILL); 
 
   /*
     Compare the master and slave's clock. Do not die if master's clock is
@@ -1515,13 +1502,13 @@ when it try to get the value of TIME_ZONE global variable from master.";
     to become known in consensus by master and slave.
   */
   DBUG_EXECUTE_IF("simulate_slave_unaware_checksum",
-                  mi->checksum_alg_before_fd= 0;
+                  mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
                   goto past_checksum;);
   {
     int rc;
     const char query[]= "SET @master_binlog_checksum= @@global.binlog_checksum";
     master_res= NULL;
-    mi->checksum_alg_before_fd= (uint8) -1;  // initially undefined
+    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_ILL;  // initially undefined
     /*
       @c checksum_alg_before_fd is queried from master in this block.
       If master is old checksum-unaware the value stays undefined.
@@ -1565,8 +1552,12 @@ when it try to get the value of TIME_ZONE global variable from master.";
         (master_res= mysql_store_result(mysql)) &&
         (master_row= mysql_fetch_row(master_res)))
     {
-      // TODO: text name to alg id conversion
-      mi->checksum_alg_before_fd= strtoul(master_row[0], 0, 10);
+      mi->checksum_alg_before_fd= (uint8)
+        find_type(&binlog_checksum_typelib, master_row[0], strlen(master_row[0]),
+                  true) - 1;
+      // valid outcome is either of
+      DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
+                  mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
     }
     else if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
     {
@@ -1574,7 +1565,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
       mi->report(WARNING_LEVEL, mysql_errno(mysql),
                  "Get master BINLOG_CHECKSUM failed with error: %s", mysql_error(mysql));
       // this master won't send checksum
-      mi->checksum_alg_before_fd= 0;
+      mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
     }
     else if (is_network_error(mysql_errno(mysql)))
     {
@@ -3623,12 +3614,15 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   */
   if (mi->rli.relay_log.description_event_for_queue->binlog_version >= 4)
   {
-    uint8 last_alg= mi->rli.relay_log.description_event_for_queue->checksum_alg;
+    DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg ==
+                mi->rli.relay_log.relay_log_checksum_alg);
+    
     delete mi->rli.relay_log.description_event_for_queue;
     /* start from format 3 (MySQL 4.0) again */
     mi->rli.relay_log.description_event_for_queue= new
       Format_description_log_event(3);
-    mi->rli.relay_log.description_event_for_queue->checksum_alg= last_alg;    
+    mi->rli.relay_log.description_event_for_queue->checksum_alg=
+      mi->rli.relay_log.relay_log_checksum_alg;    
   }
   /*
     Rotate the relay log makes binlog format detection easier (at next slave
@@ -3870,15 +3864,15 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     Show-up of FD:s affects checksum_alg at once because
     that changes FD_queue.
   */
-  uint8 checksum_alg= mi->checksum_alg_before_fd != (uint8) -1 ? 
+  uint8 checksum_alg= mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_ILL ? 
     mi->checksum_alg_before_fd :
-    mi->rli.relay_log.description_event_for_queue->checksum_alg;
+    mi->rli.relay_log.relay_log_checksum_alg;
 
-  char *save_buf;
+  char *save_buf; // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + FN_REFLEN];
 
-  DBUG_ASSERT(checksum_alg == 0 || 
-              checksum_alg == (uint8) -1 || 
+  DBUG_ASSERT(checksum_alg == BINLOG_CHECKSUM_ALG_OFF || 
+              checksum_alg == BINLOG_CHECKSUM_ALG_ILL || 
               checksum_alg == BINLOG_CHECKSUM_ALG_CRC32); 
 
   DBUG_ENTER("queue_event");
@@ -3890,6 +3884,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     checksum_alg= get_checksum_alg(buf, event_len);
   }
+
+  // does not hold always because of old binlog can work with NM 
+  // DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
+
+  // should hold unless manipulations with RL. Tests that do that
+  // will have to refine the clause.
+  DBUG_ASSERT(mi->rli.relay_log.relay_log_checksum_alg !=
+              BINLOG_CHECKSUM_ALG_ILL);
 
   if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
   {
@@ -3924,7 +3926,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto err;
   case ROTATE_EVENT:
   {
-    Rotate_log_event rev(buf, checksum_alg != 0 ?
+    Rotate_log_event rev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                          event_len - BINLOG_CHECKSUM_LEN : event_len,
                          mi->rli.relay_log.description_event_for_queue);
 
@@ -3946,8 +3948,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
               to compute checksum for its first FD event for RL
               the fake Rotate gets checksummed here.
     */
-    if (uint4korr(&buf[0]) == 0 && checksum_alg == 0 &&
-        mi->rli.relay_log.relay_log_checksum_alg == 1)
+    if (uint4korr(&buf[0]) == 0 && checksum_alg == BINLOG_CHECKSUM_ALG_OFF &&
+        mi->rli.relay_log.relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_OFF)
     {
       ha_checksum rot_crc= my_checksum(0L, NULL, 0);
       event_len += BINLOG_CHECKSUM_LEN;
@@ -3960,7 +3962,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
       DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg ==
                   mi->rli.relay_log.relay_log_checksum_alg);
-      DBUG_ASSERT(mi->checksum_alg_before_fd != (uint8) -1); // the first one
+      DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_ILL); // the first one
       save_buf= (char *) buf;
       buf= rot_buf;
     }
@@ -3969,8 +3971,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         RSC_2: If NM \and fake Rotate \and slave does not compute checksum
         the fake Rotate's checksum is stripped off before relay-logging.
       */
-      if (uint4korr(&buf[0]) == 0 && checksum_alg == 1 &&
-          mi->rli.relay_log.relay_log_checksum_alg == 0)
+      if (uint4korr(&buf[0]) == 0 && checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+          mi->rli.relay_log.relay_log_checksum_alg == BINLOG_CHECKSUM_ALG_OFF)
       {
         event_len -= BINLOG_CHECKSUM_LEN;
         memcpy(rot_buf, buf, event_len);
@@ -3979,7 +3981,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
         DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg ==
                     mi->rli.relay_log.relay_log_checksum_alg);
-        DBUG_ASSERT(mi->checksum_alg_before_fd != (uint8) -1); // the first one
+        DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_ILL); // the first one
         save_buf= (char *) buf;
         buf= rot_buf;
       }
@@ -4003,7 +4005,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     Format_description_log_event* tmp;
     const char* errmsg;
-    mi->checksum_alg_before_fd= (uint8) -1; // mark it as undefined/irrelevant
+    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_ILL; // mark it as undefined/irrelevant
     if (!(tmp= (Format_description_log_event*)
           Log_event::read_log_event(buf, event_len, &errmsg,
                                     mi->rli.relay_log.description_event_for_queue,
@@ -4014,10 +4016,12 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     delete mi->rli.relay_log.description_event_for_queue;
     mi->rli.relay_log.description_event_for_queue= tmp;
-    if (tmp->checksum_alg == (uint8) -1)
-      tmp->checksum_alg= 0; // don't have to worry about anymore this is OM's FD
-    // the assigned value will survive STOP/START slave but not RESET
-    mi->last_master_checksum_alg= tmp->checksum_alg;
+    if (tmp->checksum_alg == BINLOG_CHECKSUM_ALG_ILL)
+      tmp->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
+
+    /* installing new value of checksum Alg for relay log */
+    mi->rli.relay_log.relay_log_checksum_alg= tmp->checksum_alg;
+
     /*
        Though this does some conversion to the slave's format, this will
        preserve the master's binlog format version, and number of event types.
@@ -4040,8 +4044,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     char  llbuf[22];
     Heartbeat_log_event hb(buf,
-                           mi->rli.relay_log.description_event_for_queue->checksum_alg
-                           != 0 ? event_len - BINLOG_CHECKSUM_LEN : event_len,
+                           mi->rli.relay_log.relay_log_checksum_alg
+                           != BINLOG_CHECKSUM_ALG_OFF ?
+                           event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->rli.relay_log.description_event_for_queue);
     if (!hb.is_valid())
     {
@@ -4204,6 +4209,7 @@ void end_relay_log_info(Relay_log_info* rli)
   }
   rli->inited = 0;
   rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  // ???  rli->relay_log.relay_log_checksum_alg= BINLOG_CHECKSUM_ALG_ILL;
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
   /*
     Delete the slave's temporary tables from memory.

@@ -1,1 +1,1 @@
---binlog-checksum
+--binlog-checksum=CRC32

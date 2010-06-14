@@ -319,9 +319,17 @@ public:
   /* This is relay log */
   bool is_relay_log;
   ulong signal_cnt;  // update of the counter is checked by heartbeat
-  bool checksum_flip; // sets to true at time opt_binlog_checksum is changing
+  uint8 checksum_alg_reset; // to contain a new value when binlog is rotated
   /*
-    to hold the slave's preference how to compute checksum for its own events.
+    Holds the last seen in Relay-Log FD's checksum alg value.
+    The initial value comes from the slave's local FD that heads
+    the very first Relay-Log file. In the following the value may change
+    with each received master's FD_m.
+    Besides to be used in verification events that IO thread receives
+    (except the 1st fake Rotate, see @c Master_info:: checksum_alg_before_fd), 
+    the value specifies if/how to compute checksum for slave's local events
+    and the first fake Rotate (R_f^1) coming from the master.
+    R_f^1 needs logging checksum-compatibly with the RL's heading FD_s.
   */
   uint8 relay_log_checksum_alg;
   /*
@@ -650,12 +658,6 @@ enum enum_binlog_format {
   BINLOG_FORMAT_UNSPEC= 3
 };
 extern TYPELIB binlog_format_typelib;
-
-/*
-  if more alg will be added in future, binlog_checksum_alg_id should be
-  turned into an option
-*/
-extern const uint8 binlog_checksum_alg_id;
 
 int query_error_code(THD *thd, bool not_killed);
 uint purge_log_get_error_code(int res);

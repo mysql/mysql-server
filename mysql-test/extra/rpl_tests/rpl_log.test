@@ -35,15 +35,26 @@ select count(*) from t1;
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events;
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 107 limit 1;
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 107 limit 2;
---replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-show binlog events from 107 limit 1,4;
+#--replace_column 2 # 5 #
+#--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+#show binlog events from 107 limit 1;
+source include/show_binlog_events.inc;
+
+#--replace_column 2 # 5 #
+#--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+#show binlog events from 107 limit 2;
+let $binary_log_limit_row = 2;
+source include/show_binlog_events.inc;
+
+#--replace_column 2 # 5 #
+#--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+#show binlog events from 107 limit 1,4;
+let $binary_log_limit_offset = 1;
+let $binary_log_limit_row = 4;
+source include/show_binlog_events.inc;
+let $binary_log_limit_offset =;
+let $binary_log_limit_row =;
+
 flush logs;
 
 # We need an extra update before doing save_master_pos.

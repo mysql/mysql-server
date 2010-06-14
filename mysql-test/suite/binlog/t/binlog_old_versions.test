@@ -68,7 +68,7 @@ DROP TABLE t1, t3;
 
 
 --echo *** wl#2540 Replication events checksum is not yet defined 
---echo *** is the born-version. One that is temporarily chosen conflicts with 
+--echo *** its born-version. One that is temporarily chosen conflicts with 
 --echo *** the version in the following pre-recorded binlogs
 --echo *** TODO: uncomment this snippet when the WL patches will be about to push
 

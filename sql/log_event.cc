@@ -51,18 +51,13 @@
 */
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
 
-/**
-   the text names of checksum alg:s vector 
-   indexed  by @c enum_binlog_checksum_alg_types
-*/
-const char* binlog_checksum_alg_names[]= {"CRC32", NullS};
-/**
-  if more alg will be added in future, @c binlog_checksum_alg_id should be
-  turned into an option of the server startup
-*/
-const uint8 binlog_checksum_alg_id= BINLOG_CHECKSUM_ALG_CRC32;
+/* 
+   replication event checksum is introduced it this "checksum-home" version.
+   FD is examined on the version matter to ascertain whether it's capable to
+   carry checksum info.
 
-/* replication event checksum is introduced it this version */
+   TODO: correct at pushing
+*/
 const uchar checksum_version_split[3]= {5, 1, 46};
 const ulong checksum_version_product=
   (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
@@ -654,22 +649,9 @@ inline bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
                   BINLOG_CHECKSUM_ALG_CRC32);
       DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
-        Complile time guard to watch that
-        the max number of alg is bound to
-          number of bits combination of checksum postheader, and
-
-          - FD checksum header and the variable holding alg value
-          - the enum and the vector of names 
-
-          are size-compatible
+        Complile time guard to watch over  the max number of alg
       */
-      compile_time_assert(sizeof(enum enum_binlog_checksum_alg)
-                          <
-                          (1 << sizeof(binlog_checksum_alg_id) * 8));
-      
-      compile_time_assert(sizeof(binlog_checksum_alg_names)/sizeof(char*)
-                          ==
-                          BINLOG_CHECKSUM_ALG_ENUM_END);
+      compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
     }
     incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
     computed= my_checksum(0L, NULL, 0);
@@ -735,7 +717,7 @@ const char* Log_event::get_type_str()
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg), crc(0), thd(thd_arg),
-   checksum_alg(0)
+   checksum_alg(BINLOG_CHECKSUM_ALG_ILL)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
@@ -752,7 +734,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 */
 
 Log_event::Log_event()
-  :temp_buf(0), exec_time(0), flags(0),  crc(0), thd(0), checksum_alg(0)
+  :temp_buf(0), exec_time(0), flags(0),  crc(0), thd(0),
+   checksum_alg(BINLOG_CHECKSUM_ALG_ILL)
 {
   server_id=	::server_id;
   /*
@@ -771,7 +754,7 @@ Log_event::Log_event()
 
 Log_event::Log_event(const char* buf,
                      const Format_description_log_event* description_event)
-  :temp_buf(0), crc(0), checksum_alg(0)
+  :temp_buf(0), crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_ILL)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -958,13 +941,16 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 }
 
 /**
-   Decision helper whether to trigger checksum computation or not.
-   To be invoked in Log_event::write().
-   The decision is positive if it's been marked for checksumming
-   (when FD by the constructor's caller, the rest in Log_event::write())
-   or
-   global.binlog_checksum is ON and events is 
-   directly written to the binlog file.
+   A decider of whether to trigger checksum computation or not.
+   To be invoked in Log_event::write() stack.
+   The decision is positive 
+
+    S,M) if it's been marked for checksumming with @c checksum_alg
+    
+    M) otherwise, if @@global.binlog_checksum is not NONE and the event is 
+       directly written to the binlog file.
+       The to-be-cached event decides at @c write_cache() time.
+
    Otherwise the decision is negative.
 
    @return true (positive) or false (negative)
@@ -974,17 +960,35 @@ my_bool Log_event::need_checksum(IO_CACHE* file)
   DBUG_ENTER("Log_event::need_checksum");
   my_bool ret;
   /* 
-     some callers of Log_event::write can pre-set the flag on 
-     to force checksum incapsulation into the event 
+     few callers (e.g FD::write or FD_s constructing code) of Log_event::write 
+     prepare the alg to force checksum incapsulation into the event 
   */
-  ret=
-    (checksum_alg != 0) ||
-    (!(flags & LOG_EVENT_RELAY_LOG_F) && opt_binlog_checksum &&
-     (!thd  /* bootstrap */
-      || /* the main branch */
-      cache_type == Log_event::EVENT_NO_CACHE));
+  ret= (checksum_alg != BINLOG_CHECKSUM_ALG_ILL)? checksum_alg :
+    ((binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF) &&
+     (cache_type == Log_event::EVENT_NO_CACHE))? binlog_checksum_options :
+    BINLOG_CHECKSUM_ALG_OFF;
+
   DBUG_ASSERT(get_type_code() != FORMAT_DESCRIPTION_EVENT || ret ||
               data_written == 0);
+  if (checksum_alg == BINLOG_CHECKSUM_ALG_ILL)
+    checksum_alg= ret; // calculated value stored
+
+  DBUG_ASSERT(!ret || 
+              (checksum_alg == binlog_checksum_options ||
+               /* Stop event closes the relay-log */
+               get_type_code() == STOP_EVENT ||
+               /* 
+                  Rotate:s can be checksummed regardless of local 
+                  binlog_checksum_options. That applies to both
+                  the local RL's Rotate and the master's Rotate
+                  which IO thread instantiates via queue_binlog_ver_3_event.
+               */
+               get_type_code() == ROTATE_EVENT
+               ||  /* FD is always checksummed */
+               get_type_code() == FORMAT_DESCRIPTION_EVENT) && 
+              checksum_alg != BINLOG_CHECKSUM_ALG_OFF);
+  DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
+
   DBUG_RETURN(ret);
 }
 
@@ -1028,7 +1032,6 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   {
     crc= my_checksum(0L, NULL, 0);
     data_written += BINLOG_CHECKSUM_LEN;
-    checksum_alg= binlog_checksum_alg_id;
   }
 
   /*
@@ -1339,14 +1342,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
   /*
     CRC verification by SQL and Show-Binlog-Events master side.
-    SQL thread needs an access method to a correct A descriptor.
+    The caller has to provide @description_event->checksum_alg to
+    be the last seen FD's (A) descriptor.
     If event is FD the descriptor is in it.
-    Otherwise, the last time seen FD is the holder of A.
-    Notice, FD of binlog can be only one - SBE executing master thread
-    has just to find out the first FD's value -  while RL can contain more.
-    In the Rl case, the alg is kept in FD_e which is set to the new read-out 
-    event after its execution which installs the new one's alg descriptor.
-    Therefore in a typical sequence {FD_s^0, FD_m, E_m^1} E_m^1 will be verified
+    Notice, FD of binlog can be only one - SBE executing master side thread
+    need just to find out the first FD's value -  whereas RL can contain more.
+    In the RL case, the alg is kept in FD_e (@description_event) which is reset 
+    to the newer read-out event after its execution with possibly new alg descriptor.
+    Therefore in a typical sequence of RL: {FD_s^0, FD_m, E_m^1} E_m^1 will be verified
     with (A) of FD_m.
   */
   alg= (event_type != FORMAT_DESCRIPTION_EVENT) ?
@@ -1506,7 +1509,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   if (ev)
   {
     ev->checksum_alg= alg;
-    if (ev->checksum_alg != 0)
+    if (ev->checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+        ev->checksum_alg != BINLOG_CHECKSUM_ALG_ILL)
       ev->crc= uint4korr(buf + (event_len));
   }
 
@@ -1564,13 +1568,14 @@ void Log_event::print_header(IO_CACHE* file,
 
   /* print the checksum */
 
-  if (checksum_alg != 0 && checksum_alg != (uint8) -1)
+  if (checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+      checksum_alg != BINLOG_CHECKSUM_ALG_ILL)
   {
     char checksum_buf[BINLOG_CHECKSUM_LEN * 2 + 4]; // to fit to "0x%lx "
     size_t const bytes_written=
       my_snprintf(checksum_buf, sizeof(checksum_buf), "0x%08lx ", crc);
     my_b_printf(file, "%s ",
-                binlog_checksum_alg_names[binlog_checksum_alg_id - 1]);
+                binlog_checksum_type_name[binlog_checksum_alg_id]);
     my_b_printf(file, checksum_buf, bytes_written);
   }
 
@@ -3973,7 +3978,7 @@ Format_description_log_event(uint8 binlog_ver, uint16 flags_arg, const char* ser
     number_of_event_types= LOG_EVENT_TYPES;
     /* we'll catch my_malloc() error in is_valid() */
     post_header_len=(uint8*) my_malloc(number_of_event_types*sizeof(uint8)
-                                       + BINLOG_CHECKSUM_ALG_DESC_LEN /* todo: x 2 */,
+                                       + BINLOG_CHECKSUM_ALG_DESC_LEN,
                                        MYF(0));
     /*
       This long list of assignments is not beautiful, but I see no way to
@@ -4144,7 +4149,7 @@ Format_description_log_event(const char* buf,
     number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
     DBUG_ASSERT(ver_calc != checksum_version_product ||
                 number_of_event_types == LOG_EVENT_TYPES);
-    checksum_alg= post_header_len[number_of_event_types]; // todo: x 2
+    checksum_alg= post_header_len[number_of_event_types];
   }
 
   /*
@@ -4276,26 +4281,28 @@ bool Format_description_log_event::write(IO_CACHE* file)
     if checksum is requested
     record the checksum-algorithm descriptor next to
     post_header_len vector which will be followed by the checksum value.
-    Master is supposed to trigger checksum computing by opt_binlog_checksum,
+    Master is supposed to trigger checksum computing by binlog_checksum_options,
     slave does it via marking the event according to
     FD_queue checksum_alg value.
   */
   compile_time_assert(sizeof(BINLOG_CHECKSUM_ALG_DESC_LEN == 1));
-  IF_DBUG(data_written= 0); // to match need_checksum's assert
+  IF_DBUG(data_written= 0); // to prepare for need_checksum's assert
   buff[FORMAT_DESCRIPTION_HEADER_LEN]= need_checksum(file) ?
-      binlog_checksum_alg_id : 0;
+    checksum_alg : (uint8) BINLOG_CHECKSUM_ALG_OFF;
   /* 
-     FD of checksum-aware server is with checksum value computed by
-     CRC32 alg regardless of the alg description value in the event.
+     FD of checksum-aware server is always checksum-equipped, (V) is in,
+     regardless of @@global.binlog_checksum policy.
      Thereby a combination of (A) == 0, (V) != 0 means
-     it's the checksum-aware server's FD event that heads binlog of
-     events without checksum.
-     A combination of (A) != 0, V != 0 denotes FD of the checksum-aware server
-     heading binlog of checksummed events.
-     Old server's FD event does not have neither (A) nor (V) room.
+     it's the checksum-aware server's FD event that heads checksum-free binlog
+     file. 
+     Here 0 stands for checksumming OFF to evaluate (V) as 0 is that case.
+     A combination of (A) != 0, (V) != 0 denotes FD of the checksum-aware server
+     heading the checksummed binlog.
+     (A), (V) presence in FD of the checksum-aware server makes the event
+     1 + 4 bytes bigger comparing to the former FD.
   */
 
-  if ((no_checksum= (checksum_alg == 0)))
+  if ((no_checksum= (checksum_alg == BINLOG_CHECKSUM_ALG_OFF)))
   {
     checksum_alg= BINLOG_CHECKSUM_ALG_CRC32;  // Forcing (V) room to fill anyway
   }
@@ -4303,7 +4310,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
         wrapper_my_b_safe_write(file, buff, rec_size) ||
         write_footer(file));
   if (no_checksum)
-    checksum_alg= 0;
+    checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
   return ret;
 }
 #endif
@@ -4462,9 +4469,11 @@ uint8 get_checksum_alg(const char* buf, ulong len)
   do_server_version_split(version, version_split);
   ret= ((ulong) (version_split[0] * 256 + version_split[1]) * 256
         + version_split[2] < checksum_version_product) ?
-    (uint8) -1 : * (uint8*) (buf + len - BINLOG_CHECKSUM_LEN - 
-                             BINLOG_CHECKSUM_ALG_DESC_LEN);
-  DBUG_ASSERT(ret == 0 || ret == (uint8) -1 || ret == 1);
+    (uint8) BINLOG_CHECKSUM_ALG_ILL :
+    * (uint8*) (buf + len - BINLOG_CHECKSUM_LEN - BINLOG_CHECKSUM_ALG_DESC_LEN);
+  DBUG_ASSERT(ret == BINLOG_CHECKSUM_ALG_OFF ||
+              ret == BINLOG_CHECKSUM_ALG_ILL ||
+              ret == BINLOG_CHECKSUM_ALG_CRC32);
   DBUG_RETURN(ret);
 }
   
@@ -5936,10 +5945,10 @@ User_var_log_event(const char* buf,
     */
     uint bytes_read= ((val + val_len) - start);
     DBUG_ASSERT(bytes_read == data_written -
-                (description_event->checksum_alg == 0 ?
+                (description_event->checksum_alg == BINLOG_CHECKSUM_ALG_OFF ?
                  0 : BINLOG_CHECKSUM_LEN) ||
                 bytes_read == data_written -1 -
-                (description_event->checksum_alg == 0 ?
+                (description_event->checksum_alg == BINLOG_CHECKSUM_ALG_OFF ?
                  0 : BINLOG_CHECKSUM_LEN));
     if ((data_written - bytes_read) > 0)
     {
