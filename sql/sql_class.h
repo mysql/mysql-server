@@ -358,12 +358,6 @@ struct system_variables
   ulong trans_prealloc_size;
   ulong log_warnings;
   ulong group_concat_max_len;
-  ulong ndb_autoincrement_prefetch_sz;
-  ulong ndb_index_stat_cache_entries;
-  ulong ndb_index_stat_update_freq;
-  ulong ndb_optimized_node_selection;
-  ulong ndb_optimization_delay;
-  ulong ndb_batch_size;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
   my_bool binlog_direct_non_trans_update;
   /*
@@ -382,14 +376,6 @@ struct system_variables
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
   my_bool keep_files_on_create;
-  my_bool ndb_force_send;
-  my_bool ndb_use_copying_alter_table;
-  my_bool ndb_use_exact_count;
-  my_bool ndb_use_transactions;
-  my_bool ndb_index_stat_enable;
-
-  my_bool ndb_table_no_logging;
-  my_bool ndb_table_temporary;
 
   my_bool old_alter_table;
   my_bool old_passwords;
