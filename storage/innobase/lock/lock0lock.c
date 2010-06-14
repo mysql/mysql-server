@@ -3573,11 +3573,19 @@ lock_deadlock_recursive(
 				wait_lock->trx->lock.was_chosen_as_deadlock_victim
 					= TRUE;
 
+				/* We need to release the transaction mutex,
+				in case  start is granted its locks once we
+				release wait_lock. */
+
+				trx_mutex_exit(start);
+
 				trx_mutex_enter(wait_lock->trx);
 
 				lock_cancel_waiting_and_release(wait_lock);
 
 				trx_mutex_exit(wait_lock->trx);
+
+				trx_mutex_enter(start);
 
 				/* Since trx and wait_lock are no longer
 				in the waits-for graph, we can return FALSE;
