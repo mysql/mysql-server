@@ -1548,7 +1548,11 @@ max-time: 300
 cmd: testNodeRestart
 args: -n MixReadUnlockRestart T1
 
-mas-time: 500
+max-time: 500
 cmd: testNativeDefault
 args: 
+
+max-time: 500
+cmd: testDict
+args: -n Bug53944 T1
 
