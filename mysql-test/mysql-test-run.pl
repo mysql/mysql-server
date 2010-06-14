@@ -362,6 +362,7 @@ sub main {
     $opt_parallel= 1 if ($opt_parallel < 1);
     mtr_report("Using parallel: $opt_parallel");
   }
+  $ENV{MTR_PARALLEL} = $opt_parallel;
 
   # Create server socket on any free port
   my $server = new IO::Socket::INET
@@ -1826,7 +1827,7 @@ sub find_plugin($$)
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
-					"$basedir/lib/mysql/plugin/".$plugin_filename,
+                    "$basedir/lib/mysql/plugin/".$plugin_filename,
                     );
   return $lib_example_plugin;
 }
@@ -1942,6 +1943,16 @@ sub environment_setup {
       $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
     }
   }
+
+  # ----------------------------------------------------
+  # Add the paths where mysqld will find archive/blackhole/federated plugins.
+  # ----------------------------------------------------
+  $ENV{'ARCHIVE_PLUGIN_DIR'} =
+    dirname(find_plugin("ha_archive", "storage/archive"));
+  $ENV{'BLACKHOLE_PLUGIN_DIR'} =
+    dirname(find_plugin("ha_blackhole", "storage/blackhole"));
+  $ENV{'FEDERATED_PLUGIN_DIR'} =
+    dirname(find_plugin("ha_federated", "storage/federated"));
 
   # ----------------------------------------------------
   # Add the path where mysqld will find mypluglib.so
