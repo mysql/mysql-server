@@ -184,7 +184,7 @@ bool Rpl_info_file::do_set_info(const int pos, const ulong value)
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
  
-  return (my_b_printf(&info_file, "%ld\n", value) > (size_t) 0 ?
+  return (my_b_printf(&info_file, "%lu\n", (ulong) value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
@@ -278,8 +278,8 @@ bool Rpl_info_file::do_get_info(const int pos, int *value,
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
 
-  return (init_intvar_from_file(value, &info_file, 
-                                default_value));
+  return (init_intvar_from_file((int *) value, &info_file, 
+                                (int) default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, float *value,
