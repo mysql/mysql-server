@@ -649,6 +649,20 @@ EXPLAIN SELECT t1.id,t2.id FROM t2 LEFT JOIN t1 ON t1.id>=74 AND t1.id<=0
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#38999 valgrind warnings for update statement in function compare_record()
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 values (1),(2),(3),(4),(5);
+INSERT INTO t2 values (1);
+
+SELECT * FROM t1 WHERE a = 2;
+UPDATE t1,t2 SET t1.a = t1.a + 100 WHERE t1.a = 1;
+
+DROP TABLE t1,t2;
+
 --echo End of 5.1 tests
 
 
