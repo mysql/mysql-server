@@ -2447,19 +2447,20 @@ Uint32 Dbdict::getFsConnRecord()
  * Search schemafile for free entry.  Its index is used as 'logical id'
  * of new disk-stored object.
  */
-Uint32 Dbdict::getFreeObjId(Uint32 minId)
+Uint32 Dbdict::getFreeObjId(Uint32 minId, bool both)
 {
   const XSchemaFile * newxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   const XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
   const Uint32 noOfEntries = newxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
-  for (Uint32 i = 0; i<noOfEntries; i++)
+  for (Uint32 i = minId; i<noOfEntries; i++)
   {
     const SchemaFile::TableEntry * oldentry = getTableEntry(oldxsf, i);
     const SchemaFile::TableEntry * newentry = getTableEntry(newxsf, i);
     if (newentry->m_tableState == (Uint32)SchemaFile::SF_UNUSED)
     {
       jam();
-      if (oldentry->m_tableState == (Uint32)SchemaFile::SF_UNUSED)
+      if (both == false ||
+          oldentry->m_tableState == (Uint32)SchemaFile::SF_UNUSED)
       {
         jam();
         return i;
@@ -2476,7 +2477,7 @@ Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId)
     minId = 4096;
     CLEAR_ERROR_INSERT_VALUE;
   }
-  Uint32 i = getFreeObjId(minId);
+  Uint32 i = getFreeObjId(0);
   if (i == RNIL) {
     jam();
     return RNIL;
@@ -23388,7 +23389,19 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     trans_ptr.p->m_clientRef = clientRef;
     trans_ptr.p->m_transId = transId;
     trans_ptr.p->m_requestInfo = requestInfo;
-    trans_ptr.p->m_obj_id = RNIL;
+    trans_ptr.p->m_obj_id = getFreeObjId(0);
+    if (localTrans)
+    {
+      /**
+       * TODO...use better mechanism...
+       *
+       * During restart...we need to check both old/new
+       *   schema file so that we don't accidently allocate
+       *   an objectId that should be used to recreate an object
+       */
+      trans_ptr.p->m_obj_id = getFreeObjId(0, true);
+    }
+
     if (!localTrans)
     {
       jam();
@@ -23456,9 +23469,10 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       req->opKey = RNIL;
       req->requestInfo = SchemaTransImplReq::RT_START;
       req->start.clientRef = trans_ptr.p->m_clientRef;
+      req->start.objectId = trans_ptr.p->m_obj_id;
       req->transId = trans_ptr.p->m_transId;
       sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
-                 SchemaTransImplReq::SignalLength, JBB);
+                 SchemaTransImplReq::SignalLengthStart, JBB);
     }
 
     if (ERROR_INSERTED(6102)) {
@@ -25690,6 +25704,11 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
   if (rt == SchemaTransImplReq::RT_START)
   {
     jam();
+    if (signal->getLength() < SchemaTransImplReq::SignalLengthStart)
+    {
+      jam();
+      reqCopy.start.objectId = getFreeObjId(0);
+    }
     slave_run_start(signal, req);
     return;
   }
@@ -25837,8 +25856,8 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
   SchemaTransPtr trans_ptr;
   const Uint32 trans_key = req->transKey;
 
-  Uint32 objId = getFreeObjId(0);
-  if (objId == RNIL)
+  Uint32 objId = getFreeObjId(req->start.objectId);
+  if (objId != req->start.objectId)
   {
     jam();
     setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
@@ -26365,6 +26384,7 @@ Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
   tmp.m_tableState = newEntry->m_tableState;
   tmp.m_transId = newEntry->m_transId;
   op_ptr.p->m_orig_entry_id = objectId;
+  op_ptr.p->m_orig_entry = * oldEntry;
 
   * oldEntry = tmp;
 
@@ -26390,14 +26410,7 @@ Dbdict::trans_log_schema_op_abort(SchemaOpPtr op_ptr)
     op_ptr.p->m_orig_entry_id = RNIL;
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
-
-    XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
-    SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
-
-    /**
-     * restore old TableEntry
-     */
-    * entry = * oldentry;
+    * entry = op_ptr.p->m_orig_entry;
   }
 }
 
@@ -26426,22 +26439,6 @@ Dbdict::trans_log_schema_op_complete(SchemaOpPtr op_ptr)
       ndbrequire(false);
     }
     entry->m_transId = 0;
-
-    if (op_ptr.p->m_restart == 0)
-    {
-      /**
-       * Don't overwrite OLD_SCHEMA_FILE during restart
-       */
-
-      jam();
-      XSchemaFile * xsfold = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
-      SchemaFile::TableEntry * oldentry = getTableEntry(xsfold, objectId);
-      
-      /**
-       * store new TableEntry
-       */
-      * oldentry = * entry;
-    }
   }
 }
 

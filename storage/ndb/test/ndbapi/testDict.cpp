@@ -7645,6 +7645,144 @@ end:
   return result;
 }
 
+int
+runBug53944(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  NdbDictionary::Table tab(*ctx->getTab());
+  NdbRestarter res;
+
+  Vector<int> ids;
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    int res = pDic->createTable(copy);
+    if (res)
+    {
+      g_err << "Failed to create table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    ids.push_back(tab->getObjectId());
+  }
+
+  res.restartAll2(NdbRestarter::NRRF_ABORT | NdbRestarter::NRRF_NOSTART);
+  res.waitClusterNoStart();
+  res.startAll();
+  res.waitClusterStarted();
+
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    int res = pDic->dropTable(copy.getName());
+    if (res)
+    {
+      g_err << "Failed to drop table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  Vector<int> ids2;
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    int res = pDic->createTable(copy);
+    if (res)
+    {
+      g_err << "Failed to create table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    ids2.push_back(tab->getObjectId());
+  }
+
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    int res = pDic->dropTable(copy.getName());
+    if (res)
+    {
+      g_err << "Failed to drop table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  /**
+   * With Bug53944 - none of the table-id have been reused in this scenario
+   *   check that atleast 15 of the 25 have been to return OK
+   */
+  int reused = 0;
+  for (size_t i = 0; i<ids.size(); i++)
+  {
+    int id = ids[i];
+    for (size_t j = 0; j<ids2.size(); j++)
+    {
+      if (ids2[j] == id)
+      {
+        reused++;
+        break;
+      }
+    }
+  }
+
+  ndbout_c("reused %d table-ids out of %u", 
+           reused, (unsigned)ids.size());
+
+  if (reused >= (ids.size() >> 2))
+  {
+    return NDBT_OK;
+  }
+  else
+  {
+    return NDBT_FAILED;
+  }
+}
+
+
+
 /** telco-6.4 **/
  
 NDBT_TESTSUITE(testDict);
@@ -7899,6 +8037,10 @@ TESTCASE("Bug46585", "")
 {
   INITIALIZER(runWaitStarted);
   INITIALIZER(runBug46585);
+}
+TESTCASE("Bug53944", "")
+{
+  INITIALIZER(runBug53944);
 }
 /** telco-6.4 **/
 NDBT_TESTSUITE_END(testDict);
