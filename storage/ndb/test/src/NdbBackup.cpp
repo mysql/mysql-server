@@ -64,7 +64,7 @@ NdbBackup::clearOldBackups()
      * Clear old backup files
      */ 
     BaseString tmp;
-    tmp.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+    tmp.assfmt("ssh -v %s rm -rfv %s/BACKUP", host, path);
   
     ndbout << "buf: "<< tmp.c_str() <<endl;
     int res = system(tmp.c_str());  
