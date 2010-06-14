@@ -55,7 +55,7 @@ sub collect_option {
 }
 
 use File::Basename;
-use File::Spec::Functions qw / splitdir /;
+use File::Spec::Functions qw /splitdir/;
 use IO::File();
 use My::Config;
 use My::Platform;
@@ -68,21 +68,8 @@ require "mtr_misc.pl";
 my $do_test_reg;
 my $skip_test_reg;
 
-# Related to adding InnoDB plugin combinations
-my $lib_innodb_plugin;
-
 # If "Quick collect", set to 1 once a test to run has been found.
 my $some_test_found;
-
-sub find_innodb_plugin {
-  $lib_innodb_plugin=
-    my_find_file($::basedir,
-		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
-		  "lib/mysql/plugin", "lib/mariadb/plugin", "lib/plugin"],
-		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
-		  "ha_innodb_plugin.sl"],
-		 NOT_REQUIRED);
-}
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -115,8 +102,6 @@ sub collect_test_cases ($$$) {
 
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
-
-  &find_innodb_plugin;
 
   # If not reordering, we also shouldn't group by suites, unless
   # no test cases were named.
@@ -966,36 +951,6 @@ sub collect_one_test_case {
       return $tinfo;
     }
   }
-  elsif ( $tinfo->{'innodb_plugin_test'} )
-  {
-    # This is a test that needs the innodb plugin
-    if (!&find_innodb_plugin)
-    {
-      # innodb plugin is not supported, skip it
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No innodb plugin support";
-      return $tinfo;
-    }
-
-    my $sep= (IS_WINDOWS) ? ';' : ':';
-    my $plugin_filename= basename($lib_innodb_plugin);
-    my $plugin_list=
-      "innodb=$plugin_filename$sep" .
-      "innodb_trx=$plugin_filename$sep" .
-      "innodb_locks=$plugin_filename$sep" .
-      "innodb_lock_waits=$plugin_filename$sep" .
-      "innodb_cmp=$plugin_filename$sep" .
-      "innodb_cmp_reset=$plugin_filename$sep" .
-      "innodb_cmpmem=$plugin_filename$sep" .
-      "innodb_cmpmem_reset=$plugin_filename";
-
-    foreach my $k ('master_opt', 'slave_opt') 
-    {
-      push(@{$tinfo->{$k}}, '--ignore-builtin-innodb');
-      push(@{$tinfo->{$k}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$tinfo->{$k}}, "--plugin-load=$plugin_list");
-    }
-  }
   else
   {
     push(@{$tinfo->{'master_opt'}}, "--loose-skip-innodb");
@@ -1113,7 +1068,7 @@ sub collect_one_test_case {
 
   if ( $tinfo->{'example_plugin_test'} )
   {
-    if ( !$ENV{'EXAMPLE_PLUGIN'} )
+    if ( !$ENV{'HA_EXAMPLE_SO'} )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test requires the 'example' plugin";
@@ -1123,7 +1078,7 @@ sub collect_one_test_case {
 
   if ( $tinfo->{'oqgraph_test'} )
   {
-    if ( !$ENV{'OQGRAPH_PLUGIN'} )
+    if ( !$ENV{'GRAPH_ENGINE_SO'} )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test requires the OQGraph storage engine";
@@ -1175,7 +1130,7 @@ my @tags=
 
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_pbxt.inc", "pbxt_test", 1],
- ["include/have_innodb_plugin.inc", "innodb_plugin_test", 1],
+ ["include/have_innodb_plugin.inc", "innodb_test", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],

@@ -10931,7 +10931,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   NULL
 };
 
-mysql_declare_plugin(innobase)
+mysql_declare_plugin(xtradb)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
@@ -10964,7 +10964,7 @@ i_s_innodb_sys_tables,
 i_s_innodb_sys_indexes,
 i_s_innodb_patches
 mysql_declare_plugin_end;
-maria_declare_plugin(innobase)
+maria_declare_plugin(xtradb)
 { /* InnoDB */
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,

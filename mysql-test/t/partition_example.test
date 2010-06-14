@@ -3,7 +3,7 @@
 --source include/have_partition.inc
 
 --replace_regex /\.dll/.so/
-eval install plugin example soname $HA_EXAMPLE_SO;
+eval install plugin example soname '$HA_EXAMPLE_SO';
 
 create table t1 (a int not null)
 engine=example

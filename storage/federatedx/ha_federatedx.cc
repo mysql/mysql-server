@@ -3495,7 +3495,7 @@ int ha_federatedx::rollback(handlerton *hton, MYSQL_THD thd, bool all)
 struct st_mysql_storage_engine federatedx_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-mysql_declare_plugin(federated)
+mysql_declare_plugin(federatedx)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &federatedx_storage_engine,
@@ -3511,7 +3511,7 @@ mysql_declare_plugin(federated)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
-maria_declare_plugin(federated)
+maria_declare_plugin(federatedx)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &federatedx_storage_engine,

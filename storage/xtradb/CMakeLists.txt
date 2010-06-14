@@ -31,7 +31,7 @@ ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 
 ADD_DEFINITIONS(-D_WIN32 -D_LIB -DMYSQL_SERVER)
 
-# Include directories under innobase
+# Include directories under xtradb
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/xtradb/include
                     ${CMAKE_SOURCE_DIR}/storage/xtradb/handler)
  
@@ -49,7 +49,7 @@ IF (MSVC AND $(WIN64))
 				    PROPERTIES COMPILE_FLAGS -Od)
 ENDIF (MSVC AND $(WIN64))
 
-SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
+SET(XTRADB_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
 			data/data0data.c data/data0type.c
 			dict/dict0boot.c dict/dict0crea.c dict/dict0dict.c dict/dict0load.c dict/dict0mem.c
@@ -85,17 +85,16 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
 
 IF (MYSQL_VERSION_ID GREATER "50137")
-	MYSQL_STORAGE_ENGINE(INNOBASE)
-	# Use ha_innodb for plugin name, if plugin is built
-	GET_TARGET_PROPERTY(LIB_LOCATION ha_innobase LOCATION)
+	MYSQL_STORAGE_ENGINE(XTRADB)
+	GET_TARGET_PROPERTY(LIB_LOCATION ha_xtradb LOCATION)
 	IF(LIB_LOCATION)
-		SET_TARGET_PROPERTIES(ha_innobase PROPERTIES OUTPUT_NAME ha_innodb)
+		SET_TARGET_PROPERTIES(ha_xtradb PROPERTIES OUTPUT_NAME ha_xtradb)
 	ENDIF(LIB_LOCATION)
 ELSE (MYSQL_VERSION_ID GREATER "50137")
 	IF (NOT SOURCE_SUBLIBS)
 		ADD_DEFINITIONS(-D_WIN32 -DMYSQL_SERVER)
-		ADD_LIBRARY(innobase STATIC ${INNOBASE_SOURCES})
+		ADD_LIBRARY(xtradb STATIC ${XTRADB_SOURCES})
 		# Require mysqld_error.h, which is built as part of the GenError
-		ADD_DEPENDENCIES(innobase GenError)
+		ADD_DEPENDENCIES(xtradb GenError)
 	ENDIF (NOT SOURCE_SUBLIBS)
 ENDIF (MYSQL_VERSION_ID GREATER "50137")

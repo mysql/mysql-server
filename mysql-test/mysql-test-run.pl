@@ -69,7 +69,7 @@ use File::Basename;
 use File::Copy;
 use File::Find;
 use File::Temp qw/tempdir/;
-use File::Spec::Functions qw/splitdir/;
+use File::Spec::Functions qw/splitdir rel2abs/;
 use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
@@ -106,6 +106,7 @@ our $path_testlog;
 
 our $default_vardir;
 our $opt_vardir;                # Path to use for var/ dir
+our $plugindir;
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
@@ -315,8 +316,25 @@ sub main {
     }
   }
 
-  # Check for plugin availability so we know whether to skip tests or not.
-  detect_plugins();
+  print "vardir: $opt_vardir\n";
+  initialize_servers();
+
+  mtr_report("Checking supported features...");
+  if (using_extern())
+  {
+    # Connect to the running mysqld and find out what it supports
+    collect_mysqld_features_from_running_server();
+  }
+  else
+  {
+    # Run the mysqld to find out what features are available
+    collect_mysqld_features();
+  }
+  check_ndbcluster_support(\%mysqld_variables);
+  check_ssl_support(\%mysqld_variables);
+  check_debug_support(\%mysqld_variables);
+
+  executable_setup();
 
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases);
@@ -334,9 +352,6 @@ sub main {
       );
     unshift(@$tests, $tinfo);
   }
-
-  print "vardir: $opt_vardir\n";
-  initialize_servers();
 
   #######################################################################
   my $num_tests= @$tests;
@@ -1031,6 +1046,8 @@ sub command_line_setup {
     $basedir= dirname($basedir);
   }
 
+  fix_vs_config_dir();
+
   # Look for the client binaries directory
   if ($path_client_bindir)
   {
@@ -1041,7 +1058,7 @@ sub command_line_setup {
   {
     $path_client_bindir= mtr_path_exists("$basedir/client_release",
 					 "$basedir/client_debug",
-					 vs_config_dirs('client', ''),
+					 "$basedir/client$opt_vs_config",
 					 "$basedir/client",
 					 "$basedir/bin");
   }
@@ -1054,17 +1071,6 @@ sub command_line_setup {
 
   my $path_share= dirname($path_language);
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
-
-  if (using_extern())
-  {
-    # Connect to the running mysqld and find out what it supports
-    collect_mysqld_features_from_running_server();
-  }
-  else
-  {
-    # Run the mysqld to find out what features are available
-    collect_mysqld_features();
-  }
 
   if ( $opt_comment )
   {
@@ -1288,7 +1294,7 @@ sub command_line_setup {
       # Add the location for libmysqld.dll to the path.
       my $separator= ";";
       my $lib_mysqld=
-        mtr_path_exists(vs_config_dirs('libmysqld',''));
+        mtr_path_exists("$basedir/libmysqld$opt_vs_config");
       if ( IS_CYGWIN )
       {
 	$lib_mysqld= posix_path($lib_mysqld);
@@ -1475,15 +1481,6 @@ sub command_line_setup {
   {
     push(@opt_extra_mysqld_opt, "--loose-skip-innodb-use-sys-malloc");
   }
-
-  mtr_report("Checking supported features...");
-
-  check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support(\%mysqld_variables);
-  check_debug_support(\%mysqld_variables);
-
-  executable_setup();
-
 }
 
 
@@ -1549,13 +1546,6 @@ sub set_build_thread_ports($) {
 
 sub collect_mysqld_features {
   my $found_variable_list_start= 0;
-  my $use_tmpdir;
-  if ( defined $opt_tmpdir and -d $opt_tmpdir){
-    # Create the tempdir in $opt_tmpdir
-    $use_tmpdir= $opt_tmpdir;
-  }
-  my $tmpdir= tempdir(CLEANUP => 0, # Directory removed by this function
-		      DIR => $use_tmpdir);
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
@@ -1569,9 +1559,11 @@ sub collect_mysqld_features {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
+  mtr_add_arg($args, "--datadir=%s/tmp", $opt_vardir);
+  mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--language=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
+  mtr_add_arg($args, $_) for (@opt_extra_mysqld_opt);
   my $euid= $>;
   if (!IS_WINDOWS and $euid == 0) {
     mtr_add_arg($args, "--user=root");
@@ -1644,7 +1636,6 @@ sub collect_mysqld_features {
       }
     }
   }
-  rmtree($tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
@@ -1761,8 +1752,7 @@ sub executable_setup () {
   if ( $opt_embedded_server )
   {
     $exe_mysqltest=
-      mtr_exe_exists(vs_config_dirs('libmysqld/examples','mysqltest_embedded'),
-                     "$basedir/libmysqld/examples/mysqltest_embedded",
+      mtr_exe_exists("$basedir/libmysqld/examples$opt_vs_config/mysqltest_embedded",
                      "$path_client_bindir/mysqltest_embedded");
   }
   else
@@ -1871,12 +1861,10 @@ sub mysql_client_test_arguments(){
   # mysql_client_test executable may _not_ exist
   if ( $opt_embedded_server ) {
     $exe= mtr_exe_maybe_exists(
-            vs_config_dirs('libmysqld/examples','mysql_client_test_embedded'),
-	      "$basedir/libmysqld/examples/mysql_client_test_embedded",
+            "$basedir/libmysqld/examples$opt_vs_config/mysql_client_test_embedded",
 		"$basedir/bin/mysql_client_test_embedded");
   } else {
-    $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
-			       "$basedir/tests/mysql_client_test",
+    $exe= mtr_exe_maybe_exists("$basedir/tests$opt_vs_config/mysql_client_test",
 			       "$basedir/bin/mysql_client_test");
   }
 
@@ -1925,65 +1913,6 @@ sub have_maria_support () {
   return defined $maria_var and $maria_var eq 'TRUE';
 }
 
-
-# Detect plugin presense and set environment variables appropriately.
-# This needs to be done early, so we can know whether to skip tests.
-sub detect_plugins {
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find ha_example.so
-  # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100) {
-    my $plugin_filename;
-    if (IS_WINDOWS)
-    {
-       $plugin_filename = "ha_example.dll";
-    }
-    else 
-    {
-       $plugin_filename = "ha_example.so";
-    }
-    my $lib_example_plugin=
-      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
-		      "$basedir/storage/example/.libs/".$plugin_filename,
-                      "$basedir/lib/mariadb/plugin/".$plugin_filename,
-                      "$basedir/lib/mysql/plugin/".$plugin_filename);
-    $ENV{'EXAMPLE_PLUGIN'}=
-      ($lib_example_plugin ? basename($lib_example_plugin) : "");
-    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
-      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
-
-    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
-  }
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find graph_engine.so
-  # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100 && !(IS_WINDOWS && $opt_embedded_server)) {
-    my $plugin_filename;
-    if (IS_WINDOWS)
-    {
-       $plugin_filename = "oqgraph_engine.dll";
-    }
-    else
-    {
-       $plugin_filename = "oqgraph_engine.so";
-    }
-    my $lib_oqgraph_plugin=
-      mtr_file_exists(vs_config_dirs('storage/oqgraph',$plugin_filename),
-                      "$basedir/storage/oqgraph/.libs/".$plugin_filename,
-                      "$basedir/lib/mariadb/plugin/".$plugin_filename,
-                      "$basedir/lib/mysql/plugin/".$plugin_filename);
-    $ENV{'OQGRAPH_PLUGIN'}=
-      ($lib_oqgraph_plugin ? basename($lib_oqgraph_plugin) : "");
-    $ENV{'OQGRAPH_PLUGIN_OPT'}= "--plugin-dir=".
-      ($lib_oqgraph_plugin ? dirname($lib_oqgraph_plugin) : "");
-
-    $ENV{'GRAPH_ENGINE_SO'}="'".$plugin_filename."'";
-    $ENV{'OQGRAPH_PLUGIN_LOAD'}="--plugin_load=;OQGRAPH=".$plugin_filename.";";
-  }
-}
-
 #
 # Set environment to be used by childs of this process for
 # things that are constant during the whole lifetime of mysql-test-run
@@ -2022,39 +1951,6 @@ sub environment_setup {
   {
     push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
   }
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find udf_example.so
-  # --------------------------------------------------------------------------
-  my $lib_udf_example=
-    mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-		    "$basedir/sql/.libs/udf_example.so",
-                    "$basedir/lib/mariadb/plugin/udf_example.so",
-                    "$basedir/lib/mysql/plugin/udf_example.so",);
-
-  if ( $lib_udf_example )
-  {
-    push(@ld_library_paths, dirname($lib_udf_example));
-  }
-
-  $ENV{'UDF_EXAMPLE_LIB'}=
-    ($lib_udf_example ? basename($lib_udf_example) : "");
-  $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
-    ($lib_udf_example ? dirname($lib_udf_example) : "");
-
-  # ----------------------------------------------------
-  # Add the path where mysqld will find mypluglib.so
-  # ----------------------------------------------------
-  my $lib_simple_parser=
-    mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
-		    "$basedir/plugin/fulltext/.libs/mypluglib.so",
-                    "$basedir/lib/mariadb/plugin/mypluglib.so",
-                    "$basedir/lib/mysql/plugin/mypluglib.so",);
-
-  $ENV{'SIMPLE_PARSER'}=
-    ($lib_simple_parser ? basename($lib_simple_parser) : "");
-  $ENV{'SIMPLE_PARSER_OPT'}= "--plugin-dir=".
-    ($lib_simple_parser ? dirname($lib_simple_parser) : "");
 
   # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
@@ -2182,8 +2078,7 @@ sub environment_setup {
   # some versions, test using it should be skipped
   # ----------------------------------------------------
   my $exe_bug25714=
-      mtr_exe_maybe_exists(vs_config_dirs('tests', 'bug25714'),
-                           "$basedir/tests/bug25714");
+      mtr_exe_maybe_exists("$basedir/tests$opt_vs_config/bug25714");
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
@@ -2200,9 +2095,8 @@ sub environment_setup {
   # my_print_defaults
   # ----------------------------------------------------
   my $exe_my_print_defaults=
-    mtr_exe_exists(vs_config_dirs('extra', 'my_print_defaults'),
-		   "$path_client_bindir/my_print_defaults",
-		   "$basedir/extra/my_print_defaults");
+    mtr_exe_exists("$basedir/extra$opt_vs_config/my_print_defaults",
+		   "$path_client_bindir/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
@@ -2225,8 +2119,7 @@ sub environment_setup {
   # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
-  my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
-				 "$basedir/extra/perror",
+  my $exe_perror= mtr_exe_exists("$basedir/extra$opt_vs_config/perror",
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
 
@@ -2324,7 +2217,11 @@ sub remove_stale_vardir () {
   rmtree("$opt_tmpdir/");
 }
 
-
+sub set_plugin_var($) {
+  local $_ = $_[0];
+  s/\.\w+$//;
+  $ENV{"\U${_}_SO"} = $_[0];
+}
 
 #
 # Create var and the directories needed in var
@@ -2388,6 +2285,44 @@ sub setup_vardir() {
   # copy all files from std_data into var/std_data
   # and make them world readable
   copytree("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data", "0022");
+
+  # create a plugin dir and copy plugins into it
+  if ($source_dist)
+  {
+    $plugindir="$opt_vardir/plugins";
+    unshift (@opt_extra_mysqld_opt, "--plugin-dir=$plugindir");
+    mkpath($plugindir);
+    if (IS_WINDOWS)
+    {
+      for (<../storage/*$opt_vs_config/*.dll>,
+           <../plugin/*$opt_vs_config/*.dll>,
+           <../sql$opt_vs_config/*.dll>)
+      {
+        my $pname=basename($_);
+        copy rel2abs($_), "$plugindir/$pname";
+        set_plugin_var($pname);
+      }
+    }
+    else
+    {
+      for (<../storage/*/.libs/*.so>,<../plugin/*/.libs/*.so>,<../sql/.libs/*.so>)
+      {
+        my $pname=basename($_);
+        symlink rel2abs($_), "$plugindir/$pname";
+        set_plugin_var($pname);
+      }
+    }
+  }
+  else
+  {
+    # hm, what paths work for debs and for rpms ?
+    for (<$basedir/lib/mysql/plugin/*.so>,
+         <$basedir/lib/plugin/*.dll>)
+    {
+      my $pname=basename($_);
+      set_plugin_var($pname);
+    }
+  }
 
   # Remove old log files
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
@@ -2479,29 +2414,36 @@ sub check_debug_support ($) {
 
 
 #
-# Helper function to handle configuration-based subdirectories which Visual
-# Studio uses for storing binaries.  If opt_vs_config is set, this returns
-# a path based on that setting; if not, it returns paths for the default
-# /release/ and /debug/ subdirectories.
+# Helper function to find the correct value for the opt_vs_config
+# if it was not set explicitly.
+# 
+# the configuration with the most recent build dir in sql/ is selected.
 #
-# $exe can be undefined, if the directory itself will be used
+# note: looking for all BuildLog.htm files everywhere in the tree with the
+# help of File::Find would be possibly more precise, but it is also
+# many times slower. Thus we are only looking at the server, client
+# executables, and plugins - that is, something that can affect the test suite
 #
-sub vs_config_dirs ($$) {
-  my ($path_part, $exe) = @_;
+sub fix_vs_config_dir () {
+  return $opt_vs_config="" unless IS_WINDOWS;
+  return $opt_vs_config="/$opt_vs_config" if $opt_vs_config;
 
-  $exe = "" if not defined $exe;
+  my $modified = 1e30;
+  $opt_vs_config="";
 
-  # Don't look in these dirs when not on windows
-  return () unless IS_WINDOWS;
-
-  if ($opt_vs_config)
-  {
-    return ("$basedir/$path_part/$opt_vs_config/$exe");
+  for my $dir (qw(client/*.dir libmysql/libmysql.dir sql/mysqld.dir
+                  sql/udf_example.dir storage/*/*.dir plugin/*/*.dir)) {
+    for (<$basedir/$dir/*/BuildLog.htm>) {
+      if (-M $_ < $modified)
+      {
+        $modified = -M _;
+        $opt_vs_config = basename(dirname($_));
+      }
+    }
   }
 
-  return ("$basedir/$path_part/release/$exe",
-          "$basedir/$path_part/relwithdebinfo/$exe",
-          "$basedir/$path_part/debug/$exe");
+  mtr_report("VS config: $opt_vs_config");
+  $opt_vs_config="/$opt_vs_config" if $opt_vs_config;
 }
 
 
