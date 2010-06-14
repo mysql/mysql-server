@@ -331,7 +331,7 @@ bool Rpl_info_table::do_set_info(const int pos, const ulong value)
     ULONG_MAX 	32 bit compiler   +4,294,967,295
                 64 bit compiler   +18,446,744,073,709,551,615
   */
-  if (sprintf(field_values->field[pos].use.str, "%li", value) < 0)
+  if (sprintf(field_values->field[pos].use.str, "%lu", value) < 0)
     return TRUE;
   field_values->field[pos].use.length= strlen(field_values->field[pos].use.str);
 
@@ -383,7 +383,7 @@ bool Rpl_info_table::do_set_info(const int pos, const my_off_t value)
 
   /*
     There is no need to check if the information fits in the reserved
-    space as it is equivalent to my_off_t.
+    space as it is equivalent to ulong.
   */
   if (sprintf(field_values->field[pos].use.str, "%lu", (ulong) value) < 0)
     return TRUE;
