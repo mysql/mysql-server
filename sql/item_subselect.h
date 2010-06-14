@@ -703,7 +703,7 @@ protected:
   /*
     The old engine already chosen at parse time and stored in permanent memory.
     Through this member we can re-create and re-prepare materialize_join for
-    each execution of a prepared statement. We akso resuse the functionality
+    each execution of a prepared statement. We also reuse the functionality
     of subselect_single_select_engine::[prepare | cols].
   */
   subselect_single_select_engine *materialize_engine;
@@ -727,7 +727,10 @@ public:
   bool init_permanent(List<Item> *tmp_columns);
   bool init_runtime();
   void cleanup();
-  int prepare() { return 0; }
+  int prepare() 
+  { 
+    return materialize_engine->prepare();
+  }
   int exec();
   void print (String *str, enum_query_type query_type);
   uint cols()
