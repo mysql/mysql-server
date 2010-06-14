@@ -1555,6 +1555,7 @@ public:
 
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
+  /* SJM nests that are executed with SJ-Materialization strategy */
   List<SJ_MATERIALIZATION_INFO> sjm_info_list;
 
   /* 
