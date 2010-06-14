@@ -40,7 +40,7 @@ inline void fix_checksum(String *packet, ulong ev_offset)
   ha_checksum crc= my_checksum(0L, NULL, 0);
   DBUG_ASSERT(data_len == 
               LOG_EVENT_MINIMAL_HEADER_LEN + FORMAT_DESCRIPTION_HEADER_LEN +
-              BINLOG_CHECKSUM_ALG_DESC_LEN + BINLOG_CHECKSUM_LEN /* todo: x 2 */);
+              BINLOG_CHECKSUM_ALG_DESC_LEN + BINLOG_CHECKSUM_LEN);
   crc= my_checksum(crc, (uchar *)packet->ptr() + ev_offset, data_len -
                    BINLOG_CHECKSUM_LEN);
   int4store(packet->ptr() + ev_offset + data_len - BINLOG_CHECKSUM_LEN, crc);
@@ -76,25 +76,37 @@ static bool is_slave_checksum_aware(THD * thd)
   Function for calling in mysql_binlog_send
   to get the value of @@binlog_checksum of the master at
   time of checksum-handshake.
-  The Function assumes the caller has checked `is_slave_checksum_aware'
-  returns positive.
 
-  The value tells the master to compute or not, and the slave
+  The value tells the master whether to compute or not, and the slave
   to verify or not the first artificial Rotate event's checksum.
 
   @param[in]    thd  THD to access a user variable
 
-  @return       value of @@binlog_checksum
+  @return       value of @@binlog_checksum alg according to
+                @c enum enum_binlog_checksum_alg
 */
 
-static bool get_binlog_checksum_value_at_connect(THD * thd)
+static uint8 get_binlog_checksum_value_at_connect(THD * thd)
 {
-  my_bool null_value;
+  uint8 ret;
 
   DBUG_ENTER("get_binlog_checksum_value_at_connect");
   user_var_entry *entry= get_binlog_checksum_uservar(thd);
-  DBUG_ASSERT(is_slave_checksum_aware(thd));
-  DBUG_RETURN(entry->val_int(&null_value));
+  if (!entry)
+  {
+    ret= BINLOG_CHECKSUM_ALG_ILL;
+  }
+  else
+  {
+    DBUG_ASSERT(entry->type == STRING_RESULT);
+    String str;
+    uint dummy_errors;
+    str.copy(entry->value, entry->length, &my_charset_bin, &my_charset_bin,
+             &dummy_errors);
+    ret= (uint8) find_type (&binlog_checksum_typelib, str.ptr(), str.length(), true) - 1;
+    DBUG_ASSERT(ret <= BINLOG_CHECKSUM_ALG_CRC32); // while it's just on CRC32 alg
+  }
+  DBUG_RETURN(ret);
 }
 
 /*
@@ -128,7 +140,8 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
     of master's @@global.binlog_checksum was TRUE
   */
 
-  my_bool do_checksum= checksum_alg_arg != 0 && checksum_alg_arg != (uint8) -1;
+  my_bool do_checksum= checksum_alg_arg != BINLOG_CHECKSUM_ALG_OFF &&
+    checksum_alg_arg != BINLOG_CHECKSUM_ALG_ILL;
 
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
@@ -483,14 +496,8 @@ static int send_heartbeat_event(NET* net, String* packet,
 {
   DBUG_ENTER("send_heartbeat_event");
   char header[LOG_EVENT_HEADER_LEN];
-  /*
-    HB is not purely artificial as it's tied to the current being sent
-    binlog. The last one has FD with (A) desc set to according the last
-    opt_binlog_checksum value.
-    Therefore HB's checksum info is retrievable on the slave side
-    basing on FD.for_queue.
-  */
-  my_bool do_checksum= checksum_alg_arg != 0 && checksum_alg_arg != (uint8) -1;
+  my_bool do_checksum= checksum_alg_arg != BINLOG_CHECKSUM_ALG_OFF &&
+    checksum_alg_arg != BINLOG_CHECKSUM_ALG_ILL;
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
     real and fake Rotate events (if necessary)
@@ -552,7 +559,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   NET* net = &thd->net;
   pthread_mutex_t *log_lock;
   bool binlog_can_be_corrupted= FALSE;
-  uint8 current_checksum_alg= 0;
+  uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_ILL;
 
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
@@ -674,8 +681,7 @@ impossible position";
     and fake Rotates.
   */
   if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg,
-                        is_slave_checksum_aware(current_thd) ?
-                        get_binlog_checksum_value_at_connect(current_thd) : 0))
+                        get_binlog_checksum_value_at_connect(current_thd)))
   {
     /*
        This error code is not perfect, as fake_rotate_event() does not
@@ -724,10 +730,12 @@ impossible position";
        {
          current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
                                                 packet->length() - ev_offset);
-         DBUG_ASSERT(current_checksum_alg == 0 ||
-                     current_checksum_alg == (uint8) -1 ||
-                    current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
-         if (!is_slave_checksum_aware(thd) && current_checksum_alg != 0)
+         DBUG_ASSERT(current_checksum_alg == BINLOG_CHECKSUM_ALG_OFF ||
+                     current_checksum_alg == BINLOG_CHECKSUM_ALG_ILL ||
+                     current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
+         if (!is_slave_checksum_aware(thd) &&
+             current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+             current_checksum_alg != BINLOG_CHECKSUM_ALG_ILL)
          {
            my_errno= ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE;
            errmsg= ER(my_errno);
@@ -750,7 +758,8 @@ impossible position";
                    ST_CREATED_OFFSET+ev_offset, (ulong) 0);
 
 	 /* fix the checksum due to latest changes in header */
-	 if (current_checksum_alg != 0)
+	 if (current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+             current_checksum_alg != BINLOG_CHECKSUM_ALG_ILL)
            fix_checksum(packet, ev_offset);
 
          /* send it */
@@ -818,10 +827,12 @@ impossible position";
       {
         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
                                                packet->length() - ev_offset);
-        DBUG_ASSERT(current_checksum_alg == 0 ||
-                    current_checksum_alg == (uint8) -1 ||
+        DBUG_ASSERT(current_checksum_alg == BINLOG_CHECKSUM_ALG_OFF ||
+                    current_checksum_alg == BINLOG_CHECKSUM_ALG_ILL ||
                     current_checksum_alg == BINLOG_CHECKSUM_ALG_CRC32);
-        if (!is_slave_checksum_aware(thd) && current_checksum_alg != 0)
+        if (!is_slave_checksum_aware(thd) &&
+            current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+            current_checksum_alg != BINLOG_CHECKSUM_ALG_ILL)
         {
           my_errno= ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE;
           errmsg= ER(my_errno);
@@ -1517,18 +1528,11 @@ bool change_master(THD* thd, Master_info* mi)
     ret= TRUE;
     goto err;
   }
-  /*
-    end_master_info invoked on behalf of RESET slave resets as well
-    that is in step with removing FD_q.
-    init_master_info() can't be engaged for this mission as
-    it's called at times IO thread is ON and therefore FD_q is valid.
-  */
-  mi->last_master_checksum_alg= (uint8) -1;
 
   /*
     Data lock not needed since we have already stopped the running threads,
     and we have the hold on the run locks which will keep all threads that
-    could possibly modify the data structures from running
+    cofuld possibly modify the data structures from running
   */
 
   /*
@@ -2198,28 +2202,47 @@ static void fix_slave_net_timeout(THD *thd, enum_var_type type)
   DBUG_VOID_RETURN;
 }
 
-class sys_var_binlog_checksum :public sys_var_bool_ptr
+
+/**
+  BINLOG_CHECKSUM variable.
+*/
+const char *binlog_checksum_type_name[]= {
+  "NONE",
+  "CRC32",
+  NullS
+};
+
+unsigned int binlog_checksum_type_length[]= {
+  sizeof("NONE") - 1,
+  sizeof("CRC32") - 1,
+  0
+};
+
+TYPELIB binlog_checksum_typelib=
+{
+  array_elements(binlog_checksum_type_name) - 1, "",
+  binlog_checksum_type_name,
+  binlog_checksum_type_length
+};
+
+class sys_var_enum_binlog_checksum :public sys_var_enum
 {
 public:
-  sys_var_binlog_checksum(sys_var_chain *chain, const char *name_arg,
-                          my_bool *value_arg) 
-    :sys_var_bool_ptr(chain, name_arg, value_arg) {}
-  bool check(THD *thd, set_var *var);
+  sys_var_enum_binlog_checksum(sys_var_chain *chain, const char *name_arg,
+                               uint *value_arg, sys_after_update_func func)
+    :sys_var_enum(chain, name_arg, value_arg, &binlog_checksum_typelib, func) {}
   bool update(THD *thd, set_var *var);
-  bool check_type(enum_var_type type) { return type != OPT_GLOBAL; }
-  /*
-    We can't retrieve the value of this, so we don't have to define
-    type() or value_ptr()
-  */
+  void set_default(THD *thd_arg, enum_var_type type) {*value= 0;}
+  bool check_default(enum_var_type type) { return 0; }
 };
+
 
 static sys_var_chain vars = { NULL, NULL };
 
-static sys_var_binlog_checksum
-sys_binlog_checksum(&vars,
-                    "binlog_checksum",
-                    (my_bool *) &opt_binlog_checksum);
-
+static sys_var_enum_binlog_checksum binlog_checksum_enum(&vars,
+                                        "binlog_checksum",
+                                        &binlog_checksum_options,
+                                        NULL);
 static sys_var_bool_ptr_global
 sys_slave_sql_verify_checksum(&vars,
                         "slave_sql_verify_checksum",
@@ -2312,25 +2335,22 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   return 0;
 }
 
-bool sys_var_binlog_checksum::update(THD *thd, set_var *var)
+bool sys_var_enum_binlog_checksum::update(THD *thd, set_var *var)
 {
   pthread_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
-    mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE |
-                                   RP_LOCK_LOG_IS_ALREADY_LOCKED |
-                                   (opt_binlog_checksum !=
-                                    (my_bool) var->save_result.ulong_value?
-                                    RP_BINLOG_CHECKSUM_ON_OFF : 0));
+    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
+      (binlog_checksum_options != (uint) var->save_result.ulong_value?
+       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
+    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+      mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulong_value;
+    mysql_bin_log.rotate_and_purge(flags);
   }
-  DBUG_ASSERT((ulong) opt_binlog_checksum == var->save_result.ulong_value);
+  DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulong_value);
+  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_ILL);
   pthread_mutex_unlock(mysql_bin_log.get_log_lock());
   return 0;
-}
-
-bool sys_var_binlog_checksum::check(THD *thd, set_var *var)
-{
-  return check_enum(thd, var, &bool_typelib);
 }
 
 int init_replication_sys_vars()

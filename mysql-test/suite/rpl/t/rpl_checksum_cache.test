@@ -7,7 +7,7 @@ connection master;
 set @save_binlog_cache_size = @@global.binlog_cache_size;
 set @save_binlog_checksum = @@global.binlog_checksum;
 set @@global.binlog_cache_size = 4096;
-set @@global.binlog_checksum = 1;
+set @@global.binlog_checksum = CRC32;
 
 #
 # Testing a critical part of checksum handling dealing with transaction cache.

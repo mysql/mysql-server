@@ -524,8 +524,12 @@ struct sql_ex_info
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
 enum enum_binlog_checksum_alg {
-  BINLOG_CHECKSUM_ALG_CRC32= 1,  // to indexed by opt_binlog_checksum_alg_id
-  BINLOG_CHECKSUM_ALG_ENUM_END
+  BINLOG_CHECKSUM_ALG_OFF= 0,    // Events are without checksum though its generator
+                                 // is checksum-capable New Master (NM).
+  BINLOG_CHECKSUM_ALG_CRC32= 1,  // CRC32 of zlib algorithm.
+  BINLOG_CHECKSUM_ALG_ENUM_END,  // the cut line: valid alg range is [1, 0x7f].
+  BINLOG_CHECKSUM_ALG_ILL= 255   // special value to tag undetermined yet checksum or
+                                 // Events from checksum-unaware servers
 };
 
 #define CHECKSUM_CRC32_SIGNATURE_LEN 4
@@ -1047,8 +1051,6 @@ public:
      of the last seen FD event.
   */
   uint8 checksum_alg;
-  /* relay log flagged events checksum alg can be different than master alg */
-  uint8 rl_events_checksum_alg;
 
   static void *operator new(size_t size)
   {

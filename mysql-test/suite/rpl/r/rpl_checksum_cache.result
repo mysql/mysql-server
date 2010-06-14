@@ -8,7 +8,7 @@ call mtr.add_suppression('Unsafe statement binlogged in statement format since B
 set @save_binlog_cache_size = @@global.binlog_cache_size;
 set @save_binlog_checksum = @@global.binlog_checksum;
 set @@global.binlog_cache_size = 4096;
-set @@global.binlog_checksum = 1;
+set @@global.binlog_checksum = CRC32;
 flush status;
 show status like "binlog_cache_use";
 Variable_name	Value

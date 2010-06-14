@@ -503,7 +503,8 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
-volatile my_bool opt_binlog_checksum;
+const char *binlog_checksum_default= "NONE";
+uint binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
@@ -5826,10 +5827,12 @@ struct my_option my_long_options[] =
    /* app_type */ 0
   },
   {"binlog-checksum", OPT_BINLOG_CHECKSUM,
-   "Adding checksum (CRC32 only algorithm currently) for binlogged events. "
+   "Adding checksum for binlogged events. Two possible values"
+   "NONE and CRC32 the only currently implemented algorithm"
    "Disabled by default.",
-   (uchar**) &opt_binlog_checksum, (uchar**) &opt_binlog_checksum, 0, GET_BOOL,
-   NO_ARG, 0, 0, 1, 0, 0, 0},
+   (uchar**) &binlog_checksum_default,
+   (uchar**) &binlog_checksum_default,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-verify-checksum", OPT_MASTER_VERIFY_CHECKSUM,
    "Forcing verification of binlogged events checksum before sending them "
    "to slaves and in show binlog event. "
@@ -7806,6 +7809,9 @@ static int mysql_init_variables(void)
   slave_type_conversions_options=
     find_bit_type_or_exit(slave_type_conversions_default, &slave_type_conversions_typelib,
                           NULL, &error);
+  binlog_checksum_options=
+    find_bit_type_or_exit(binlog_checksum_default, &binlog_checksum_typelib,
+                          NULL, &error) - 1;
   if (error)
     return 1;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -8047,6 +8053,10 @@ mysqld_get_one_option(int optid,
       find_bit_type_or_exit(argument, &slave_type_conversions_typelib, "", &error);
     if (error)
       return 1;
+    break;
+  case OPT_BINLOG_CHECKSUM:
+    binlog_checksum_options=
+      find_type_or_exit(argument, &binlog_checksum_typelib, opt->name) - 1;
     break;
 #endif
   case OPT_SAFEMALLOC_MEM_LIMIT:

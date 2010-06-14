@@ -36,6 +36,7 @@ typedef struct my_locale_st MY_LOCALE;
 extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib,
   optimizer_switch_typelib, slave_exec_mode_typelib;
 extern TYPELIB slave_type_conversions_typelib;
+extern TYPELIB binlog_checksum_typelib;
 
 typedef int (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
@@ -402,6 +403,7 @@ public:
 
 class sys_var_enum :public sys_var
 {
+protected:
   uint *value;
   TYPELIB *enum_names;
 public:
