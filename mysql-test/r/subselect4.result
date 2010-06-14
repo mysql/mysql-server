@@ -524,3 +524,26 @@ and t2.uid=t1.fid;
 uid
 1
 drop table t1,t2,t3,t4;
+#
+# BUG#53103: MTR test ps crashes in optimize_cond() 
+#            when running with --debug
+#
+CREATE TABLE t1(track varchar(15));
+INSERT INTO t1 VALUES ('CAD'), ('CAD');
+PREPARE STMT FROM
+"SELECT 1 FROM t1
+  WHERE
+        track IN (SELECT track FROM t1
+                                    GROUP BY track 
+                                      HAVING track>='CAD')";
+EXECUTE STMT ;
+1
+1
+1
+EXECUTE STMT ;
+1
+1
+1
+DEALLOCATE PREPARE STMT;
+DROP TABLE t1;
+# End of BUG#53103

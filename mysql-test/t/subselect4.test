@@ -493,3 +493,25 @@ select t2.uid from t2, t1
 
 drop table t1,t2,t3,t4;
 
+--echo #
+--echo # BUG#53103: MTR test ps crashes in optimize_cond() 
+--echo #            when running with --debug
+--echo #
+
+CREATE TABLE t1(track varchar(15));
+
+INSERT INTO t1 VALUES ('CAD'), ('CAD');
+
+PREPARE STMT FROM
+"SELECT 1 FROM t1
+  WHERE
+        track IN (SELECT track FROM t1
+                                    GROUP BY track 
+                                      HAVING track>='CAD')";
+EXECUTE STMT ;
+EXECUTE STMT ;
+
+DEALLOCATE PREPARE STMT;
+DROP TABLE t1; 
+
+--echo # End of BUG#53103
