@@ -1,5 +1,29 @@
 drop table if exists t1;
 #
+# Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
+#
+CREATE TABLE t1 (a INT) PARTITION BY HASH (a);
+FLUSH TABLES;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Failed to read from the .par file
+test.t1	check	Error	Incorrect information in file: './test/t1.frm'
+test.t1	check	error	Corrupt
+SELECT * FROM t1;
+ERROR HY000: Failed to read from the .par file
+# Note that it is currently impossible to drop a partitioned table
+# without the .par file
+DROP TABLE t1;
+ERROR 42S02: Unknown table 't1'
+#
+# Bug#49477: Assertion `0' failed in ha_partition.cc:5530
+# with temporary table and partitions
+#
+CREATE TABLE t1 (a INT) PARTITION BY HASH(a);
+CREATE TEMPORARY TABLE tmp_t1 LIKE t1;
+ERROR HY000: Cannot create temporary table with partitions
+DROP TABLE t1;
+#
 # Bug#50392: insert_id is not reset for partitioned tables
 #            auto_increment on duplicate entry
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);

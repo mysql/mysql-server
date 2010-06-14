@@ -1440,11 +1440,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
                                trx_data->has_incident());
     trx_data->reset();
 
-    /*
-      We need to step the table map version after writing the
-      transaction cache to disk.
-    */
-    mysql_bin_log.update_table_map_version();
     statistic_increment(binlog_cache_use, &LOCK_status);
     if (trans_log->disk_writes != 0)
     {
@@ -1470,13 +1465,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     }
     else                                        // ...statement
       trx_data->truncate(trx_data->before_stmt_pos);
-
-    /*
-      We need to step the table map version on a rollback to ensure
-      that a new table map event is generated instead of the one that
-      was written to the thrown-away transaction cache.
-    */
-    mysql_bin_log.update_table_map_version();
   }
 
   DBUG_ASSERT(thd->binlog_get_pending_rows_event() == NULL);
@@ -2437,7 +2425,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
-   need_start_event(TRUE), m_table_map_version(0),
+   need_start_event(TRUE),
    is_relay_log(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
@@ -4078,7 +4066,6 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
     DBUG_RETURN(error);
 
   binlog_table_maps++;
-  table->s->table_map_version= mysql_bin_log.table_map_version();
   DBUG_RETURN(0);
 }
 
@@ -4169,10 +4156,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       file= &trx_data->trans_log;
 
     /*
-      If we are writing to the log file directly, we could avoid
-      locking the log. This does not work since we need to step the
-      m_table_map_version below, and that change has to be protected
-      by the LOCK_log mutex.
+      If we are not writing to the log file directly, we could avoid
+      locking the log.
     */
     pthread_mutex_lock(&LOCK_log);
 
@@ -4185,24 +4170,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       set_write_error(thd);
       DBUG_RETURN(1);
     }
-
-    /*
-      We step the table map version if we are writing an event
-      representing the end of a statement.  We do this regardless of
-      wheather we write to the transaction cache or to directly to the
-      file.
-
-      In an ideal world, we could avoid stepping the table map version
-      if we were writing to a transaction cache, since we could then
-      reuse the table map that was written earlier in the transaction
-      cache.  This does not work since STMT_END_F implies closing all
-      table mappings on the slave side.
-
-      TODO: Find a solution so that table maps does not have to be
-      written several times within a transaction.
-     */
-    if (pending->get_flags(Rows_log_event::STMT_END_F))
-      ++m_table_map_version;
 
     delete pending;
 
@@ -4416,9 +4383,6 @@ err:
     if (error)
       set_write_error(thd);
   }
-
-  if (event_info->flags & LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F)
-    ++m_table_map_version;
 
   pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);

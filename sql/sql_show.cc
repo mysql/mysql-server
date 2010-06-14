@@ -30,6 +30,7 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
+#include "debug_sync.h"
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -3450,6 +3451,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
@@ -4180,24 +4182,37 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+static inline void copy_field_as_string(Field *to_field, Field *from_field)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp_str(buff, sizeof(buff), system_charset_info);
+  from_field->val_str(&tmp_str);
+  to_field->store(tmp_str.ptr(), tmp_str.length(), system_charset_info);
+}
+
+
 bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                        const char *wild, bool full_access, const char *sp_user)
 {
-  String tmp_string;
-  String sp_db, sp_name, definer;
   MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  get_field(thd->mem_root, proc_table->field[0], &sp_db);
-  get_field(thd->mem_root, proc_table->field[1], &sp_name);
-  get_field(thd->mem_root, proc_table->field[11], &definer);
+  char sp_db_buff[NAME_LEN + 1], sp_name_buff[NAME_LEN + 1],
+    definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 2];
+  String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
+  String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
+  String definer(definer_buff, sizeof(definer_buff), cs);
+
+  proc_table->field[0]->val_str(&sp_db);
+  proc_table->field[1]->val_str(&sp_name);
+  proc_table->field[11]->val_str(&definer);
+
   if (!full_access)
-    full_access= !strcmp(sp_user, definer.ptr());
-  if (!full_access && check_some_routine_access(thd, sp_db.ptr(),
-                                                sp_name.ptr(),
-                                                proc_table->field[2]->
-                                                val_int() ==
-                                                TYPE_ENUM_PROCEDURE))
+    full_access= !strcmp(sp_user, definer.c_ptr_safe());
+  if (!full_access &&
+      check_some_routine_access(thd, sp_db.c_ptr_safe(), sp_name.c_ptr_safe(),
+                                proc_table->field[2]->val_int() ==
+                                TYPE_ENUM_PROCEDURE))
     return 0;
 
   if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
@@ -4207,55 +4222,42 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
+    if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
     {
       int enum_idx= (int) proc_table->field[5]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
-      get_field(thd->mem_root, proc_table->field[3], &tmp_string);
-      table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[0], proc_table->field[3]);
       table->field[2]->store(sp_db.ptr(), sp_db.length(), cs);
-      get_field(thd->mem_root, proc_table->field[2], &tmp_string);
-      table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[4], proc_table->field[2]);
       if (proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION)
       {
-        get_field(thd->mem_root, proc_table->field[9], &tmp_string);
-        table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[5], proc_table->field[9]);
         table->field[5]->set_notnull();
       }
       if (full_access)
       {
-        get_field(thd->mem_root, proc_table->field[19], &tmp_string);
-        table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[7], proc_table->field[19]);
         table->field[7]->set_notnull();
       }
       table->field[6]->store(STRING_WITH_LEN("SQL"), cs);
       table->field[10]->store(STRING_WITH_LEN("SQL"), cs);
-      get_field(thd->mem_root, proc_table->field[6], &tmp_string);
-      table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[11], proc_table->field[6]);
       table->field[12]->store(sp_data_access_name[enum_idx].str, 
                               sp_data_access_name[enum_idx].length , cs);
-      get_field(thd->mem_root, proc_table->field[7], &tmp_string);
-      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[14], proc_table->field[7]);
+
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[12])->get_time(&time);
       table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[13])->get_time(&time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      get_field(thd->mem_root, proc_table->field[14], &tmp_string);
-      table->field[17]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      get_field(thd->mem_root, proc_table->field[15], &tmp_string);
-      table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[17], proc_table->field[14]);
+      copy_field_as_string(table->field[18], proc_table->field[15]);
       table->field[19]->store(definer.ptr(), definer.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[16], &tmp_string);
-      table->field[20]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[17], &tmp_string);
-      table->field[21]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[18], &tmp_string);
-      table->field[22]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[20], proc_table->field[16]);
+      copy_field_as_string(table->field[21], proc_table->field[17]);
+      copy_field_as_string(table->field[22], proc_table->field[18]);
 
       return schema_table_store_record(thd, table);
     }
