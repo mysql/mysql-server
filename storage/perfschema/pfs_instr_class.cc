@@ -118,6 +118,10 @@ PFS_instr_class global_table_class=
 static LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
+C_MODE_START
+/** Get hash table key for instrumented tables. */
+static uchar *table_share_hash_get_key(const uchar *, size_t *, my_bool);
+C_MODE_END
 
 static volatile uint32 file_class_dirty_count= 0;
 static volatile uint32 file_class_allocated_count= 0;
