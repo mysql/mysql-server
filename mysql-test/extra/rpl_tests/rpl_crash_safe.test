@@ -303,10 +303,13 @@ while (`SELECT HEX(@failures) != HEX('')`)
 --echo ###################################################################################
 connection master;
 sync_slave_with_master;
+connection master;
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
---diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-crash-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-crash-slave.sql
+--diff_files $MYSQLD_DATADIR/test-crash-master.sql $MYSQLD_DATADIR/test-crash-slave.sql
 
 --echo ###################################################################################
 --echo #                                        CLEAN
