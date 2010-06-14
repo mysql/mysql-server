@@ -6090,7 +6090,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
     Uint64 gci = (Uint64(req->gci_hi) << 32) | req->gci_lo;
     ndbrequire(gci > m_last_complete_gci);
 
-    Uint32 state;
+    Uint32 state = 0;
     if (c_nodeGroup != RNIL)
     {
       jam();
@@ -6101,7 +6101,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       ndbrequire(cnt == c_nodes_in_nodegroup_mask.count());
       state = Bucket::BUCKET_CREATED_OTHER;
     }
-    else
+    else if (tmp.get(getOwnNodeId()))
     {
       jam();
       c_nodeGroup = group;
@@ -6109,12 +6109,15 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       fix_nodegroup();
       state = Bucket::BUCKET_CREATED_SELF;
     }
-    for (Uint32 i = 0; i<c_no_of_buckets; i++)
+    if (state != 0)
     {
-      jam();
-      m_switchover_buckets.set(i);
-      c_buckets[i].m_switchover_gci = gci - 1; // start from gci
-      c_buckets[i].m_state = state | (c_no_of_buckets << 8);
+      for (Uint32 i = 0; i<c_no_of_buckets; i++)
+      {
+        jam();
+        m_switchover_buckets.set(i);
+        c_buckets[i].m_switchover_gci = gci - 1; // start from gci
+        c_buckets[i].m_state = state | (c_no_of_buckets << 8);
+      }
     }
   }
 
