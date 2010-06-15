@@ -589,4 +589,34 @@ ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when 
+--echo #  JOINed during an UPDATE
+--echo #
+
+CREATE TABLE t1 (d INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, b INT, 
+  c TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB;
+
+--echo set up our data elements
+INSERT INTO t1 (d) VALUES (1);
+INSERT INTO t2 (a,b) VALUES (1,1);
+SELECT SECOND(c) INTO @bug47453 FROM t2;
+
+SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
+UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
+SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
+
+SELECT SLEEP(1);
+
+UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
+
+--echo #should be 0
+SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
+
+DROP TABLE t1, t2;
+
+
 --echo End of 5.1 tests

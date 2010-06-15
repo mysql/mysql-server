@@ -732,4 +732,13 @@ SELECT HEX(MONTHNAME(19700101));
 SELECT HEX(DAYNAME(19700101));
 SET character_set_connection=latin1;
 
+--echo #
+--echo # Bug#52120 create view cause Assertion failed: 0, file .\item_subselect.cc, line 817
+--echo #
+CREATE TABLE t1 (a CHAR(1) CHARSET ascii, b CHAR(1) CHARSET latin1);
+CREATE VIEW v1 AS SELECT 1 from t1
+WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests

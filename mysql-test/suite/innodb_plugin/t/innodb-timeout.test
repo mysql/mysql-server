@@ -1,0 +1,64 @@
+-- source include/have_innodb_plugin.inc
+
+let $timeout=`select @@innodb_lock_wait_timeout`;
+set global innodb_lock_wait_timeout=42;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+connection a;
+select @@innodb_lock_wait_timeout;
+set innodb_lock_wait_timeout=1;
+select @@innodb_lock_wait_timeout;
+
+connection b;
+select @@innodb_lock_wait_timeout;
+set global innodb_lock_wait_timeout=347;
+select @@innodb_lock_wait_timeout;
+set innodb_lock_wait_timeout=1;
+select @@innodb_lock_wait_timeout;
+
+connect (c,localhost,root,,);
+connection c;
+select @@innodb_lock_wait_timeout;
+connection default;
+disconnect c;
+
+connection a;
+create table t1(a int primary key)engine=innodb;
+begin;
+insert into t1 values(1),(2),(3);
+
+connection b;
+--send
+select * from t1 for update;
+
+connection a;
+commit;
+
+connection b;
+reap;
+
+connection a;
+begin;
+insert into t1 values(4);
+
+connection b;
+--send
+select * from t1 for update;
+
+connection a;
+sleep 2;
+commit;
+
+connection b;
+--error ER_LOCK_WAIT_TIMEOUT
+reap;
+drop table t1;
+
+connection default;
+
+disconnect a;
+disconnect b;
+
+eval set global innodb_lock_wait_timeout=$timeout;

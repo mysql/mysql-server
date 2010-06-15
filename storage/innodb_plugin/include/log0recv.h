@@ -368,8 +368,8 @@ typedef struct recv_addr_struct	recv_addr_t;
 struct recv_addr_struct{
 	enum recv_addr_state state;
 				/*!< recovery state of the page */
-	ulint		space;	/*!< space id */
-	ulint		page_no;/*!< page number */
+	unsigned	space:32;/*!< space id */
+	unsigned	page_no:32;/*!< page number */
 	UT_LIST_BASE_NODE_T(recv_t)
 			rec_list;/*!< list of log records for this page */
 	hash_node_t	addr_hash;/*!< hash node in the hash bucket chain */

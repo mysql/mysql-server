@@ -1854,6 +1854,12 @@ void sql_perror(const char *message);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+*/
+bool is_secure_file_path(char *path);
+
 #ifdef MYSQL_SERVER
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
@@ -2286,7 +2292,7 @@ void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
-bool check_table_name(const char *name, uint length);
+bool check_table_name(const char *name, uint length, bool check_for_path_chars);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);

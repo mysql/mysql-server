@@ -1,0 +1,1206 @@
+#######################################################################
+#                                                                     #
+# Please, DO NOT TOUCH this file as well as the innodb.result file.   #
+# These files are to be modified ONLY BY INNOBASE guys.               #
+#                                                                     #
+# Use innodb_mysql.[test|result] files instead.                       #
+#                                                                     #
+# If nevertheless you need to make some changes here, please, forward #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
+# (otherwise your changes may be erased).                             #
+#                                                                     #
+#######################################################################
+
+-- source include/have_innodb.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+# Save the original values of some variables in order to be able to
+# estimate how much they have changed during the tests. Previously this
+# test assumed that e.g. rows_deleted is 0 here and after deleting 23
+# rows it expected that rows_deleted will be 23. Now we do not make
+# assumptions about the values of the variables at the beginning, e.g.
+# rows_deleted should be 23 + "rows_deleted before the test". This allows
+# the test to be run multiple times without restarting the mysqld server.
+# See Bug#43309 Test main.innodb can't be run twice
+-- disable_query_log
+SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
+-- enable_query_log
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+drop database if exists mysqltest;
+--enable_warnings
+
+# InnoDB specific varchar tests
+create table t1 (v varchar(16384)) engine=innodb;
+drop table t1;
+
+#
+# BUG#11039 Wrong key length in min()
+#
+
+create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
+insert into t1 values ('8', '6'), ('4', '7');
+select min(a) from t1;
+select min(b) from t1 where a='8';
+drop table t1;
+
+#
+# Bug #11080 & #11005  Multi-row REPLACE fails on a duplicate key error
+#
+
+CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
+insert into t1 (b) values (1);
+replace into t1 (b) values (2), (1), (3);
+select * from t1;
+truncate table t1;
+insert into t1 (b) values (1);
+replace into t1 (b) values (2);
+replace into t1 (b) values (1);
+replace into t1 (b) values (3);
+select * from t1;
+drop table t1;
+
+create table t1 (rowid int not null auto_increment, val int not null,primary
+key (rowid), unique(val)) engine=innodb;
+replace into t1 (val) values ('1'),('2');
+replace into t1 (val) values ('1'),('2');
+--error ER_DUP_ENTRY
+insert into t1 (val) values ('1'),('2');
+select * from t1;
+drop table t1;
+
+#
+# Test that update does not change internal auto-increment value
+#
+
+create table t1 (a int not null auto_increment primary key, val int) engine=InnoDB;
+insert into t1 (val) values (1);
+update t1 set a=2 where a=1;
+# We should get the following error because InnoDB does not update the counter
+--error ER_DUP_ENTRY
+insert into t1 (val) values (1);
+select * from t1;
+drop table t1;
+#
+# Bug #10465
+#
+
+--disable_warnings
+CREATE TABLE t1 (GRADE DECIMAL(4) NOT NULL, PRIMARY KEY (GRADE)) ENGINE=INNODB;
+--enable_warnings
+INSERT INTO t1 (GRADE) VALUES (151),(252),(343);
+SELECT GRADE  FROM t1 WHERE GRADE > 160 AND GRADE < 300;
+SELECT GRADE  FROM t1 WHERE GRADE= 151;
+DROP TABLE t1;
+
+#
+# Bug #12340 multitable delete deletes only one record
+#
+create table t1 (f1 varchar(10), f2 varchar(10), primary key (f1,f2)) engine=innodb;
+create table t2 (f3 varchar(10), f4 varchar(10), key (f4)) engine=innodb;
+insert into t2 values ('aa','cc');
+insert into t1 values ('aa','bb'),('aa','cc');
+delete t1 from t1,t2 where f1=f3 and f4='cc';
+select * from t1;
+drop table t1,t2;
+
+#
+# Test that the slow TRUNCATE implementation resets autoincrement columns
+# (bug #11946)
+#
+
+CREATE TABLE t1 (
+id INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+id INTEGER NOT NULL,
+FOREIGN KEY (id) REFERENCES t1 (id)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+
+# continued from above; test that doing a slow TRUNCATE on a table with 0
+# rows resets autoincrement columns
+DELETE FROM t1;
+TRUNCATE t1;
+INSERT INTO t1 (id) VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t2, t1;
+
+# Test that foreign keys in temporary tables are not accepted (bug #12084)
+CREATE TABLE t1
+(
+ id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+--error 1005,1005
+CREATE TEMPORARY TABLE t2
+(
+ id INT NOT NULL PRIMARY KEY,
+ b INT,
+ FOREIGN KEY (b) REFERENCES test.t1(id)
+) ENGINE=InnoDB;
+DROP TABLE t1;
+
+#
+# Test that index column max sizes are honored (bug #13315)
+#
+
+# prefix index
+create table t1 (col1 varchar(2000), index (col1(767)))
+ character set = latin1 engine = innodb;
+
+# normal indexes
+create table t2 (col1 char(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t3 (col1 binary(255), index (col1))
+ character set = latin1 engine = innodb;
+create table t4 (col1 varchar(767), index (col1))
+ character set = latin1 engine = innodb;
+create table t5 (col1 varchar(767) primary key)
+ character set = latin1 engine = innodb;
+create table t6 (col1 varbinary(767) primary key)
+ character set = latin1 engine = innodb;
+create table t7 (col1 text, index(col1(767)))
+ character set = latin1 engine = innodb;
+create table t8 (col1 blob, index(col1(767)))
+ character set = latin1 engine = innodb;
+
+# multi-column indexes are allowed to be longer
+create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
+ character set = latin1 engine = innodb;
+
+show create table t9;
+
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+
+# these should have their index length trimmed
+create table t1 (col1 varchar(768), index(col1))
+ character set = latin1 engine = innodb;
+create table t2 (col1 varbinary(768), index(col1))
+ character set = latin1 engine = innodb;
+create table t3 (col1 text, index(col1(768)))
+ character set = latin1 engine = innodb;
+create table t4 (col1 blob, index(col1(768)))
+ character set = latin1 engine = innodb;
+
+show create table t1;
+
+drop table t1, t2, t3, t4;
+
+# these should be refused
+--error 1071
+create table t1 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1071
+create table t2 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1071
+create table t3 (col1 text, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+--error 1071
+create table t4 (col1 blob, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+
+#
+# Test improved foreign key error messages (bug #3443)
+#
+
+CREATE TABLE t1
+(
+ id INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+CREATE TABLE t2
+(
+ v INT,
+ CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=InnoDB;
+
+--error 1452
+INSERT INTO t2 VALUES(2);
+
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+--error 1451
+DELETE FROM t1 WHERE id = 1;
+
+--error 1217
+DROP TABLE t1;
+
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+
+--error 1452
+INSERT INTO t2 VALUES(3);
+
+DROP TABLE t2;
+#
+# Test that checksum table uses a consistent read Bug #12669
+#
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=0;
+checksum table t1;
+connection b;
+insert into t1 values(3);
+connection a;
+#
+# Here checksum should not see insert
+#
+checksum table t1;
+connection a;
+commit;
+checksum table t1;
+commit;
+drop table t1;
+#
+# autocommit = 1
+#
+connection a;
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2);
+set autocommit=1;
+checksum table t1;
+connection b;
+set autocommit=1;
+insert into t1 values(3);
+connection a;
+#
+# Here checksum sees insert
+#
+checksum table t1;
+drop table t1;
+
+connection default;
+disconnect a;
+disconnect b;
+
+# tests for bugs #9802 and #13778
+
+# test that FKs between invalid types are not accepted
+
+set foreign_key_checks=0;
+create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+-- error 1005
+create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
+set foreign_key_checks=1;
+drop table t2;
+
+# test that FKs between different charsets are not accepted in CREATE even
+# when f_k_c is 0
+
+set foreign_key_checks=0;
+create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
+-- error 1005
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
+set foreign_key_checks=1;
+drop table t1;
+
+# test that invalid datatype conversions with ALTER are not allowed
+
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
+create table t1(a varchar(10) primary key) engine = innodb;
+-- error 1025,1025
+alter table t1 modify column a int;
+set foreign_key_checks=1;
+drop table t2,t1;
+
+# test that charset conversions with ALTER are allowed when f_k_c is 0
+
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+alter table t1 convert to character set utf8;
+set foreign_key_checks=1;
+drop table t2,t1;
+
+# test that RENAME does not allow invalid charsets when f_k_c is 0
+
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+-- error 1025
+rename table t3 to t1;
+set foreign_key_checks=1;
+drop table t2,t3;
+
+# test that foreign key errors are reported correctly (Bug #15550)
+
+create table t1(a int primary key) row_format=redundant engine=innodb;
+create table t2(a int primary key,constraint foreign key(a)references t1(a)) row_format=compact engine=innodb;
+create table t3(a int primary key) row_format=compact engine=innodb;
+create table t4(a int primary key,constraint foreign key(a)references t3(a)) row_format=redundant engine=innodb;
+
+insert into t1 values(1);
+insert into t3 values(1);
+-- error 1452
+insert into t2 values(2);
+-- error 1452
+insert into t4 values(2);
+insert into t2 values(1);
+insert into t4 values(1);
+-- error 1451
+update t1 set a=2;
+-- error 1452
+update t2 set a=2;
+-- error 1451
+update t3 set a=2;
+-- error 1452
+update t4 set a=2;
+-- error 1451
+truncate t1;
+-- error 1451
+truncate t3;
+truncate t2;
+truncate t4;
+truncate t1;
+truncate t3;
+
+drop table t4,t3,t2,t1;
+
+
+#
+# Test that we can create a large (>1K) key
+#
+create table t1 (a varchar(255) character set utf8,
+                 b varchar(255) character set utf8,
+                 c varchar(255) character set utf8,
+                 d varchar(255) character set utf8,
+                 key (a,b,c,d)) engine=innodb;
+drop table t1;
+--error ER_TOO_LONG_KEY
+create table t1 (a varchar(255) character set utf8,
+                 b varchar(255) character set utf8,
+                 c varchar(255) character set utf8,
+                 d varchar(255) character set utf8,
+                 e varchar(255) character set utf8,
+                 key (a,b,c,d,e)) engine=innodb;
+
+
+# test the padding of BINARY types and collations (Bug #14189)
+
+create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
+create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
+create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
+create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
+
+insert into t1 values (0x41),(0x4120),(0x4100);
+-- error ER_DUP_ENTRY
+insert into t2 values (0x41),(0x4120),(0x4100);
+insert into t2 values (0x41),(0x4120);
+-- error ER_DUP_ENTRY
+insert into t3 values (0x41),(0x4120),(0x4100);
+insert into t3 values (0x41),(0x4100);
+-- error ER_DUP_ENTRY
+insert into t4 values (0x41),(0x4120),(0x4100);
+insert into t4 values (0x41),(0x4100);
+select hex(s1) from t1;
+select hex(s1) from t2;
+select hex(s1) from t3;
+select hex(s1) from t4;
+drop table t1,t2,t3,t4;
+
+create table t1 (a int primary key,s1 varbinary(3) not null unique) engine=innodb;
+create table t2 (s1 binary(2) not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
+
+insert into t1 values(1,0x4100),(2,0x41),(3,0x4120),(4,0x42);
+-- error 1452
+insert into t2 values(0x42);
+insert into t2 values(0x41);
+select hex(s1) from t2;
+update t1 set s1=0x123456 where a=2;
+select hex(s1) from t2;
+-- error 1451
+update t1 set s1=0x12 where a=1;
+-- error 1451
+update t1 set s1=0x12345678 where a=1;
+-- error 1451
+update t1 set s1=0x123457 where a=1;
+update t1 set s1=0x1220 where a=1;
+select hex(s1) from t2;
+update t1 set s1=0x1200 where a=1;
+select hex(s1) from t2;
+update t1 set s1=0x4200 where a=1;
+select hex(s1) from t2;
+-- error 1451
+delete from t1 where a=1;
+delete from t1 where a=2;
+update t2 set s1=0x4120;
+-- error 1451
+delete from t1;
+delete from t1 where a!=3;
+select a,hex(s1) from t1;
+select hex(s1) from t2;
+
+drop table t2,t1;
+
+create table t1 (a int primary key,s1 varchar(2) binary not null unique) engine=innodb;
+create table t2 (s1 char(2) binary not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
+
+insert into t1 values(1,0x4100),(2,0x41);
+insert into t2 values(0x41);
+select hex(s1) from t2;
+update t1 set s1=0x1234 where a=1;
+select hex(s1) from t2;
+update t1 set s1=0x12 where a=2;
+select hex(s1) from t2;
+delete from t1 where a=1;
+-- error 1451
+delete from t1 where a=2;
+select a,hex(s1) from t1;
+select hex(s1) from t2;
+
+drop table t2,t1;
+# Ensure that <tablename>_ibfk_0 is not mistreated as a
+# generated foreign key identifier.  (Bug #16387)
+
+CREATE TABLE t1(a INT, PRIMARY KEY(a)) ENGINE=InnoDB;
+CREATE TABLE t2(a INT) ENGINE=InnoDB;
+ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+ALTER TABLE t2 ADD CONSTRAINT t2_ibfk_0 FOREIGN KEY (a) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_0;
+SHOW CREATE TABLE t2;
+DROP TABLE t2,t1;
+
+#
+# Test case for bug #16229: MySQL/InnoDB uses full explicit table locks in trigger processing
+#
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
+insert into t1(a) values (1),(2),(3);
+commit;
+connection b;
+set autocommit = 0;
+update t1 set b = 5 where a = 2;
+connection a;
+delimiter |;
+create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
+delimiter ;|
+set autocommit = 0;
+connection a;
+insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
+(11),(21),(31),(41),(51),(61),(71),(81),(91),(101),
+(12),(22),(32),(42),(52),(62),(72),(82),(92),(102),
+(13),(23),(33),(43),(53),(63),(73),(83),(93),(103),
+(14),(24),(34),(44),(54),(64),(74),(84),(94),(104);
+connection b;
+commit;
+connection a;
+commit;
+drop trigger t1t;
+drop table t1;
+disconnect a;
+disconnect b;
+#
+# Another trigger test
+#
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
+create table t2(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
+create table t3(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
+create table t4(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
+create table t5(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
+insert into t1(a) values (1),(2),(3);
+insert into t2(a) values (1),(2),(3);
+insert into t3(a) values (1),(2),(3);
+insert into t4(a) values (1),(2),(3);
+insert into t3(a) values (5),(7),(8);
+insert into t4(a) values (5),(7),(8);
+insert into t5(a) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12);
+
+delimiter |;
+create trigger t1t before insert on t1 for each row begin 
+    INSERT INTO t2 SET a = NEW.a;
+end |
+
+create trigger t2t before insert on t2 for each row begin
+    DELETE FROM t3 WHERE a = NEW.a;
+end |
+
+create trigger t3t before delete on t3 for each row begin  
+    UPDATE t4 SET b = b + 1 WHERE a = OLD.a;
+end |
+
+create trigger t4t before update on t4 for each row begin
+    UPDATE t5 SET b = b + 1 where a = NEW.a;
+end |
+delimiter ;|
+commit;
+set autocommit = 0;
+update t1 set b = b + 5 where a = 1;
+update t2 set b = b + 5 where a = 1;
+update t3 set b = b + 5 where a = 1;
+update t4 set b = b + 5 where a = 1;
+insert into t5(a) values(20);
+connection b;
+set autocommit = 0;
+insert into t1(a) values(7);
+insert into t2(a) values(8);
+delete from t2 where a = 3;
+update t4 set b = b + 1 where a = 3;
+commit;
+drop trigger t1t;
+drop trigger t2t;
+drop trigger t3t;
+drop trigger t4t;
+drop table t1, t2, t3, t4, t5;
+connection default;
+disconnect a;
+disconnect b;
+
+#
+# Test that cascading updates leading to duplicate keys give the correct
+# error message (bug #9680)
+#
+
+CREATE TABLE t1 (
+  field1 varchar(8) NOT NULL DEFAULT '',
+  field2 varchar(8) NOT NULL DEFAULT '',
+  PRIMARY KEY  (field1, field2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  field1 varchar(8) NOT NULL DEFAULT '' PRIMARY KEY,
+  FOREIGN KEY (field1) REFERENCES t1 (field1)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('old', 'somevalu');
+INSERT INTO t1 VALUES ('other', 'anyvalue');
+
+INSERT INTO t2 VALUES ('old');
+INSERT INTO t2 VALUES ('other');
+
+--error ER_FOREIGN_DUPLICATE_KEY
+UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+#
+# Bug#18477 - MySQL/InnoDB Ignoring Foreign Keys in ALTER TABLE
+#
+create table t1 (
+  c1 bigint not null,
+  c2 bigint not null,
+  primary key (c1),
+  unique  key (c2)
+) engine=innodb;
+#
+create table t2 (
+  c1 bigint not null,
+  primary key (c1)
+) engine=innodb;
+#
+alter table t1 add constraint c2_fk foreign key (c2)
+  references t2(c1) on delete cascade;
+show create table t1;
+#
+alter table t1 drop foreign key c2_fk;
+show create table t1;
+#
+drop table t1, t2;
+
+#
+# Bug #14360: problem with intervals
+#
+
+create table t1(a date) engine=innodb;
+create table t2(a date, key(a)) engine=innodb;
+insert into t1 values('2005-10-01');
+insert into t2 values('2005-10-01');
+select * from t1, t2
+  where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
+drop table t1, t2;
+
+create table t1 (id int not null, f_id int not null, f int not null,
+primary key(f_id, id)) engine=innodb;
+create table t2 (id int not null,s_id int not null,s varchar(200),
+primary key(id)) engine=innodb;
+INSERT INTO t1 VALUES (8, 1, 3);
+INSERT INTO t1 VALUES (1, 2, 1);
+INSERT INTO t2 VALUES (1, 0, '');
+INSERT INTO t2 VALUES (8, 1, '');
+commit;
+DELETE ml.* FROM t1 AS ml LEFT JOIN t2 AS mm ON (mm.id=ml.id)
+WHERE mm.id IS NULL;
+select ml.* from t1 as ml left join t2 as mm on (mm.id=ml.id)
+where mm.id is null lock in share mode;
+drop table t1,t2;
+
+#
+# Test case where X-locks on unused rows should be released in a
+# update (because READ COMMITTED isolation level)
+#
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
+commit;
+SET binlog_format='MIXED';
+set autocommit = 0; 
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+update t1 set b = 5 where b = 1;
+connection b;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+#
+# X-lock to record (7,3) should be released in a update 
+#
+select * from t1 where a = 7 and b = 3 for update;
+connection a;
+commit;
+connection b;
+commit;
+drop table t1;
+connection default;
+disconnect a;
+disconnect b;
+
+#
+# Test case where no locks should be released (because we are not
+# using READ COMMITTED isolation level)
+#
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2);
+commit;
+set autocommit = 0; 
+select * from t1 lock in share mode;
+update t1 set b = 5 where b = 1;
+connection b;
+set autocommit = 0;
+#
+# S-lock to records (2,2),(4,2), and (6,2) should not be released in a update
+#
+--error 1205
+select * from t1 where a = 2 and b = 2 for update;
+#
+# X-lock to record (1,1),(3,1),(5,1) should not be released in a update
+#
+--error 1205
+connection a;
+commit;
+connection b;
+commit;
+connection default;
+disconnect a;
+disconnect b;
+drop table t1;
+
+#
+# Consistent read should be used in following selects
+#
+# 1) INSERT INTO ... SELECT
+# 2) UPDATE ... = ( SELECT ...)
+# 3) CREATE ... SELECT
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values (1,2),(5,3),(4,2);
+create table t2(d int not null, e int, primary key(d)) engine=innodb;
+insert into t2 values (8,6),(12,1),(3,1);
+commit;
+set autocommit = 0;
+select * from t2 for update;
+connection b;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+insert into t1 select * from t2;
+update t1 set b = (select e from t2 where a = d);
+create table t3(d int not null, e int, primary key(d)) engine=innodb
+select * from t2;
+commit;
+connection a;
+commit;
+connection default;
+disconnect a;
+disconnect b;
+drop table t1, t2, t3;
+
+#
+# Consistent read should not be used if 
+#
+# (a) isolation level is serializable OR
+# (b) select ... lock in share mode OR
+# (c) select ... for update
+#
+# in following queries:
+#
+# 1) INSERT INTO ... SELECT
+# 2) UPDATE ... = ( SELECT ...)
+# 3) CREATE ... SELECT
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connect (c,localhost,root,,);
+connect (d,localhost,root,,);
+connect (e,localhost,root,,);
+connect (f,localhost,root,,);
+connect (g,localhost,root,,);
+connect (h,localhost,root,,);
+connect (i,localhost,root,,);
+connect (j,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values (1,2),(5,3),(4,2);
+create table t2(a int not null, b int, primary key(a)) engine=innodb;
+insert into t2 values (8,6),(12,1),(3,1);
+create table t3(d int not null, b int, primary key(d)) engine=innodb;
+insert into t3 values (8,6),(12,1),(3,1);
+create table t5(a int not null, b int, primary key(a)) engine=innodb;
+insert into t5 values (1,2),(5,3),(4,2);
+create table t6(d int not null, e int, primary key(d)) engine=innodb;
+insert into t6 values (8,6),(12,1),(3,1);
+create table t8(a int not null, b int, primary key(a)) engine=innodb;
+insert into t8 values (1,2),(5,3),(4,2);
+create table t9(d int not null, e int, primary key(d)) engine=innodb;
+insert into t9 values (8,6),(12,1),(3,1);
+commit;
+set autocommit = 0;
+select * from t2 for update;
+connection b;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--send
+insert into t1 select * from t2;
+connection c;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--send
+update t3 set b = (select b from t2 where a = d);
+connection d;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--send
+create table t4(a int not null, b int, primary key(a)) engine=innodb select * from t2;
+connection e;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+insert into t5 (select * from t2 lock in share mode);
+connection f;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+update t6 set e = (select b from t2 where a = d lock in share mode);
+connection g;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+create table t7(a int not null, b int, primary key(a)) engine=innodb select * from t2 lock in share mode;
+connection h;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+insert into t8 (select * from t2 for update);
+connection i;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+update t9 set e = (select b from t2 where a = d for update);
+connection j;
+SET binlog_format='MIXED';
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+create table t10(a int not null, b int, primary key(a)) engine=innodb select * from t2 for update;
+
+connection b;
+--error 1205
+reap;
+
+connection c;
+--error 1205
+reap;
+
+connection d;
+--error 1205
+reap;
+
+connection e;
+--error 1205
+reap;
+
+connection f;
+--error 1205
+reap;
+
+connection g;
+--error 1205
+reap;
+
+connection h;
+--error 1205
+reap;
+
+connection i;
+--error 1205
+reap;
+
+connection j;
+--error 1205
+reap;
+
+connection a;
+commit;
+
+connection default;
+disconnect a;
+disconnect b;
+disconnect c;
+disconnect d;
+disconnect e;
+disconnect f;
+disconnect g;
+disconnect h;
+disconnect i;
+disconnect j;
+drop table t1, t2, t3, t5, t6, t8, t9;
+
+# bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
+--error 1005
+CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
+
+#
+# Bug #17152: Wrong result with BINARY comparison on aliased column
+#
+
+CREATE TABLE t1 (
+   a BIGINT(20) NOT NULL,
+    PRIMARY KEY  (a)
+ ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+CREATE TABLE t2 (
+  a BIGINT(20) NOT NULL,
+  b VARCHAR(128) NOT NULL,
+  c TEXT NOT NULL,
+  PRIMARY KEY  (a,b),
+  KEY idx_t2_b_c (b,c(200)),
+  CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a) 
+   ON DELETE CASCADE
+ ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 'bar', 'vbar');
+INSERT INTO t2 VALUES (1, 'BAR2', 'VBAR');
+INSERT INTO t2 VALUES (1, 'bar_bar', 'bibi');
+INSERT INTO t2 VALUES (1, 'customer_over', '1');
+
+SELECT * FROM t2 WHERE b = 'customer_over';
+SELECT * FROM t2 WHERE BINARY b = 'customer_over';
+SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
+/* Bang: Empty result set, above was expected: */
+SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+
+drop table t2, t1;
+
+#
+# Test optimize on table with open transaction
+#
+
+CREATE TABLE t1 ( a int ) ENGINE=innodb;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
+
+#
+# Bug #24741 (existing cascade clauses disappear when adding foreign keys)
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;
+
+CREATE TABLE t2 (id int PRIMARY KEY, f INT NOT NULL,
+  CONSTRAINT t2_t1 FOREIGN KEY (id) REFERENCES t1 (id)
+  ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
+
+ALTER TABLE t2 ADD FOREIGN KEY (f) REFERENCES t1 (f) ON
+DELETE CASCADE ON UPDATE CASCADE;
+
+SHOW CREATE TABLE t2;
+DROP TABLE t2, t1;
+
+#
+# Bug #25927: Prevent ALTER TABLE ... MODIFY ... NOT NULL on columns
+# for which there is a foreign key constraint ON ... SET NULL.
+#
+
+CREATE TABLE t1 (a INT, INDEX(a)) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+--error 1025
+ALTER TABLE t2 MODIFY a INT NOT NULL;
+DELETE FROM t1;
+DROP TABLE t2,t1;
+
+#
+# Bug #26835: table corruption after delete+insert
+#
+
+CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('DDD');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Bug #23313 (AUTO_INCREMENT=# not reported back for InnoDB tables)
+# Bug #21404 (AUTO_INCREMENT value reset when Adding FKEY (or ALTER?))
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB
+AUTO_INCREMENT=42;
+
+INSERT INTO t1 VALUES (0),(347),(0);
+SELECT * FROM t1;
+
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES(42),(347),(348);
+ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1,t2;
+
+#
+# Bug #21101 (Prints wrong error message if max row size is too large)
+#
+--error 1118
+CREATE TABLE t1 (
+	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
+	c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
+	c09 CHAR(255), c10 CHAR(255), c11 CHAR(255), c12 CHAR(255),
+	c13 CHAR(255), c14 CHAR(255), c15 CHAR(255), c16 CHAR(255),
+	c17 CHAR(255), c18 CHAR(255), c19 CHAR(255), c20 CHAR(255),
+	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
+	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
+	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
+	) ENGINE = InnoDB;
+
+#
+# Bug #31860 InnoDB assumes AUTOINC values can only be positive.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(
+	id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
+	) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(-10);
+SELECT * FROM t1;
+#
+# NOTE: The server really needs to be restarted at this point
+# for the test to be useful.  
+#
+# Without the fix InnoDB would trip over an assertion here.
+INSERT INTO t1 VALUES(NULL);
+# The next value should be 1 and not -9 or a -ve number
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# 
+# Bug #21409 Incorrect result returned when in READ-COMMITTED with
+# query_cache ON
+#
+CONNECT (c1,localhost,root,,);
+CONNECT (c2,localhost,root,,);
+CONNECTION c1;
+SET binlog_format='MIXED';
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
+CREATE TABLE t2 LIKE t1;
+SELECT * FROM t2;
+CONNECTION c2;
+SET binlog_format='MIXED';
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES (1);
+COMMIT;
+CONNECTION c1;
+SELECT * FROM t1 WHERE a=1;
+DISCONNECT c1;
+DISCONNECT c2;
+CONNECT (c1,localhost,root,,);
+CONNECT (c2,localhost,root,,);
+CONNECTION c1;
+SET binlog_format='MIXED';
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+SELECT * FROM t2;
+CONNECTION c2;
+SET binlog_format='MIXED';
+SET TX_ISOLATION='read-committed';
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES (2);
+COMMIT;
+CONNECTION c1;
+# The result set below should be the same for both selects
+SELECT * FROM t1 WHERE a=2;
+SELECT * FROM t1 WHERE a=2;
+DROP TABLE t1;
+DROP TABLE t2;
+DISCONNECT c1;
+DISCONNECT c2;
+CONNECTION default;
+
+#
+# Bug #29157 UPDATE, changed rows incorrect
+#
+create table t1 (i int, j int) engine=innodb;
+insert into t1 (i, j) values (1, 1), (2, 2);
+--enable_info
+update t1 set j = 2;
+--disable_info
+drop table t1;
+
+#
+# Bug #32440 InnoDB free space info does not appear in SHOW TABLE STATUS or
+# I_S
+#
+create table t1 (id int) comment='this is a comment' engine=innodb;
+select table_comment, data_free > 0 as data_free_is_set
+  from information_schema.tables
+  where table_schema='test' and table_name = 't1';
+drop table t1;
+
+#
+# Bug 34920 test
+#
+CONNECTION default;
+CREATE TABLE t1 (
+	c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	c2 VARCHAR(128) NOT NULL,
+	PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
+
+CREATE TABLE t2 (
+	c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	c2 INT(10) UNSIGNED DEFAULT NULL,
+	PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
+
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+ALTER TABLE t2 ADD CONSTRAINT t1_t2_1 FOREIGN KEY(c1) REFERENCES t1(c1);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+DROP TABLE t2;
+DROP TABLE t1;
+# End 34920 test
+#
+# Bug #29507 TRUNCATE shows to many rows effected
+#
+CONNECTION default;
+CREATE TABLE t1 (c1 int default NULL,
+		 c2 int default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--enable_info
+TRUNCATE TABLE t1;
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+TRUNCATE TABLE t1;
+
+--disable_info
+DROP TABLE t1;
+#
+# Bug#35537 Innodb doesn't increment handler_update and handler_delete.
+#
+-- disable_query_log
+-- disable_result_log
+
+CONNECT (c1,localhost,root,,);
+
+DROP TABLE IF EXISTS bug35537;
+CREATE TABLE bug35537 (
+  c1 int
+) ENGINE=InnoDB;
+
+INSERT INTO bug35537 VALUES (1);
+
+-- enable_result_log
+
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SHOW SESSION STATUS LIKE 'Handler_delete%';
+
+UPDATE bug35537 SET c1 = 2 WHERE c1 = 1;
+DELETE FROM bug35537 WHERE c1 = 2;
+
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SHOW SESSION STATUS LIKE 'Handler_delete%';
+
+DROP TABLE bug35537;
+
+DISCONNECT c1;
+CONNECTION default;
+
+SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
+#######################################################################
+#                                                                     #
+# Please, DO NOT TOUCH this file as well as the innodb.result file.   #
+# These files are to be modified ONLY BY INNOBASE guys.               #
+#                                                                     #
+# Use innodb_mysql.[test|result] files instead.                       #
+#                                                                     #
+# If nevertheless you need to make some changes here, please, forward #
+# your commit message                                                 #
+# To: innodb_dev_ww@oracle.com                                        #
+# Cc: dev-innodb@mysql.com                                            #
+# (otherwise your changes may be erased).                             #
+#                                                                     #
+#######################################################################

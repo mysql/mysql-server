@@ -368,8 +368,8 @@ dict_boot(void)
 #if DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2
 #error "DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2"
 #endif
-#if DICT_SYS_INDEXES_NAME_FIELD != 1 + 2
-#error "DICT_SYS_INDEXES_NAME_FIELD != 1 + 2"
+#if DICT_SYS_INDEXES_NAME_FIELD != 2 + 2
+#error "DICT_SYS_INDEXES_NAME_FIELD != 2 + 2"
 #endif
 
 	table->id = DICT_INDEXES_ID;

@@ -202,7 +202,7 @@ eval kill query $ID;
 rollback;
 
 connection con2;
---error 0,ER_QUERY_INTERRUPTED
+--error 0,ER_QUERY_INTERRUPTED,ER_LOCK_WAIT_TIMEOUT
 reap;
 # todo 1,2 above
 rollback;
