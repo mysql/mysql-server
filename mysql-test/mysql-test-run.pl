@@ -188,7 +188,7 @@ my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
 our @opt_experimentals;
-our $experimental_test_cases;
+our $experimental_test_cases= [];
 
 my $baseport;
 # $opt_build_thread may later be set from $opt_port_base
