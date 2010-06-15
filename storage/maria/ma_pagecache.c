@@ -4188,12 +4188,15 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     PAGECACHE_BLOCK_LINK *block= *cache;
 
     /*
-      This code is only run for non transactional tables.
-      We may have other threads reading the block during flush,
-      as non transactional tables can have many readers while the
-      one writer is doing the flush.
+      In the case of non_transactional tables we want to flush also
+      block pinned with reads. This is becasue we may have other
+      threads reading the block during flush, as non transactional
+      tables can have many readers while the one writer is doing the
+      flush.
+      We don't want to do flush pinned blocks during checkpoint.
+      We detect the checkpoint case by checking if type is LAZY.
     */
-    if (block->wlocks)
+    if ((type == FLUSH_KEEP_LAZY && block->pins) || block->wlocks)
     {
       KEYCACHE_DBUG_PRINT("flush_cached_blocks",
                           ("block: %u (0x%lx)  pinned",
