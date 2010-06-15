@@ -3159,6 +3159,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   */
   Query_tables_list backup;
   thd->lex->reset_n_backup_query_tables_list(&backup);
+  /*
+    Restore Query_tables_list::sql_command value, which was reset
+    above, as the code writing query to the binary log assumes that
+    this value corresponds to the statement being executed.
+  */
+  thd->lex->sql_command= backup.sql_command;
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
