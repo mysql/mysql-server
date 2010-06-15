@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs.cc
@@ -805,6 +805,10 @@ static int build_prefix(const LEX_STRING *prefix, const char *category,
     *(info->m_key)= key;                                              \
   }                                                                   \
   return;
+
+/* Use C linkage for the interface functions. */
+
+C_MODE_START
 
 static void register_mutex_v1(const char *category,
                               PSI_mutex_info_v1 *info,
@@ -2054,8 +2058,9 @@ static void* get_interface(int version)
   }
 }
 
+C_MODE_END
+
 struct PSI_bootstrap PFS_bootstrap=
 {
   get_interface
 };
-

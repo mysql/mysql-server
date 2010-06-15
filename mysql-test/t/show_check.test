@@ -1170,6 +1170,14 @@ DROP TABLE t1;
 DROP EVENT ev1;
 
 #
+# Bug#30036 SHOW TABLE TYPES causes the debug client to crash
+#
+--disable_result_log
+SHOW STORAGE ENGINES;
+--enable_result_log
+
+
+#
 # Bug#32710 SHOW INNODB STATUS requires SUPER
 #
 

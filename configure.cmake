@@ -54,6 +54,15 @@ IF(NOT SYSTEM_TYPE)
 ENDIF()
 
 
+# Always enable -Wall for gnu C/C++
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCC)
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+ENDIF()
+
+
 IF(CMAKE_COMPILER_IS_GNUCXX)
   # MySQL "canonical" GCC flags. At least -fno-rtti flag affects
   # ABI and cannot be simply removed. 
@@ -1000,6 +1009,21 @@ IF(NOT HAVE_SOCKADDR_STORAGE_SS_FAMILY)
     SET(ss_family __ss_family)
   ENDIF()
 ENDIF()
+
+#
+# Check if struct sockaddr_in::sin_len is available.
+#
+
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in" sin_len
+  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN_SIN_LEN)
+
+#
+# Check if struct sockaddr_in6::sin6_len is available.
+#
+
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
+  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
+
 SET(CMAKE_EXTRA_INCLUDE_FILES) 
 
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_ino "dirent.h"  STRUCT_DIRENT_HAS_D_INO)

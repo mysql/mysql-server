@@ -267,14 +267,7 @@ public:
   virtual int geometry_n(uint32 num, String *result) const { return -1; }
 
 public:
-  static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id)
-  {
-    Class_info *ci;
-    if (!(ci= find_class((int) type_id)))
-      return NULL;
-    (*ci->m_create_func)((void *)buffer);
-    return my_reinterpret_cast(Geometry *)(buffer);
-  }
+  static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
 
   static Geometry *construct(Geometry_buffer *buffer,
                              const char *data, uint32 data_len);
@@ -532,10 +525,9 @@ public:
   const Class_info *get_class_info() const;
 };
 
-const int geometry_buffer_size= sizeof(Gis_point);
 struct Geometry_buffer
 {
-  void *arr[(geometry_buffer_size - 1)/sizeof(void *) + 1];
+  Aligned_char_array<sizeof(Gis_point)> buf;
 };
 
 #endif /*HAVE_SPATAIAL*/

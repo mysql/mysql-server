@@ -35,18 +35,20 @@ Created December 2006 by Marko Makela
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool_mutex and must not hold buf_pool_zip_mutex or any block->mutex.
-The buf_pool_mutex may only be released and reacquired if lru != NULL.
+buf_pool->mutex and must not hold buf_pool_zip_mutex or any block->mutex.
+The buf_pool->mutex may only be released and reacquired if lru != NULL.
 @return	allocated block, possibly NULL if lru==NULL */
 UNIV_INTERN
 void*
 buf_buddy_alloc_low(
 /*================*/
+	buf_pool_t*	buf_pool,
+			/*!< in: buffer pool in which the page resides */
 	ulint	i,	/*!< in: index of buf_pool->zip_free[],
 			or BUF_BUDDY_SIZES */
 	ibool*	lru)	/*!< in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
-			and buf_pool_mutex was temporarily released,
+			and buf_pool->mutex was temporarily released,
 			or NULL if the LRU list should not be used */
 	__attribute__((malloc));
 
@@ -56,10 +58,11 @@ UNIV_INTERN
 void
 buf_buddy_free_low(
 /*===============*/
-	void*	buf,	/*!< in: block to be freed, must not be
-			pointed to by the buffer pool */
-	ulint	i)	/*!< in: index of buf_pool->zip_free[],
-			or BUF_BUDDY_SIZES */
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	void*		buf,		/*!< in: block to be freed, must not be
+					pointed to by the buffer pool */
+	ulint		i)		/*!< in: index of buf_pool->zip_free[],
+					or BUF_BUDDY_SIZES */
 	__attribute__((nonnull));
 
 /**********************************************************************//**
@@ -83,27 +86,32 @@ buf_buddy_get_slot(
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool_mutex and must not hold buf_pool_zip_mutex or any
-block->mutex.  The buf_pool_mutex may only be released and reacquired
+buf_pool->mutex and must not hold buf_pool_zip_mutex or any
+block->mutex.  The buf_pool->mutex may only be released and reacquired
 if lru != NULL.  This function should only be used for allocating
 compressed page frames or control blocks (buf_page_t).  Allocated
 control blocks must be properly initialized immediately after
 buf_buddy_alloc() has returned the memory, before releasing
-buf_pool_mutex.
+buf_pool->mutex.
 @return	allocated block, possibly NULL if lru == NULL */
 UNIV_INLINE
 void*
 buf_buddy_alloc(
 /*============*/
-	ulint	size,	/*!< in: block size, up to UNIV_PAGE_SIZE */
-	ibool*	lru)	/*!< in: pointer to a variable that will be assigned
-			TRUE if storage was allocated from the LRU list
-			and buf_pool_mutex was temporarily released,
-			or NULL if the LRU list should not be used */
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool in which
+					the page resides */
+	ulint		size,		/*!< in: block size, up to
+					UNIV_PAGE_SIZE */
+	ibool*		lru)		/*!< in: pointer to a variable
+					that will be assigned TRUE if
+				       	storage was allocated from the
+				       	LRU list and buf_pool->mutex was
+				       	temporarily released, or NULL if
+				       	the LRU list should not be used */
 {
-	ut_ad(buf_pool_mutex_own());
+	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	return(buf_buddy_alloc_low(buf_buddy_get_slot(size), lru));
+	return(buf_buddy_alloc_low(buf_pool, buf_buddy_get_slot(size), lru));
 }
 
 /**********************************************************************//**
@@ -112,13 +120,15 @@ UNIV_INLINE
 void
 buf_buddy_free(
 /*===========*/
-	void*	buf,	/*!< in: block to be freed, must not be
-			pointed to by the buffer pool */
-	ulint	size)	/*!< in: block size, up to UNIV_PAGE_SIZE */
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	void*		buf,		/*!< in: block to be freed, must not be
+					pointed to by the buffer pool */
+	ulint		size)		/*!< in: block size, up to
+					UNIV_PAGE_SIZE */
 {
-	ut_ad(buf_pool_mutex_own());
+	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	buf_buddy_free_low(buf, buf_buddy_get_slot(size));
+	buf_buddy_free_low(buf_pool, buf, buf_buddy_get_slot(size));
 }
 
 #ifdef UNIV_MATERIALIZE

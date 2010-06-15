@@ -31,14 +31,14 @@ noinst_PROGRAMS	=	hp_test1 hp_test2
 noinst_LIBRARIES =	libheap.a
 hp_test1_LDFLAGS = @NOINST_LDFLAGS@
 hp_test1_LDADD =	libheap.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la
 hp_test2_LDFLAGS = @NOINST_LDFLAGS@
 hp_test2_LDADD =	libheap.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la
 noinst_HEADERS =	heapdef.h ha_heap.h
 libheap_a_SOURCES =	hp_open.c hp_extra.c hp_close.c hp_panic.c hp_info.c \
 			hp_rrnd.c hp_scan.c hp_update.c hp_write.c hp_delete.c \
