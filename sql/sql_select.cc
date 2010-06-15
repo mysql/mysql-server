@@ -1374,7 +1374,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         if (jt_rowid_offset) /* Temptable has at least one rowid */
         {
           uint tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
-          if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))) ||
+          if (!(sjtbl= new (thd->mem_root) SJ_TMP_TABLE) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */
           memcpy(sjtbl->tabs, sjtabs, tabs_size);
@@ -1397,7 +1397,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
             not depend on anything at all, ie this is 
               WHERE const IN (uncorrelated select)
           */
-          if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))))
+          if (!(sjtbl= new (thd->mem_root) SJ_TMP_TABLE))
             DBUG_RETURN(TRUE); /* purecov: inspected */
           sjtbl->tmp_table= NULL;
           sjtbl->is_confluent= TRUE;
@@ -2420,7 +2420,10 @@ JOIN::reinit()
     set_items_ref_array(items0);
 
   if (join_tab_save)
-    memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
+  {
+    for (uint ix=0; ix < tables; ++ix)
+      join_tab[ix]= join_tab_save[ix];
+  }
 
   /* need to reset ref access state (see join_read_key) */
   if (join_tab)
@@ -2468,11 +2471,12 @@ JOIN::save_join_tab()
 {
   if (!join_tab_save && select_lex->master_unit()->uncacheable)
   {
-    if (!(join_tab_save= (JOIN_TAB*)thd->memdup((uchar*) join_tab,
-						sizeof(JOIN_TAB) * tables)))
-      return 1;
+    if (!(join_tab_save= new (thd->mem_root) JOIN_TAB[tables]))
+      return TRUE;
+    for (uint ix= 0; ix < tables; ++ix)
+      join_tab_save[ix]= join_tab[ix];
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -4223,7 +4227,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   DBUG_ENTER("make_join_statistics");
 
   table_count=join->tables;
-  stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*table_count);
+  stat= new (join->thd->mem_root) JOIN_TAB[table_count];
   stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
   table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
   if (!stat || !stat_ref || !table_vector)
@@ -4240,10 +4244,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
        s++, tables= tables->next_leaf, i++)
   {
     stat_vector[i]=s;
-    s->keys.init();
-    s->const_keys.init();
-    s->checked_keys.init();
-    s->needed_reg.init();
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -4258,10 +4258,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     bzero((char*) table->const_key_parts, sizeof(key_part_map)*table->s->keys);
     all_table_map|= table->map;
     s->join=join;
-    s->info=0;					// For describe
 
     s->dependent= tables->dep_tables;
-    s->key_dependent= 0;
     if (tables->schema_table)
       table->file->stats.records= 2;
     table->quick_condition_rows= table->file->stats.records;
@@ -8336,8 +8334,7 @@ static bool get_best_combination(JOIN *join)
   DBUG_ENTER("get_best_combination");
 
   table_count=join->tables;
-  if (!(join->join_tab=join_tab=
-	(JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB)*table_count)))
+  if (!(join->join_tab= join_tab= new (thd->mem_root) JOIN_TAB[table_count]))
     DBUG_RETURN(TRUE);
 
   join->full_join=0;
@@ -8636,8 +8633,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
     to this function through JOIN::exec (may happen for sub-queries).
   */
   if (!parent->join_tab_reexec &&
-      !(parent->join_tab_reexec= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB))))
-    DBUG_RETURN(TRUE);                        /* purecov: inspected */
+      !(parent->join_tab_reexec= new (thd->mem_root) JOIN_TAB))
+    DBUG_RETURN(TRUE);                      /* purecov: inspected */
 
   join_tab= parent->join_tab_reexec;
   parent->table_reexec[0]= temp_table;
@@ -8660,30 +8657,14 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   do_send_rows= row_limit ? 1 : 0;
 
   join_tab->use_join_cache= JOIN_CACHE::ALG_NONE;
-  join_tab->cache=0;			        /* No caching */
-  join_tab->cache_select= 0;
   join_tab->table=tmp_table;
-  join_tab->select=0;
-  join_tab->select_cond= NULL;
-  join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
   join_tab->keys.init();
   join_tab->keys.set_all();                     /* test everything in quick */
-  join_tab->info=0;
-  join_tab->on_expr_ref=0;
-  join_tab->last_inner= 0;
-  join_tab->first_unmatched= 0;
   join_tab->ref.key = -1;
-  join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
   join_tab->join= this;
   join_tab->ref.key_parts= 0;
-  join_tab->keep_current_rowid= FALSE;
-  join_tab->flush_weedout_table= join_tab->check_weed_out_table= NULL;
-  join_tab->do_firstmatch= NULL;
-  join_tab->loosescan_match_tab= NULL;
-  join_tab->emb_sj_nest= NULL;
-  bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   temp_table->status=0;
   temp_table->null_row=0;
   DBUG_RETURN(FALSE);
@@ -16246,9 +16227,15 @@ Next_select_func setup_end_select_func(JOIN *join)
     if ((join->sort_and_group ||
          (join->procedure && join->procedure->flags & PROC_GROUP)) &&
         !tmp_tbl->precomputed_group_by)
+    {
+      DBUG_PRINT("info",("Using end_send_group"));
       end_select= end_send_group;
+    }
     else
+    {
+      DBUG_PRINT("info",("Using end_send"));
       end_select= end_send;
+    }
   }
   return end_select;
 }

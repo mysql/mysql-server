@@ -897,3 +897,58 @@ SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
 DROP TABLE t1, t2;
 
+#
+# Bug #52538 Valgrind bug: Item_in_subselect::init_left_expr_cache()
+#
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+
+  col_varchar_key VARCHAR(1),
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+)
+;
+
+INSERT INTO t1 (
+  col_int_key, col_int_nokey, col_varchar_key
+) 
+VALUES
+(2, NULL, 'w'),
+(9, 7, 'm'),
+(3, 9, 'm'),
+(9, 7, 'k'),
+(NULL, 4, 'r'),
+(9, 2, 't'),
+(3, 6, 'j'),
+(8, 8, 'u'),
+(8, NULL, 'h'),
+(53, 5, 'o'),
+(0, NULL, NULL),
+(5, 6, 'k'),
+(166, 188, 'e'),
+(3, 2, 'n'),
+(0, 1, 't'),
+(1, 1, 'c'),
+(9, 0, 'm'),
+(5, 9, 'y'),
+(6, NULL, 'f'),
+(2, 4, 'd')
+;
+
+SELECT table2.col_varchar_key AS field1,
+       table2.col_int_nokey AS field2
+FROM ( t1 AS table1 LEFT OUTER JOIN t1 AS table2
+       ON (table2.col_varchar_key = table1.col_varchar_key  ) ) 
+WHERE table1.pk = 6
+HAVING  ( field2 ) IN 
+( SELECT SUBQUERY2_t2.col_int_nokey AS SUBQUERY2_field2 
+  FROM ( t1 AS SUBQUERY2_t1 JOIN t1 AS SUBQUERY2_t2
+         ON (SUBQUERY2_t2.col_varchar_key = SUBQUERY2_t1.col_varchar_key ) ) )
+ORDER BY field2 
+;
+
+drop table t1;
