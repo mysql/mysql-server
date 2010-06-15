@@ -2742,6 +2742,7 @@ sub default_mysqld {
   my $config= My::ConfigFactory->new_config
     ( {
        basedir         => $basedir,
+       testdir         => $glob_mysql_test_dir,
        template_path   => "include/default_my.cnf",
        vardir          => $opt_vardir,
        tmpdir          => $opt_tmpdir,
@@ -3350,6 +3351,7 @@ sub run_testcase ($) {
       $config= My::ConfigFactory->new_config
 	( {
 	   basedir         => $basedir,
+	   testdir         => $glob_mysql_test_dir,
 	   template_path   => $tinfo->{template_path},
 	   extra_template_path => $tinfo->{extra_template_path},
 	   vardir          => $opt_vardir,
