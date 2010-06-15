@@ -492,11 +492,6 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 /* Some help functions */
 
-int pthread_no_free(void *not_used __attribute__((unused)))
-{
-  return 0;
-}
-
 int pthread_dummy(int ret)
 {
   return ret;

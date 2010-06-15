@@ -25,8 +25,6 @@ EXTRA_DIST =		FINISH.sh \
 			check-cpu \
 			cleanup \
 			compile-alpha \
-			compile-alpha-ccc \
-			compile-alpha-cxx \
 			compile-alpha-debug \
 			compile-amd64-debug-max \
 			compile-amd64-debug-max-no-ndb \

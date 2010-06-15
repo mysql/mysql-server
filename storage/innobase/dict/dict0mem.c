@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,6 +40,11 @@ Created 1/8/1996 Heikki Tuuri
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register autoinc_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	autoinc_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
@@ -59,7 +64,7 @@ dict_mem_table_create(
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	ut_a(!(flags & (~0 << DICT_TF_BITS)));
+	ut_a(!(flags & (~0 << DICT_TF2_BITS)));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
@@ -78,7 +83,8 @@ dict_mem_table_create(
 #ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
 
-	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
+	mutex_create(autoinc_mutex_key,
+		     &table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc = 0;
 
@@ -171,10 +177,6 @@ dict_mem_table_add_col(
 	ulint		len)	/*!< in: precision */
 {
 	dict_col_t*	col;
-#ifndef UNIV_HOTBACKUP
-	ulint		mbminlen;
-	ulint		mbmaxlen;
-#endif /* !UNIV_HOTBACKUP */
 	ulint		i;
 
 	ut_ad(table);
@@ -199,19 +201,7 @@ dict_mem_table_add_col(
 
 	col = dict_table_get_nth_col(table, i);
 
-	col->ind = (unsigned int) i;
-	col->ord_part = 0;
-
-	col->mtype = (unsigned int) mtype;
-	col->prtype = (unsigned int) prtype;
-	col->len = (unsigned int) len;
-
-#ifndef UNIV_HOTBACKUP
-	dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
-
-	col->mbminlen = (unsigned int) mbminlen;
-	col->mbmaxlen = (unsigned int) mbmaxlen;
-#endif /* !UNIV_HOTBACKUP */
+	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
 }
 
 /**********************************************************************//**
@@ -238,22 +228,9 @@ dict_mem_index_create(
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 	index = mem_heap_zalloc(heap, sizeof(dict_index_t));
 
-	index->heap = heap;
+	dict_mem_fill_index_struct(index, heap, table_name, index_name,
+				   space, type, n_fields);
 
-	index->type = type;
-#ifndef UNIV_HOTBACKUP
-	index->space = (unsigned int) space;
-#endif /* !UNIV_HOTBACKUP */
-	index->name = mem_heap_strdup(heap, index_name);
-	index->table_name = table_name;
-	index->n_fields = (unsigned int) n_fields;
-	index->fields = mem_heap_alloc(heap, 1 + n_fields
-				       * sizeof(dict_field_t));
-	/* The '1 +' above prevents allocation
-	of an empty mem block */
-#ifdef UNIV_DEBUG
-	index->magic_n = DICT_INDEX_MAGIC_N;
-#endif /* UNIV_DEBUG */
 	return(index);
 }
 

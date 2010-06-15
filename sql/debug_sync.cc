@@ -387,6 +387,13 @@ static st_debug_sync_globals debug_sync_global; /* All globals in one object */
 */
 extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
+/**
+  Callbacks from C files.
+*/
+C_MODE_START
+static void debug_sync_C_callback(const char *, size_t);
+static int debug_sync_qsort_cmp(const void *, const void *);
+C_MODE_END
 
 /**
   Callback for debug sync, to be used by C files. See thr_lock.c for example.
@@ -422,8 +429,8 @@ extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 static void debug_sync_C_callback(const char *sync_point_name,
                                   size_t name_len)
 {
-  if (unlikely(opt_debug_sync_timeout))                            
-    debug_sync(current_thd, sync_point_name, name_len);   
+  if (unlikely(opt_debug_sync_timeout))
+    debug_sync(current_thd, sync_point_name, name_len);
 }
 
 #ifdef HAVE_PSI_INTERFACE

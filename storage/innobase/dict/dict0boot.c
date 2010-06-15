@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,32 +62,47 @@ dict_hdr_get(
 }
 
 /**********************************************************************//**
-Returns a new table, index, or tree id.
-@return	the new id */
+Returns a new table, index, or space id. */
 UNIV_INTERN
-dulint
+void
 dict_hdr_get_new_id(
 /*================*/
-	ulint	type)	/*!< in: DICT_HDR_ROW_ID, ... */
+	dulint*	table_id,	/*!< out: table id (not assigned if NULL) */
+	dulint*	index_id,	/*!< out: index id (not assigned if NULL) */
+	ulint*	space_id)	/*!< out: space id (not assigned if NULL) */
 {
 	dict_hdr_t*	dict_hdr;
 	dulint		id;
 	mtr_t		mtr;
 
-	ut_ad((type == DICT_HDR_TABLE_ID) || (type == DICT_HDR_INDEX_ID));
-
 	mtr_start(&mtr);
 
 	dict_hdr = dict_hdr_get(&mtr);
 
-	id = mtr_read_dulint(dict_hdr + type, &mtr);
-	id = ut_dulint_add(id, 1);
+	if (table_id) {
+		id = mtr_read_dulint(dict_hdr + DICT_HDR_TABLE_ID, &mtr);
+		id = ut_dulint_add(id, 1);
+		mlog_write_dulint(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
+		*table_id = id;
+	}
 
-	mlog_write_dulint(dict_hdr + type, id, &mtr);
+	if (index_id) {
+		id = mtr_read_dulint(dict_hdr + DICT_HDR_INDEX_ID, &mtr);
+		id = ut_dulint_add(id, 1);
+		mlog_write_dulint(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
+		*index_id = id;
+	}
+
+	if (space_id) {
+		*space_id = mtr_read_ulint(dict_hdr + DICT_HDR_MAX_SPACE_ID,
+					   MLOG_4BYTES, &mtr);
+		if (fil_assign_new_space_id(space_id)) {
+			mlog_write_ulint(dict_hdr + DICT_HDR_MAX_SPACE_ID,
+					 *space_id, MLOG_4BYTES, &mtr);
+		}
+	}
 
 	mtr_commit(&mtr);
-
-	return(id);
 }
 
 /**********************************************************************//**
@@ -151,9 +166,12 @@ dict_hdr_create(
 	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
 			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
-	/* Obsolete, but we must initialize it to 0 anyway. */
-	mlog_write_dulint(dict_header + DICT_HDR_MIX_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ulint(dict_header + DICT_HDR_MAX_SPACE_ID,
+			 0, MLOG_4BYTES, mtr);
+
+	/* Obsolete, but we must initialize it anyway. */
+	mlog_write_ulint(dict_header + DICT_HDR_MIX_ID_LOW,
+			 DICT_HDR_FIRST_ID, MLOG_4BYTES, mtr);
 
 	/* Create the B-tree roots for the clustered indexes of the basic
 	system tables */
@@ -274,6 +292,9 @@ dict_boot(void)
 	and (TYPE & DICT_TF_FORMAT_MASK) are nonzero and TYPE = table->flags */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
+	/* MIX_LEN may contain additional table flags when
+	ROW_FORMAT!=REDUNDANT.  Currently, these flags include
+	DICT_TF2_TEMPORARY. */
 	dict_mem_table_add_col(table, heap, "MIX_LEN", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "CLUSTER_NAME", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
@@ -355,7 +376,7 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_INT, 0, 4);
 
-	/* The '+ 2' below comes from the 2 system fields */
+	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
 #if DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2
 #error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2"
 #endif
@@ -364,6 +385,9 @@ dict_boot(void)
 #endif
 #if DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2
 #error "DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2"
+#endif
+#if DICT_SYS_INDEXES_NAME_FIELD != 2 + 2
+#error "DICT_SYS_INDEXES_NAME_FIELD != 2 + 2"
 #endif
 
 	table->id = DICT_INDEXES_ID;
