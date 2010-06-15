@@ -590,7 +590,8 @@ trx_assign_rseg(void)
 	ulint		i;
 	trx_rseg_t*	rseg;
 
-	/* This breaks true round robin but that should be OK. */
+	/* This breaks true round robin but that should be OK.
+	Our aim is to reduce the contention of the trx sys mutex.  */
 	i = trx_sys->latest_rseg;
 	i %= TRX_SYS_N_RSEGS;
 
@@ -627,11 +628,17 @@ trx_start_low(
 	trx_rseg_t*	rseg;
 
 	ut_ad(trx->rseg == NULL);
-
 	ut_ad(trx->lock.conc_state != TRX_ACTIVE);
+	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
 	/* The initial value for trx->no: ut_dulint_max is used in
 	read_view_open_now: */
+
+	rseg = trx_assign_rseg();
+
+	trx_sys_mutex_enter();
+
+	trx_mutex_enter(trx);
 
 	trx->no = ut_dulint_max;
 
@@ -639,16 +646,14 @@ trx_start_low(
 
 	trx->lock.conc_state = TRX_ACTIVE;
 
-	rseg = trx_assign_rseg();
-
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
-
-	trx_sys_mutex_enter();
 
 	trx->id = trx_sys_get_new_trx_id();
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
+
+	trx_mutex_exit(trx);
 
 	trx_sys_mutex_exit();
 
@@ -847,9 +852,9 @@ trx_commit(
 
 	trx->lock.conc_state = TRX_NOT_STARTED;
 
-	trx_mutex_exit(trx);
-
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	trx_mutex_exit(trx);
 
 	trx_sys_mutex_exit();
 }
@@ -875,9 +880,13 @@ trx_cleanup_at_db_startup(
 
 	trx_sys_mutex_enter();
 
+	trx_mutex_enter(trx);
+
 	trx->lock.conc_state = TRX_NOT_STARTED;
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	trx_mutex_exit(trx);
 
 	trx_sys_mutex_exit();
 }
@@ -895,7 +904,7 @@ trx_assign_read_view(
 {
 	ut_ad(trx->lock.conc_state == TRX_ACTIVE);
 
-	if (trx->read_view) {
+	if (trx->read_view != NULL) {
 		return(trx->read_view);
 	}
 
@@ -1439,9 +1448,10 @@ trx_recover_for_mysql(
 
 	trx_sys_mutex_enter();
 
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-	while (trx) {
 		if (trx->lock.conc_state == TRX_PREPARED) {
 			xid_list[count] = trx->xid;
 
@@ -1471,8 +1481,6 @@ trx_recover_for_mysql(
 				break;
 			}
 		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
 	trx_sys_mutex_exit();
@@ -1507,9 +1515,10 @@ trx_get_trx_by_xid(
 
 	trx_sys_mutex_enter();
 
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-	while (trx) {
 		/* Compare two X/Open XA transaction id's: their
 		length should be the same and binary comparison
 		of gtrid_lenght+bqual_length bytes should be
@@ -1521,10 +1530,7 @@ trx_get_trx_by_xid(
 			      xid->gtrid_length + xid->bqual_length) == 0) {
 			break;
 		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
-
 
 	if (trx != NULL && trx->lock.conc_state != TRX_PREPARED) {
 
@@ -1544,13 +1550,13 @@ trx_start_if_not_started_xa(
 /*========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	//trx_mutex_enter(trx);
+	trx_mutex_enter(trx);
 
 	ut_ad(trx->lock.conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->lock.conc_state == TRX_NOT_STARTED) {
 
-		//trx_mutex_exit(trx);
+		trx_mutex_exit(trx);
 
 		/* Update the info whether we should skip XA steps that eat
 	       	CPU time For the duration of the transaction trx->support_xa
@@ -1562,7 +1568,7 @@ trx_start_if_not_started_xa(
 
 		trx_start_low(trx);
 	} else {
-		//trx_mutex_exit(trx);
+		trx_mutex_exit(trx);
 	}
 }
 
