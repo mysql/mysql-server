@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs_server.cc
@@ -33,8 +33,11 @@
 
 PFS_global_param pfs_param;
 
+C_MODE_START
 static void destroy_pfs_thread(void *key);
-void cleanup_performance_schema(void);
+C_MODE_END
+
+static void cleanup_performance_schema(void);
 
 struct PSI_bootstrap*
 initialize_performance_schema(const PFS_global_param *param)
@@ -104,7 +107,7 @@ static void destroy_pfs_thread(void *key)
     destroy_thread(pfs);
 }
 
-void cleanup_performance_schema(void)
+static void cleanup_performance_schema(void)
 {
   cleanup_instruments();
   cleanup_sync_class();

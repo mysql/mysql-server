@@ -3468,6 +3468,27 @@ connection default;
 set debug_sync= 'RESET';
 drop table t1;
 
+--echo #
+--echo # Bug#52856 concurrent show columns or show full columns causes a crash!!!
+--echo #
+CREATE TABLE t1(a CHAR(255));
+
+connect(con1, localhost, root);
+SET DEBUG_SYNC= "get_schema_column SIGNAL waiting WAIT_FOR completed";
+--send SHOW FULL COLUMNS FROM t1
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR waiting";
+--replace_column 8 #
+SHOW FULL COLUMNS FROM t1;
+SET DEBUG_SYNC= "now SIGNAL completed";
+--replace_column 8 #
+connection con1;
+--reap
+connection default;
+DROP TABLE t1;
+disconnect con1;
+
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.

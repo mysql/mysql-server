@@ -149,6 +149,28 @@ sub mtr_exe_maybe_exists (@) {
 
 #
 # NOTE! More specific paths should be given before less specific.
+#
+sub mtr_pl_maybe_exists (@) {
+  my @path= @_;
+
+  map {$_.= ".pl"} @path if IS_WINDOWS;
+  foreach my $path ( @path )
+  {
+    if(IS_WINDOWS)
+    {
+      return $path if -f $path;
+    }
+    else
+    {
+      return $path if -x $path;
+    }
+  }
+  return "";
+}
+
+
+#
+# NOTE! More specific paths should be given before less specific.
 # For example /client/debug should be listed before /client
 #
 sub mtr_exe_exists (@) {

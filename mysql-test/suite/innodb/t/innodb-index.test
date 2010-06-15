@@ -1,5 +1,7 @@
 -- source include/have_innodb.inc
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
 
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
@@ -18,16 +20,6 @@ alter table t1 add unique index (b);
 show create table t1;
 alter table t1 add index (b);
 show create table t1;
-
-# Check how existing tables interfere with temporary tables.
-CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
-
---error 156
-alter table t1 add unique index (c), add index (d);
-rename table `t1#1` to `t1#2`;
---error 156
-alter table t1 add unique index (c), add index (d);
-drop table `t1#2`;
 
 alter table t1 add unique index (c), add index (d);
 show create table t1;
@@ -139,6 +131,8 @@ show create table t4;
 --error ER_CANT_CREATE_TABLE
 alter table t3 add constraint dc foreign key (a) references t1(a);
 show create table t3;
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
 alter table t2 drop index b, add index (b);
 show create table t2;
 --error ER_ROW_IS_REFERENCED_2
@@ -146,7 +140,9 @@ delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
 # there is no foreign key dc on t3
---replace_regex /'\.\/test\/#sql2-[0-9a-f-]*'/'#sql2-temporary'/
+--replace_regex /'[^']*test\/#sql2-[0-9a-f-]*'/'#sql2-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_ERROR_ON_RENAME
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;
@@ -157,7 +153,7 @@ select * from t2;
 drop table t2,t4,t3,t1;
 
 -- let charset = utf8
--- source suite/innodb/include/innodb-index.inc
+-- source include/innodb-index.inc
 
 create table t1(a int not null, b int) engine = innodb;
 insert into t1 values (1,1),(1,1),(1,1),(1,1);
@@ -292,66 +288,73 @@ show create table t1;
 check table t1;
 explain select * from t1 where b like 'adfd%';
 
+# The following tests are disabled because of the introduced timeouts for
+# metadata locks at the MySQL level as part of the fix for
+# Bug#45225 Locking: hang if drop table with no timeout
+# The following commands now play with MySQL metadata locks instead of
+# InnoDB locks
+# start disabled45225_1
+##
+## Test locking
+##
 #
-# Test locking
+#create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
+#insert into t2 select a,left(b,255) from t1;
+#drop table t1;
+#rename table t2 to t1;
 #
-
-create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
-insert into t2 select a,left(b,255) from t1;
-drop table t1;
-rename table t2 to t1;
-
-connect (a,localhost,root,,);
-connect (b,localhost,root,,);
-connection a;
-set innodb_lock_wait_timeout=1;
-begin;
-# Obtain an IX lock on the table
-select a from t1 limit 1 for update;
-connection b;
-set innodb_lock_wait_timeout=1;
-# This would require an S lock on the table, conflicting with the IX lock.
---error ER_LOCK_WAIT_TIMEOUT
-create index t1ba on t1 (b,a);
-connection a;
-commit;
-begin;
-# Obtain an IS lock on the table
-select a from t1 limit 1 lock in share mode;
-connection b;
-# This will require an S lock on the table.  No conflict with the IS lock.
-create index t1ba on t1 (b,a);
-# This would require an X lock on the table, conflicting with the IS lock.
---error ER_LOCK_WAIT_TIMEOUT
-drop index t1ba on t1;
-connection a;
-commit;
-explain select a from t1 order by b;
---send
-select a,sleep(2+a/100) from t1 order by b limit 3;
-
-# The following DROP INDEX will succeed, altough the SELECT above has
-# opened a read view.  However, during the execution of the SELECT,
-# MySQL should hold a table lock that should block the execution
-# of the DROP INDEX below.
-
-connection b;
-select sleep(1);
-drop index t1ba on t1;
-
-# After the index was dropped, subsequent SELECTs will use the same
-# read view, but they should not be accessing the dropped index any more.
-
-connection a;
-reap;
-explain select a from t1 order by b;
-select a from t1 order by b limit 3;
-commit;
-
-connection default;
-disconnect a;
-disconnect b;
-
+#connect (a,localhost,root,,);
+#connect (b,localhost,root,,);
+#connection a;
+#set innodb_lock_wait_timeout=1;
+#begin;
+## Obtain an IX lock on the table
+#select a from t1 limit 1 for update;
+#connection b;
+#set innodb_lock_wait_timeout=1;
+## This would require an S lock on the table, conflicting with the IX lock.
+#--error ER_LOCK_WAIT_TIMEOUT
+#create index t1ba on t1 (b,a);
+#connection a;
+#commit;
+#begin;
+## Obtain an IS lock on the table
+#select a from t1 limit 1 lock in share mode;
+#connection b;
+## This will require an S lock on the table.  No conflict with the IS lock.
+#create index t1ba on t1 (b,a);
+## This would require an X lock on the table, conflicting with the IS lock.
+#--error ER_LOCK_WAIT_TIMEOUT
+#drop index t1ba on t1;
+#connection a;
+#commit;
+#explain select a from t1 order by b;
+#--send
+#select a,sleep(2+a/100) from t1 order by b limit 3;
+#
+## The following DROP INDEX will succeed, altough the SELECT above has
+## opened a read view.  However, during the execution of the SELECT,
+## MySQL should hold a table lock that should block the execution
+## of the DROP INDEX below.
+#
+#connection b;
+#select sleep(1);
+#drop index t1ba on t1;
+#
+## After the index was dropped, subsequent SELECTs will use the same
+## read view, but they should not be accessing the dropped index any more.
+#
+#connection a;
+#reap;
+#explain select a from t1 order by b;
+#select a from t1 order by b limit 3;
+#commit;
+#
+#connection default;
+#disconnect a;
+#disconnect b;
+#
+# end disabled45225_1
 drop table t1;
 
 let $per_table=`select @@innodb_file_per_table`;
@@ -513,28 +516,34 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
 
-connect (a,localhost,root,,);
-connect (b,localhost,root,,);
-connection a;
-CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
-INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
-connection b;
-BEGIN;
-SELECT * FROM t1;
-connection a;
-CREATE INDEX t1a ON t1(a);
-connection b;
-SELECT * FROM t1;
---error ER_TABLE_DEF_CHANGED
-SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
-SELECT * FROM t1;
-COMMIT;
-SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
-connection default;
-disconnect a;
-disconnect b;
-
-DROP TABLE t1;
+# The following tests are disabled because of the introduced timeouts for
+# metadata locks at the MySQL level as part of the fix for
+# Bug#45225 Locking: hang if drop table with no timeout
+# The following CREATE INDEX t1a ON t1(a); causes a lock wait timeout
+# start disabled45225_2
+#connect (a,localhost,root,,);
+#connect (b,localhost,root,,);
+#connection a;
+#CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+#INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+#connection b;
+#BEGIN;
+#SELECT * FROM t1;
+#connection a;
+#CREATE INDEX t1a ON t1(a);
+#connection b;
+#SELECT * FROM t1;
+#--error ER_TABLE_DEF_CHANGED
+#SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+#SELECT * FROM t1;
+#COMMIT;
+#SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+#connection default;
+#disconnect a;
+#disconnect b;
+#
+#DROP TABLE t1;
+# end disabled45225_2
 
 #
 # restore environment to the state it was before this test execution

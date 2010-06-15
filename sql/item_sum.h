@@ -303,6 +303,8 @@ class st_select_lex;
 
 class Item_sum :public Item_result_field
 {
+  friend class Aggregator_distinct;
+
 protected:
   /**
     Aggregator class instance. Not set initially. Allocated only after
@@ -1315,6 +1317,16 @@ public:
 
 #endif /* HAVE_DLOPEN */
 
+C_MODE_START
+int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
+                                       const void* key2);
+int group_concat_key_cmp_with_order(void* arg, const void* key1,
+                                    const void* key2);
+int dump_leaf_key(void* key_arg,
+                  element_count count __attribute__((unused)),
+                  void* item_arg);
+C_MODE_END
+
 class Item_func_group_concat : public Item_sum
 {
   TMP_TABLE_PARAM *tmp_table_param;
@@ -1354,9 +1366,9 @@ class Item_func_group_concat : public Item_sum
                                                 const void* key2);
   friend int group_concat_key_cmp_with_order(void* arg, const void* key1,
 					     const void* key2);
-  friend int dump_leaf_key(uchar* key,
+  friend int dump_leaf_key(void* key_arg,
                            element_count count __attribute__((unused)),
-			   Item_func_group_concat *group_concat_item);
+			   void* item_arg);
 
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
