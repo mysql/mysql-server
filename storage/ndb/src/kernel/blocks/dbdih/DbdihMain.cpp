@@ -15546,31 +15546,38 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
   /*       THE LAST COMPLETED CHECKPOINT THEN WE WILL INVALIDATE THIS LOCAL */
   /*       CHECKPOINT FOR THIS REPLICA.                                     */
   /* ---------------------------------------------------------------------- */
-  Uint32 trraLcp = prevLcpNo(readReplicaPtr.p->nextLcp);
-  ndbrequire(trraLcp < MAX_LCP_STORED);
-  if ((readReplicaPtr.p->lcpStatus[trraLcp] == ZVALID) &&
-      (readReplicaPtr.p->lcpId[trraLcp] > SYSFILE->latestLCP_ID)) {
+  for (i = 0; i < MAX_LCP_STORED; i++)
+  {
     jam();
-    readReplicaPtr.p->lcpStatus[trraLcp] = ZINVALID;
-  }//if
+    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
+        readReplicaPtr.p->lcpId[i] > SYSFILE->latestLCP_ID)
+    {
+      jam();
+      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
+    }
+  }
 
   /* ---------------------------------------------------------------------- */
   /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
   /*       INVALIDATED BY MOVING BACK THE RESTART GCI.                      */
   /* ---------------------------------------------------------------------- */
-  for (i = 0; i < MAX_LCP_STORED; i++) {
+  Uint32 lastCompletedGCI = SYSFILE->newestRestorableGCI;
+  for (i = 0; i < MAX_LCP_STORED; i++)
+  {
     jam();
-    if ((readReplicaPtr.p->lcpStatus[i] == ZVALID) &&
-        (readReplicaPtr.p->maxGciStarted[i] > SYSFILE->newestRestorableGCI)) {
+    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
+        readReplicaPtr.p->maxGciStarted[i] > lastCompletedGCI)
+    {
       jam();
       readReplicaPtr.p->lcpStatus[i] = ZINVALID;
-    }//if
-  }//for
+    }
+  }
+
   /* ---------------------------------------------------------------------- */
   /*       WE WILL REMOVE ANY OCCURRENCES OF REPLICAS THAT HAVE CRASHED     */
   /*       THAT ARE NO LONGER VALID DUE TO MOVING RESTART GCI BACKWARDS.    */
   /* ---------------------------------------------------------------------- */
-  removeTooNewCrashedReplicas(readReplicaPtr);
+  removeTooNewCrashedReplicas(readReplicaPtr, lastCompletedGCI);
 
   /**
    * Don't remove crashed replicas here,
@@ -15848,7 +15855,7 @@ void Dbdih::removeStoredReplica(FragmentstorePtr fragPtr,
 /*************************************************************************/
 /*       REMOVE ALL TOO NEW CRASHED REPLICAS THAT IS IN THIS REPLICA.    */
 /*************************************************************************/
-void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr) 
+void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr, Uint32 lastCompletedGCI)
 {
   while (rtnReplicaPtr.p->noCrashedReplicas > 0) {
     jam();
@@ -15858,8 +15865,8 @@ void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr)
     /*       TOO MANY TIMES.                                                 */
     /* --------------------------------------------------------------------- */
     arrGuard(rtnReplicaPtr.p->noCrashedReplicas - 1, MAX_CRASHED_REPLICAS);
-    if (rtnReplicaPtr.p->createGci[rtnReplicaPtr.p->noCrashedReplicas - 1] > 
-        SYSFILE->newestRestorableGCI){
+    if (rtnReplicaPtr.p->createGci[rtnReplicaPtr.p->noCrashedReplicas - 1] > lastCompletedGCI)
+    {
       jam();
       rtnReplicaPtr.p->createGci[rtnReplicaPtr.p->noCrashedReplicas - 1] = 
 	ZINIT_CREATE_GCI;
