@@ -639,7 +639,9 @@ my_bool _ma_block_check_status(void *param __attribute__((unused)))
 
 /* Get status when transactional but not versioned */
 
-void _ma_block_get_status_no_versioning(void* param, my_bool concurrent_insert)
+void _ma_block_get_status_no_versioning(void* param,
+                                        my_bool concurrent_insert
+                                        __attribute__((unused)))
 {
   MARIA_HA *info=(MARIA_HA*) param;
   DBUG_ENTER("_ma_block_get_status_no_version");

@@ -1716,13 +1716,13 @@ beg:
 
   case MYSQL_TYPE_DATETIME:
     {
-      size_t d, t;
+      ulong d, t;
       uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
-      d= i64 / 1000000;
-      t= i64 % 1000000;
+      d= (ulong) (i64 / 1000000);
+      t= (ulong) (i64 % 1000000);
       my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
-                  d / 10000, (d % 10000) / 100, d % 100,
-                  t / 10000, (t % 10000) / 100, t % 100);
+                  (int) (d / 10000), (int) (d % 10000) / 100, (int) (d % 100),
+                  (int) (t / 10000), (int) (t % 10000) / 100, (int) t % 100);
       my_snprintf(typestr, typestr_length, "DATETIME");
       return 8;
     }
