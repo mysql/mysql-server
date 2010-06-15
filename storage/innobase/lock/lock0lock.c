@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "row0mysql.h" /* row_mysql_handle_errors() */
 #include "row0sel.h" /* sel_node_create(), sel_node_struct */
 #include "row0types.h" /* sel_node_t */
+#include "srv0mon.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -1731,6 +1732,9 @@ lock_rec_create(
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
 
+	MONITOR_INC(MONITOR_RECLOCK_CREATED);
+	MONITOR_INC(MONITOR_NUM_RECLOCK);
+
 	return(lock);
 }
 
@@ -1830,6 +1834,8 @@ lock_rec_enqueue_waiting(
 		ut_print_name(stderr, trx, FALSE, index->name);
 	}
 #endif /* UNIV_DEBUG */
+
+	MONITOR_INC(MONITOR_LOCKREC_WAIT);
 
 	return(DB_LOCK_WAIT);
 }
@@ -2269,6 +2275,9 @@ lock_rec_dequeue_from_page(
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
 
+	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
+	MONITOR_DEC(MONITOR_NUM_RECLOCK);
+
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
 
@@ -2311,6 +2320,9 @@ lock_rec_discard(
 		    lock_rec_fold(space, page_no), in_lock);
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
+
+	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
+	MONITOR_DEC(MONITOR_NUM_RECLOCK);
 }
 
 /*************************************************************//**
@@ -3490,6 +3502,7 @@ lock_deadlock_recursive(
 					      stderr);
 				}
 #endif /* UNIV_DEBUG */
+				MONITOR_INC(MONITOR_DEADLOCK);
 
 				if (trx_weight_cmp(wait_lock->trx,
 						   start) >= 0) {
@@ -3626,6 +3639,9 @@ lock_table_create(
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
 
+	MONITOR_INC(MONITOR_TABLELOCK_CREATED);
+	MONITOR_INC(MONITOR_NUM_TABLELOCK);
+
 	return(lock);
 }
 
@@ -3680,6 +3696,9 @@ lock_table_remove_low(
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
 	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
+
+	MONITOR_INC(MONITOR_TABLELOCK_REMOVED);
+	MONITOR_DEC(MONITOR_NUM_TABLELOCK);
 }
 
 /*********************************************************************//**
@@ -5303,6 +5322,8 @@ lock_clust_rec_modify_check_and_lock(
 	if (UNIV_UNLIKELY(err == DB_SUCCESS_LOCKED_REC)) {
 		err = DB_SUCCESS;
 	}
+
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
 	return(err);
 }
