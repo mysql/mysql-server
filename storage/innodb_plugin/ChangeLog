@@ -275,6 +275,14 @@
 	Fix Bug#49497 Error 1467 (ER_AUTOINC_READ_FAILED) on inserting
 	a negative value
 
+2010-01-28	The InnoDB Team
+	*  handler/ha_innodb.h, handler/ha_innodb.cc,
+	handler/handler0alter.cc,
+	mysql-test/innodb_bug47622.test,
+	mysql-test/innodb_bug47622.result:
+	Fix Bug#47622 the new index is added before the existing ones
+	in MySQL, but after one in SE
+
 2010-01-27	The InnoDB Team
 
 	* include/row0mysql.h, log/log0recv.c, row/row0mysql.c:
