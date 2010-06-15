@@ -18,6 +18,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
+#include "debug_sync.h"
 #include "unireg.h"
 #include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"                         // For select_describe
@@ -1944,10 +1945,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
 
 static DYNAMIC_ARRAY all_status_vars;
 static bool status_vars_inited= 0;
+
+C_MODE_START
 static int show_var_cmp(const void *var1, const void *var2)
 {
   return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
 }
+C_MODE_END
 
 /*
   deletes all the SHOW_UNDEF elements from the array and calls
@@ -3296,12 +3300,17 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     goto end_share;
   }
 
+  if (!open_table_from_share(thd, share, table_name->str, 0,
+                             (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
+                             thd->open_options, &tbl, FALSE))
   {
     tbl.s= share;
     table_list.table= &tbl;
     table_list.view= (LEX*) share->is_view;
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
+    free_root(&tbl.mem_root, MYF(0));
+    my_free((char*) tbl.alias, MYF(MY_ALLOW_ZERO_PTR));
   }
 
 end_share:
@@ -3345,7 +3354,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
   SELECT_LEX *old_all_select_lex= lex->all_selects_list;
-  enum_sql_command save_sql_command= lex->sql_command;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
@@ -3381,6 +3389,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
+  /*
+    Restore Query_tables_list::sql_command value, which was reset
+    above, as ST_SCHEMA_TABLE::process_table() functions often rely
+    that this value reflects which SHOW statement is executed.
+  */
+  lex->sql_command= query_tables_list_backup.sql_command;
 
   /*
     We should not introduce deadlocks even if we already have some
@@ -3544,7 +3558,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                    (MYSQL_OPEN_IGNORE_FLUSH |
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                     (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
-            lex->sql_command= save_sql_command;
+            lex->sql_command= query_tables_list_backup.sql_command;
             /*
               XXX:  show_table_list has a flag i_is_requested,
               and when it's set, open_normal_and_derived_tables()
@@ -3603,7 +3617,6 @@ err:
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
   lex->view_prepare_mode= save_view_prepare_mode;
-  lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
 }
 
@@ -3751,7 +3764,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (share->db_type() == partition_hton &&
-        share->partition_info_len)
+        share->partition_info_str_len)
     {
       tmp_db_type= share->default_part_db_type;
       is_partitioned= TRUE;
@@ -4025,7 +4038,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   TABLE *show_table;
-  TABLE_SHARE *show_table_share;
   Field **ptr, *field, *timestamp_field;
   int count;
   DBUG_ENTER("get_schema_column_record");
@@ -4048,37 +4060,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   }
 
   show_table= tables->table;
-  show_table_share= show_table->s;
   count= 0;
-
-  if (tables->view || tables->schema_table)
-  {
-    ptr= show_table->field;
-    timestamp_field= show_table->timestamp_field;
-    show_table->use_all_columns();               // Required for default
-  }
-  else
-  {
-    ptr= show_table_share->field;
-    timestamp_field= show_table_share->timestamp_field;
-    /*
-      read_set may be inited in case of
-      temporary table
-    */
-    if (!show_table->read_set)
-    {
-      /* to satisfy 'field->val_str' ASSERTs */
-      uchar *bitmaps;
-      uint bitmap_size= show_table_share->column_bitmap_size;
-      if (!(bitmaps= (uchar*) alloc_root(thd->mem_root, bitmap_size)))
-        DBUG_RETURN(0);
-      bitmap_init(&show_table->def_read_set,
-                  (my_bitmap_map*) bitmaps, show_table_share->fields, FALSE);
-      bitmap_set_all(&show_table->def_read_set);
-      show_table->read_set= &show_table->def_read_set;
-    }
-    bitmap_set_all(show_table->read_set);
-  }
+  ptr= show_table->field;
+  timestamp_field= show_table->timestamp_field;
+  show_table->use_all_columns();               // Required for default
+  restore_record(show_table, s->default_values);
 
   for (; (field= *ptr) ; ptr++)
   {
@@ -4087,9 +4073,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     String type(tmp,sizeof(tmp), system_charset_info);
     char *end;
 
-    /* to satisfy 'field->val_str' ASSERTs */
-    field->table= show_table;
-    show_table->in_use= thd;
+    DEBUG_SYNC(thd, "get_schema_column");
 
     if (wild && wild[0] &&
         wild_case_compare(system_charset_info, field->field_name,wild))
@@ -5240,7 +5224,8 @@ static int get_schema_key_column_usage_record(THD *thd,
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-static void collect_partition_expr(List<char> &field_list, String *str)
+static void collect_partition_expr(THD *thd, List<char> &field_list,
+                                   String *str)
 {
   List_iterator<char> part_it(field_list);
   ulong no_fields= field_list.elements;
@@ -5248,7 +5233,7 @@ static void collect_partition_expr(List<char> &field_list, String *str)
   str->length(0);
   while ((field_str= part_it++))
   {
-    str->append(field_str);
+    append_identifier(thd, str, field_str, strlen(field_str));
     if (--no_fields != 0)
       str->append(",");
   }
@@ -5315,7 +5300,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 {
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
-  PARTITION_INFO stat_info;
+  PARTITION_STATS stat_info;
   MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -5515,7 +5500,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
     }
     else if (part_info->list_of_part_fields)
     {
-      collect_partition_expr(part_info->part_field_list, &tmp_str);
+      collect_partition_expr(thd, part_info->part_field_list, &tmp_str);
       table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
     }
     table->field[9]->set_notnull();
@@ -5544,7 +5529,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       }
       else if (part_info->list_of_subpart_fields)
       {
-        collect_partition_expr(part_info->subpart_field_list, &tmp_str);
+        collect_partition_expr(thd, part_info->subpart_field_list, &tmp_str);
         table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
       }
       table->field[10]->set_notnull();

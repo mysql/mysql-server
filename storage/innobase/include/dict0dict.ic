@@ -765,7 +765,7 @@ dict_table_get_low(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name);
+		table = dict_load_table(table_name, TRUE);
 	}
 
 	ut_ad(!table || table->cached);

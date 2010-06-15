@@ -1539,6 +1539,29 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
 
 
 /*
+  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
+  queue.
+
+  SYNPOSIS
+    QUICK_ROR_UNION_SELECT_queue_cmp()
+      arg   Pointer to QUICK_ROR_UNION_SELECT
+      val1  First merged select
+      val2  Second merged select
+*/
+
+C_MODE_START
+
+static int QUICK_ROR_UNION_SELECT_queue_cmp(void *arg, uchar *val1, uchar *val2)
+{
+  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
+  return self->head->file->cmp_ref(((QUICK_SELECT_I*)val1)->last_rowid,
+                                   ((QUICK_SELECT_I*)val2)->last_rowid);
+}
+
+C_MODE_END
+
+
+/*
   Do post-constructor initialization.
   SYNOPSIS
     QUICK_ROR_UNION_SELECT::init()
@@ -1552,7 +1575,7 @@ int QUICK_ROR_UNION_SELECT::init()
 {
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::init");
   if (init_queue(&queue, quick_selects.elements, 0,
-                 FALSE , QUICK_ROR_UNION_SELECT::queue_cmp,
+                 FALSE , QUICK_ROR_UNION_SELECT_queue_cmp,
                  (void*) this))
   {
     bzero(&queue, sizeof(QUEUE));
@@ -1563,25 +1586,6 @@ int QUICK_ROR_UNION_SELECT::init()
     DBUG_RETURN(1);
   prev_rowid= cur_rowid + head->file->ref_length;
   DBUG_RETURN(0);
-}
-
-
-/*
-  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
-  queue.
-
-  SYNPOSIS
-    QUICK_ROR_UNION_SELECT::queue_cmp()
-      arg   Pointer to QUICK_ROR_UNION_SELECT
-      val1  First merged select
-      val2  Second merged select
-*/
-
-int QUICK_ROR_UNION_SELECT::queue_cmp(void *arg, uchar *val1, uchar *val2)
-{
-  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
-  return self->head->file->cmp_ref(((QUICK_SELECT_I*)val1)->last_rowid,
-                                   ((QUICK_SELECT_I*)val2)->last_rowid);
 }
 
 
