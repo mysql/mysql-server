@@ -396,10 +396,7 @@ The following options may be given as the first argument:
  a query. Values smaller than the number of tables in a
  relation result in faster optimization, but may produce
  very bad query plans. If set to 0, the system will
- automatically pick a reasonable value; if set to 63, the
- optimizer will switch to the original find_best search.
- NOTE: The value 63 and its associated behaviour is
- deprecated
+ automatically pick a reasonable value
  --optimizer-switch=name 
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
