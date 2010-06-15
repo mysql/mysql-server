@@ -701,7 +701,6 @@ extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
 extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
-extern int pthread_no_free(void *);
 extern int pthread_dummy(int);
 
 /* All thread specific variables are in the following struct */

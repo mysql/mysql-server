@@ -2111,6 +2111,15 @@ sub environment_setup {
                         "$basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
+  # mysqlhotcopy
+  # ----------------------------------------------------
+  my $mysqlhotcopy=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy");
+  # Since mysqltest interprets the real path as "false" in an if,
+  # use 1 ("true") to indicate "not exists" so it can be tested for
+  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
+
+  # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
   my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
