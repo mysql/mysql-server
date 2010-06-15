@@ -455,7 +455,7 @@ struct st_maria_plugin
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
   const char *version_info;  /* plugin version string */
-  int maturity;              /* MariaDB_PLUGIN_MATURITY_XXX */
+  unsigned int maturity; /* MariaDB_PLUGIN_MATURITY_XXX */
 };
 
 /*************************************************************************
