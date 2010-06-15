@@ -2377,10 +2377,8 @@ void
 Dblqh::execDROP_TAB_REQ(Signal* signal){
   jamEntry();
 
-  DropTabReq* req = (DropTabReq*)signal->getDataPtr();
-  
-  Uint32 senderRef = req->senderRef;
-  Uint32 senderData = req->senderData;
+  DropTabReq reqCopy = * (DropTabReq*)signal->getDataPtr();
+  DropTabReq* req = &reqCopy;
   
   TablerecPtr tabPtr;
   tabPtr.i = req->tableId;
@@ -2415,8 +2413,8 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
       tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
       signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
       signal->theData[1] = tabPtr.i;
-      signal->theData[2] = senderRef;
-      signal->theData[3] = senderData;
+      signal->theData[2] = req->senderRef;
+      signal->theData[3] = req->senderData;
       dropTab_wait_usage(signal);
       return;
       break;
@@ -2441,19 +2439,16 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     DropTabRef * ref = (DropTabRef*)signal->getDataPtrSend();
     ref->tableId = tabPtr.i;
     ref->senderRef = reference();
-    ref->senderData = senderData;
+    ref->senderData = req->senderData;
     ref->errorCode = errCode;
-    sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
+    sendSignal(req->senderRef, GSN_DROP_TAB_REF, signal,
                DropTabRef::SignalLength, JBB);
     return;
   }
 
   ndbrequire(tabPtr.p->usageCountR == 0 && tabPtr.p->usageCountW == 0);
   seizeAddfragrec(signal);
-  addfragptr.p->m_dropFragReq.tableId = tabPtr.i;
-  addfragptr.p->m_dropFragReq.senderRef = senderRef;
-  addfragptr.p->m_dropFragReq.senderData = senderData;
-
+  addfragptr.p->m_dropTabReq = * req;
   dropTable_nextStep(signal, addfragptr);
 }
 
@@ -2492,7 +2487,7 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
   jam();
 
   TablerecPtr tabPtr;
-  tabPtr.i = addFragPtr.p->m_dropFragReq.tableId;
+  tabPtr.i = addFragPtr.p->m_dropTabReq.tableId;
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
 
   Uint32 ref = 0;
@@ -2538,7 +2533,7 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
     req->senderRef = reference();
     req->tableId = tabPtr.i;
     req->tableVersion = tabPtr.p->schemaVersion;
-    req->requestType = DropTabReq::OnlineDropTab;
+    req->requestType = addFragPtr.p->m_dropTabReq.requestType;
     sendSignal(ref, GSN_DROP_TAB_REQ, signal,
                DropTabReq::SignalLength, JBB);
     return;
@@ -2547,12 +2542,11 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
   removeTable(tabPtr.i);
   tabPtr.p->tableStatus = Tablerec::NOT_DEFINED;
 
-  ref = addFragPtr.p->m_dropFragReq.senderRef;
   DropTabConf* conf = (DropTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
-  conf->senderData = addFragPtr.p->m_dropFragReq.senderData;
+  conf->senderData = addFragPtr.p->m_dropTabReq.senderData;
   conf->tableId = tabPtr.i;
-  sendSignal(ref, GSN_DROP_TAB_CONF, signal,
+  sendSignal(addFragPtr.p->m_dropTabReq.senderRef, GSN_DROP_TAB_CONF, signal,
              DropTabConf::SignalLength, JBB);
 
   addfragptr = addFragPtr;
@@ -12867,7 +12861,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     jam();
 
     lcpPtr.p->firstFragmentFlag= true;
-    
+
 #ifdef ERROR_INSERT
     if (check_ndb_versions())
     {
@@ -16393,7 +16387,8 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
 
   tabptr.i = tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  if (!DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  if (! (DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
+         tabptr.p->tableStatus == Tablerec::TABLE_DEFINED))
   {
     jam();
     signal->theData[0] = ZREBUILD_ORDERED_INDEXES;
@@ -20585,6 +20580,7 @@ void Dblqh::seizeAddfragrec(Signal* signal)
   bzero(&addfragptr.p->m_lqhFragReq, sizeof(addfragptr.p->m_lqhFragReq));
   bzero(&addfragptr.p->m_addAttrReq, sizeof(addfragptr.p->m_addAttrReq));
   bzero(&addfragptr.p->m_dropFragReq, sizeof(addfragptr.p->m_dropFragReq));
+  bzero(&addfragptr.p->m_dropTabReq, sizeof(addfragptr.p->m_dropTabReq));
   addfragptr.p->addfragErrorCode = 0;
   addfragptr.p->attrSentToTup = 0;
   addfragptr.p->attrReceived = 0;
