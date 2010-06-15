@@ -4249,10 +4249,15 @@ bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 
 bool sys_var_thd_dbug::update(THD *thd, set_var *var)
 {
+  char buf[256];
+  String str(buf, sizeof(buf), system_charset_info), *res;
+
+  res= var->value->val_str(&str);
+
   if (var->type == OPT_GLOBAL)
-    DBUG_SET_INITIAL(var ? var->value->str_value.c_ptr() : "");
+    DBUG_SET_INITIAL(res ? res->c_ptr() : "");
   else
-    DBUG_SET(var ? var->value->str_value.c_ptr() : "");
+    DBUG_SET(res ? res->c_ptr() : "");
 
   return 0;
 }
