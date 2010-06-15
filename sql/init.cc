@@ -33,7 +33,7 @@ void unireg_init(ulong options)
 {
   DBUG_ENTER("unireg_init");
 
-  MYSYS_PROGRAM_DONT_USE_CURSES();
+  error_handler_hook = my_message_stderr;
   abort_loop=0;
 
   my_disable_async_io=1;		/* aioread is only in shared library */

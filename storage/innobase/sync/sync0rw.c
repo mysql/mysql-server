@@ -168,12 +168,22 @@ UNIV_INTERN ib_int64_t	rw_x_exit_count		= 0;
 UNIV_INTERN rw_lock_list_t	rw_lock_list;
 UNIV_INTERN mutex_t		rw_lock_list_mutex;
 
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	rw_lock_list_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 #ifdef UNIV_SYNC_DEBUG
 /* The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
 acquired in addition to the mutex protecting the lock. */
 
 UNIV_INTERN mutex_t		rw_lock_debug_mutex;
+
+# ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	rw_lock_debug_mutex_key;
+# endif
+
 /* If deadlock detection does not get immediately the mutex,
 it may wait for this event */
 UNIV_INTERN os_event_t		rw_lock_debug_event;
@@ -231,7 +241,7 @@ rw_lock_create_func(
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-	const char*	cmutex_name, 	/*!< in: mutex name */
+	const char*	cmutex_name,	/*!< in: mutex name */
 #endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
@@ -240,7 +250,8 @@ rw_lock_create_func(
 	created, then the following call initializes the sync system. */
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_create(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
+	mutex_create(rw_lock_mutex_key, rw_lock_get_mutex(lock),
+		     SYNC_NO_ORDER_CHECK);
 
 	lock->mutex.cfile_name = cfile_name;
 	lock->mutex.cline = cline;
@@ -267,7 +278,7 @@ rw_lock_create_func(
 	lock->level = level;
 #endif /* UNIV_SYNC_DEBUG */
 
-	lock->magic_n = RW_LOCK_MAGIC_N;
+	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
 
 	lock->cfile_name = cfile_name;
 	lock->cline = (unsigned int) cline;
@@ -282,10 +293,8 @@ rw_lock_create_func(
 
 	mutex_enter(&rw_lock_list_mutex);
 
-	if (UT_LIST_GET_LEN(rw_lock_list) > 0) {
-		ut_a(UT_LIST_GET_FIRST(rw_lock_list)->magic_n
-		     == RW_LOCK_MAGIC_N);
-	}
+	ut_ad(UT_LIST_GET_FIRST(rw_lock_list) == NULL
+	      || UT_LIST_GET_FIRST(rw_lock_list)->magic_n == RW_LOCK_MAGIC_N);
 
 	UT_LIST_ADD_FIRST(list, rw_lock_list, lock);
 
@@ -298,14 +307,12 @@ the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
 UNIV_INTERN
 void
-rw_lock_free(
-/*=========*/
+rw_lock_free_func(
+/*==============*/
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
-
-	lock->magic_n = 0;
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 	mutex_free(rw_lock_get_mutex(lock));
@@ -316,16 +323,16 @@ rw_lock_free(
 
 	os_event_free(lock->wait_ex_event);
 
-	if (UT_LIST_GET_PREV(list, lock)) {
-		ut_a(UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
-	}
-	if (UT_LIST_GET_NEXT(list, lock)) {
-		ut_a(UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
-	}
+	ut_ad(UT_LIST_GET_PREV(list, lock) == NULL
+	      || UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
+	ut_ad(UT_LIST_GET_NEXT(list, lock) == NULL
+	      || UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
 
 	UT_LIST_REMOVE(list, rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
+
+	ut_d(lock->magic_n = 0);
 }
 
 #ifdef UNIV_DEBUG
@@ -339,12 +346,15 @@ rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
+	ulint	waiters;
+	lint	lock_word;
+
 	ut_a(lock);
 
-	ulint waiters = rw_lock_get_waiters(lock);
-	lint lock_word = lock->lock_word;
+	waiters = rw_lock_get_waiters(lock);
+	lock_word = lock->lock_word;
 
-	ut_a(lock->magic_n == RW_LOCK_MAGIC_N);
+	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
 	ut_a(waiters == 0 || waiters == 1);
 	ut_a(lock_word > -X_LOCK_DECR ||(-lock_word) % X_LOCK_DECR == 0);
 
@@ -607,7 +617,7 @@ rw_lock_x_lock_func(
 {
 	ulint	index;	/*!< index of the reserved wait cell */
 	ulint	i;	/*!< spin round count */
-	ibool   spinning = FALSE;
+	ibool	spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
 

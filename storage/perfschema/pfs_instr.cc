@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs_instr.cc
@@ -134,6 +134,10 @@ static PFS_events_waits *thread_history_array= NULL;
 static LF_HASH filename_hash;
 /** True if filename_hash is initialized. */
 static bool filename_hash_inited= false;
+C_MODE_START
+/** Get hash table key for instrumented files. */
+static uchar *filename_hash_get_key(const uchar *, size_t *, my_bool);
+C_MODE_END
 
 /**
   Initialize all the instruments instance buffers.

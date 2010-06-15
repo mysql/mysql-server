@@ -1782,11 +1782,12 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           error= 1;
           goto err;
         }
-        share->partition_info= tmp_part_syntax_str;
+        share->partition_info_str= tmp_part_syntax_str;
       }
       else
-        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
-      share->partition_info_len= part_info->part_info_len= syntax_len;
+        memcpy((char*) share->partition_info_str, part_syntax_buf,
+               syntax_len + 1);
+      share->partition_info_str_len= part_info->part_info_len= syntax_len;
       part_info->part_info_string= part_syntax_buf;
     }
 #endif
@@ -1929,8 +1930,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool dont_log_query)
 {
   TABLE_LIST *table;
-  char path[FN_REFLEN + 1], *alias;
-  uint path_length;
+  char path[FN_REFLEN + 1], *alias= NULL;
+  uint path_length= 0;
   String wrong_tables;
   int error= 0;
   int non_temp_tables_count= 0;
@@ -1938,9 +1939,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_query;
   String built_tmp_query;
   DBUG_ENTER("mysql_rm_table_part2");
-
-  LINT_INIT(alias);
-  LINT_INIT(path_length);
 
   if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
   {
@@ -4839,6 +4837,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       /* purecov: begin inspected */
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       size_t length;
+      enum_sql_command save_sql_command= lex->sql_command;
       DBUG_PRINT("admin", ("sending error message"));
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
@@ -4852,6 +4851,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(FALSE);
+      /*
+        Restore Query_tables_list::sql_command value to make statement
+        safe for re-execution.
+      */
+      lex->sql_command= save_sql_command;
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
@@ -5049,7 +5053,7 @@ send_result_message:
         /* Clear the ticket released in close_thread_tables(). */
         table->mdl_request.ticket= NULL;
         DEBUG_SYNC(thd, "ha_admin_open_ltable");
-        if (table->table= open_ltable(thd, table, lock_type, 0))
+        if ((table->table= open_ltable(thd, table, lock_type, 0)))
         {
           result_code= table->table->file->ha_analyze(thd, check_opt);
           if (result_code == HA_ADMIN_ALREADY_DONE)
@@ -6584,7 +6588,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if the user is trying to to do this in a transcation context
     */
 
-    if (thd->locked_tables_mode || thd->active_transaction())
+    if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
