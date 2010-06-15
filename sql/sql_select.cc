@@ -44,7 +44,7 @@
 #include "sql_partition.h"       // make_used_partitions_str
 #include "sql_acl.h"             // *_ACL
 #include "sql_test.h"            // print_where, print_keyuse_array,
-                                 // print_sjm, print_plan
+                                 // print_sjm, print_plan, TEST_join
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
@@ -90,8 +90,10 @@ static bool best_extension_by_limited_search(JOIN *join,
                                              double read_time, uint depth,
                                              uint prune_level);
 static uint determine_search_depth(JOIN* join);
+C_MODE_START
 static int join_tab_cmp(const void* ptr1, const void* ptr2);
 static int join_tab_cmp_straight(const void* ptr1, const void* ptr2);
+C_MODE_END
 static uint cache_record_length(JOIN *join,uint index);
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static bool get_best_combination(JOIN *join);

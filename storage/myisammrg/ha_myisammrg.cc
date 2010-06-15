@@ -221,8 +221,10 @@ const char *ha_myisammrg::index_type(uint key_number)
     children_last_l -----------------------------------------+
 */
 
-static int myisammrg_parent_open_callback(void *callback_param,
-                                          const char *filename)
+CPP_UNNAMED_NS_START
+
+extern "C" int myisammrg_parent_open_callback(void *callback_param,
+                                              const char *filename)
 {
   ha_myisammrg  *ha_myrg= (ha_myisammrg*) callback_param;
   TABLE         *parent= ha_myrg->table_ptr();
@@ -319,6 +321,8 @@ static int myisammrg_parent_open_callback(void *callback_param,
   }
   DBUG_RETURN(0);
 }
+
+CPP_UNNAMED_NS_END
 
 
 /**
@@ -575,7 +579,9 @@ public:
     next child table. It is called for each child table.
 */
 
-static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
+CPP_UNNAMED_NS_START
+
+extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 {
   Mrg_attach_children_callback_param *param=
     (Mrg_attach_children_callback_param*) callback_param;
@@ -642,6 +648,8 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
  end:
   DBUG_RETURN(myisam);
 }
+
+CPP_UNNAMED_NS_END
 
 
 /**
