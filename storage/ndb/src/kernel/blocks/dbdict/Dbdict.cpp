@@ -25438,8 +25438,6 @@ Dbdict::trans_complete_done(Signal* signal, SchemaTransPtr trans_ptr)
 void
 Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
-  NodeRecordPtr masterNodePtr;
-  c_nodes.getPtr(masterNodePtr, c_masterNodeId);
   ndbrequire(trans_ptr.p->m_state != SchemaTrans::TS_ENDING);
   trans_ptr.p->m_state = SchemaTrans::TS_ENDING;
 
