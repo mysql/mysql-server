@@ -7620,8 +7620,7 @@ innobase_get_mysql_key_number_for_index(
 
 	/* If index does not belong to the table of share structure. Search
 	index->table instead */
-	if (index->table != ib_table
-	    && innobase_strcasecmp(index->table->name, share->table_name)) {
+	if (index->table != ib_table) {
 		i = 0;
 		ind = dict_table_get_first_index(index->table);
 
