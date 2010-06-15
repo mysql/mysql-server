@@ -44,7 +44,11 @@ static scheduler_functions one_thread_scheduler_functions=
   1,                                     // max_threads
   NULL,                                  // init
   init_new_connection_handler_thread,    // init_new_connection_thread
+#ifndef EMBEDDED_LIBRARY
   handle_connection_in_main_thread,      // add_connection
+#else
+  NULL,                                  // add_connection
+#endif // EMBEDDED_LIBRARY
   NULL,                                  // thd_wait_begin
   NULL,                                  // thd_wait_end
   NULL,                                  // post_kill_notification
@@ -52,6 +56,7 @@ static scheduler_functions one_thread_scheduler_functions=
   NULL,                                  // end
 };
 
+#ifndef EMBEDDED_LIBRARY
 static scheduler_functions one_thread_per_connection_scheduler_functions=
 {
   0,                                     // max_threads
@@ -64,10 +69,10 @@ static scheduler_functions one_thread_per_connection_scheduler_functions=
   one_thread_per_connection_end,         // end_thread
   NULL,                                  // end
 };
+#endif  // EMBEDDED_LIBRARY
 
 
-scheduler_functions *thread_scheduler=
-  &one_thread_per_connection_scheduler_functions;
+scheduler_functions *thread_scheduler= NULL;
 
 /** @internal
   Helper functions to allow mysys to call the thread scheduler when
