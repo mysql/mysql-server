@@ -1111,7 +1111,8 @@ trx_purge_wait_for_workers_to_complete(
 
 		srv_release_threads(SRV_WORKER, 1);
 
-		os_thread_sleep(1000);
+		// FIXME: This is an arbitrary choice
+		os_thread_sleep(4000);
 	}
 
 	// FIXME: They could exit after the check too

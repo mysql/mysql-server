@@ -2827,7 +2827,6 @@ srv_purge_coordinator_thread(
 
 			do {
 				ulint	n_purged;
-				ulint	rnd = ut_rnd_gen_ulint();
 
 				n_purged = trx_purge(
 					srv_n_purge_threads, batch_size);
@@ -2875,6 +2874,14 @@ srv_purge_coordinator_thread(
 				 && (srv_shutdown_state == 0
 				     || !srv_fast_shutdown));
 		}
+	}
+
+	/* The task queue should be empty. */
+	ut_a(srv_get_task_queue_length() == 0);
+
+	/* Ensure that all the worker threads quit. */
+	if (srv_n_purge_threads > 1) {
+		srv_wake_worker_threads(srv_n_purge_threads - 1);
 	}
 
 	/* Decrement the active count. */
