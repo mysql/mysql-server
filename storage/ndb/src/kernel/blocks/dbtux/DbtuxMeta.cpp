@@ -406,7 +406,9 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
   c_indexPool.getPtr(indexPtr, req->indexId);
 
   //Uint32 save = indexPtr.p->m_state;
-  if (refToBlock(req->senderRef) != DBDICT)
+  if (! (refToBlock(req->senderRef) == DBDICT) &&
+      ! (isNdbMt() && refToMain(req->senderRef) == DBTUX && 
+         refToInstance(req->senderRef) == 0))
   {
     /**
      * DICT has a really distorted view of the world...
