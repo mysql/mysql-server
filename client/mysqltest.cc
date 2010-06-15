@@ -2924,6 +2924,41 @@ void do_system(struct st_command *command)
 
 /*
   SYNOPSIS
+  set_wild_chars
+  set  true to set * etc. as wild char, false to reset
+
+  DESCRIPTION
+  Auxiliary function to set "our" wild chars before calling wild_compare
+  This is needed because the default values are changed to SQL syntax
+  in mysqltest_embedded.
+*/
+
+void set_wild_chars (my_bool set)
+{
+  static char old_many= 0, old_one, old_prefix;
+
+  if (set) 
+  {
+    if (wild_many == '*') return; // No need
+    old_many= wild_many;
+    old_one= wild_one;
+    old_prefix= wild_prefix;
+    wild_many= '*';
+    wild_one= '?';
+    wild_prefix= 0;
+  }
+  else 
+  {
+    if (! old_many) return;	// Was not set
+    wild_many= old_many;
+    wild_one= old_one;
+    wild_prefix= old_prefix;
+  }
+}
+
+
+/*
+  SYNOPSIS
   do_remove_file
   command	called command
 
@@ -2998,6 +3033,10 @@ void do_remove_files_wildcard(struct st_command *command)
   dir_separator[0]= FN_LIBCHAR;
   dir_separator[1]= 0;
   dynstr_append(&ds_file_to_remove, dir_separator);
+  
+  /* Set default wild chars for wild_compare, is changed in embedded mode */
+  set_wild_chars(1);
+  
   for (i= 0; i < (uint) dir_info->number_off_files; i++)
   {
     file= dir_info->dir_entry + i;
@@ -3017,6 +3056,7 @@ void do_remove_files_wildcard(struct st_command *command)
     if (error)
       break;
   }
+  set_wild_chars(0);
   my_dirend(dir_info);
 
 end:
@@ -3262,6 +3302,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
   /* Note that my_dir sorts the list if not given any flags */
   if (!(dir_info= my_dir(ds_dirname->str, MYF(0))))
     DBUG_RETURN(1);
+  set_wild_chars(1);
   for (i= 0; i < (uint) dir_info->number_off_files; i++)
   {
     file= dir_info->dir_entry + i;
@@ -3275,6 +3316,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
     dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
   }
+  set_wild_chars(0);
   my_dirend(dir_info);
   DBUG_RETURN(0);
 }
@@ -3836,8 +3878,9 @@ void do_perl(struct st_command *command)
     }
     error= pclose(res_file);
 
-    /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(0));
+    /* Remove the temporary file, but keep it if perl failed */
+    if (!error)
+      my_delete(temp_file_path, MYF(0));
 
     handle_command_error(command, WEXITSTATUS(error));
   }
