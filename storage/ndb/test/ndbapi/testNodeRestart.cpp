@@ -1643,7 +1643,7 @@ runBug27003(NDBT_Context* ctx, NDBT_Step* step)
   {
     while (errnos[pos] != 0)
     {
-      ndbout_c("Tesing err: %d", errnos[pos]);
+      ndbout_c("Testing err: %d", errnos[pos]);
       
       if (res.waitNodesNoStart(&node, 1))
 	return NDBT_FAILED;
@@ -1699,7 +1699,7 @@ runBug27283(NDBT_Context* ctx, NDBT_Step* step)
       //int next2 = res.getNextMasterNodeId(next);
       
       //int node = (i & 1) ? next : next2;
-      ndbout_c("Tesing err: %d", errnos[pos]);
+      ndbout_c("Testing err: %d", errnos[pos]);
       if (res.insertErrorInNode(next, errnos[pos]))
 	return NDBT_FAILED;
 
