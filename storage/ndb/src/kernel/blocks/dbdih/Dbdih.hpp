@@ -1095,7 +1095,7 @@ private:
   void packCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void releaseReplicas(Uint32 * replicaPtr);
   void removeOldCrashedReplicas(Uint32, Uint32, ReplicaRecordPtr rocReplicaPtr);
-  void removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr);
+  void removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr, Uint32 lastCompletedGCI);
   void mergeCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void seizeReplicaRec(ReplicaRecordPtr& replicaPtr);
 
