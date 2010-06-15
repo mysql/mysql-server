@@ -1820,14 +1820,14 @@ buf_zip_decompress(
 	buf_block_t*	block,	/*!< in/out: block */
 	ibool		check)	/*!< in: TRUE=verify the page checksum */
 {
-	const byte* frame = block->page.zip.data;
+	const byte*	frame		= block->page.zip.data;
+	ulint		stamp_checksum	= mach_read_from_4(
+		frame + FIL_PAGE_SPACE_OR_CHKSUM);
 
 	ut_ad(buf_block_get_zip_size(block));
 	ut_a(buf_block_get_space(block) != 0);
 
-	if (UNIV_LIKELY(check)) {
-		ulint	stamp_checksum	= mach_read_from_4(
-			frame + FIL_PAGE_SPACE_OR_CHKSUM);
+	if (UNIV_LIKELY(check && stamp_checksum != BUF_NO_CHECKSUM_MAGIC)) {
 		ulint	calc_checksum	= page_zip_calc_checksum(
 			frame, page_zip_get_size(&block->page.zip));
 
@@ -2251,8 +2251,9 @@ wait_until_unfixed:
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool_mutex or block->mutex. */
 		success = buf_zip_decompress(block, srv_use_checksums);
+		ut_a(success);
 
-		if (UNIV_LIKELY(success && !recv_no_ibuf_operations)) {
+		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
 			ibuf_merge_or_delete_for_page(block, space, offset,
 						      zip_size, TRUE);
 		}
@@ -2265,13 +2266,6 @@ wait_until_unfixed:
 		mutex_exit(&block->mutex);
 		buf_pool->n_pend_unzip--;
 		rw_lock_x_unlock(&block->lock);
-
-		if (UNIV_UNLIKELY(!success)) {
-
-			buf_pool_mutex_exit();
-			return(NULL);
-		}
-
 		break;
 
 	case BUF_BLOCK_ZIP_FREE:

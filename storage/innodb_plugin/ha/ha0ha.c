@@ -403,8 +403,6 @@ ha_print_info(
 	FILE*		file,	/*!< in: file where to print */
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_DEBUG
 /* Some of the code here is disabled for performance reasons in production
 builds, see http://bugs.mysql.com/36941 */
@@ -418,6 +416,8 @@ builds, see http://bugs.mysql.com/36941 */
 #endif /* PRINT_USED_CELLS */
 	ulint		n_bufs;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef PRINT_USED_CELLS
 	for (i = 0; i < hash_get_n_cells(table); i++) {
 
