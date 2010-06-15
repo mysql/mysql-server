@@ -16,14 +16,16 @@
 
 if HAVE_NETWARE
 INCLUDES =			-I$(top_builddir)/include -I$(top_srcdir)/include -I..
-LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
-				../dbug/libdbug.a ../strings/libmystrings.a
+LDADD =				@CLIENT_EXTRA_LDFLAGS@ \
+				$(top_builddir)/mysys/libmysyslt.la \
+				$(top_builddir)/dbug/libdbuglt.la \
+				$(top_builddir)/strings/libmystringslt.la
 bin_PROGRAMS =			mysqld_safe mysql_install_db mysql_test_run libmysql
 mysqld_safe_SOURCES=		mysqld_safe.c my_manage.c
 mysql_install_db_SOURCES=	mysql_install_db.c my_manage.c
 mysql_test_run_SOURCES=		mysql_test_run.c my_manage.c
 libmysql_SOURCES=		libmysqlmain.c
-libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a \
+libmysql_LDADD =		$(top_builddir)/libmysql/.libs/libmysqlclient.a \
 				@openssl_libs@ @yassl_libs@
 
 netware_build_files =           client/mysql.def client/mysqladmin.def \
