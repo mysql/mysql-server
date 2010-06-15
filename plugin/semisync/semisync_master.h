@@ -153,7 +153,7 @@ public:
   int free_nodes_before(TranxNode* node)
   {
     Block *block;
-    Block *prev_block;
+    Block *prev_block= NULL;
 
     block= first_block;
     while (block != current_block->next)

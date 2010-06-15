@@ -802,7 +802,8 @@ range_not_increasing_error:
     -1                 a < b
 */
 
-int partition_info::list_part_cmp(const void* a, const void* b)
+extern "C"
+int partition_info_list_part_cmp(const void* a, const void* b)
 {
   longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
   longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
@@ -814,7 +815,14 @@ int partition_info::list_part_cmp(const void* a, const void* b)
     return 0;
 }
 
- /*
+
+int partition_info::list_part_cmp(const void* a, const void* b)
+{
+  return partition_info_list_part_cmp(a, b);
+}
+
+
+/*
   Compare two lists of column values in RANGE/LIST partitioning
   SYNOPSIS
     compare_column_values()
@@ -826,8 +834,9 @@ int partition_info::list_part_cmp(const void* a, const void* b)
     +1                       First argument is larger
 */
 
-int partition_info::compare_column_values(const void *first_arg,
-                                          const void *second_arg)
+extern "C"
+int partition_info_compare_column_values(const void *first_arg,
+                                         const void *second_arg)
 {
   const part_column_list_val *first= (part_column_list_val*)first_arg;
   const part_column_list_val *second= (part_column_list_val*)second_arg;
@@ -863,6 +872,14 @@ int partition_info::compare_column_values(const void *first_arg,
   return 0;
 }
 
+
+int partition_info::compare_column_values(const void *first_arg,
+                                          const void *second_arg)
+{
+  return partition_info_compare_column_values(first_arg, second_arg);
+}
+
+
 /*
   This routine allocates an array for all list constants to achieve a fast
   check what partition a certain value belongs to. At the same time it does
@@ -895,7 +912,7 @@ bool partition_info::check_list_constants(THD *thd)
   void *UNINIT_VAR(prev_value);
   partition_element* part_def;
   bool found_null= FALSE;
-  int (*compare_func)(const void *, const void*);
+  qsort_cmp compare_func;
   void *ptr;
   List_iterator<partition_element> list_func_it(partitions);
   DBUG_ENTER("partition_info::check_list_constants");
@@ -952,7 +969,7 @@ bool partition_info::check_list_constants(THD *thd)
     part_column_list_val *loc_list_col_array;
     loc_list_col_array= (part_column_list_val*)ptr;
     list_col_array= (part_column_list_val*)ptr;
-    compare_func= compare_column_values;
+    compare_func= partition_info_compare_column_values;
     i= 0;
     do
     {
@@ -972,7 +989,7 @@ bool partition_info::check_list_constants(THD *thd)
   }
   else
   {
-    compare_func= list_part_cmp;
+    compare_func= partition_info_list_part_cmp;
     list_array= (LIST_PART_ENTRY*)ptr;
     i= 0;
     /*

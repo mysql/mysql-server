@@ -32,11 +32,12 @@
 static void init_myfunc_errs(void);
 
 
-const char **get_server_errmsgs()
+C_MODE_START
+static const char **get_server_errmsgs()
 {
   return CURRENT_THD_ERRMSGS;
 }
-
+C_MODE_END
 
 /**
   Read messages from errorfile.

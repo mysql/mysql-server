@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -43,6 +43,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 # include "os0thread.h"
@@ -2210,6 +2211,7 @@ os_file_pread(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	n_bytes = pread(file, buf, (ssize_t)n, offs);
@@ -2217,6 +2219,7 @@ os_file_pread(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	return(n_bytes);
@@ -2230,6 +2233,7 @@ os_file_pread(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads++;
+		MONITOR_INC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2253,6 +2257,7 @@ os_file_pread(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		return(ret);
@@ -2301,6 +2306,7 @@ os_file_pwrite(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
 	os_n_pending_writes++;
+	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 	ret = pwrite(file, buf, (ssize_t)n, offs);
@@ -2308,6 +2314,7 @@ os_file_pwrite(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
 	os_n_pending_writes--;
+	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 # ifdef UNIV_DO_FLUSH
@@ -2333,6 +2340,7 @@ os_file_pwrite(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes++;
+		MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 # ifndef UNIV_HOTBACKUP
@@ -2372,6 +2380,7 @@ func_exit:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
+		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 		return(ret);
@@ -2423,6 +2432,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2442,6 +2452,7 @@ try_again:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
@@ -2455,6 +2466,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -2549,6 +2561,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2568,6 +2581,7 @@ try_again:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
@@ -2581,6 +2595,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -2679,6 +2694,7 @@ retry:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes++;
+	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2698,6 +2714,7 @@ retry:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
+		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 		ut_print_timestamp(stderr);
@@ -2734,6 +2751,7 @@ retry:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
+	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {

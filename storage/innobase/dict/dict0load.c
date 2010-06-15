@@ -1695,6 +1695,7 @@ err_exit:
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
 				TRUE, table->space,
+				table->flags == DICT_TF_COMPACT ? 0 :
 				table->flags & ~(~0 << DICT_TF_BITS), name)) {
 				/* We failed to find a sensible
 				tablespace file */
