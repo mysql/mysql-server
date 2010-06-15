@@ -269,7 +269,7 @@ int main(int argc,char *argv[])
     HA_ERRORS *ha_err_ptr;
     for (code=1 ; code < sys_nerr ; code++)
     {
-      if (sys_errlist[code][0])
+      if (sys_errlist[code] && sys_errlist[code][0])
       {						/* Skip if no error-text */
 	printf("%3d = %s\n",code,sys_errlist[code]);
       }
