@@ -351,6 +351,7 @@ int get_rand_op_str(char *str)
   len2 = get_rand_col_str(temp+len1);
   len = len1 + len2;
   temp[len] = 'x';
+  temp[len+1] = '\0'; // Add ending \0
   BaseString::snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
   return len+1;
 }
