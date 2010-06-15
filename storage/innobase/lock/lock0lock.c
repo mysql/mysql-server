@@ -4504,15 +4504,18 @@ lock_print_info_all_transactions(
 
 	/* First print info on non-active transactions */
 
-	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
 
-	while (trx) {
+		trx_mutex_enter(trx);
+
 		if (trx->lock.conc_state == TRX_NOT_STARTED) {
 			fputs("---", file);
 			trx_print(file, trx, 600);
 		}
 
-		trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		trx_mutex_exit(trx);
 	}
 
 loop:
@@ -4679,9 +4682,14 @@ lock_table_queue_validate(
 
 	ut_ad(lock_mutex_own());
 
-	lock = UT_LIST_GET_FIRST(table->locks);
+	trx_sys_mutex_enter();
 
-	while (lock) {
+	for (lock = UT_LIST_GET_FIRST(table->locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) {
+
+		trx_mutex_enter(lock->trx);
+
 		ut_a((lock->trx->lock.conc_state == TRX_ACTIVE)
 		     || (lock->trx->lock.conc_state == TRX_PREPARED)
 		     || (lock->trx->lock.conc_state
@@ -4697,8 +4705,10 @@ lock_table_queue_validate(
 			ut_a(lock_table_has_to_wait_in_queue(lock));
 		}
 
-		lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock);
+		trx_mutex_exit(lock->trx);
 	}
+
+	trx_sys_mutex_exit();
 
 	return(TRUE);
 }
@@ -4732,9 +4742,12 @@ lock_rec_queue_validate(
 
 		trx_sys_mutex_enter();
 
-		lock = lock_rec_get_first(block, heap_no);
+		for (lock = lock_rec_get_first(block, heap_no);
+		     lock != NULL;
+		     lock = lock_rec_get_next(heap_no, lock)) {
 
-		while (lock) {
+			trx_mutex_enter(lock->trx);
+
 			switch(lock->trx->lock.conc_state) {
 			case TRX_ACTIVE:
 			case TRX_PREPARED:
@@ -4754,7 +4767,7 @@ lock_rec_queue_validate(
 				ut_a(lock->index == index);
 			}
 
-			lock = lock_rec_get_next(heap_no, lock);
+			trx_mutex_exit(lock->trx);
 		}
 
 		trx_sys_mutex_exit();
@@ -4828,9 +4841,11 @@ lock_rec_queue_validate(
 
 	trx_sys_mutex_enter();
 
-	lock = lock_rec_get_first(block, heap_no);
+	for (lock = lock_rec_get_first(block, heap_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next(heap_no, lock)) {
 
-	while (lock) {
+		trx_mutex_enter(lock->trx);
 
 		ut_a(lock->trx->lock.conc_state == TRX_ACTIVE
 		     || lock->trx->lock.conc_state == TRX_PREPARED
@@ -4858,7 +4873,7 @@ lock_rec_queue_validate(
 			ut_a(lock_rec_has_to_wait_in_queue(lock));
 		}
 
-		lock = lock_rec_get_next(heap_no, lock);
+		trx_mutex_exit(lock->trx);
 	}
 
 	trx_sys_mutex_exit();
@@ -4926,9 +4941,13 @@ loop:
 
 	ut_a(trx_in_trx_list(lock->trx));
 
+	trx_mutex_enter(lock->trx);
+
 	ut_a(lock->trx->lock.conc_state == TRX_ACTIVE
 	     || lock->trx->lock.conc_state == TRX_PREPARED
 	     || lock->trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY);
+
+	trx_mutex_exit(lock->trx);
 
 # ifdef UNIV_SYNC_DEBUG
 	/* Only validate the record queues when this thread is not
@@ -5537,8 +5556,7 @@ lock_clust_rec_read_check_and_lock(
 	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
-	err = lock_rec_lock(FALSE, mode | gap_mode,
-			    block, heap_no, index, thr);
+	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
 
 	lock_mutex_exit();
 
@@ -5940,6 +5958,8 @@ lock_trx_release_locks(
 {
 	lock_mutex_enter();
 
+	trx_mutex_enter(trx);
+
 	ut_ad(trx->lock.conc_state == TRX_ACTIVE
 	      || trx->lock.conc_state == TRX_PREPARED);
 
@@ -5972,6 +5992,8 @@ lock_trx_release_locks(
 	while the rollback of other transactions happen in the
 	background thread. To avoid this race we unconditionally
 	unset the is_recovered flag from the trx. */
+
+	trx_mutex_exit(trx);
 
 	lock_release(trx);
 
