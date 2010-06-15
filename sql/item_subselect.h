@@ -296,6 +296,8 @@ protected:
   */
   List<Cached_item> *left_expr_cache;
   bool first_execution;
+  /** The need for expr cache may be optimized away, @sa init_left_expr_cache. */
+  bool need_expr_cache;
 
   /*
     expr & optimizer used in subselect rewriting to store Item for
@@ -365,6 +367,7 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
+    need_expr_cache(TRUE),
     optimizer(0), abort_on_null(0), pushed_cond_guards(NULL),
     exec_method(NOT_TRANSFORMED), upper_item(0)
   {}
