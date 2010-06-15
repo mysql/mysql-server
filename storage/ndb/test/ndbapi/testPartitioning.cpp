@@ -785,18 +785,34 @@ load_dist_table(Ndb* pNdb, int records, int parts)
     NdbTransaction* trans= pNdb->startTransaction();
     CHECKNOTNULL(trans, pNdb);
 
-    int& dKeyVal= *((int*) NdbDictionary::getValuePtr(distRecord,
-                                                      buf,
-                                                      tab->getColumn(DistTabDKeyCol)->getAttrId()));
-    int& pKey2Val= *((int*) NdbDictionary::getValuePtr(distRecord,
-                                                      buf,
-                                                      tab->getColumn(DistTabPKey2Col)->getAttrId()));
-    int& resultVal=  *((int*) NdbDictionary::getValuePtr(distRecord,
-                                                      buf,
-                                                      tab->getColumn(DistTabResultCol)->getAttrId()));
-    dKeyVal= r % parts;
-    pKey2Val= r;
-    resultVal= r*r;
+    {
+      const int dKeyVal= r % parts;
+      const Uint32 dKeyAttrid= tab->getColumn(DistTabDKeyCol)->getAttrId();
+      memcpy(NdbDictionary::getValuePtr(distRecord, buf,
+                                        dKeyAttrid),
+             &dKeyVal, sizeof(dKeyVal));
+    }
+
+    {
+      const int pKey2Val= r;
+      const Uint32 pKey2Attrid= tab->getColumn(DistTabPKey2Col)->getAttrId();
+      memcpy(NdbDictionary::getValuePtr(distRecord, buf,
+                                        pKey2Attrid),
+             &pKey2Val, sizeof(pKey2Val));
+    }
+
+    {
+      const int resultVal= r*r;
+      const Uint32 resultValAttrid=
+        tab->getColumn(DistTabResultCol)->getAttrId();
+      memcpy(NdbDictionary::getValuePtr(distRecord, buf,
+                                        resultValAttrid),
+             &resultVal, sizeof(resultVal));
+
+      // set not NULL
+      NdbDictionary::setNull(distRecord, buf, resultValAttrid, false);
+    }
+
 
     NdbOperation::OperationOptions opts;
     opts.optionsPresent= 0;
@@ -1177,7 +1193,12 @@ run_dist_test(NDBT_Context* ctx, NDBT_Step* step)
     ->getTable(DistTabName)
     ->getFragmentCount();
   int numDkeyValues= 2*numTabPartitions + (rand() % 6);
-  
+  if (numDkeyValues > records)
+  {
+    // limit number of distributions keys to number of records
+    numDkeyValues = records;
+  }
+
   ndbout << "Table has " << numTabPartitions
          << " physical partitions" << endl;
   ndbout << "Testing with " << numDkeyValues 
