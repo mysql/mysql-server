@@ -154,6 +154,7 @@ SET @failures= 'd,crash_after_apply d,crash_before_update_pos d,crash_after_upda
 SET @commands= 'T';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -169,15 +170,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	8143		
 
 
 
 SET @commands= 'T-trig';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (8, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -193,15 +192,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	8350		
 
 
 
 SET @commands= 'T-func';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (9, 1);
 fc_i_tt_5_suc (9, 1)
@@ -219,15 +216,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	8542		
 
 
 
 SET @commands= 'T-proc';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (10, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -249,15 +244,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	9066		
 
 
 
-SET @commands= 'B T T C';
+SET @commands= 'B T T-trig C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -266,36 +259,34 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4);
+-b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (11, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (11, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (11, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	9387		
 
 
 
-SET @commands= 'B T T-trig C';
+SET @commands= 'B T T-func C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -304,36 +295,36 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (12, 4);
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (12, 4);
+fc_i_tt_5_suc (12, 4)
+fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (12, 4)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(12,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (12, 4)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(12,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	9708		
 
 
 
-SET @commands= 'B T T-func C';
+SET @commands= 'B T T-proc C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -342,86 +333,82 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (13, 4);
-fc_i_tt_5_suc (13, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(13,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(13,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	10014		
-
-
-
-SET @commands= 'B T T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_apply";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (14, 4);
+CALL pc_i_tt_5_suc (13, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',14),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',14),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',13),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',13),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',14),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',14),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',13),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',13),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	10556		
 
 
 
 SET @commands= 'B T-trig T C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (15, 2);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (14, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (14, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (14, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+START SLAVE;
+
+
+
+SET @commands= 'B T-func T C';
+STOP SLAVE SQL_THREAD;
+SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (15, 2);
+fc_i_tt_5_suc (15, 2)
+fc_i_tt_5_suc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -430,38 +417,34 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (15, 2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(15,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (15, 2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(15,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	10877		
 
 
 
-SET @commands= 'B T-func T C';
+SET @commands= 'B T-proc T C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_apply";;
+FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (16, 2);
-fc_i_tt_5_suc (16, 2)
-fc_i_tt_5_suc
+-b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+CALL pc_i_tt_5_suc (16, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -470,172 +453,160 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(16,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(16,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	11183		
-
-
-
-SET @commands= 'B T-proc T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_apply";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (17, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',17),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',17),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',17),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',17),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	11725		
 
 
 
 SET @commands= 'T';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 1);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	11933		
 
 
 
 SET @commands= 'T-trig';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (19, 1);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (18, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (19, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (18, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (19, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (18, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	12141		
 
 
 
 SET @commands= 'T-func';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (20, 1);
-fc_i_tt_5_suc (20, 1)
+SELECT fc_i_tt_5_suc (19, 1);
+fc_i_tt_5_suc (19, 1)
 fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(20,1)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(19,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(20,1)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(19,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	12334		
 
 
 
 SET @commands= 'T-proc';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (21, 1);
+CALL pc_i_tt_5_suc (20, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',21),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',21),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',21),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',21),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	12858		
 
 
 
-SET @commands= 'B T T C';
+SET @commands= 'B T T-trig C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (21, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (21, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (21, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+
+START SLAVE;
+
+
+
+SET @commands= 'B T T-func C';
+STOP SLAVE SQL_THREAD;
+SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -644,36 +615,36 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4);
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (22, 4);
+fc_i_tt_5_suc (22, 4)
+fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(22,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(22,4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	13179		
 
 
 
-SET @commands= 'B T T-trig C';
+SET @commands= 'B T T-proc C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -682,124 +653,118 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (23, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (23, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (23, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	13500		
-
-
-
-SET @commands= 'B T T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_before_update_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (24, 4);
-fc_i_tt_5_suc (24, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(24,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(24,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	13806		
-
-
-
-SET @commands= 'B T T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_before_update_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (25, 4);
+CALL pc_i_tt_5_suc (23, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',25),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',25),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',23),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',23),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',25),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',25),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',23),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',23),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	14348		
 
 
 
 SET @commands= 'B T-trig T C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (26, 2);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (24, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (24, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (24, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+START SLAVE;
+
+
+
+SET @commands= 'B T-func T C';
+STOP SLAVE SQL_THREAD;
+SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (25, 2);
+fc_i_tt_5_suc (25, 2)
+fc_i_tt_5_suc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(25,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(25,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+START SLAVE;
+
+
+
+SET @commands= 'B T-proc T C';
+STOP SLAVE SQL_THREAD;
+SET GLOBAL debug="d,crash_before_update_pos";;
+FAILURE d,crash_before_update_pos and OUTCOME O1
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+CALL pc_i_tt_5_suc (26, 2);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -808,212 +773,198 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (26, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (26, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	14669		
-
-
-
-SET @commands= 'B T-func T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_before_update_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (27, 2);
-fc_i_tt_5_suc (27, 2)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(27,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(27,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	14975		
-
-
-
-SET @commands= 'B T-proc T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_before_update_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (28, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',28),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',28),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',28),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',28),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (28, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	15517		
 
 
 
 SET @commands= 'T';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 1);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (29, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	15725		
 
 
 
 SET @commands= 'T-trig';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (30, 1);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (28, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (30, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (28, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (30, 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (28, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	15933		
 
 
 
 SET @commands= 'T-func';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (31, 1);
-fc_i_tt_5_suc (31, 1)
+SELECT fc_i_tt_5_suc (29, 1);
+fc_i_tt_5_suc (29, 1)
 fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(31,1)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(29,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(31,1)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(29,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	16126		
 
 
 
 SET @commands= 'T-proc';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (32, 1);
+CALL pc_i_tt_5_suc (30, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',32),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',32),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',32),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',32),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	16650		
 
 
 
-SET @commands= 'B T T C';
+SET @commands= 'B T T-trig C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (31, 4);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (31, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (31, 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+
+START SLAVE;
+
+
+
+SET @commands= 'B T T-func C';
+STOP SLAVE SQL_THREAD;
+SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2);
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+SELECT fc_i_tt_5_suc (32, 4);
+fc_i_tt_5_suc (32, 4)
+fc_i_tt_5_suc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(32,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(32,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
+
+START SLAVE;
+
+
+
+SET @commands= 'B T T-proc C';
+STOP SLAVE SQL_THREAD;
+SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -1022,2610 +973,213 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	16971		
-
-
-
-SET @commands= 'B T T-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	17292		
-
-
-
-SET @commands= 'B T T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (35, 4);
-fc_i_tt_5_suc (35, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(35,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 2)
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(35,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	17598		
-
-
-
-SET @commands= 'B T T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (36, 4);
+CALL pc_i_tt_5_suc (33, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',33),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',33),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',33),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',33),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	18140		
 
 
 
 SET @commands= 'B T-trig T C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (37, 2);
+INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 4);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (37, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (37, 2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	18461		
 
 
 
 SET @commands= 'B T-func T C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (38, 2);
-fc_i_tt_5_suc (38, 2)
+SELECT fc_i_tt_5_suc (35, 2);
+fc_i_tt_5_suc (35, 2)
 fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 4);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(38,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 4)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(35,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(38,2)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (38, 4)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(35,2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	18767		
 
 
 
 SET @commands= 'B T-proc T C';
 STOP SLAVE SQL_THREAD;
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
+FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (39, 2);
+CALL pc_i_tt_5_suc (36, 2);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 4);
+INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 4);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',39),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',39),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',39),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',39),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (39, 4)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1))
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1) + 1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	19309		
 ###################################################################################
 #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
 ###################################################################################
-SET @failures= 'd,crash_after_commit_pos d,crash_after_begin_pos';
+SET @failures= 'd,crash_after_commit_and_update_pos';
 
 
 
-SET @commands= 'B N C';
+SET @commands= 'N';
 STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
+FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (40, 2);
+INSERT INTO nt_1(trans_id, stmt_id) VALUES (37, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (40, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (37, 1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N C << -b-b-b-b-b-b-b-b-b-b-b-
+-b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (40, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (37, 1)
 master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> B N C << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	19559		
 
 
 
-SET @commands= 'B N-trig C';
+SET @commands= 'N-trig';
 STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
+FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (41, 2);
+INSERT INTO nt_5(trans_id, stmt_id) VALUES (38, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (41, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (38, 1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+-b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (41, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (38, 1)
 master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
+-e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	19809		
 
 
 
-SET @commands= 'B N-func C';
+SET @commands= 'N-func';
 STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
+FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (42, 2);
-fc_i_nt_5_suc (42, 2)
+SELECT fc_i_nt_5_suc (39, 1);
+fc_i_nt_5_suc (39, 1)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(42,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(39,1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(42,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	20044		
-
-
-
-SET @commands= 'B N T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (43, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (43, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (43, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (43, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (43, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (43, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	20502		
-
-
-
-SET @commands= 'B N-trig T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (44, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (44, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (44, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (44, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (44, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (44, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	20960		
-
-
-
-SET @commands= 'B N-func T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (45, 2);
-fc_i_nt_5_suc (45, 2)
-fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(45,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(39,1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (45, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (45, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(45,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (45, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
 START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	21403		
-
-
-
-SET @commands= 'B N T-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (46, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (46, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (46, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (46, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (46, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (46, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	21861		
-
-
-
-SET @commands= 'B N-trig T-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (47, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (47, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (47, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (47, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (47, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (47, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22319		
-
-
-
-SET @commands= 'B N-func T-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (48, 2);
-fc_i_nt_5_suc (48, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(48,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (48, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (48, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(48,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (48, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	22762		
-
-
-
-SET @commands= 'B N T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (49, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (49, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (49, 4);
-fc_i_tt_5_suc (49, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(49,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (49, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(49,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	23205		
-
-
-
-SET @commands= 'B N-trig T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (50, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (50, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (50, 4);
-fc_i_tt_5_suc (50, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(50,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (50, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(50,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	23648		
-
-
-
-SET @commands= 'B N-func T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (51, 2);
-fc_i_nt_5_suc (51, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(51,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (51, 4);
-fc_i_tt_5_suc (51, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(51,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(51,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(51,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	24076		
-
-
-
-SET @commands= 'B N T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (52, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (52, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (52, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',52),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',52),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (52, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',52),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',52),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	24755		
-
-
-
-SET @commands= 'B N-trig T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (53, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (53, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (53, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',53),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',53),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (53, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',53),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',53),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	25434		
-
-
-
-SET @commands= 'B N-func T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (54, 2);
-fc_i_nt_5_suc (54, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(54,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (54, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',54),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',54),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(54,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',54),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',54),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	26098		
-
-
-
-SET @commands= 'B T N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (55, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (55, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (55, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (55, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (55, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (55, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	26556		
-
-
-
-SET @commands= 'B T N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (56, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (56, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (56, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (56, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (56, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (56, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	27014		
-
-
-
-SET @commands= 'B T N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (57, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (57, 4);
-fc_i_nt_5_suc (57, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(57,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (57, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(57,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (57, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	27457		
-
-
-
-SET @commands= 'B T-trig N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (58, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (58, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (58, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (58, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (58, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (58, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	27915		
-
-
-
-SET @commands= 'B T-trig N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (59, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (59, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (59, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (59, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (59, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (59, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	28373		
-
-
-
-SET @commands= 'B T-trig N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (60, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (60, 4);
-fc_i_nt_5_suc (60, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(60,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (60, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(60,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (60, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	28816		
-
-
-
-SET @commands= 'B T-func N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (61, 2);
-fc_i_tt_5_suc (61, 2)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (61, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (61, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(61,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (61, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(61,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	29259		
-
-
-
-SET @commands= 'B T-func N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (62, 2);
-fc_i_tt_5_suc (62, 2)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (62, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (62, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(62,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (62, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(62,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	29702		
-
-
-
-SET @commands= 'B T-func N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (63, 2);
-fc_i_tt_5_suc (63, 2)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (63, 4);
-fc_i_nt_5_suc (63, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(63,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(63,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(63,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(63,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	30130		
-
-
-
-SET @commands= 'B T-proc N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (64, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (64, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (64, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',64),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',64),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (64, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',64),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',64),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	30809		
-
-
-
-SET @commands= 'B T-proc N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (65, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (65, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (65, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',65),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',65),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (65, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',65),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',65),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	31488		
-
-
-
-SET @commands= 'B T-proc N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_commit_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (66, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (66, 4);
-fc_i_nt_5_suc (66, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(66,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',66),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',66),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(66,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',66),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',66),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	32152		
-
-
-
-SET @commands= 'B N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (67, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (67, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (67, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> B N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	32402		
-
-
-
-SET @commands= 'B N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (68, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (68, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (68, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	32652		
-
-
-
-SET @commands= 'B N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (69, 2);
-fc_i_nt_5_suc (69, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(69,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(69,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	32887		
-
-
-
-SET @commands= 'B N T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (70, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (70, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (70, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (70, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (70, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (70, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	33345		
-
-
-
-SET @commands= 'B N-trig T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (71, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (71, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (71, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (71, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (71, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (71, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	33803		
-
-
-
-SET @commands= 'B N-func T C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (72, 2);
-fc_i_nt_5_suc (72, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(72,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (72, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (72, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(72,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (72, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	34246		
-
-
-
-SET @commands= 'B N T-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (73, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (73, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (73, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (73, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (73, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (73, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	34704		
-
-
-
-SET @commands= 'B N-trig T-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (74, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (74, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (74, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (74, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (74, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (74, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	35162		
-
-
-
-SET @commands= 'B N-func T-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (75, 2);
-fc_i_nt_5_suc (75, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(75,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (75, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (75, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(75,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (75, 4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	35605		
-
-
-
-SET @commands= 'B N T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (76, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (76, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (76, 4);
-fc_i_tt_5_suc (76, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(76,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (76, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(76,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	36048		
-
-
-
-SET @commands= 'B N-trig T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (77, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (77, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (77, 4);
-fc_i_tt_5_suc (77, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(77,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (77, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(77,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	36491		
-
-
-
-SET @commands= 'B N-func T-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (78, 2);
-fc_i_nt_5_suc (78, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(78,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (78, 4);
-fc_i_tt_5_suc (78, 4)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(78,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(78,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(78,4)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	36919		
-
-
-
-SET @commands= 'B N T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (79, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (79, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (79, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',79),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',79),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (79, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',79),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',79),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	37598		
-
-
-
-SET @commands= 'B N-trig T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (80, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (80, 2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (80, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',80),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',80),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (80, 2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',80),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',80),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-trig T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	38277		
-
-
-
-SET @commands= 'B N-func T-proc C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (81, 2);
-fc_i_nt_5_suc (81, 2)
-fc_i_nt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(81,2)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (81, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',81),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',81),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(81,2)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',81),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',81),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B N-func T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	38941		
-
-
-
-SET @commands= 'B T N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (82, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (82, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (82, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (82, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (82, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (82, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	39399		
-
-
-
-SET @commands= 'B T N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (83, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (83, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (83, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (83, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (83, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (83, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	39857		
-
-
-
-SET @commands= 'B T N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_1(trans_id, stmt_id) VALUES (84, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (84, 4);
-fc_i_nt_5_suc (84, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(84,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (84, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(84,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (84, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	40300		
-
-
-
-SET @commands= 'B T-trig N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (85, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (85, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (85, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (85, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (85, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (85, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	40758		
-
-
-
-SET @commands= 'B T-trig N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (86, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (86, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (86, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (86, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (86, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (86, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	41216		
-
-
-
-SET @commands= 'B T-trig N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO tt_5(trans_id, stmt_id) VALUES (87, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (87, 4);
-fc_i_nt_5_suc (87, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(87,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (87, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(87,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (87, 2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-trig N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	41659		
-
-
-
-SET @commands= 'B T-func N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (88, 2);
-fc_i_tt_5_suc (88, 2)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (88, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (88, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(88,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (88, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(88,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	42102		
-
-
-
-SET @commands= 'B T-func N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (89, 2);
-fc_i_tt_5_suc (89, 2)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (89, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (89, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(89,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (89, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(89,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	42545		
-
-
-
-SET @commands= 'B T-func N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_tt_5_suc (90, 2);
-fc_i_tt_5_suc (90, 2)
-fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (90, 4);
-fc_i_nt_5_suc (90, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(90,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(90,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(90,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(90,2)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-func N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	42973		
-
-
-
-SET @commands= 'B T-proc N C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (91, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_1(trans_id, stmt_id) VALUES (91, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (91, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',91),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',91),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (91, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',91),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',91),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	43652		
-
-
-
-SET @commands= 'B T-proc N-trig C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (92, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
-INSERT INTO nt_5(trans_id, stmt_id) VALUES (92, 4);
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (92, 4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',92),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',92),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-trig C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (92, 4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',92),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',92),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-trig C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	44331		
-
-
-
-SET @commands= 'B T-proc N-func C';
-STOP SLAVE SQL_THREAD;
-SET GLOBAL debug="d,crash_after_begin_pos";;
--b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
-BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
-CALL pc_i_tt_5_suc (93, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
--e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
-SELECT fc_i_nt_5_suc (93, 4);
-fc_i_nt_5_suc (93, 4)
-fc_i_nt_5_suc
-Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(93,4)
-master-bin.000001	#	Query	#	#	COMMIT
--e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
-COMMIT;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',93),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',93),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
--b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-func C << -b-b-b-b-b-b-b-b-b-b-b-
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(93,4)
-master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',93),  NAME_CONST('in_stmt_id',1))
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',93),  NAME_CONST('in_stmt_id',1) + 1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
--e-e-e-e-e-e-e-e-e-e-e- >> B T-proc N-func C << -e-e-e-e-e-e-e-e-e-e-e-
-
-START SLAVE;
-SHOW MASTER STATUS;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	44995		
 ###################################################################################
 #                               CHECK CONSISTENCY
 ###################################################################################

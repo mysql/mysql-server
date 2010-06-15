@@ -1,21 +1,78 @@
 ###############################################################################
-#  This test case aims at crashing the slave at several points and verifies
-#  if it does not go out of sync.
+#  This test case aims at checking if a slave does not go out of sync after
+#  injecting crashes at specific points. The following scenarios are analyzed:
 #
-#  For those transactions involving only transactional tables, we crash the
-#  slave while committing the transaction at the following points:
+#     |------------+-----------------------+---------+---------+---------|
+#     | SCENARIO # | SCENARIO              | CRASH-1 | CRASH-2 | CRASH-3 |
+#     |------------+-----------------------+---------+---------+---------|
+#     |          1 | T                     | O1      | O1      | O2      |
+#     |          2 | T-*                   | O1      | O1      | O2      |
+#     |          3 | B T T-* C             | O1      | O1      | O2      |
+#     |          4 | B T-* T C             | O1      | O1      | O2      |
+#     |          5 | N                     | O3      | O3      | O2      |
+#     |          6 | N-*                   | O3      | O3      | O2      |
+#     |------------+-----------------------+---------+---------+---------|
 #
-#  1 - crash_before_update_pos - before updating the positions.
-#  2 - crash_after_update_pos_before_apply - after updating the positions but
-#      before committing the transaction.
-#  3 - crash_after_apply - after updating the position and committing the
-#      transaction.
+#  Legend:
 #
-#  When a non-transactional table is updated, we crash the slave at two points:
+#  . T - Updates transactional table by calling insert/update/delete.
 #
-#  1 - crash_after_begin_pos - after executing begin and updating the
-#  positions.
-#  2 - crash_after_commit_pos - after committing and updating the positions.
+#  . N - Updates non-transactional by calling insert/update/delete.
+#
+#  . T-* - Updates transactional table through a trigger, procedure or function
+#  by calling insert/update/delete.
+#
+#  . N-* - Updates non-transactional table through a trigger or function
+#  by calling insert/update/delete.
+#
+#  . B - Begin.
+#
+#  . C - Commit.
+#
+#  . R - Rollback.
+#
+#  For those transactions involving only transactional tables, faults are
+#  injected while committing a transaction at the following points:
+#
+#  CRASH-1 - crash_before_update_pos - before updating the positions.
+#  CRASH-2 - crash_after_update_pos_before_apply - after updating the positions
+#  but before committing the transaction.
+#  CRASH-3 - crash_after_apply - after updating the position and committing the
+#  transaction.
+#
+#  When a non-transactional table is updated, faults are injected at one point:
+#
+#  CRASH-3 - crash_after_commit_and_update_pos - after committing and updating
+#  the positions.
+#
+#  After injecting the faults, we expect the following outcomes:
+#
+#  O1. In this case, the slave shall correctly recover to "S" without going out
+#  of sync and process "tx". 
+#
+#  O2. In this case, the slave shall correctly recover to "S'"  without going 
+#  out of sync.
+#
+#  O3. In this case, the slave shall recover to "S''" and re-execute "tx". 
+#  In this case, the SQL Thread may fail due to duplicate keys, if any, and
+#  most likely the slave will become inconsistent. The user should manually 
+#  check the slave and resolve the problems.
+#
+#  where
+#
+#  . S represents a database's state.
+#
+#  . tx represents a transaction ended by either "C" or "R".
+#
+#  . S' represents a database's state after processing "tx" and seen by
+#  concurrent transactions.
+#
+#  . S'' represents a database's state after partially processing "tx"
+#  seen by concurrent transactions.
+#
+#  Note however that we do not inject faults that generate "O3" as we are only
+#  interested in the cases that the slave can automatically recover.
+#  See WL#4801 for further details.
 ################################################################################
 
 
@@ -32,15 +89,18 @@ SET @commands= 'configure';
 --echo ###################################################################################
 connection master;
 SET @failures= 'd,crash_after_apply d,crash_before_update_pos d,crash_after_update_pos_before_apply';
+#
+# Executes a set of tests while there are crash points in @failures.
+#
 while (`SELECT HEX(@failures) != HEX('')`)
 {
+  #
+  # Gets a crash point from the set of crash points in @failures and
+  # stores it into @failure.
+  #
   --disable_query_log
   SET @failure= SUBSTRING_INDEX(@failures, ' ', 1);
   let $failure= `SELECT @failure`;
-  if (`SELECT HEX(@failure) = HEX('ignore')`)
-  {
-    SET @failure= '';
-  }
   --enable_query_log
 
   --echo
@@ -65,12 +125,6 @@ while (`SELECT HEX(@failures) != HEX('')`)
   --echo
   --echo
   SET @commands= 'T-proc';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T T C';
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
@@ -109,6 +163,9 @@ while (`SELECT HEX(@failures) != HEX('')`)
   SET @commands= 'B T-proc T C';
   --source extra/rpl_tests/rpl_crash_safe.inc
 
+  #
+  # Removes @failure from the set of crash points in @failures.
+  #
   --disable_query_log
   --eval  SET @failure= '$failure';
   SET @failures= LTRIM(SUBSTRING(@failures, LENGTH(@failure) + 1));
@@ -118,180 +175,42 @@ while (`SELECT HEX(@failures) != HEX('')`)
 --echo ###################################################################################
 --echo #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
 --echo ###################################################################################
-SET @failures= 'd,crash_after_commit_pos d,crash_after_begin_pos';
+SET @failures= 'd,crash_after_commit_and_update_pos';
+#
+# Executes a set of tests while there are crash points in @failures.
+#
 while (`SELECT HEX(@failures) != HEX('')`)
 {
+  #
+  # Gets a crash point from the set of crash points in @failures and
+  # stores it into @failure.
+  #
   --disable_query_log
   SET @failure= SUBSTRING_INDEX(@failures, ' ', 1);
   let $failure= `SELECT @failure`;
-  if (`SELECT HEX(@failure) = HEX('ignore')`)
-  {
-    SET @failure= '';
-  }
   --enable_query_log
 
   --echo
   --echo
   --echo
-  SET @commands= 'B N C';
+  SET @commands= 'N';
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'B N-trig C';
+  SET @commands= 'N-trig';
   --source extra/rpl_tests/rpl_crash_safe.inc
 
   --echo
   --echo
   --echo
-  SET @commands= 'B N-func C';
+  SET @commands= 'N-func';
   --source extra/rpl_tests/rpl_crash_safe.inc
 
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N T C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-trig T C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-func T C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N T-trig C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-trig T-trig C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-func T-trig C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N T-func C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-trig T-func C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-func T-func C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N T-proc C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-trig T-proc C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B N-func T-proc C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T N C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T N-trig C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T N-func C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-trig N C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-trig N-trig C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-trig N-func C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-func N C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-func N-trig C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-func N-func C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-proc N C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-proc N-trig C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
-  --echo
-  --echo
-  --echo
-  SET @commands= 'B T-proc N-func C';
-  --source extra/rpl_tests/rpl_crash_safe.inc
-
+  #
+  # Removes @failure from the set of crash points in @failures.
+  #
   --disable_query_log
   --eval  SET @failure= '$failure';
   SET @failures= LTRIM(SUBSTRING(@failures, LENGTH(@failure) + 1));
