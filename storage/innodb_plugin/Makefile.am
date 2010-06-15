@@ -331,7 +331,7 @@ libinnobase_a_CFLAGS=	$(AM_CFLAGS)
 EXTRA_LTLIBRARIES=	ha_innodb_plugin.la
 pkgplugin_LTLIBRARIES=	@plugin_innodb_plugin_shared_target@
 
-ha_innodb_plugin_la_LDFLAGS=	-module -rpath $(pkgplugindir)
+ha_innodb_plugin_la_LDFLAGS=	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 ha_innodb_plugin_la_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_plugin_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_plugin_la_SOURCES=	$(libinnobase_a_SOURCES)
