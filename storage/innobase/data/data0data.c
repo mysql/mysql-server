@@ -666,6 +666,21 @@ dtuple_convert_big_rec(
 				goto skip_field;
 			}
 
+			/* In DYNAMIC and COMPRESSED format, store
+			locally any non-BLOB columns whose maximum
+			length does not exceed 256 bytes.  This is
+			because there is no room for the "external
+			storage" flag when the maximum length is 255
+			bytes or less. This restriction trivially
+			holds in REDUNDANT and COMPACT format, because
+			there we always store locally columns whose
+			length is up to local_len == 788 bytes.
+			@see rec_init_offsets_comp_ordinary */
+			if (ifield->col->mtype != DATA_BLOB
+			    && ifield->col->len < 256) {
+				goto skip_field;
+			}
+
 			longest_i = i;
 			longest = savings;
 
