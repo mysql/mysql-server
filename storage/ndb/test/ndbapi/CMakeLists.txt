@@ -67,6 +67,7 @@ Add_EXECUTABLE(testNdbinfo testNdbinfo.cpp)
 ADD_EXECUTABLE(testNativeDefault testNativeDefault.cpp)
 TARGET_LINK_LIBRARIES(testBackup ndbbank)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank)
+ADD_EXECUTABLE(testLimits testLimits.cpp)
 
 INSTALL(TARGETS create_all_tabs create_tab
   drop_all_tabs flexAsynch flexBench
@@ -79,4 +80,5 @@ INSTALL(TARGETS create_all_tabs create_tab
   testDeadlock test_event ndbapi_slow_select testReadPerf
   testLcp testPartitioning testBitfield DbCreate
   DbAsyncGenerator test_event_merge testNdbinfo
+  testNativeDefault testLimits
 DESTINATION bin)
