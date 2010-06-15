@@ -79,11 +79,11 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-  --engine-rep=engine  The type of the engine where the mysql.slave_master_info and
-                       mysql.slave_relay_log_info tables will be created. By default
-                       both tables will be created in the MyIsam engine. However, a
-                       user may choose any available engine. If a crash-safe slave
-                       is desired the engine must be transactional.
+  --engine-rep=engine  The storage engine used for the mysql.slave_master_info and
+                       mysql.slave_relay_log_info tables. By default, both tables are
+                       created using the MyISAM storage engine. However, any storage
+                       engine available to the server may be used. If a crash-safe
+                       slave is desired, the storage engine must be transactional.
 
 All other options are passed to the mysqld program
 
