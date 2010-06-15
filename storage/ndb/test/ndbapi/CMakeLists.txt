@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2006 MySQL AB
+# Copyright (C) 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,10 @@
 ADD_SUBDIRECTORY(bank)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
-	${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-	)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+)
 
 ADD_EXECUTABLE(create_all_tabs create_all_tabs.cpp)
 ADD_EXECUTABLE(create_tab create_tab.cpp)
@@ -27,8 +28,6 @@ ADD_EXECUTABLE(flexAsynch flexAsynch.cpp)
 ADD_EXECUTABLE(flexBench flexBench.cpp)
 ADD_EXECUTABLE(flexHammer flexHammer.cpp)
 ADD_EXECUTABLE(flexTT flexTT.cpp)
-#flexTimedAsynch_SOURCES = flexTimedAsynch.cpp
-#flex_bench_mysql_SOURCES = flex_bench_mysql.cpp
 ADD_EXECUTABLE(testBackup testBackup.cpp)
 ADD_EXECUTABLE(testBasic testBasic.cpp)
 ADD_EXECUTABLE(testBasicAsynch testBasicAsynch.cpp)
@@ -62,26 +61,22 @@ ADD_EXECUTABLE(testPartitioning testPartitioning.cpp)
 ADD_EXECUTABLE(testBitfield testBitfield.cpp)
 ADD_EXECUTABLE(DbCreate bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp)
 ADD_EXECUTABLE(DbAsyncGenerator bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp bench/dbGenerator.h bench/macros.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp)
-#ADD_EXECUTABLE(test_event_multi_table test_event_multi_table.cpp)
 ADD_EXECUTABLE(testSRBank testSRBank.cpp)
 ADD_EXECUTABLE(test_event_merge test_event_merge.cpp)
 Add_EXECUTABLE(testNdbinfo testNdbinfo.cpp)
 ADD_EXECUTABLE(testNativeDefault testNativeDefault.cpp)
-##testDict_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testIndex_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testSystemRestart_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testTransactions_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
 TARGET_LINK_LIBRARIES(testBackup ndbbank)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 
-INSTALL(TARGETS create_all_tabs create_tab drop_all_tabs flexAsynch flexBench
-                flexHammer flexTT testBackup testBasic testBasicAsynch
-                testBlobs testDataBuffers testDict testIndex testMgm
-                testNdbApi testNodeRestart testOIBasic testOperations
-                testRestartGci testScan testSRBank testInterpreter
-                testScanFilter testScanInterpreter testScanPerf
-                testSystemRestart testTimeout testTransactions
-                testDeadlock test_event ndbapi_slow_select testReadPerf
-                testLcp testPartitioning testBitfield DbCreate
-                DbAsyncGenerator test_event_merge testNdbinfo 
-        DESTINATION bin)
+INSTALL(TARGETS create_all_tabs create_tab
+  drop_all_tabs flexAsynch flexBench
+  flexHammer flexTT testBackup testBasic testBasicAsynch
+  testBlobs testDataBuffers testDict testIndex testMgm
+  testNdbApi testNodeRestart testOIBasic testOperations
+  testRestartGci testScan testSRBank testInterpreter
+  testScanFilter testScanInterpreter testScanPerf
+  testSystemRestart testTimeout testTransactions
+  testDeadlock test_event ndbapi_slow_select testReadPerf
+  testLcp testPartitioning testBitfield DbCreate
+  DbAsyncGenerator test_event_merge testNdbinfo
+DESTINATION bin)
