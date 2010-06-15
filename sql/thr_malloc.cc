@@ -76,10 +76,6 @@ void* sql_memdup(const void *ptr, size_t len)
   return pos;
 }
 
-void sql_element_free(void *ptr __attribute__((unused)))
-{} /* purecov: deadcode */
-
-
 
 char *sql_strmake_with_convert(const char *str, size_t arg_length,
 			       CHARSET_INFO *from_cs,
