@@ -54,7 +54,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     if the user is trying to to do this in a transcation context
   */
 
-  if (thd->locked_tables_mode || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));

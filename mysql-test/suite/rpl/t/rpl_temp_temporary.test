@@ -34,10 +34,13 @@
 # the CREATE TEMPORARY is not logged and the DROP TEMPORARY is extended with
 # the IF EXISTS clause.
 #
-# 7 - It also verifies if the CONNECTION_ID along with a non-transactional
+# 7 - It verifies if the CONNECTION_ID along with a non-transactional
 # table is written outside the transaction boundaries and is not classified
 # as unsafe. See BUG#53075.
 #
+# 8 - It verifies if OPTION_KEEP_LOG is set and thus forcing to write the
+# trx-cache to the binary log when an rollback is issued and only trx-tables
+# were updated. See BUG#53421.
 ################################################################################
 
 source include/master-slave.inc;
@@ -186,18 +189,40 @@ INSERT INTO t_innodb VALUES(1);
 INSERT INTO t_myisam VALUES(CONNECTION_ID());
 INSERT INTO t_innodb VALUES(1);
 COMMIT;
-DROP TABLE t_myisam;
-DROP TABLE t_innodb;
+source include/show_binlog_events.inc;
+
+--echo ########################################################################
+--echo #                           VERIFY ITEM 8
+--echo ########################################################################
+#
+# Before the patch for BUG#53421, nothing were written to the binary log on
+# behalf of the transaction presented below:
+#
+SET BINLOG_FORMAT=MIXED;
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+CREATE TEMPORARY TABLE tmp2 SELECT * FROM t_innodb;
+INSERT INTO t_innodb VALUES(1);
+INSERT INTO t_innodb VALUES(1);
+ROLLBACK;
 source include/show_binlog_events.inc;
 
 --echo ###################################################################################
 --echo #                               CHECK CONSISTENCY
 --echo ###################################################################################
-connection master;
 sync_slave_with_master;
+connection master;
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
 --diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
 
+--echo ###################################################################################
+--echo #                                    CLEAN UP
+--echo ###################################################################################
+connection master;
 
+DROP TABLE t_myisam;
+DROP TABLE t_innodb;
+
+sync_slave_with_master;

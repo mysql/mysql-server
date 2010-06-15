@@ -1,7 +1,7 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 2008-2009 Sun Microsystems, Inc
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1015,6 +1015,66 @@ else
   AC_MSG_RESULT([yes])
 fi
 
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in::sin_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in::sin_len is available],
+  mysql_cv_have_sockaddr_in_sin_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in *) 0)->sin_len)],
+    mysql_cv_have_sockaddr_in_sin_len=yes,
+    mysql_cv_have_sockaddr_in_sin_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN_SIN_LEN],
+    [1],
+    [If sockaddr_in::sin_len is available])
+fi
+
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in6::sin6_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in6::sin6_len is available],
+  mysql_cv_have_sockaddr_in6_sin6_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+
+      #ifdef HAVE_NETINET_IN6_H
+        #include <netinet/in6.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in6 *) 0)->sin6_len)],
+    mysql_cv_have_sockaddr_in6_sin6_len=yes,
+    mysql_cv_have_sockaddr_in6_sin6_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin6_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN6_SIN6_LEN],
+    [1],
+    [If sockaddr_in6::sin6_len is available])
+fi
+
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
 #--------------------------------------------------------------------
@@ -1238,14 +1298,22 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *freebsd*|*dragonfly*)
-    AC_MSG_WARN([Adding fix for interrupted reads])
+    dnl These dependencies have not really been checked for some time
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
-    if test "$OSVERSION" -gt "480100" && \
+    if test "$OSVERSION" -gt "600000"
+    then
+       # Post user-level threads, MYSQLD_NET_RETRY_COUNT is not needed any more
+       AC_MSG_WARN([Adding fix for broken realpath])
+       CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
+       CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_REALPATH"
+    elif test "$OSVERSION" -gt "480100" && \
        test "$OSVERSION" -lt "500000" || \
        test "$OSVERSION" -gt "500109"
     then
+       AC_MSG_WARN([Adding fix for interrupted reads])
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
     else
+       AC_MSG_WARN([Adding fix for interrupted reads and broken realpath])
        CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
     fi
@@ -1845,6 +1913,17 @@ else
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
   CFLAGS="$OPTIMIZE_CFLAGS $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
+fi
+
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
 fi
 
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.
@@ -3124,6 +3203,7 @@ case $CXX_VERSION in
 esac
 
 AC_SUBST([RDTSC_SPARC_ASSEMBLY])
+
 
 #--------------------------------------------------------------------
 # Output results

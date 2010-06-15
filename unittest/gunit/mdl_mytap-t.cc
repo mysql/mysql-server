@@ -142,7 +142,7 @@ void mysql_ha_flush(THD *)
   We need to mock away this global function, the real version pulls in
   too many dependencies.
  */
-extern "C" const char *set_thd_proc_info(THD *thd, const char *info,
+extern "C" const char *set_thd_proc_info(void *thd, const char *info,
                                          const char *calling_function,
                                          const char *calling_file,
                                          const unsigned int calling_line)

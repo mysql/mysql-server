@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -333,12 +333,14 @@ UNIV_INTERN
 void
 trx_sys_file_format_tag_init(void);
 /*==============================*/
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Shutdown/Close the transaction system. */
 UNIV_INTERN
 void
 trx_sys_close(void);
 /*===============*/
+#endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
@@ -429,6 +431,14 @@ trx_sys_file_format_id_to_name(
 	const ulint	id);	/*!< in: id of the file format */
 
 #endif /* !UNIV_HOTBACKUP */
+/*********************************************************************
+Creates the rollback segments */
+UNIV_INTERN
+void
+trx_sys_create_rsegs(
+/*=================*/
+	ulint	n_rsegs);	/*!< number of rollback segments to create */
+
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
@@ -463,11 +473,16 @@ trx_sys_file_format_id_to_name(
 					slots */
 /*------------------------------------------------------------- @} */
 
-/** Maximum number of rollback segments: the number of segment
-specification slots in the transaction system array; rollback segment
-id must fit in one byte, therefore 256; each slot is currently 8 bytes
-in size */
-#define	TRX_SYS_N_RSEGS		256
+/* Max number of rollback segments: the number of segment specification slots
+in the transaction system array; rollback segment id must fit in one (signed)
+byte, therefore 128; each slot is currently 8 bytes in size. If you want
+to raise the level to 256 then you will need to fix some assertions that
+impose the 7 bit restriction. e.g., mach_write_to_3() */
+#define	TRX_SYS_N_RSEGS			128
+/* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
+rollback segment.  It initialized some arrays with this number of entries.
+We must remember this limit in order to keep file compatibility. */
+#define TRX_SYS_OLD_N_RSEGS		256
 
 /** Maximum length of MySQL binlog file name, in bytes.
 @see trx_sys_mysql_master_log_name
@@ -495,7 +510,6 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 						within that file */
 #define TRX_SYS_MYSQL_LOG_NAME		12	/*!< MySQL log file name */
 
-#ifndef UNIV_HOTBACKUP
 /** Doublewrite buffer */
 /* @{ */
 /** The offset of the doublewrite buffer header on the trx system header page */
@@ -547,6 +561,7 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
 /* @} */
 
+#ifndef UNIV_HOTBACKUP
 /** File format tag */
 /* @{ */
 /** The offset of the file format tag on the trx system header page
