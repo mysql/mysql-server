@@ -3471,21 +3471,13 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
   else
     ret= Log_event::do_update_pos(rli);
 
-   DBUG_EXECUTE_IF("crash_after_begin_pos",
-        if (!strcmp("BEGIN", query))
-        {
-          rli->flush_info(TRUE);
-          abort();
-        }
-   );
-  
-   DBUG_EXECUTE_IF("crash_after_commit_pos",
-        if (!strcmp("COMMIT", query))
-        {
-          rli->flush_info(TRUE);
-          abort();
-        }
-   );
+  DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
+       if (!strcmp("COMMIT", query))
+       {
+         rli->flush_info(TRUE);
+         abort();
+       }
+  );
   
   return ret;
 }
