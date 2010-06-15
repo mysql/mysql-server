@@ -246,8 +246,10 @@ sub collect_test_cases ($) {
 	push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
 	# Group test with equal options together.
 	# Ending with "~" makes empty sort later than filled
-	push(@criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");
-
+	if ( $tinfo->{'master_opt'}[0] )
+	{
+	  push(@criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");
+	}
 	$sort_criteria{$test_name} = join(" ", @criteria);
       }
     }
