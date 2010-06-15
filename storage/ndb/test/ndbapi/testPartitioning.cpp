@@ -1193,7 +1193,12 @@ run_dist_test(NDBT_Context* ctx, NDBT_Step* step)
     ->getTable(DistTabName)
     ->getFragmentCount();
   int numDkeyValues= 2*numTabPartitions + (rand() % 6);
-  
+  if (numDkeyValues > records)
+  {
+    // limit number of distributions keys to number of records
+    numDkeyValues = records;
+  }
+
   ndbout << "Table has " << numTabPartitions
          << " physical partitions" << endl;
   ndbout << "Testing with " << numDkeyValues 
