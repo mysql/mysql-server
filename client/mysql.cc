@@ -59,8 +59,6 @@ static char *server_version= NULL;
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
 
-void* sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
-void sql_element_free(void *ptr);
 #include "sql_string.h"
 
 extern "C" {
@@ -2318,8 +2316,10 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
 #ifdef HAVE_READLINE
 
+C_MODE_START
 static char *new_command_generator(const char *text, int);
-extern "C" char **new_mysql_completion (const char *text, int start, int end);
+static char **new_mysql_completion(const char *text, int start, int end);
+C_MODE_END
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete
@@ -2451,9 +2451,9 @@ static void initialize_readline (char *name)
   array of matches, or NULL if there aren't any.
 */
 
-char **new_mysql_completion (const char *text,
-                             int start __attribute__((unused)),
-                             int end __attribute__((unused)))
+static char **new_mysql_completion(const char *text,
+                                   int start __attribute__((unused)),
+                                   int end __attribute__((unused)))
 {
   if (!status.batch && !quick)
 #if defined(USE_NEW_READLINE_INTERFACE)
@@ -4963,17 +4963,3 @@ static int com_prompt(String *buffer, char *line)
     tee_fprintf(stdout, "PROMPT set to '%s'\n", current_prompt);
   return 0;
 }
-
-#ifndef EMBEDDED_LIBRARY
-/* Keep sql_string library happy */
-
-void *sql_alloc(size_t Size)
-{
-  return my_malloc(Size,MYF(MY_WME));
-}
-
-void sql_element_free(void *ptr)
-{
-  my_free(ptr,MYF(0));
-}
-#endif /* EMBEDDED_LIBRARY */

@@ -89,21 +89,24 @@ int get_user_var_str(const char *name, char *value,
 
 int delegates_init()
 {
-  static unsigned long trans_mem[sizeof(Trans_delegate) / sizeof(unsigned long) + 1];
-  static unsigned long storage_mem[sizeof(Binlog_storage_delegate) / sizeof(unsigned long) + 1];
+  static Aligned_char_array<sizeof(Trans_delegate)>           trans_mem;
+  static Aligned_char_array<sizeof(Binlog_storage_delegate)>  storage_mem;
 #ifdef HAVE_REPLICATION
-  static unsigned long transmit_mem[sizeof(Binlog_transmit_delegate) / sizeof(unsigned long) + 1];
-  static unsigned long relay_io_mem[sizeof(Binlog_relay_IO_delegate)/ sizeof(unsigned long) + 1];
+  static Aligned_char_array<sizeof(Binlog_transmit_delegate)> transmit_mem;
+  static Aligned_char_array<sizeof(Binlog_relay_IO_delegate)> relay_io_mem;
 #endif
-  
-  if (!(transaction_delegate= new (trans_mem) Trans_delegate)
+
+  if (!(transaction_delegate= new (trans_mem.arr()) Trans_delegate)
       || (!transaction_delegate->is_inited())
-      || !(binlog_storage_delegate= new (storage_mem) Binlog_storage_delegate)
+      || !(binlog_storage_delegate=
+           new (storage_mem.arr()) Binlog_storage_delegate)
       || (!binlog_storage_delegate->is_inited())
 #ifdef HAVE_REPLICATION
-      || !(binlog_transmit_delegate= new (transmit_mem) Binlog_transmit_delegate)
+      || !(binlog_transmit_delegate=
+           new (transmit_mem.arr()) Binlog_transmit_delegate)
       || (!binlog_transmit_delegate->is_inited())
-      || !(binlog_relay_io_delegate= new (relay_io_mem) Binlog_relay_IO_delegate)
+      || !(binlog_relay_io_delegate=
+           new (relay_io_mem.arr()) Binlog_relay_IO_delegate)
       || (!binlog_relay_io_delegate->is_inited())
 #endif /* HAVE_REPLICATION */
       )
