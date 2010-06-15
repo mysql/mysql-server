@@ -224,9 +224,9 @@ typedef fp_except fp_except_t;
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
 # define _FPU_DOUBLE 0x200
-# ifdef __GNUC__
-#  define _FPU_GETCW(cw) __asm__ __volatile__("fnstcw %0" : "=m" (*&cw))
-#  define _FPU_SETCW(cw) __asm__ __volatile__("fldcw %0" : : "m" (*&cw))
+# if defined(__GNUC__) || defined(__SUNPRO_CC)
+#  define _FPU_GETCW(cw) asm volatile ("fnstcw %0" : "=m" (*&cw))
+#  define _FPU_SETCW(cw) asm volatile ("fldcw %0" : : "m" (*&cw))
 # else
 #  define _FPU_GETCW(cw) (cw= 0)
 #  define _FPU_SETCW(cw)
