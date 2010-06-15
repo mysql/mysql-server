@@ -142,4 +142,4 @@ ib_bh_pop(
 /*======*/
 	ib_bh_t*	ib_bh);			/*!< in,out: instance */
 
-#endif INNOBASE_UT0BH_H
+#endif /* INNOBASE_UT0BH_H */
