@@ -35,7 +35,7 @@ Rpl_info_table::~Rpl_info_table()
 int Rpl_info_table::do_init_info()
 {
   int error= 1;
-  int type_error= Rpl_info_table_access::FOUND;
+  enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
   ulong saved_mode;
   Open_tables_state backup;
@@ -61,7 +61,8 @@ int Rpl_info_table::do_init_info()
   */
   longlong2str(server_id, field_values->field[field_idx].use.str, 10);
   field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if (!access->find_info_id(field_idx, field_values->field[field_idx].use, table, &type_error))
+  if ((res= access->find_info_id(field_idx,
+       field_values->field[field_idx].use, table)) == FOUND_ID)
   {
     /*
       Reads the information stored in the rpl_info table into a
@@ -72,9 +73,7 @@ int Rpl_info_table::do_init_info()
                                  field_values))
       goto end;
   }
-  error= ((type_error == Rpl_info_table_access::FOUND ||
-          type_error == Rpl_info_table_access::NOT_FOUND)
-         ? 0 : 1);
+  error= ((res == FOUND_ID || res == NOT_FOUND_ID) ? 0 : 1);
 end:
   /*
     Unlocks and closes the rpl_info table.
@@ -89,7 +88,7 @@ end:
 int Rpl_info_table::do_flush_info(const bool force)
 {
   int error= 1;
-  int type_error= Rpl_info_table_access::FOUND;
+  enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
   ulong saved_mode;
   Open_tables_state backup;
@@ -123,9 +122,8 @@ int Rpl_info_table::do_flush_info(const bool force)
   */
   longlong2str(server_id, field_values->field[field_idx].use.str, 10);
   field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if (access->find_info_id(field_idx, field_values->field[field_idx].use,
-                           table, &type_error) &&
-      type_error == Rpl_info_table_access::NOT_FOUND)
+  if ((res= access->find_info_id(field_idx,
+       field_values->field[field_idx].use, table)) == NOT_FOUND_ID)
   {
     /*
       Prepares the information to be stored before calling ha_write_row.
@@ -145,7 +143,7 @@ int Rpl_info_table::do_flush_info(const bool force)
     }
     error= 0;
   }
-  else if (type_error == Rpl_info_table_access::FOUND)
+  else if (res == FOUND_ID)
   {
     /*
       Prepares the information to be stored before calling ha_update_row.
@@ -182,7 +180,7 @@ end:
 int Rpl_info_table::do_reset_info()
 {
   int error= 1;
-  int type_error= Rpl_info_table_access::FOUND;
+  enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
   ulong saved_mode;
   Open_tables_state backup;
@@ -208,7 +206,8 @@ int Rpl_info_table::do_reset_info()
   */
   longlong2str(server_id, field_values->field[field_idx].use.str, 10);
   field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if (!access->find_info_id(field_idx, field_values->field[field_idx].use, table, &type_error))
+  if ((res= access->find_info_id(field_idx,
+       field_values->field[field_idx].use, table)) == FOUND_ID)
   {
     /*
       Deletes a row in the rpl_info table.
@@ -219,10 +218,7 @@ int Rpl_info_table::do_reset_info()
       goto end;
     }
   }
-  error= ((type_error == Rpl_info_table_access::FOUND ||
-           type_error == Rpl_info_table_access::NOT_FOUND)
-          ? 0 : 1);
-
+  error= ((res == FOUND_ID || res == NOT_FOUND_ID) ? 0 : 1);
 end:
   /*
     Unlocks and closes the rpl_info table.
@@ -239,7 +235,6 @@ int Rpl_info_table::do_check_info()
   int error= 1;
   TABLE *table= NULL;
   Open_tables_state backup;
-  int type_error= Rpl_info_table_access::FOUND;
 
   THD *thd= access->create_fake_thd();
 
@@ -259,7 +254,8 @@ int Rpl_info_table::do_check_info()
   */
   longlong2str(server_id, field_values->field[field_idx].use.str, 10);
   field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if (access->find_info_id(field_idx, field_values->field[field_idx].use, table, &type_error))
+  if (access->find_info_id(field_idx,
+      field_values->field[field_idx].use, table) != FOUND_ID)
   {
     /* 
        We cannot simply call my_error here because it does not

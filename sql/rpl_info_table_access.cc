@@ -131,38 +131,35 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
   @param[in]      idx        Index field
   @param[in]      id         Server id
   @param[in,out]  table      Table
-  @param[out]     type_error Type of the result: FOUND, NOT_FOUND or ERROR.
 
   @return
-    @retval FALSE No error
-    @retval TRUE  Failure
+    @retval FOUND     The row was found.
+    @retval NOT_FOUND The row was not found.
+    @retval ERROR     There was a failure.
 */
-bool Rpl_info_table_access::find_info_id(uint idx, LEX_STRING id, TABLE *table, int *type_error)
+enum enum_return_id Rpl_info_table_access::find_info_id(uint idx, LEX_STRING id, TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];
   DBUG_ENTER("Relay_log_info_table::find_info_id");
   DBUG_PRINT("enter", ("name: %.*s", (int) id.length, id.str));
 
-  (*type_error)= ERROR;
   if (id.length > table->field[idx]->field_length)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(ERROR_ID);
 
   table->field[idx]->store(id.str, id.length, &my_charset_bin);
 
   if (!(table->field[idx]->flags & PRI_KEY_FLAG))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(ERROR_ID);
   
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
   if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
                                       HA_READ_KEY_EXACT))
   {
-    (*type_error)= NOT_FOUND;
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(NOT_FOUND_ID);
   }
 
-  (*type_error)= FOUND;
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(FOUND_ID);
 }
 
 /**
