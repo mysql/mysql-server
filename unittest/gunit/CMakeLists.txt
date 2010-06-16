@@ -49,39 +49,51 @@ IF(MSVC)
   ADD_DEFINITIONS(/EHcs)
 ENDIF()
 
-# Hint for FindGTest: With MSVC, we compile with static CRT (compile flags
-# /MT or /MTd) and need compatible gtest.lib
-SET(GTEST_MSVC_SEARCH MT) 
-
-# Hint for find_library(): reverse list ".so;.a" to prefer static linking.
-LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-
-# Hint for where to look: pushbuild uses GTEST_ROOT env.var.
-IF (DEFINED ENV{GTEST_PREFIX} AND NOT DEFINED ENV{GTEST_ROOT})
-  SET(ENV{GTEST_ROOT} $ENV{GTEST_PREFIX})
-ENDIF()
-
-# Now look for gtest.
-FIND_PACKAGE(GTest)
-
-# Revert suffix list back to what it was before.
-LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-
-
-OPTION(ENABLE_DOWNLOADS
-  "Download and build 3rd party source code components, e.g google test"
-  OFF)
-
-# Download and build gtest if not found
+# Where to download and build gtest if not found.
 IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
 ENDIF()
 IF(NOT EXISTS DOWNLOAD_ROOT)
   MAKE_DIRECTORY(${DOWNLOAD_ROOT})
 ENDIF()
+SET(GTEST_PACKAGE_NAME "gtest-1.5.0")
+SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/${GTEST_PACKAGE_NAME})
+
+
+# Hint for FindGTest: With MSVC, we compile with static CRT (compile flags
+# /MT or /MTd) and need compatible gtest.lib
+SET(GTEST_MSVC_SEARCH MT) 
+
+# Hint for where to look: pushbuild uses GTEST_ROOT env.var.
+IF (DEFINED ENV{GTEST_PREFIX} AND NOT DEFINED ENV{GTEST_ROOT})
+  SET(ENV{GTEST_ROOT} $ENV{GTEST_PREFIX})
+ENDIF()
+
+# We may have downloaded gtest already, building in a different directory.
+IF(NOT DEFINED ENV{GTEST_ROOT} AND EXISTS ${GTEST_SOURCE_DIR})
+  MESSAGE(STATUS "GTEST_SOURCE_DIR:${GTEST_SOURCE_DIR}")
+  SET(GTEST_DOWNLOADED 1 CACHE INTERNAL "")
+  SET(GTEST_FOUND 1 CACHE INTERNAL "")
+ENDIF()
+
+
+IF(NOT GTEST_DOWNLOADED)
+  # Hint for find_library(): reverse list ".so;.a" to prefer static linking.
+  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+
+  # Now look for gtest.
+  FIND_PACKAGE(GTest)
+
+  # Revert suffix list back to what it was before.
+  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+ENDIF()
+
+
+OPTION(ENABLE_DOWNLOADS
+  "Download and build 3rd party source code components, e.g google test"
+  OFF)
 
 # While experimenting, use local URL rather than google.
-SET(GTEST_PACKAGE_NAME "gtest-1.5.0")
 SET(GTEST_TARBALL "${GTEST_PACKAGE_NAME}.tar.gz")
 SET(GTEST_DOWNLOAD_URL 
   "http://googletest.googlecode.com/files/${GTEST_TARBALL}"
@@ -102,7 +114,7 @@ IF(NOT GTEST_FOUND)
   ENDIF()
   
   # Download gtest source
-  IF(NOT EXISTS ${DOWNLOAD_ROOT}/${GTEST_PACKAGE_NAME})
+  IF(NOT EXISTS ${GTEST_SOURCE_DIR})
     IF(NOT EXISTS ${DOWNLOAD_ROOT}/${GTEST_TARBALL})
       # Download the tarball
       IF(NOT HAVE_CMAKE_2_8)
@@ -154,7 +166,6 @@ ENDIF()
 
 IF(GTEST_DOWNLOADED)
   # Build gtest library
-  SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/${GTEST_PACKAGE_NAME})
   INCLUDE_DIRECTORIES(
     ${GTEST_SOURCE_DIR} 
     ${GTEST_SOURCE_DIR}/include
