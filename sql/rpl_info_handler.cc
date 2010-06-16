@@ -90,17 +90,6 @@ bool Rpl_info_handler::set_info(float const value)
   return(prv_error);
 }
 
-bool Rpl_info_handler::set_info(my_off_t const value)
-{
-  if (cursor >= ninfo || prv_error)
-    return TRUE;
-
-  if (!(prv_error= do_set_info(cursor, value)))
-    cursor++;
-
-  return(prv_error);
-}
-
 bool Rpl_info_handler::set_info(const Server_ids *value)
 {
   if (cursor >= ninfo || prv_error)
@@ -150,18 +139,6 @@ bool Rpl_info_handler::get_info(int *value,
 
 bool Rpl_info_handler::get_info(float *value,
                                 float const default_value)
-{
-  if (cursor >= ninfo || prv_error)
-    return TRUE;
-
-  if (!(prv_error= do_get_info(cursor, value, default_value)))
-    cursor++;
-
-  return(prv_error);
-}
-
-bool Rpl_info_handler::get_info(my_off_t *value,
-                                my_off_t const default_value)
 {
   if (cursor >= ninfo || prv_error)
     return TRUE;

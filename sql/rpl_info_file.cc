@@ -212,20 +212,6 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const my_off_t value)
-{
-  /* This is enough to handle the my_off_t conversion */
-  char buffer[22];
-
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-
-  llstr(value, buffer);
-
-  return (my_b_printf(&info_file, "%s\n", buffer) > (size_t) 0 ?
-          FALSE : TRUE);
-}
-
 bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 {
   bool error= TRUE;
@@ -290,16 +276,6 @@ bool Rpl_info_file::do_get_info(const int pos, float *value,
 
   return (init_floatvar_from_file(value, &info_file,
                                   default_value));
-}
-
-bool Rpl_info_file::do_get_info(const int pos, my_off_t *value,
-                                const my_off_t default_value)
-{
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-
-  return (init_intvar_from_file((int *)value, &info_file,
-                                (int) default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
