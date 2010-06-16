@@ -1,0 +1,34 @@
+# The slave is started with relay_log_space_limit=10 bytes,
+# to force the deadlock after one event.
+
+source include/master-slave.inc;
+connection slave;
+stop slave;
+connection master;
+# This will generate a master's binlog > 10 bytes
+create table t1 (a int);
+drop table t1;
+create table t1 (a int);
+drop table t1;
+connection slave;
+reset slave;
+start slave io_thread;
+# Give the I/O thread time to block.
+sleep 2;
+# A bug caused the I/O thread to refuse stopping.
+stop slave io_thread;
+reset slave;
+start slave;
+# The I/O thread stops filling the relay log when
+# it's >10b. And the SQL thread cannot purge this relay log
+# as purge is done only when the SQL thread switches to another
+# relay log, which does not exist here.
+# So we should have a deadlock.
+# if it is not resolved automatically we'll detect
+# it with master_pos_wait that waits for farther than 1Ob;
+# it will timeout after 10 seconds;
+# also the slave will probably not cooperate to shutdown
+# (as 2 threads are locked)
+select master_pos_wait('master-bin.001',200,6)=-1;
+
+# End of 4.1 tests

@@ -762,6 +762,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *orn_name,
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
+int mi_munmap_file(MI_INFO *info);
 void mi_remap_file(MI_INFO *info, my_off_t size);
 
     /* Functions needed by mi_check */

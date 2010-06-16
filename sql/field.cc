@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2908,7 +2908,21 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
   return (source_size);
 }
 
+/**
+   Check to see if field size is compatible with destination.
 
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+   @param   order_var        Pointer to variable where the order
+                             between the source field and this field
+                             will be returned.
+
+   @return @c true
+*/
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
                                               Relay_log_info * __attribute__((unused)),
                                               uint16 mflags __attribute__((unused)),
@@ -2971,16 +2985,16 @@ Field_new_decimal::unpack(uchar* to,
       a decimal and write that to the raw data buffer.
     */
     decimal_digit_t dec_buf[DECIMAL_MAX_PRECISION];
-    decimal_t dec;
-    dec.len= from_precision;
-    dec.buf= dec_buf;
+    decimal_t dec_val;
+    dec_val.len= from_precision;
+    dec_val.buf= dec_buf;
     /*
       Note: bin2decimal does not change the length of the field. So it is
       just the first step the resizing operation. The second step does the
       resizing using the precision and decimals from the slave.
     */
-    bin2decimal((uchar *)from, &dec, from_precision, from_decimal);
-    decimal2bin(&dec, to, precision, decimals());
+    bin2decimal((uchar *)from, &dec_val, from_precision, from_decimal);
+    decimal2bin(&dec_val, to, precision, decimals());
   }
   else
     memcpy(to, from, len); // Sizes are the same, just copy the data.
@@ -6361,7 +6375,7 @@ check_string_copy_error(Field_str *field,
 
   SYNOPSIS
     Field_longstr::report_if_important_data()
-    ptr                      - Truncated rest of string
+    pstr                     - Truncated rest of string
     end                      - End of truncated string
     count_spaces             - Treat traling spaces as important data
 
@@ -6377,12 +6391,12 @@ check_string_copy_error(Field_str *field,
 */
 
 int
-Field_longstr::report_if_important_data(const char *ptr, const char *end,
+Field_longstr::report_if_important_data(const char *pstr, const char *end,
                                         bool count_spaces)
 {
-  if ((ptr < end) && table->in_use->count_cuted_fields)
+  if ((pstr < end) && table->in_use->count_cuted_fields)
   {
-    if (test_if_important_data(field_charset, ptr, end))
+    if (test_if_important_data(field_charset, pstr, end))
     {
       if (table->in_use->abort_on_warning)
         set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
@@ -7040,9 +7054,8 @@ const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 */
 int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
 {
-  char *ptr= (char *)metadata_ptr;
   DBUG_ASSERT(field_length <= 65535);
-  int2store(ptr, field_length);
+  int2store((char*)metadata_ptr, field_length);
   return 2;
 }
 
@@ -8910,14 +8923,20 @@ bool Field_num::eq_def(Field *field)
 }
 
 
+/**
+  Check whether two numeric fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they are of the same type
+  and retain the same pack length.
+*/
+
 uint Field_num::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
-	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
-							 UNSIGNED_FLAG)) &&
+          ((new_field->flags & UNSIGNED_FLAG) == 
+           (uint) (flags & UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length <= max_display_length()));
+          (new_field->pack_length == pack_length()));
 }
 
 
@@ -9287,7 +9306,21 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
   return (source_size);
 }
 
+/**
+   Check to see if field size is compatible with destination.
 
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+   @param   order_var        Pointer to variable where the order
+                             between the source field and this field
+                             will be returned.
+
+   @return @c true
+*/
 bool
 Field_bit::compatible_field_size(uint field_metadata,
                                  Relay_log_info * __attribute__((unused)),
@@ -9296,8 +9329,8 @@ Field_bit::compatible_field_size(uint field_metadata,
 {
   DBUG_ENTER("Field_bit::compatible_field_size");
   DBUG_ASSERT((field_metadata >> 16) == 0);
-  uint from_bit_len=
-    8 * (field_metadata >> 8) + (field_metadata & 0xff);
+
+  uint from_bit_len= 8 * (field_metadata >> 8) + (field_metadata & 0xff);
   uint to_bit_len= max_display_length();
   DBUG_PRINT("debug", ("from_bit_len: %u, to_bit_len: %u",
                        from_bit_len, to_bit_len));

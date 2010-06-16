@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -525,9 +525,9 @@ void Protocol::init(THD *thd_arg)
   for the error.
 */
 
-void Protocol::end_partial_result_set(THD *thd)
+void Protocol::end_partial_result_set(THD *thd_arg)
 {
-  net_send_eof(thd, thd->server_status, 0 /* no warnings, we're inside SP */);
+  net_send_eof(thd_arg, thd_arg->server_status, 0 /* no warnings, we're inside SP */);
 }
 
 
@@ -850,7 +850,7 @@ bool Protocol_text::store(const char *from, size_t length,
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %s", field_pos,
-                      field_count, from));
+                      field_count, (length == 0? "" : from)));
   DBUG_ASSERT(field_pos < field_count);
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||

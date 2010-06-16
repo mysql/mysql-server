@@ -1,0 +1,24 @@
+/******************************************************
+File space management
+
+(c) 1995 Innobase Oy
+
+Created 12/18/1995 Heikki Tuuri
+*******************************************************/
+
+/***************************************************************************
+Checks if a page address is an extent descriptor page address. */
+UNIV_INLINE
+ibool
+fsp_descr_page(
+/*===========*/
+			/* out: TRUE if a descriptor page */
+	ulint	page_no)/* in: page number */
+{
+	if (page_no % XDES_DESCRIBED_PER_PAGE == FSP_XDES_OFFSET) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
