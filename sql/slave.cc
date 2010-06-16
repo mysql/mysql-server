@@ -3072,8 +3072,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
-  my_off_t saved_log_pos;
-  my_off_t saved_master_log_pos;
+  my_off_t saved_log_pos= 0;
+  my_off_t saved_master_log_pos= 0;
   my_off_t saved_skip= 0;
 
   Relay_log_info* rli = &((Master_info*)arg)->rli;
