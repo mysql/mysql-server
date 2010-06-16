@@ -154,6 +154,7 @@ public:
   // Records
   struct NodeRec {
     UintR ndynamicId;
+    Uint32 hbOrder;
     Phase phase;
 
     QmgrState sendPrepFailReqStatus;
