@@ -72,7 +72,7 @@ void ndb_service_print_options(const char* name);
   a given location. Very useful for debugging a program
   started as a service.
 */
-void ndb_service_wait_debugger(int timeout_sec);
+void ndb_service_wait_for_debugger(int timeout_sec);
 
 C_MODE_END
 
