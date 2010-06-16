@@ -348,6 +348,16 @@ TYPELIB thread_handling_typelib=
   thread_handling_names, NULL
 };
 
+const char *plugin_maturity_names[]=
+{ "unknown", "experimental", "alpha", "beta", "gamma", "stable", 0 };
+
+TYPELIB plugin_maturity_values=
+{
+  array_elements(plugin_maturity_names) - 1, "", plugin_maturity_names, 0
+};
+
+const int server_maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
+
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
@@ -387,6 +397,7 @@ static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
+uint thread_handling;
 static ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
@@ -5924,6 +5935,7 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_DIR,
+  OPT_PLUGIN_MATURITY,
   OPT_SYMBOLIC_LINKS,
   OPT_WARNINGS,
   OPT_RECORD_BUFFER_OLD,
@@ -7208,7 +7220,7 @@ The minimum value for this variable is 4096.",
    (uchar**) &optimizer_switch_str, (uchar**) &optimizer_switch_str, 0, GET_STR, REQUIRED_ARG, 
    /*OPTIMIZER_SWITCH_DEFAULT*/0,
    0, 0, 0, 0, 0},
-  {"plugin_dir", OPT_PLUGIN_DIR,
+  {"plugin-dir", OPT_PLUGIN_DIR,
    "Directory for plugins.",
    (uchar**) &opt_plugin_dir_ptr, (uchar**) &opt_plugin_dir_ptr, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7218,6 +7230,10 @@ The minimum value for this variable is 4096.",
    "is the plugin library in plugin_dir.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"plugin-maturity", OPT_PLUGIN_MATURITY,
+   "The lowest desirable plugin maturity. Plugins less mature than that will not be installed or loaded.",
+   (uchar**) &plugin_maturity, (uchar**) &plugin_maturity, &plugin_maturity_values,
+   GET_ENUM, REQUIRED_ARG, server_maturity, 0, 0, 0, 0, 0},
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
    "The size of the buffer that is allocated when preloading indexes.",
    (uchar**) &global_system_variables.preload_buff_size,
@@ -8907,16 +8923,16 @@ mysqld_get_one_option(int optid,
     break;
   }
   case OPT_ONE_THREAD:
-    global_system_variables.thread_handling= SCHEDULER_NO_THREADS;
-    opt_thread_handling= thread_handling_typelib.type_names[global_system_variables.thread_handling];
+    thread_handling= SCHEDULER_NO_THREADS;
+    opt_thread_handling= thread_handling_typelib.type_names[thread_handling];
     break;
   case OPT_THREAD_HANDLING:
   {
     int id;
     LINT_INIT(id);
     if (!find_opt_type(argument, &thread_handling_typelib, opt->name, &id))
-      global_system_variables.thread_handling= id - 1;
-    opt_thread_handling= thread_handling_typelib.type_names[global_system_variables.thread_handling];
+      thread_handling= id - 1;
+    opt_thread_handling= thread_handling_typelib.type_names[thread_handling];
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
@@ -9078,7 +9094,7 @@ static int get_options(int *argc,char **argv)
   if (mysqld_chroot)
     set_root(mysqld_chroot);
 #else
-  global_system_variables.thread_handling = SCHEDULER_NO_THREADS;
+  thread_handling = SCHEDULER_NO_THREADS;
   max_allowed_packet= global_system_variables.max_allowed_packet;
   net_buffer_length= global_system_variables.net_buffer_length;
 #endif
@@ -9117,11 +9133,10 @@ static int get_options(int *argc,char **argv)
   one_thread_scheduler(&thread_scheduler);
   one_thread_scheduler(&extra_thread_scheduler);
 #else
-  if (global_system_variables.thread_handling <=
-      SCHEDULER_ONE_THREAD_PER_CONNECTION)
+  if (thread_handling <= SCHEDULER_ONE_THREAD_PER_CONNECTION)
     one_thread_per_connection_scheduler(&thread_scheduler, &max_connections,
                                         &connection_count);
-  else if (global_system_variables.thread_handling == SCHEDULER_NO_THREADS)
+  else if (thread_handling == SCHEDULER_NO_THREADS)
     one_thread_scheduler(&thread_scheduler);
   else
     pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */

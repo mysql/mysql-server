@@ -37,6 +37,18 @@ static TYPELIB global_plugin_typelib=
 char *opt_plugin_load= NULL;
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
+uint plugin_maturity;
+
+/*
+  not really needed now, this map will become essential when we add more
+  maturity levels. We cannot change existing maturity constants,
+  so the next value - even if it will be MariaDB_PLUGIN_MATURITY_VERY_BUGGY -
+  will inevitably be larger than MariaDB_PLUGIN_MATURITY_STABLE.
+  To be able to compare them we use this mapping array
+*/
+uint plugin_maturity_map[]=
+{ 0, 1, 2, 3, 4, 5, 6 };
+
 /*
   When you ad a new plugin type, add both a string and make sure that the
   init and deinit array are correctly updated.
@@ -950,6 +962,17 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         strxnmov(buf, sizeof(buf) - 1, "API version for ",
                  plugin_type_names[plugin->type].str,
                  " plugin is too different", NullS);
+        report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
+        goto err;
+      }
+      if (plugin_maturity_map[plugin->maturity] < plugin_maturity)
+      {
+        char buf[256];
+        strxnmov(buf, sizeof(buf) - 1, "Loading of ",
+                 plugin_maturity_names[plugin->maturity],
+                 " plugins is prohibited by --plugin-maturity=",
+                 plugin_maturity_names[plugin_maturity],
+                 NullS);
         report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
         goto err;
       }

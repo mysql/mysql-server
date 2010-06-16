@@ -339,7 +339,6 @@ struct system_variables
   ulong read_rnd_buff_size;
   ulong div_precincrement;
   ulong sortbuff_size;
-  ulong thread_handling;
   ulong tx_isolation;
   ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */

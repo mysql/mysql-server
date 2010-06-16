@@ -1,0 +1,2 @@
+INSTALL PLUGIN example SONAME 'ha_example.so';
+ERROR HY000: Can't open shared library 'ha_example.so' (errno: 0 Loading of experimental plugins is prohibited by --plugin-maturity=stable)

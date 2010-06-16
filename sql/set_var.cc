@@ -592,9 +592,8 @@ static sys_var_thd_ulong	sys_trans_prealloc_size(&vars, "transaction_prealloc_si
 						&SV::trans_prealloc_size,
 						0, fix_trans_mem_root);
 sys_var_enum_const        sys_thread_handling(&vars, "thread_handling",
-                                              &SV::thread_handling,
-                                              &thread_handling_typelib,
-                                              NULL);
+                                              &thread_handling,
+                                              &thread_handling_typelib);
 
 #ifdef HAVE_QUERY_CACHE
 static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
@@ -957,6 +956,9 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
                                                      SHOW_LONGLONG,
                                                      get_myisam_mmap_size);
 
+static sys_var_enum_const     sys_plugin_maturity(&vars, "plugin_maturity",
+                                                  &plugin_maturity,
+                                                  &plugin_maturity_values);
 
 bool sys_var::check(THD *thd, set_var *var)
 {
@@ -1687,12 +1689,6 @@ bool sys_var_enum::update(THD *thd, set_var *var)
 uchar *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 {
   return (uchar*) enum_names->type_names[*value];
-}
-
-uchar *sys_var_enum_const::value_ptr(THD *thd, enum_var_type type,
-                                     LEX_STRING *base)
-{
-  return (uchar*) enum_names->type_names[global_system_variables.*offset];
 }
 
 bool sys_var_thd_ulong::check(THD *thd, set_var *var)
