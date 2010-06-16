@@ -258,6 +258,7 @@ Qmgr::execSTART_ORD(Signal* signal)
   {
     ptrAss(nodePtr, nodeRec);
     nodePtr.p->ndynamicId = 0;	
+    nodePtr.p->hbOrder = 0;
     Uint32 cnt = 0;
     Uint32 type = getNodeInfo(nodePtr.i).m_type;
     switch(type){
@@ -891,7 +892,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   /**
    * Assign dynamic id
    */
-  UintR TdynId = ++c_maxDynamicId;
+  UintR TdynId = (++c_maxDynamicId) & 0xFFFF;
+  TdynId |= (addNodePtr.p->hbOrder << 16);
   setNodeInfo(addNodePtr.i).m_version = startingVersion;
   setNodeInfo(addNodePtr.i).m_mysql_version = startingMysqlVersion;
   recompute_version_info(NodeInfo::DB, startingVersion);
@@ -999,7 +1001,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   cpdistref    = cmRegConf->presidentBlockRef;
   cpresident   = cmRegConf->presidentNodeId;
   UintR TdynamicId   = cmRegConf->dynamicId;
-  c_maxDynamicId = TdynamicId;
+  c_maxDynamicId = TdynamicId & 0xFFFF;
   c_clusterNodes.assign(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
 
   myNodePtr.p->ndynamicId = TdynamicId;
@@ -1611,7 +1613,7 @@ Qmgr::electionWon(Signal* signal){
   cpdistref = reference();
   cneighbourl = ZNIL;
   cneighbourh = ZNIL;
-  myNodePtr.p->ndynamicId = 1;
+  myNodePtr.p->ndynamicId = 1 | (myNodePtr.p->hbOrder << 16);
   c_maxDynamicId = 1;
   c_clusterNodes.clear();
   c_clusterNodes.set(getOwnNodeId());
@@ -1623,7 +1625,7 @@ Qmgr::electionWon(Signal* signal){
   signal->theData[0] = NDB_LE_CM_REGCONF;
   signal->theData[1] = getOwnNodeId();
   signal->theData[2] = cpresident;
-  signal->theData[3] = 1;
+  signal->theData[3] = myNodePtr.p->ndynamicId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 
   c_start.m_starting_nodes.clear(getOwnNodeId());
@@ -1762,7 +1764,7 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
     mysql_version = 0;
   
   setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
-  c_maxDynamicId = req->dynamicId;
+  c_maxDynamicId = req->dynamicId & 0xFFFF;
 
   cmAddPrepare(signal, addNodePtr, nodePtr.p);
 }//Qmgr::execCM_NODEINFOREQ()
@@ -2347,6 +2349,28 @@ void Qmgr::initData(Signal* signal)
   }
 
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
+
+  ndb_mgm_configuration_iterator * iter =
+    m_ctx.m_config.getClusterConfigIterator();
+  for (ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
+  {
+    jam();
+    Uint32 nodeId = 0;
+    if (ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &nodeId) == 0)
+    {
+      jam();
+      if (nodeId < MAX_NDB_NODES && getNodeInfo(nodeId).m_type == NodeInfo::DB)
+      {
+        Uint32 hbOrder = 0;
+        ndb_mgm_get_int_parameter(iter, CFG_DB_HB_ORDER, &hbOrder);
+
+        NodeRecPtr nodePtr;
+        nodePtr.i = nodeId;
+        ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+        nodePtr.p->hbOrder = hbOrder;
+      }
+    }
+  }
 }//Qmgr::initData()
 
 
@@ -4282,9 +4306,9 @@ void Qmgr::failReport(Signal* signal,
         jam();
         ptrAss(nodePtr, nodeRec);
         if (nodePtr.p->phase == ZRUNNING) {
-          if (nodePtr.p->ndynamicId < tfrMinDynamicId) {
+          if ((nodePtr.p->ndynamicId & 0xFFFF) < tfrMinDynamicId) {
             jam();
-            tfrMinDynamicId = nodePtr.p->ndynamicId;
+            tfrMinDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
             cpresident = nodePtr.i;
           }//if
         }//if
