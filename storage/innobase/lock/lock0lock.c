@@ -4931,17 +4931,23 @@ lock_rec_validate_page(
 
 	mtr_start(&mtr);
 
+	/* This is to preserve latching order. */
+	if (have_lock_trx_sys_mutex) {
+		trx_sys_mutex_exit();
+
+		lock_mutex_exit();
+	}
+
 	ut_ad(zip_size != ULINT_UNDEFINED);
 	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	page = block->frame;
 
-	if (!have_lock_trx_sys_mutex) {
-		lock_mutex_enter();
+	/* Either way we need to (re)acquire the mutexes. */
+	lock_mutex_enter();
 
-		trx_sys_mutex_enter();
-	}
+	trx_sys_mutex_enter();
 
 loop:
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
