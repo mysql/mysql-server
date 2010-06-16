@@ -170,18 +170,6 @@ public:
   */
   bool set_info(float const value);
   /**
-    Sets the value of a my_off_t field to @c value.
-    Any call must be done in the right order which
-    is defined by the caller that wants to persist
-    the information.
-
-    @param[in] value Value to be set.
-
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool set_info(my_off_t const value);
-  /**
     Sets the value of a Server_ids field to @c value.
     Any call must be done in the right order which
     is defined by the caller that wants to persist
@@ -256,21 +244,6 @@ public:
   bool get_info(float *value,
                 float const default_value);
   /**
-    Returns the value of a my_off_t field.
-    Any call must be done in the right order which
-    is defined by the caller that wants to return
-    the information.
-
-    @param[in] value Value to be set.
-    @param[in] default_value Returns a default value
-                             if the field is empty.
-
-    @retval FALSE No error
-    @retval TRUE Failure
-  */
-  bool get_info(my_off_t *value,
-                my_off_t const default_value);
-  /**
     Returns the value of a Server_id field.
     Any call must be done in the right order which
     is defined by the caller that wants to return
@@ -344,7 +317,6 @@ private:
   virtual bool do_set_info(const int pos, const ulong value)= 0;
   virtual bool do_set_info(const int pos, const int value)= 0;
   virtual bool do_set_info(const int pos, const float value)= 0;
-  virtual bool do_set_info(const int pos, const my_off_t value)= 0;
   virtual bool do_set_info(const int pos, const Server_ids *value)= 0;
   virtual bool do_get_info(const int pos, char *value, const size_t size,
                            const char *default_value)= 0;
@@ -354,8 +326,6 @@ private:
                            const int default_value)= 0;
   virtual bool do_get_info(const int pos, float *value,
                            const float default_value)= 0;
-  virtual bool do_get_info(const int pos, my_off_t *value,
-                           const my_off_t default_value)= 0;
   virtual bool do_get_info(const int pos, Server_ids *value,
                            const Server_ids *default_value)= 0;
 

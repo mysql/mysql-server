@@ -183,7 +183,7 @@ int Master_info::flush_info(bool force)
   if (handler->prepare_info_for_write() ||
       handler->set_info((int) LINES_IN_MASTER_INFO) ||
       handler->set_info(master_log_name) ||
-      handler->set_info(master_log_pos) ||
+      handler->set_info((ulong)master_log_pos) ||
       handler->set_info(host) ||
       handler->set_info(user) ||
       handler->set_info(password) ||
@@ -218,8 +218,10 @@ void Master_info::set_relay_log_info(Relay_log_info* info)
 
 int Master_info::init_info()
 {
-  int lines;
-  char *first_non_digit;
+  int lines= 0;
+  char *first_non_digit= NULL;
+  ulong temp_master_log_pos= 0;
+  int temp_ssl= 0;
 
   DBUG_ENTER("Master_info::init_info");
 
@@ -277,8 +279,8 @@ int Master_info::init_info()
   else 
     lines= 7;
 
-  if (handler->get_info(&master_log_pos,
-                        (my_off_t) BIN_LOG_HEADER_SIZE) ||
+  if (handler->get_info(&temp_master_log_pos,
+                        (ulong) BIN_LOG_HEADER_SIZE) ||
       handler->get_info(host, sizeof(host), 0) ||
       handler->get_info(user, sizeof(user), "test") ||
       handler->get_info(password, sizeof(password), 0) ||
@@ -295,7 +297,7 @@ int Master_info::init_info()
   */
   if (lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
-    if (handler->get_info((int *) &ssl, 0) ||
+    if (handler->get_info((int *) &temp_ssl, 0) ||
         handler->get_info(ssl_ca, sizeof(ssl_ca), 0) ||
         handler->get_info(ssl_capath, sizeof(ssl_capath), 0) ||
         handler->get_info(ssl_cert, sizeof(ssl_cert), 0) ||
@@ -341,7 +343,8 @@ int Master_info::init_info()
       goto err;
   }
 
-
+  ssl= (my_bool) temp_ssl;
+  master_log_pos= (my_off_t) temp_master_log_pos;
 #ifndef HAVE_OPENSSL
   if (ssl)
     sql_print_warning("SSL information in the master info file "

@@ -376,22 +376,6 @@ bool Rpl_info_table::do_set_info(const int pos, const float value)
   return FALSE;
 }
 
-bool Rpl_info_table::do_set_info(const int pos, const my_off_t value)
-{
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
-  /*
-    There is no need to check if the information fits in the reserved
-    space as it is equivalent to ulong.
-  */
-  if (sprintf(field_values->field[pos].use.str, "%lu", (ulong) value) < 0)
-    return TRUE;
-  field_values->field[pos].use.length= strlen(field_values->field[pos].use.str);
-
-  return FALSE;
-}
-
 bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 {
   if (pos >= ninfo || prv_error)
@@ -465,18 +449,6 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
   if (!use_default &&
       sscanf(field_values->field[pos].use.str, "%f", value) != 1)
     return TRUE;
-
-  return FALSE;
-}
-
-bool Rpl_info_table::do_get_info(const int pos, my_off_t *value,
-                                 const my_off_t default_value)
-{
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
-  *value= (use_default ? default_value :
-           (my_off_t) ((int) strtol(field_values->field[pos].use.str, 0, 10)));
 
   return FALSE;
 }

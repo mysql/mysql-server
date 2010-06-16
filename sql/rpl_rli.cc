@@ -952,6 +952,8 @@ int Relay_log_info::init_info()
 {
   int error= 0;
   const char *msg= NULL;
+  ulong temp_group_relay_log_pos= 0;
+  ulong temp_group_master_log_pos= 0;
 
   DBUG_ENTER("Relay_log_info::init_info");
   DBUG_ASSERT(!no_storage);
@@ -1097,17 +1099,19 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
     if (handler->prepare_info_for_read() ||
         handler->get_info(group_relay_log_name,
                           sizeof(group_relay_log_name), "") ||
-        handler->get_info((my_off_t *) &group_relay_log_pos,
-                          (my_off_t) BIN_LOG_HEADER_SIZE) ||
+        handler->get_info((ulong *) &temp_group_relay_log_pos,
+                          (ulong) BIN_LOG_HEADER_SIZE) ||
         handler->get_info(group_master_log_name,
                           sizeof(group_relay_log_name), "") ||
-        handler->get_info((my_off_t *) &group_master_log_pos,
-                          (my_off_t) 0))
+        handler->get_info((ulong *) &temp_group_master_log_pos,
+                          (ulong) 0))
     {
       msg= "Error reading relay log configuration";
       error= 1;
       goto err;
     }
+    group_relay_log_pos=  temp_group_relay_log_pos;
+    group_master_log_pos= temp_group_master_log_pos;
 
     if (is_relay_log_recovery && init_recovery(mi, &msg))
     {
@@ -1247,9 +1251,9 @@ int Relay_log_info::flush_info(bool force)
 
   if (handler->prepare_info_for_write() ||
       handler->set_info(group_relay_log_name) ||
-      handler->set_info((my_off_t) group_relay_log_pos) ||
+      handler->set_info((ulong) group_relay_log_pos) ||
       handler->set_info(group_master_log_name) ||
-      handler->set_info((my_off_t) group_master_log_pos))
+      handler->set_info((ulong) group_master_log_pos))
     goto err;
 
   if (handler->flush_info(force))
