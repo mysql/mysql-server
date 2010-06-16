@@ -1640,7 +1640,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_HB_ORDER,
     "HeartbeatOrder",
     DB_TOKEN,
-    "Position in heartbeat ring",
+    "Heartbeat circle is ordered by the given values "
+    "which must be non-zero and distinct",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
