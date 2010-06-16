@@ -27,10 +27,12 @@ struct TABLE;
 struct handlerton;
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
+typedef struct st_key KEY;
 typedef struct st_key_cache KEY_CACHE;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_order ORDER;
+class Alter_table_change_level;
 
 enum ddl_log_entry_code
 {
@@ -131,10 +133,6 @@ enum enum_explain_filename_mode
 #define NO_FRM_RENAME   (1 << 2)
 #define FRM_ONLY        (1 << 3)
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-bool mysql_exchange_partition(THD *thd, TABLE_LIST *table_list,
-                              Alter_info *alter_info, bool ignore);
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
@@ -150,12 +148,23 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
                                 bool tmp_table, uint select_field_count);
-
+bool mysql_prepare_alter_table(THD *thd, TABLE *table,
+                               HA_CREATE_INFO *create_info,
+                               Alter_info *alter_info);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
                        uint order_num, ORDER *order, bool ignore);
+bool mysql_compare_tables(TABLE *table,
+                          Alter_info *alter_info,
+                          HA_CREATE_INFO *create_info,
+                          uint order_num,
+                          Alter_table_change_level *need_copy_table,
+                          KEY **key_info_buffer,
+                          uint **index_drop_buffer, uint *index_drop_count,
+                          uint **index_add_buffer, uint *index_add_count,
+                          uint *candidate_key_count, bool exact_match);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,

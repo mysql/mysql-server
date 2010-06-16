@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_parse.h"                       // check_access,
                                              // check_merge_table_access
@@ -21,7 +21,6 @@
 
 bool Alter_table_statement::execute(THD *thd)
 {
-  /* Moved from mysql_execute_command */
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
@@ -38,6 +37,7 @@ bool Alter_table_statement::execute(THD *thd)
   Alter_info alter_info(lex->alter_info, thd->mem_root);
   ulong priv=0;
   ulong priv_needed= ALTER_ACL;
+  bool result;
 
   DBUG_ENTER("Alter_table_statement::execute");
 
@@ -68,16 +68,18 @@ bool Alter_table_statement::execute(THD *thd)
 
   if (check_grant(thd, priv_needed, first_table, FALSE, UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);                  /* purecov: inspected */
-  if (lex->name.str && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
-  { // Rename of table
-      TABLE_LIST tmp_table;
-      bzero((char*) &tmp_table,sizeof(tmp_table));
-      tmp_table.table_name= lex->name.str;
-      tmp_table.db=select_lex->db;
-      tmp_table.grant.privilege=priv;
-      if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, FALSE,
-          UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);                  /* purecov: inspected */
+
+  if (lex->name.str && !test_all_bits(priv, INSERT_ACL | CREATE_ACL))
+  {
+    // Rename of table
+    TABLE_LIST tmp_table;
+    bzero((char*) &tmp_table,sizeof(tmp_table));
+    tmp_table.table_name= lex->name.str;
+    tmp_table.db=select_lex->db;
+    tmp_table.grant.privilege=priv;
+    if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table,
+                    FALSE, UINT_MAX, FALSE))
+      DBUG_RETURN(TRUE);                  /* purecov: inspected */
   }
 
   /* Don't yet allow changing of symlinks with ALTER TABLE */
@@ -92,68 +94,12 @@ bool Alter_table_statement::execute(THD *thd)
   create_info.data_file_name= create_info.index_file_name= NULL;
 
   thd->enable_slow_log= opt_log_slow_admin_statements;
-  DBUG_RETURN(mysql_alter_table(thd, select_lex->db, lex->name.str,
-                                &create_info,
-                                first_table,
-                                &alter_info,
-                                select_lex->order_list.elements,
-                                (ORDER *) select_lex->order_list.first,
-                                lex->ignore));
-}
 
+  result= mysql_alter_table(thd, select_lex->db, lex->name.str, &create_info,
+                            first_table, &alter_info,
+                            select_lex->order_list.elements,
+                            (ORDER *) select_lex->order_list.first,
+                            lex->ignore);
 
-bool Alter_table_exchange_partition_statement::execute(THD *thd)
-{
-  /* Moved from mysql_execute_command */
-  LEX *lex= thd->lex;
-  /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &lex->select_lex;
-  /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
-  /*
-    Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
-    so we have to use a copy of this structure to make execution
-    prepared statement- safe. A shallow copy is enough as no memory
-    referenced from this structure will be modified.
-    @todo move these into constructor...
-  */
-  HA_CREATE_INFO create_info(lex->create_info);
-  Alter_info alter_info(lex->alter_info, thd->mem_root);
-  ulong priv_needed= ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
-
-  DBUG_ENTER("Alter_table_exchange_partition_statement::execute");
-
-  if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-    DBUG_RETURN(TRUE);
-
-  /* Must be set in the parser */
-  DBUG_ASSERT(select_lex->db);
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  /* also check the table to be exchanged with the partition */
-  DBUG_ASSERT(alter_info.flags & ALTER_EXCHANGE_PARTITION);
-
-  if (check_access(thd, priv_needed, first_table->db,
-                   &first_table->grant.privilege,
-                   &first_table->grant.m_internal,
-                   0, 0) ||
-      check_access(thd, priv_needed, first_table->next_local->db,
-                   &first_table->next_local->grant.privilege,
-                   &first_table->next_local->grant.m_internal,
-                   0, 0))
-    DBUG_RETURN(TRUE);
-  if (check_grant(thd, priv_needed, first_table, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
-
-  /* Not allowed with EXCHANGE PARTITION */
-  DBUG_ASSERT(!create_info.data_file_name && !create_info.index_file_name);
-
-  thd->enable_slow_log= opt_log_slow_admin_statements;
-  DBUG_RETURN(mysql_exchange_partition(thd, first_table, &alter_info,
-                                       lex->ignore));
-#else
-  /* error, partitioning support not compiled in... */
-  my_error(ER_FEATURE_DISABLED, MYF(0), "partitioning",
-      "--with-plugin-partition");
-  DBUG_RETURN(TRUE);
-#endif
+  DBUG_RETURN(result);
 }
