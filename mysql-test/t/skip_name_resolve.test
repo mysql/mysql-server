@@ -29,3 +29,24 @@ disconnect con1;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+--echo #
+--echo # Bug #37168: Missing variable - skip_name_resolve
+--echo #
+
+SHOW VARIABLES LIKE 'skip_name_resolve';
+SHOW GLOBAL VARIABLES LIKE 'skip_name_resolve';
+SHOW SESSION VARIABLES LIKE 'skip_name_resolve';
+
+SELECT @@skip_name_resolve;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@LOCAL.skip_name_resolve;
+SELECT @@GLOBAL.skip_name_resolve;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@skip_name_resolve=0;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@LOCAL.skip_name_resolve=0;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.skip_name_resolve=0;
+
+--echo End of 5.1 tests

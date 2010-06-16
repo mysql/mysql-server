@@ -1230,4 +1230,12 @@ SELECT HEX(DAYNAME(19700101));
 HEX(DAYNAME(19700101))
 0427043504420432043504400433
 SET character_set_connection=latin1;
+#
+# Bug#52120 create view cause Assertion failed: 0, file .\item_subselect.cc, line 817
+#
+CREATE TABLE t1 (a CHAR(1) CHARSET ascii, b CHAR(1) CHARSET latin1);
+CREATE VIEW v1 AS SELECT 1 from t1
+WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests

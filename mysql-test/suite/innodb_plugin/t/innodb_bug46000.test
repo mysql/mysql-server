@@ -1,0 +1,32 @@
+# This is the test for bug 46000. We shall
+# block any index creation with the name of
+# "GEN_CLUST_INDEX", which is the reserved
+# name for innodb default primary index.
+
+-- source include/have_innodb_plugin.inc
+
+# This 'create table' operation should fail because of
+# using the reserve name as its index name.
+--error ER_WRONG_NAME_FOR_INDEX
+create table bug46000(`id` int,key `GEN_CLUST_INDEX`(`id`))engine=innodb;
+
+# Mixed upper/lower case of the reserved key words
+--error ER_WRONG_NAME_FOR_INDEX
+create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;
+
+show warnings;
+
+create table bug46000(id int) engine=innodb;
+
+# This 'create index' operation should fail.
+--error ER_WRONG_NAME_FOR_INDEX
+create index GEN_CLUST_INDEX on bug46000(id);
+
+show warnings;
+
+# This 'create index' operation should succeed, no
+# temp table left from last failed create index
+# operation.
+create index idx on bug46000(id);
+
+drop table bug46000;

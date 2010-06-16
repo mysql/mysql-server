@@ -507,8 +507,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 						" recover the database"
 						" with the my.cnf\n"
 						"InnoDB: option:\n"
-						"InnoDB: set-variable="
-						"innodb_force_recovery=6\n");
+						"InnoDB:"
+						" innodb_force_recovery=6\n");
 					exit(1);
 				}
 

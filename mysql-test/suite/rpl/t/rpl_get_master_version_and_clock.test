@@ -16,8 +16,16 @@
 
 source include/master-slave.inc;
 source include/have_debug.inc;
+source include/have_debug_sync.inc;
+
+#
+# The test is not supposed to have any binglog affairs.
+# Hence it's enough it to run only with one binlog format
+#
+source include/have_binlog_format_mixed.inc;
 
 connection slave;
+
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 call mtr.add_suppression("Slave I/O thread .* register on master");
@@ -25,20 +33,16 @@ call mtr.add_suppression("Slave I/O thread .* register on master");
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 let $debug_saved= `select @@global.debug`;
 
-let $debug_lock= "debug_lock.before_get_UNIX_TIMESTAMP";
-eval SELECT IS_FREE_LOCK($debug_lock);
-eval SELECT GET_LOCK($debug_lock, 1000);
-
-set global debug= 'd,debug_lock.before_get_UNIX_TIMESTAMP';
+# set up two parameters to pass into extra/rpl_tests/rpl_get_master_version_and_clock
+let $dbug_sync_point= 'debug_lock.before_get_UNIX_TIMESTAMP';
+let $debug_sync_action= 'now SIGNAL signal.get_unix_timestamp';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test; 
 
 #Test case 2: Try to get the value of the SERVER_ID from master under network disconnection
 connection slave;
-let $debug_lock= "debug_lock.before_get_SERVER_ID";
-eval SELECT IS_FREE_LOCK($debug_lock);
-eval SELECT GET_LOCK($debug_lock, 1000);
 
-set global debug= 'd,debug_lock.before_get_SERVER_ID';
+let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
+let $debug_sync_action= 'now SIGNAL signal.get_server_id';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
 eval set global debug= '$debug_saved';
@@ -61,5 +65,10 @@ let $last_io_errno= query_get_value("show slave status", Last_IO_Errno, 1);
 let $last_io_error= query_get_value("show slave status", Last_IO_Error, 1);
 echo Slave_IO_Errno= $last_io_errno;
 echo Slave_IO_Error= $last_io_error;
+
+# cleanup
+
+# is not really necessary but avoids mtr post-run env check warnings
+SET DEBUG_SYNC= 'RESET';
 
 # End of tests

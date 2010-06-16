@@ -1,0 +1,57 @@
+DROP TABLE IF EXISTS t1, t2;
+SET DEBUG_SYNC= 'RESET';
+#
+# Bug#42438: Crash ha_partition::change_table_ptr
+# Test when remove partitioning is done while drop table is waiting
+# for the table.
+# Con 1
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1
+(a INTEGER,
+b INTEGER NOT NULL,
+KEY (b))
+ENGINE = MYISAM
+/*!50100  PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (100),
+PARTITION p3 VALUES LESS THAN MAXVALUE ) */;
+SET DEBUG_SYNC= 'alter_table_before_create_table_no_lock SIGNAL removing_partitioning WAIT_FOR waiting_for_alter';
+SET DEBUG_SYNC= 'alter_table_before_main_binlog SIGNAL partitioning_removed';
+ALTER TABLE t1 REMOVE PARTITIONING;
+# Con default
+SET DEBUG_SYNC= 'now WAIT_FOR removing_partitioning';
+SET DEBUG_SYNC= 'waiting_for_table SIGNAL waiting_for_alter';
+SET DEBUG_SYNC= 'rm_table_part2_before_delete_table WAIT_FOR partitioning_removed';
+DROP TABLE IF EXISTS t1;
+# Con 1
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'RESET';
+#
+# Bug#42438: Crash ha_partition::change_table_ptr
+# Test when remove partitioning is failing due to drop table is already
+# in progress.
+CREATE TABLE t2
+(a INTEGER,
+b INTEGER NOT NULL,
+KEY (b))
+ENGINE = MYISAM
+/*!50100  PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (100),
+PARTITION p3 VALUES LESS THAN MAXVALUE ) */;
+SET DEBUG_SYNC= 'before_lock_tables_takes_lock SIGNAL removing_partitions WAIT_FOR waiting_for_alter';
+SET DEBUG_SYNC= 'alter_table_before_rename_result_table WAIT_FOR delete_done';
+ALTER TABLE t2 REMOVE PARTITIONING;
+# Con default
+SET DEBUG_SYNC= 'now WAIT_FOR removing_partitions';
+SET DEBUG_SYNC= 'waiting_for_table SIGNAL waiting_for_alter';
+SET DEBUG_SYNC= 'rm_table_part2_before_binlog SIGNAL delete_done';
+DROP TABLE IF EXISTS t2;
+# Con 1
+ERROR 42S02: Table 'test.t2' doesn't exist
+SET DEBUG_SYNC= 'RESET';
+# Con default
+SET DEBUG_SYNC= 'RESET';
+End of 5.1 tests
