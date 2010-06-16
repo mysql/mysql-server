@@ -160,6 +160,7 @@ trx_create(
 	trx->graph = NULL;
 
 	trx->wait_lock = NULL;
+	trx->allowed_to_wait = TRUE;
 	trx->was_chosen_as_deadlock_victim = FALSE;
 	UT_LIST_INIT(trx->wait_thrs);
 

@@ -81,9 +81,10 @@ dict_stats_drop_index(
 /*********************************************************************//**
 Removes the statistics for a table and all of its indexes from the
 persistent storage if it exists and if there is data stored for the table.
-This function creates its own transaction and commits it. */
+This function creates its own transaction and commits it.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
-void
+enum db_err
 dict_stats_drop_table(
 /*==================*/
 	const char*	table);	/*!< in: table */

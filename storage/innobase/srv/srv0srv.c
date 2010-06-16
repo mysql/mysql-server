@@ -496,6 +496,11 @@ intervals. Following macros define thresholds for these conditions. */
 #define SRV_RECENT_IO_ACTIVITY	(PCT_IO(5))
 #define SRV_PAST_IO_ACTIVITY	(PCT_IO(200))
 
+#define fetch_lock_wait_timeout(trx)			\
+	((trx)->allowed_to_wait				\
+	 ? thd_lock_wait_timeout((trx)->mysql_thd)	\
+	 : 0)
+
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
 	=========================================
@@ -1650,7 +1655,7 @@ srv_suspend_mysql_thread(
 	incomplete transactions that are being rolled back after crash
 	recovery) will use the global value of
 	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
-	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
+	lock_wait_timeout = fetch_lock_wait_timeout(trx);
 
 	if (lock_wait_timeout < 100000000
 	    && wait_time > (double) lock_wait_timeout) {
@@ -2216,8 +2221,7 @@ loop:
 			wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
 			trx = thr_get_trx(slot->thr);
-			lock_wait_timeout = thd_lock_wait_timeout(
-				trx->mysql_thd);
+			lock_wait_timeout = fetch_lock_wait_timeout(trx);
 
 			if (trx_is_interrupted(trx)
 			    || (lock_wait_timeout < 100000000

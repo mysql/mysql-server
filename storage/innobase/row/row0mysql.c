@@ -3007,12 +3007,6 @@ row_drop_table_for_mysql(
 		srv_print_innodb_table_monitor = FALSE;
 	}
 
-	/* Remove stats for this table and all of its indexes from the
-	persistent storage if it exists and if there are stats for this
-	table in there. This function creates its own trx and commits
-	it. */
-	dict_stats_drop_table(name);
-
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 

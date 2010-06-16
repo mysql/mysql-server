@@ -167,8 +167,8 @@ dict_stats_table_check(
 
 	table = dict_table_get_low(req_schema->table_name);
 
-	if (table == NULL) {
-		/* no such table */
+	if (table == NULL || table->ibd_file_missing) {
+		/* no such table or missing tablespace */
 
 		return(FALSE);
 	}
@@ -366,14 +366,23 @@ dict_stats_persistent_storage_check()
 		index_stats_columns
 	};
 
+	ibool	caller_has_dict_sys_mutex;
 	ibool	ret;
 
-	mutex_enter(&(dict_sys->mutex));
+	caller_has_dict_sys_mutex = mutex_own(&dict_sys->mutex);
+
+	if (!caller_has_dict_sys_mutex) {
+		mutex_enter(&(dict_sys->mutex));
+	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	ret = dict_stats_table_check(&table_stats_schema)
 	   && dict_stats_table_check(&index_stats_schema);
 
-	mutex_exit(&(dict_sys->mutex));
+	if (!caller_has_dict_sys_mutex) {
+		mutex_exit(&(dict_sys->mutex));
+	}
 
 	return(ret);
 }
@@ -2336,22 +2345,32 @@ dict_stats_drop_index(
 Removes the statistics for a table and all of its indexes from the
 persistent storage if it exists and if there is data stored for the table.
 This function creates its own transaction and commits it.
-dict_stats_drop_table() @{ */
+dict_stats_drop_table() @{
+@return DB_SUCCESS or error code */
 UNIV_INTERN
-void
+enum db_err
 dict_stats_drop_table(
 /*==================*/
 	const char*	table_name)	/*!< in: table name */
 {
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	ulint		ret;
+	enum db_err	ret = DB_ERROR;
+	dict_table_t*	table_stats;
+	dict_table_t*	index_stats;
 
 	/* skip tables that do not contain a database name
 	e.g. if we are dropping SYS_TABLES */
 	if (strchr(table_name, '/') == NULL) {
 
-		return;
+		return(DB_SUCCESS);
+	}
+
+	/* skip table_stats and index_stats themselves */
+	if (strcmp(table_name, TABLE_STATS_NAME) == 0
+	    || strcmp(table_name, INDEX_STATS_NAME) == 0) {
+
+		return(DB_SUCCESS);
 	}
 
 	mutex_enter(&kernel_mutex);
@@ -2360,32 +2379,39 @@ dict_stats_drop_table(
 
 	trx->op_info = "";
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
+	trx->allowed_to_wait = FALSE;
 	trx_start(trx, ULINT_UNDEFINED);
 
-	/* Cannot continue without locking the stats tables
-	because the SQL parser will crash if they disappear after
-	dict_stats_persistent_storage_check(). The tables will be
-	unlocked when the transaction is committed. */
+	/* Increment table reference count to prevent the tables from
+	being DROPped just before que_eval_sql(). As of the time of
+	this code is written MySQL's LOCK_open mutex protects us here
+	from races, but we nevertheless increment the ref counter to
+	be sure the code continues to be race-free even if MySQL code
+	is changed. */
 
-	/* XXX those locks still do not prevent the table from being dropped */
+	row_mysql_lock_data_dictionary(trx);
 
-	if (lock_table_by_name(TABLE_STATS_NAME, LOCK_X, trx) != DB_SUCCESS) {
+	table_stats = dict_table_get_low(TABLE_STATS_NAME);
+	index_stats = dict_table_get_low(INDEX_STATS_NAME);
 
+	if (table_stats == NULL || index_stats == NULL) {
+		/* tables do not exist */
+		row_mysql_unlock_data_dictionary(trx);
+		ret = DB_SUCCESS;
 		goto commit_and_return;
 	}
 
-	if (lock_table_by_name(INDEX_STATS_NAME, LOCK_X, trx) != DB_SUCCESS) {
+	table_stats->n_mysql_handles_opened++;
+	index_stats->n_mysql_handles_opened++;
 
-		/* the commit will unlock table_stats */
-		goto commit_and_return;
-	}
+	row_mysql_unlock_data_dictionary(trx);
 
 	/* If the persistent storage does not exist or is corrupted,
 	then do not attempt to DELETE from its tables because the
 	internal SQL parser will crash. */
 	if (!dict_stats_persistent_storage_check()) {
 
-		/* the commit will unlock the stats tables */
+		ret = DB_SUCCESS;
 		goto commit_and_return;
 	}
 
@@ -2421,15 +2447,33 @@ dict_stats_drop_table(
 
 	/* pinfo is freed by que_eval_sql() */
 
-	ut_a(ret == DB_SUCCESS);
+	ut_a(ret == DB_SUCCESS || ret == DB_LOCK_WAIT_TIMEOUT);
+
+	if (ret == DB_LOCK_WAIT_TIMEOUT) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Unable to instantly delete statistics "
+			"for %s from %s or %s.\n",
+			table_name, TABLE_STATS_NAME, INDEX_STATS_NAME);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Please unlock the rows in those tables and "
+			"retry the operation.\n");
+	}
 
 commit_and_return:
+
+	dict_table_decrement_handle_count(table_stats, FALSE);
+	dict_table_decrement_handle_count(index_stats, FALSE);
 
 	trx_commit_for_mysql(trx);
 
 	mutex_enter(&kernel_mutex);
 	trx_free(trx);
 	mutex_exit(&kernel_mutex);
+
+	return(ret);
 }
 /* @} */
 
