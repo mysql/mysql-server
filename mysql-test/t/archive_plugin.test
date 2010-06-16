@@ -1,6 +1,10 @@
 --source include/not_windows.inc
 --source include/have_archive_plugin.inc
 
+# When running in parallel we get
+# Warning 1620 Plugin is busy and will be uninstalled on shutdown
+--source include/not_parallel.inc
+
 CREATE TABLE t1(a int) ENGINE=ARCHIVE;
 DROP TABLE t1;
 
