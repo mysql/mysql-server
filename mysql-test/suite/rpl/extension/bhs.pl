@@ -39,7 +39,7 @@ my @update_test_cases;
 my %rules;
 my $opt_trans_test_list;
 
-print "############################################################\nCreating suite rpl_bhs\n";
+print "Creating suite rpl_bhs\n";
 
 # *** Set platform-independent pathes ***
 
@@ -209,7 +209,7 @@ foreach my $test_dir (keys %test_dirs)
 
 print "updated $case_num files\n";
 
-print "Run $mtr_script\n############################################################\n";
+print "Run $mtr_script\n";
 
 exec( $mtr_script);
 
