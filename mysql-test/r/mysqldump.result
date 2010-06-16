@@ -1658,8 +1658,8 @@ mysqldump: Couldn't find table: "T_1"
 mysqldump: Couldn't find table: "T_"
 test_sequence
 ------ Testing with illegal database names ------
-mysqldump: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
-mysqldump: Got error: 1049: Unknown database 'mysqld\ump_test_db' when selecting the database
+mysqldump: Got error: 1049: "Unknown database 'mysqldump_test_d'" when selecting the database
+mysqldump: Got error: 1049: "Unknown database 'mysqld\ump_test_db'" when selecting the database
 drop table t1, t2, t3;
 drop database mysqldump_test_db;
 use test;
@@ -1833,7 +1833,7 @@ drop table t1, t2, t3;
 #
 create table t1 (a int);
 mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
-mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
+mysqldump: Got error: 1064: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1" when retrieving data from server
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;

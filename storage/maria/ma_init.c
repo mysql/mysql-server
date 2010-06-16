@@ -40,6 +40,11 @@ void history_state_free(MARIA_STATE_HISTORY_CLOSED *closed_history)
 }
 
 
+static int dummy_maria_create_trn_hook(MARIA_HA *info __attribute__((unused)))
+{
+  return 0;
+}
+
 /*
   Initialize maria
 
@@ -64,6 +69,7 @@ int maria_init(void)
     pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
     _ma_init_block_record_data();
     trnman_end_trans_hook= _ma_trnman_end_trans_hook;
+    maria_create_trn_hook= dummy_maria_create_trn_hook;
     my_handler_error_register();
   }
   hash_init(&maria_stored_state, &my_charset_bin, 32,

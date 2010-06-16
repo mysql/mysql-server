@@ -1094,7 +1094,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
   */
   maria_lock_database(info, F_EXTRA_LCK);
   datafile= info->dfile.file;
-  if (init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
+  if (init_pagecache(maria_pagecache, (size_t) param->use_buffers, 0, 0,
                      maria_block_size, MY_WME) == 0)
   {
     _ma_check_print_error(param, "Can't initialize page cache with %lu memory",

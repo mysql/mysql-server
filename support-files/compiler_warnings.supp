@@ -130,7 +130,7 @@ xaction_xt\.cc: may be used uninitialized in this function
 #
 storage/pbxt/ : typedef.*was ignored in this declaration
 ha_pbxt\.cc : variable.*might be clobbered by.*longjmp
-table_xt\.cc : variable.*might be clobbered by ~longjm~p or ~vfork~
+table_xt\.cc : variable.*might be clobbered by.*longjmp
 
 #
 # Yassl

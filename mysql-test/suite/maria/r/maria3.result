@@ -315,7 +315,7 @@ maria_pagecache_age_threshold	300
 maria_pagecache_buffer_size	8384512
 maria_pagecache_division_limit	100
 maria_page_checksum	OFF
-maria_recover	OFF
+maria_recover	NORMAL
 maria_repair_threads	1
 maria_sort_buffer_size	8388608
 maria_stats_method	nulls_unequal
@@ -542,6 +542,30 @@ test.t1	check	status	OK
 drop table t1;
 create temporary table t1 (a int, key(a)) transactional=1;
 create temporary table t2 (a int, key(a)) transactional=1;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1, t2;
+create temporary table t1 (a int, key(a)) transactional=0 row_format=page;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=page;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1, t2;
+create temporary table t1 (a int, key(a)) transactional=0 row_format=fixed;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=dynamic;
 insert into t1 values (0),(1),(2),(3),(4);
 insert into t2 select * from t1;
 insert into t1 select NULL from t2;

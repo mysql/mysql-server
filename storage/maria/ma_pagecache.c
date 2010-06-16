@@ -4187,7 +4187,16 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
   {
     PAGECACHE_BLOCK_LINK *block= *cache;
 
-    if (block->pins)
+    /*
+      In the case of non_transactional tables we want to flush also
+      block pinned with reads. This is becasue we may have other
+      threads reading the block during flush, as non transactional
+      tables can have many readers while the one writer is doing the
+      flush.
+      We don't want to do flush pinned blocks during checkpoint.
+      We detect the checkpoint case by checking if type is LAZY.
+    */
+    if ((type == FLUSH_KEEP_LAZY && block->pins) || block->wlocks)
     {
       KEYCACHE_DBUG_PRINT("flush_cached_blocks",
                           ("block: %u (0x%lx)  pinned",
@@ -4204,13 +4213,9 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
         *first_errno= HA_ERR_INTERNAL_ERROR;
       continue;
     }
-    /* if the block is not pinned then it is not write locked */
-    DBUG_ASSERT(block->wlocks == 0);
-    DBUG_ASSERT(block->pins == 0);
     if (make_lock_and_pin(pagecache, block,
-                          PAGECACHE_LOCK_WRITE, PAGECACHE_PIN, FALSE))
+                          PAGECACHE_LOCK_READ, PAGECACHE_PIN, FALSE))
       DBUG_ASSERT(0);
-    DBUG_ASSERT(block->pins == 1);
 
     KEYCACHE_DBUG_PRINT("flush_cached_blocks",
                         ("block: %u (0x%lx)  to be flushed",
@@ -4222,7 +4227,6 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     DBUG_PRINT("info", ("block: %u (0x%lx)  pins: %u",
                         PCBLOCK_NUMBER(pagecache, block), (ulong)block,
                         block->pins));
-    DBUG_ASSERT(block->pins == 1);
     /**
        @todo IO If page is contiguous with next page to flush, group flushes
        in one single my_pwrite().
@@ -4241,7 +4245,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 
     if (make_lock_and_pin(pagecache, block,
-                          PAGECACHE_LOCK_WRITE_UNLOCK,
+                          PAGECACHE_LOCK_READ_UNLOCK,
                           PAGECACHE_UNPIN, FALSE))
       DBUG_ASSERT(0);
 

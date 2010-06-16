@@ -266,6 +266,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
   recovery_warnings= 0;
+  maria_recovery_changed_data= 0;
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
   all_active_trans= (struct st_trn_for_recovery *)
@@ -465,8 +466,18 @@ end:
       fflush(stderr);
     }
     if (!error)
+    {
       ma_message_no_user(ME_JUST_INFO, "recovery done");
+      maria_recovery_changed_data= 1;
+    }
   }
+  else if (!error && max_trid_in_control_file != max_long_trid)
+  {
+    /* Set max trid in log file so that one can run maria_chk on the tables */
+    max_trid_in_control_file= trnman_get_max_trid();
+    maria_recovery_changed_data= 1;
+  }
+
   if (error)
     my_message(HA_ERR_INITIALIZATION,
                "Maria recovery failed. Please run maria_chk -r on all maria "

@@ -238,7 +238,7 @@ static MYSQL_SYSVAR_ENUM(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
        "Specifies how corrupted tables should be automatically repaired."
        " Possible values are \"NORMAL\" (the default), \"BACKUP\", \"FORCE\","
        " \"QUICK\", or \"OFF\" which is like not using the option.",
-       NULL, NULL, HA_RECOVER_NONE, &maria_recover_typelib);
+       NULL, NULL, HA_RECOVER_DEFAULT, &maria_recover_typelib);
 
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
        "Number of threads to use when repairing maria tables. The value of 1 "
@@ -743,7 +743,53 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Create a transaction object
+
+  SYNOPSIS
+    info	Maria handler
+
+  RETURN
+    0 		ok
+    #		Error number (HA_ERR_OUT_OF_MEM)
+*/
+
+static int maria_create_trn_for_mysql(MARIA_HA *info)
+{
+  THD *thd= (THD*) info->external_ptr;
+  TRN *trn= THD_TRN;
+  DBUG_ENTER("maria_create_trn_for_mysql");
+
+  if (!trn)  /* no transaction yet - open it now */
+  {
+    trn= trnman_new_trn(& thd->transaction.wt);
+    if (unlikely(!trn))
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    THD_TRN= trn;
+    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+      trans_register_ha(thd, TRUE, maria_hton);
+  }
+  _ma_set_trn_for_table(info, trn);
+  if (!trnman_increment_locked_tables(trn))
+  {
+    trans_register_ha(thd, FALSE, maria_hton);
+    trnman_new_statement(trn);
+  }
+#ifdef EXTRA_DEBUG
+  if (info->lock_type == F_WRLCK &&
+      ! (trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED))
+  {
+    trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
+                     TRN_STATE_TABLES_CAN_CHANGE);
+    (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
+                                   (uchar*) thd->query(),
+                                   thd->query_length());
+  }
+#endif
+  DBUG_RETURN(0);
 }
+
+} /* extern "C" */
 
 /**
   Transactional table doing bulk insert with one single UNDO
@@ -2349,9 +2395,9 @@ int ha_maria::delete_table(const char *name)
   return maria_delete_table(name);
 }
 
+
 int ha_maria::external_lock(THD *thd, int lock_type)
 {
-  TRN *trn= THD_TRN;
   DBUG_ENTER("ha_maria::external_lock");
   /*
     We don't test now_transactional because it may vary between lock/unlock
@@ -2371,22 +2417,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     /* Transactional table */
     if (lock_type != F_UNLCK)
     {
-      /* Start of new statement */
-      if (!trn)  /* no transaction yet - open it now */
-      {
-        trn= trnman_new_trn(& thd->transaction.wt);
-        if (unlikely(!trn))
-          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-        THD_TRN= trn;
-        if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-          trans_register_ha(thd, TRUE, maria_hton);
-      }
-      _ma_set_trn_for_table(file, trn);
-      if (!trnman_increment_locked_tables(trn))
-      {
-        trans_register_ha(thd, FALSE, maria_hton);
-        trnman_new_statement(trn);
-      }
+      file->external_ptr= thd;                  // For maria_register_trn()
 
       if (!file->s->lock_key_trees)             // If we don't use versioning
       {
@@ -2419,20 +2450,10 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("Disabling logging for table"));
         _ma_tmp_disable_logging_for_table(file, TRUE);
       }
-#ifdef EXTRA_DEBUG
-      if (lock_type == F_WRLCK &&
-          ! (trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED))
-      {
-        trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
-                         TRN_STATE_TABLES_CAN_CHANGE);
-        (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
-                                       (uchar*) thd->query(),
-                                       thd->query_length());
-      }
-#endif
     }
     else
     {
+      TRN *trn= THD_TRN;
       /* End of transaction */
 
       /*
@@ -2457,6 +2478,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       file->state= &file->s->state.state;
       if (trn)
       {
+        DBUG_PRINT("info",
+                   ("locked_tables: %u", trnman_has_locked_tables(trn)));
         if (trnman_has_locked_tables(trn) &&
             !trnman_decrement_locked_tables(trn))
         {
@@ -3223,9 +3246,11 @@ static int ha_maria_init(void *p)
                   MYSQL_VERSION_ID, server_id, maria_log_pagecache,
                   TRANSLOG_DEFAULT_FLAGS, 0) ||
     maria_recovery_from_log() ||
-    ((force_start_after_recovery_failures != 0) && mark_recovery_success()) ||
+    ((force_start_after_recovery_failures != 0 ||
+      maria_recovery_changed_data) && mark_recovery_success()) ||
     ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= maria_in_ha_maria= TRUE;
+  maria_create_trn_hook= maria_create_trn_for_mysql;
 
 #if defined(HAVE_REALPATH) && !defined(HAVE_valgrind) && !defined(HAVE_BROKEN_REALPATH)
   /*  We can only test for sub paths if my_symlink.c is using realpath */
