@@ -157,6 +157,7 @@ static struct my_option my_long_options[] =
 static void short_usage_sub(void)
 {
   ndb_short_usage_sub(my_progname, NULL);
+  ndb_service_print_options("ndb_mgmd");
 }
 
 static void usage()

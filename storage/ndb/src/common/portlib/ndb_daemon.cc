@@ -398,3 +398,20 @@ void ndb_daemon_exit(int status)
 #endif
 
 }
+
+void ndb_service_print_options(const char* name)
+{
+#ifdef _WIN32
+  puts("");
+  puts("The following Windows specific options may be given as "
+       "the first argument:");
+  printf("  --install[=name]\tInstall %s as service with given "
+         "name(default: %s), \n"
+         "\t\t\tusing the arguments currently given on command line.\n",
+         name, name);
+  printf("  --remove[=name]\tRemove service with name(default: %s)\n",
+         name);
+  puts("");
+#endif
+}
+
