@@ -46,4 +46,33 @@ lock_get_type_low(
 	return(lock->type_mode & LOCK_TYPE_MASK);
 }
 
+/*********************************************************************//**
+Checks if some transaction has an implicit x-lock on a record in a clustered
+index.
+@return	transaction which has the x-lock, or NULL */
+UNIV_INLINE
+trx_t*
+lock_clust_rec_some_has_impl(
+/*=========================*/
+	const rec_t*	rec,	/*!< in: user record */
+	dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
+{
+	trx_id_t	trx_id;
+
+	ut_ad(trx_sys_mutex_own());
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(page_rec_is_user_rec(rec));
+
+	trx_id = row_get_rec_trx_id(rec, index, offsets);
+
+	if (trx_is_active_low(trx_id)) {
+		/* The modifying or inserting transaction is active */
+
+		return(trx_get_on_id_low(trx_id));
+	}
+
+	return(NULL);
+}
+
 /* vim: set filetype=c: */
