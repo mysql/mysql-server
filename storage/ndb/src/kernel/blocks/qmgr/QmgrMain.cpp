@@ -5492,7 +5492,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 908)
   {
     int tag = signal->getLength() < 2 ? -1 : signal->theData[1];
-    char buf[1000];
+    char buf[8192];
     // for easy grepping in *out.log ...
     strcpy(buf, "HB:");
     if (tag >= 0)
@@ -5880,7 +5880,7 @@ Qmgr::check_hb_order_config()
   if (count_zero == count)
   {
     jam();
-    return 0;
+    return 0; // no hbOrder defined
   }
   if (count_zero != 0)
   {
@@ -5894,7 +5894,7 @@ Qmgr::check_hb_order_config()
     if (nodeInfo.m_type == NodeInfo::DB)
     {
       NodeRecPtr nodePtr2;
-      for (nodePtr2.i = 1; nodePtr2.i < MAX_NDB_NODES; nodePtr2.i++)
+      for (nodePtr2.i = nodePtr.i + 1; nodePtr2.i < MAX_NDB_NODES; nodePtr2.i++)
       {
         ptrAss(nodePtr2, nodeRec);
         const NodeInfo& nodeInfo2 = getNodeInfo(nodePtr2.i);
