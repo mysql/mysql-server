@@ -1688,6 +1688,8 @@ static int merge_some_files (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sou
     }
 
     if (bfs!=NULL) {
+        if (result != 0)
+            (void) panic_dbufio_fileset(bfs, result);
 	int r = destroy_dbufio_fileset(bfs);
 	if (r!=0 && result==0) result=r;
 	bfs = NULL;
