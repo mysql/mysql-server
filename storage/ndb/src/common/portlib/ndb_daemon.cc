@@ -415,3 +415,28 @@ void ndb_service_print_options(const char* name)
 #endif
 }
 
+
+void ndb_service_wait_for_debugger(int timeout_sec)
+{
+#ifdef _WIN32
+   if(!IsDebuggerPresent())
+   {
+     int i;
+     printf("Waiting for debugger to attach, pid=%u\n",GetCurrentProcessId());
+     fflush(stdout);
+     for(i= 0; i < timeout_sec; i++)
+     {
+       Sleep(1000);
+       if(IsDebuggerPresent())
+       {
+         /* Break into debugger */
+         __debugbreak();
+         return;
+       }
+     }
+     printf("pid=%u, debugger not attached after %d seconds, resuming\n",GetCurrentProcessId(),
+       timeout_sec);
+     fflush(stdout);
+   }
+#endif
+}
