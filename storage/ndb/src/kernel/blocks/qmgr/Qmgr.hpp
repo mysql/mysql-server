@@ -477,6 +477,10 @@ private:
                        Uint32 minversion);
 
   bool m_micro_gcp_enabled;
+
+  // user-defined hbOrder must set all values non-zero and distinct
+  int check_hb_order_config();
+  bool m_hb_order_config_used;
 };
 
 #endif

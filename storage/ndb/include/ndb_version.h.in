@@ -311,4 +311,29 @@ ndb_suma_not_started_ref(Uint32 x)
   }
 }
 
+#define NDBD_HB_ORDER_VERSION_63 NDB_MAKE_VERSION(6,3,34)
+#define NDBD_HB_ORDER_VERSION_70 NDB_MAKE_VERSION(7,0,15)
+
+static
+inline
+int
+ndb_check_hb_order_version(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+
+    if (major == 6)
+    {
+      return x >= NDBD_HB_ORDER_VERSION_63;
+    }
+    else
+    {
+      return x >= NDBD_HB_ORDER_VERSION_70;
+    }
+  }
+}
+
 #endif
