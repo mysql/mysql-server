@@ -140,7 +140,7 @@ row_ins_alloc_sys_fields(
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
 
-	ptr = mem_heap_alloc(heap, DATA_ROW_ID_LEN);
+	ptr = mem_heap_zalloc(heap, DATA_ROW_ID_LEN);
 
 	dfield_set_data(dfield, ptr, DATA_ROW_ID_LEN);
 
@@ -151,7 +151,7 @@ row_ins_alloc_sys_fields(
 	col = dict_table_get_sys_col(table, DATA_TRX_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = mem_heap_alloc(heap, DATA_TRX_ID_LEN);
+	ptr = mem_heap_zalloc(heap, DATA_TRX_ID_LEN);
 
 	dfield_set_data(dfield, ptr, DATA_TRX_ID_LEN);
 
@@ -162,7 +162,7 @@ row_ins_alloc_sys_fields(
 	col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = mem_heap_alloc(heap, DATA_ROLL_PTR_LEN);
+	ptr = mem_heap_zalloc(heap, DATA_ROLL_PTR_LEN);
 
 	dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
 }

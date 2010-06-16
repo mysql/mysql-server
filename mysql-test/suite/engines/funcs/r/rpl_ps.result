@@ -1,0 +1,30 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1;
+create table t1(n char(30));
+prepare stmt1 from 'insert into t1 values (?)';
+set @var1= "from-master-1";
+execute stmt1 using @var1;
+set @var1= "from-master-2-'',";
+execute stmt1 using @var1;
+SELECT * FROM t1 ORDER BY n;
+n
+from-master-1
+from-master-2-'',
+set @var2= 'insert into t1 values (concat("from-var-", ?))';
+prepare stmt2 from @var2;
+set @var1='from-master-3';
+execute stmt2 using @var1;
+SELECT * FROM t1 ORDER BY n;
+n
+from-master-1
+from-master-2-'',
+from-var-from-master-3
+drop table t1;
+stop slave;
+reset master;
+reset slave;

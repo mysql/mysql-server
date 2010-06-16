@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -180,6 +180,10 @@ mem_close(void)
 {
 	mem_pool_free(mem_comm_pool);
 	mem_comm_pool = NULL;
+#ifdef UNIV_MEM_DEBUG
+	mutex_free(&mem_hash_mutex);
+	mem_hash_initialized = FALSE;
+#endif /* UNIV_MEM_DEBUG */
 }
 #endif /* !UNIV_HOTBACKUP */
 
