@@ -212,10 +212,10 @@ void getTextStartPhaseCompleted(QQQQ) {
 }
 void getTextCM_REGCONF(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
-		       "CM_REGCONF president = %u, own Node = %u, our dynamic id = %u",
+		       "CM_REGCONF president = %u, own Node = %u, our dynamic id = %u/%u",
 		       theData[2], 
 		       theData[1],
-		       theData[3]);
+		       (theData[3] >> 16), (theData[3] & 0xFFFF));
 }
 void getTextCM_REGREF(QQQQ) {
   const char* line = "";
