@@ -506,10 +506,10 @@ check_user(THD *thd, enum enum_server_command command,
 #ifdef HAVE_PSI_INTERFACE
       if (PSI_server)
       {
-        PSI_server->set_thread_host(thd->main_security_ctx.host_or_ip,
-                                    strlen(thd->main_security_ctx.host_or_ip));
-        PSI_server->set_thread_user(thd->main_security_ctx.user,
-                                    strlen(thd->main_security_ctx.user));
+        PSI_server->set_thread_user_host(thd->main_security_ctx.user,
+                                         strlen(thd->main_security_ctx.user),
+                                         thd->main_security_ctx.host_or_ip,
+                                         strlen(thd->main_security_ctx.host_or_ip));
       }
 #endif
       /* Ready to handle queries */

@@ -1107,22 +1107,48 @@ static void set_thread_user_v1(const char *user, int user_len)
   pfs->m_lock.dirty_to_allocated();
 }
 
-static void set_thread_host_v1(const char *host, int host_len)
+static void set_thread_user_host_v1(const char *user, int user_len,
+                                    const char *host, int host_len)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
 
+  DBUG_ASSERT((user != NULL) || (user_len == 0));
+  DBUG_ASSERT(user_len >= 0);
+  DBUG_ASSERT((uint) user_len <= sizeof(pfs->m_username));
   DBUG_ASSERT((host != NULL) || (host_len == 0));
   DBUG_ASSERT(host_len >= 0);
   DBUG_ASSERT((uint) host_len <= sizeof(pfs->m_hostname));
 
-  if (likely(pfs != NULL))
+  if (unlikely(pfs == NULL))
+    return;
+
+  pfs->m_lock.allocated_to_dirty();
+
+  if (host_len > 0)
+    memcpy(pfs->m_hostname, host, host_len);
+  pfs->m_hostname_length= host_len;
+
+  if (user_len > 0)
+    memcpy(pfs->m_username, user, user_len);
+  pfs->m_username_length= user_len;
+
+  bool enabled= false;
+  if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
   {
-    pfs->m_lock.allocated_to_dirty();
-    if (host_len > 0)
-      memcpy(pfs->m_hostname, host, host_len);
-    pfs->m_hostname_length= host_len;
-    pfs->m_lock.dirty_to_allocated();
+    /*
+      TODO: performance improvement.
+      Once performance_schema.USERS is exposed,
+      we can use PFS_user::m_enabled instead of looking up
+      SETUP_ACTORS every time.
+    */
+    lookup_setup_actor(pfs,
+                       pfs->m_username, pfs->m_username_length,
+                       pfs->m_hostname, pfs->m_hostname_length,
+                       &enabled);
   }
+  pfs->m_enabled= enabled;
+
+  pfs->m_lock.dirty_to_allocated();
 }
 
 static void set_thread_db_v1(const char* db, int db_len)
@@ -2146,7 +2172,7 @@ PSI_v1 PFS_v1=
   set_thread_id_v1,
   get_thread_v1,
   set_thread_user_v1,
-  set_thread_host_v1,
+  set_thread_user_host_v1,
   set_thread_db_v1,
   set_thread_command_v1,
   set_thread_start_time_v1,

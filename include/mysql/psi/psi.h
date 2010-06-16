@@ -602,7 +602,8 @@ typedef struct PSI_thread* (*get_thread_v1_t)(void);
 
 typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
 
-typedef void (*set_thread_host_v1_t)(const char *host, int host_len);
+typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
+                                          const char *host, int host_len);
 
 typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 
@@ -905,8 +906,8 @@ struct PSI_v1
   get_thread_v1_t get_thread;
   /** @sa set_thread_user_v1_t. */
   set_thread_user_v1_t set_thread_user;
-  /** @sa set_thread_host_v1_t. */
-  set_thread_host_v1_t set_thread_host;
+  /** @sa set_thread_user_host_v1_t. */
+  set_thread_user_host_v1_t set_thread_user_host;
   /** @sa set_thread_db_v1_t. */
   set_thread_db_v1_t set_thread_db;
   /** @sa set_thread_command_v1_t. */

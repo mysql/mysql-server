@@ -376,7 +376,7 @@ void test_bad_registration()
   ok(dummy_thread_key == 0, "zero key");
   dummy_thread_key= 9999;
   psi->register_thread("12345678901234567890123", bad_thread_1, 1);
-  ok(dummy_thread_key == 1, "assigned key");
+  ok(dummy_thread_key == 2, "assigned key");
 
   /*
     Test that length('thread/' (7) + category + '/' (1) + name) <= 128
@@ -412,7 +412,7 @@ void test_bad_registration()
   ok(dummy_thread_key == 0, "zero key");
 
   psi->register_thread("X", bad_thread_3, 1);
-  ok(dummy_thread_key == 2, "assigned key");
+  ok(dummy_thread_key == 3, "assigned key");
 
   /*
     Test that length('wait/io/file/' (13) + category + '/' (1)) < 32

@@ -126,7 +126,8 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    unsigned long id);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
-typedef void (*set_thread_host_v1_t)(const char *host, int host_len);
+typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
+                                          const char *host, int host_len);
 typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
@@ -211,7 +212,7 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   get_thread_v1_t get_thread;
   set_thread_user_v1_t set_thread_user;
-  set_thread_host_v1_t set_thread_host;
+  set_thread_user_host_v1_t set_thread_user_host;
   set_thread_db_v1_t set_thread_db;
   set_thread_command_v1_t set_thread_command;
   set_thread_start_time_v1_t set_thread_start_time;
