@@ -67,6 +67,13 @@ extern char ndb_daemon_error[];
 */
 void ndb_service_print_options(const char* name);
 
+/*
+  Utility function to make the program wait for debugger at
+  a given location. Very useful for debugging a program
+  started as a service.
+*/
+void ndb_service_wait_debugger(int timeout_sec);
+
 C_MODE_END
 
 #endif
