@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_ALTER_TABLE_H
 #define SQL_ALTER_TABLE_H
@@ -62,32 +62,5 @@ public:
   */
   bool execute(THD *thd);
 };
-
-/**
-  Alter_table_exchange_partition_statement represents the 
-  ALTER TABLE t EXCHANGE PARTITION p WITH TABLE t2 statement.
-*/
-class Alter_table_exchange_partition_statement : public Alter_table_common
-{
-public:
-  /**
-    Constructor, used to represent a ALTER TABLE EXCHANGE PARTITION statement.
-    @param lex the LEX structure for this statement.
-  */
-  Alter_table_exchange_partition_statement(LEX *lex)
-    : Alter_table_common(lex)
-  {}
-
-  ~Alter_table_exchange_partition_statement()
-  {}
-
-  /**
-    Execute a ALTER TABLE EXCHANGE PARTITION statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
-  bool execute(THD *thd);
-};
-
 
 #endif

@@ -1460,8 +1460,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   dec_thread_running();
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
-  /* if there was a Sql_statment, it will be released in free_root */
-  thd->lex->m_stmt= NULL;
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
 #if defined(ENABLED_PROFILING)
@@ -7706,6 +7704,7 @@ bool parse_sql(THD *thd,
 {
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
+  DBUG_ASSERT(thd->lex->m_stmt == NULL);
 
   MYSQL_QUERY_PARSE_START(thd->query());
   /* Backup creation context. */

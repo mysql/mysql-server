@@ -51,6 +51,7 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 #include "sql_alter_table.h"                   // Alter_table*_statement
+#include "sql_partition_admin.h"               // Alter_table_*_partition_statement
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -6170,7 +6171,6 @@ alter:
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
             DBUG_ASSERT(!lex->m_stmt);
-            lex->m_stmt= NULL;
           }
           alter_commands
           {
