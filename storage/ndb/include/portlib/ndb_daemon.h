@@ -62,6 +62,11 @@ void ndb_daemon_exit(int status);
 
 extern char ndb_daemon_error[];
 
+/*
+  Print the additional arguments available for service
+*/
+void ndb_service_print_options(const char* name);
+
 C_MODE_END
 
 #endif
