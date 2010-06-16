@@ -92,9 +92,11 @@ static struct my_option my_long_options[] =
 
 const char *load_default_groups[]= { "mysql_cluster", "ndbd", 0 };
 
+
 static void short_usage_sub(void)
 {
   ndb_short_usage_sub(my_progname, NULL);
+  ndb_service_print_options("ndbd");
 }
 
 static void usage()
