@@ -63,7 +63,7 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-  --engine-rep=engine  The storage engine used for the mysql.slave_master_info and
+  --rep-engine=engine  The storage engine used for the mysql.slave_master_info and
                        mysql.slave_relay_log_info tables. By default, both tables are
                        created using the MyISAM storage engine. However, any storage
                        engine available to the server may be used. If a crash-safe
@@ -120,7 +120,7 @@ parse_arguments()
       --no-defaults|--defaults-file=*|--defaults-extra-file=*)
         defaults="$arg" ;;
 
-      --engine-rep=*) engine_rep=`parse_arg "$arg"` ;;
+      --rep-engine=*) rep_engine=`parse_arg "$arg"` ;;
 
       --cross-bootstrap|--windows)
         # Used when building the MySQL system tables on a different host than
@@ -428,10 +428,10 @@ else
   exit 1
 fi
 
-if test -n "$engine_rep"
+if test -n "$rep_engine"
 then
   s_echo "Setting engine for mysql.slave_master_info mysql.slave_relay_log_info tables..."
-  if { echo "use mysql;"; echo "ALTER TABLE mysql.slave_master_info ENGINE= $engine_rep;"; echo "ALTER TABLE mysql.slave_relay_log_info ENGINE= $engine_rep;"; } | $mysqld_install_cmd_line > /dev/null
+  if { echo "use mysql;"; echo "ALTER TABLE mysql.slave_master_info ENGINE= $rep_engine;"; echo "ALTER TABLE mysql.slave_relay_log_info ENGINE= $rep_engine;"; } | $mysqld_install_cmd_line > /dev/null
   then
     s_echo "OK"
   else

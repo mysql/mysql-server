@@ -2427,6 +2427,11 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
   if (exec_res == 0)
   {
+    /*
+      Positions are not updated when an XID is processed, i.e. not skipped.
+      To make the slave crash-safe positions are updated while processing
+      the XID event and as such do not need to be updated again.
+    */
     int error= (ev->get_type_code() != XID_EVENT || skip_event) ?
                 ev->update_pos(rli) : 0;
 #ifdef HAVE_purify
