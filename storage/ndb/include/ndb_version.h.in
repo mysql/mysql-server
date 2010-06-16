@@ -403,4 +403,29 @@ ndb_native_default_support(Uint32 x)
   return x >= NDBD_NATIVE_DEFAULT_SUPPORT_71;
 }
 
+#define NDBD_HB_ORDER_VERSION_63 NDB_MAKE_VERSION(6,3,35)
+#define NDBD_HB_ORDER_VERSION_70 NDB_MAKE_VERSION(7,0,16)
+#define NDBD_HB_ORDER_VERSION_71 NDB_MAKE_VERSION(7,1,5)
+
+static
+inline
+int
+ndb_check_hb_order_version(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 6 && minor == 3)
+    {
+      return x >= NDBD_HB_ORDER_VERSION_63;
+    }
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_HB_ORDER_VERSION_70;
+    }
+    return x >= NDBD_HB_ORDER_VERSION_71;
+  }
+}
+
 #endif
