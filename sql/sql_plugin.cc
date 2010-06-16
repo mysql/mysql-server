@@ -460,32 +460,32 @@ static my_bool read_mysql_plugin_info(struct st_plugin_dl *plugin_dl,
          i++)
     {
 
-      cur->type= old->type;
-      cur->info= old->info;
-      cur->name= old->name;
-      cur->author= old->author;
-      cur->descr= old->descr;
-      cur->license= old->license;
-      cur->init= old->init;
-      cur->deinit= old->deinit;
-      cur->version= old->version;
-      cur->status_vars= old->status_vars;
-      cur->system_vars= old->system_vars;
+      cur[i].type= old->type;
+      cur[i].info= old->info;
+      cur[i].name= old->name;
+      cur[i].author= old->author;
+      cur[i].descr= old->descr;
+      cur[i].license= old->license;
+      cur[i].init= old->init;
+      cur[i].deinit= old->deinit;
+      cur[i].version= old->version;
+      cur[i].status_vars= old->status_vars;
+      cur[i].system_vars= old->system_vars;
       /*
         Something like this should be added to process
         new mysql plugin versions:
         if (plugin_dl->mysqlversion > 0x0101)
         {
-           cur->newfield= CONSTANT_MEANS_UNKNOWN;
+           cur[i].newfield= CONSTANT_MEANS_UNKNOWN;
         }
         else
         {
-           cur->newfield= old->newfield;
+           cur[i].newfield= old->newfield;
         }
       */
       /* Maria only fields */
-      cur->version_info= "Unknown";
-      cur->maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
+      cur[i].version_info= "Unknown";
+      cur[i].maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
     }
     plugin_dl->allocated= true;
     plugin_dl->plugins= (struct st_maria_plugin *)cur;
