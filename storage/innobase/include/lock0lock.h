@@ -66,17 +66,6 @@ void
 lock_sys_close(void);
 /*================*/
 /*********************************************************************//**
-Checks if some transaction has an implicit x-lock on a record in a clustered
-index.
-@return	transaction which has the x-lock, or NULL */
-UNIV_INLINE
-trx_t*
-lock_clust_rec_some_has_impl(
-/*=========================*/
-	const rec_t*	rec,	/*!< in: user record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
-/*********************************************************************//**
 Gets the heap_no of the smallest user record on a page.
 @return	heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
 UNIV_INLINE
@@ -615,8 +604,10 @@ lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
 	ibool   nowait);/*!< in: whether to wait for the lock mutex */
-/*************************************************************************
-Prints info of locks for each transaction. */
+/*********************************************************************//**
+Prints info of locks for each transaction. This function assumes that the
+caller holds the lock mutex and more importantly it will reease the lock
+lock mutex on behalf of the caller. (This should be fixed in the future). */
 UNIV_INTERN
 void
 lock_print_info_all_transactions(

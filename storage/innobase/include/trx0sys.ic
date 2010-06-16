@@ -246,6 +246,27 @@ trx_read_trx_id(
 }
 
 /****************************************************************//**
+Looks for the trx handle with the given id in trx_list. This function
+doesn't acquire the trx_sys_t::mutex.
+@return	the trx handle or NULL if not found */
+UNIV_INLINE
+trx_t*
+trx_get_on_id_low(
+/*==============*/
+	trx_id_t	trx_id)	/*!< in: trx id to search for */
+{
+	trx_t*	trx;
+
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL && ut_dulint_cmp(trx_id, trx->id) != 0;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+	}
+
+	return(trx);
+}
+
+/****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
 @return	the trx handle or NULL if not found */
 UNIV_INLINE
@@ -258,15 +279,34 @@ trx_get_on_id(
 
 	trx_sys_mutex_enter();
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-	     trx != NULL && ut_dulint_cmp(trx_id, trx->id) != 0;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-
-	}
+	trx = trx_get_on_id_low(trx_id);
 
 	trx_sys_mutex_exit();
 
 	return(trx);
+}
+
+/****************************************************************//**
+Returns the minumum trx id in trx list. This is the smallest id for which
+the trx can possibly be active. (But, you must look at the trx->lock.conc_state
+to find out if the minimum trx id transaction itself is active, or already
+committed.). The caller must be holding the trx_sys_t::mutex.
+@return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
+UNIV_INLINE
+trx_id_t
+trx_list_get_min_trx_id_low(void)
+/*=============================*/
+{
+	dulint	id;
+	trx_t*	trx;
+
+	ut_ad(trx_sys_mutex_own());
+
+	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+
+	id = (trx == NULL) ? trx_sys->max_trx_id : trx->id;
+
+	return(id);
 }
 
 /****************************************************************//**
@@ -281,17 +321,57 @@ trx_list_get_min_trx_id(void)
 /*=========================*/
 {
 	dulint	id;
-	trx_t*	trx;
 
 	trx_sys_mutex_enter();
 
-	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
-
-	id = (trx == NULL) ? trx_sys->max_trx_id : trx->id;
+	id = trx_list_get_min_trx_id_low();
 
 	trx_sys_mutex_exit();
 
 	return(id);
+}
+
+/****************************************************************//**
+Checks if a transaction with the given id is active. Caller must hold
+the trx_sys_t::mutex.
+@return	TRUE if active */
+UNIV_INLINE
+ibool
+trx_is_active_low(
+/*==============*/
+	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
+{
+	ibool		is_active;
+
+	ut_ad(trx_sys_mutex_own());
+
+	if (ut_dulint_cmp(trx_id, trx_list_get_min_trx_id_low()) < 0) {
+
+		is_active = FALSE;
+	} else if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
+
+		/* There must be corruption: we return TRUE because this
+		function is only called by lock_clust_rec_some_has_impl()
+		and row_vers_impl_x_locked_off_kernel() and they have
+		diagnostic prints in this case */
+
+		is_active = TRUE;
+	} else {
+		trx_t*	trx;
+
+		trx = trx_get_on_id_low(trx_id);
+
+		if (trx != NULL
+		    && (trx->lock.conc_state == TRX_ACTIVE
+			|| trx->lock.conc_state == TRX_PREPARED)) {
+
+			is_active = TRUE;
+		} else {
+			is_active = FALSE;
+		}
+	}
+
+	return(is_active);
 }
 
 /****************************************************************//**
@@ -303,39 +383,15 @@ trx_is_active(
 /*==========*/
 	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
 {
-	trx_t*	trx;
-
-	if (ut_dulint_cmp(trx_id, trx_list_get_min_trx_id()) < 0) {
-
-		return(FALSE);
-	}
+	ibool		is_active;
 
 	trx_sys_mutex_enter();
 
-	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
-
-		/* There must be corruption: we return TRUE because this
-		function is only called by lock_clust_rec_some_has_impl()
-		and row_vers_impl_x_locked_off_kernel() and they have
-		diagnostic prints in this case */
-
-		trx_sys_mutex_exit();
-
-		return(TRUE);
-	}
+	is_active = trx_is_active_low(trx_id);
 
 	trx_sys_mutex_exit();
 
-	trx = trx_get_on_id(trx_id);
-
-	// FIXME: Do we need to acquire the trx_mutex here ?
-	if (trx && (trx->lock.conc_state == TRX_ACTIVE
-		    || trx->lock.conc_state == TRX_PREPARED)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(is_active);
 }
 
 /*****************************************************************//**

@@ -1482,7 +1482,8 @@ srv_printf_innodb_monitor(
 
 	/* Only if lock_print_info_summary proceeds correctly,
 	before we call the lock_print_info_all_transactions
-	to print all the lock information. */
+	to print all the lock information. IMPORTANT NOTE: This
+       	function acquires the lock mutex on success. */
 	ret = lock_print_info_summary(file, nowait);
 
 	if (ret) {
@@ -1494,7 +1495,13 @@ srv_printf_innodb_monitor(
 				*trx_start_pos = (ulint) t;
 			}
 		}
+
+		/* NOTE: If we get here then we have the lock mutex. This
+	       	function will release the lock mutex that we acquired when
+	       	we called the lock_print_info_summary() function earlier. */
+
 		lock_print_info_all_transactions(file);
+
 		if (trx_end) {
 			long	t = ftell(file);
 			if (t < 0) {

@@ -110,6 +110,18 @@ lock_cancel_waiting_and_release(
 /*============================*/
 	lock_t*		lock);	/*!< in: waiting lock request */
 
+/*********************************************************************//**
+Checks if some transaction has an implicit x-lock on a record in a clustered
+index.
+@return	transaction which has the x-lock, or NULL */
+UNIV_INLINE
+trx_t*
+lock_clust_rec_some_has_impl(
+/*=========================*/
+	const rec_t*	rec,		/*!< in: user record */
+	dict_index_t*	index,		/*!< in: clustered index */
+	const ulint*	offsets);	/*!< in: rec_get_offsets(rec, index) */
+
 #ifndef UNIV_NONINL
 #include "lock0priv.ic"
 #endif

@@ -353,8 +353,11 @@ Validates the lock system.
 @return	TRUE if ok */
 static
 ibool
-lock_validate(void);
-/*===============*/
+lock_validate(
+/*==========*/
+	ibool	have_lock_trx_sys_mutex);	/*!< in: if the caller holds
+						both the lock and trx sys
+						mutexes. */
 
 /*********************************************************************//**
 Validates the record lock queues on a page.
@@ -363,10 +366,14 @@ static
 ibool
 lock_rec_validate_page(
 /*===================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	page_no);/*!< in: page number */
+	ibool	have_lock_trx_sys_mutex,	/*!< in: if the caller holds
+						both the lock and trx sys
+						mutexes. */
+	ulint	space,				/*!< in: space id */
+	ulint	zip_size,			/*!< in: compressed page size
+					       	in bytes or 0 for uncompressed
+					       	pages */
+	ulint	page_no);			/*!< in: page number */
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -4483,7 +4490,9 @@ lock_print_info_summary(
 }
 
 /*********************************************************************//**
-Prints info of locks for each transaction. */
+Prints info of locks for each transaction. This function assumes that the
+caller holds the lock mutex and more importantly it will reease the lock
+lock mutex on behalf of the caller. (This should be fixed in the future). */
 UNIV_INTERN
 void
 lock_print_info_all_transactions(
@@ -4499,6 +4508,8 @@ lock_print_info_all_transactions(
 	trx_t*	trx;
 
 	fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
+
+	ut_ad(lock_mutex_own());
 
 	trx_sys_mutex_enter();
 
@@ -4535,11 +4546,12 @@ loop:
 	}
 
 	if (trx == NULL) {
+
+		ut_ad(lock_validate(TRUE));
+
 		trx_sys_mutex_exit();
 
 		lock_mutex_exit();
-
-		ut_ad(lock_validate());
 
 		return;
 	}
@@ -4681,8 +4693,7 @@ lock_table_queue_validate(
 	lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-
-	trx_sys_mutex_enter();
+	ut_ad(trx_sys_mutex_own());
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
@@ -4708,8 +4719,6 @@ lock_table_queue_validate(
 		trx_mutex_exit(lock->trx);
 	}
 
-	trx_sys_mutex_exit();
-
 	return(TRUE);
 }
 
@@ -4720,6 +4729,9 @@ static
 ibool
 lock_rec_queue_validate(
 /*====================*/
+	ibool			have_lock_trx_sys_mutex,
+					/*!< in: if the caller holds
+					both the lock and trx sys mutexes. */
 	const buf_block_t*	block,	/*!< in: buffer block containing rec */
 	const rec_t*		rec,	/*!< in: record to look at */
 	dict_index_t*		index,	/*!< in: index, or NULL if not known */
@@ -4738,9 +4750,11 @@ lock_rec_queue_validate(
 
 	if (!page_rec_is_user_rec(rec)) {
 
-		lock_mutex_enter();
+		if (!have_lock_trx_sys_mutex) {
+			lock_mutex_enter();
 
-		trx_sys_mutex_enter();
+			trx_sys_mutex_enter();
+		}
 
 		for (lock = lock_rec_get_first(block, heap_no);
 		     lock != NULL;
@@ -4770,11 +4784,19 @@ lock_rec_queue_validate(
 			trx_mutex_exit(lock->trx);
 		}
 
-		trx_sys_mutex_exit();
+		if (!have_lock_trx_sys_mutex) {
+			trx_sys_mutex_exit();
 
-		lock_mutex_exit();
+			lock_mutex_exit();
+		}
 
 		return(TRUE);
+	}
+
+	if (!have_lock_trx_sys_mutex) {
+		lock_mutex_enter();
+
+		trx_sys_mutex_enter();
 	}
 
 	if (!index);
@@ -4782,8 +4804,6 @@ lock_rec_queue_validate(
 
 		/* Unlike the non-debug code, this invariant can only succeed
 		if the check and assertion are covered by the lock mutex. */
-
-		lock_mutex_enter();
 
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 
@@ -4794,8 +4814,6 @@ lock_rec_queue_validate(
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       block, heap_no, impl_trx));
 		}
-
-		lock_mutex_exit();
 #if 0
 	} else {
 
@@ -4837,10 +4855,6 @@ lock_rec_queue_validate(
 #endif
 	}
 
-	lock_mutex_enter();
-
-	trx_sys_mutex_enter();
-
 	for (lock = lock_rec_get_first(block, heap_no);
 	     lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
@@ -4876,9 +4890,11 @@ lock_rec_queue_validate(
 		trx_mutex_exit(lock->trx);
 	}
 
-	trx_sys_mutex_exit();
+	if (!have_lock_trx_sys_mutex) {
+		trx_sys_mutex_exit();
 
-	lock_mutex_exit();
+		lock_mutex_exit();
+	}
 
 	return(TRUE);
 }
@@ -4890,10 +4906,14 @@ static
 ibool
 lock_rec_validate_page(
 /*===================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	page_no)/*!< in: page number */
+	ibool	have_lock_trx_sys_mutex,	/*!< in: if the caller holds
+						both the lock and trx sys
+						mutexes. */
+	ulint	space,				/*!< in: space id */
+	ulint	zip_size,			/*!< in: compressed page size
+					       	in bytes or 0 for uncompressed
+					       	pages */
+	ulint	page_no)			/*!< in: page number */
 {
 	dict_index_t*	index;
 	buf_block_t*	block;
@@ -4909,8 +4929,6 @@ lock_rec_validate_page(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	ut_ad(!lock_mutex_own());
-
 	mtr_start(&mtr);
 
 	ut_ad(zip_size != ULINT_UNDEFINED);
@@ -4919,9 +4937,11 @@ lock_rec_validate_page(
 
 	page = block->frame;
 
-	lock_mutex_enter();
+	if (!have_lock_trx_sys_mutex) {
+		lock_mutex_enter();
 
-	trx_sys_mutex_enter();
+		trx_sys_mutex_enter();
+	}
 
 loop:
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
@@ -4970,20 +4990,13 @@ loop:
 				"Validating %lu %lu\n",
 				(ulong) space, (ulong) page_no);
 
-			trx_sys_mutex_exit();
-
-			lock_mutex_exit();
-
 			/* If this thread is holding the file space
 			latch (fil_space_t::latch), the following
 			check WILL break the latching order and may
 			cause a deadlock of threads. */
 
-			lock_rec_queue_validate(block, rec, index, offsets);
-
-			lock_mutex_enter();
-
-			trx_sys_mutex_enter();
+			lock_rec_queue_validate(
+				TRUE, block, rec, index, offsets);
 
 			nth_bit = i + 1;
 
@@ -4998,9 +5011,11 @@ loop:
 
 function_exit:
 
-	trx_sys_mutex_exit();
+	if (!have_lock_trx_sys_mutex) {
+		trx_sys_mutex_exit();
 
-	lock_mutex_exit();
+		lock_mutex_exit();
+	}
 
 	mtr_commit(&mtr);
 
@@ -5015,8 +5030,11 @@ Validates the lock system.
 @return	TRUE if ok */
 static
 ibool
-lock_validate(void)
-/*===============*/
+lock_validate(
+/*==========*/
+	ibool	have_lock_trx_sys_mutex)	/*!< in: if the caller holds
+						both the lock and trx sys
+						mutexes. */
 {
 	lock_t*	lock;
 	trx_t*	trx;
@@ -5025,32 +5043,26 @@ lock_validate(void)
 	ulint	page_no;
 	ulint	i;
 
-	lock_mutex_enter();
+	if (!have_lock_trx_sys_mutex) {
+		lock_mutex_enter();
 
-	trx_sys_mutex_enter();
+		trx_sys_mutex_enter();
+	}
 
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-	while (trx) {
-		trx_t*	prev_trx = trx;
+		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+		     lock != NULL;
+		     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 
-		trx_mutex_enter(trx);
-
-		lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
-
-		while (lock) {
 			if (lock_get_type_low(lock) & LOCK_TABLE) {
 
 				lock_table_queue_validate(
 					lock->un_member.tab_lock.table);
 			}
-
-			lock = UT_LIST_GET_NEXT(trx_locks, lock);
 		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
-
-		trx_mutex_exit(prev_trx);
 	}
 
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
@@ -5058,9 +5070,11 @@ lock_validate(void)
 		limit = ut_dulint_zero;
 
 		for (;;) {
-			lock = HASH_GET_FIRST(lock_sys->rec_hash, i);
 
-			while (lock) {
+			for (lock = HASH_GET_FIRST(lock_sys->rec_hash, i);
+			     lock != NULL;
+			     lock = HASH_GET_NEXT(hash, lock)) {
+
 				ut_a(trx_in_trx_list(lock->trx));
 
 				space = lock->un_member.rec_lock.space;
@@ -5071,8 +5085,6 @@ lock_validate(void)
 					    limit) >= 0) {
 					break;
 				}
-
-				lock = HASH_GET_NEXT(hash, lock);
 			}
 
 			if (!lock) {
@@ -5080,25 +5092,19 @@ lock_validate(void)
 				break;
 			}
 
-			trx_sys_mutex_exit();
-
-			lock_mutex_exit();
-
-			lock_rec_validate_page(space,
-					       fil_space_get_zip_size(space),
-					       page_no);
-
-			lock_mutex_enter();
-
-			trx_sys_mutex_enter();
+			lock_rec_validate_page(
+				TRUE, space,
+				fil_space_get_zip_size(space), page_no);
 
 			limit = ut_dulint_create(space, page_no + 1);
 		}
 	}
 
-	trx_sys_mutex_exit();
+	if (!have_lock_trx_sys_mutex) {
+		trx_sys_mutex_exit();
 
-	lock_mutex_exit();
+		lock_mutex_exit();
+	}
 
 	return(TRUE);
 }
@@ -5229,8 +5235,10 @@ lock_rec_insert_check_and_lock(
 
 		offsets = rec_get_offsets(next_rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
-		ut_ad(lock_rec_queue_validate(block,
-					      next_rec, index, offsets));
+
+		ut_ad(lock_rec_queue_validate(
+				FALSE, block, next_rec, index, offsets));
+
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -5260,7 +5268,11 @@ lock_rec_convert_impl_to_expl(
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 
 	if (dict_index_is_clust(index)) {
+		trx_sys_mutex_enter();
+
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
+
+		trx_sys_mutex_exit();
 	} else {
 		impl_trx = lock_sec_rec_some_has_impl(rec, index, offsets);
 	}
@@ -5336,7 +5348,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	lock_mutex_exit();
 
-	ut_ad(lock_rec_queue_validate(block, rec, index, offsets));
+	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
 
 	if (UNIV_UNLIKELY(err == DB_SUCCESS_LOCKED_REC)) {
 		err = DB_SUCCESS;
@@ -5403,7 +5415,10 @@ lock_sec_rec_modify_check_and_lock(
 
 		offsets = rec_get_offsets(rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
-		ut_ad(lock_rec_queue_validate(block, rec, index, offsets));
+
+		ut_ad(lock_rec_queue_validate(
+			FALSE, block, rec, index, offsets));
+
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -5491,7 +5506,7 @@ lock_sec_rec_read_check_and_lock(
 
 	lock_mutex_exit();
 
-	ut_ad(lock_rec_queue_validate(block, rec, index, offsets));
+	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
 
 	return(err);
 }
@@ -5560,7 +5575,7 @@ lock_clust_rec_read_check_and_lock(
 
 	lock_mutex_exit();
 
-	ut_ad(lock_rec_queue_validate(block, rec, index, offsets));
+	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
 
 	return(err);
 }
