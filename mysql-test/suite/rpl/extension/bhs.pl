@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 use File::Basename;
-use File::Copy::Recursive qw(dircopy fcopy);
+use File::Copy qw(copy);
 use File::Spec qw(catdir);
 use File::Path;
 use IO::File;
@@ -88,8 +88,8 @@ foreach my $cur_dir (keys %copy_dirs)
 
 # Copy server config files
 print "  configuration files\n";
-fcopy(File::Spec->catdir($ext_dir, "bhs", "my.cnf"), $suite_rpl_bhs_dir);
-fcopy(File::Spec->catdir($ext_dir, "bhs", "rpl_1slave_base.cnf"), $suite_rpl_bhs_dir);
+copy(File::Spec->catdir($ext_dir, "bhs", "my.cnf"), $suite_rpl_bhs_dir);
+copy(File::Spec->catdir($ext_dir, "bhs", "rpl_1slave_base.cnf"), $suite_rpl_bhs_dir);
 
 # *** Update test cases
 
@@ -226,4 +226,28 @@ sub compare_names
 	$res= 1 if ($test =~ m/^$rule$/i)
     }
     return $res;
+}
+
+sub dircopy
+{
+    my ($from_dir, $to_dir)= @_;
+    mkdir $to_dir if (! -e $to_dir);
+    opendir my($dh), $from_dir or die "Could not open dir '$from_dir': $!";
+    for my $entry (readdir $dh) 
+    {
+	next if $entry =~ /^(\.|\.\.)$/;
+        my $source = File::Spec->catdir($from_dir, $entry);
+        my $destination = File::Spec->catdir($to_dir, $entry);
+        if (-d $source) 
+        {
+    	    mkdir $destination or die "mkdir '$destination' failed: $!" if not -e $destination;
+            dircopy($source, $destination);
+        } 
+        else 
+        {
+    	    copy($source, $destination) or die "copy '$source' to '$destination' failed: $!";
+        }
+    }
+    closedir $dh;
+    return;                                                                                                  
 }
