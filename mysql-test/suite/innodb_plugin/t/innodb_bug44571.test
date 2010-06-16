@@ -1,0 +1,22 @@
+#
+# Bug#44571 InnoDB Plugin crashes on ADD INDEX
+# http://bugs.mysql.com/44571
+# Please also refer to related fix in
+# http://bugs.mysql.com/47621
+#
+-- source include/have_innodb_plugin.inc
+
+CREATE TABLE bug44571 (foo INT) ENGINE=InnoDB;
+ALTER TABLE bug44571 CHANGE foo bar INT;
+# Create index with the old column name will fail,
+# because the CHANGE foo bar is successful. And
+# the column name change would communicate to
+# InnoDB with the fix from bug #47621
+-- error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE bug44571 ADD INDEX bug44571b (foo);
+# The following create indexes should succeed,
+# indirectly confirm the CHANGE foo bar is successful.
+ALTER TABLE bug44571 ADD INDEX bug44571c (bar);
+DROP INDEX bug44571c ON bug44571;
+CREATE INDEX bug44571c ON bug44571 (bar);
+DROP TABLE bug44571;
