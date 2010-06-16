@@ -910,6 +910,30 @@ Dbspj::build(Build_context& ctx,
   }
   requestPtr.p->m_node_cnt = ctx.m_cnt;
 
+  /**
+   * Init ROW_BUFFERS for those TreeNodes requiring either 
+   * T_ROW_BUFFER or T_ROW_BUFFER_MAP.
+   */
+  {
+    Ptr<TreeNode> treeNodePtr;
+    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+    for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
+    {
+      if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER_MAP)
+      {
+        jam();
+        requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
+        treeNodePtr.p->m_row_map.init();
+      }
+      else if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
+      {
+        jam();
+        requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
+        treeNodePtr.p->m_row_list.init();
+      }
+    }
+  }
+
   if (ctx.m_scan_cnt > 1)
   {
     jam();
@@ -942,11 +966,6 @@ Dbspj::build(Build_context& ctx,
       list.remove();
     }
   }
-  
-//#define JONAS_TESTING_ROW_BUFFERING
-#ifdef JONAS_TESTING_ROW_BUFFERING
-  requestPtr.p->m_bits |= Request::RT_VAR_ALLOC;
-#endif
 
   return 0;
 
@@ -1809,7 +1828,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   struct RowPtr row;
   row.m_type = RowPtr::RT_SECTION;
   row.m_src_node_ptrI = treeNodePtr.i;
-  row.m_row_data.m_section.m_header = (RowPtr::Header*)tmp;
+  row.m_row_data.m_section.m_header = header;
   row.m_row_data.m_section.m_dataPtr.assign(dataPtr);
   Uint32 rootStreamId = 0;
 
@@ -1902,12 +1921,13 @@ Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
 {
   Uint32 linklen = (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER_MAP)?
     0 : 2;
+  const RowPtr::Header * headptr = (RowPtr::Header*)(src + linklen);
+  Uint32 headlen = 1 + headptr->m_len;
 
   row.m_type = RowPtr::RT_LINEAR;
   row.m_row_data.m_linear.m_row_ref = ref;
-  row.m_row_data.m_linear.m_header = (RowPtr::Header*)(src + linklen);
-  row.m_row_data.m_linear.m_data = src + linklen + 
-    row.m_row_data.m_linear.m_header->m_len;
+  row.m_row_data.m_linear.m_header = headptr;
+  row.m_row_data.m_linear.m_data = (Uint32*)headptr + headlen;
 }
 
 void
@@ -2028,12 +2048,12 @@ Dbspj::next(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr,
   if (iter.m_ref.m_allocator == 0)
   {
     jam();
-    iter.m_row_ptr = get_row_ptr_var(start.m_ref);
+    iter.m_row_ptr = get_row_ptr_stack(start.m_ref);
   }
   else
   {
     jam();
-    iter.m_row_ptr = get_row_ptr_stack(start.m_ref);
+    iter.m_row_ptr = get_row_ptr_var(start.m_ref);
   }
   return next(iter);
 }
@@ -3960,7 +3980,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
         /**
          * Expand pattern into a new pattern (with linked values)
          */
-        err = expand(pattern, tree, len, param, cnt);
+        err = expand(pattern, treeNodePtr, tree, len, param, cnt);
         treeNodePtr.p->m_bits |= TreeNode::T_PRUNE_PATTERN;
         c_Counters.incr_counter(CI_PRUNNED_RANGE_SCANS_RECEIVED, 1);
       }
@@ -5165,7 +5185,7 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
     if (allocator == 0)
     {
       jam();
-      mapptr = get_row_ptr_var(ref);
+      mapptr = get_row_ptr_stack(ref);
     }
     else
     {
@@ -5517,7 +5537,8 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       }
       ptr += val;
       break;
-    case QueryPattern::P_COL: // (linked) COL's not expected here
+    case QueryPattern::P_COL:    // (linked) COL's not expected here
+    case QueryPattern::P_PARENT: // Prefix to P_COL
     case QueryPattern::P_ATTRINFO:
     case QueryPattern::P_UNQ_PK:
     default:
@@ -5546,23 +5567,13 @@ error:
 }
 
 Uint32
-Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
+Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
+              DABuffer& pattern, Uint32 len,
               DABuffer& param, Uint32 paramCnt)
 {
   /**
    * TODO handle error
    */
-  /**
-   * Optimization: If no params in key, const + linked col are 
-   * transfered unaltered to the pattern to be parsed when the
-   * parent source of the linked columns are available.
-   */
-  if (paramCnt == 0)
-  {
-    jam();
-    return appendToPattern(dst, pattern, len);
-  }
-
   Uint32 err;
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
   struct RowPtr::Linear row;
@@ -5605,6 +5616,25 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
       ndbrequire(false);
 #endif
       break;
+    case QueryPattern::P_PARENT: // Prefix to P_COL
+    {
+      jam();
+      err = appendToPattern(dst, pattern, 1);
+
+      // Locate requested grandparent and request it to
+      // T_ROW_BUFFER its result rows
+      Ptr<TreeNode> parentPtr;
+      m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
+      while (val--)
+      {
+        jam();
+        ndbassert(parentPtr.p->m_parentPtrI != RNIL);
+        m_treenode_pool.getPtr(parentPtr, parentPtr.p->m_parentPtrI);
+        parentPtr.p->m_bits |= TreeNode::T_ROW_BUFFER;
+        parentPtr.p->m_bits |= TreeNode::T_ROW_BUFFER_MAP;
+      }
+      break;
+   }
    default:
       jam();
       err = DbspjErr::InvalidPattern;
@@ -5660,6 +5690,14 @@ Dbspj::parseDA(Build_context& ctx,
 
       err = 0;
       
+      if (unlikely(cnt!=1))
+      {
+        /**
+         * Only a single parent supported for now, i.e only trees
+         */
+        DEBUG_CRASH();
+      }
+
       for (Uint32 i = 0; i<cnt; i++)
       {
         DEBUG("adding " << dst[i] << " as parent");
@@ -5673,14 +5711,7 @@ Dbspj::parseDA(Build_context& ctx,
           break;
         }
         parentPtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
-
-        if (i == 0)
-        {
-          /**
-           * Save parent (only 0 for now, i.e only trees)
-           */
-          treeNodePtr.p->m_parentPtrI = parentPtr.i;
-        }
+        treeNodePtr.p->m_parentPtrI = parentPtr.i;
       }
 
       if (unlikely(err != 0))
@@ -5730,7 +5761,7 @@ Dbspj::parseDA(Build_context& ctx,
         /**
          * Expand pattern into a new pattern (with linked values)
          */
-        err = expand(pattern, tree, len, param, cnt);
+        err = expand(pattern, treeNodePtr, tree, len, param, cnt);
 
         /**
          * This node constructs a new key for each send
@@ -5857,7 +5888,7 @@ Dbspj::parseDA(Build_context& ctx,
             LocalArenaPoolImpl pool(requestPtr.p->m_arena, 
                                     m_dependency_map_pool);
             Local_pattern_store pattern(pool,treeNodePtr.p->m_attrParamPattern);
-            err = expand(pattern, tree, len_pattern, param, cnt);
+            err = expand(pattern, treeNodePtr, tree, len_pattern, param, cnt);
             
             /**
              * This node constructs a new attr-info for each send
@@ -6047,30 +6078,6 @@ Dbspj::parseDA(Build_context& ctx,
 
       treeNodePtr.p->m_send.m_attrInfoPtrI = attrInfoPtrI;
     } // if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
-
-#ifdef JONAS_TESTING_ROW_BUFFERING
-    // TODO: test-only!
-    treeNodePtr.p->m_bits |= TreeNode::T_ROW_BUFFER;
-    treeNodePtr.p->m_bits |= TreeNode::T_ROW_BUFFER_MAP;
-    treeNodePtr.p->m_bits |= TreeNode::T_MULTI_SCAN;
-#endif
-
-    if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
-    {
-      jam();
-      requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
-
-      if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER_MAP)
-      {
-        jam();
-        treeNodePtr.p->m_row_map.init();
-      }
-      else
-      {
-        jam();
-        treeNodePtr.p->m_row_list.init();
-      }
-    }
 
     return 0;
   } while (0);

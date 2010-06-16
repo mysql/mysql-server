@@ -345,7 +345,7 @@ public:
                              const QueryNode*, const QueryNodeParameters*);
 
     /**
-     * This function is called aftger build, but before start
+     * This function is called after build, but before start
      *   it's allowed to block (i.e send signals)
      *   and should if so increase request::m_outstanding
      */
@@ -985,7 +985,8 @@ private:
   Uint32 expandL(Uint32 & ptrI, Local_pattern_store&, const RowPtr&);
   Uint32 expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
                 DABuffer & param, Uint32 cnt);
-  Uint32 expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
+  Uint32 expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
+                DABuffer & pattern, Uint32 len,
                 DABuffer & param, Uint32 cnt);
   Uint32 parseDA(Build_context&, Ptr<Request>, Ptr<TreeNode>,
                  DABuffer tree, Uint32 treeBits,
