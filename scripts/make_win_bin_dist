@@ -383,7 +383,7 @@ cp scripts/*.sql $DESTDIR/share/
 if [ -f storage/ndb/src/kernel/$TARGET/ndbd.exe ]; then
     echo "Adding NDB binaries"
 
-NDB_BINARIES="src/kernel/$TARGET/ndbd "
+NDB_BINARIES="src/kernel/$TARGET/ndbd src/kernel/$TARGET/ndbmtd "
 NDB_BINARIES="$NDB_BINARIES src/mgmclient/$TARGET/ndb_mgm"
 NDB_BINARIES="$NDB_BINARIES src/mgmsrv/$TARGET/ndb_mgmd"
 NDB_BINARIES="$NDB_BINARIES src/mgmsrv/$TARGET/ndb_mgmd"
