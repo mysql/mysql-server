@@ -498,14 +498,12 @@ angel_run(const BaseString& original_args,
     char *logfile = NdbConfig_StdoutFileName(nodeid);
     NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
 
-#ifndef NDB_WIN32
     if (ndb_daemonize(lockfile, logfile) != 0)
     {
       g_eventLogger->error("Couldn't start as daemon, error: '%s'",
                            ndb_daemon_error);
       angel_exit(1);
     }
-#endif
   }
 
   // Counter for consecutive failed startups
