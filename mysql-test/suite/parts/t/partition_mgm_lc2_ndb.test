@@ -34,6 +34,7 @@
 connection default;
 # Use either $can_only_key or new=on option to run test.
 let $can_only_key= 1;
+let $native_partitioning= 1;
 # Allow hash/list/range partitioning with ndb
 #SET new=on;
 let $engine= 'NDBCluster';

@@ -58,6 +58,7 @@
 #include <m_ctype.h>
 #include "my_md5.h"
 #include "transaction.h"
+#include "debug_sync.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_table.h"                  // build_table_filename,
@@ -571,7 +572,13 @@ static bool set_up_field_array(TABLE *table,
           } while (++inx < num_fields);
           if (inx == num_fields)
           {
-            mem_alloc_error(1);
+            /*
+              Should not occur since it should already been checked in either
+              add_column_list_values, handle_list_of_fields,
+              check_partition_info etc.
+            */
+            DBUG_ASSERT(0);
+            my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
             result= TRUE;
             continue;
           }
@@ -3890,6 +3897,92 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  @brief Verify that all rows in a table is in the given partition
+
+  @param table      Table which contains the data that will be checked if
+                    it is matching the partition definition.
+  @param part_table Partitioned table containing the partition to check.
+  @param part_id    Which partition to match with.
+
+  @return Operation status
+    @retval TRUE                Not all rows match the given partition
+    @retval FALSE               OK
+*/
+bool verify_data_with_partition(TABLE *table, TABLE *part_table,
+                                uint32 part_id)
+{
+  uint32 found_part_id;
+  longlong func_value;                     /* Unused */
+  handler *file;
+  int error;
+  uchar *old_rec;
+  partition_info *part_info;
+  DBUG_ENTER("verify_data_with_partition");
+  DBUG_ASSERT(table && table->file && part_table && part_table->part_info &&
+              part_table->file);
+
+  /*
+    Verify all table rows.
+    First implementation uses full scan + evaluates partition functions for
+    every row. TODO: add optimization to use index if possible, see WL#5397.
+
+    1) Open both tables (already done) and set the row buffers to use
+       the same buffer (to avoid copy).
+    2) Init rnd on table.
+    3) loop over all rows.
+      3.1) verify that partition_id on the row is correct. Break if error.
+  */
+  file= table->file;
+  part_info= part_table->part_info;
+  bitmap_union(table->read_set, &part_info->full_part_field_set);
+  old_rec= part_table->record[0];
+  part_table->record[0]= table->record[0];
+  set_field_ptr(part_info->full_part_field_array, table->record[0], old_rec);
+  if ((error= file->ha_rnd_init(TRUE)))
+  {
+    file->print_error(error, MYF(0));
+    goto err;
+  }
+
+  do
+  {
+    if ((error= file->rnd_next(table->record[0])))
+    {
+      if (error == HA_ERR_RECORD_DELETED)
+        continue;
+      if (error == HA_ERR_END_OF_FILE)
+        error= 0;
+      else
+        file->print_error(error, MYF(0));
+      break;
+    }
+    if ((error= part_info->get_partition_id(part_info, &found_part_id,
+                                            &func_value)))
+    {
+      part_table->file->print_error(error, MYF(0));
+      break;
+    }
+    DEBUG_SYNC(current_thd, "swap_partition_first_row_read");
+    if (found_part_id != part_id)
+    {
+      my_error(ER_ROW_DOES_NOT_MATCH_PARTITION, MYF(0));
+      error= 1;
+      break;
+    }
+  } while (TRUE);
+  (void) file->ha_rnd_end();
+err:
+  set_field_ptr(part_info->full_part_field_array, old_rec,
+                table->record[0]);
+  part_table->record[0]= old_rec;
+  if (error)
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
+}
+
+
 /*
   Prune the set of partitions to use in query 
 
@@ -4513,6 +4606,50 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
       part_elem->part_state= PART_NORMAL;
   } while (++part_count < tab_part_info->num_parts);
   return num_parts_found;
+}
+
+
+/**
+  @brief Check if partition is exchangable with table by checking table options
+
+  @param table_create_info Table options from table.
+  @param part_elem         All the info of the partition.
+
+  @retval FALSE if they are equal, otherwise TRUE.
+
+  @note Any differens that would cause a change in the frm file is prohibited.
+  Such options as data_file_name, index_file_name, min_rows, max_rows etc. are
+  not allowed to differ. But comment is allowed to differ.
+*/
+bool compare_partition_options(HA_CREATE_INFO *table_create_info,
+                               partition_element *part_elem)
+{
+#define MAX_COMPARE_PARTITION_OPTION_ERRORS 5
+  const char *option_diffs[MAX_COMPARE_PARTITION_OPTION_ERRORS + 1];
+  int i, errors= 0;
+  DBUG_ENTER("compare_partition_options");
+  DBUG_ASSERT(!part_elem->tablespace_name &&
+              !table_create_info->tablespace);
+
+  /*
+    Note that there are not yet any engine supporting tablespace together
+    with partitioning. TODO: when there are, add compare.
+  */
+  if (part_elem->tablespace_name || table_create_info->tablespace)
+    option_diffs[errors++]= "TABLESPACE";
+  if (part_elem->part_max_rows != table_create_info->max_rows)
+    option_diffs[errors++]= "MAX_ROWS";
+  if (part_elem->part_min_rows != table_create_info->min_rows)
+    option_diffs[errors++]= "MIN_ROWS";
+  if (part_elem->data_file_name || table_create_info->data_file_name)
+    option_diffs[errors++]= "DATA DIRECTORY";
+  if (part_elem->index_file_name || table_create_info->index_file_name)
+    option_diffs[errors++]= "INDEX DIRECTORY";
+
+  for (i= 0; i < errors; i++)
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             option_diffs[i]);
+  DBUG_RETURN(errors != 0);
 }
 
 
