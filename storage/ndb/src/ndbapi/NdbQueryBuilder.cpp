@@ -182,6 +182,9 @@ protected:
   virtual const NdbQueryLookupOperationDef& getInterface() const
   { return m_interface; }
 
+  // Append pattern for creating lookup key to serialized code 
+  Uint32 appendKeyPattern(Uint32Buffer& serializedDef) const;
+
   virtual bool isScanOperation() const
   { return false; }
 
@@ -1590,8 +1593,12 @@ void
 NdbQueryOperationDefImpl::removeChild(const NdbQueryOperationDefImpl* childOp)
 {
   for (unsigned i=0; i<m_children.size(); ++i)
-  { if (m_children[i] == childOp)
+  {
+    if (m_children[i] == childOp)
+    {
       m_children.erase(i);
+      return;
+    }
   }
 }
 
@@ -1599,8 +1606,22 @@ bool
 NdbQueryOperationDefImpl::isChildOf(const NdbQueryOperationDefImpl* parentOp) const
 {
   for (Uint32 i=0; i<m_parents.size(); ++i)
-  { if (m_parents[i] == parentOp || m_parents[i]->isChildOf(parentOp))
+  { if (this->m_parents[i] == parentOp)
+    {
+#ifndef NDEBUG
+      // Assert that parentOp also refer 'this' as a child.
+      for (Uint32 j=0; j<parentOp->getNoOfChildOperations(); j++)
+      { if (&parentOp->getChildOperation(j) == this)
+          return true;
+      }
+      assert(false);
+#endif
       return true;
+    }
+    else if (m_parents[i]->isChildOf(parentOp))
+    {
+      return true;
+    }
   }
   return false;
 }
@@ -1608,40 +1629,25 @@ NdbQueryOperationDefImpl::isChildOf(const NdbQueryOperationDefImpl* parentOp) co
 int
 NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
 {
-  for (Uint32 i=0; i<m_parents.size(); ++i)
-  { if (m_parents[i] == parentOp)
-    { // Assert that parent already refer 'this' as a child.
-      for (Uint32 j=0; j<parentOp->getNoOfChildOperations(); j++)
-      { if (&parentOp->getChildOperation(j) == this)
-          return 0;
-      }
-      assert(false);
-      return 0;
-    }
+  if (this->isChildOf(parentOp))
+  {
+    // There should only be a single parent/child relationship registered.
+    return 0;
   }
 
   assert (m_parents.size() <= 1);
-  if (unlikely(m_parents.size() == 1))
+  if (m_parents.size() > 0)
   {
     /**
-     * Parent merging current disabled 
-     *  - Will also need additional support in SPJ block
+     * Multiple parental relationship not allowed.
+     * It is likely that the conflict is due to one of the
+     * parent actually being a grand parent.
+     * This can be resolved if existing parent actually was a grandparent.
+     * Then register new parentOp as the real parrent.
      */
-    return QRY_MULTIPLE_PARENTS;
-
-    /**
-     * Multiple parents not allowed.
-     * Resolve this by finding the closest related (grand)parent among 
-     * the two parents. This is calculated as the parent having the 
-     * other parent as grand parent.
-     */
-    if (m_parents[0]->isChildOf(parentOp))
-    { // parentOp is grandparent of m_parent[0], don't interested in it
-      return 0; // Accept existing m_parent[0] as my parent.
-    }
-    else if (parentOp->isChildOf(m_parents[0]))
-    { // Remove existing grandparent linkage being replaced by .
-      parentOp->removeChild(this);
+    if (parentOp->isChildOf(m_parents[0]))
+    { // Remove existing grandparent linkage being replaced by parentOp.
+      m_parents[0]->removeChild(this);
       m_parents.erase(0);
     }
     else
@@ -1752,18 +1758,17 @@ NdbQueryOperationDefImpl::appendParentList(Uint32Buffer& serializedDef) const
   parentSeq.finish();
 }
 
-static Uint32
-appendKeyPattern(Uint32Buffer& serializedDef,
-                 const NdbQueryOperandImpl* const *keys)
+Uint32
+NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) const
 {
   Uint32 appendedPattern = 0;
-  if (keys[0]!=NULL)
+  if (m_keys[0]!=NULL)
   {
     Uint32 startPos = serializedDef.getSize();
     serializedDef.append(0);     // Grab first word for length field, updated at end
     int paramCnt = 0;
     int keyNo = 0;
-    const NdbQueryOperandImpl* key = keys[0];
+    const NdbQueryOperandImpl* key = m_keys[0];
     do
     {
       switch(key->getKind()){
@@ -1771,6 +1776,18 @@ appendKeyPattern(Uint32Buffer& serializedDef,
       {
         appendedPattern |= DABits::NI_KEY_LINKED;
         const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(key);
+        const NdbQueryOperationDefImpl* parent = &getParentOperation(0);
+        uint32 levels = 0;
+        while (parent != &linkedOp.getParentOperation())
+        {
+          assert(parent->getNoOfParentOperations() > 0);
+          parent = &parent->getParentOperation(0);
+          levels++;
+        }
+        if (levels > 0)
+        {
+          serializedDef.append(QueryPattern::parent(levels));
+        }
         serializedDef.append(QueryPattern::col(linkedOp.getLinkedColumnIx()));
         break;
       }
@@ -1795,7 +1812,7 @@ appendKeyPattern(Uint32Buffer& serializedDef,
       default:
         assert(false);
       }
-      key = keys[++keyNo];
+      key = m_keys[++keyNo];
     } while (key!=NULL);
 
     // Set total length of key pattern.
@@ -1804,7 +1821,7 @@ appendKeyPattern(Uint32Buffer& serializedDef,
   }
 
   return appendedPattern;
-} // appendKeyPattern
+} // NdbQueryLookupOperationDefImpl::appendKeyPattern
 
 int
 NdbQueryPKLookupOperationDefImpl
@@ -1836,7 +1853,7 @@ NdbQueryPKLookupOperationDefImpl
 
   // Part2: Append m_keys[] values specifying lookup key.
   if (getQueryOperationIx() > 0) {
-    requestInfo |= appendKeyPattern(serializedDef, m_keys);
+    requestInfo |= appendKeyPattern(serializedDef);
   }
 
   /* Add the projection that should be send to the SPJ block such that 
@@ -1912,7 +1929,7 @@ NdbQueryIndexOperationDefImpl
 
     // Part2: m_keys[] are the keys to be used for index
     if (getQueryOperationIx() > 0) {  // Root operation key is in KEYINFO 
-      requestInfo |= appendKeyPattern(serializedDef, m_keys);
+      requestInfo |= appendKeyPattern(serializedDef);
     }
 
     /* Basetable is executed as child operation of index:
