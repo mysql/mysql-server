@@ -2880,6 +2880,7 @@ int get_partition_id_range(partition_info *part_info,
   *func_value= part_func_value;
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
+  /* Search for the partition containing part_func_value */
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id) / 2;
@@ -3019,11 +3020,17 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   part_end_val= range_array[loc_part_id];
   if (left_endpoint)
   {
+    DBUG_ASSERT(part_func_value > part_end_val ?
+                (loc_part_id == max_partition &&
+                 !part_info->defined_max_value) :
+                1);
     /*
       In case of PARTITION p VALUES LESS THAN MAXVALUE
-      the maximum value is in the current partition.
+      the maximum value is in the current (last) partition.
+      If value is equal or greater than the endpoint,
+      the range starts from the next partition.
     */
-    if (part_func_value == part_end_val &&
+    if (part_func_value >= part_end_val &&
         (loc_part_id < max_partition || !part_info->defined_max_value))
       loc_part_id++;
   }
@@ -4277,6 +4284,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
+  /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
+  if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
+  {
+    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   /*
     We are going to manipulate the partition info on the table object
     so we need to ensure that the data structure of the table object
@@ -5946,32 +5959,6 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   }
 }
 
-/*
-  Unlock and close table before renaming and dropping partitions
-  SYNOPSIS
-    alter_close_tables()
-    lpt                        Struct carrying parameters
-  RETURN VALUES
-    0
-*/
-
-static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  THD *thd= lpt->thd;
-  const char *db= lpt->db;
-  const char *table_name= lpt->table_name;
-  DBUG_ENTER("alter_close_tables");
-  /*
-    We need to also unlock tables and close all handlers.
-    We set lock to zero to ensure we don't do this twice
-    and we set db_stat to zero to ensure we don't close twice.
-  */
-  pthread_mutex_lock(&LOCK_open);
-  close_data_files_and_morph_locks(thd, db, table_name);
-  pthread_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(0);
-}
-
 
 /*
   Handle errors for ALTER TABLE for partitioning
@@ -6269,9 +6256,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
-        ERROR_INJECT_CRASH("crash_drop_partition_4") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -6336,9 +6321,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
-        ERROR_INJECT_CRASH("crash_add_partition_4") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -6426,9 +6409,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
-        ERROR_INJECT_CRASH("crash_change_partition_5") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,

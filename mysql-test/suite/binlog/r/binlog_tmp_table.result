@@ -29,3 +29,14 @@ a
 6
 8
 drop table foo;
+RESET MASTER;
+create database b51226;
+use b51226;
+create temporary table t1(i int);
+use b51226;
+create temporary table t1(i int);
+create temporary table t1(i int);
+ERROR 42S01: Table 't1' already exists
+insert into t1 values(1);
+DROP DATABASE b51226;
+FLUSH LOGS;

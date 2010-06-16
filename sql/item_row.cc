@@ -30,7 +30,8 @@
 */
 
 Item_row::Item_row(List<Item> &arg):
-  Item(), used_tables_cache(0), const_item_cache(1), with_null(0)
+  Item(), used_tables_cache(0), not_null_tables_cache(0),
+  const_item_cache(1), with_null(0)
 {
 
   //TODO: think placing 2-3 component items in item (as it done for function)
@@ -71,6 +72,7 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     Item *item= *arg;
     used_tables_cache |= item->used_tables();
     const_item_cache&= item->const_item() && !with_null;
+    not_null_tables_cache|= item->not_null_tables();
     /*
       Some subqueries transformations aren't done in the view_prepare_mode thus
       is_null() will fail. So we skip is_null() calculation for CREATE VIEW as

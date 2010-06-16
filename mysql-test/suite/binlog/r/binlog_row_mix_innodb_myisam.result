@@ -53,9 +53,11 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	SAVEPOINT my_savepoint
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_ENmaster-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+D_F
 master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 delete from t1;
@@ -84,9 +86,11 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	SAVEPOINT my_savepoint
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_ENmaster-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+D_F
 master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -414,7 +418,6 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -847,11 +850,11 @@ delete from t4;
 insert into t3 values (1,1),(2,2);
 insert into t4 values (1,1),(2,2);
 reset master;
-UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+UPDATE t3,t4 SET t3.a = t4.a + bug27417(1) where t3.a = 1;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)
-2
+1
 drop table t4;
 delete from t1;
 delete from t2;

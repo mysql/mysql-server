@@ -1,0 +1,550 @@
+-- source include/have_innodb_plugin.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+
+create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
+insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
+commit;
+--error ER_DUP_KEYNAME
+alter table t1 add index b (b), add index b (b);
+--error ER_DUP_FIELDNAME
+alter table t1 add index (b,b);
+alter table t1 add index d2 (d);
+show create table t1;
+explain select * from t1 force index(d2) order by d;
+select * from t1 force index (d2) order by d;
+--error ER_DUP_ENTRY
+alter table t1 add unique index (b);
+show create table t1;
+alter table t1 add index (b);
+show create table t1;
+
+# Check how existing tables interfere with temporary tables.
+CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--error 156
+alter table t1 add unique index (c), add index (d);
+rename table `t1#1` to `t1#2`;
+--error 156
+alter table t1 add unique index (c), add index (d);
+drop table `t1#2`;
+
+alter table t1 add unique index (c), add index (d);
+show create table t1;
+explain select * from t1 force index(c) order by c;
+alter table t1 add primary key (a), drop index c;
+show create table t1;
+--error ER_MULTIPLE_PRI_KEY
+alter table t1 add primary key (c);
+--error ER_DUP_ENTRY
+alter table t1 drop primary key, add primary key (b);
+create unique index c on t1 (c);
+show create table t1;
+explain select * from t1 force index(c) order by c;
+select * from t1 force index(c) order by c;
+alter table t1 drop index b, add index (b);
+show create table t1;
+insert into t1 values(6,1,'ggg','ggg');
+select * from t1;
+select * from t1 force index(b) order by b;
+select * from t1 force index(c) order by c;
+select * from t1 force index(d) order by d;
+explain select * from t1 force index(b) order by b;
+explain select * from t1 force index(c) order by c;
+explain select * from t1 force index(d) order by d;
+show create table t1;
+drop table t1;
+
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ad','ad'),(4,4,'afe','afe');
+commit;
+alter table t1 add index (c(2));
+show create table t1;
+alter table t1 add unique index (d(10));
+show create table t1;
+insert into t1 values(5,1,'ggg','ggg');
+select * from t1;
+select * from t1 force index(c) order by c;
+select * from t1 force index(d) order by d;
+explain select * from t1 order by b;
+explain select * from t1 force index(c) order by c;
+explain select * from t1 force index(d) order by d;
+show create table t1;
+alter table t1 drop index d;
+insert into t1 values(8,9,'fff','fff');
+select * from t1;
+select * from t1 force index(c) order by c;
+explain select * from t1 order by b;
+explain select * from t1 force index(c) order by c;
+explain select * from t1 order by d;
+show create table t1;
+drop table t1;
+
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
+commit;
+alter table t1 add unique index (b,c);
+insert into t1 values(8,9,'fff','fff');
+select * from t1;
+select * from t1 force index(b) order by b;
+explain select * from t1 force index(b) order by b;
+show create table t1;
+alter table t1 add index (b,c);
+insert into t1 values(11,11,'kkk','kkk');
+select * from t1;
+select * from t1 force index(b) order by b;
+explain select * from t1 force index(b) order by b;
+show create table t1;
+alter table t1 add unique index (c,d);
+insert into t1 values(13,13,'yyy','aaa');
+select * from t1;
+select * from t1 force index(b) order by b;
+select * from t1 force index(c) order by c;
+explain select * from t1 force index(b) order by b;
+explain select * from t1 force index(c) order by c;
+show create table t1;
+drop table t1;
+
+create table t1(a int not null, b int not null, c int, primary key (a), key (b)) engine = innodb;
+create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
+create table t4(a int not null, d int not null, e int, primary key (a), key (d)) engine = innodb;
+create table t2(a int not null, b int not null, c int not null, d int not null, e int,
+foreign key (b) references t1(b) on delete cascade,
+foreign key (c) references t3(c), foreign key (d) references t4(d))
+engine = innodb;
+--error ER_DROP_INDEX_FK
+alter table t1 drop index b;
+--error ER_DROP_INDEX_FK
+alter table t3 drop index c;
+--error ER_DROP_INDEX_FK
+alter table t4 drop index d;
+--error ER_DROP_INDEX_FK
+alter table t2 drop index b;
+--error ER_DROP_INDEX_FK
+alter table t2 drop index b, drop index c, drop index d;
+# Apparently, the following makes mysql_alter_table() drop index d.
+create unique index dc on t2 (d,c);
+create index dc on t1 (b,c);
+# This should preserve the foreign key constraints.
+alter table t2 add primary key (a);
+insert into t1 values (1,1,1);
+insert into t3 values (1,1,1);
+insert into t4 values (1,1,1);
+insert into t2 values (1,1,1,1,1);
+commit;
+alter table t4 add constraint dc foreign key (a) references t1(a);
+show create table t4;
+--replace_regex /'test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+# a foreign key 'test/dc' already exists
+--error ER_CANT_CREATE_TABLE
+alter table t3 add constraint dc foreign key (a) references t1(a);
+show create table t3;
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
+alter table t2 drop index b, add index (b);
+show create table t2;
+--error ER_ROW_IS_REFERENCED_2
+delete from t1;
+--error ER_CANT_DROP_FIELD_OR_KEY
+drop index dc on t4;
+# there is no foreign key dc on t3
+--replace_regex /'[^']*test\/#sql2-[0-9a-f-]*'/'#sql2-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+--error ER_ERROR_ON_RENAME
+alter table t3 drop foreign key dc;
+alter table t4 drop foreign key dc;
+select * from t2;
+delete from t1;
+select * from t2;
+
+drop table t2,t4,t3,t1;
+
+-- let charset = utf8
+-- source suite/innodb_plugin/include/innodb-index.inc
+
+create table t1(a int not null, b int) engine = innodb;
+insert into t1 values (1,1),(1,1),(1,1),(1,1);
+--error ER_DUP_ENTRY
+alter table t1 add unique index (a);
+--error ER_DUP_ENTRY
+alter table t1 add unique index (b);
+--error ER_DUP_ENTRY
+alter table t1 add unique index (a), add unique index(b);
+show create table t1;
+drop table t1;
+
+create table t1(a int not null, c int not null,b int, primary key(a), unique key(c), key(b)) engine = innodb;
+alter table t1 drop index c, drop index b;
+show create table t1;
+drop table t1;
+
+create table t1(a int not null, b int, primary key(a)) engine = innodb;
+alter table t1 add index (b);
+show create table t1;
+drop table t1;
+
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
+--error ER_DUP_ENTRY
+alter table t1 add unique index (b), add unique index (c), add unique index (d);
+--error ER_DUP_ENTRY
+alter table t1 add unique index (c), add unique index (b), add index (d);
+show create table t1;
+drop table t1;
+
+create table t1(a int not null, b int not null, c int, primary key (a), key(c)) engine=innodb;
+insert into t1 values (5,1,5),(4,2,4),(3,3,3),(2,4,2),(1,5,1);
+alter table t1 add unique index (b);
+insert into t1 values (10,20,20),(11,19,19),(12,18,18),(13,17,17);
+show create table t1;
+check table t1;
+explain select * from t1 force index(c) order by c;
+explain select * from t1 order by a;
+explain select * from t1 force index(b) order by b;
+select * from t1 order by a;
+select * from t1 force index(b) order by b;
+select * from t1 force index(c) order by c;
+drop table t1;
+
+create table t1(a int not null, b int not null) engine=innodb;
+insert into t1 values (1,1);
+alter table t1 add primary key(b);
+insert into t1 values (2,2);
+show create table t1;
+check table t1;
+select * from t1;
+explain select * from t1;
+explain select * from t1 order by a;
+explain select * from t1 order by b;
+checksum table t1;
+drop table t1;
+
+create table t1(a int not null) engine=innodb;
+insert into t1 values (1);
+alter table t1 add primary key(a);
+insert into t1 values (2);
+show create table t1;
+check table t1;
+commit;
+select * from t1;
+explain select * from t1;
+explain select * from t1 order by a;
+drop table t1;
+
+create table t2(d varchar(17) primary key) engine=innodb default charset=utf8;
+create table t3(a int primary key) engine=innodb;
+
+insert into t3 values(22),(44),(33),(55),(66);
+
+insert into t2 values ('jejdkrun87'),('adfd72nh9k'),
+('adfdpplkeock'),('adfdijnmnb78k'),('adfdijn0loKNHJik');
+
+create table t1(a int, b blob, c text, d text not null)
+engine=innodb default charset = utf8;
+
+# r2667 The following test is disabled because MySQL behavior changed.
+# r2667 The test was added with this comment:
+# r2667 
+# r2667 ------------------------------------------------------------------------
+# r2667 r1699 | marko | 2007-08-10 19:53:19 +0300 (Fri, 10 Aug 2007) | 5 lines
+# r2667 
+# r2667 branches/zip: Add changes that accidentally omitted from r1698:
+# r2667 
+# r2667 innodb-index.test, innodb-index.result: Add a test for creating
+# r2667 a PRIMARY KEY on a column that contains a NULL value.
+# r2667 ------------------------------------------------------------------------
+# r2667 
+# r2667 but in BZR-r2667:
+# r2667 http://bazaar.launchpad.net/~mysql/mysql-server/mysql-5.1/revision/davi%40mysql.com-20080617141221-8yre8ys9j4uw3xx5?start_revid=joerg%40mysql.com-20080630105418-7qoe5ehomgrcdb89
+# r2667 MySQL changed the behavior to do full table copy when creating PRIMARY INDEX
+# r2667 on a non-NULL column instead of calling ::add_index() which would fail (and
+# r2667 this is what we were testing here). Before r2667 the code execution path was
+# r2667 like this (when adding PRIMARY INDEX on a non-NULL column with ALTER TABLE):
+# r2667 
+# r2667 mysql_alter_table()
+# r2667   compare_tables()  // would return ALTER_TABLE_INDEX_CHANGED
+# r2667   ::add_index()  // would fail with "primary index cannot contain NULL"
+# r2667 
+# r2667 after r2667 the code execution path is the following:
+# r2667 
+# r2667 mysql_alter_table()
+# r2667   compare_tables()  // returns ALTER_TABLE_DATA_CHANGED
+# r2667   full copy is done, without calling ::add_index()
+# r2667 
+# r2667 To enable, remove "# r2667: " below.
+# r2667 
+# r2667: insert into t1 values (null,null,null,'null');
+insert into t1
+select a,left(repeat(d,100*a),65535),repeat(d,20*a),d from t2,t3;
+drop table t2, t3;
+select count(*) from t1 where a=44;
+select a,
+length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
+# r2667: --error ER_PRIMARY_CANT_HAVE_NULL
+# r2667: alter table t1 add primary key (a), add key (b(20));
+# r2667: delete from t1 where d='null';
+--error ER_DUP_ENTRY
+alter table t1 add primary key (a), add key (b(20));
+delete from t1 where a%2;
+check table t1;
+alter table t1 add primary key (a,b(255),c(255)), add key (b(767));
+select count(*) from t1 where a=44;
+select a,
+length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
+show create table t1;
+check table t1;
+explain select * from t1 where b like 'adfd%';
+
+#
+# Test locking
+#
+
+create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
+insert into t2 select a,left(b,255) from t1;
+drop table t1;
+rename table t2 to t1;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+set innodb_lock_wait_timeout=1;
+begin;
+# Obtain an IX lock on the table
+select a from t1 limit 1 for update;
+connection b;
+set innodb_lock_wait_timeout=1;
+# This would require an S lock on the table, conflicting with the IX lock.
+--error ER_LOCK_WAIT_TIMEOUT
+create index t1ba on t1 (b,a);
+connection a;
+commit;
+begin;
+# Obtain an IS lock on the table
+select a from t1 limit 1 lock in share mode;
+connection b;
+# This will require an S lock on the table.  No conflict with the IS lock.
+create index t1ba on t1 (b,a);
+# This would require an X lock on the table, conflicting with the IS lock.
+--error ER_LOCK_WAIT_TIMEOUT
+drop index t1ba on t1;
+connection a;
+commit;
+explain select a from t1 order by b;
+--send
+select a,sleep(2+a/100) from t1 order by b limit 3;
+
+# The following DROP INDEX will succeed, altough the SELECT above has
+# opened a read view.  However, during the execution of the SELECT,
+# MySQL should hold a table lock that should block the execution
+# of the DROP INDEX below.
+
+connection b;
+select sleep(1);
+drop index t1ba on t1;
+
+# After the index was dropped, subsequent SELECTs will use the same
+# read view, but they should not be accessing the dropped index any more.
+
+connection a;
+reap;
+explain select a from t1 order by b;
+select a from t1 order by b limit 3;
+commit;
+
+connection default;
+disconnect a;
+disconnect b;
+
+drop table t1;
+
+let $per_table=`select @@innodb_file_per_table`;
+let $format=`select @@innodb_file_format`;
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
+# Test creating a table that could lead to undo log overflow.
+# In the undo log, we write a 768-byte prefix (REC_MAX_INDEX_COL_LEN)
+# of each externally stored column that appears as a column prefix in an index.
+# For this test case, it would suffice to write 1 byte, though.
+create table t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,h blob,
+		i blob,j blob,k blob,l blob,m blob,n blob,o blob,p blob,
+		q blob,r blob,s blob,t blob,u blob)
+	engine=innodb row_format=dynamic;
+create index t1a on t1 (a(1));
+create index t1b on t1 (b(1));
+create index t1c on t1 (c(1));
+create index t1d on t1 (d(1));
+create index t1e on t1 (e(1));
+create index t1f on t1 (f(1));
+create index t1g on t1 (g(1));
+create index t1h on t1 (h(1));
+create index t1i on t1 (i(1));
+create index t1j on t1 (j(1));
+create index t1k on t1 (k(1));
+create index t1l on t1 (l(1));
+create index t1m on t1 (m(1));
+create index t1n on t1 (n(1));
+create index t1o on t1 (o(1));
+create index t1p on t1 (p(1));
+create index t1q on t1 (q(1));
+create index t1r on t1 (r(1));
+create index t1s on t1 (s(1));
+create index t1t on t1 (t(1));
+--error 139
+create index t1u on t1 (u(1));
+--error 139
+create index t1ut on t1 (u(1), t(1));
+create index t1st on t1 (s(1), t(1));
+show create table t1;
+--error 139
+create index t1u on t1 (u(1));
+alter table t1 row_format=compact;
+create index t1u on t1 (u(1));
+
+drop table t1;
+eval set global innodb_file_per_table=$per_table;
+eval set global innodb_file_format=$format;
+eval set global innodb_file_format_check=$format;
+
+#
+# Test to check whether CREATE INDEX handles implicit foreign key
+# constraint modifications (Issue #70, Bug #38786)
+#
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+
+CREATE TABLE t1(
+  c1	BIGINT(12) NOT NULL,
+  PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE t2(
+  c1	BIGINT(16) NOT NULL,
+  c2	BIGINT(12) NOT NULL,
+  c3	BIGINT(12) NOT NULL,
+  PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3) REFERENCES t1(c1);
+
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+
+SHOW CREATE TABLE t2;
+
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+
+SHOW CREATE TABLE t2;
+
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 VALUES(0,0,0);
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0,0,0);
+
+DROP TABLE t2;
+
+CREATE TABLE t2(
+  c1	BIGINT(16) NOT NULL,
+  c2	BIGINT(12) NOT NULL,
+  c3	BIGINT(12) NOT NULL,
+  PRIMARY KEY (c1,c2,c3)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3) REFERENCES t1(c1);
+
+SHOW CREATE TABLE t2;
+
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+
+SHOW CREATE TABLE t2;
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 VALUES(0,0,1);
+INSERT INTO t2 VALUES(0,0,0);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM t1;
+DELETE FROM t2;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  c1	BIGINT(12) NOT NULL,
+  c2	INT(4) NOT NULL,
+  PRIMARY KEY (c2,c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE t2(
+  c1	BIGINT(16) NOT NULL,
+  c2	BIGINT(12) NOT NULL,
+  c3	BIGINT(12) NOT NULL,
+  PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
+
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+CREATE INDEX i_t2_c2_c1 ON t2(c2, c1);
+SHOW CREATE TABLE t2;
+CREATE INDEX i_t2_c3_c1_c2 ON t2(c3, c1, c2);
+SHOW CREATE TABLE t2;
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+SHOW CREATE TABLE t2;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+connection b;
+BEGIN;
+SELECT * FROM t1;
+connection a;
+CREATE INDEX t1a ON t1(a);
+connection b;
+SELECT * FROM t1;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+SELECT * FROM t1;
+COMMIT;
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+connection default;
+disconnect a;
+disconnect b;
+
+DROP TABLE t1;
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log
+eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;

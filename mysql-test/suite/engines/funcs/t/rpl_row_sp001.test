@@ -1,0 +1,146 @@
+#############################################################################
+# This test is being created to test out the non deterministic items with   #
+# row based replication.                                                    #
+# Original Author: JBM                                                      #
+# Original Date: Aug/09/2005                                                #
+# Updated: Aug/29/2005
+#############################################################################
+# Test: Includes two stored procedure tests. First test uses SP to insert   #
+#       values from RAND() and NOW() into a table.                          #
+#       The second test uses SP with CASE structure to decide what to text  #
+#       to update a given table with.                                       #
+############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+-- disable_query_log
+-- disable_result_log
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+
+-- enable_query_log
+-- enable_result_log
+
+# Begin test section 1 for non deterministic SP
+let $message=<Begin test section 1 (non deterministic SP)>;
+--source include/show_msg.inc
+
+create table test.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT, f FLOAT, d DATETIME, PRIMARY KEY(n));
+
+delimiter //;
+create procedure test.p1()
+begin
+ INSERT INTO test.t1 (f,d) VALUES (RAND(),NOW());
+end//
+delimiter ;//
+
+# show binlog events; 
+
+-- disable_query_log
+-- disable_result_log
+let $1=10;
+while ($1)
+{
+  call test.p1();
+  sleep 1;
+  dec $1;
+}
+-- enable_result_log
+-- enable_query_log
+
+## Used for debugging
+#show binlog events;
+#select * from test.t1;
+#sync_slave_with_master;
+#select * from test.t1;
+#connection master;
+
+let $message=<End test section 1 (non deterministic SP)>;
+--source include/show_msg.inc
+
+
+CREATE TABLE test.t2 (a INT NOT NULL AUTO_INCREMENT, t CHAR(4), PRIMARY KEY(a));
+
+delimiter //;
+CREATE PROCEDURE test.p2(n int)
+begin
+CASE n
+WHEN 1 THEN
+ UPDATE test.t2 set t ='Tex';
+WHEN 2 THEN
+ UPDATE test.t2 set t ='SQL';
+ELSE
+ UPDATE test.t2 set t ='NONE';
+END CASE;
+end//
+delimiter ;//
+
+INSERT INTO test.t2 VALUES(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW');
+
+SELECT * FROM t2 ORDER BY a;
+save_master_pos;
+connection slave;
+sync_with_master;
+SELECT * FROM t2 ORDER BY a;
+
+connection master;
+call test.p2(1);
+SELECT * FROM t2 ORDER BY a;
+sync_slave_with_master;
+SELECT * FROM t2 ORDER BY a;
+
+
+connection master;
+call test.p2(2);
+SELECT * FROM t2 ORDER BY a;
+save_master_pos;
+connection slave;
+sync_with_master;
+SELECT * FROM t2 ORDER BY a;
+
+connection master;
+call test.p2(3);
+SELECT * FROM t2 ORDER BY a;
+save_master_pos;
+connection slave;
+sync_with_master;
+SELECT * FROM t2 ORDER BY a;
+
+##Used for debugging
+#show binlog events;
+
+# time to dump the databases and so we can see if they match
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp001_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp001_slave.sql
+
+# First lets cleanup
+
+connection master;
+DROP PROCEDURE test.p1;
+DROP PROCEDURE test.p2;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+sync_slave_with_master;
+
+# Lets compare. Note: If they match test will pass, if they do not match
+# the test will show that the diff statement failed and not reject file
+# will be created. You will need to go to the mysql-test dir and diff
+# the files your self to see what is not matching :-) Failed dump files
+# will be located in $MYSQLTEST_VARDIR/tmp
+
+diff_files $MYSQLTEST_VARDIR/tmp/sp001_master.sql $MYSQLTEST_VARDIR/tmp/sp001_slave.sql;
+
+# If all is good, when can cleanup our dump files.
+remove_file $MYSQLTEST_VARDIR/tmp/sp001_master.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/sp001_slave.sql;
+
+# End of 5.0 test case

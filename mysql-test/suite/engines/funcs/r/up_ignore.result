@@ -1,0 +1,349 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 TINYINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE   t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE   t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 SMALLINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE   t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE   t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE   t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE   t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE   t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE   t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 INTEGER NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE   t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE   t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 BIGINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE   t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE   t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 TINYINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE IGNORE t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE IGNORE t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 SMALLINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE IGNORE t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE IGNORE t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE IGNORE t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE IGNORE t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE IGNORE t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE IGNORE t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 INTEGER NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE IGNORE t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE IGNORE t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
+CREATE TABLE t1(c1 BIGINT NOT NULL);
+INSERT INTO t1 (c1) VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+UPDATE IGNORE t1 SET c1 = -1 WHERE c1 >= 5;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-1
+-1
+-1
+-1
+-1
+0
+1
+2
+3
+4
+UPDATE IGNORE t1 SET c1 = -10;
+SELECT * FROM t1 ORDER BY c1;
+c1
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+-10
+DROP TABLE t1;
