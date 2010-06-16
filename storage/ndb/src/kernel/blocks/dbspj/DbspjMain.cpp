@@ -914,6 +914,7 @@ Dbspj::build(Build_context& ctx,
    * Init ROW_BUFFERS for those TreeNodes requiring either 
    * T_ROW_BUFFER or T_ROW_BUFFER_MAP.
    */
+  if (requestPtr.p->m_bits & Request::RT_ROW_BUFFERS)
   {
     Ptr<TreeNode> treeNodePtr;
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
@@ -922,13 +923,11 @@ Dbspj::build(Build_context& ctx,
       if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER_MAP)
       {
         jam();
-        requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
         treeNodePtr.p->m_row_map.init();
       }
       else if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
       {
         jam();
-        requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
         treeNodePtr.p->m_row_list.init();
       }
     }
@@ -5633,6 +5632,9 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
         parentPtr.p->m_bits |= TreeNode::T_ROW_BUFFER;
         parentPtr.p->m_bits |= TreeNode::T_ROW_BUFFER_MAP;
       }
+      Ptr<Request> requestPtr;
+      m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+      requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
       break;
    }
    default:
