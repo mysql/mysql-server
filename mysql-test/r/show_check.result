@@ -1295,7 +1295,7 @@ drop database mysqltest;
 show full plugin;
 show warnings;
 Level	Code	Message
-Warning	1287	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 6.0. Please use 'SHOW PLUGINS' instead
+Warning	1287	'SHOW PLUGIN' is deprecated and will be removed in a future release. Please use 'SHOW PLUGINS' instead
 show plugin;
 show plugins;
 create database `mysqlttest\1`;

@@ -1,0 +1,65 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 CHAR(10) NOT NULL, c2 CHAR(10) NULL, c3 CHAR(10) NULL, PRIMARY KEY (c1), UNIQUE (c2));
+INSERT INTO t1 (c1,c2,c3) VALUES('a','e','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('b','d','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('d','b','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('e','a','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('a','a','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+SELECT * FROM t1;
+c1	c2	c3
+a	e	abcdefg
+b	d	abc
+c	c	abcdefg
+d	b	abc
+e	a	abc
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(10) NOT NULL, c2 VARCHAR(10) NULL, c3 VARCHAR(10) NULL, PRIMARY KEY (c1), UNIQUE (c2));
+INSERT INTO t1 (c1,c2,c3) VALUES('a','e','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('b','d','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('d','b','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('e','a','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('a','a','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+SELECT * FROM t1;
+c1	c2	c3
+a	e	abcdefg
+b	d	abc
+c	c	abcdefg
+d	b	abc
+e	a	abc
+DROP TABLE t1;
+CREATE TABLE t1(c1 BINARY(10) NOT NULL, c2 BINARY(10) NULL, c3 BINARY(10) NULL, PRIMARY KEY (c1), UNIQUE (c2));
+INSERT INTO t1 (c1,c2,c3) VALUES('a','e','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('b','d','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('d','b','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('e','a','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('a','a','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+SELECT hex(c1),hex(c2),hex(c3) FROM t1;
+hex(c1)	hex(c2)	hex(c3)
+61000000000000000000	65000000000000000000	61626364656667000000
+62000000000000000000	64000000000000000000	61626300000000000000
+63000000000000000000	63000000000000000000	61626364656667000000
+64000000000000000000	62000000000000000000	61626300000000000000
+65000000000000000000	61000000000000000000	61626300000000000000
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARBINARY(10) NOT NULL, c2 VARBINARY(10) NULL, c3 VARBINARY(10) NULL, PRIMARY KEY (c1), UNIQUE (c2));
+INSERT INTO t1 (c1,c2,c3) VALUES('a','e','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('b','d','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('d','b','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('e','a','abc');
+INSERT INTO t1 (c1,c2,c3) VALUES('c','c','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+INSERT INTO t1 (c1,c2,c3) VALUES('a','a','abc') ON DUPLICATE KEY UPDATE c3='abcdefg';
+SELECT * FROM t1;
+c1	c2	c3
+a	e	abcdefg
+b	d	abc
+c	c	abcdefg
+d	b	abc
+e	a	abc
+DROP TABLE t1;

@@ -1,0 +1,23 @@
+#
+# Bug#20821: INSERT DELAYED fails to write some rows to binlog
+#
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE SCHEMA IF NOT EXISTS mysqlslap;
+USE mysqlslap;
+CREATE TABLE t1 (id INT, name VARCHAR(64));
+SELECT COUNT(*) FROM mysqlslap.t1;
+COUNT(*)
+5000
+SELECT COUNT(*) FROM mysqlslap.t1;
+COUNT(*)
+5000
+#
+# Cleanup
+#
+USE test;
+DROP SCHEMA mysqlslap;

@@ -109,8 +109,8 @@ extern int _rl_is_mbchar_matched PARAMS((char *, int, int, char *, int));
 extern wchar_t _rl_char_value PARAMS((char *, int));
 extern int _rl_walphabetic PARAMS((wchar_t));
 
-#define _rl_to_wupper(wc)	(iswlower (wc) ? towupper (wc) : (wc))
-#define _rl_to_wlower(wc)	(iswupper (wc) ? towlower (wc) : (wc))
+#define _rl_to_wupper(wc)	(iswlower (wc) ? (wchar_t)towupper (wc) : (wc))
+#define _rl_to_wlower(wc)	(iswupper (wc) ? (wchar_t)towlower (wc) : (wc))
 
 #define MB_NEXTCHAR(b,s,c,f) \
 	((MB_CUR_MAX > 1 && rl_byte_oriented == 0) \

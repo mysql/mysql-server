@@ -1,0 +1,41 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SHOW SLAVE STATUS;
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Master_SSL_Verify_Server_Cert	Last_IO_Errno	Last_IO_Error	Last_SQL_Errno	Last_SQL_Error
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Rpl_recovery_rank	Master_id
+2	127.0.0.1	SLAVE_PORT	0	1
+create table t1 ( n int);
+insert into t1 values (1),(2),(3),(4);
+insert into t1 values(5);
+SELECT * FROM t1 ORDER BY n;
+n
+1
+2
+3
+4
+5
+SELECT * FROM t1 ORDER BY n;
+n
+1
+2
+3
+4
+SELECT * FROM t1 ORDER BY n;
+n
+1
+2
+3
+4
+SELECT * FROM t1 ORDER BY n;
+n
+1
+2
+3
+4
+5
+drop table t1;

@@ -309,4 +309,36 @@ yyyy	c4
 2069	2069
 DROP TABLE t2, t4;
 #
+# Bug #49910: Behavioural change in SELECT/WHERE on YEAR(4) data type
+#
+CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
+INSERT INTO t1 (s) VALUES ('bad');
+Warnings:
+Warning	1364	Field 'y' doesn't have a default value
+INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
+SELECT * FROM t1 ta, t1 tb WHERE ta.y = tb.y;
+y	s	y	s
+0000	bad	0000	bad
+0000	0	0000	bad
+0000	bad	0000	0
+0000	0	0000	0
+2000	2000	2000	2000
+2001	2001	2001	2001
+SELECT * FROM t1 WHERE t1.y = 0;
+y	s
+0000	bad
+0000	0
+SELECT * FROM t1 WHERE t1.y = 2000;
+y	s
+2000	2000
+SELECT ta.y AS ta_y, ta.s, tb.y AS tb_y, tb.s FROM t1 ta, t1 tb HAVING ta_y = tb_y;
+ta_y	s	tb_y	s
+0000	bad	0000	bad
+0000	0	0000	bad
+0000	bad	0000	0
+0000	0	0000	0
+2000	2000	2000	2000
+2001	2001	2001	2001
+DROP TABLE t1;
+#
 End of 5.1 tests
