@@ -147,20 +147,30 @@ st_parsing_options::reset()
   Perform initialization of Lex_input_stream instance.
 
   Basically, a buffer for pre-processed query. This buffer should be large
-  enough to keep multi-statement query. The allocation is done once in the
-  Lex_input_stream constructor in order to prevent memory pollution when
+  enough to keep multi-statement query. The allocation is done once in
+  Lex_input_stream::init() in order to prevent memory pollution when
   the server is processing large multi-statement queries.
-
-  @todo Check return value of THD::alloc().
 */
 
-Lex_input_stream::Lex_input_stream(THD *thd,
-                                   const char* buffer,
-                                   unsigned int length)
-  :m_thd(thd)
+bool Lex_input_stream::init(THD *thd,
+			    const char* buff,
+			    unsigned int length)
 {
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   m_cpp_buf= (char*) thd->alloc(length + 1);
-  reset(buffer, length);
+
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("-d,bug42064_simulate_oom");); 
+
+  if (m_cpp_buf == NULL)
+    return TRUE;
+
+  m_thd= thd;
+  reset(buff, length);
+
+  return FALSE;
 }
 
 
@@ -203,8 +213,6 @@ Lex_input_stream::reset(const char *buffer, unsigned int length)
   m_cpp_ptr= m_cpp_buf;
 }
 
-Lex_input_stream::~Lex_input_stream()
-{}
 
 /**
   The operation is called from the parser in order to
@@ -1753,7 +1761,7 @@ void st_select_lex::init_select()
   linkage= UNSPECIFIED_TYPE;
   order_list.elements= 0;
   order_list.first= 0;
-  order_list.next= (uchar**) &order_list.first;
+  order_list.next= &order_list.first;
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -2075,7 +2083,7 @@ uint st_select_lex::get_in_sum_expr()
 
 TABLE_LIST* st_select_lex::get_table_list()
 {
-  return (TABLE_LIST*) table_list.first;
+  return table_list.first;
 }
 
 List<Item>* st_select_lex::get_item_list()
@@ -2132,9 +2140,8 @@ void st_select_lex_unit::print(String *str, enum_query_type query_type)
     if (fake_select_lex->order_list.elements)
     {
       str->append(STRING_WITH_LEN(" order by "));
-      fake_select_lex->print_order(
-        str,
-        (ORDER *) fake_select_lex->order_list.first,
+      fake_select_lex->print_order(str,
+        fake_select_lex->order_list.first,
         query_type);
     }
     fake_select_lex->print_limit(thd, str, query_type);
@@ -2779,7 +2786,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
     {
       select_lex.context.table_list= 
         select_lex.context.first_name_resolution_table= first->next_local;
-      select_lex.table_list.first= (uchar*) (first->next_local);
+      select_lex.table_list.first= first->next_local;
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -2811,7 +2818,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
 
 void LEX::first_lists_tables_same()
 {
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
+  TABLE_LIST *first_table= select_lex.table_list.first;
   if (query_tables != first_table && first_table != 0)
   {
     TABLE_LIST *next;
@@ -2858,9 +2865,9 @@ void LEX::link_first_table_back(TABLE_LIST *first,
 
     if (link_to_local)
     {
-      first->next_local= (TABLE_LIST*) select_lex.table_list.first;
+      first->next_local= select_lex.table_list.first;
       select_lex.context.table_list= first;
-      select_lex.table_list.first= (uchar*) first;
+      select_lex.table_list.first= first;
       select_lex.table_list.elements++;	//safety
     }
   }
@@ -3026,7 +3033,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       prep_having= *having_conds;
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
-    fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
+    fix_prepare_info_in_table_list(thd, table_list.first);
   }
 }
 

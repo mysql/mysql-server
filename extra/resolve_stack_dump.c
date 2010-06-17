@@ -53,10 +53,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"symbols-file", 's', "Use specified symbols file.", (uchar**) &sym_fname,
-   (uchar**) &sym_fname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"symbols-file", 's', "Use specified symbols file.", &sym_fname,
+   &sym_fname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"numeric-dump-file", 'n', "Read the dump from specified file.",
-   (uchar**) &dump_fname, (uchar**) &dump_fname, 0, GET_STR, REQUIRED_ARG,
+   &dump_fname, &dump_fname, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
