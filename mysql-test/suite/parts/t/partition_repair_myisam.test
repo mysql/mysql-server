@@ -29,7 +29,7 @@ FLUSH TABLES;
 --remove_file $MYSQLD_DATADIR/test/tp#P#pCrashed.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/tp#P#pCrashed.MYI
 CHECK TABLE tp;
---replace_regex /[^']*t1_will_crash/.\/test\/t1_will_crash/
+--replace_regex /[^']*test[^']*t/.\/test\/t/
 --error 145
 ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
 REPAIR TABLE tp;
@@ -41,7 +41,7 @@ FLUSH TABLES;
 --remove_file $MYSQLD_DATADIR/test/t.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t.MYI
 CHECK TABLE t;
---replace_regex /[^']*t1_will_crash/.\/test\/t1_will_crash/
+--replace_regex /[^']*test[^']*t/.\/test\/t/
 --error 145
 ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
 REPAIR TABLE t;
