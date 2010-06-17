@@ -6343,3 +6343,6 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
 ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
   eng "Cannot change the sql_log_bin inside a stored function or trigger"
 
+ER_FAILED_READ_FROM_PAR_FILE
+  eng "Failed to read from the .par file"
+  swe "Misslyckades läsa från .par filen"

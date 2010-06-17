@@ -878,6 +878,9 @@ THD::raise_condition_no_handler(uint sql_errno,
   if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
     DBUG_RETURN(NULL);
 
+  /* When simulating OOM, skip writing to error log to avoid mtr errors */
+  DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
+
   cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }

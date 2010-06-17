@@ -397,25 +397,25 @@ set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 set global innodb_file_per_table=on;
 set global innodb_file_format=`Barracuda`;
-set global innodb_file_format_check=`Antelope`;
+set global innodb_file_format_max=`Antelope`;
 create table normal_table (
 c1 int
 ) engine = innodb;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
+select @@innodb_file_format_max;
+@@innodb_file_format_max
 Antelope
 create table zip_table (
 c1 int
 ) engine = innodb key_block_size = 8;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
+select @@innodb_file_format_max;
+@@innodb_file_format_max
 Barracuda
-set global innodb_file_format_check=`Antelope`;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
+set global innodb_file_format_max=`Antelope`;
+select @@innodb_file_format_max;
+@@innodb_file_format_max
 Antelope
 show table status;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
+select @@innodb_file_format_max;
+@@innodb_file_format_max
 Barracuda
 drop table normal_table, zip_table;
