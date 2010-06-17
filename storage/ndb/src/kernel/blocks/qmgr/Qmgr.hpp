@@ -153,7 +153,20 @@ public:
   
   // Records
   struct NodeRec {
+    /*
+     * Dynamic id is received from president.  Lower half is next
+     * c_maxDynamicId and upper half is hbOrder.  Heartbeat circle is
+     * ordered by full dynamic id.  When president fails, only the lower
+     * half of dynamic id is used by other nodes to agree on next
+     * president (the one with minimum value).
+     */
     UintR ndynamicId;
+    /*
+     * HeartbeatOrder from config.ini.  Takes effect when this node
+     * becomes president and starts handing out dynamic ids to starting
+     * nodes.  To define a new order, two rolling restarts is required.
+     */
+    Uint32 hbOrder;
     Phase phase;
 
     QmgrState sendPrepFailReqStatus;
@@ -476,6 +489,10 @@ private:
                        Uint32 minversion);
 
   bool m_micro_gcp_enabled;
+
+  // user-defined hbOrder must set all values non-zero and distinct
+  int check_hb_order_config();
+  bool m_hb_order_config_used;
 };
 
 #endif
