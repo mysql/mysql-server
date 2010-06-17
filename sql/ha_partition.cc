@@ -152,7 +152,7 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
           HA_FAST_CHANGE_PARTITION);
 }
 
-const uint ha_partition::NO_CURRENT_PART_ID= 0xFFFFFFFF;
+const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
 
 /*
   Constructor method

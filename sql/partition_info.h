@@ -299,6 +299,9 @@ public:
   bool init_column_part();
   bool add_column_list_value(THD *thd, Item *item);
   void set_show_version_string(String *packet);
+  partition_element *get_part_elem(const char *partition_name,
+                                   char *file_name,
+                                   uint32 *part_id);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
@@ -306,7 +309,8 @@ private:
   bool set_up_default_subpartitions(handler *file, HA_CREATE_INFO *info);
   char *create_default_partition_names(uint part_no, uint num_parts,
                                        uint start_no);
-  char *create_subpartition_name(uint subpart_no, const char *part_name);
+  char *create_default_subpartition_name(uint subpart_no,
+                                         const char *part_name);
   bool has_unique_name(partition_element *element);
 };
 

@@ -22,7 +22,8 @@
 #include "sql_priv.h"
 // Required to get server definitions for mysql/plugin.h right
 #include "sql_plugin.h"
-#include "sql_partition.h"     /* partition_info.h: LIST_PART_ENTRY */
+#include "sql_partition.h"                 // partition_info.h: LIST_PART_ENTRY
+                                           // NOT_A_PARTITION_ID
 #include "partition_info.h"
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_acl.h"                          // *_ACL
@@ -160,7 +161,7 @@ void partition_info::set_show_version_string(String *packet)
 /*
   Create a unique name for the subpartition as part_name'sp''subpart_no'
   SYNOPSIS
-    create_subpartition_name()
+    create_default_subpartition_name()
     subpart_no                  Number of subpartition
     part_name                   Name of partition
   RETURN VALUES
@@ -168,12 +169,12 @@ void partition_info::set_show_version_string(String *packet)
     0                           Memory allocation error
 */
 
-char *partition_info::create_subpartition_name(uint subpart_no,
+char *partition_info::create_default_subpartition_name(uint subpart_no,
                                                const char *part_name)
 {
   uint size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
   char *ptr= (char*) sql_calloc(size_alloc);
-  DBUG_ENTER("create_subpartition_name");
+  DBUG_ENTER("create_default_subpartition_name");
 
   if (likely(ptr != NULL))
   {
@@ -319,7 +320,8 @@ bool partition_info::set_up_default_subpartitions(handler *file,
       if (likely(subpart_elem != 0 &&
           (!part_elem->subpartitions.push_back(subpart_elem))))
       {
-        char *ptr= create_subpartition_name(j, part_elem->partition_name);
+        char *ptr= create_default_subpartition_name(j,
+                                                    part_elem->partition_name);
         if (!ptr)
           goto end;
         subpart_elem->engine_type= default_engine_type;
@@ -457,6 +459,72 @@ bool partition_info::has_unique_name(partition_element *element)
     }
   } 
   DBUG_RETURN(TRUE);
+}
+
+
+/**
+  @brief Get part_elem and part_id from partition name
+
+  @param partition_name Name of partition to search for.
+  @param file_name[out] Partition file name (part after table name,
+                        #P#<part>[#SP#<subpart>]), skipped if NULL.
+  @param part_id[out]   Id of found partition or NOT_A_PARTITION_ID.
+
+  @retval Pointer to part_elem of [sub]partition, if not found NULL
+
+  @note Since names of partitions AND subpartitions must be unique,
+  this function searches both partitions and subpartitions and if name of
+  a partition is given for a subpartitioned table, part_elem will be
+  the partition, but part_id will be NOT_A_PARTITION_ID and file_name not set.
+*/
+partition_element *partition_info::get_part_elem(const char *partition_name,
+                                                 char *file_name,
+                                                 uint32 *part_id)
+{
+  List_iterator<partition_element> part_it(partitions);
+  uint i= 0;
+  DBUG_ENTER("partition_info::get_part_elem");
+  DBUG_ASSERT(part_id);
+  *part_id= NOT_A_PARTITION_ID;
+  do
+  {
+    partition_element *part_elem= part_it++;
+    if (is_sub_partitioned())
+    {
+      List_iterator<partition_element> sub_part_it(part_elem->subpartitions);
+      uint j= 0;
+      do
+      {
+        partition_element *sub_part_elem= sub_part_it++;
+        if (!my_strcasecmp(system_charset_info,
+                           sub_part_elem->partition_name, partition_name))
+        {
+          if (file_name)
+            create_subpartition_name(file_name, "",
+                                     part_elem->partition_name,
+                                     partition_name,
+                                     NORMAL_PART_NAME);
+          *part_id= j + (i * num_subparts);
+          DBUG_RETURN(sub_part_elem);
+        }
+      } while (++j < num_subparts);
+
+      /* Naming a partition (first level) on a subpartitioned table. */
+      if (!my_strcasecmp(system_charset_info,
+                            part_elem->partition_name, partition_name))
+        DBUG_RETURN(part_elem);
+    }
+    else if (!my_strcasecmp(system_charset_info,
+                            part_elem->partition_name, partition_name))
+    {
+      if (file_name)
+        create_partition_name(file_name, "", partition_name,
+                              NORMAL_PART_NAME, TRUE);
+      *part_id= i;
+      DBUG_RETURN(part_elem);
+    }
+  } while (++i < num_parts);
+  DBUG_RETURN(NULL);
 }
 
 
