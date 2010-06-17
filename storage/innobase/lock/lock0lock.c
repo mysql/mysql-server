@@ -353,11 +353,8 @@ Validates the lock system.
 @return	TRUE if ok */
 static
 ibool
-lock_validate(
-/*==========*/
-	ibool	have_lock_trx_sys_mutex);	/*!< in: if the caller holds
-						both the lock and trx sys
-						mutexes. */
+lock_validate(void);
+/*===============*/
 
 /*********************************************************************//**
 Validates the record lock queues on a page.
@@ -4551,11 +4548,11 @@ loop:
 
 	if (trx == NULL) {
 
-		ut_ad(lock_validate(TRUE));
-
 		trx_sys_mutex_exit();
 
 		lock_mutex_exit();
+
+		ut_ad(lock_validate());
 
 		return;
 	}
@@ -4933,14 +4930,14 @@ lock_rec_validate_page(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	mtr_start(&mtr);
-
 	/* This is to preserve latching order. */
 	if (have_lock_trx_sys_mutex) {
 		trx_sys_mutex_exit();
 
 		lock_mutex_exit();
 	}
+
+	mtr_start(&mtr);
 
 	ut_ad(zip_size != ULINT_UNDEFINED);
 	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
@@ -5021,13 +5018,13 @@ loop:
 
 function_exit:
 
+	mtr_commit(&mtr);
+
 	if (!have_lock_trx_sys_mutex) {
 		trx_sys_mutex_exit();
 
 		lock_mutex_exit();
 	}
-
-	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -5040,11 +5037,8 @@ Validates the lock system.
 @return	TRUE if ok */
 static
 ibool
-lock_validate(
-/*==========*/
-	ibool	have_lock_trx_sys_mutex)	/*!< in: if the caller holds
-						both the lock and trx sys
-						mutexes. */
+lock_validate(void)
+/*===============*/
 {
 	lock_t*	lock;
 	trx_t*	trx;
@@ -5053,11 +5047,9 @@ lock_validate(
 	ulint	page_no;
 	ulint	i;
 
-	if (!have_lock_trx_sys_mutex) {
-		lock_mutex_enter();
+	lock_mutex_enter();
 
-		trx_sys_mutex_enter();
-	}
+	trx_sys_mutex_enter();
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
@@ -5110,11 +5102,9 @@ lock_validate(
 		}
 	}
 
-	if (!have_lock_trx_sys_mutex) {
-		trx_sys_mutex_exit();
+	trx_sys_mutex_exit();
 
-		lock_mutex_exit();
-	}
+	lock_mutex_exit();
 
 	return(TRUE);
 }
