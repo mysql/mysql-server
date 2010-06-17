@@ -4693,7 +4693,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= 0;
       save_next_local= table->next_local;
       table->next_local= 0;
-      select->table_list.first= (uchar*)table;
+      select->table_list.first= table;
       /*
         Time zone tables and SP tables can be add to lex->query_tables list,
         so it have to be prepared.

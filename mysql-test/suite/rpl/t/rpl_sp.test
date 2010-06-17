@@ -552,7 +552,7 @@ connection master;
 
 # Final inspection which verifies how all statements of this test file
 # were written to the binary log.
-source include/show_binlog_events.inc;
+--source include/show_binlog_events.inc
 
 
 # Restore log_bin_trust_function_creators to its original value.

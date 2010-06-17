@@ -2,7 +2,7 @@
 
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 set global innodb_file_per_table=off;
 set global innodb_file_format=`0`;
 
@@ -316,21 +316,21 @@ eval set global innodb_file_format=$format;
 -- disable_info
 set global innodb_file_per_table=on;
 set global innodb_file_format=`Barracuda`;
-set global innodb_file_format_check=`Antelope`;
+set global innodb_file_format_max=`Antelope`;
 create table normal_table (
   c1 int
 ) engine = innodb;
-select @@innodb_file_format_check;
+select @@innodb_file_format_max;
 create table zip_table (
   c1 int
 ) engine = innodb key_block_size = 8;
-select @@innodb_file_format_check;
-set global innodb_file_format_check=`Antelope`;
-select @@innodb_file_format_check;
+select @@innodb_file_format_max;
+set global innodb_file_format_max=`Antelope`;
+select @@innodb_file_format_max;
 -- disable_result_log
 show table status;
 -- enable_result_log
-select @@innodb_file_format_check;
+select @@innodb_file_format_max;
 drop table normal_table, zip_table;
 -- disable_result_log
 
@@ -341,4 +341,4 @@ drop table normal_table, zip_table;
 -- disable_query_log
 eval set global innodb_file_format=$format;
 eval set global innodb_file_per_table=$per_table;
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;
+eval set global innodb_file_format_max=$innodb_file_format_max_orig;

@@ -277,8 +277,9 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_ASSERT(!thd->locked_tables_mode);
 
   {
-    Parser_state parser_state(thd, thd->query(), thd->query_length());
-    mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+    Parser_state parser_state;
+    if (!parser_state.init(thd, thd->query(), thd->query_length()))
+      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
   }
 
   if (no_print_error && thd->is_slave_error)

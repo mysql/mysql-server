@@ -23,10 +23,10 @@ struct TABLE_LIST;
 class Item;
 
 typedef class Item COND;
-typedef struct st_sql_list SQL_LIST;
+template <typename T> class SQL_I_List;
 
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows rows, ulonglong options);
+                  SQL_I_List<ORDER> *order, ha_rows rows, ulonglong options);
 
 #endif /* SQL_DELETE_INCLUDED */
