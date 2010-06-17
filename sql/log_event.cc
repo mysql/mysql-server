@@ -7560,12 +7560,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
-
-    if (!cache_stmt)
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->options|= OPTION_KEEP_LOG;
-    }
   } // if (table)
 
   /*
