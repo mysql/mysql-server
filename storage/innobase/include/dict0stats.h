@@ -70,13 +70,17 @@ storage if it exists and if there is data stored for this index.
 The transaction is not committed, it must not be committed in this
 function because this is the user trx that is running DROP INDEX.
 The transaction will be committed at the very end when dropping an
-index. */
+index.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
-void
+enum db_err
 dict_stats_drop_index(
 /*==================*/
 	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx);	/*!< in: transaction to use */
+	trx_t*		trx,	/*!< in: transaction to use */
+	char*		errstr, /*!< out: error message if != DB_SUCCESS
+				is returned */
+	ulint		errstr_sz);/*!< in: size of the errstr buffer */
 
 /*********************************************************************//**
 Removes the statistics for a table and all of its indexes from the
@@ -87,6 +91,9 @@ UNIV_INTERN
 enum db_err
 dict_stats_drop_table(
 /*==================*/
-	const char*	table);	/*!< in: table */
+	const char*	table_name,	/*!< in: table name */
+	char*		errstr,		/*!< out: error message
+					if != DB_SUCCESS is returned */
+	ulint		errstr_sz);	/*!< in: size of errstr buffer */
 
 #endif /* dict0stats_h */

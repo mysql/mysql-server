@@ -50,7 +50,9 @@ Created Jan 06, 2010 Vasil Dimov
 
 /* names of the tables from the persistent storage */
 #define TABLE_STATS_NAME	"innodb/table_stats"
+#define TABLE_STATS_NAME_PRINT	"innodb.table_stats"
 #define INDEX_STATS_NAME	"innodb/index_stats"
+#define INDEX_STATS_NAME_PRINT	"innodb.index_stats"
 
 #if 1
 #define DEBUG_PRINTF(fmt, ...)	printf(fmt, ## __VA_ARGS__)
@@ -2273,39 +2275,67 @@ rolling back dict transactions.
 marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
-dict_stats_drop_index() @{ */
+dict_stats_drop_index() @{
+@return DB_SUCCESS or error code */
 UNIV_INTERN
-void
+enum db_err
 dict_stats_drop_index(
 /*==================*/
 	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx)	/*!< in: transaction to use */
+	trx_t*		trx,	/*!< in: transaction to use */
+	char*		errstr, /*!< out: error message if != DB_SUCCESS
+				is returned */
+	ulint		errstr_sz)/*!< in: size of the errstr buffer */
 {
+	char		database_name[1024];
+	const char*	table_name;
+	dict_table_t*	table_stats;
+	dict_table_t*	index_stats;
 	pars_info_t*	pinfo;
 	ulint		ret;
+	ibool		allowed_to_wait_orig;
 
 	/* skip indexes whose table names do not contain a database name
 	e.g. if we are dropping an index from SYS_TABLES */
 	if (strchr(index->table_name, '/') == NULL) {
 
-		return;
+		return(DB_SUCCESS);
 	}
+
+	/* Increment table reference count to prevent the tables from
+	being DROPped just before que_eval_sql(). */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	table_stats = dict_table_get_low(TABLE_STATS_NAME);
+	index_stats = dict_table_get_low(INDEX_STATS_NAME);
+
+	if (table_stats == NULL || index_stats == NULL) {
+		/* tables do not exist */
+		row_mysql_unlock_data_dictionary(trx);
+		return(DB_SUCCESS);
+	}
+
+	table_stats->n_mysql_handles_opened++;
+	index_stats->n_mysql_handles_opened++;
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	/* If the persistent storage does not exist or is corrupted,
 	then do not attempt to DELETE from its tables because the
-	internal parser will crash.
-	There is a small chance that the PS gets dropped after we
-	have checked that it is present and then the internal parser
-	will crash. We are ok with this because we do not want to lock
-	the data dictionary for the whole operation that includes DELETE
-	from user-visible tables and could continue for a very long
-	period if the user has locks on that table.
-	It is also innocent if PS gets created after this function has
-	returned false. At worse some orphaned rows will be left in PS. */
+	internal parser will crash. */
 	if (!dict_stats_persistent_storage_check()) {
 
-		return;
+		dict_table_decrement_handle_count(table_stats, FALSE);
+		dict_table_decrement_handle_count(index_stats, FALSE);
+		return(DB_SUCCESS);
 	}
+
+	ut_snprintf(database_name, sizeof(database_name), "%.*s",
+		    (int) dict_get_db_name_len(index->table_name),
+		    index->table_name);
+
+	table_name = dict_remove_db_name(index->table_name);
 
 	pinfo = pars_info_create();
 
@@ -2313,14 +2343,14 @@ dict_stats_drop_index(
 	the parser if used directly inside the SQL */
 	pars_info_add_id(pinfo, "index_stats", INDEX_STATS_NAME);
 
-	pars_info_add_literal(pinfo, "database_name", index->table_name,
-			      dict_get_db_name_len(index->table_name),
-			      DATA_VARCHAR, 0);
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
 
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(index->table_name));
+	pars_info_add_str_literal(pinfo, "table_name", table_name);
 
 	pars_info_add_str_literal(pinfo, "index_name", index->name);
+
+	allowed_to_wait_orig = trx->allowed_to_wait;
+	trx->allowed_to_wait = FALSE;
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE DROP_INDEX_STATS () IS\n"
@@ -2333,11 +2363,37 @@ dict_stats_drop_index(
 			   TRUE,
 			   trx);
 
+	trx->allowed_to_wait = allowed_to_wait_orig;
+
 	/* pinfo is freed by que_eval_sql() */
 
 	/* do not to commit here, see the function's comment */
 
-	ut_a(ret == DB_SUCCESS);
+	ut_a(ret == DB_SUCCESS || ret == DB_LOCK_WAIT_TIMEOUT);
+
+	if (ret == DB_LOCK_WAIT_TIMEOUT) {
+
+		ut_snprintf(errstr, errstr_sz,
+			    "Unable to instantly delete statistics for index "
+			    "%s from %s because the rows are locked. They can "
+			    "be deleted later using DELETE FROM %s WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s' AND "
+			    "index_name = '%s';",
+			    index->name, INDEX_STATS_NAME_PRINT,
+			    INDEX_STATS_NAME_PRINT,
+			    database_name,
+			    table_name,
+			    index->name);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s\n", errstr);
+	}
+
+	dict_table_decrement_handle_count(table_stats, FALSE);
+	dict_table_decrement_handle_count(index_stats, FALSE);
+
+	return(ret);
 }
 /* @} */
 
@@ -2351,13 +2407,18 @@ UNIV_INTERN
 enum db_err
 dict_stats_drop_table(
 /*==================*/
-	const char*	table_name)	/*!< in: table name */
+	const char*	table_name,	/*!< in: table name */
+	char*		errstr,		/*!< out: error message
+					if != DB_SUCCESS is returned */
+	ulint		errstr_sz)	/*!< in: size of errstr buffer */
 {
+	char		database_name[1024];
+	const char*	table_name_strip; /* without leading db name */
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	enum db_err	ret = DB_ERROR;
 	dict_table_t*	table_stats;
 	dict_table_t*	index_stats;
+	enum db_err	ret = DB_ERROR;
 
 	/* skip tables that do not contain a database name
 	e.g. if we are dropping SYS_TABLES */
@@ -2372,6 +2433,8 @@ dict_stats_drop_table(
 
 		return(DB_SUCCESS);
 	}
+
+	/* Create a new private trx */
 
 	mutex_enter(&kernel_mutex);
 	trx = trx_create(trx_dummy_sess);
@@ -2412,8 +2475,14 @@ dict_stats_drop_table(
 	if (!dict_stats_persistent_storage_check()) {
 
 		ret = DB_SUCCESS;
-		goto commit_and_return;
+		goto decrement_ref_count_commit_and_return;
 	}
+
+	ut_snprintf(database_name, sizeof(database_name), "%.*s",
+		    (int) dict_get_db_name_len(table_name),
+		    table_name);
+
+	table_name_strip = dict_remove_db_name(table_name);
 
 	pinfo = pars_info_create();
 
@@ -2422,12 +2491,9 @@ dict_stats_drop_table(
 	pars_info_add_id(pinfo, "table_stats", TABLE_STATS_NAME);
 	pars_info_add_id(pinfo, "index_stats", INDEX_STATS_NAME);
 
-	pars_info_add_literal(pinfo, "database_name", table_name,
-			      dict_get_db_name_len(table_name),
-			      DATA_VARCHAR, 0);
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
 
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(table_name));
+	pars_info_add_str_literal(pinfo, "table_name", table_name_strip);
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE DROP_TABLE_STATS () IS\n"
@@ -2451,21 +2517,38 @@ dict_stats_drop_table(
 
 	if (ret == DB_LOCK_WAIT_TIMEOUT) {
 
+		ut_snprintf(errstr, errstr_sz,
+			    "Unable to instantly delete statistics for table "
+			    "%s.%s from %s or %s because the rows are locked. "
+			    "They can be deleted later using "
+
+			    "DELETE FROM %s WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s'; "
+
+			    "DELETE FROM %s WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s';",
+
+			    database_name, table_name_strip,
+			    TABLE_STATS_NAME_PRINT, INDEX_STATS_NAME_PRINT,
+
+			    INDEX_STATS_NAME_PRINT,
+			    database_name, table_name_strip,
+
+			    TABLE_STATS_NAME_PRINT,
+			    database_name, table_name_strip);
+
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Unable to instantly delete statistics "
-			"for %s from %s or %s.\n",
-			table_name, TABLE_STATS_NAME, INDEX_STATS_NAME);
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Please unlock the rows in those tables and "
-			"retry the operation.\n");
+		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-commit_and_return:
+decrement_ref_count_commit_and_return:
 
 	dict_table_decrement_handle_count(table_stats, FALSE);
 	dict_table_decrement_handle_count(index_stats, FALSE);
+
+commit_and_return:
 
 	trx_commit_for_mysql(trx);
 
