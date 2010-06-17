@@ -2693,7 +2693,8 @@ lock_move_reorganize_page(
 	mem_heap_free(heap);
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+	ut_ad(lock_rec_validate_page(FALSE,
+				     buf_block_get_space(block),
 				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 #endif
@@ -2785,10 +2786,12 @@ lock_move_rec_list_end(
 	lock_mutex_exit();
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+	ut_ad(lock_rec_validate_page(FALSE,
+				     buf_block_get_space(block),
 				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
-	ut_ad(lock_rec_validate_page(buf_block_get_space(new_block),
+	ut_ad(lock_rec_validate_page(FALSE,
+				     buf_block_get_space(new_block),
 				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(new_block)));
 #endif
@@ -2898,7 +2901,8 @@ lock_move_rec_list_start(
 	lock_mutex_exit();
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
+	ut_ad(lock_rec_validate_page(FALSE,
+				     buf_block_get_space(block),
 				     buf_block_get_zip_size(block),
 				     buf_block_get_page_no(block)));
 #endif
