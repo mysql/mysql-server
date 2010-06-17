@@ -66,7 +66,7 @@ SHOW CREATE TABLE mysqltest1.tmp2;
 Table	Create Table
 tmp2	CREATE TEMPORARY TABLE `tmp2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ######### Must return no rows here #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
