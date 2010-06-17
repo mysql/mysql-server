@@ -551,7 +551,14 @@ static void handle_bootstrap_impl(THD *thd)
       mode we have only one thread.
     */
     thd->set_time();
-    Parser_state parser_state(thd, thd->query(), length);
+    Parser_state parser_state;
+    if (parser_state.init(thd, thd->query(), length))
+    {
+      thd->protocol->end_statement();
+      bootstrap_error= 1;
+      break;
+    }
+
     mysql_parse(thd, thd->query(), length, &parser_state);
     close_thread_tables(thd);			// Free tables
 
@@ -908,6 +915,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
+  if (!thd->is_valid_time())
+  {
+    /*
+     If the time has got past 2038 we need to shut this server down
+     We do this by making sure every command is a shutdown and we 
+     have enough privileges to shut the server down
+
+     TODO: remove this when we have full 64 bit my_time_t support
+    */
+    thd->security_ctx->master_access|= SHUTDOWN_ACL;
+    command= COM_SHUTDOWN;
+  }
   thd->set_query_id(get_query_id());
   if (!(server_command_flags[command] & CF_SKIP_QUERY_ID))
     next_query_id();
@@ -1101,7 +1120,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #if defined(ENABLED_PROFILING)
     thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
-    Parser_state parser_state(thd, thd->query(), thd->query_length());
+    Parser_state parser_state;
+    if (parser_state.init(thd, thd->query(), thd->query_length()))
+      break;
 
     mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
 
@@ -1230,8 +1251,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysql_reset_thd_for_next_command(thd);
 
     thd->lex->
-      select_lex.table_list.link_in_list((uchar*) &table_list,
-                                         (uchar**) &table_list.next_local);
+      select_lex.table_list.link_in_list(&table_list,
+                                         &table_list.next_local);
     thd->lex->add_to_query_tables(&table_list);
     init_mdl_requests(&table_list);
 
@@ -1333,8 +1354,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
       packet[0].
     */
-    enum mysql_enum_shutdown_level level=
-      (enum mysql_enum_shutdown_level) (uchar) packet[0];
+    enum mysql_enum_shutdown_level level;
+    if (!thd->is_valid_time())
+      level= SHUTDOWN_DEFAULT;
+    else
+      level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
     else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
@@ -1680,7 +1704,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   {
     DBUG_RETURN(1);
   }
-  TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *table_list= select_lex->table_list.first;
   table_list->schema_select_lex= schema_select_lex;
   table_list->schema_table_reformed= 1;
   DBUG_RETURN(0);
@@ -2003,7 +2027,7 @@ mysql_execute_command(THD *thd)
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *first_table= select_lex->table_list.first;
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
@@ -2038,7 +2062,7 @@ mysql_execute_command(THD *thd)
   all_tables= lex->query_tables;
   /* set context for commands which do not use setup_tables */
   select_lex->
-    context.resolve_in_table_list_only((TABLE_LIST*)select_lex->
+    context.resolve_in_table_list_only(select_lex->
                                        table_list.first);
 
   /*
@@ -2670,7 +2694,7 @@ case SQLCOM_PREPARE:
         if (create_info.used_fields & HA_CREATE_USED_UNION)
         {
           TABLE_LIST *tab;
-          for (tab= (TABLE_LIST*) create_info.merge_list.first;
+          for (tab= create_info.merge_list.first;
                tab;
                tab= tab->next_local)
           {
@@ -2853,7 +2877,6 @@ end_with_restore_list:
                        NULL, /* Do not use first_table->grant with select_lex->db */
                        0, 0) ||
 	  check_merge_table_access(thd, first_table->db,
-				   (TABLE_LIST *)
 				   create_info.merge_list.first))
 	goto error;				/* purecov: inspected */
       if (check_grant(thd, priv_needed, all_tables, FALSE, UINT_MAX, FALSE))
@@ -2887,7 +2910,7 @@ end_with_restore_list:
                              first_table,
                              &alter_info,
                              select_lex->order_list.elements,
-                             (ORDER *) select_lex->order_list.first,
+                             select_lex->order_list.first,
                              lex->ignore);
       break;
     }
@@ -3026,7 +3049,7 @@ end_with_restore_list:
       */
       res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
-    select_lex->table_list.first= (uchar*) first_table;
+    select_lex->table_list.first= first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3038,7 +3061,7 @@ end_with_restore_list:
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
-    select_lex->table_list.first= (uchar*) first_table;
+    select_lex->table_list.first= first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3058,7 +3081,7 @@ end_with_restore_list:
       */
       res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
-    select_lex->table_list.first= (uchar*) first_table;
+    select_lex->table_list.first= first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3081,7 +3104,7 @@ end_with_restore_list:
       */
       res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
-    select_lex->table_list.first= (uchar*) first_table;
+    select_lex->table_list.first= first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3099,7 +3122,7 @@ end_with_restore_list:
                                   lex->value_list,
                                   select_lex->where,
                                   select_lex->order_list.elements,
-                                  (ORDER *) select_lex->order_list.first,
+                                  select_lex->order_list.first,
                                   unit->select_limit_cnt,
                                   lex->duplicates, lex->ignore,
                                   &found, &updated));
@@ -3259,7 +3282,7 @@ end_with_restore_list:
       MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
-      select_lex->table_list.first= (uchar*) second_table;
+      select_lex->table_list.first= second_table;
       select_lex->context.table_list= 
         select_lex->context.first_name_resolution_table= second_table;
       res= mysql_insert_select_prepare(thd);
@@ -3291,7 +3314,7 @@ end_with_restore_list:
       }
       /* revert changes for SP */
       MYSQL_INSERT_SELECT_DONE(res, (ulong) thd->get_row_count_func());
-      select_lex->table_list.first= (uchar*) first_table;
+      select_lex->table_list.first= first_table;
     }
     /*
       If we have inserted into a VIEW, and the base table has
@@ -3342,8 +3365,7 @@ end_with_restore_list:
   case SQLCOM_DELETE_MULTI:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    TABLE_LIST *aux_tables=
-      (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
+    TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
     multi_delete *del_result;
 
     if ((res= multi_delete_precheck(thd, all_tables)))
@@ -5170,7 +5192,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
   case SCH_STATISTICS:
   {
     TABLE_LIST *dst_table;
-    dst_table= (TABLE_LIST *) table->schema_select_lex->table_list.first;
+    dst_table= table->schema_select_lex->table_list.first;
 
     DBUG_ASSERT(dst_table);
 
@@ -5886,14 +5908,17 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  Parser_state parser_state(thd, inBuf, length);
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
+  Parser_state parser_state;
+  if (!(error= parser_state.init(thd, inBuf, length)))
+  {
+    lex_start(thd);
+    mysql_reset_thd_for_next_command(thd);
 
-  if (!parse_sql(thd, & parser_state, NULL) &&
-      all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
-    error= 1;                  /* Ignore question */
-  thd->end_statement();
+    if (!parse_sql(thd, & parser_state, NULL) &&
+        all_tables_not_ok(thd, lex->select_lex.table_list.first))
+      error= 1;                  /* Ignore question */
+    thd->end_statement();
+  }
   thd->cleanup_after_query();
   DBUG_RETURN(error);
 }
@@ -6018,7 +6043,7 @@ add_proc_to_list(THD* thd, Item *item)
   *item_ptr= item;
   order->item=item_ptr;
   order->free_me=0;
-  thd->lex->proc_list.link_in_list((uchar*) order,(uchar**) &order->next);
+  thd->lex->proc_list.link_in_list(order, &order->next);
   return 0;
 }
 
@@ -6027,7 +6052,7 @@ add_proc_to_list(THD* thd, Item *item)
   save order by and tables in own lists.
 */
 
-bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
+bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
 {
   ORDER *order;
   DBUG_ENTER("add_to_list");
@@ -6039,7 +6064,7 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
   order->free_me=0;
   order->used=0;
   order->counter_used= 0;
-  list.link_in_list((uchar*) order,(uchar**) &order->next);
+  list.link_in_list(order, &order->next);
   DBUG_RETURN(0);
 }
 
@@ -6169,7 +6194,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   /* check that used name is unique */
   if (lock_type != TL_IGNORE)
   {
-    TABLE_LIST *first_table= (TABLE_LIST*) table_list.first;
+    TABLE_LIST *first_table= table_list.first;
     if (lex->sql_command == SQLCOM_CREATE_VIEW)
       first_table= first_table ? first_table->next_local : NULL;
     for (TABLE_LIST *tables= first_table ;
@@ -6211,7 +6236,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     previous table reference to 'ptr'. Here we also add one element to the
     list 'table_list'.
   */
-  table_list.link_in_list((uchar*) ptr, (uchar**) &ptr->next_local);
+  table_list.link_in_list(ptr, &ptr->next_local);
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
@@ -6447,7 +6472,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
 		       for_update));
-  for (TABLE_LIST *tables= (TABLE_LIST*) table_list.first;
+  for (TABLE_LIST *tables= table_list.first;
        tables;
        tables= tables->next_local)
   {
@@ -7185,8 +7210,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
-  TABLE_LIST *aux_tables=
-    (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
+  TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
 
@@ -7289,13 +7313,13 @@ static TABLE_LIST *multi_delete_table_match(LEX *lex, TABLE_LIST *tbl,
 
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 {
-  TABLE_LIST *tables= (TABLE_LIST*)lex->select_lex.table_list.first;
+  TABLE_LIST *tables= lex->select_lex.table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
 
   lex->table_count= 0;
 
-  for (target_tbl= (TABLE_LIST *)lex->auxiliary_table_list.first;
+  for (target_tbl= lex->auxiliary_table_list.first;
        target_tbl; target_tbl= target_tbl->next_local)
   {
     lex->table_count++;
@@ -7467,8 +7491,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                    &create_table->grant.m_internal,
                    0, 0) ||
       check_merge_table_access(thd, create_table->db,
-			       (TABLE_LIST *)
-			       lex->create_info.merge_list.first))
+                               lex->create_info.merge_list.first))
     goto err;
   if (want_priv != CREATE_TMP_ACL &&
       check_grant(thd, want_priv, create_table, FALSE, 1, FALSE))
