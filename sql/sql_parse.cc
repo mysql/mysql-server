@@ -2737,6 +2737,10 @@ mysql_execute_command(THD *thd)
           }
         }
 
+        /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+        if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
+          thd->options|= OPTION_KEEP_LOG;
+
         /*
           select_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
