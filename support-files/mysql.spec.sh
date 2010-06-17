@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -610,6 +610,7 @@ touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 ##############################################################################
 
 %pre server
+mysql_datadir=%{mysqldatadir}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -678,7 +679,74 @@ HERE
   fi
 fi
 
+# We assume that if there is exactly one ".pid" file,
+# it contains the valid PID of a running MySQL server.
+NR_PID_FILES=`ls $mysql_datadir/*.pid 2>/dev/null | wc -l`
+case $NR_PID_FILES in
+	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
+	1 ) SERVER_TO_START='true' ;;
+	* ) SERVER_TO_START=''      # Situation not clear
+	    SEVERAL_PID_FILES=true ;;
+esac
+# That logic may be debated: We might check whether it is non-empty,
+# contains exactly one number (possibly a PID), and whether "ps" finds it.
+# OTOH, if there is no such process, it means a crash without a cleanup -
+# is that a reason not to start a new server after upgrade?
+
+STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
+
+if [ -f $STATUS_FILE ]; then
+	echo "Some previous upgrade was not finished:"
+	ls -ld $STATUS_FILE
+	echo "Please check its status, then do"
+	echo "    rm $STATUS_FILE"
+	echo "before repeating the MySQL upgrade."
+	exit 1
+elif [ -n "$SEVERAL_PID_FILES" ] ; then
+	echo "Your MySQL directory '$mysql_datadir' has more than one PID file:"
+	ls -ld $mysql_datadir/*.pid
+	echo "Please check which one (if any) corresponds to a running server"
+	echo "and delete all others before repeating the MySQL upgrade."
+	exit 1
+fi
+
+NEW_VERSION=%{mysql_version}-%{release}
+
+# The "pre" section code is also run on a first installation,
+# when there  is no data directory yet. Protect against error messages.
+if [ -d $mysql_datadir ] ; then
+	echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
+	echo "'pre' step running at `date`"          >> $STATUS_FILE
+	echo                                         >> $STATUS_FILE
+	echo "ERR file(s):"                          >> $STATUS_FILE
+	ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
+	echo                                         >> $STATUS_FILE
+	echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
+	grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
+		tail -1                              >> $STATUS_FILE
+	echo                                         >> $STATUS_FILE
+
+	if [ -n "$SERVER_TO_START" ] ; then
+		# There is only one PID file, race possibility ignored
+		echo "PID file:"                           >> $STATUS_FILE
+		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE
+		cat     $mysql_datadir/*.pid               >> $STATUS_FILE
+		echo                                       >> $STATUS_FILE
+		echo "Server process:"                     >> $STATUS_FILE
+		ps -fp `cat $mysql_datadir/*.pid`          >> $STATUS_FILE
+		echo                                       >> $STATUS_FILE
+		echo "SERVER_TO_START=$SERVER_TO_START"    >> $STATUS_FILE
+	else
+		# Take a note we checked it ...
+		echo "PID file:"                           >> $STATUS_FILE
+		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE 2>&1
+	fi
+fi
+
 # Shut down a previously installed server first
+# Note we *could* make that depend on $SERVER_TO_START, but we rather don't,
+# so a "stop" is attempted even if there is no PID file.
+# (Maybe the "stop" doesn't work then, but we might fix that in itself.)
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 	%{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
 	echo "Giving mysqld 5 seconds to exit nicely"
@@ -687,17 +755,33 @@ fi
 
 %post server
 mysql_datadir=%{mysqldatadir}
+NEW_VERSION=%{mysql_version}-%{release}
+STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
 # ----------------------------------------------------------------------
-# Create data directory if needed
+# Create data directory if needed, check whether upgrade or install
 # ----------------------------------------------------------------------
 if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
-if [ ! -d $mysql_datadir/mysql ] ; then mkdir $mysql_datadir/mysql; fi
+if [ -f $STATUS_FILE ] ; then
+	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
+else
+	SERVER_TO_START='true'   # This is for 5.1 only, to not change behavior
+fi
+# echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
+if [ ! -d $mysql_datadir/mysql ] ; then
+	mkdir $mysql_datadir/mysql;
+	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
+else
+	# If the directory exists, we may assume it is an upgrade.
+	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
+fi
 if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
 # ----------------------------------------------------------------------
+# NOTE: This still needs to be debated. Should we check whether these links
+# for the other run levels exist(ed) before the upgrade?
 # use insserv for older SuSE Linux versions
 if [ -x /sbin/insserv ] ; then
 	/sbin/insserv %{_sysconfdir}/init.d/mysql
@@ -741,11 +825,14 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 chmod -R og-rw $mysql_datadir/mysql
 
-# Restart in the same way that mysqld will be started normally.
-%{_sysconfdir}/init.d/mysql start
+# Was the server running before the upgrade? If so, restart the new one.
+if [ "$SERVER_TO_START" = "true" ] ; then
+	# Restart in the same way that mysqld will be started normally.
+	%{_sysconfdir}/init.d/mysql start
 
-# Allow mysqld_safe to start mysqld and print a message before we exit
-sleep 2
+	# Allow mysqld_safe to start mysqld and print a message before we exit
+	sleep 2
+fi
 
 #echo "Thank you for installing the MySQL Community Server! For Production
 #systems, we recommend MySQL Enterprise, which contains enterprise-ready
@@ -753,6 +840,14 @@ sleep 2
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information."
 
+# Collect an upgrade history ...
+echo "Upgrade/install finished at `date`"        >> $STATUS_FILE
+echo                                             >> $STATUS_FILE
+echo "====="                                     >> $STATUS_FILE
+STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
+cat $STATUS_FILE >> $STATUS_HISTORY
+rm  $STATUS_FILE
+  
 %if %{CLUSTER_BUILD}
 %post ndb-storage
 mysql_clusterdir=/var/lib/mysql-cluster
@@ -1038,6 +1133,17 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+
+* Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Change the behaviour on upgrade:
+  *Iff* the server was stopped before the upgrade is started, this is taken as a
+  sign the administrator is handling that manually, and so the new server will
+  not be started automatically at the end of the upgrade.
+  The start/stop scripts will still be installed, so the server will be started
+  on the next machine boot.
+  This is the 5.1 version of fixing bug#27072 (RPM autostarting the server).
+
 * Mon Mar 01 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Set "Oracle and/or its affiliates" as the vendor and copyright owner,
