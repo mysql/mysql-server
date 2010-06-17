@@ -2905,7 +2905,8 @@ executeOps(Ndb* pNdb,
 
   for (Uint32 i=keyOffset; i < (keyOffset + rowCount); i++)
   {
-    *keyPtr= *attrPtr= i;
+    memcpy(keyPtr, &i, sizeof(i));
+    memcpy(attrPtr, &i, sizeof(i));
     opts.optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
     opts.anyValue= anyValueOffset + i;
     bool allowInterpreted= 
