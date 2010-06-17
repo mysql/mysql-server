@@ -42,6 +42,7 @@ c	d
 2	8
 3	18
 **** On Slave ****
+<<<<<<< TREE
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -84,6 +85,9 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+>>>>>>> MERGE-SOURCE
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 SELECT * FROM t1;
@@ -107,10 +111,15 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`foo`=12
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)
+<<<<<<< TREE
 master-bin.000001	#	Query	#	#	COMMIT
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=106;
+=======
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+>>>>>>> MERGE-SOURCE
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -152,6 +161,8 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+>>>>>>> MERGE-SOURCE
 **** On Master ****
 DROP TABLE t1, t2;
 SET SESSION BINLOG_FORMAT=ROW;

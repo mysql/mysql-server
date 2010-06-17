@@ -19,12 +19,14 @@ a
 2
 3
 4
+Last_SQL_Error = The incident LOST_EVENTS occured on the master. Message: <none>
 **** On Slave ****
 SELECT * FROM t1;
 a
 1
 2
 3
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -66,6 +68,8 @@ Last_SQL_Errno	1590
 Last_SQL_Error	The incident LOST_EVENTS occured on the master. Message: <none>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+>>>>>>> MERGE-SOURCE
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 SELECT * FROM t1;
@@ -74,6 +78,7 @@ a
 2
 3
 4
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -115,4 +120,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 DROP TABLE t1;

@@ -8,8 +8,9 @@ start slave;
 CREATE TABLE t1 (a INT, b LONG);
 INSERT INTO t1 VALUES (1,1), (2,2);
 INSERT INTO t1 VALUES (3,UUID()), (4,UUID());
-SHOW BINLOG EVENTS;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+<<<<<<< TREE
 master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
 master-bin.000001	#	Query	1	#	BEGIN
@@ -19,7 +20,16 @@ master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
+=======
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+>>>>>>> MERGE-SOURCE
 **** On Slave ****
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -62,7 +72,11 @@ Last_SQL_Error
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
 SHOW BINLOG EVENTS;
+=======
+show binlog events from <binlog_start>;
+>>>>>>> MERGE-SOURCE
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+<<<<<<< TREE
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
 slave-bin.000001	#	Query	1	#	BEGIN
@@ -72,4 +86,12 @@ slave-bin.000001	#	Query	1	#	BEGIN
 slave-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	1	#	COMMIT
+=======
+slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
+slave-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+>>>>>>> MERGE-SOURCE
 DROP TABLE IF EXISTS t1;

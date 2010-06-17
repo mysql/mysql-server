@@ -78,5 +78,5 @@ if (!$_slave_timeout_counter)
   --echo Current connection is '$CURRENT_CONNECTION'
   echo Note: the following output may have changed since the failure was detected;
   source include/show_rpl_debug_info.inc;
-  exit;
+  die;
 }

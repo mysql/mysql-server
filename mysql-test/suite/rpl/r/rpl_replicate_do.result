@@ -26,22 +26,8 @@ n
 select * from t11;
 ERROR 42S02: Table 'test.t11' doesn't exist
 drop table if exists t1,t2,t11;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	Yes
-Replicate_Do_DB	
-Replicate_Ignore_DB	
 Replicate_Do_Table	test.t1
+<<<<<<< TREE
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
@@ -67,6 +53,8 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+>>>>>>> MERGE-SOURCE
 create table t1 (ts timestamp);
 set one_shot time_zone='met';
 insert into t1 values('2005-08-12 00:00:00');

@@ -149,6 +149,7 @@ SUBPARTITIONS 2
  PARTITION pa9 VALUES LESS THAN (90) ENGINE = InnoDB,
  PARTITION pa10 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+<<<<<<< TREE
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -190,6 +191,9 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 SELECT count(*) "Slave norm" FROM t1;
 Slave norm	500
 SELECT count(*) "Slave bykey" FROM t2;

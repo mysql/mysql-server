@@ -17,6 +17,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
 2	3
+<<<<<<< TREE
 show slave status;;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -58,10 +59,14 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
 2	3
+<<<<<<< TREE
 show slave status;;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -103,5 +108,8 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	2
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 STOP SLAVE;
 DROP TABLE t1;

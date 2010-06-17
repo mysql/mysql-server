@@ -50,6 +50,7 @@ a
 SELECT * FROM t3;
 a
 3
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -91,6 +92,9 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 
 *** Test lock wait timeout ***
 include/stop_slave.inc
@@ -114,6 +118,7 @@ SELECT * FROM t3;
 a
 3
 3
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -155,13 +160,20 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 
 *** Test lock wait timeout and purged relay logs ***
 SET @my_max_relay_log_size= @@global.max_relay_log_size;
 SET global max_relay_log_size=0;
 include/stop_slave.inc
 DELETE FROM t2;
+<<<<<<< TREE
 CHANGE MASTER TO MASTER_LOG_POS=441;
+=======
+CHANGE MASTER TO MASTER_LOG_POS=MASTER_POS_BEGIN;
+>>>>>>> MERGE-SOURCE
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 a
@@ -183,6 +195,7 @@ a
 3
 3
 3
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -224,6 +237,9 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 
 *** Clean up ***
 DROP TABLE t1,t2,t3;

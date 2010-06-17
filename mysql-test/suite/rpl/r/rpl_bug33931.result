@@ -3,6 +3,7 @@ reset slave;
 call mtr.add_suppression("Failed during slave I/O thread initialization");
 SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
 start slave;
+<<<<<<< TREE
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -44,4 +45,7 @@ Last_SQL_Errno	#
 Last_SQL_Error	Failed during slave thread initialization
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	0
+=======
+Last_SQL_Error = Failed during slave thread initialization
+>>>>>>> MERGE-SOURCE
 SET GLOBAL debug="";

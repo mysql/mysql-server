@@ -68,6 +68,7 @@ CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;
 START SLAVE;
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	<Slave_IO_State>
 Master_Host	127.0.0.1
@@ -109,6 +110,9 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
 1	1	row1

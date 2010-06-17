@@ -20,6 +20,7 @@ n
 2
 3
 4
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -62,12 +63,16 @@ Last_SQL_Error
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
 START SLAVE UNTIL MASTER_LOG_FILE='master-no-such-bin.000001', MASTER_LOG_POS=291;
+=======
+START SLAVE UNTIL MASTER_LOG_FILE='master-no-such-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+>>>>>>> MERGE-SOURCE
 SELECT * FROM t1;
 n
 1
 2
 3
 4
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -109,11 +114,14 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+>>>>>>> MERGE-SOURCE
 START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', RELAY_LOG_POS=relay_pos_insert1_t2
 SELECT * FROM t2;
 n
 1
 2
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -155,9 +163,12 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+>>>>>>> MERGE-SOURCE
 START SLAVE;
 include/stop_slave.inc
 START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=master_pos_create_t2
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -200,16 +211,19 @@ Last_SQL_Error
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin', MASTER_LOG_POS=561;
+=======
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin', MASTER_LOG_POS=MASTER_LOG_POS;
+>>>>>>> MERGE-SOURCE
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=561, RELAY_LOG_POS=12;
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS, RELAY_LOG_POS=RELAY_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001';
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000009';
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
-START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', MASTER_LOG_POS=561;
+START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', MASTER_LOG_POS=MASTER_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 START SLAVE;
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=740;
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
 Warnings:
 Note	1254	Slave is already running
