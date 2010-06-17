@@ -663,6 +663,19 @@ UPDATE t1,t2 SET t1.a = t1.a + 100 WHERE t1.a = 1;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #53830: !table || (!table->read_set || bitmap_is_set(table->read_set, field_index))
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, c INT, d INT,
+                 PRIMARY KEY(a,b,c), KEY(b,d))
+                 ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 77, 1, 3);
+
+UPDATE t1 SET d = 0 WHERE b = 77 AND c = 25;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 

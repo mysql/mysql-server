@@ -128,7 +128,7 @@ UNIV_INTERN ulint	srv_file_format = 0;
 /** Whether to check file format during startup.  A value of
 DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
 set it to the highest format we support. */
-UNIV_INTERN ulint	srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX;
+UNIV_INTERN ulint	srv_max_file_format_at_startup = DICT_TF_FORMAT_MAX;
 
 #if DICT_TF_FORMAT_51
 # error "DICT_TF_FORMAT_51 must be 0!"
@@ -2375,30 +2375,6 @@ loop:
 	OS_THREAD_DUMMY_RETURN;
 }
 
-/******************************************************************//**
-Increment the server activity count. */
-UNIV_INLINE
-void
-srv_inc_activity_count_low(void)
-/*============================*/
-{
-	mutex_enter(&kernel_mutex);
-
-	++srv_activity_count;
-
-	mutex_exit(&kernel_mutex);
-}
-
-/******************************************************************//**
-Increment the server activity count. */
-UNIV_INTERN
-void
-srv_inc_activity_count(void)
-/*========================*/
-{
-	srv_inc_activity_count_low();
-}
-
 /**********************************************************************//**
 Check whether any background thread is active.
 @return FALSE if all are are suspended or have exited. */
@@ -2435,9 +2411,7 @@ void
 srv_active_wake_master_thread(void)
 /*===============================*/
 {
-	ut_ad(!mutex_own(&kernel_mutex));
-
-	srv_inc_activity_count_low();
+	srv_activity_count++;
 
 	if (srv_n_threads_active[SRV_MASTER] == 0) {
 
