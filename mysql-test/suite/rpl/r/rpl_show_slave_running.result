@@ -1,0 +1,39 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET DEBUG_SYNC= 'RESET';
+include/stop_slave.inc
+set global debug= 'd,dbug.before_get_running_status_yes';
+Slave_running, Slave_IO_Running, Slave_SQL_Running, must be OFF, NO, NO in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	OFF
+Slave_IO_Running= No
+Slave_SQL_Running= No
+start slave io_thread;
+Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF NO NO in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	OFF
+Slave_IO_Running= No
+Slave_SQL_Running= No
+SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running';
+Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF YES NO in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	OFF
+Slave_IO_Running= Yes
+Slave_SQL_Running= No
+start slave sql_thread;
+Slave_running, Slave_IO_Running, Slave_SQL_Running must be ON, YES, YES in three following queries
+SHOW STATUS LIKE 'Slave_running';
+Variable_name	Value
+Slave_running	ON
+Slave_IO_Running= Yes
+Slave_SQL_Running= Yes
+set global debug= '';
+SET DEBUG_SYNC= 'RESET';
+End of tests

@@ -1,0 +1,244 @@
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t2 (c1 TINYINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 TINYINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(YEAR(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 TINYINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 TINYINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(MONTH(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 TINYINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 TINYINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAY(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 TINYINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 TINYINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 SMALLINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 MEDIUMINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 INTEGER NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+CREATE TABLE t2 (c1 BIGINT NOT NULL, c2 CHAR(5),c3 DATETIME) PARTITION BY HASH(DAYOFWEEK(c3));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t2; DROP TABLE t2; SHOW TABLES;
+

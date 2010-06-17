@@ -72,14 +72,14 @@ static char *shared_memory_base_name=0;
 static struct my_option my_long_options[] =
 {
 #ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (uchar**) &charsets_dir,
+   "Directory for character set files.", (uchar**) &charsets_dir,
    (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (uchar**) &default_charset,
@@ -102,18 +102,22 @@ static struct my_option my_long_options[] =
   {"delete", 'd', "First delete all rows from table.", (uchar**) &opt_delete,
    (uchar**) &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
-   "Fields in the textfile are terminated by ...", (uchar**) &fields_terminated,
-   (uchar**) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Fields in the input file are terminated by the given string.", 
+   (uchar**) &fields_terminated, (uchar**) &fields_terminated, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-enclosed-by", OPT_ENC,
-   "Fields in the importfile are enclosed by ...", (uchar**) &enclosed,
-   (uchar**) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Fields in the import file are enclosed by the given character.", 
+   (uchar**) &enclosed, (uchar**) &enclosed, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-optionally-enclosed-by", OPT_O_ENC,
-   "Fields in the i.file are opt. enclosed by ...", (uchar**) &opt_enclosed,
-   (uchar**) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
+   "Fields in the input file are optionally enclosed by the given character.", 
+   (uchar**) &opt_enclosed, (uchar**) &opt_enclosed, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fields-escaped-by", OPT_ESC, 
+   "Fields in the input file are escaped by the given character.",
    (uchar**) &escaped, (uchar**) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"force", 'f', "Continue even if we get an sql-error.",
+  {"force", 'f', "Continue even if we get an SQL error.",
    (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
@@ -125,7 +129,8 @@ static struct my_option my_long_options[] =
   {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.",
    (uchar**) &opt_ignore_lines, (uchar**) &opt_ignore_lines, 0, GET_LL,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
+  {"lines-terminated-by", OPT_LTB, 
+   "Lines in the input file are terminated by the given string.",
    (uchar**) &lines_terminated, (uchar**) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"local", 'L', "Read all files through the client.", (uchar**) &opt_local_file,
@@ -152,7 +157,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_mysql_port,
    (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replace", 'r', "If duplicate unique key was found, replace old row.",
    (uchar**) &replace, (uchar**) &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -163,7 +168,7 @@ static struct my_option my_long_options[] =
 #endif
   {"silent", 's', "Be more silent.", (uchar**) &silent, (uchar**) &silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"socket", 'S', "Socket file to use for connection.",
+  {"socket", 'S', "The socket file to use for connection.",
    (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
@@ -200,7 +205,7 @@ static void usage(void)
 {
   print_version();
   puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
   printf("\
 Loads tables from text files in various formats.  The base name of the\n\
 text file must be the name of the table that should be used.\n\

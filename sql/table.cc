@@ -499,6 +499,26 @@ inline bool is_system_table_name(const char *name, uint length)
 }
 
 
+/**
+  Check if a string contains path elements
+*/  
+
+static inline bool has_disabled_path_chars(const char *str)
+{
+  for (; *str; str++)
+    switch (*str)
+    {
+      case FN_EXTCHAR:
+      case '/':
+      case '\\':
+      case '~':
+      case '@':
+        return TRUE;
+    }
+  return FALSE;
+}
+
+
 /*
   Read table definition from a binary / text based .frm file
   
@@ -554,7 +574,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         This kind of tables must have been opened only by the
         my_open() above.
     */
-    if (strchr(share->table_name.str, '@') ||
+    if (has_disabled_path_chars(share->table_name.str) ||
+        has_disabled_path_chars(share->db.str) ||
         !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
                  MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
         !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
@@ -2771,7 +2792,6 @@ bool check_db_name(LEX_STRING *org_name)
             (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
 }
 
-
 /*
   Allow anything as a table name, as long as it doesn't contain an
   ' ' at the end
@@ -2779,7 +2799,7 @@ bool check_db_name(LEX_STRING *org_name)
 */
 
 
-bool check_table_name(const char *name, uint length)
+bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
   uint name_length= 0;  // name length in symbols
   const char *end= name+length;
@@ -2806,6 +2826,9 @@ bool check_table_name(const char *name, uint length)
         continue;
       }
     }
+    if (check_for_path_chars &&
+        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
+      return 1;
 #endif
     name++;
     name_length++;
@@ -3425,7 +3448,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
-  if (thd->get_internal_handler())
+  if (thd->killed || thd->get_internal_handler())
     return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
@@ -4083,9 +4106,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->alias,
-                                       name);
+  Item *item= new Item_direct_view_ref(view, field_ref, name);
   DBUG_RETURN(item);
 }
 
@@ -4437,7 +4458,7 @@ void st_table::mark_columns_used_by_index(uint index)
   MY_BITMAP *bitmap= &tmp_set;
   DBUG_ENTER("st_table::mark_columns_used_by_index");
 
-  (void) file->extra(HA_EXTRA_KEYREAD);
+  set_keyread(TRUE);
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
@@ -4460,8 +4481,7 @@ void st_table::restore_column_maps_after_mark_index()
 {
   DBUG_ENTER("st_table::restore_column_maps_after_mark_index");
 
-  key_read= 0;
-  (void) file->extra(HA_EXTRA_NO_KEYREAD);
+  set_keyread(FALSE);
   default_column_bitmaps();
   file->column_bitmaps_signal(HA_CHANGE_TABLE_BOTH_BITMAPS);
   DBUG_VOID_RETURN;

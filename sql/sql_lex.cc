@@ -1595,6 +1595,7 @@ void st_select_lex::init_query()
   having= prep_having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
+  group_fix_field= 0;
   context.select_lex= this;
   context.init();
   /*
@@ -2108,6 +2109,7 @@ void st_lex::cleanup_lex_after_parse_error(THD *thd)
   */
   if (thd->lex->sphead)
   {
+    thd->lex->sphead->restore_thd_mem_root(thd);
     delete thd->lex->sphead;
     thd->lex->sphead= NULL;
   }

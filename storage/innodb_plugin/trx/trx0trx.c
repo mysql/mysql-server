@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -425,6 +425,7 @@ trx_lists_init_at_db_start(void)
 	trx_undo_t*	undo;
 	trx_t*		trx;
 
+	ut_ad(mutex_own(&kernel_mutex));
 	UT_LIST_INIT(trx_sys->trx_list);
 
 	/* Look from the rollback segments if there exist undo logs for
@@ -842,7 +843,7 @@ trx_commit_off_kernel(
 	recovery i.e.: back ground rollback thread is still active
 	then there is a chance that the rollback thread may see
 	this trx as COMMITTED_IN_MEMORY and goes adhead to clean it
-	up calling trx_cleanup_at_db_startup(). This can happen 
+	up calling trx_cleanup_at_db_startup(). This can happen
 	in the case we are committing a trx here that is left in
 	PREPARED state during the crash. Note that commit of the
 	rollback of a PREPARED trx happens in the recovery thread
