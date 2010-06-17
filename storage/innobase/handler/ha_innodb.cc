@@ -7119,6 +7119,7 @@ ha_innobase::delete_table(
 	trx_t*	trx;
 	THD	*thd = ha_thd();
 	char	norm_name[1000];
+	char	errstr[1024];
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
@@ -7134,10 +7135,10 @@ ha_innobase::delete_table(
 	persistent storage if it exists and if there are stats for this
 	table in there. This function creates its own trx and commits
 	it. */
-	error = dict_stats_drop_table(norm_name);
+	error = dict_stats_drop_table(norm_name, errstr, sizeof(errstr));
 	if (error != DB_SUCCESS) {
-		error = convert_error_code_to_mysql(error, 0, NULL);
-		DBUG_RETURN(error);
+		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			     ER_LOCK_WAIT_TIMEOUT, errstr);
 	}
 
 	/* Get the transaction associated with the current thd, or create one

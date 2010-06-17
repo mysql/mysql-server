@@ -1184,26 +1184,31 @@ ha_innobase::final_drop_index(
 		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
 		prebuilt->table->flags, user_thd);
 
-	/* Delete corresponding rows from the stats table. This operation
-	can take a long time if the user is having a long-running
-	transaction that has acquired locks on the stats table. Thus we do
-	this before locking the data dictionary which should only be locked
-	for a short periods of time.
+	/* Delete corresponding rows from the stats table.
 	Marko advises not to edit both user tables and SYS_* tables in one
 	trx, thus we use prebuilt->trx instead of trx. Because of this the
 	drop from SYS_* and from the stats table cannot happen in one
 	transaction and eventually if a crash occurs below, between
 	trx_commit_for_mysql(trx); which drops the indexes from SYS_* and
 	trx_commit_for_mysql(prebuilt->trx);
-	then an orphaned rows will be left in the stats table. XXX would be
-	best if we wipe away those orphaned rows at some point. */
+	then an orphaned rows will be left in the stats table. */
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
 		if (index->to_be_dropped) {
 
-			dict_stats_drop_index(index, prebuilt->trx);
+			enum db_err	ret;
+			char		errstr[1024];
+
+			ret = dict_stats_drop_index(index, prebuilt->trx,
+						    errstr, sizeof(errstr));
+			if (ret != DB_SUCCESS) {
+				push_warning(user_thd,
+					     MYSQL_ERROR::WARN_LEVEL_WARN,
+					     ER_LOCK_WAIT_TIMEOUT,
+					     errstr);
+			}
 		}
 	}
 
