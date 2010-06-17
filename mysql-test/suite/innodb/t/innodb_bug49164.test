@@ -1,0 +1,47 @@
+-- source include/have_innodb.inc
+
+# Bug #49164 READ-COMMITTED reports "matched: 0" on compound PK
+# a duplicate of
+# Bug #52663 Lost update incrementing column value under READ COMMITTED
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+SET tx_isolation = 'READ-COMMITTED';
+
+CREATE TABLE bug49164 (a INT, b BIGINT, c TINYINT, PRIMARY KEY (a, b))
+ENGINE=InnoDB;
+
+insert into bug49164 values (1,1,1), (2,2,2), (3,3,3);
+
+begin;
+update bug49164 set c=7;
+select * from bug49164;
+rollback;
+select * from bug49164;
+begin;
+update bug49164 set c=7;
+
+connection con2;
+
+SET tx_isolation = 'READ-COMMITTED'; 
+begin;
+select * from bug49164;
+commit;
+begin;
+--send
+update bug49164 set c=6 where a=1 and b=1;
+
+connection con1;
+rollback;
+select * from bug49164;
+connection con2;
+reap;
+commit;
+connection con1;
+select * from bug49164;
+connection default;
+disconnect con1;
+disconnect con2;
+drop table bug49164;

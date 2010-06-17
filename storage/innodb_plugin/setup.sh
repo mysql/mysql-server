@@ -21,7 +21,7 @@
 
 set -eu
 
-TARGETDIR=../storage/innobase
+TARGETDIR=../storage/innodb_plugin
 
 # link the build scripts
 BUILDSCRIPTS="compile-innodb compile-innodb-debug"
