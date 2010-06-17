@@ -2219,4 +2219,83 @@ Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connectio
 tr1		CREATE DEFINER=`root`@`localhost` TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo()	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TRIGGER tr1;
 DROP TABLE t1, t2, t3;
+#
+# BUG#48265 - MRG_MYISAM problem (works in 5.0.85, does't work in 5.1.40)
+#
+CREATE DATABASE `test/1`;
+CREATE TABLE `test/1`.`t/1`(a INT);
+CREATE TABLE m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM m1;
+a
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`test/1`.`t/1`)
+DROP TABLE m1;
+CREATE TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM `test/1`.m1;
+a
+SHOW CREATE TABLE `test/1`.m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t/1`)
+DROP TABLE `test/1`.m1;
+DROP TABLE `test/1`.`t/1`;
+CREATE TEMPORARY TABLE `test/1`.`t/1`(a INT);
+CREATE TEMPORARY TABLE m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM m1;
+a
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`test/1`.`t/1`)
+DROP TABLE m1;
+CREATE TEMPORARY TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM `test/1`.m1;
+a
+SHOW CREATE TABLE `test/1`.m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t/1`)
+DROP TABLE `test/1`.m1;
+DROP TABLE `test/1`.`t/1`;
+DROP DATABASE `test/1`;
+CREATE TABLE `t@1`(a INT);
+SELECT * FROM m1;
+a
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t@1`)
+DROP TABLE `t@1`;
+CREATE DATABASE `test@1`;
+CREATE TABLE `test@1`.`t@1`(a INT);
+FLUSH TABLE m1;
+SELECT * FROM m1;
+a
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`test@1`.`t@1`)
+DROP TABLE m1;
+DROP TABLE `test@1`.`t@1`;
+DROP DATABASE `test@1`;
+#
+# Bug#51494c rash with join, explain and 'sounds like' operator
+#
+CREATE TABLE t1 (a INT) ENGINE=MYISAM;
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2 (b INT NOT NULL,c INT,d INT,e BLOB NOT NULL,
+KEY idx0 (d, c)) ENGINE=MERGE;
+EXPLAIN SELECT * FROM t1 NATURAL RIGHT JOIN
+t2 WHERE b SOUNDS LIKE e AND d = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+DROP TABLE t2, t1;
 End of 5.1 tests

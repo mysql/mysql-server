@@ -1485,7 +1485,7 @@ row_unlock_for_mysql(
 
 	if (UNIV_UNLIKELY
 	    (!srv_locks_unsafe_for_binlog
-	     && trx->isolation_level != TRX_ISO_READ_COMMITTED)) {
+	     && trx->isolation_level > TRX_ISO_READ_COMMITTED)) {
 
 		fprintf(stderr,
 			"InnoDB: Error: calling row_unlock_for_mysql though\n"

@@ -1,0 +1,35 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1(n int);
+insert into t1 values(get_lock("lock",2));
+select get_lock("lock",2);
+get_lock("lock",2)
+1
+select release_lock("lock");
+release_lock("lock")
+1
+select get_lock("lock",3);
+get_lock("lock",3)
+1
+select * from t1;
+n
+1
+select is_free_lock("lock"), is_used_lock("lock") = connection_id();
+is_free_lock("lock")	is_used_lock("lock") = connection_id()
+0	1
+explain extended select is_free_lock("lock"), is_used_lock("lock");
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select is_free_lock('lock') AS `is_free_lock("lock")`,is_used_lock('lock') AS `is_used_lock("lock")`
+select is_free_lock("lock2");
+is_free_lock("lock2")
+1
+select is_free_lock(NULL);
+is_free_lock(NULL)
+NULL
+drop table t1;

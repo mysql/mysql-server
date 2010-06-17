@@ -1,0 +1,18 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+select master_pos_wait('master-bin.999999',0,2);
+master_pos_wait('master-bin.999999',0,2)
+-1
+explain extended select master_pos_wait('master-bin.999999',0,2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select master_pos_wait('master-bin.999999',0,2) AS `master_pos_wait('master-bin.999999',0,2)`
+select master_pos_wait('master-bin.999999',0);
+stop slave sql_thread;
+master_pos_wait('master-bin.999999',0)
+NULL

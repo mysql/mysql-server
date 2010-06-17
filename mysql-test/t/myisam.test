@@ -1587,5 +1587,62 @@ REPLACE INTO t1 VALUES
 CHECK TABLE t1;
 DROP TABLE t1;
 
---echo End of 5.1 tests
 
+--echo #
+--echo # Bug#51304: checksum table gives different results
+--echo # for same data when using bit fields
+--echo #
+CREATE TABLE t1(a INT, b BIT(1));
+INSERT INTO t1 VALUES(1, 0), (2, 1);
+CREATE TABLE t2 SELECT * FROM t1;
+--copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t3.frm
+--copy_file $MYSQLD_DATADIR/test/t1.MYD $MYSQLD_DATADIR/test/t3.MYD
+--copy_file $MYSQLD_DATADIR/test/t1.MYI $MYSQLD_DATADIR/test/t3.MYI
+CHECKSUM TABLE t1 EXTENDED;
+CHECKSUM TABLE t2 EXTENDED;
+CHECKSUM TABLE t3 EXTENDED;
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # BUG#51307 - widespread corruption with partitions and insert...select
+--echo #
+CREATE TABLE t1(a CHAR(255), KEY(a));
+SELECT * FROM t1, t1 AS a1;
+SET myisam_sort_buffer_size=4;
+INSERT INTO t1 VALUES
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
+('0'),('0'),('0'),('0'),('0'),('0'),('0');
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+INSERT INTO t1 VALUES('1');
+SELECT * FROM t1, t1 AS a1 WHERE t1.a=1 AND a1.a=1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#47444 - --myisam_repair_threads>1can result in all index
+--echo #             cardinalities=1
+--echo #
+SET myisam_repair_threads=2;
+SET myisam_sort_buffer_size=4096;
+CREATE TABLE t1(a CHAR(255), KEY(a), KEY(a), KEY(a));
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(0),(1),(2),(3);
+REPAIR TABLE t1;
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DROP TABLE t1;
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+
+--echo End of 5.1 tests
