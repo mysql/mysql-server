@@ -1,1 +1,12 @@
-innodb-index                  : Bug#49396 2009-12-03 test fails in embedded mode
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+innodb_multi_update: Bug #38999 2010-05-05 mmakela Valgrind warnings

@@ -128,6 +128,16 @@ Geometry::Class_info *Geometry::find_class(const char *name, uint32 len)
 }
 
 
+Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer, int type_id)
+{
+  Class_info *ci;
+  if (!(ci= find_class((int) type_id)))
+    return NULL;
+  (*ci->m_create_func)(buffer->buf.arr());
+  return my_reinterpret_cast(Geometry *)(buffer->buf.arr());
+}
+
+
 Geometry *Geometry::construct(Geometry_buffer *buffer,
                               const char *data, uint32 data_len)
 {

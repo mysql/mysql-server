@@ -43,11 +43,11 @@ SELECT * FROM t /* Should be empty */;
 a
 * Modify both row-only and stmt-only table
 CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END;
-ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
 INSERT INTO t_stmt VALUES (1);
-ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since both row-incapable engines and statement-incapable engines are involved.
 SELECT * FROM t_stmt /* should be empty */;
 a
+DROP TRIGGER trig_2;
 * Stmt-only table and binlog_format=row
 INSERT INTO t_stmt VALUES (1);
 ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
@@ -58,7 +58,7 @@ INSERT INTO t_slave_stmt VALUES (1);
 [on slave]
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.'
-set global sql_slave_skip_counter=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave.inc
 SELECT * FROM t_slave_stmt /* should be empty */;
 a
@@ -155,7 +155,7 @@ INSERT INTO t VALUES (COALESCE(1, UUID()));
 [on slave]
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.'
-set global sql_slave_skip_counter=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave.inc
 SELECT * FROM t /* should be empty */;
 a
