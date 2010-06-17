@@ -11,6 +11,7 @@ SELECT * FROM t1;
 a	b
 1	10
 2	2
+<<<<<<< TREE
 show slave status;;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -52,6 +53,9 @@ Last_SQL_Errno	1105
 Last_SQL_Error	Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Last_SQL_Error = Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10'
+>>>>>>> MERGE-SOURCE
 SELECT * FROM t1;
 a	b
 stop slave;
@@ -96,6 +100,7 @@ id	field_1	field_2	field_3
 4	4	d	4d
 5	5	e	5e
 6	6	f	6f
+<<<<<<< TREE
 show slave status;;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -139,6 +144,9 @@ Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	1105
 Last_SQL_Error	Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1 (field_1, field_2, field_3)
+=======
+Last_SQL_Error = Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1 (field_1, field_2, field_3)
+>>>>>>> MERGE-SOURCE
 SELECT t2.field_a, t2.field_b, t2.field_c
 FROM t2
 ON DUPLICATE KEY UPDATE

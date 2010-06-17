@@ -14,6 +14,9 @@
 #   The expected SQL error number.  This is required.
 #   (After BUG#41956 has been fixed, this will be required to be a
 #   symbolic name instead of a number.)
+#
+# $show_slave_sql_error
+#   If set, will print the error to the query log.
 # 
 # $slave_timeout
 #   See wait_for_slave_param.inc for description.
@@ -22,8 +25,7 @@
 #   See wait_for_slave_param.inc for description.
 
 if (`SELECT '$slave_sql_errno' = ''`) {
-  --echo !!!ERROR IN TEST: you must set \$slave_sql_errno before sourcing wait_fro_slave_sql_error.inc
-  exit;
+  --die !!!ERROR IN TEST: you must set \$slave_sql_errno before sourcing wait_for_slave_sql_error.inc
 }
 
 let $slave_param= Slave_SQL_Running;
@@ -32,8 +34,15 @@ let $slave_error_message= Failed while waiting for slave to stop the SQL thread 
 source include/wait_for_slave_param.inc;
 
 let $_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-if (`SELECT '$_error' != '$slave_sql_errno'`) {
-  --echo Slave stopped with wrong error code: $_error (expected $slave_sql_errno)
+if (`SELECT NOT($_error IN $slave_sql_errno)`) {
+  --echo **** Slave stopped with wrong error code: $_error (expected $slave_sql_errno) ****
   source include/show_rpl_debug_info.inc;
-  exit;
+  --echo **** Slave stopped with wrong error code: $_error (expected $slave_sql_errno) ****
+  --die Slave stopped with wrong error code
+}
+
+if ($show_slave_sql_error)
+{
+  let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+  echo Last_SQL_Error = $error;
 }

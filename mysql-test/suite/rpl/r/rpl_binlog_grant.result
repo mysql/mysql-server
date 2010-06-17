@@ -17,6 +17,7 @@ show grants for x@y;
 Grants for x@y
 GRANT USAGE ON *.* TO 'x'@'y'
 GRANT SELECT ON `d1`.`t` TO 'x'@'y'
+<<<<<<< TREE
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	drop database if exists d1
@@ -26,6 +27,8 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `d1`; insert into t values (1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `d1`; grant select on t to x@y
+=======
+>>>>>>> MERGE-SOURCE
 start transaction;
 insert into t values (2);
 revoke select on t from x@y;
@@ -37,6 +40,7 @@ s1
 show grants for x@y;
 Grants for x@y
 GRANT USAGE ON *.* TO 'x'@'y'
+<<<<<<< TREE
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	drop database if exists d1
@@ -50,5 +54,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `d1`; insert into t values (2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `d1`; revoke select on t from x@y
+=======
+>>>>>>> MERGE-SOURCE
 drop user x@y;
 drop database d1;

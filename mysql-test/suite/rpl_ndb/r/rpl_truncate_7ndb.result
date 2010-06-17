@@ -27,8 +27,9 @@ SELECT * FROM t1 ORDER BY a,b;
 a	b
 **** On Master ****
 DROP TABLE t1;
-SHOW BINLOG EVENTS;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+<<<<<<< TREE
 master-bin.000001	4	Format_desc	1	107	Server ver: SERVER_VERSION, Binlog ver: 4
 master-bin.000001	107	Query	1	224	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
 master-bin.000001	224	Query	1	288	BEGIN
@@ -39,6 +40,17 @@ master-bin.000001	452	Write_rows	1	499	table_id: # flags: STMT_END_F
 master-bin.000001	499	Query	1	564	COMMIT
 master-bin.000001	564	Query	1	644	use `test`; TRUNCATE TABLE t1
 master-bin.000001	644	Query	1	720	use `test`; DROP TABLE t1
+=======
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+>>>>>>> MERGE-SOURCE
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -63,8 +75,9 @@ a	b
 3	3
 **** On Master ****
 DROP TABLE t1;
-SHOW BINLOG EVENTS;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+<<<<<<< TREE
 master-bin.000001	4	Format_desc	1	107	Server ver: SERVER_VERSION, Binlog ver: 4
 master-bin.000001	107	Query	1	224	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
 master-bin.000001	224	Query	1	288	BEGIN
@@ -89,3 +102,28 @@ master-bin.000001	1346	Write_rows	1	1405	table_id: #
 master-bin.000001	1405	Delete_rows	1	1444	table_id: # flags: STMT_END_F
 master-bin.000001	1444	Query	1	1509	COMMIT
 master-bin.000001	1509	Query	1	1585	use `test`; DROP TABLE t1
+=======
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+>>>>>>> MERGE-SOURCE

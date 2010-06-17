@@ -10,6 +10,7 @@ n
 stop slave sql_thread;
 insert into t1 values(1);
 insert into t1 values(2);
+<<<<<<< TREE
 stop slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -52,7 +53,11 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+include/stop_slave.inc
+>>>>>>> MERGE-SOURCE
 change master to master_user='root';
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -94,6 +99,8 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+>>>>>>> MERGE-SOURCE
 start slave;
 select * from t1;
 n

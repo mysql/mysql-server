@@ -41,6 +41,7 @@ user	host
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 COUNT(*)
 0
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -82,3 +83,5 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+>>>>>>> MERGE-SOURCE

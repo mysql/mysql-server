@@ -118,6 +118,7 @@ a	b
 SELECT * FROM t2;
 a
 2
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -159,8 +160,12 @@ Last_SQL_Errno	0
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -204,8 +209,15 @@ Replicate_Ignore_Server_Ids
 Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
+=======
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
+include/start_slave.inc
+>>>>>>> MERGE-SOURCE
 INSERT INTO t9 VALUES (5);
 INSERT INTO t5 VALUES (5,10,25);
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -249,8 +261,15 @@ Replicate_Ignore_Server_Ids
 Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
+=======
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
+include/start_slave.inc
+>>>>>>> MERGE-SOURCE
 INSERT INTO t9 VALUES (6);
 INSERT INTO t6 VALUES (6,12,36);
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -294,7 +313,14 @@ Replicate_Ignore_Server_Ids
 Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
+=======
+--source include/wait_for_slave_sql_error_and_skip.inc
+Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
+include/start_slave.inc
+>>>>>>> MERGE-SOURCE
 INSERT INTO t9 VALUES (6);
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -336,6 +362,9 @@ Last_SQL_Errno	0
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;

@@ -4,9 +4,9 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
+Master_User	root
 Master_Host	127.0.0.1
+<<<<<<< TREE
 Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
@@ -46,11 +46,12 @@ Last_SQL_Error
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
 stop slave;
+=======
+include/stop_slave.inc
+>>>>>>> MERGE-SOURCE
 change master to master_user='test';
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
 Master_User	test
+<<<<<<< TREE
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
@@ -176,33 +177,34 @@ Master_Server_Id	1
 stop slave;
 reset slave;
 start slave;
-create temporary table t1 (a int);
-stop slave;
+=======
+Master_Host	127.0.0.1
 reset slave;
-start slave;
+Master_User	root
+Master_Host	127.0.0.1
+include/start_slave.inc
+Master_User	root
+Master_Host	127.0.0.1
+include/stop_slave.inc
+reset slave;
+include/start_slave.inc
+>>>>>>> MERGE-SOURCE
+create temporary table t1 (a int);
+include/stop_slave.inc
+reset slave;
+include/start_slave.inc
 show status like 'slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	1
-stop slave;
+include/stop_slave.inc
 reset slave;
-*** errno must be zero: 0 ***
 change master to master_user='impossible_user_name';
 start slave;
-ONE
-1
 include/stop_slave.inc
 change master to master_user='root';
 include/start_slave.inc
-*** last errno must be  zero: 0 ***
-*** last error must be blank:  ***
 include/stop_slave.inc
 change master to master_user='impossible_user_name';
 start slave;
-ONE
-1
 include/stop_slave.inc
 reset slave;
-*** io  last errno must be  zero: 0  ***
-*** io  last error must be blank:   ***
-*** sql last errno must be  zero: 0 ***
-*** sql last error must be blank:  ***

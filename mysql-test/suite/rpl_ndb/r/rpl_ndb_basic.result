@@ -140,6 +140,7 @@ set GLOBAL slave_transaction_retries=1;
 **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 **** On Slave ****
+<<<<<<< TREE
 SHOW SLAVE STATUS;;
 Slave_IO_State	<Slave_IO_State>
 Master_Host	127.0.0.1
@@ -181,6 +182,9 @@ Last_SQL_Errno	<Last_SQL_Errno>
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Last_SQL_Error = Could not execute Write_rows event on table test.t1; Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB, Error_code: 1297; Lock wait timeout exceeded; try restarting transaction, Error_code: 1205; handler error HA_ERR_LOCK_WAIT_TIMEOUT; the event's master log master-bin.000001, end_log_pos 6834
+>>>>>>> MERGE-SOURCE
 set GLOBAL slave_transaction_retries=10;
 include/start_slave.inc
 select * from t1 order by nid;

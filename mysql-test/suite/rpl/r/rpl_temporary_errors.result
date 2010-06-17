@@ -39,6 +39,7 @@ a	b
 2	2
 3	3
 4	4
+<<<<<<< TREE
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -80,6 +81,9 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+=======
+Checking that both slave threads are running.
+>>>>>>> MERGE-SOURCE
 DROP TABLE t1;
 **** On Master ****
 DROP TABLE t1;
