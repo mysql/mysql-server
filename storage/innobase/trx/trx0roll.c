@@ -597,7 +597,9 @@ trx_rollback_resurrected(
 
 	ut_ad(trx_sys_mutex_own());
 
-	if (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY) {
+	if (trx->is_recovered) {
+		cleaned_or_rolledback = FALSE;
+	} else if (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY) {
 
 		trx_sys_mutex_exit();
 
@@ -608,7 +610,6 @@ trx_rollback_resurrected(
 		trx_cleanup_at_db_startup(trx);
 
 		cleaned_or_rolledback  = TRUE;
-
 	} else if (trx->lock.conc_state == TRX_ACTIVE
 		   && (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE)) {
 
@@ -636,7 +637,7 @@ trx_rollback_or_clean_recovered(
 	ibool	all)	/*!< in: FALSE=roll back dictionary transactions;
 			TRUE=roll back all non-PREPARED transactions */
 {
-	ibool	undo_recovered_trxs;
+	trx_t*	trx;
 
 	if (trx_sys_get_n_trx() == 0) {
 
@@ -649,45 +650,36 @@ trx_rollback_or_clean_recovered(
 			" of uncommitted transactions\n");
 	}
 
+	/* Note: For XA recovered transactions, we rely on MySQL to
+       	do rollback. They will be in TRX_PREPARED state. If the server
+       	is shutdown and they are still lingering in trx_sys_t::trx_list
+       	then the shutdown will hang. */
+
+	/* Loop over the transaction list as long as there are
+	recovered transactions to clean up or recover. */
+
 	do {
-		trx_t*	trx;
-
-		undo_recovered_trxs = FALSE;
-
 		trx_sys_mutex_enter();
 
 		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 		     trx != NULL;
 		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-			/* Note: For XA recovered transactions, we rely on
-			MySQL to do rollback. They will be in TRX_PREPARED
-			state. If the server is shutdown and they are still
-			lingering in trx_sys_t::trx_list then the shutdown
-			will hang. */
+			/* If this function does a cleanup or rollback
+			then it will release the trx sys mutex, therefore
+			we need to reacquire it before retrying the loop. */
 
-			if (trx->is_recovered
-			     && (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY
-			         || trx->lock.conc_state == TRX_ACTIVE)) {
+			if (trx_rollback_resurrected(trx, all)) {
 
-				
-				/* If this function does a cleanup or rollback
-				then it will release the trx sys mutex. */
+				trx_sys_mutex_enter();
 
-				if (trx_rollback_resurrected(trx, all)) {
-
-					undo_recovered_trxs = TRUE;
-
-					trx_sys_mutex_enter();
-
-					break;
-				}
+				break;
 			}
 		}
 
 		trx_sys_mutex_exit();
 
-	} while (undo_recovered_trxs);
+	} while (trx != NULL);
 
 	if (all) {
 		ut_print_timestamp(stderr);
