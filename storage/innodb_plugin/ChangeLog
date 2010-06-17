@@ -1,3 +1,68 @@
+2010-05-25	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
+	Fix Bug#53592: crash replacing duplicates into table after fast
+	alter table added unique key 
+
+2010-05-24	The InnoDB Team
+
+	* dict/dict0boot.c, dict/dict0crea.c, fil/fil0fil.c,
+	include/dict0boot.h, include/fil0fil.h, row/row0mysql.c:
+	Fix Bug#53578: assert on invalid page access, in fil_io()
+
+2010-05-14	The InnoDB Team
+	* mysql-test/innodb_bug48024.test, mysql-test/innodb_bug48024.result,
+	dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
+	include/dict0dict.h, include/ha_prototypes.h, include/row0mysql.h,
+	include/trx0trx.h, row/row0mysql.c, trx/trx0i_s.c, trx/trx0trx.c:
+	Fix Bug#48024 Innodb doesn't work with multi-statements
+	Fix Bug#53644 InnoDB thinks that /*/ starts and ends a comment
+
+2010-05-12	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Fix Bug#53591 crash with fast alter table and text/blob prefix
+	primary key
+
+2010-05-12	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#53471 row_merge_drop_temp_indexes() refers freed memory, SEGVs
+
+2010-05-11	The InnoDB Team
+
+	* mysql-test/innodb_bug53290.test, mysql-test/innodb_bug53290.result,
+	include/rem0cmp.h, rem/rem0cmp.c, row/row0merge.c:
+	Fix Bug#53290 wrong duplicate key error when adding a unique index
+	via fast alter table
+
+2010-05-11	The InnoDB Team
+	* buf/buf0lru.c, include/buf0buf.ic:
+	Fix Bug#53307 valgrind: warnings in main.partition_innodb_plugin
+
+2010-05-05	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#53256 in a stress test, assert dict/dict0dict.c:815
+	table2 == NULL
+
+2010-05-05	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#53165 Setting innodb_change_buffering=DEFAULT produces
+	incorrect result
+
+2010-05-04	The InnoDB Team
+
+	* fsp/fsp0fsp.c:
+	Fix Bug#53306 valgrind: warnings in innodb.innodb
+
+2010-05-03	The InnoDB Team
+
+	* buf0buf.c:
+	Fix Bug#53248 compressed tables page checksum mismatch after
+	re-enabling innodb_checksums
+
 2010-04-28	The InnoDB Team
 
 	* log/log0recv.h, log/log0recv.c:
@@ -42,12 +107,6 @@
 	Only check the record size at index creation time when
 	innodb_strict_mode is set or when ROW_FORMAT is DYNAMIC or COMPRESSED.
 
-2010-04-20	The InnoDB Team
-
-	* btr/btr0btr.c, include/univ.i:
-	Implement UNIV_BTR_AVOID_COPY, for avoiding writes when a B-tree
-	node is split at the first or last record.
-
 2010-04-15	The InnoDB Team
 
 	* trx/trx0rec.c:
@@ -65,6 +124,10 @@
 
 	* mysql-test/innodb_bug38231.test:
 	Remove non-determinism in the test case.
+
+2010-03-29	The InnoDB Team
+
+	InnoDB Plugin 1.0.7 released
 
 2010-03-18	The InnoDB Team
 

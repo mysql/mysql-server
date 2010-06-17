@@ -253,15 +253,6 @@ row_table_got_default_clust_index(
 /*==============================*/
 	const dict_table_t*	table);	/*!< in: table */
 /*********************************************************************//**
-Calculates the key number used inside MySQL for an Innobase index. We have
-to take into account if we generated a default clustered index for the table
-@return	the key number used inside MySQL */
-UNIV_INTERN
-ulint
-row_get_mysql_key_number_for_index(
-/*===============================*/
-	const dict_index_t*	index);	/*!< in: index */
-/*********************************************************************//**
 Does an update or delete of a row for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -403,6 +394,7 @@ row_table_add_foreign_constraints(
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
 					table2 can be written also with the
 					database name before it: test.table2 */
+	size_t		sql_length,	/*!< in: length of sql_string */
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */

@@ -9,87 +9,11 @@ show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 include/stop_slave.inc
-change master to master_log_pos=75;
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	No
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-start slave;
-include/stop_slave.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
+change master to master_log_pos=MASTER_LOG_POS;
 Read_Master_Log_Pos	75
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	No
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	0
-Last_Error	
-Skip_Counter	0
-Exec_Master_Log_Pos	75
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
+start slave;
+Last_IO_Error = Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'
+include/stop_slave.inc
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
@@ -97,7 +21,7 @@ create table if not exists t1 (n int);
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values (1),(2),(3);
-change master to master_log_pos=4;
+change master to master_log_pos=MASTER_LOG_POS;
 start slave;
 select * from t1 ORDER BY n;
 n
