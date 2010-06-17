@@ -434,11 +434,18 @@ FLUSH LOGS;
 # Transaction3 end
 
 --echo #
---echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is exist
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified exists
 --exec $MYSQL_BINLOG --database=test --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
 --echo #
---echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is not exist
+--echo # Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified does not exist
 --exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_transaction.000001
+
+--echo #
+--echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified exists
+--exec $MYSQL_BINLOG --database=db1 --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
+--echo #
+--echo # Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified does not exist
+--exec $MYSQL_BINLOG --database=not_exist --short-form $MYSQLTEST_VARDIR/std_data/binlog_savepoint.000001
 
 --echo End of 5.0 tests
 

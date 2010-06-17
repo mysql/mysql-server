@@ -1,0 +1,34 @@
+#
+# Bug#34300 Tinyblob & tinytext fields currupted after export/import and alter in 5.1
+# http://bugs.mysql.com/34300
+#
+
+-- source include/have_innodb_plugin.inc
+
+-- disable_query_log
+-- disable_result_log
+
+# set packet size and reconnect 
+let $max_packet=`select @@global.max_allowed_packet`;
+SET @@global.max_allowed_packet=16777216;
+--connect (newconn, localhost, root,,)
+
+DROP TABLE IF EXISTS bug34300;
+CREATE TABLE bug34300 (
+  f4 TINYTEXT,
+  f6 MEDIUMTEXT,
+  f8 TINYBLOB
+) ENGINE=InnoDB;
+
+INSERT INTO bug34300 VALUES ('xxx', repeat('a', 8459264), 'zzz');
+
+-- enable_result_log
+
+SELECT f4, f8 FROM bug34300;
+
+ALTER TABLE bug34300 ADD COLUMN (f10 INT);
+
+SELECT f4, f8 FROM bug34300;
+
+DROP TABLE bug34300;
+EVAL SET @@global.max_allowed_packet=$max_packet;

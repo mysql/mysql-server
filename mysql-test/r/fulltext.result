@@ -631,4 +631,17 @@ CREATE TABLE t1(a CHAR(1),FULLTEXT(a));
 SELECT 1 FROM t1 WHERE MATCH(a) AGAINST ('') AND ROW(a,a) > ROW(1,1);
 1
 DROP TABLE t1;
+#
+# BUG#51866 - crash with repair by sort and fulltext keys
+#
+CREATE TABLE t1(a CHAR(4), FULLTEXT(a));
+INSERT INTO t1 VALUES('aaaa');
+SET myisam_sort_buffer_size=4;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '4'
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
+DROP TABLE t1;
 End of 5.1 tests

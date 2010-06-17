@@ -1,0 +1,30 @@
+This directory contains patches that need to be applied to the MySQL
+source tree in order to get the mysql-test suite to succeed (when
+storage/innobase is replaced with this InnoDB branch). Things to keep
+in mind when adding new patches here:
+
+* The patch must be appliable from the mysql top-level source directory.
+
+* The patch filename must end in ".diff".
+
+* All patches here are expected to apply cleanly to the latest MySQL 5.1
+  tree when storage/innobase is replaced with this InnoDB branch. If
+  changes to either of those cause the patch to fail, then please check
+  whether the patch is still needed and, if yes, adjust it so it applies
+  cleanly.
+
+* If applicable, always submit the patch at http://bugs.mysql.com and
+  name the file here like bug%d.diff. Once the patch is committed to
+  MySQL remove the file from here.
+
+* If the patch cannot be proposed for inclusion in the MySQL source tree
+  (via http://bugs.mysql.com) then add a comment at the beginning of the
+  patch, explaining the problem it is solving, how it does solve it and
+  why it is not applicable for inclusion in the MySQL source tree.
+  Obviously this is a very bad situation and should be avoided at all
+  costs, especially for files that are in the MySQL source repository
+  (not in storage/innobase).
+
+* If you ever need to add a patch here that is not related to mysql-test
+  suite, then please move this directory from ./mysql-test/patches to
+  ./patches and remove this text.
