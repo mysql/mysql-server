@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +43,7 @@
 class Create_native_func : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
@@ -72,7 +70,7 @@ protected:
 class Create_func_arg0 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
@@ -96,7 +94,7 @@ protected:
 class Create_func_arg1 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with one argument.
@@ -121,7 +119,7 @@ protected:
 class Create_func_arg2 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with two arguments.
@@ -147,7 +145,7 @@ protected:
 class Create_func_arg3 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with three arguments.
@@ -197,7 +195,7 @@ protected:
 class Create_func_no_geom : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /** Singleton. */
   static Create_func_no_geom s_singleton;
@@ -2318,7 +2316,7 @@ static bool has_named_parameters(List<Item> *params)
 Create_func_no_geom Create_func_no_geom::s_singleton;
 
 Item*
-Create_func_no_geom::create(THD * /* unused */,
+Create_func_no_geom::create_func(THD * /* unused */,
                             LEX_STRING /* unused */,
                             List<Item> * /* unused */)
 {
@@ -2331,7 +2329,7 @@ Create_func_no_geom::create(THD * /* unused */,
 
 
 Item*
-Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_qfunc::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
 
@@ -2364,7 +2362,7 @@ Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 Create_udf_func Create_udf_func::s_singleton;
 
 Item*
-Create_udf_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_udf_func::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   udf_func *udf= find_udf(name.str, name.length);
   DBUG_ASSERT(udf);
@@ -2515,7 +2513,7 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
 
 Item*
-Create_native_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_native_func::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   if (has_named_parameters(item_list))
   {
@@ -2528,7 +2526,7 @@ Create_native_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg0::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg0::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2546,7 +2544,7 @@ Create_func_arg0::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg1::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg1::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2572,7 +2570,7 @@ Create_func_arg1::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg2::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg2::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2600,7 +2598,7 @@ Create_func_arg2::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg3::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg3::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 

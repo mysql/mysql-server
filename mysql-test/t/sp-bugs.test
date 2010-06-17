@@ -57,5 +57,48 @@ SELECT f2 ();
 
 DROP SCHEMA testdb;
 
+USE test;
+
+--echo #
+--echo # Bug#50423: Crash on second call of a procedure dropping a trigger
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TRIGGER IF EXISTS tr1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @aux = 1;
+CREATE PROCEDURE p1 () DROP TRIGGER tr1;
+
+CALL p1 ();
+--error ER_TRG_DOES_NOT_EXIST
+CALL p1 ();
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Bug#50423: Crash on second call of a procedure dropping a trigger
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TRIGGER IF EXISTS tr1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @aux = 1;
+CREATE PROCEDURE p1 () DROP TRIGGER tr1;
+
+CALL p1 ();
+--error ER_TRG_DOES_NOT_EXIST
+CALL p1 ();
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
 
 --echo End of 5.1 tests

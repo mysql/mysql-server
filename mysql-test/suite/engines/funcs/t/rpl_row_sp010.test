@@ -1,0 +1,80 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/18/2005                                                #
+# Update: 08/29/2005 remove sleep added master pos save and sync            #
+#############################################################################
+#TEST: Taken and modfied from http://bugs.mysql.com/bug.php?id=11126        #
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP PROCEDURE IF EXISTS test.p3;
+DROP PROCEDURE IF EXISTS test.p4;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+
+
+# Begin test section 1 
+delimiter |;
+CREATE PROCEDURE test.p1()
+BEGIN
+  INSERT INTO test.t1 VALUES(2);
+END|
+CREATE PROCEDURE test.p2()
+BEGIN
+  DROP TEMPORARY TABLE IF EXISTS test.t1;
+  CREATE TEMPORARY TABLE test.t1 (a int, PRIMARY KEY(a));
+  INSERT INTO test.t1 VALUES(1);
+  CALL test.p1();
+END|
+delimiter ;|
+CALL test.p2();
+SELECT * FROM test.t1 ORDER BY a;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+show tables;
+
+connection master;
+delimiter |;
+CREATE PROCEDURE test.p3()
+BEGIN
+  INSERT INTO test.t2 VALUES(7);
+END|
+CREATE PROCEDURE test.p4()
+BEGIN
+  DROP TABLE IF EXISTS test.t2;
+  CREATE TABLE test.t2 (a int, PRIMARY KEY(a));
+  INSERT INTO test.t2 VALUES(6);
+  CALL test.p3();
+END|
+delimiter ;|
+CALL test.p4();
+SELECT * FROM test.t2 ORDER BY a;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+SELECT * FROM test.t2 ORDER BY a;
+
+# Cleanup
+connection master;
+#show binlog events;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP PROCEDURE IF EXISTS test.p3;
+DROP PROCEDURE IF EXISTS test.p4;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+sync_slave_with_master;
+
+# End of 5.0 test case

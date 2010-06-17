@@ -1,5 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1419,7 +1418,7 @@ bool Field::send_binary(Protocol *protocol)
    master's field size, @c false otherwise.
 */
 bool Field::compatible_field_size(uint field_metadata,
-                                  Relay_log_info *rli_arg __attribute__((unused)),
+                                  const Relay_log_info *rli_arg __attribute__((unused)),
                                   uint16 mflags __attribute__((unused)),
                                   int *order_var)
 {
@@ -1751,11 +1750,10 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
   uint store_length;
   copy->str=ptr;
   copy->length=pack_length();
-  copy->blob_field=0;
+  copy->field= this;
   if (flags & BLOB_FLAG)
   {
-    copy->blob_field=(Field_blob*) this;
-    copy->strip=0;
+    copy->type= CACHE_BLOB;
     copy->length-= table->s->blob_ptr_size;
     return copy->length;
   }
@@ -1763,15 +1761,15 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
            (type() == MYSQL_TYPE_STRING && copy->length >= 4 &&
             copy->length < 256))
   {
-    copy->strip=1;				/* Remove end space */
+    copy->type= CACHE_STRIPPED;
     store_length= 2;
   }
   else
   {
-    copy->strip=0;
+    copy->type= 0;
     store_length= 0;
   }
-  return copy->length+ store_length;
+  return copy->length + store_length;
 }
 
 
@@ -2912,10 +2910,23 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
 }
 
 
+/**
+   Check to see if field size is compatible with destination.
+
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+
+   @retval 0 if this field's size is < the source field's size
+   @retval 1 if this field's size is >= the source field's size
+*/
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
-                                              Relay_log_info * __attribute__((unused)),
-                                              uint16 mflags __attribute__((unused)),
-                                              int *order_var)
+                                             const Relay_log_info * __attribute__((unused)),
+                                             uint16 mflags __attribute__((unused)),
+                                             int *order_var)
 {
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
   uint const source_decimal= field_metadata & 0x00ff; 
@@ -2974,16 +2985,16 @@ Field_new_decimal::unpack(uchar* to,
       a decimal and write that to the raw data buffer.
     */
     decimal_digit_t dec_buf[DECIMAL_MAX_PRECISION];
-    decimal_t dec;
-    dec.len= from_precision;
-    dec.buf= dec_buf;
+    decimal_t dec_val;
+    dec_val.len= from_precision;
+    dec_val.buf= dec_buf;
     /*
       Note: bin2decimal does not change the length of the field. So it is
       just the first step the resizing operation. The second step does the
       resizing using the precision and decimals from the slave.
     */
-    bin2decimal((uchar *)from, &dec, from_precision, from_decimal);
-    decimal2bin(&dec, to, precision, decimals());
+    bin2decimal((uchar *)from, &dec_val, from_precision, from_decimal);
+    decimal2bin(&dec_val, to, precision, decimals());
   }
   else
     memcpy(to, from, len); // Sizes are the same, just copy the data.
@@ -6364,7 +6375,7 @@ check_string_copy_error(Field_str *field,
 
   SYNOPSIS
     Field_longstr::report_if_important_data()
-    ptr                      - Truncated rest of string
+    pstr                     - Truncated rest of string
     end                      - End of truncated string
     count_spaces             - Treat traling spaces as important data
 
@@ -6380,12 +6391,12 @@ check_string_copy_error(Field_str *field,
 */
 
 int
-Field_longstr::report_if_important_data(const char *ptr, const char *end,
+Field_longstr::report_if_important_data(const char *pstr, const char *end,
                                         bool count_spaces)
 {
-  if ((ptr < end) && table->in_use->count_cuted_fields)
+  if ((pstr < end) && table->in_use->count_cuted_fields)
   {
-    if (test_if_important_data(field_charset, ptr, end))
+    if (test_if_important_data(field_charset, pstr, end))
     {
       if (table->in_use->abort_on_warning)
         set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
@@ -6686,7 +6697,7 @@ check_field_for_37426(const void *param_arg)
 
 bool
 Field_string::compatible_field_size(uint field_metadata,
-                                    Relay_log_info *rli_arg,
+                                    const Relay_log_info *rli_arg,
                                     uint16 mflags __attribute__((unused)),
                                     int *order_var)
 {
@@ -7043,9 +7054,8 @@ const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 */
 int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
 {
-  char *ptr= (char *)metadata_ptr;
   DBUG_ASSERT(field_length <= 65535);
-  int2store(ptr, field_length);
+  int2store((char*)metadata_ptr, field_length);
   return 2;
 }
 
@@ -8918,14 +8928,20 @@ bool Field_num::eq_def(Field *field)
 }
 
 
+/**
+  Check whether two numeric fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they are of the same type
+  and retain the same pack length.
+*/
+
 uint Field_num::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
-	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
-							 UNSIGNED_FLAG)) &&
+          ((new_field->flags & UNSIGNED_FLAG) == 
+           (uint) (flags & UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length <= max_display_length()));
+          (new_field->pack_length == pack_length()));
 }
 
 
@@ -9296,19 +9312,30 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
 }
 
 
-bool
-Field_bit::compatible_field_size(uint field_metadata,
-                                 Relay_log_info * __attribute__((unused)),
-                                 uint16 mflags,
-                                 int *order_var)
+/**
+   Check to see if field size is compatible with destination.
+
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+
+   @retval 0 if this field's size is < the source field's size
+   @retval 1 if this field's size is >= the source field's size
+*/
+bool Field_bit::compatible_field_size(uint field_metadata,
+                                     const Relay_log_info * __attribute__((unused)),
+                                     uint16 mflags,
+                                     int *order_var)
 {
   DBUG_ENTER("Field_bit::compatible_field_size");
   DBUG_ASSERT((field_metadata >> 16) == 0);
   uint from_bit_len=
     8 * (field_metadata >> 8) + (field_metadata & 0xff);
   uint to_bit_len= max_display_length();
-  DBUG_PRINT("debug", ("from_bit_len: %u, to_bit_len: %u",
-                       from_bit_len, to_bit_len));
+
   /*
     If the bit length exact flag is clear, we are dealing with an old
     master, so we allow some less strict behaviour if replicating by
@@ -9321,6 +9348,8 @@ Field_bit::compatible_field_size(uint field_metadata,
     from_bit_len= (from_bit_len + 7) / 8;
     to_bit_len= (to_bit_len + 7) / 8;
   }
+  DBUG_PRINT("debug", ("from_bit_len: %u, to_bit_len: %u",
+                       from_bit_len, to_bit_len));
 
   *order_var= compare(from_bit_len, to_bit_len);
   DBUG_RETURN(TRUE);

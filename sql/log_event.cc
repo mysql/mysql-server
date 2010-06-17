@@ -3070,10 +3070,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             ::do_apply_event(), then the companion SET also have so
             we don't need to reset_one_shot_variables().
   */
-  if (!strncmp(query_arg, "BEGIN", q_len_arg) ||
-      !strncmp(query_arg, "COMMIT", q_len_arg) ||
-      !strncmp(query_arg, "ROLLBACK", q_len_arg) ||
-      rpl_filter->db_ok(thd->db))
+  if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
     thd->set_query((char*)query_arg, q_len_arg);
@@ -3177,6 +3174,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       const char* found_semicolon= NULL;
       mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
       log_slow_statement(thd);
+
+      /*
+        Resetting the enable_slow_log thd variable.
+
+        We need to reset it back to the opt_log_slow_slave_statements
+        value after the statement execution (and slow logging
+        is done). It might have changed if the statement was an
+        admin statement (in which case, down in mysql_parse execution
+        thd->enable_slow_log is set to the value of
+        opt_log_slow_admin_statements).
+      */
+      thd->enable_slow_log= opt_log_slow_slave_statements;
     }
     else
     {
@@ -8790,7 +8799,7 @@ static bool record_compare(TABLE *table)
   DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
 
   bool result= FALSE;
-  uchar saved_x[2], saved_filler[2];
+  uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
 
   if (table->s->null_bytes > 0)
   {
@@ -9543,7 +9552,7 @@ Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
   they will always be printed for the first event.
 */
 st_print_event_info::st_print_event_info()
-  :flags2_inited(0), sql_mode_inited(0),
+  :flags2_inited(0), sql_mode_inited(0), sql_mode(0),
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
