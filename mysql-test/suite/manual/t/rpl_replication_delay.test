@@ -10,9 +10,9 @@ source include/master-slave.inc;
 connection master;
 #connection slave;
 sync_slave_with_master;
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
---replace_column 1 # 8 # 9 # 23 #
---query_vertical show slave status /* Second_behind reports 0 */;
+--echo # Second_behind reports 0
+let $status_items= Seconds_Behind_Master;
+source include/show_slave_status.inc;
 sleep 3;
 
 ### bug emulation
@@ -35,9 +35,8 @@ insert into t1 values (1);
 sleep 3;
 
 connection slave;
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
---replace_column 1 # 8 # 9 # 23 #
---query_vertical show slave status /* bug emulated: reports slave threads starting time about 3*3 not 3 secs */;
+--echo # bug emulated: reports slave threads starting time about 3*3 not 3 secs
+source include/show_slave_status.inc;
 unlock tables;
 
 connection master;
@@ -55,9 +54,8 @@ insert into t1 values (2);
 sleep 3;
 
 connection slave;
---replace_result $DEFAULT_MASTER_PORT DEFAULT_MASTER_PORT
---replace_column 1 # 8 # 9 # 23 #
---query_vertical show slave status /* reports the correct diff with master query time about 3+3 secs */;
+--echo # reports the correct diff with master query time about 3+3 secs
+source include/show_slave_status.inc;
 unlock tables;
 
 connection master;
