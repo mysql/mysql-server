@@ -1590,6 +1590,9 @@ SELECT * FROM t1;
 a	b
 1	12
 ROLLBACK;
+# Switch to connection con2
+ROLLBACK;
+# Switch to connection con1
 # 2. test for serialized update:
 CREATE TABLE t2 (a INT);
 TRUNCATE t1;
@@ -1764,6 +1767,37 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DERIVED	t1	index	c3,c2	c2	14	NULL	5	
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
+#
+# Check that a TRUNCATE TABLE statement, needing an exclusive meta
+# data lock, waits for a shared metadata lock owned by a concurrent
+# transaction.
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3);
+BEGIN;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+# Connection con1
+TRUNCATE TABLE t1;;
+# Connection default
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+ROLLBACK;
+# Connection con1
+# Reaping TRUNCATE TABLE
+SELECT * FROM t1;
+a
+# Disconnect con1
+# Connection default
+DROP TABLE t1;
 drop table if exists t1, t2, t3;
 create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
