@@ -1,3 +1,8 @@
+2010-06-16	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#54330 Broken fast index creation
+
 2010-06-08	The InnoDB Team
 
 	* dict/dict0load.c:
