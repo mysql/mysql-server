@@ -300,7 +300,7 @@ check_files(const char *pidfile_name,
 
 
 static int
-do_files(const char *pidfile_name, int pidfd, int logfd)
+do_files(const char *pidfile_name, const char* logfile_name, int pidfd, int logfd)
 {
   /* Lock the lock file */
   if (lockf(pidfd, F_LOCK, 0) == -1)
@@ -319,15 +319,18 @@ do_files(const char *pidfile_name, int pidfd, int logfd)
     return ERR1("Failed to write pid to pidfile '%s', errno: %d",
                 pidfile_name, errno);
 
+#ifdef _WIN32
+  // Redirect stdout and stderr to the daemon log file
+  freopen(logfile_name, "a+", stdout);
+  freopen(logfile_name, "a+", stderr);
+  setbuf(stderr, NULL);
+#else
   /* Do input/output redirections (assume fd 0,1,2 not in use) */
   close(0);
-  const char* fname = IF_WIN("nul:", "/dev/null");
+  const char* fname = "/dev/null";
   if (open(fname, O_RDONLY) == -1)
     return ERR1("Failed to open '%s', errno: %d", fname, errno);
 
-#ifdef _WIN32 //no stdout/stderr on windows service
-  *stdout= *stderr= *dlog_file;
-#else
   if (logfd != -1)
   {
     dup2(logfd, 1);
@@ -363,7 +366,7 @@ int ndb_daemonize(const char* pidfile_name, const char *logfile_name)
 
 #endif
 
-  if (do_files(pidfile_name, pidfd, logfd))
+  if (do_files(pidfile_name, logfile_name, pidfd, logfd))
     return 1;
 
   g_pidfile_name = pidfile_name;
