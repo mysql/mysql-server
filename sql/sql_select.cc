@@ -4225,7 +4225,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   TABLE_LIST *tables= tables_arg;
   uint i,table_count,const_count,key;
   table_map found_const_table_map, all_table_map, found_ref, refs;
-  key_map const_ref, eq_part;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   KEYUSE *keyuse,*start_keyuse;
@@ -4474,8 +4473,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	  s->keys.set_bit(key);               // QQ: remove this ?
 
 	  refs=0;
-          const_ref.clear_all();
-	  eq_part.clear_all();
+          key_map const_ref, eq_part;
 	  do
 	  {
 	    if (keyuse->val->type() != Item::NULL_ITEM && !keyuse->optimize)
@@ -6022,7 +6020,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   List_iterator<Item_field> indexed_fields_it(indexed_fields);
   ORDER      *cur_group;
   Item_field *cur_item;
-  key_map possible_keys(0);
+  key_map possible_keys;
 
   if (join->group_list)
   { /* Collect all query fields referenced in the GROUP clause. */
@@ -8667,7 +8665,6 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   join_tab->use_join_cache= JOIN_CACHE::ALG_NONE;
   join_tab->table=tmp_table;
   join_tab->type= JT_ALL;			/* Map through all records */
-  join_tab->keys.init();
   join_tab->keys.set_all();                     /* test everything in quick */
   join_tab->ref.key = -1;
   join_tab->read_first_record= join_init_read_record;
@@ -15493,9 +15490,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     if (!field)
       DBUG_RETURN(0);
     field->table= table;
-    field->key_start.init(0);
-    field->part_of_key.init(0);
-    field->part_of_sortkey.init(0);
     field->unireg_check= Field::NONE;
     field->flags= (NOT_NULL_FLAG | BINARY_FLAG | NO_DEFAULT_VALUE_FLAG);
     field->reset_fields();
@@ -19121,7 +19115,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   uint used_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
-  key_map usable_keys;
   QUICK_SELECT_I *save_quick= 0;
   COND *orig_select_cond= 0;
   DBUG_ENTER("test_if_skip_sort_order");
@@ -19131,7 +19124,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
   */
-  usable_keys= *map;
+  key_map usable_keys= *map;
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
@@ -19227,8 +19220,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             create a new QUICK_SELECT from scratch so that all its
             parameres are set correctly by the range optimizer.
            */
-          key_map new_ref_key_map;
-          new_ref_key_map.clear_all();  // Force the creation of quick select
+          key_map new_ref_key_map;  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
           if (select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
@@ -19445,8 +19437,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       bool quick_created= FALSE;
       if (table->quick_keys.is_set(best_key) && best_key != ref_key)
       {
-        key_map map;
-        map.clear_all();       // Force the creation of quick select
+        key_map map;           // Force the creation of quick select
         map.set_bit(best_key); // only best_key.
         quick_created=         
           select->test_quick_select(join->thd, map, 0,
