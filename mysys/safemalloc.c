@@ -139,6 +139,11 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
 				     size +	/* size requested */
 				     4 +	/* overrun mark */
 				     sf_malloc_endhunc);
+    DBUG_EXECUTE_IF("simulate_out_of_memory",
+                    {
+                      free(irem);
+                      irem= NULL;
+                    });
   }
   /* Check if there isn't anymore memory avaiable */
   if (!irem)
@@ -159,6 +164,8 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
     }
     DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
 			(long)sf_malloc_max_memory,lineno, filename));
+    DBUG_EXECUTE_IF("simulate_out_of_memory",
+                    DBUG_SET("-d,simulate_out_of_memory"););
     if (MyFlags & MY_FAE)
       exit(1);
     DBUG_RETURN ((void*) 0);

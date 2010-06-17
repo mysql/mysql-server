@@ -123,7 +123,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       goto do_skip;
     }
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-    tmp_weight=*(float*)&subkeys;
+    ft_floatXget(tmp_weight, info->lastkey+info->lastkey_length-extra);
 #else
 #error
 #endif
