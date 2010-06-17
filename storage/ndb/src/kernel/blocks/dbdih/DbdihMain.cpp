@@ -10860,6 +10860,11 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
     getFragstore(tabPtr.p, i, fragPtr);
     
     /**
+     * During SR restart distributionKey from 0
+     */
+    fragPtr.p->distributionKey = 0;
+
+    /**
      * 1) Start by moving all replicas into oldStoredReplicas
      */
     prepareReplicas(fragPtr);
@@ -10870,9 +10875,16 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
      */
     ReplicaRecordPtr replicaPtr;
     replicaPtr.i = fragPtr.p->oldStoredReplicas;
-    while (replicaPtr.i != RNIL) {
+    while (replicaPtr.i != RNIL)
+    {
       jam();
       ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+
+      /**
+       * invalidate LCP's not usable
+       */
+      resetReplica(replicaPtr);
+
       const Uint32 nextReplicaPtrI = replicaPtr.p->nextReplica;
 
       NodeRecordPtr nodePtr;
@@ -10947,6 +10959,61 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
     }//while
     updateNodeInfo(fragPtr);
   }
+}
+
+void
+Dbdih::resetReplica(ReplicaRecordPtr readReplicaPtr)
+{
+  Uint32 i;
+  /* ---------------------------------------------------------------------- */
+  /*       IF THE LAST COMPLETED LOCAL CHECKPOINT IS VALID AND LARGER THAN  */
+  /*       THE LAST COMPLETED CHECKPOINT THEN WE WILL INVALIDATE THIS LOCAL */
+  /*       CHECKPOINT FOR THIS REPLICA.                                     */
+  /* ---------------------------------------------------------------------- */
+  for (i = 0; i < MAX_LCP_STORED; i++)
+  {
+    jam();
+    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
+        readReplicaPtr.p->lcpId[i] > SYSFILE->latestLCP_ID)
+    {
+      jam();
+      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
+  /*       INVALIDATED BY MOVING BACK THE RESTART GCI.                      */
+  /* ---------------------------------------------------------------------- */
+  Uint32 lastCompletedGCI = SYSFILE->newestRestorableGCI;
+  for (i = 0; i < MAX_LCP_STORED; i++)
+  {
+    jam();
+    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
+        readReplicaPtr.p->maxGciStarted[i] > lastCompletedGCI)
+    {
+      jam();
+      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*       WE WILL REMOVE ANY OCCURRENCES OF REPLICAS THAT HAVE CRASHED     */
+  /*       THAT ARE NO LONGER VALID DUE TO MOVING RESTART GCI BACKWARDS.    */
+  /* ---------------------------------------------------------------------- */
+  removeTooNewCrashedReplicas(readReplicaPtr, lastCompletedGCI);
+
+  /**
+   * Don't remove crashed replicas here,
+   *   as 1) this will disable optimized NR
+   *         if oldestRestorableGCI > GCI needed for local LCP's
+   *      2) This is anyway done during LCP, which will be run during SR
+   */
+  //removeOldCrashedReplicas(readReplicaPtr);
+
+  /* ---------------------------------------------------------------------- */
+  /*       FIND PROCESSOR RECORD                                            */
+  /* ---------------------------------------------------------------------- */
 }
 
 void
@@ -15490,11 +15557,7 @@ void Dbdih::readFragment(RWFragment* rf, FragmentstorePtr fragPtr)
   ndbrequire(fragPtr.p->noStoredReplicas > 0);
   ndbrequire(TreadFid == rf->fragId);  
   ndbrequire(TdistKey < 256);
-  if ((cstarttype == NodeState::ST_NODE_RESTART) || 
-      (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)) {
-    jam();
-    fragPtr.p->distributionKey = TdistKey;
-  }//if
+  fragPtr.p->distributionKey = TdistKey;
 
   fragPtr.p->m_log_part_id = readPageWord(rf);
   inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
@@ -15540,56 +15603,6 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
     readReplicaPtr.p->createGci[i] = readPageWord(rf);
     readReplicaPtr.p->replicaLastGci[i] = readPageWord(rf);
   }
-
-  /* ---------------------------------------------------------------------- */
-  /*       IF THE LAST COMPLETED LOCAL CHECKPOINT IS VALID AND LARGER THAN  */
-  /*       THE LAST COMPLETED CHECKPOINT THEN WE WILL INVALIDATE THIS LOCAL */
-  /*       CHECKPOINT FOR THIS REPLICA.                                     */
-  /* ---------------------------------------------------------------------- */
-  for (i = 0; i < MAX_LCP_STORED; i++)
-  {
-    jam();
-    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
-        readReplicaPtr.p->lcpId[i] > SYSFILE->latestLCP_ID)
-    {
-      jam();
-      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
-    }
-  }
-
-  /* ---------------------------------------------------------------------- */
-  /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
-  /*       INVALIDATED BY MOVING BACK THE RESTART GCI.                      */
-  /* ---------------------------------------------------------------------- */
-  Uint32 lastCompletedGCI = SYSFILE->newestRestorableGCI;
-  for (i = 0; i < MAX_LCP_STORED; i++)
-  {
-    jam();
-    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
-        readReplicaPtr.p->maxGciStarted[i] > lastCompletedGCI)
-    {
-      jam();
-      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
-    }
-  }
-
-  /* ---------------------------------------------------------------------- */
-  /*       WE WILL REMOVE ANY OCCURRENCES OF REPLICAS THAT HAVE CRASHED     */
-  /*       THAT ARE NO LONGER VALID DUE TO MOVING RESTART GCI BACKWARDS.    */
-  /* ---------------------------------------------------------------------- */
-  removeTooNewCrashedReplicas(readReplicaPtr, lastCompletedGCI);
-
-  /**
-   * Don't remove crashed replicas here,
-   *   as 1) this will disable optimized NR
-   *         if oldestRestorableGCI > GCI needed for local LCP's
-   *      2) This is anyway done during LCP, which will be run during SR
-   */
-  //removeOldCrashedReplicas(readReplicaPtr);
-  
-  /* ---------------------------------------------------------------------- */
-  /*       FIND PROCESSOR RECORD                                            */
-  /* ---------------------------------------------------------------------- */
 }//Dbdih::readReplica()
 
 void Dbdih::readReplicas(RWFragment* rf, FragmentstorePtr fragPtr)
