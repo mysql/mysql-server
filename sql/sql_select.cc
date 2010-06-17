@@ -2647,8 +2647,16 @@ JOIN::exec()
     /* Copy data to the temporary table */
     thd_proc_info(thd, "Copying to tmp table");
     DBUG_PRINT("info", ("%s", thd->proc_info));
+    /*
+      If there is no sorting or grouping, one may turn off
+      requirement that access method should deliver rows in sorted
+      order.  Exception: LooseScan strategy for semijoin requires
+      sorted access even if final result is not to be sorted.
+    */
     if (!curr_join->sort_and_group &&
-        curr_join->const_tables != curr_join->tables)
+        curr_join->const_tables != curr_join->tables && 
+        curr_join->best_positions[curr_join->const_tables].sj_strategy 
+          != SJ_OPT_LOOSE_SCAN)
       curr_join->join_tab[curr_join->const_tables].sorted= 0;
     if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
     {

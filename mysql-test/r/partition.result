@@ -1667,8 +1667,6 @@ PARTITION p03 VALUES LESS THAN MAXVALUE ) ;
 INSERT INTO t4 select * from t2;
 set @f_date='2006-09-28';
 set @t_date='2006-10-02';
-set @opt_sw_save= @@optimizer_switch;
-set optimizer_switch="semijoin=off";
 SELECT t1.id AS MyISAM_part
 FROM t1
 WHERE t1.id IN (
@@ -1680,7 +1678,6 @@ MyISAM_part
 16421
 19092
 22589
-set optimizer_switch=@opt_sw_save;
 drop table t1, t2, t4;
 CREATE TABLE t1 (
 taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
