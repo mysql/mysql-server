@@ -788,6 +788,12 @@ mysqltest: At line 1: change user failed: Access denied for user 'root'@'localho
 file1.txt
 file1.txt
 file2.txt
+prefix1.txt
+prefix2.txt
+prefix3.txt
+SELECT "bla bla file" as x;
+x
+bla bla file
 file11.txt
 dir-list.txt
 SELECT 'c:\\a.txt' AS col;

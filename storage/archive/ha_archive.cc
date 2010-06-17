@@ -1713,6 +1713,20 @@ void ha_archive::destroy_record_buffer(archive_record_buffer *r)
   DBUG_VOID_RETURN;
 }
 
+bool ha_archive::check_if_incompatible_data(HA_CREATE_INFO *info,
+                                            uint table_changes)
+{
+  if (info->auto_increment_value != stats.auto_increment_value ||
+      (info->used_fields & HA_CREATE_USED_DATADIR) ||
+      info->data_file_name ||
+      (info->used_fields & HA_CREATE_USED_COMMENT) ||
+      table_changes != IS_EQUAL_YES)
+    return COMPATIBLE_DATA_NO;
+
+  return COMPATIBLE_DATA_YES;
+}
+
+
 struct st_mysql_storage_engine archive_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
