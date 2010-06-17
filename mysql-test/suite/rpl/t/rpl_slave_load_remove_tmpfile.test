@@ -31,12 +31,9 @@ commit;
 #                            Catch Error
 ##########################################################################
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
---replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---replace_regex /SQL_LOAD-[0-9]-[0-9]-[0-9]*/SQL_LOAD/
-query_vertical show slave status;
+# Errno 9 is what we get although it's wrong (see BUG#52768).
+--let $slave_sql_errno= 9
+--source include/wait_for_slave_sql_error.inc
 
 ##########################################################################
 #                             Clean up

@@ -759,6 +759,10 @@ convert_error_code_to_mysql(
 	} else if (error == DB_UNSUPPORTED) {
 
 		return(HA_ERR_UNSUPPORTED);
+	} else if (error == DB_INTERRUPTED) {
+
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		return(-1);
     	} else {
     		return(-1);			// Unknown error
     	}
@@ -1140,6 +1144,15 @@ innobase_next_autoinc(
 	return(next_value);
 }
 
+/** Copy the current SQL statement.
+* @param[in] thd	MySQL client connection
+* @param[in/out] trx	InnoDB transaction */
+#define INNOBASE_COPY_STMT(thd, trx) do {		\
+	LEX_STRING* stmt = thd_query_string(thd);	\
+	(trx)->mysql_query_str = &stmt->str;		\
+	(trx)->mysql_query_len = &stmt->length;		\
+} while (0)
+
 /*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
@@ -1160,7 +1173,7 @@ check_trx_exists(
 		trx = trx_allocate_for_mysql();
 
 		trx->mysql_thd = thd;
-		trx->mysql_query_str = thd_query(thd);
+		INNOBASE_COPY_STMT(thd, trx);
 
 		/* Update the info whether we should skip XA steps that eat
 		CPU time */
@@ -5578,7 +5591,7 @@ ha_innobase::create(
 	trx = trx_allocate_for_mysql();
 
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
@@ -5674,8 +5687,10 @@ ha_innobase::create(
 	}
 
 	if (*trx->mysql_query_str) {
-		error = row_table_add_foreign_constraints(trx,
-			*trx->mysql_query_str, norm_name,
+		error = row_table_add_foreign_constraints(
+			trx,
+			*trx->mysql_query_str, *trx->mysql_query_len,
+			norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		error = convert_error_code_to_mysql(error, NULL);
@@ -5866,7 +5881,7 @@ ha_innobase::delete_table(
 	trx = trx_allocate_for_mysql();
 
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
@@ -5955,7 +5970,7 @@ innobase_drop_database(
 #endif
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
@@ -6025,7 +6040,7 @@ ha_innobase::rename_table(
 
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	INNOBASE_COPY_STMT(thd, trx);
 
 	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
 		trx->check_foreigns = FALSE;
