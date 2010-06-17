@@ -1,0 +1,78 @@
+drop table if exists t1;
+set names latin1;
+select hex(weight_string(0x010203));
+hex(weight_string(0x010203))
+010203
+select hex(weight_string('aa' as char(3)));
+hex(weight_string('aa' as char(3)))
+414120
+select hex(weight_string('a' as char(-1)));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)))' at line 1
+select hex(weight_string('a' as char(0)));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0)))' at line 1
+select hex(weight_string('a' as char(1)));
+hex(weight_string('a' as char(1)))
+41
+select hex(weight_string('ab' as char(1)));
+hex(weight_string('ab' as char(1)))
+41
+select hex(weight_string('ab'));
+hex(weight_string('ab'))
+4142
+select hex(weight_string('aa' as binary(3)));
+hex(weight_string('aa' as binary(3)))
+616100
+select hex(weight_string(cast('aa' as binary(3))));
+hex(weight_string(cast('aa' as binary(3))))
+616100
+select hex(weight_string('ab' level 1-1 ASC));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ASC))' at line 1
+select hex(weight_string('ab' level 1-1 DESC));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DESC))' at line 1
+select hex(weight_string('ab' level 1-1 REVERSE));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REVERSE))' at line 1
+select hex(weight_string('ab' level 1 ASC));
+hex(weight_string('ab' level 1 ASC))
+4142
+select hex(weight_string('ab' level 1 DESC));
+hex(weight_string('ab' level 1 DESC))
+BEBD
+select hex(weight_string('ab' level 1 REVERSE));
+hex(weight_string('ab' level 1 REVERSE))
+4241
+select hex(weight_string('ab' level 1 DESC REVERSE));
+hex(weight_string('ab' level 1 DESC REVERSE))
+BDBE
+create table t1 select weight_string('test') as w;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `w` varbinary(4) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select weight_string(repeat('t',66000)) as w;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `w` longblob
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+select weight_string(NULL);
+weight_string(NULL)
+NULL
+select 1 as weight_string, 2 as reverse;
+weight_string	reverse
+1	2
+select coercibility(weight_string('test'));
+coercibility(weight_string('test'))
+4
+select coercibility(weight_string('test' collate latin1_swedish_ci));
+coercibility(weight_string('test' collate latin1_swedish_ci))
+0
+create table t1 (s1 varchar(5));
+insert into t1 values ('a'),(null);
+select hex(weight_string(s1)) from t1 order by s1;
+hex(weight_string(s1))
+NULL
+41
+drop table t1;
