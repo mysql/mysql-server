@@ -6340,7 +6340,11 @@ ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
   eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
 
 ER_BINLOG_UNSAFE_MIXED_STATEMENT
-  eng "Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe."
+  eng "Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them."
+
+ER_FAILED_READ_FROM_PAR_FILE
+  eng "Failed to read from the .par file"
+  swe "Misslyckades läsa från .par filen"
 
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
@@ -6349,4 +6353,10 @@ ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ER_CANNOT_LOAD_FROM_TABLE_V2
   eng "Cannot load from %s.%s. The table is probably corrupted"
   ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot modify @@session.sql_log_bin inside a transaction"
+
+ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot change the sql_log_bin inside a stored function or trigger"
 

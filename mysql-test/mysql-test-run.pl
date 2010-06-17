@@ -2111,6 +2111,15 @@ sub environment_setup {
                         "$basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
+  # mysqlhotcopy
+  # ----------------------------------------------------
+  my $mysqlhotcopy=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy");
+  # Since mysqltest interprets the real path as "false" in an if,
+  # use 1 ("true") to indicate "not exists" so it can be tested for
+  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
+
+  # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
   my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
@@ -3811,6 +3820,7 @@ sub extract_warning_lines ($$) {
       # Skip valgrind summary from tests where server has been restarted
       # Should this contain memory leaks, the final report will find it
       $skip_valgrind= 1 if $line =~ /^==\d+== ERROR SUMMARY:/;
+      $skip_valgrind= 1 if $line =~ /^==\d+== HEAP SUMMARY:/;
       $skip_valgrind= 0 unless $line =~ /^==\d+==/;
       next if $skip_valgrind;
     }

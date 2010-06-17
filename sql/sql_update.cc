@@ -408,7 +408,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->mark_columns_used_by_index(used_index);
+      table->add_read_columns_used_by_index(used_index);
     else
     {
       table->use_all_columns();
@@ -436,6 +436,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -482,6 +483,7 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
+        thd->examined_row_count++;
 	if (!(select && select->skip_record()))
 	{
           if (table->file->was_semi_consistent_read())
@@ -588,6 +590,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
+    thd->examined_row_count++;
     if (!(select && select->skip_record()))
     {
       if (table->file->was_semi_consistent_read())
@@ -1053,7 +1056,7 @@ int mysql_multi_update_prepare(THD *thd)
         be write-locked (for example, trigger to be invoked might try
         to update this table).
       */
-      tl->lock_type= read_lock_type_for_table(thd, table);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
@@ -1285,7 +1288,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
-  SQL_LIST update;
+  SQL_I_List<TABLE_LIST> update;
   table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
@@ -1336,6 +1339,16 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      /*
+        If a timestamp field settable on UPDATE is present then to avoid wrong
+        update force the table handler to retrieve write-only fields to be able
+        to compare records and detect data change.
+        */
+      if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+          table->timestamp_field &&
+          (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+        bitmap_union(table->read_set, table->write_set);
     }
   }
   
@@ -1356,11 +1369,11 @@ int multi_update::prepare(List<Item> &not_used_values,
     leaf_table_count++;
     if (tables_to_update & table->map)
     {
-      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
+      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((uchar*) tl, (uchar**) &tl->next_local);
+      update.link_in_list(tl, &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
@@ -1381,7 +1394,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
 
   table_count=  update.elements;
-  update_tables= (TABLE_LIST*) update.first;
+  update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *

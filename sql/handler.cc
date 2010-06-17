@@ -174,7 +174,7 @@ redo:
 }
 
 
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 {
   if (hton)
   {
@@ -299,13 +299,14 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
-const char **handler_errmsgs;
+static const char **handler_errmsgs;
 
-
-const char **get_handler_errmsgs()
+C_MODE_START
+static const char **get_handler_errmsgs()
 {
   return handler_errmsgs;
 }
+C_MODE_END
 
 
 /**
@@ -642,9 +643,13 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
     there's no need to rollback here as all transactions must
     be rolled back already
   */
-  if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
-      thd_get_ha_data(thd, hton))
-    hton->close_connection(hton, thd);
+  if (hton->state == SHOW_OPTION_YES && thd_get_ha_data(thd, hton))
+  {
+    if (hton->close_connection)
+      hton->close_connection(hton, thd);
+    /* make sure ha_data is reset and ha_data_lock is released */
+    thd_set_ha_data(thd, hton, NULL);
+  }
   return FALSE;
 }
 
@@ -1245,7 +1250,14 @@ end:
 /**
   @note
   This function does not care about global read lock. A caller should.
+
+  @param[in]  all  Is set in case of explicit commit
+                   (COMMIT statement), or implicit commit
+                   issued by DDL. Is not set when called
+                   at the end of statement, even if
+                   autocommit=1.
 */
+
 int ha_commit_one_phase(THD *thd, bool all)
 {
   int error=0;
@@ -1253,9 +1265,15 @@ int ha_commit_one_phase(THD *thd, bool all)
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
-    transation is not 'real': even though it's possible to commit it,
+    transaction is not 'real': even though it's possible to commit it,
     the changes are not durable as they might be rolled back if the
     enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT/BEGIN statement, or implicit
+    commit issued by DDL (all == TRUE), or if we're running
+    in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() can be called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
   */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
@@ -1303,9 +1321,15 @@ int ha_rollback_trans(THD *thd, bool all)
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
-    transation is not 'real': even though it's possible to commit it,
+    transaction is not 'real': even though it's possible to commit it,
     the changes are not durable as they might be rolled back if the
     enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT or BEGIN statement, or implicit
+    commit issued by DDL (in these cases all == TRUE),
+    or if we're running in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() is called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
   */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   DBUG_ENTER("ha_rollback_trans");
@@ -1358,7 +1382,7 @@ int ha_rollback_trans(THD *thd, bool all)
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
   }
-  /* Always cleanup. Even if there nht==0. There may be savepoints. */
+  /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
     thd->transaction.cleanup();
   if (all)
@@ -3529,7 +3553,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 }
 
 
-void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                          uint part_id)
 {
   info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |

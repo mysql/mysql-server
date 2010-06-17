@@ -469,10 +469,10 @@ struct sql_ex_info
 #define LOG_EVENT_SUPPRESS_USE_F    0x8
 
 /*
-  The table map version internal to the log should be increased after
-  the event has been written to the binary log.
+  Note: this is a place holder for the flag
+  LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F (0x10), which is not used any
+  more, please do not reused this value for other flags.
  */
-#define LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F 0x10
 
 /**
    @def LOG_EVENT_ARTIFICIAL_F
@@ -1746,6 +1746,28 @@ public:        /* !!! Public in this patch to allow old usage */
                        const char *query_arg,
                        uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
+  /*
+    If true, the event always be applied by slave SQL thread or be printed by
+    mysqlbinlog
+   */
+  bool is_trans_keyword()
+  {
+    /*
+      Before the patch for bug#50407, The 'SAVEPOINT and ROLLBACK TO'
+      queries input by user was written into log events directly.
+      So the keywords can be written in both upper case and lower case
+      together, strncasecmp is used to check both cases. they also could be
+      binlogged with comments in the front of these keywords. for examples:
+        / * bla bla * / SAVEPOINT a;
+        / * bla bla * / ROLLBACK TO a;
+      but we don't handle these cases and after the patch, both quiries are
+      binlogged in upper case with no comments.
+     */
+    return !strncmp(query, "BEGIN", q_len) ||
+      !strncmp(query, "COMMIT", q_len) ||
+      !strncasecmp(query, "SAVEPOINT", 9) ||
+      !strncasecmp(query, "ROLLBACK", 8);
+  }
 };
 
 
@@ -2069,6 +2091,17 @@ public:
   uint32 skip_lines;
   sql_ex_info sql_ex;
   bool local_fname;
+  /**
+    Indicates that this event corresponds to LOAD DATA CONCURRENT,
+
+    @note Since Load_log_event event coming from the binary log
+          lacks information whether LOAD DATA on master was concurrent
+          or not, this flag is only set to TRUE for an auxiliary
+          Load_log_event object which is used in mysql_load() to
+          re-construct LOAD DATA statement from function parameters,
+          for logging.
+  */
+  bool is_concurrent;
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   void set_fname_outside_temp_buf(const char *afname, uint alen)
@@ -2089,7 +2122,9 @@ public:
 
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 		 const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup, bool ignore,
+		 List<Item>& fields_arg,
+                 bool is_concurrent_arg,
+                 enum enum_duplicates handle_dup, bool ignore,
 		 bool using_trans);
   void set_fields(const char* db, List<Item> &fields_arg,
                   Name_resolution_context *context);
@@ -2708,6 +2743,7 @@ public:
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			const char* table_name_arg,
 			List<Item>& fields_arg,
+                        bool is_concurrent_arg,
 			enum enum_duplicates handle_dup, bool ignore,
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);

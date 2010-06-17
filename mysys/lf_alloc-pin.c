@@ -329,10 +329,9 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 {
   int npins, alloca_size;
   void *list, **addr;
-  void *first, *last= NULL;
+  void *first= NULL, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
 
-  LINT_INIT(first);
   npins= pinbox->pins_in_array+1;
 
 #ifdef HAVE_ALLOCA

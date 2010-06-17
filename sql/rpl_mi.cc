@@ -132,8 +132,10 @@ enum {
   LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
   /* 6.0 added value of master_heartbeat_period */
   LINE_FOR_MASTER_HEARTBEAT_PERIOD= 16,
+  /* MySQL Cluster 6.3 added master_bind */
+  LINE_FOR_MASTER_BIND = 17,
   /* 6.0 added value of master_ignore_server_id */
-  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 17,
+  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 18,
   /* Number of lines currently used when saving master info file */
   LINES_IN_MASTER_INFO= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS
 };
@@ -241,6 +243,7 @@ file '%s')", mi->info_file_name);
     int ssl= 0, ssl_verify_server_cert= 0;
     float master_heartbeat_period= 0.0;
     char *first_non_digit;
+    char dummy_buf[HOSTNAME_LENGTH+1];
 
     /*
        Starting from 4.1.x master.info has new format. Now its
@@ -329,6 +332,13 @@ file '%s')", mi->info_file_name);
       if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD &&
           init_floatvar_from_file(&master_heartbeat_period, &mi->file, 0.0))
         goto errwithmsg;
+      /*
+	Starting from MySQL Cluster 6.3 master_bind might be in the file
+	(this is just a reservation to avoid future upgrade problems) 
+       */
+      if (lines >= LINE_FOR_MASTER_BIND &&
+	  init_strvar_from_file(dummy_buf, sizeof(dummy_buf), &mi->file, ""))
+	  goto errwithmsg;
       /*
         Starting from 6.0 list of server_id of ignorable servers might be
         in the file
@@ -481,14 +491,14 @@ int flush_master_info(Master_info* mi,
   my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
   my_b_seek(file, 0L);
   my_b_printf(file,
-              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n",
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",
               LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
-              heartbeat_buf, ignore_server_ids_buf);
+              heartbeat_buf, "", ignore_server_ids_buf);
   my_free(ignore_server_ids_buf, MYF(0));
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 
