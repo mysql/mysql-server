@@ -6342,6 +6342,10 @@ ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 ER_BINLOG_UNSAFE_MIXED_STATEMENT
   eng "Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them."
 
+ER_FAILED_READ_FROM_PAR_FILE
+  eng "Failed to read from the .par file"
+  swe "Misslyckades läsa från .par filen"
+
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
   ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
