@@ -770,8 +770,7 @@ class SQL_SELECT :public Sql_alloc {
   void cleanup();
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   {
-    key_map tmp;
-    tmp.set_all();
+    key_map tmp(key_map::ALL_BITS);
     return test_quick_select(thd, tmp, 0, limit, force_quick_range, FALSE) < 0;
   }
   inline bool skip_record() { return cond ? cond->val_int() == 0 : 0; }
