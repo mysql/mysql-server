@@ -961,7 +961,7 @@ typedef struct {
   ulong check_time;
   ulong update_time;
   ulonglong check_sum;
-} PARTITION_INFO;
+} PARTITION_STATS;
 
 #define UNDEF_NODEGROUP 65535
 class Item;
@@ -988,7 +988,7 @@ typedef struct st_ha_create_information
   ulong avg_row_length;
   ulong used_fields;
   ulong key_block_size;
-  SQL_LIST merge_list;
+  SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**
     Row type of the table definition.
@@ -1560,7 +1560,7 @@ public:
     { return (ha_rows) 10; }
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
-  virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
+  virtual void get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                           uint part_id);
   virtual int extra(enum ha_extra_function operation)
   { return 0; }

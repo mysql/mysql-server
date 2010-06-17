@@ -44,7 +44,7 @@
 #include "sql_partition.h"       // make_used_partitions_str
 #include "sql_acl.h"             // *_ACL
 #include "sql_test.h"            // print_where, print_keyuse_array,
-                                 // print_sjm, print_plan
+                                 // print_sjm, print_plan, TEST_join
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
@@ -90,8 +90,10 @@ static bool best_extension_by_limited_search(JOIN *join,
                                              double read_time, uint depth,
                                              uint prune_level);
 static uint determine_search_depth(JOIN* join);
+C_MODE_START
 static int join_tab_cmp(const void* ptr1, const void* ptr2);
 static int join_tab_cmp_straight(const void* ptr1, const void* ptr2);
+C_MODE_END
 /*
   TODO: 'find_best' is here only temporarily until 'greedy_search' is
   tested and approved.
@@ -274,15 +276,15 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
       setup_tables_done_option changed for next rexecution
     */
     res= mysql_select(thd, &select_lex->ref_pointer_array,
-		      (TABLE_LIST*) select_lex->table_list.first,
+		      select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
 		      select_lex->where,
 		      select_lex->order_list.elements +
 		      select_lex->group_list.elements,
-		      (ORDER*) select_lex->order_list.first,
-		      (ORDER*) select_lex->group_list.first,
+		      select_lex->order_list.first,
+		      select_lex->group_list.first,
 		      select_lex->having,
-		      (ORDER*) lex->proc_list.first,
+		      lex->proc_list.first,
 		      select_lex->options | thd->variables.option_bits |
                       setup_tables_done_option,
 		      result, unit, select_lex);
@@ -2745,31 +2747,53 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     /* 
        Build transitive closure for relation 'to be dependent on'.
        This will speed up the plan search for many cases with outer joins,
-       as well as allow us to catch illegal cross references/
+       as well as allow us to catch illegal cross references.
        Warshall's algorithm is used to build the transitive closure.
-       As we use bitmaps to represent the relation the complexity
-       of the algorithm is O((number of tables)^2). 
+       As we may restart the outer loop upto 'table_count' times, the
+       complexity of the algorithm is O((number of tables)^3).
+       However, most of the iterations will be shortcircuited when
+       there are no pedendencies to propogate.
     */
-    for (i= 0, s= stat ; i < table_count ; i++, s++)
+    for (i= 0 ; i < table_count ; i++)
     {
-      for (uint j= 0 ; j < table_count ; j++)
+      uint j;
+      table= stat[i].table;
+
+      if (!table->reginfo.join_tab->dependent)
+        continue;
+
+      /* Add my dependencies to other tables depending on me */
+      for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
-        table= stat[j].table;
         if (s->dependent & table->map)
+        {
+          table_map was_dependent= s->dependent;
           s->dependent |= table->reginfo.join_tab->dependent;
+          /*
+            If we change dependencies for a table we already have
+            processed: Redo dependency propagation from this table.
+          */
+          if (i > j && s->dependent != was_dependent)
+          {
+            i = j-1;
+            break;
+          }
+        }
       }
-      if (outer_join & s->table->map)
-        s->table->maybe_null= 1;
     }
-    /* Catch illegal cross references for outer joins */
+
     for (i= 0, s= stat ; i < table_count ; i++, s++)
     {
+      /* Catch illegal cross references for outer joins */
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         goto error;
       }
+
+      if (outer_join & s->table->map)
+        s->table->maybe_null= 1;
       s->key_dependent= s->dependent;
     }
   }
@@ -8822,6 +8846,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
+  bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   DBUG_ENTER("simplify_joins");
 
   /* 
@@ -8932,7 +8957,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     if (prev_table)
     {
       /* The order of tables is reverse: prev_table follows table */
-      if (prev_table->straight)
+      if (prev_table->straight || straight_join)
         prev_table->dep_tables|= used_tables;
       if (prev_table->on_expr)
       {
@@ -17003,15 +17028,15 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     thd->lex->current_select= first;
     unit->set_limit(unit->global_parameters);
     res= mysql_select(thd, &first->ref_pointer_array,
-			(TABLE_LIST*) first->table_list.first,
+			first->table_list.first,
 			first->with_wild, first->item_list,
 			first->where,
 			first->order_list.elements +
 			first->group_list.elements,
-			(ORDER*) first->order_list.first,
-			(ORDER*) first->group_list.first,
+			first->order_list.first,
+			first->group_list.first,
 			first->having,
-			(ORDER*) thd->lex->proc_list.first,
+			thd->lex->proc_list.first,
 			first->options | thd->variables.option_bits | SELECT_DESCRIBE,
 			result, unit, first);
   }
@@ -17229,8 +17254,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
     str->append(STRING_WITH_LEN("straight_join "));
-  if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
-      (this == &thd->lex->select_lex))
+  if (options & SELECT_HIGH_PRIORITY)
     str->append(STRING_WITH_LEN("high_priority "));
   if (options & SELECT_DISTINCT)
     str->append(STRING_WITH_LEN("distinct "));
@@ -17315,7 +17339,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (group_list.elements)
   {
     str->append(STRING_WITH_LEN(" group by "));
-    print_order(str, (ORDER *) group_list.first, query_type);
+    print_order(str, group_list.first, query_type);
     switch (olap)
     {
       case CUBE_TYPE:
@@ -17346,7 +17370,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (order_list.elements)
   {
     str->append(STRING_WITH_LEN(" order by "));
-    print_order(str, (ORDER *) order_list.first, query_type);
+    print_order(str, order_list.first, query_type);
   }
 
   // limit

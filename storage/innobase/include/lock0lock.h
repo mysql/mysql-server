@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -340,11 +340,12 @@ lock_sec_rec_modify_check_and_lock(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /*********************************************************************//**
-Like the counterpart for a clustered index below, but now we read a
+Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+enum db_err
 lock_sec_rec_read_check_and_lock(
 /*=============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -371,9 +372,10 @@ if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+@return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
+or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+enum db_err
 lock_clust_rec_read_check_and_lock(
 /*===============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -613,13 +615,16 @@ lock_rec_print(
 	FILE*		file,	/*!< in: file where to print */
 	const lock_t*	lock);	/*!< in: record type lock */
 /*********************************************************************//**
-Prints info of locks for all transactions. */
+Prints info of locks for all transactions.
+@return FALSE if not able to obtain kernel mutex
+and exits without printing info */
 UNIV_INTERN
-void
+ibool
 lock_print_info_summary(
 /*====================*/
-	FILE*	file);	/*!< in: file where to print */
-/*********************************************************************//**
+	FILE*	file,	/*!< in: file where to print */
+	ibool   nowait);/*!< in: whether to wait for the kernel mutex */
+/*************************************************************************
 Prints info of locks for each transaction. */
 UNIV_INTERN
 void
@@ -634,7 +639,7 @@ UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
-	trx_t*	trx);	/*!< in: transaction */
+	const trx_t*	trx);	/*!< in: transaction */
 /*******************************************************************//**
 Check if a transaction holds any autoinc locks.
 @return TRUE if the transaction holds any AUTOINC locks. */

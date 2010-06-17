@@ -640,8 +640,8 @@ public:
   LEX *parent_lex;
   enum olap_type olap;
   /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
-  SQL_LIST	      table_list;
-  SQL_LIST	      group_list; /* GROUP BY clause. */
+  SQL_I_List<TABLE_LIST>  table_list;
+  SQL_I_List<ORDER>       group_list; /* GROUP BY clause. */
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list;
   bool	              is_item_list_lookup;
@@ -663,8 +663,8 @@ public:
   TABLE_LIST *leaf_tables;
   const char *type;               /* type of select for EXPLAIN          */
 
-  SQL_LIST order_list;                /* ORDER clause */
-  SQL_LIST *gorder_list;
+  SQL_I_List<ORDER> order_list;   /* ORDER clause */
+  SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
@@ -738,14 +738,6 @@ public:
   int cur_pos_in_select_list;
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
-
-  /**
-    Per sub-query locking strategy.
-    Note: This variable might interfer with the corresponding statement-level
-    variable Lex::lock_option because on how different parser rules depend
-    on eachother.
-  */
-  thr_lock_type lock_option;
 
   /* 
     This is a copy of the original JOIN USING list that comes from
@@ -822,7 +814,7 @@ public:
   {
     order_list.elements= 0;
     order_list.first= 0;
-    order_list.next= (uchar**) &order_list.first;
+    order_list.next= &order_list.first;
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
@@ -1004,9 +996,14 @@ extern const LEX_STRING null_lex_str;
 extern const LEX_STRING empty_lex_str;
 
 
+struct Sroutine_hash_entry;
+
 /*
-  Class representing list of all tables used by statement.
-  It also contains information about stored functions used by statement
+  Class representing list of all tables used by statement and other
+  information which is necessary for opening and locking its tables,
+  like SQL command for this statement.
+
+  Also contains information about stored functions used by statement
   since during its execution we may have to add all tables used by its
   stored functions/triggers to this list in order to pre-open and lock
   them.
@@ -1018,6 +1015,13 @@ extern const LEX_STRING empty_lex_str;
 class Query_tables_list
 {
 public:
+  /**
+    SQL command for this statement. Part of this class since the
+    process of opening and locking tables for the statement needs
+    this information to determine correct type of lock for some of
+    the tables.
+  */
+  enum_sql_command sql_command;
   /* Global list of all tables used by this statement */
   TABLE_LIST *query_tables;
   /* Pointer to next_global member of last element in the previous list. */
@@ -1044,9 +1048,9 @@ public:
     We use these two members for restoring of 'sroutines_list' to the state
     in which it was right after query parsing.
   */
-  SQL_LIST sroutines_list;
-  uchar    **sroutines_list_own_last;
-  uint     sroutines_list_own_elements;
+  SQL_I_List<Sroutine_hash_entry> sroutines_list;
+  Sroutine_hash_entry **sroutines_list_own_last;
+  uint sroutines_list_own_elements;
 
   /*
     These constructor and destructor serve for creation/destruction
@@ -1374,8 +1378,21 @@ enum enum_comment_state
 class Lex_input_stream
 {
 public:
-  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
-  ~Lex_input_stream();
+  Lex_input_stream()
+  {
+  }
+
+  ~Lex_input_stream()
+  {
+  }
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length);
 
   void reset(const char *buff, unsigned int length);
 
@@ -1899,7 +1916,8 @@ struct LEX: public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_LIST	      proc_list, auxiliary_table_list, save_list;
+  SQL_I_List<ORDER> proc_list;
+  SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
@@ -1920,7 +1938,6 @@ struct LEX: public Query_tables_list
     the variable can contain 0 or 1 for each nest level.
   */
   nesting_map allow_sum_func;
-  enum_sql_command sql_command;
 
   Sql_statement *m_stmt;
 
@@ -1932,7 +1949,6 @@ struct LEX: public Query_tables_list
   */
   bool expr_allows_subselect;
 
-  thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
@@ -2032,7 +2048,7 @@ struct LEX: public Query_tables_list
     fields to TABLE object at table open (altough for latter pointer to table
     being opened is probably enough).
   */
-  SQL_LIST trg_table_fields;
+  SQL_I_List<Item_trigger_field> trg_table_fields;
 
   /*
     stmt_definition_begin is intended to point to the next word after
@@ -2249,9 +2265,19 @@ public:
     yacc_yyss= NULL;
     yacc_yyvs= NULL;
     m_set_signal_info.clear();
+    m_lock_type= TL_READ_DEFAULT;
   }
 
   ~Yacc_state();
+
+  /**
+    Reset part of the state which needs resetting before parsing
+    substatement.
+  */
+  void reset_before_substatement()
+  {
+    m_lock_type= TL_READ_DEFAULT;
+  }
 
   /**
     Bison internal state stack, yyss, when dynamically allocated using
@@ -2271,6 +2297,25 @@ public:
   */
   Set_signal_information m_set_signal_info;
 
+  /**
+    Type of lock to be used for tables being added to the statement's
+    table list in table_factor, table_alias_ref, single_multi and
+    table_wild_one rules.
+    Statements which use these rules but require lock type different
+    from one specified by this member have to override it by using
+    st_select_lex::set_lock_for_tables() method.
+
+    The default value of this member is TL_READ_DEFAULT. The only two
+    cases in which we change it are:
+    - When parsing SELECT HIGH_PRIORITY.
+    - Rule for DELETE. In which we use this member to pass information
+      about type of lock from delete to single_multi part of rule.
+
+    We should try to avoid introducing new use cases as we would like
+    to get rid of this member eventually.
+  */
+  thr_lock_type m_lock_type;
+
   /*
     TODO: move more attributes from the LEX structure here.
   */
@@ -2285,9 +2330,20 @@ public:
 class Parser_state
 {
 public:
-  Parser_state(THD *thd, const char* buff, unsigned int length)
-    : m_lip(thd, buff, length), m_yacc()
+  Parser_state()
+    : m_yacc()
   {}
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length)
+  {
+    return m_lip.init(thd, buff, length);
+  }
 
   ~Parser_state()
   {}

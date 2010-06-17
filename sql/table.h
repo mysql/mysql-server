@@ -488,6 +488,19 @@ typedef struct st_table_field_def
 } TABLE_FIELD_DEF;
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  Partition specific ha_data struct.
+*/
+typedef struct st_ha_data_partition
+{
+  bool auto_inc_initialized;
+  mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
+  ulonglong next_auto_inc_val;                 /**< first non reserved value */
+} HA_DATA_PARTITION;
+#endif
+
+
 class Table_check_intact
 {
 protected:
@@ -627,13 +640,11 @@ struct TABLE_SHARE
   int cached_row_logging_check;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  /** @todo: Move into *ha_data for partitioning */
+  /* filled in when reading from frm */
   bool auto_partitioned;
-  const char *partition_info;
-  uint  partition_info_len;
+  const char *partition_info_str;
+  uint  partition_info_str_len;
   uint  partition_info_buffer_size;
-  const char *part_state;
-  uint part_state_len;
   handlerton *default_part_db_type;
 #endif
 
@@ -652,6 +663,14 @@ struct TABLE_SHARE
   /** place to store storage engine specific data */
   void *ha_data;
   void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /** place to store partition specific data, LOCK_ha_data hold while init. */
+  HA_DATA_PARTITION *ha_part_data;
+  /* Destructor for ha_part_data */
+  void (*ha_part_data_destroy)(HA_DATA_PARTITION *);
+#endif
+
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
@@ -1049,6 +1068,7 @@ public:
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
+  void add_read_columns_used_by_index(uint index);
   void restore_column_maps_after_mark_index();
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(void);
@@ -1343,7 +1363,7 @@ struct TABLE_LIST
   }
 
   /*
-    List of tables local to a subquery (used by SQL_LIST). Considers
+    List of tables local to a subquery (used by SQL_I_List). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
     in st_select_lex::add_table_to_list() -> table_list.link_in_list().
   */

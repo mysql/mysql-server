@@ -34,7 +34,6 @@ end|
 reset master|
 --error ER_DUP_ENTRY
 insert into t2 values (bug23333(),1)| 
---replace_column 2 # 5 # 6 #
 # the following must show there is (are) events after the query */
 source include/show_binlog_events.inc|
 select count(*),@a from t1 /* must be 1,1 */|
