@@ -143,11 +143,14 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
         1) We have only MIN() and the argument column is nullable, or
         2) there is a > predicate on it, nullability is irrelevant.
         We need to scan the next bigger record first.
+        Open interval is not used if the search key involves the last keypart,
+        and it would not work.
       */
+      DBUG_ASSERT(prefix_len < ref->key_length);
       error= table->file->ha_index_read_map(table->record[0],
-                                           ref->key_buff,
-                                           make_prev_keypart_map(ref->key_parts),
-                                           HA_READ_AFTER_KEY);
+                                            ref->key_buff,
+                                            make_prev_keypart_map(ref->key_parts),
+                                            HA_READ_AFTER_KEY);
       /* 
          If the found record is outside the group formed by the search
          prefix, or there is no such record at all, check if all
@@ -596,18 +599,19 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
                           key_part_map *key_part_used, uint *range_fl,
                           uint *prefix_len)
 {
+  DBUG_ENTER("matching_cond");
   if (!cond)
-    return 1;
+    DBUG_RETURN(TRUE);
   Field *field= field_part->field;
   if (!(cond->used_tables() & field->table->map))
   {
     /* Condition doesn't restrict the used table */
-    return 1;
+    DBUG_RETURN(TRUE);
   }
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_OR_FUNC)
-      return 0;
+      DBUG_RETURN(FALSE);
 
     /* AND */
     List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
@@ -616,13 +620,13 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     {
       if (!matching_cond(max_fl, ref, keyinfo, field_part, item,
                          key_part_used, range_fl, prefix_len))
-        return 0;
+        DBUG_RETURN(FALSE);
     }
-    return 1;
+    DBUG_RETURN(TRUE);
   }
 
   if (cond->type() != Item::FUNC_ITEM)
-    return 0;                                 // Not operator, can't optimize
+    DBUG_RETURN(FALSE);                                 // Not operator, can't optimize
 
   bool eq_type= 0;                            // =, <=> or IS NULL
   bool is_null_safe_eq= FALSE;                // The operator is NULL safe, e.g. <=> 
@@ -656,7 +660,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     eq_type= 1;
     break;
   default:
-    return 0;                                        // Can't optimize function
+    DBUG_RETURN(FALSE);                                        // Can't optimize function
   }
   
   Item *args[3];
@@ -664,11 +668,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   /* Test if this is a comparison of a field and constant */
   if (!simple_pred((Item_func*) cond, args, &inv))
-    return 0;
+    DBUG_RETURN(FALSE);
 
   if (!is_null_safe_eq && !is_null &&
       (args[1]->is_null() || (between && args[2]->is_null())))
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   if (inv && !eq_type)
     less_fl= 1-less_fl;                         // Convert '<' -> '>' (etc)
@@ -680,14 +684,14 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   {
     if (part > field_part)
-      return 0;                     // Field is beyond the tested parts
+      DBUG_RETURN(FALSE);                     // Field is beyond the tested parts
     if (part->field->eq(((Item_field*) args[0])->field))
       break;                        // Found a part of the key for the field
   }
 
   bool is_field_part= part == field_part;
   if (!(is_field_part || eq_type))
-    return 0;
+    DBUG_RETURN(FALSE);
 
   key_part_map org_key_part_used= *key_part_used;
   if (eq_type || between || max_fl == less_fl)
@@ -706,6 +710,17 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   
     *key_part_used|= (key_part_map) 1 << (part - keyinfo->key_part);
   }
+
+  if (org_key_part_used == *key_part_used &&
+    /*
+      The current search key is not being extended with a new key part.  This
+      means that the a condition is added a key part for which there was a
+      previous condition. We can only overwrite such key parts in some special
+      cases, e.g. a > 2 AND a > 1 (here range_fl must be set to something). In
+      all other cases the WHERE condition is always false anyway.
+    */
+      (eq_type || *range_fl == 0))
+      DBUG_RETURN(FALSE);
 
   if (org_key_part_used != *key_part_used ||
       (is_field_part && 
@@ -752,11 +767,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   {
     if ((!is_null && !cond->val_int()) ||
         (is_null && !test(part->field->is_null())))
-     return 0;                       // Impossible test
+     DBUG_RETURN(FALSE);                       // Impossible test
   }
   else if (is_field_part)
     *range_fl&= ~(max_fl ? NO_MIN_RANGE : NO_MAX_RANGE);
-  return 1;  
+  DBUG_RETURN(TRUE);  
 }
 
 
