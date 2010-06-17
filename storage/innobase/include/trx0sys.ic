@@ -426,4 +426,23 @@ trx_sys_get_new_trx_id(void)
 	return(id);
 }
 
+/*****************************************************************//**
+Get the number of transaction in the system, independent of their state.
+@return count of transactions in trx_sys_t::trx_list */
+UNIV_INLINE
+ulint
+trx_sys_get_n_trx(void)
+/*===================*/
+{
+	ulint	n_trx;
+
+	trx_sys_mutex_enter();
+
+	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
+
+	trx_sys_mutex_exit();
+
+	return(n_trx);
+}
+
 #endif /* !UNIV_HOTBACKUP */

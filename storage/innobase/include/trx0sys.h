@@ -461,6 +461,7 @@ trx_sys_file_format_id_to_name(
 	const ulint	id);	/*!< in: id of the file format */
 
 #endif /* !UNIV_HOTBACKUP */
+
 /*********************************************************************
 Creates the rollback segments */
 UNIV_INTERN
@@ -468,6 +469,13 @@ void
 trx_sys_create_rsegs(
 /*=================*/
 	ulint	n_rsegs);	/*!< number of rollback segments to create */
+/*****************************************************************//**
+Get the number of transaction in the system, independent of their state.
+@return count of transactions in trx_sys_t::trx_list */
+UNIV_INLINE
+ulint
+trx_sys_get_n_trx(void);
+/*===================*/
 
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0

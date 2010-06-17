@@ -44,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "lock0lock.h"
 #include "pars0pars.h"
 #include "srv0mon.h"
+#include "trx0sys.h"
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
@@ -580,6 +581,50 @@ trx_rollback_active(
 }
 
 /*******************************************************************//**
+Rollback or clean up any resurrected incomplete transactions. It assumes
+that the caller holds the trx_sys_mutex() and it will release the
+trx sys mutex if it does a clean up or rollback. 
+@return TRUE if the transaction was cleaned up or rolled back.  */
+static
+ibool
+trx_rollback_resurrected(
+/*=====================*/
+	trx_t*	trx,	/*!< in: transaction to rollback or clean */
+	ibool	all)	/*!< in: FALSE=roll back dictionary transactions;
+			TRUE=roll back all non-PREPARED transactions */
+{
+	ibool	cleaned_or_rolledback;
+
+	ut_ad(trx_sys_mutex_own());
+
+	if (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY) {
+
+		trx_sys_mutex_exit();
+
+		fprintf(stderr,
+			"InnoDB: Cleaning up trx with id "
+			TRX_ID_FMT "\n", TRX_ID_PREP_PRINTF(trx->id));
+
+		trx_cleanup_at_db_startup(trx);
+
+		cleaned_or_rolledback  = TRUE;
+
+	} else if (trx->lock.conc_state == TRX_ACTIVE
+		   && (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE)) {
+
+		trx_sys_mutex_exit();
+
+		trx_rollback_active(trx);
+
+		cleaned_or_rolledback  = TRUE;
+	} else {
+		cleaned_or_rolledback  = FALSE;
+	}
+
+	return(cleaned_or_rolledback);
+}
+
+/*******************************************************************//**
 Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
@@ -591,15 +636,12 @@ trx_rollback_or_clean_recovered(
 	ibool	all)	/*!< in: FALSE=roll back dictionary transactions;
 			TRUE=roll back all non-PREPARED transactions */
 {
-	trx_t*	trx;
+	ibool	undo_recovered_trxs;
 
-	trx_sys_mutex_enter();
+	if (trx_sys_get_n_trx() == 0) {
 
-	if (!UT_LIST_GET_FIRST(trx_sys->trx_list)) {
-		goto leave_function;
+		return;
 	}
-
-	trx_sys_mutex_exit();
 
 	if (all) {
 		fprintf(stderr,
@@ -607,56 +649,45 @@ trx_rollback_or_clean_recovered(
 			" of uncommitted transactions\n");
 	}
 
-loop:
-	trx_sys_mutex_enter();
+	do {
+		trx_t*	trx;
 
-	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-	     trx != NULL;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+		undo_recovered_trxs = FALSE;
 
-		trx_mutex_enter(trx);
+		trx_sys_mutex_enter();
 
-		if (!trx->is_recovered) {
-			trx_mutex_exit(trx);
-			continue;
-		}
+		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		     trx != NULL;
+		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		switch (trx->lock.conc_state) {
-		case TRX_NOT_STARTED:
-		case TRX_PREPARED:
-			trx_mutex_exit(trx);
-			continue;
+			/* Note: For XA recovered transactions, we rely on
+			MySQL to do rollback. They will be in TRX_PREPARED
+			state. If the server is shutdown and they are still
+			lingering in trx_sys_t::trx_list then the shutdown
+			will hang. */
 
-		case TRX_COMMITTED_IN_MEMORY:
+			if (trx->is_recovered
+			     && (trx->lock.conc_state == TRX_COMMITTED_IN_MEMORY
+			         || trx->lock.conc_state == TRX_ACTIVE)) {
 
-			trx_mutex_exit(trx);
+				
+				/* If this function does a cleanup or rollback
+				then it will release the trx sys mutex. */
 
-			trx_sys_mutex_exit();
+				if (trx_rollback_resurrected(trx, all)) {
 
-			fprintf(stderr,
-				"InnoDB: Cleaning up trx with id "
-				TRX_ID_FMT "\n",
-				TRX_ID_PREP_PRINTF(trx->id));
+					undo_recovered_trxs = TRUE;
 
-			trx_cleanup_at_db_startup(trx);
+					trx_sys_mutex_enter();
 
-			goto loop;
-
-		case TRX_ACTIVE:
-			if (all || trx_get_dict_operation(trx)
-			    != TRX_DICT_OP_NONE) {
-
-				trx_mutex_exit(trx);
-
-				trx_sys_mutex_exit();
-
-				trx_rollback_active(trx);
-				goto loop;
+					break;
+				}
 			}
 		}
 
-		trx_mutex_exit(trx);
-	}
+		trx_sys_mutex_exit();
+
+	} while (undo_recovered_trxs);
 
 	if (all) {
 		ut_print_timestamp(stderr);
@@ -664,9 +695,6 @@ loop:
 			"  InnoDB: Rollback of non-prepared"
 			" transactions completed\n");
 	}
-
-leave_function:
-	trx_sys_mutex_exit();
 }
 
 /*******************************************************************//**
