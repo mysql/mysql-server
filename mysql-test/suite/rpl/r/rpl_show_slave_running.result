@@ -18,7 +18,7 @@ Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF NO NO in three fo
 SHOW STATUS LIKE 'Slave_running';
 Variable_name	Value
 Slave_running	OFF
-Slave_IO_Running= No
+Slave_IO_Running= Connecting
 Slave_SQL_Running= No
 SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running';
 Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF YES NO in three following queries

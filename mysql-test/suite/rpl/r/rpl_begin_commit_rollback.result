@@ -123,10 +123,14 @@ INSERT INTO db1.t1 VALUES(20);
 USE db1;
 INSERT INTO db1.t1 VALUES(30);
 INSERT INTO db1.t2 VALUES("in savepoint has_comment");
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 USE db2;
 SavePoint mixed_cases;
 USE db1;
 INSERT INTO db1.t2 VALUES("in savepoint mixed_cases");
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 INSERT INTO db1.t1 VALUES(40);
 USE db2;
 ROLLBACK TO mixed_cases;
@@ -137,6 +141,8 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 USE db1;
 INSERT INTO db1.t2 VALUES("after rollback to");
+Warnings:
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 INSERT INTO db1.t1 VALUES(50);
 USE db2;
 COMMIT;

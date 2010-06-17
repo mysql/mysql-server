@@ -34,6 +34,7 @@ start slave io_thread;
 # 5.1 has two OFF,ON IO-thread state running state whereas later versions
 # have three: OFF,Connecting,ON.
 # Hence, 5.1 must display OFF NO NO where as 5.1+ OFF Connecting NO
+# (thank you, Andrei for leaving these comments. -- Andrei repl MC at the moment)
 #
 --echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF NO NO in three following queries
 
