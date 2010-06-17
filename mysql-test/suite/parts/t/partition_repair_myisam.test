@@ -15,7 +15,7 @@ call mtr.add_suppression("is marked as crashed and should be repaired");
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 --echo # Test what happens if we exchange a crashed partition with a table
-SHOW VARIABLES LIKE '%recover%';
+SHOW VARIABLES LIKE 'myisam_recover_options';
 CREATE TABLE t (a INT, KEY (a)) ENGINE=MyISAM;
 CREATE TABLE tp (a INT, KEY (a)) ENGINE=MyISAM
 PARTITION BY RANGE (a)
@@ -29,6 +29,7 @@ FLUSH TABLES;
 --remove_file $MYSQLD_DATADIR/test/tp#P#pCrashed.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/tp#P#pCrashed.MYI
 CHECK TABLE tp;
+--replace_regex /[^']*t1_will_crash/.\/test\/t1_will_crash/
 --error 145
 ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
 REPAIR TABLE tp;
@@ -40,6 +41,7 @@ FLUSH TABLES;
 --remove_file $MYSQLD_DATADIR/test/t.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t.MYI
 CHECK TABLE t;
+--replace_regex /[^']*t1_will_crash/.\/test\/t1_will_crash/
 --error 145
 ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
 REPAIR TABLE t;

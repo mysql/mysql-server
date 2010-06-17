@@ -5,6 +5,8 @@
 --source include/have_partition.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
+# Crash tests don't work with embedded
+--source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

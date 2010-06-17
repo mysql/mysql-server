@@ -1,10 +1,8 @@
 # REPAIR USE_FRM is not implemented for partitioned tables.
 # Test what happens if we exchange a crashed partition with a table
-SHOW VARIABLES LIKE '%recover%';
+SHOW VARIABLES LIKE 'myisam_recover_options';
 Variable_name	Value
 myisam_recover_options	OFF
-relay_log_recovery	OFF
-rpl_recovery_rank	0
 CREATE TABLE t (a INT, KEY (a)) ENGINE=MyISAM;
 CREATE TABLE tp (a INT, KEY (a)) ENGINE=MyISAM
 PARTITION BY RANGE (a)
