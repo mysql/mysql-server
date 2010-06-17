@@ -1,4 +1,6 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+#ifndef SQL_TRUNCATE_INCLUDED
+#define SQL_TRUNCATE_INCLUDED
+/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,22 +13,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
-
-#ifndef SQL_DELETE_INCLUDED
-#define SQL_DELETE_INCLUDED
-
-#include "my_base.h"                            /* ha_rows */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 class THD;
 struct TABLE_LIST;
-class Item;
 
-typedef class Item COND;
-template <typename T> class SQL_I_List;
+bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref);
 
-int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
-bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_I_List<ORDER> *order, ha_rows rows, ulonglong options);
-
-#endif /* SQL_DELETE_INCLUDED */
+#endif
