@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -257,11 +257,25 @@ row_get_clust_rec(
 	dict_index_t*	index,	/*!< in: secondary index */
 	dict_index_t**	clust_index,/*!< out: clustered index */
 	mtr_t*		mtr);	/*!< in: mtr */
+
+/** Result of row_search_index_entry */
+enum row_search_result {
+	ROW_FOUND = 0,		/*!< the record was found */
+	ROW_NOT_FOUND,		/*!< record not found */
+	ROW_BUFFERED,		/*!< one of BTR_INSERT, BTR_DELETE, or
+				BTR_DELETE_MARK was specified, the
+				secondary index leaf page was not in
+				the buffer pool, and the operation was
+				enqueued in the insert/delete buffer */
+	ROW_NOT_DELETED_REF,	/*!< BTR_DELETE was specified, and
+				row_purge_poss_sec() failed */
+};
+
 /***************************************************************//**
 Searches an index record.
-@return	TRUE if found */
+@return	whether the record was found or buffered */
 UNIV_INTERN
-ibool
+enum row_search_result
 row_search_index_entry(
 /*===================*/
 	dict_index_t*	index,	/*!< in: index */

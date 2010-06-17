@@ -1009,16 +1009,19 @@ test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
    Used below. In an anonymous namespace to not clash with definitions
    in other files.
  */
-namespace {
-  int compare(unsigned int a, unsigned int b)
-  {
-    if (a < b)
-      return -1;
-    if (b < a)
-      return 1;
-    return 0;
+
+CPP_UNNAMED_NS_START
+
+int compare(unsigned int a, unsigned int b)
+{
+  if (a < b)
+    return -1;
+  if (b < a)
+    return 1;
+  return 0;
 }
-}
+
+CPP_UNNAMED_NS_END
 
 /**
   Detect Item_result by given field type of UNION merge result.
@@ -5268,7 +5271,6 @@ String *Field_time::val_str(String *val_buffer,
  
 bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  long tmp;
   THD *thd= table ? table->in_use : current_thd;
   if (!(fuzzydate & TIME_FUZZY_DATE))
   {
@@ -5278,19 +5280,7 @@ bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
                         thd->warning_info->current_row_for_warning());
     return 1;
   }
-  tmp=(long) sint3korr(ptr);
-  ltime->neg=0;
-  if (tmp < 0)
-  {
-    ltime->neg= 1;
-    tmp=-tmp;
-  }
-  ltime->hour=tmp/10000;
-  tmp-=ltime->hour*10000;
-  ltime->minute=   tmp/100;
-  ltime->second= tmp % 100;
-  ltime->year= ltime->month= ltime->day= ltime->second_part= 0;
-  return 0;
+  return Field_time::get_time(ltime);
 }
 
 
@@ -8464,14 +8454,20 @@ bool Field_num::eq_def(Field *field)
 }
 
 
+/**
+  Check whether two numeric fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they are of the same type
+  and retain the same pack length.
+*/
+
 uint Field_num::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
-	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
-							 UNSIGNED_FLAG)) &&
+          ((new_field->flags & UNSIGNED_FLAG) == 
+           (uint) (flags & UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length <= max_display_length()));
+          (new_field->pack_length == pack_length()));
 }
 
 
@@ -9119,7 +9115,7 @@ void Create_field::create_length_to_internal_length(void)
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null, bool is_unsigned,
-                                      uint pack_length)
+                                      uint pack_length_arg)
 {
   DBUG_ENTER("Create_field::init_for_tmp_table");
 
@@ -9132,7 +9128,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   geom_type= Field::GEOM_GEOMETRY;
 
   DBUG_PRINT("enter", ("sql_type: %d, length: %u, pack_length: %u",
-                       sql_type_arg, length_arg, pack_length));
+                       sql_type_arg, length_arg, pack_length_arg));
 
   /*
     These pack flags are crafted to get it correctly through the
@@ -9196,8 +9192,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   case MYSQL_TYPE_GEOMETRY:
     // If you are going to use the above types, you have to pass a
     // pack_length as parameter. Assert that is really done.
-    DBUG_ASSERT(pack_length != ~0U);
-    pack_flag|= pack_length_to_packflag(pack_length);
+    DBUG_ASSERT(pack_length_arg != ~0U);
+    pack_flag|= pack_length_to_packflag(pack_length_arg);
     break;
   default:
     /* Nothing */
@@ -9946,6 +9942,39 @@ Create_field::Create_field(Field *old_field,Field *orig_field)
       def= new Item_string(pos, res->length(), charset);
     }
     orig_field->move_field_offset(-diff);	// Back to record[0]
+  }
+}
+
+
+/**
+  maximum possible character length for blob.
+  
+  This method is used in Item_field::set_field to calculate
+  max_length for Item.
+  
+  For example:
+    CREATE TABLE t2 SELECT CONCAT(tinyblob_utf8_column) FROM t1;
+  must create a "VARCHAR(255) CHARACTER SET utf8" column.
+  
+  @return
+    length
+*/
+
+uint32 Field_blob::char_length()
+{
+  switch (packlength)
+  {
+  case 1:
+    return 255;
+  case 2:
+    return 65535;
+  case 3:
+    return 16777215;
+  case 4:
+    return (uint32) 4294967295U;
+  default:
+    DBUG_ASSERT(0); // we should never go here
+    return 0;
   }
 }
 

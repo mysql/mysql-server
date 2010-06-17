@@ -3159,6 +3159,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   */
   Query_tables_list backup;
   thd->lex->reset_n_backup_query_tables_list(&backup);
+  /*
+    Restore Query_tables_list::sql_command value, which was reset
+    above, as the code writing query to the binary log assumes that
+    this value corresponds to the statement being executed.
+  */
+  thd->lex->sql_command= backup.sql_command;
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
@@ -6282,21 +6288,21 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   mysql_mutex_unlock(&acl_cache->lock);
 
-  int binlog_error=
+  if (result)
+    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+
+  result= result |
     write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  /* error for writing binary log has already been reported */
-  if (result && !binlog_error)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
-  DBUG_RETURN(result || binlog_error);
+  DBUG_RETURN(result);
 }
 
 

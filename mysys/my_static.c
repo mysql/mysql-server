@@ -87,10 +87,10 @@ ulong my_time_to_wait_for_lock=2;	/* In seconds */
 char * NEAR globerrs[GLOBERRS];		/* my_error_messages is here */
 #endif
 void (*my_abort_hook)(int) = (void(*)(int)) exit;
-void (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
-    my_message_no_curses;
-void (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
-  my_message_no_curses;
+void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
+  my_message_stderr;
+void (*fatal_error_handler_hook)(uint error, const char *str, myf MyFlags)=
+  my_message_stderr;
 
 static const char *proc_info_dummy(void *a __attribute__((unused)),
                                    const char *b __attribute__((unused)),
@@ -123,7 +123,6 @@ my_bool NEAR my_disable_locking=0;
 my_bool NEAR my_disable_async_io=0;
 my_bool NEAR my_disable_flush_key_blocks=0;
 my_bool NEAR my_disable_symlinks=0;
-my_bool NEAR mysys_uses_curses=0;
 
 /*
   Note that PSI_hook and PSI_server are unconditionally

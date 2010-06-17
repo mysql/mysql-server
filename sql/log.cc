@@ -1528,11 +1528,6 @@ binlog_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr,
                              cache_mngr->trx_cache.has_incident());
   cache_mngr->reset_cache(&cache_mngr->trx_cache);
 
-  /*
-    We need to step the table map version after writing the
-    transaction cache to disk.
-  */
-  mysql_bin_log.update_table_map_version();
   statistic_increment(binlog_cache_use, &LOCK_status);
   if (cache_log->disk_writes != 0)
   {
@@ -1592,13 +1587,6 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
   else
     cache_mngr->trx_cache.restore_prev_position();
 
-  /*
-    We need to step the table map version on a rollback to ensure that a new
-    table map event is generated instead of the one that was written to the
-    thrown-away transaction cache.
-  */
-  mysql_bin_log.update_table_map_version();
-
   DBUG_ASSERT(thd->binlog_get_pending_rows_event(is_transactional) == NULL);
   DBUG_RETURN(error);
 }
@@ -1650,11 +1638,6 @@ binlog_flush_stmt_cache(THD *thd, binlog_cache_mngr *cache_mngr)
     DBUG_RETURN(error);
   cache_mngr->reset_cache(&cache_mngr->stmt_cache);
 
-  /*
-    We need to step the table map version after writing the
-    transaction cache to disk.
-  */
-  mysql_bin_log.update_table_map_version();
   statistic_increment(binlog_cache_use, &LOCK_status);
   if (cache_log->disk_writes != 0)
   {
@@ -1686,7 +1669,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   DBUG_PRINT("debug",
              ("all: %d, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
               all,
-              YESNO(thd->in_multi_stmt_transaction()),
+              YESNO(thd->in_multi_stmt_transaction_mode()),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
 
@@ -1890,12 +1873,14 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   binlog_trans_log_savepos(thd, (my_off_t*) sv);
   /* Write it to the binary log */
 
+  String log_query;
+  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
+      log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+    DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-  int const error=
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query(), thd->query_length(), TRUE, FALSE, FALSE,
-                      errcode);
-  DBUG_RETURN(error);
+  Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+                        TRUE, FALSE, TRUE, errcode);
+  DBUG_RETURN(mysql_bin_log.write(&qinfo));
 }
 
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
@@ -1910,12 +1895,14 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(trans_has_updated_non_trans_table(thd) ||
                (thd->variables.option_bits & OPTION_KEEP_LOG)))
   {
+    String log_query;
+    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+      DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-    int error=
-      thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query(), thd->query_length(), TRUE, FALSE, FALSE,
-                        errcode);
-    DBUG_RETURN(error);
+    Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+                          TRUE, FALSE, TRUE, errcode);
+    DBUG_RETURN(mysql_bin_log.write(&qinfo));
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
   DBUG_RETURN(0);
@@ -2658,7 +2645,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
-   need_start_event(TRUE), m_table_map_version(0),
+   need_start_event(TRUE),
    sync_period_ptr(sync_period),
    is_relay_log(0), signal_cnt(0),
    description_event_for_exec(0), description_event_for_queue(0)
@@ -4267,7 +4254,7 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
 */
 bool ending_trans(THD* thd, const bool all)
 {
-  return (all || (!all && !thd->in_multi_stmt_transaction()));
+  return (all || (!all && !thd->in_multi_stmt_transaction_mode()));
 }
 
 /**
@@ -4370,7 +4357,7 @@ THD::binlog_start_trans_and_stmt()
       cache_mngr->trx_cache.get_prev_position() == MY_OFF_T_UNDEF)
   {
     this->binlog_set_stmt_begin();
-    if (in_multi_stmt_transaction())
+    if (in_multi_stmt_transaction_mode())
       trans_register_ha(this, TRUE, binlog_hton);
     trans_register_ha(this, FALSE, binlog_hton);
     /*
@@ -4443,7 +4430,6 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
     DBUG_RETURN(error);
 
   binlog_table_maps++;
-  table->s->table_map_version= mysql_bin_log.table_map_version();
   DBUG_RETURN(0);
 }
 
@@ -4585,21 +4571,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       DBUG_RETURN(1);
     }
 
-    /*
-      We step the table map version if we are writing an event
-      representing the end of a statement.
-
-      In an ideal world, we could avoid stepping the table map version,
-      since we could then reuse the table map that was written earlier
-      in the cache. This does not work since STMT_END_F implies closing
-      all table mappings on the slave side.
-    
-      TODO: Find a solution so that table maps does not have to be
-      written several times within a transaction.
-    */
-    if (pending->get_flags(Rows_log_event::STMT_END_F))
-      ++m_table_map_version;
-
     delete pending;
   }
 
@@ -4657,7 +4628,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     */
     const char *local_db= event_info->get_db();
     if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
-	!binlog_filter->db_ok(local_db))
+	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
+         thd->lex->sql_command != SQLCOM_SAVEPOINT &&
+         !binlog_filter->db_ok(local_db)))
       DBUG_RETURN(0);
 #endif /* HAVE_REPLICATION */
 
@@ -4785,9 +4758,6 @@ unlock:
         cache_data->set_incident();
     }
   }
-
-  if (event_info->flags & LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F)
-    ++m_table_map_version;
 
   DBUG_RETURN(error);
 }

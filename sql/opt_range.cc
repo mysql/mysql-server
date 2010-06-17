@@ -1539,6 +1539,29 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
 
 
 /*
+  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
+  queue.
+
+  SYNPOSIS
+    QUICK_ROR_UNION_SELECT_queue_cmp()
+      arg   Pointer to QUICK_ROR_UNION_SELECT
+      val1  First merged select
+      val2  Second merged select
+*/
+
+C_MODE_START
+
+static int QUICK_ROR_UNION_SELECT_queue_cmp(void *arg, uchar *val1, uchar *val2)
+{
+  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
+  return self->head->file->cmp_ref(((QUICK_SELECT_I*)val1)->last_rowid,
+                                   ((QUICK_SELECT_I*)val2)->last_rowid);
+}
+
+C_MODE_END
+
+
+/*
   Do post-constructor initialization.
   SYNOPSIS
     QUICK_ROR_UNION_SELECT::init()
@@ -1552,7 +1575,7 @@ int QUICK_ROR_UNION_SELECT::init()
 {
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::init");
   if (init_queue(&queue, quick_selects.elements, 0,
-                 FALSE , QUICK_ROR_UNION_SELECT::queue_cmp,
+                 FALSE , QUICK_ROR_UNION_SELECT_queue_cmp,
                  (void*) this))
   {
     bzero(&queue, sizeof(QUEUE));
@@ -1563,25 +1586,6 @@ int QUICK_ROR_UNION_SELECT::init()
     DBUG_RETURN(1);
   prev_rowid= cur_rowid + head->file->ref_length;
   DBUG_RETURN(0);
-}
-
-
-/*
-  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
-  queue.
-
-  SYNPOSIS
-    QUICK_ROR_UNION_SELECT::queue_cmp()
-      arg   Pointer to QUICK_ROR_UNION_SELECT
-      val1  First merged select
-      val2  Second merged select
-*/
-
-int QUICK_ROR_UNION_SELECT::queue_cmp(void *arg, uchar *val1, uchar *val2)
-{
-  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
-  return self->head->file->cmp_ref(((QUICK_SELECT_I*)val1)->last_rowid,
-                                   ((QUICK_SELECT_I*)val2)->last_rowid);
 }
 
 
@@ -8717,8 +8721,6 @@ int QUICK_RANGE_SELECT::get_next()
 {
   int             result;
   KEY_MULTI_RANGE *mrange;
-  key_range       *start_key;
-  key_range       *end_key;
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next");
   DBUG_ASSERT(multi_range_length && multi_range &&
               (cur_range >= (QUICK_RANGE**) ranges.buffer) &&
@@ -8758,26 +8760,9 @@ int QUICK_RANGE_SELECT::get_next()
          mrange_slot < mrange_end;
          mrange_slot++)
     {
-      start_key= &mrange_slot->start_key;
-      end_key= &mrange_slot->end_key;
       last_range= *(cur_range++);
-
-      start_key->key=    (const uchar*) last_range->min_key;
-      start_key->length= last_range->min_length;
-      start_key->flag=   ((last_range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
-                          (last_range->flag & EQ_RANGE) ?
-                          HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
-      start_key->keypart_map= last_range->min_keypart_map;
-      end_key->key=      (const uchar*) last_range->max_key;
-      end_key->length=   last_range->max_length;
-      /*
-        We use HA_READ_AFTER_KEY here because if we are reading on a key
-        prefix. We want to find all keys with this prefix.
-      */
-      end_key->flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
-                          HA_READ_AFTER_KEY);
-      end_key->keypart_map= last_range->max_keypart_map;
-
+      last_range->make_min_endpoint(&mrange_slot->start_key);
+      last_range->make_max_endpoint(&mrange_slot->end_key);
       mrange_slot->range_flag= last_range->flag;
     }
 
@@ -8801,49 +8786,52 @@ end:
 /*
   Get the next record with a different prefix.
 
-  SYNOPSIS
-    QUICK_RANGE_SELECT::get_next_prefix()
-    prefix_length  length of cur_prefix
-    cur_prefix     prefix of a key to be searched for
+  @param prefix_length   length of cur_prefix
+  @param group_key_parts The number of key parts in the group prefix
+  @param cur_prefix      prefix of a key to be searched for
 
-  DESCRIPTION
-    Each subsequent call to the method retrieves the first record that has a
-    prefix with length prefix_length different from cur_prefix, such that the
-    record with the new prefix is within the ranges described by
-    this->ranges. The record found is stored into the buffer pointed by
-    this->record.
-    The method is useful for GROUP-BY queries with range conditions to
-    discover the prefix of the next group that satisfies the range conditions.
+  Each subsequent call to the method retrieves the first record that has a
+  prefix with length prefix_length and which is different from cur_prefix,
+  such that the record with the new prefix is within the ranges described by
+  this->ranges. The record found is stored into the buffer pointed by
+  this->record. The method is useful for GROUP-BY queries with range
+  conditions to discover the prefix of the next group that satisfies the range
+  conditions.
 
-  TODO
+  @todo
+
     This method is a modified copy of QUICK_RANGE_SELECT::get_next(), so both
     methods should be unified into a more general one to reduce code
     duplication.
 
-  RETURN
-    0                  on success
-    HA_ERR_END_OF_FILE if returned all keys
-    other              if some error occurred
+  @retval 0                  on success
+  @retval HA_ERR_END_OF_FILE if returned all keys
+  @retval other              if some error occurred
 */
 
 int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
-                                        key_part_map keypart_map,
+                                        uint group_key_parts,
                                         uchar *cur_prefix)
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next_prefix");
+  const key_part_map keypart_map= make_prev_keypart_map(group_key_parts);
 
   for (;;)
   {
     int result;
-    key_range start_key, end_key;
     if (last_range)
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
-      DBUG_ASSERT(cur_prefix != 0);
+      DBUG_ASSERT(cur_prefix != NULL);
       result= file->index_read_map(record, cur_prefix, keypart_map,
                                    HA_READ_AFTER_KEY);
-      if (result || (file->compare_key(file->end_range) <= 0))
+      if (result || last_range->max_keypart_map == 0)
         DBUG_RETURN(result);
+
+      key_range previous_endpoint;
+      last_range->make_max_endpoint(&previous_endpoint, prefix_length, keypart_map);
+      if (file->compare_key(&previous_endpoint) <= 0)
+        DBUG_RETURN(0);
     }
 
     uint count= ranges.elements - (cur_range - (QUICK_RANGE**) ranges.buffer);
@@ -8855,21 +8843,9 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     }
     last_range= *(cur_range++);
 
-    start_key.key=    (const uchar*) last_range->min_key;
-    start_key.length= min(last_range->min_length, prefix_length);
-    start_key.keypart_map= last_range->min_keypart_map & keypart_map;
-    start_key.flag=   ((last_range->flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
-		       (last_range->flag & EQ_RANGE) ?
-		       HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
-    end_key.key=      (const uchar*) last_range->max_key;
-    end_key.length=   min(last_range->max_length, prefix_length);
-    end_key.keypart_map= last_range->max_keypart_map & keypart_map;
-    /*
-      We use READ_AFTER_KEY here because if we are reading on a key
-      prefix we want to find all keys with this prefix
-    */
-    end_key.flag=     (last_range->flag & NEAR_MAX ? HA_READ_BEFORE_KEY :
-		       HA_READ_AFTER_KEY);
+    key_range start_key, end_key;
+    last_range->make_min_endpoint(&start_key, prefix_length, keypart_map);
+    last_range->make_max_endpoint(&end_key, prefix_length, keypart_map);
 
     result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
 				   last_range->max_keypart_map ? &end_key : 0,
@@ -8964,9 +8940,9 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 }
 
 /*
-  This is a hack: we inherit from QUICK_SELECT so that we can use the
+  This is a hack: we inherit from QUICK_RANGE_SELECT so that we can use the
   get_next() interface, but we have to hold a pointer to the original
-  QUICK_SELECT because its data are used all over the place.  What
+  QUICK_RANGE_SELECT because its data are used all over the place. What
   should be done is to factor out the data that is needed into a base
   class (QUICK_SELECT), and then have two subclasses (_ASC and _DESC)
   which handle the ranges and implement the get_next() function.  But
@@ -11159,7 +11135,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
   {
     uchar *cur_prefix= seen_first_key ? group_prefix : NULL;
     if ((result= quick_prefix_select->get_next_prefix(group_prefix_len,
-                         make_prev_keypart_map(group_key_parts), cur_prefix)))
+                                                      group_key_parts, 
+                                                      cur_prefix)))
       DBUG_RETURN(result);
     seen_first_key= TRUE;
   }
