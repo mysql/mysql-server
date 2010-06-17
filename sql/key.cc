@@ -354,6 +354,16 @@ void key_unpack(String *to,TABLE *table,uint idx)
     {
       CHARSET_INFO *cs= field->charset();
       field->val_str(&tmp);
+      /*
+        For BINARY(N) strip trailing zeroes to make
+        the error message nice-looking
+      */
+      if (field->binary() &&  field->type() == MYSQL_TYPE_STRING && tmp.length())
+      {
+        const char *tmp_end= tmp.ptr() + tmp.length();
+        while (tmp_end > tmp.ptr() && !*--tmp_end);
+        tmp.length(tmp_end - tmp.ptr() + 1);
+      }
       if (cs->mbmaxlen > 1 &&
           table->field[key_part->fieldnr - 1]->field_length !=
           key_part->length)

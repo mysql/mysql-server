@@ -64,20 +64,6 @@ typedef struct st_lock_param_type
   partition_info *part_info;
 } ALTER_PARTITION_PARAM_TYPE;
 
-
-/*typedef struct {
-  ulonglong data_file_length;
-  ulonglong max_data_file_length;
-  ulonglong index_file_length;
-  ulonglong delete_length;
-  ha_rows records;
-  ulong mean_rec_length;
-  time_t create_time;
-  time_t check_time;
-  time_t update_time;
-  ulonglong check_sum;
-} PARTITION_INFO;
-*/
 typedef struct {
   longlong list_value;
   uint32 partition_id;
@@ -126,7 +112,6 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                part_id_range *part_spec);
 bool mysql_unpack_partition(THD *thd, const char *part_buf,
                             uint part_info_len,
-                            const char *part_state, uint part_state_len,
                             TABLE *table, bool is_create_table_ind,
                             handlerton *default_db_type,
                             bool *work_part_info_used);

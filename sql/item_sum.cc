@@ -2830,6 +2830,7 @@ String *Item_sum_udf_str::val_str(String *str)
   @retval  1 : key1 > key2 
 */
 
+extern "C"
 int group_concat_key_cmp_with_distinct(void* arg, const void* key1, 
                                        const void* key2)
 {
@@ -2864,6 +2865,7 @@ int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
   function of sort for syntax: GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
+extern "C"
 int group_concat_key_cmp_with_order(void* arg, const void* key1, 
                                     const void* key2)
 {
@@ -2908,13 +2910,16 @@ int group_concat_key_cmp_with_order(void* arg, const void* key1,
   Append data from current leaf to item->result.
 */
 
-int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
-                  Item_func_group_concat *item)
+extern "C"
+int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
+                  void* item_arg)
 {
+  Item_func_group_concat *item= (Item_func_group_concat *) item_arg;
   TABLE *table= item->table;
   String tmp((char *)table->record[1], table->s->reclength,
              default_charset_info);
   String tmp2;
+  uchar *key= (uchar *) key_arg;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
   uint old_length= result->length();
@@ -2993,7 +2998,7 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_LIST *order_list, String *separator_arg)
+                       SQL_I_List<ORDER> *order_list, String *separator_arg)
   :tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
    order(0), context(context_arg),
@@ -3037,7 +3042,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= (ORDER*) order_list->first;
+    for (ORDER *order_item= order_list->first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3388,8 +3393,7 @@ String* Item_func_group_concat::val_str(String* str)
     return 0;
   if (no_appended && tree)
     /* Tree is used for sorting as in ORDER BY */
-    tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
-              left_root_right);
+    tree_walk(tree, &dump_leaf_key, this, left_root_right);
   return &result;
 }
 

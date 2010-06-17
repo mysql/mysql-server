@@ -29,6 +29,7 @@
 #define YYLEX_PARAM yythd
 #define YYTHD ((THD *)yythd)
 #define YYLIP (& YYTHD->m_parser_state->m_lip)
+#define YYPS (& YYTHD->m_parser_state->m_yacc)
 
 #define MYSQL_YACC
 #define YYINITDEPTH 100
@@ -525,8 +526,7 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
     Let us add this item to list of all Item_trigger_field
     objects in trigger.
   */
-  lex->trg_table_fields.link_in_list((uchar *) trg_fld,
-                                     (uchar **) &trg_fld->next_trg_field);
+  lex->trg_table_fields.link_in_list(trg_fld, &trg_fld->next_trg_field);
 
   return lex->sphead->add_instr(sp_fld);
 }
@@ -4936,7 +4936,6 @@ create_select:
           SELECT_SYM
           {
             LEX *lex=Lex;
-            lex->lock_option= TL_READ_DEFAULT;
             if (lex->sql_command == SQLCOM_INSERT)
               lex->sql_command= SQLCOM_INSERT_SELECT;
             else if (lex->sql_command == SQLCOM_REPLACE)
@@ -5116,7 +5115,7 @@ create_table_option:
             */
             TABLE_LIST *last_non_sel_table= lex->create_last_non_select_table;
             DBUG_ASSERT(last_non_sel_table->next_global ==
-                        (TABLE_LIST *)lex->create_info.merge_list.first);
+                        lex->create_info.merge_list.first);
             last_non_sel_table->next_global= 0;
             Lex->query_tables_last= &last_non_sel_table->next_global;
 
@@ -6157,8 +6156,7 @@ alter:
               MYSQL_YYABORT;
             lex->col_list.empty();
             lex->select_lex.init_order();
-            lex->select_lex.db=
-              ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
+            lex->select_lex.db= (lex->select_lex.table_list.first)->db;
             bzero((char*) &lex->create_info,sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
@@ -7208,8 +7206,8 @@ select_from:
           opt_order_clause opt_limit_clause procedure_clause
           {
             Select->context.table_list=
-              Select->context.first_name_resolution_table= 
-                (TABLE_LIST *) Select->table_list.first;
+              Select->context.first_name_resolution_table=
+                Select->table_list.first;
           }
         | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
@@ -7301,7 +7299,6 @@ select_lock_type:
           {
             LEX *lex=Lex;
             lex->current_select->set_lock_for_tables(TL_WRITE);
-            lex->current_select->lock_option= TL_WRITE;
             lex->safe_to_cache_query=0;
             lex->protect_against_global_read_lock= TRUE;
           }
@@ -7310,7 +7307,6 @@ select_lock_type:
             LEX *lex=Lex;
             lex->current_select->
               set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
-            lex->current_select->lock_option= TL_READ_WITH_SHARED_LOCKS;
             lex->safe_to_cache_query=0;
           }
         ;
@@ -8903,9 +8899,8 @@ opt_gorder_clause:
         | order_clause
           {
             SELECT_LEX *select= Select;
-            select->gorder_list=
-              (SQL_LIST*) sql_memdup((char*) &select->order_list,
-                                     sizeof(st_sql_list));
+            select->gorder_list= new (YYTHD->mem_root)
+                                   SQL_I_List<ORDER>(select->order_list);
             if (select->gorder_list == NULL)
               MYSQL_YYABORT;
             select->order_list.empty();
@@ -9220,7 +9215,7 @@ table_factor:
           {
             if (!($$= Select->add_table_to_list(YYTHD, $2, $3,
                                                 Select->get_table_join_options(),
-                                                Lex->lock_option,
+                                                YYPS->m_lock_type,
                                                 Select->pop_index_hints())))
               MYSQL_YYABORT;
             Select->add_joined_table($$);
@@ -9962,7 +9957,7 @@ procedure_clause:
             }
             lex->proc_list.elements=0;
             lex->proc_list.first=0;
-            lex->proc_list.next= (uchar**) &lex->proc_list.first;
+            lex->proc_list.next= &lex->proc_list.first;
             Item_field *item= new (YYTHD->mem_root)
                                 Item_field(&lex->current_select->context,
                                            NULL, NULL, $2.str);
@@ -10277,7 +10272,7 @@ table_alias_ref:
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                           Lex->lock_option ))
+                                           YYPS->m_lock_type))
               MYSQL_YYABORT;
           }
         ;
@@ -10317,8 +10312,6 @@ insert:
             lex->sql_command= SQLCOM_INSERT;
             lex->duplicates= DUP_ERROR; 
             mysql_init_select(lex);
-            /* for subselects */
-            lex->lock_option= TL_READ_DEFAULT;
           }
           insert_lock_option
           opt_ignore insert2
@@ -10509,7 +10502,6 @@ update:
             LEX *lex= Lex;
             mysql_init_select(lex);
             lex->sql_command= SQLCOM_UPDATE;
-            lex->lock_option= TL_UNLOCK; /* Will be set later */
             lex->duplicates= DUP_ERROR; 
           }
           opt_low_priority opt_ignore join_table_list
@@ -10576,7 +10568,7 @@ delete:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DELETE;
             mysql_init_select(lex);
-            lex->lock_option= TL_WRITE_DEFAULT;
+            YYPS->m_lock_type= TL_WRITE_DEFAULT;
             lex->ignore= 0;
             lex->select_lex.init_order();
           }
@@ -10587,20 +10579,27 @@ single_multi:
           FROM table_ident
           {
             if (!Select->add_table_to_list(YYTHD, $2, NULL, TL_OPTION_UPDATING,
-                                           Lex->lock_option))
+                                           YYPS->m_lock_type))
               MYSQL_YYABORT;
+            YYPS->m_lock_type= TL_READ_DEFAULT;
           }
           where_clause opt_order_clause
           delete_limit_clause {}
         | table_wild_list
-          { mysql_init_multi_delete(Lex); }
+          {
+            mysql_init_multi_delete(Lex);
+            YYPS->m_lock_type= TL_READ_DEFAULT;
+          }
           FROM join_table_list where_clause
           {
             if (multi_delete_set_locks_and_link_aux_tables(Lex))
               MYSQL_YYABORT;
           }
         | FROM table_alias_ref_list
-          { mysql_init_multi_delete(Lex); }
+          {
+            mysql_init_multi_delete(Lex);
+            YYPS->m_lock_type= TL_READ_DEFAULT;
+          }
           USING join_table_list where_clause
           {
             if (multi_delete_set_locks_and_link_aux_tables(Lex))
@@ -10623,7 +10622,7 @@ table_wild_one:
                                            ti,
                                            NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                           Lex->lock_option))
+                                           YYPS->m_lock_type))
               MYSQL_YYABORT;
           }
         | ident '.' ident opt_wild
@@ -10635,7 +10634,7 @@ table_wild_one:
                                            ti,
                                            NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                           Lex->lock_option))
+                                           YYPS->m_lock_type))
               MYSQL_YYABORT;
           }
         ;
@@ -10652,7 +10651,7 @@ opt_delete_options:
 
 opt_delete_option:
           QUICK        { Select->options|= OPTION_QUICK; }
-        | LOW_PRIORITY { Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
+        | LOW_PRIORITY { YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY; }
         | IGNORE_SYM   { Lex->ignore= 1; }
         ;
 
@@ -10738,7 +10737,6 @@ show:
           {
             LEX *lex=Lex;
             lex->wild=0;
-            lex->lock_option= TL_READ;
             mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
             bzero((char*) &lex->create_info,sizeof(lex->create_info));
@@ -11091,7 +11089,6 @@ describe:
           describe_command table_ident
           {
             LEX *lex= Lex;
-            lex->lock_option= TL_READ;
             mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
@@ -11305,7 +11302,6 @@ load:
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_LOAD;
-            lex->lock_option= $4;
             lex->local_file=  $5;
             lex->duplicates= DUP_ERROR;
             lex->ignore= 0;
@@ -11316,7 +11312,7 @@ load:
           {
             LEX *lex=Lex;
             if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
-                                           lex->lock_option))
+                                           $4))
               MYSQL_YYABORT;
             lex->field_list.empty();
             lex->update_list.empty();
@@ -11908,8 +11904,8 @@ simple_ident_q:
                 Let us add this item to list of all Item_trigger_field objects
                 in trigger.
               */
-              lex->trg_table_fields.link_in_list((uchar*) trg_fld,
-                                                 (uchar**) &trg_fld->next_trg_field);
+              lex->trg_table_fields.link_in_list(trg_fld,
+                                                 &trg_fld->next_trg_field);
 
               $$= trg_fld;
             }
@@ -11995,7 +11991,7 @@ field_ident:
           ident { $$=$1;}
         | ident '.' ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->db))
             {
               my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
@@ -12011,7 +12007,7 @@ field_ident:
           }
         | ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
@@ -13748,17 +13744,6 @@ subselect_start:
 subselect_end:
           {
             LEX *lex=Lex;
-            /*
-              Set the required lock level for the tables associated with the
-              current sub-select. This will overwrite previous lock options set
-              using st_select_lex::add_table_to_list in any of the following
-              rules: single_multi, table_wild_one, load_data, table_alias_ref,
-              table_factor.
-              The default lock level is TL_READ_DEFAULT but it can be modified
-              with query options specific for a certain (sub-)SELECT.
-            */
-            lex->current_select->
-              set_lock_for_tables(lex->current_select->lock_option);
 
             lex->pop_context();
             SELECT_LEX *child= lex->current_select;
@@ -13790,8 +13775,8 @@ query_expression_option:
           {
             if (check_simple_select())
               MYSQL_YYABORT;
-            Lex->lock_option= TL_READ_HIGH_PRIORITY;
-            Lex->current_select->lock_option= TL_READ_HIGH_PRIORITY;
+            YYPS->m_lock_type= TL_READ_HIGH_PRIORITY;
+            Select->options|= SELECT_HIGH_PRIORITY;
           }
         | DISTINCT         { Select->options|= SELECT_DISTINCT; }
         | SQL_SMALL_RESULT { Select->options|= SELECT_SMALL_RESULT; }
