@@ -2979,6 +2979,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     DBC* tmp_cursor2 = NULL;
     DBT key1, key2, val, packed_key1, packed_key2;
     u_int64_t cnt = 0;
+    char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
     THD* thd = ha_thd();
     bzero(&key1, sizeof(key1));
     bzero(&key2, sizeof(key2));
@@ -3097,7 +3098,14 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
         if (error && (error != DB_NOTFOUND)) { goto cleanup; }
 
         cnt++;
-        if (cnt%10000) {
+        if ((cnt % 10000) == 0) {
+            sprintf(
+                status_msg, 
+                "Verifying index uniqueness: Checked %llu of %llu rows in key-%s.", 
+                cnt, 
+                share->rows, 
+                key_info->name);
+            thd_proc_info(thd, status_msg);
             if (thd->killed) {
                 my_error(ER_QUERY_INTERRUPTED, MYF(0));
                 error = ER_QUERY_INTERRUPTED;
