@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -255,6 +255,10 @@ btr_page_set_prev(
 
 /**************************************************************//**
 Gets the child node file address in a node pointer.
+NOTE: the offsets array must contain all offsets for the record since
+we read the last field according to offsets and assume that it contains
+the child page number. In other words offsets must have been retrieved
+with rec_get_offsets(n_fields=ULINT_UNDEFINED).
 @return	child node address */
 UNIV_INLINE
 ulint
