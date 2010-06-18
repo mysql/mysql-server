@@ -2708,8 +2708,6 @@ insert into t4 values
   (1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
   (6, "F"), (7, "G"), (8, "H"), (9, "I");
 
-set optimizer_switch="materialization=off,loosescan=off,firstmatch=off";
-
 explain select name from t2, t1 
   where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
         and t2.uid=t1.fid;
@@ -2718,7 +2716,6 @@ select name from t2, t1
   where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
         and t2.uid=t1.fid;
 
-set optimizer_switch=default;
 drop table t1,t2,t3,t4;
 
 --echo #

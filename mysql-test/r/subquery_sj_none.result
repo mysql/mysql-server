@@ -4569,7 +4569,6 @@ create table t4 (uid int primary key, name varchar(128), index(name));
 insert into t4 values 
 (1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
 (6, "F"), (7, "G"), (8, "H"), (9, "I");
-set optimizer_switch="materialization=off,loosescan=off,firstmatch=off";
 explain select name from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
@@ -4593,7 +4592,6 @@ H
 A
 B
 I
-set optimizer_switch=default;
 drop table t1,t2,t3,t4;
 #
 # Bug#53058 - semijoin execution of subquery with outerjoin yields wrong result
@@ -4607,11 +4605,11 @@ INSERT INTO t3 VALUES (1), (2);
 explain extended SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Start materialize; Scan
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where (<cache>(`test`.`t1`.`i`) = `test`.`t3`.`i`)))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 i
