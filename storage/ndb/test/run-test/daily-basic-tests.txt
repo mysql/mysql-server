@@ -1235,9 +1235,13 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n Bug41915 D2
 
-max-time: 1500
+max-time: 3600
 cmd: testSystemRestart
 args: -n Bug48436 T1
+
+max-time: 600
+cmd: testSystemRestart
+args: -n Bug54611 T1
 
 max-time: 300
 cmd: test_event
