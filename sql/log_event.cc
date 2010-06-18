@@ -38,6 +38,31 @@
 #include <my_bitmap.h>
 #include "rpl_utility.h"
 
+
+/**
+  BINLOG_CHECKSUM variable.
+*/
+const char *binlog_checksum_type_name[]= {
+  "NONE",
+  "CRC32",
+  NullS
+};
+
+unsigned int binlog_checksum_type_length[]= {
+  sizeof("NONE") - 1,
+  sizeof("CRC32") - 1,
+  0
+};
+
+TYPELIB binlog_checksum_typelib=
+{
+  array_elements(binlog_checksum_type_name) - 1, "",
+  binlog_checksum_type_name,
+  binlog_checksum_type_length
+};
+
+
+
 #define log_cs	&my_charset_latin1
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -1573,9 +1598,8 @@ void Log_event::print_header(IO_CACHE* file,
   {
     char checksum_buf[BINLOG_CHECKSUM_LEN * 2 + 4]; // to fit to "0x%lx "
     size_t const bytes_written=
-      my_snprintf(checksum_buf, sizeof(checksum_buf), "0x%08lx ", crc);
-    my_b_printf(file, "%s ",
-                binlog_checksum_type_name[binlog_checksum_alg_id]);
+      my_snprintf(checksum_buf, sizeof(checksum_buf), "0x%08lx ", (ulong) crc);
+    my_b_printf(file, "%s ", get_type(&binlog_checksum_typelib, checksum_alg));
     my_b_printf(file, checksum_buf, bytes_written);
   }
 
