@@ -4147,3 +4147,26 @@ SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
 DROP TABLE CC;
 --echo # End of test#45277
 
+--echo #
+--echo # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
+--echo #            SELECT from VIEW with GROUP BY
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int DEFAULT NULL,
+  KEY int_key (col_int_key)
+) ;
+
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE VIEW view_t1 AS 
+  SELECT t1.col_int_key AS col_int_key
+  FROM t1;
+
+SELECT col_int_key FROM view_t1 GROUP BY col_int_key;
+
+DROP VIEW view_t1;
+DROP TABLE t1;
+
+--echo # End of test BUG#54515
+
