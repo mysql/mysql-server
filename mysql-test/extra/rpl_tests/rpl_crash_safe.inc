@@ -47,7 +47,7 @@ if (`SELECT HEX(@commands) != HEX('')`)
     STOP SLAVE SQL_THREAD;
     source include/wait_for_slave_sql_to_stop.inc;
     --eval SET GLOBAL debug="$failure";
-    --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+    --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
   }
 
   #
@@ -88,6 +88,7 @@ if (`SELECT HEX(@commands) != HEX('')`)
     START SLAVE SQL_THREAD;
     --source include/wait_until_disconnected.inc
     --enable_reconnect
+    --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
     --source include/wait_until_connected_again.inc
     connection slave;
     --let $slave_before= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
