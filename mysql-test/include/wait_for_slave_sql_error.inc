@@ -6,14 +6,21 @@
 #
 # ==== Usage ====
 #
+# # Wait several errors.  
+# let $slave_sql_errno= 1, 2, 3; 
+# source include/wait_for_slave_sql_error.inc;
+#
+# # Print error message 
+# let $slave_sql_errno= 1; 
+# let $show_slave_sql_error= 1; 
 # source include/wait_for_slave_sql_error.inc;
 #
 # Parameters:
 #
 # $slave_sql_errno
-#   The expected SQL error number.  This is required.
+#   The expected SQL error numbers.  This is required.
 #   (After BUG#41956 has been fixed, this will be required to be a
-#   symbolic name instead of a number.)
+#   symbolic name instead of a numbers.)
 #
 # $show_slave_sql_error
 #   If set, will print the error to the query log.
@@ -34,7 +41,7 @@ let $slave_error_message= Failed while waiting for slave to stop the SQL thread 
 source include/wait_for_slave_param.inc;
 
 let $_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-if (`SELECT NOT($_error IN $slave_sql_errno)`) {
+if (`SELECT $_error NOT IN ($slave_sql_errno)`) {
   --echo **** Slave stopped with wrong error code: $_error (expected $slave_sql_errno) ****
   source include/show_rpl_debug_info.inc;
   --echo **** Slave stopped with wrong error code: $_error (expected $slave_sql_errno) ****

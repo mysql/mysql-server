@@ -148,7 +148,7 @@ connection master;
 INSERT INTO t4 VALUES (4);
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= 1535
+--let $slave_sql_errno= 1658
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
 
@@ -160,7 +160,7 @@ connection master;
 INSERT INTO t5 VALUES (5,10,25);
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= 1535
+--let $slave_sql_errno= 1658
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
 
@@ -172,7 +172,7 @@ connection master;
 INSERT INTO t6 VALUES (6,12,36);
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= 1535
+--let $slave_sql_errno= 1658
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
 
