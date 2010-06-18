@@ -23,18 +23,7 @@ Master_SSL_CA_Path
 Master_SSL_CA_File	MYSQL_TEST_DIR/std_data/cacert.pem
 Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
-<<<<<<< TREE
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
 Checking that both slave threads are running.
->>>>>>> MERGE-SOURCE
 stop slave;
 change master to master_user='root',master_password='', master_ssl=0;
 start slave;
@@ -45,18 +34,7 @@ Master_SSL_CA_Path
 Master_SSL_CA_File	MYSQL_TEST_DIR/std_data/cacert.pem
 Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
-<<<<<<< TREE
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
 Checking that both slave threads are running.
->>>>>>> MERGE-SOURCE
 stop slave;
 change master to
 master_host="localhost",
@@ -77,16 +55,5 @@ Master_SSL_CA_Path
 Master_SSL_CA_File	MYSQL_TEST_DIR/std_data/cacert.pem
 Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
-<<<<<<< TREE
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	Yes
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
 Checking that both slave threads are running.
->>>>>>> MERGE-SOURCE
 drop table t1;
