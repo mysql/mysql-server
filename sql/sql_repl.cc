@@ -29,6 +29,8 @@ my_bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 #endif
 
+extern TYPELIB binlog_checksum_typelib;
+
 /**
    Internal to mysql_binlog_send() routine that recalculates checksum for
    a FD event (asserted) that needs additional arranment prior sending to slave.
@@ -2202,28 +2204,6 @@ static void fix_slave_net_timeout(THD *thd, enum_var_type type)
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  BINLOG_CHECKSUM variable.
-*/
-const char *binlog_checksum_type_name[]= {
-  "NONE",
-  "CRC32",
-  NullS
-};
-
-unsigned int binlog_checksum_type_length[]= {
-  sizeof("NONE") - 1,
-  sizeof("CRC32") - 1,
-  0
-};
-
-TYPELIB binlog_checksum_typelib=
-{
-  array_elements(binlog_checksum_type_name) - 1, "",
-  binlog_checksum_type_name,
-  binlog_checksum_type_length
-};
 
 class sys_var_enum_binlog_checksum :public sys_var_enum
 {

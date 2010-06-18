@@ -10,7 +10,9 @@ source include/have_log_bin.inc;
 # the checksum.
 #
 
-set @@global.binlog_checksum=1;
+set @save_binlog_checksum = @@global.binlog_checksum;
+set @save_master_verify_checksum = @@global.master_verify_checksum;
+set @@global.binlog_checksum = CRC32;
 set @@global.master_verify_checksum = 1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -29,5 +31,7 @@ show tables;
 # clean-up 
 
 drop table t1;
+set @@global.binlog_checksum = @save_binlog_checksum;
+set @@global.master_verify_checksum = @save_master_verify_checksum;
 
 --echo End of the tests
