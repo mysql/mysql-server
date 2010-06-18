@@ -187,7 +187,6 @@ End of 5.0 tests.
 # Bug#37870: Usage of uninitialized value caused failed assertion.
 #
 set @opt_sw_save=  @@optimizer_switch;
-set optimizer_switch='semijoin=off';
 create table t1 (dt datetime not null, t time not null);
 create table t2 (dt datetime not null);
 insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),

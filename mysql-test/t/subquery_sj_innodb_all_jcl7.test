@@ -1,0 +1,13 @@
+# 
+# Run subquery_sj_innodb_all.test with BKA_UNIQUE enabled 
+#
+let $requires_join_cache_level = 7;
+--source include/have_join_cache_level.inc
+
+set optimizer_join_cache_level=7;
+show variables like 'optimizer_join_cache_level';
+
+--source t/subquery_sj_innodb_all.test
+
+set optimizer_join_cache_level=default;
+show variables like 'optimizer_join_cache_level';

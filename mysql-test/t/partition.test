@@ -1664,8 +1664,6 @@ INSERT INTO t4 select * from t2;
 set @f_date='2006-09-28';
 set @t_date='2006-10-02';
 
-set @opt_sw_save= @@optimizer_switch;
-set optimizer_switch="semijoin=off";
 SELECT t1.id AS MyISAM_part
 FROM t1
 WHERE t1.id IN (
@@ -1673,7 +1671,6 @@ WHERE t1.id IN (
     FROM t4
     WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
 ORDER BY t1.id;
-set optimizer_switch=@opt_sw_save;
 
 drop table t1, t2, t4;
 

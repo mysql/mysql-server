@@ -340,3 +340,64 @@ SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
 SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#43618: MyISAM&Maria returns wrong results with 'between' 
+--echo #            on timestamp
+--echo #
+
+CREATE TABLE t1(
+   ts TIMESTAMP NOT NULL, 
+   c char NULL,
+   PRIMARY KEY(ts)
+);
+
+INSERT INTO t1 VALUES
+   ('1971-01-01','a'),
+   ('2007-05-25','b'),
+   ('2008-01-01','c'),
+   ('2038-01-09','d');
+
+--disable_warnings
+
+--echo
+--echo # Execute select with invalid timestamp, desc ordering
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2; 
+
+--echo
+--echo # Should use index condition
+EXPLAIN
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2; 
+--echo
+
+--enable_warnings
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#49906: Assertion failed - Field_varstring::val_str in field.cc
+--echo #
+
+CREATE TABLE t1 ( 
+  f1 VARCHAR(1024),
+  f2 VARCHAR(10),
+  INDEX test_idx USING BTREE (f2,f1(5))
+);
+
+INSERT INTO t1 VALUES  ('a','c'), ('b','d');  
+
+SELECT f1
+FROM t1 
+WHERE f2 LIKE 'd' 
+ORDER BY f1;
+
+DROP TABLE t1;
+

@@ -150,6 +150,7 @@ void Item_in_subselect::cleanup()
     left_expr_cache= NULL;
   }
   first_execution= TRUE;
+  need_expr_cache= TRUE;
   Item_subselect::cleanup();
   DBUG_VOID_RETURN;
 }
@@ -320,13 +321,15 @@ bool Item_in_subselect::exec()
     end up pointing to the wrong field. One solution is to change Cached_item
     to not resolve its field upon creation, but to resolve it dynamically
     from a given Item_ref object.
+    Do not init the cache if a previous execution decided that it is not needed.
     TODO: the cache should be applied conditionally based on:
     - rules - e.g. only if the left operand is known to be ordered, and/or
     - on a cost-based basis, that takes into account the cost of a cache
       lookup, the cache hit rate, and the savings per cache hit.
   */
-  if (!left_expr_cache && exec_method == MATERIALIZATION)
-    init_left_expr_cache();
+  if (need_expr_cache && !left_expr_cache && exec_method == MATERIALIZATION &&
+      init_left_expr_cache())
+    DBUG_RETURN(TRUE);
 
   /* If the new left operand is already in the cache, reuse the old result. */
   if (left_expr_cache && test_if_item_cache_changed(*left_expr_cache) < 0)
@@ -342,7 +345,8 @@ bool Item_in_subselect::exec()
     we don't call it, the next call to item::val_int() will return whatever
     result was computed by its previous call.
   */
-  DBUG_RETURN(Item_subselect::exec());
+  const bool retval= Item_subselect::exec();
+  DBUG_RETURN(retval);
 }
 
 
@@ -743,6 +747,7 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
+  need_expr_cache(TRUE),
   optimizer(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
   upper_item(0)
 {
@@ -1911,8 +1916,7 @@ bool Item_in_subselect::setup_engine()
   but it takes a different kind of collection of items, and the
   list we push to is dynamically allocated.
 
-  @retval TRUE  if a memory allocation error occurred or the cache is
-                not applicable to the current query
+  @retval TRUE  if a memory allocation error occurred
   @retval FALSE if success
 */
 
@@ -1928,7 +1932,11 @@ bool Item_in_subselect::init_left_expr_cache()
     been optimzied away.
   */ 
   if (!outer_join || !outer_join->tables || !outer_join->tables_list)
-    return TRUE;
+  {
+    need_expr_cache= FALSE;
+    return FALSE;
+  }
+
   /*
     If we use end_[send | write]_group to handle complete rows of the outer
     query, make the cache of the left IN operand use Item_field::result_field
@@ -3146,7 +3154,7 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
     - here we initialize only those members that are used by
       subselect_uniquesubquery_engine, so these objects are incomplete.
   */ 
-  if (!(tab= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB))))
+  if (!(tab= new (thd->mem_root) JOIN_TAB))
     DBUG_RETURN(TRUE);
   tab->table= tmp_table;
   tab->ref.key= 0; /* The only temp table index. */

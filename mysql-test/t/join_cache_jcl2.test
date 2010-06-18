@@ -1,0 +1,9 @@
+let $requires_join_cache_level = 2;
+--source include/have_join_cache_level.inc
+
+--eval set optimizer_join_cache_level = $requires_join_cache_level;
+
+--source include/join_cache.inc
+
+set optimizer_join_cache_level = default;
+
