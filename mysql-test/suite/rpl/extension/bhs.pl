@@ -91,6 +91,20 @@ print "  configuration files\n";
 copy(File::Spec->catdir($ext_dir, "bhs", "my.cnf"), $suite_rpl_bhs_dir);
 copy(File::Spec->catdir($ext_dir, "bhs", "rpl_1slave_base.cnf"), $suite_rpl_bhs_dir);
 
+# Add BHS disabled.def
+print "updating disabled.def\n";
+my $fh = new IO::File File::Spec->catdir($bhs_dir, "disabled.def"), "r";
+if (defined $fh) {
+    my @disabled = <$fh>;
+    undef $fh;
+    my $fh = new IO::File File::Spec->catdir($suite_rpl_bhs_dir, "t", "disabled.def"), O_WRONLY|O_APPEND;
+    if (defined $fh) {
+	print $fh join ("", @disabled);
+	undef $fh;
+    }
+}
+
+
 # *** Update test cases
 
 # Read update_rules
@@ -211,7 +225,7 @@ print "updated $case_num files\n";
 
 print "Run $mtr_script\n";
 
-exec( $mtr_script);
+system( $mtr_script );
 
 sub compare_names
 {
