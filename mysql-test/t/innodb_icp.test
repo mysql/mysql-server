@@ -1,17 +1,27 @@
 #
 # ICP/InnoDB tests (Index Condition Pushdown)
+# (Turns off all other 6.0 optimizer switches)
 #
 
 --source include/have_innodb.inc
+--source include/have_index_condition_pushdown.inc
 
-# Index condition pushdown (ICP) is by default disabled in InnoDB. Support
-# for ICP can be enabled in InnoDB by using the optimizer_innodb_icp
-# debug flag. This will only be available in debug builds. 
-# When/if ICP get enabled by default the following two lines should
-# be removed.
+set optimizer_switch='index_condition_pushdown=on';
 
---source include/have_debug.inc
-set session debug="+d,optimizer_innodb_icp";
+--disable_query_log
+if (`select locate('semijoin', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='semijoin=off';
+}
+if (`select locate('materialization', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='materialization=off';
+}
+if (`select locate('mrr', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='mrr=off';
+}
+--enable_query_log
 
 
 set @save_storage_engine= @@storage_engine;
@@ -20,3 +30,4 @@ set storage_engine=InnoDB;
 --source include/icp_tests.inc
 
 set storage_engine= @save_storage_engine;
+set optimizer_switch=default;
