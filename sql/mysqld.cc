@@ -3435,8 +3435,16 @@ static int init_common_variables()
     compiler error in the Sun Studio 12 compiler. As a work-around we
     set the def_value member to 0 in my_long_options and initialize it
     to the correct value here.
+
+    From MySQL 5.5 onwards, the default storage engine is InnoDB
+    (except in the embedded server, where the default continues to
+    be MyISAM)
   */
+#ifdef EMBEDDED_LIBRARY
   default_storage_engine= const_cast<char *>("MyISAM");
+#else
+  default_storage_engine= const_cast<char *>("InnoDB");
+#endif
 
   /*
     Add server status variables to the dynamic list of
