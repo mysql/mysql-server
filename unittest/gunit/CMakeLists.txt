@@ -205,7 +205,6 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
   ADD_DEFINITIONS("-library=stlport4")
 ENDIF()
 
-
 # Add tests (link them with sql library) 
 SET(TESTS sql_list mdl mdl_mytap thread_utils)
 FOREACH(test ${TESTS})
