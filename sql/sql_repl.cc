@@ -1312,6 +1312,10 @@ bool change_master(THD* thd, Master_info* mi)
   bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= FALSE;
+  char saved_host[HOSTNAME_LENGTH + 1];
+  uint saved_port;
+  char saved_log_name[FN_REFLEN];
+  my_off_t saved_log_pos;
 
   DBUG_ENTER("change_master");
 
@@ -1353,6 +1357,17 @@ bool change_master(THD* thd, Master_info* mi)
     and we have the hold on the run locks which will keep all threads that
     could possibly modify the data structures from running
   */
+
+  /*
+    Before processing the command, save the previous state.
+  */
+  char *pos;
+  pos= strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  pos= '\0';
+  saved_port= mi->port;
+  pos= strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
+  pos= '\0';
+  saved_log_pos= mi->get_master_log_pos();
 
   /*
     If the user specified host or port without binlog or position,
@@ -1550,6 +1565,15 @@ bool change_master(THD* thd, Master_info* mi)
   /* Clear the errors, for a clean start */
   mi->rli->clear_error();
   mi->rli->clear_until_condition();
+
+  sql_print_information("'CHANGE MASTER TO executed'. "
+    "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'. "
+    "New state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'.", saved_host, saved_port, saved_log_name,
+    (ulong) saved_log_pos, mi->host, mi->port, mi->get_master_log_name(),
+    (ulong) mi->get_master_log_pos());
+
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
@@ -1960,7 +1984,6 @@ int log_loaded_block(IO_CACHE* file)
       if (mysql_bin_log.write(&b))
         DBUG_RETURN(1);
       lf_info->wrote_create_file= 1;
-      DBUG_SYNC_POINT("debug_lock.created_file_event",10);
     }
   }
   DBUG_RETURN(0);

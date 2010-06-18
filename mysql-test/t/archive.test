@@ -1655,3 +1655,26 @@ FLUSH TABLE t1;
 SELECT * FROM t1;
 --error ER_BAD_TABLE_ERROR
 DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#46565 - repair of partition fail for archive engine
+--echo #
+--echo # Installing corrupted table files for t1.
+# bug46565 was created, filled and damaged as following:
+# CREATE TABLE bug46565(a INT) ENGINE=archive;
+# INSERT INTO bug46565 VALUES(1);
+# FLUSH TABLE bug46565;
+# INSERT INTO bug46565 VALUES(2),(3);
+# FLUSH TABLE bug46565;
+# dd if=bug46565.ARZ of=std_data/bug46565.ARZ bs=1 count=8670
+copy_file std_data/bug46565.frm $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/bug46565.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
+--error ER_CRASHED_ON_USAGE
+SELECT * FROM t1;
+REPAIR TABLE t1;
+--error ER_CRASHED_ON_USAGE
+SELECT * FROM t1;
+REPAIR TABLE t1 EXTENDED;
+SELECT * FROM t1;
+DROP TABLE t1;

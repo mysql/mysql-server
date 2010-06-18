@@ -1,6 +1,5 @@
 --source include/have_partition.inc
---source include/have_innodb.inc
---source suite/innodb/include/have_innodb_plugin.inc
+--source include/have_innodb_plugin.inc
 
 #
 # Bug#32430 - show engine innodb status causes errors

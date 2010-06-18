@@ -1742,7 +1742,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a` AS `a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a` AS `a`) + 0)
+Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a`) + 0)
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1750,7 +1750,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a` AS `a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a` AS `a`))
+Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a`))
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
@@ -1788,6 +1788,26 @@ aa	b	COUNT(         b)
 3	30	1
 2	20	2
 1	10	1
+DROP TABLE t1, t2;
+#
+# Bug#52051: Aggregate functions incorrectly returns NULL from outer
+# join query
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+MIN(t2.a)
+1
+EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+MAX(t2.a)
+2
 DROP TABLE t1, t2;
 #
 # End of 5.1 tests

@@ -293,10 +293,6 @@ public:
 
   virtual ~sp_head();
 
-  /// Free memory
-  void
-  destroy();
-
   bool
   execute_trigger(THD *thd,
                   const LEX_STRING *db_name,
