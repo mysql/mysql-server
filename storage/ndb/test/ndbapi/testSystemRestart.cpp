@@ -2207,6 +2207,24 @@ loop:
 }
 
 int
+runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  NullOutputStream null;
+  OutputStream * save[1];
+  save[0] = g_err.m_out;
+  g_err.m_out = &null;
+  while (!ctx->isTestStopped())
+  {
+    hugoTrans.scanUpdateRecords(pNdb, 0);
+  }
+  g_err.m_out = save[0];
+  return NDBT_OK;
+}
+
+int
 runBug48436(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
@@ -2229,7 +2247,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
 
     for (Uint32 j = 0; j<5; j++)
     {
-      int c = (rand()) % 10;
+      int c = (rand()) % 11;
       ndbout_c("case: %u", c);
       switch(c){
       case 0:
@@ -2269,11 +2287,59 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
         res.restartAll(false, true, true);
         res.waitClusterNoStart();
         res.startAll();
+        break;
+      case 10:
+      {
+        res.dumpStateAllNodes(val2, 2);
+        int node = res.getMasterNodeId();
+        res.insertErrorInNode(node, 7222);
+        res.waitClusterNoStart();
+        res.startAll();
+        break;
+      }
       }
       res.waitClusterStarted();
     }
     res.restartAll(false, true, true);
     res.waitClusterNoStart();
+    res.startAll();
+    res.waitClusterStarted();
+  }
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
+int
+runBug54611(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  Uint32 loops = ctx->getNumLoops();
+  Ndb* pNdb = GETNDB(step);
+  int rows = ctx->getNumRecords();
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  for (Uint32 l = 0; l<loops; l++)
+  {
+    int val = DumpStateOrd::DihMinTimeBetweenLCP;
+    res.dumpStateAllNodes(&val, 1);
+
+    for (Uint32 i = 0; i < 5; i++)
+    {
+      hugoTrans.scanUpdateRecords(pNdb, rows);
+    }
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    res.dumpStateAllNodes(val2, 2);
+
+    int node = res.getMasterNodeId();
+    res.insertErrorInNode(node, 7222);
+
+    while (hugoTrans.scanUpdateRecords(pNdb, rows) == 0);
+    res.waitClusterNoStart();
+
+    res.insertErrorInAllNodes(5055);
     res.startAll();
     res.waitClusterStarted();
   }
@@ -2620,7 +2686,14 @@ TESTCASE("Bug46412", "")
 }
 TESTCASE("Bug48436", "")
 {
-  INITIALIZER(runBug48436);
+  INITIALIZER(runLoadTable);
+  STEP(runBug48436);
+  STEP(runScanUpdateUntilStopped);
+}
+TESTCASE("Bug54611", "")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug54611);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 

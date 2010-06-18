@@ -13158,6 +13158,21 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
    * ----------------------------------------------------------------------- */
   fragptr.i = lcpPtr.p->currentFragment.fragPtrI;
   c_fragment_pool.getPtr(fragptr);
+
+  /**
+   * Update maxGciInLcp after scan has been performed
+   */
+#if defined VM_TRACE || defined ERROR_INSERTED
+  if (fragptr.p->newestGci != fragptr.p->maxGciInLcp)
+  {
+    ndbout_c("tab: %u frag: %u increasing maxGciInLcp from %u to %u",
+             fragptr.p->tabRef,
+             fragptr.p->fragId,
+             fragptr.p->maxGciInLcp, fragptr.p->newestGci);
+  }
+#endif
+
+  fragptr.p->maxGciInLcp = fragptr.p->newestGci;
   
   contChkpNextFragLab(signal);
   return;
@@ -16078,6 +16093,11 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     jamEntry();
   }
 
+  if (ERROR_INSERTED(5055))
+  {
+    ndbrequire(c_lcpId == 0 || lcpId == 0 || c_lcpId == lcpId);
+  }
+
   c_lcpId = (c_lcpId == 0 ? lcpId : c_lcpId);
   c_lcpId = (c_lcpId < lcpId ? c_lcpId : lcpId);
   c_lcp_waiting_fragments.add(fragptr);
@@ -16284,6 +16304,11 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
 
   Uint32 sender= signal->theData[0];
   
+  if (ERROR_INSERTED(5055))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+
   lcpPtr.p->m_outstanding--;
   if(lcpPtr.p->m_outstanding)
   {
