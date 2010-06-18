@@ -827,7 +827,12 @@ static Sys_var_ulong Sys_optimizer_join_cache_level(
        "Odd numbers are used for plain join buffers while even numbers "
        "are used for linked buffers",
        SESSION_VAR(optimizer_join_cache_level), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 8), DEFAULT(1), BLOCK_SIZE(1));
+#ifdef OPTIMIZER_SWITCH_ALL
+       VALID_RANGE(0, 8),
+#else
+       VALID_RANGE(0, 1),
+#endif
+       DEFAULT(1), BLOCK_SIZE(1));
 
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
@@ -1368,8 +1373,10 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
+#ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
   "mrr", "mrr_cost_based", "index_condition_pushdown",
+#endif
   "default", NullS
 };
 /** propagates changes to @@engine_condition_pushdown */

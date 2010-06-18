@@ -162,7 +162,14 @@ extern char err_shared_dir[];
 #define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 11)
 #define OPTIMIZER_SWITCH_LAST                      (1ULL << 12)
 
+/**
+   If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
+   optimizer features (semijoin, MRR, ICP) will be available.
+ */
+#undef OPTIMIZER_SWITCH_ALL
+
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+#ifdef OPTIMIZER_SWITCH_ALL
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
@@ -174,7 +181,13 @@ extern char err_shared_dir[];
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_MRR | \
                                   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN)
-
+#else
+#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
+#endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
