@@ -70,6 +70,7 @@ set autocommit=1;
 # (use index_intersection because it is impossible to check that for index union)
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 # CPK scan + 1 ROR range scan is a special case
+--sorted_result
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 
 # Verify that CPK fields are considered to be covered by index scans
