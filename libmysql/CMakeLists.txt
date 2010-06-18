@@ -152,7 +152,7 @@ SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
 
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS})
+MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
@@ -171,11 +171,11 @@ IF(UNIX)
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
     ENDIF() 
   ENDMACRO()
-  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a mysqlclient ${INSTALL_LIBDIR})
+  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a mysqlclient ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} COMPONENT SharedLibraries)
   IF(UNIX)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
@@ -209,7 +209,7 @@ IF(NOT DISABLE_SHARED)
       "${CMAKE_SHARED_LIBRARY_SUFFIX}"
       ""
       linkname)
-    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR})
+    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
     SET(OS_SHARED_LIB_SYMLINKS "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
     LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
     FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
@@ -218,7 +218,7 @@ IF(NOT DISABLE_SHARED)
         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
         "${ver}"
         linkname)
-      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR})
+      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
     ENDFOREACH()
   ENDIF()
 ENDIF()
