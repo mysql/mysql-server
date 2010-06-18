@@ -944,6 +944,7 @@ sub command_line_setup {
 	     'timestamp'                => \&report_option,
 	     'timediff'                 => \&report_option,
 	     'max-connections=i'        => \$opt_max_connections,
+	     'default-myisam!'          => \&collect_option,
 
              'help|h'                   => \$opt_usage,
              'list-options'             => \$opt_list_options,
@@ -2843,7 +2844,6 @@ sub mysql_install_db {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
-  mtr_add_arg($args, "--loose-innodb=OFF");
   mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
@@ -5560,7 +5560,9 @@ Misc options
   timediff              With --timestamp, also print time passed since
                         *previous* test started
   max-connections=N     Max number of open connection to server in mysqltest
-
+  default-myisam        Set default storage engine to MyISAM for non-innodb
+                        tests. This is needed after switching default storage
+                        engine to InnoDB.
 HERE
   exit(1);
 
