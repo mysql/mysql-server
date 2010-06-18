@@ -1666,7 +1666,7 @@ row_merge(
 		return(DB_CORRUPTION);
 	}
 
-	ut_ad(n_run < *num_run);
+	ut_ad(n_run <= *num_run);
 
 	*num_run = n_run;
 
@@ -1713,6 +1713,11 @@ row_merge_sort(
 
 	/* Record the number of merge runs we need to perform */
 	num_runs = file->offset;
+
+	/* If num_runs are less than 1, nothing to merge */
+	if (num_runs <= 1) {
+		return(error);
+	}
 
 	/* "run_offset" records each run's first offset number */
 	run_offset = (ulint*) mem_alloc(file->offset * sizeof(ulint));
