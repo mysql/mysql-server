@@ -1805,7 +1805,8 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
    * This set which GCI we will try to restart to
    */
   SYSFILE->newestRestorableGCI = gci;
-  
+  infoEvent("Restarting cluster to GCI: %u", gci);
+
   ndbrequire(isMaster());
   copyGciLab(signal, CopyGCIReq::RESTART); // We have already read the file!
 
@@ -3553,15 +3554,18 @@ Dbdih::nr_start_fragment(Signal* signal,
            replicaPtr.p->lcpStatus[idx] == ZVALID ? "VALID" : "NOT VALID");
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
+      Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
-      ndbout_c(" %u", stopGci);
+      ndbout_c(" maxGciCompleted: %u maxGciStarted: %u", startGci - 1, stopGci);
       for (; j>= 0; j--)
       {
-	ndbout_c("crashed replica: %d(%d) replicaLastGci: %d",
+	ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
 		 j, 
 		 replicaPtr.p->noCrashedReplicas,
+                 replicaPtr.p->createGci[j],
 		 replicaPtr.p->replicaLastGci[j]);
-	if (replicaPtr.p->replicaLastGci[j] > stopGci)
+	if (replicaPtr.p->createGci[j] <= startGci &&
+            replicaPtr.p->replicaLastGci[j] >= stopGci)
 	{
 	  maxLcpId = replicaPtr.p->lcpId[idx];
 	  maxLcpIndex = idx;
@@ -3580,14 +3584,17 @@ Dbdih::nr_start_fragment(Signal* signal,
   ndbout_c("- scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
   if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
   {
+    Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
     Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
     for (;j >= 0; j--)
     {
-      ndbout_c("crashed replica: %d(%d) replicaLastGci: %d",
+      ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
                j, 
                replicaPtr.p->noCrashedReplicas,
+               replicaPtr.p->createGci[j],
                replicaPtr.p->replicaLastGci[j]);
-      if (replicaPtr.p->replicaLastGci[j] > stopGci)
+      if (replicaPtr.p->createGci[j] <= startGci &&
+          replicaPtr.p->replicaLastGci[j] >= stopGci)
       {
         maxLcpId = replicaPtr.p->lcpId[idx];
         maxLcpIndex = idx;
@@ -3637,6 +3644,7 @@ done:
     }
     ndbassert(gci == restorableGCI);
     replicaPtr.p->m_restorable_gci = gci;
+    Uint32 startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex] + 1;
     ndbout_c("Found LCP: %d(%d) maxGciStarted: %d maxGciCompleted: %d restorable: %d(%d) newestRestorableGCI: %d",
 	     maxLcpId,
 	     maxLcpIndex,
@@ -3656,15 +3664,15 @@ done:
     req->fragId = takeOverPtr.p->toCurrentFragid;
     req->noOfLogNodes = 1;
     req->lqhLogNode[0] = takeOverPtr.p->toStartingNode;
-    req->startGci[0] = replicaPtr.p->maxGciCompleted[maxLcpIndex];
+    req->startGci[0] = startGci;
     req->lastGci[0] = gci;
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
 
-    if (replicaPtr.p->maxGciCompleted[maxLcpIndex] < takeOverPtr.p->startGci)
+    if (startGci < takeOverPtr.p->startGci)
     {
       jam();
-      takeOverPtr.p->startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex];
+      takeOverPtr.p->startGci = startGci;
     }
   }
 }
@@ -9310,6 +9318,37 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
 
     c_newest_restorable_gci = m_gcp_save.m_gci;
+    if ((ERROR_INSERTED(7222) || ERROR_INSERTED(7223)) &&
+        !Sysfile::getLCPOngoing(SYSFILE->systemRestartBits) &&
+        c_newest_restorable_gci >= c_lcpState.lcpStopGcp)
+    {
+      if (ERROR_INSERTED(7222))
+      {
+        sendLoopMacro(COPY_TABREQ, nullRoutine, 0);
+        NodeReceiverGroup rg(CMVMI, c_COPY_TABREQ_Counter);
+
+        rg.m_nodes.clear(getOwnNodeId());
+        if (!rg.m_nodes.isclear())
+        {
+          signal->theData[0] = 9999;
+          sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBA);
+        }
+        signal->theData[0] = 9999;
+        sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+
+        signal->theData[0] = 932;
+        EXECUTE_DIRECT(QMGR, GSN_NDB_TAMPER, signal, 1);
+
+        return;
+      }
+      if (ERROR_INSERTED(7223))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+        signal->theData[0] = 9999;
+        sendSignal(numberToRef(CMVMI, c_error_insert_extra)
+                   , GSN_NDB_TAMPER, signal, 1, JBA);
+      }
+    }
 
     if (m_micro_gcp.m_enabled == false)
     {
@@ -10000,8 +10039,10 @@ Dbdih::resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci){
   do {
     lcpNo = prevLcpNo(lcpNo);
     ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (replicaP->lcpStatus[lcpNo] == ZVALID) {
-      if (replicaP->maxGciStarted[lcpNo] < stopGci) {
+    if (replicaP->lcpStatus[lcpNo] == ZVALID)
+    {
+      if (replicaP->maxGciStarted[lcpNo] <= stopGci)
+      {
         jam();
 	/* ----------------------------------------------------------------- */
 	/*   WE HAVE FOUND A USEFUL LOCAL CHECKPOINT THAT CAN BE USED FOR    */
@@ -12341,7 +12382,8 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   signal->theData[1] = SYSFILE->latestLCP_ID;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-  if (c_newest_restorable_gci > c_lcpState.lcpStopGcp)
+  if (c_newest_restorable_gci > c_lcpState.lcpStopGcp &&
+      !(ERROR_INSERTED(7222) || ERROR_INSERTED(7223)))
   {
     jam();
     c_lcpState.lcpStopGcp = c_newest_restorable_gci;
@@ -13350,7 +13392,7 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   }
   else
   {
-    ndbassert(oldestRestorableGci < c_newest_restorable_gci);
+    ndbassert(oldestRestorableGci <= c_newest_restorable_gci);
   }
   return;
 }//Dbdih::findMinGci()
@@ -13366,8 +13408,13 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   {
     jam();
     if (replicaPtr.p->lcpStatus[i] == ZVALID &&
-        replicaPtr.p->maxGciStarted[i] < stopGci)
+        replicaPtr.p->maxGciStarted[i] <= stopGci)
     {
+      /**
+       * In order to use LCP
+       *   we must be able to run REDO atleast up until maxGciStarted
+       *   which is that highest GCI that
+       */
       jam();
       tmp[cnt] = i;
       cnt++;
