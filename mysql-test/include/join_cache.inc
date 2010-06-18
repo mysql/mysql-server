@@ -32,6 +32,7 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -44,6 +45,7 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
+--sorted_result
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
@@ -59,6 +61,7 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -71,6 +74,7 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
+--sorted_result
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
@@ -105,6 +109,7 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -117,6 +122,7 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
+--sorted_result
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
@@ -129,6 +135,7 @@ SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
         City.Population > 100000;
 
+--sorted_result
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
         City.Population > 100000;
@@ -140,6 +147,7 @@ SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.P
   WHERE 
        Country.Population > 10000000;
 
+--sorted_result
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
   FROM Country LEFT JOIN CountryLanguage ON
        (CountryLanguage.Country=Country.Code AND Language='English')
@@ -154,6 +162,7 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -166,6 +175,7 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
+--sorted_result
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
@@ -178,6 +188,7 @@ SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
         City.Population > 100000;
 
+--sorted_result
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
         City.Population > 100000;
@@ -185,6 +196,7 @@ SELECT Name FROM City
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
@@ -195,6 +207,7 @@ EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
@@ -202,12 +215,14 @@ set join_buffer_size=default;
 
 ALTER TABLE Country MODIFY Name varchar(52) NOT NULL default '';
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
 ALTER TABLE Country MODIFY Name varchar(300) NOT NULL default '';
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -216,12 +231,14 @@ ALTER TABLE Country ADD COLUMN PopulationBar text;
 UPDATE Country 
   SET PopulationBar=REPEAT('x', CAST(Population/100000 AS unsigned int));
 
+--sorted_result
 SELECT City.Name, Country.Name, Country.PopulationBar FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
 set join_buffer_size=256;
 
+--sorted_result
 SELECT City.Name, Country.Name, Country.PopulationBar FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;

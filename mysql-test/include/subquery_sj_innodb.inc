@@ -55,7 +55,8 @@ insert into t3 select
   A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a 
 from t0 A, t0 B where B.a <5;
 
-explain select * from t3 where b in (select a from t0);
+# -- [DISABLED Bug#54398]
+#explain select * from t3 where b in (select a from t0);
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
  
 set join_buffer_size= @save_join_buffer_size;
