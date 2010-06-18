@@ -404,10 +404,16 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
 
 int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
 {
-  my_off_t root;
+  my_off_t root= info->s->state.key_root[keynr];
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
-  if (!info->buff_used)
+  if (root == HA_OFFSET_ERROR)
+  {
+    my_errno= HA_ERR_END_OF_FILE;
+    return -1;
+  }
+  
+  if (!info->buff_used && !info->page_changed)
   {
     uint k_len = keyinfo->keylength - info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(info->int_keypos) */
@@ -428,16 +434,8 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
 
     return 0;
   }
-  else
-  {
-    if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
-    {
-      my_errno= HA_ERR_END_OF_FILE;
-      return -1;
-    }
-  
-    return rtree_get_req(info, keyinfo, key_length, root, 0);
-  }
+
+  return rtree_get_req(info, keyinfo, key_length, root, 0);
 }
 
 
@@ -643,18 +641,12 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
     }
     case 1: /* root was split, grow a new root */
     { 
-      uchar *new_root_buf;
+      uchar *new_root_buf= info->buff + info->s->base.max_key_block_length;
       my_off_t new_root;
       uchar *new_key;
       uint nod_flag = info->s->base.key_reflength;
 
       DBUG_PRINT("rtree", ("root was split, grow a new root"));
-      if (!(new_root_buf = (uchar*)my_alloca((uint)keyinfo->block_length + 
-                                             MI_MAX_KEY_BUFF)))
-      {
-        my_errno = HA_ERR_OUT_OF_MEM;
-        DBUG_RETURN(-1); /* purecov: inspected */
-      }
 
       mi_putint(new_root_buf, 2, nod_flag);
       if ((new_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) ==
@@ -682,10 +674,8 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
       DBUG_PRINT("rtree", ("new root page: %lu  level: %d  nod_flag: %u",
                            (ulong) new_root, 0, mi_test_if_nod(new_root_buf)));
 
-      my_afree((uchar*)new_root_buf);
       break;
 err1:
-      my_afree((uchar*)new_root_buf);
       DBUG_RETURN(-1); /* purecov: inspected */
     }
     default:

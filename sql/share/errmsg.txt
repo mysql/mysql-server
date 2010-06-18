@@ -6262,6 +6262,9 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot change the binlog direct flag inside a stored function or trigger"
 
+ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
+  eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
+
 ER_NO_SUCH_KEY_VALUE
   eng "Key value '%-.192s' was not found in table '%-.192s.%-.192s'"
 ER_INFO_DATA_TOO_LONG

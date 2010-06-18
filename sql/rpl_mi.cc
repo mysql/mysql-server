@@ -66,6 +66,8 @@ const char *info_mi_fields []=
   "retry_count"
 };
 
+#define DEFAULT_CONNECT_RETRY 60
+
 Master_info::Master_info()
    :Rpl_info("I/O"),
    ssl(0), ssl_verify_server_cert(0),

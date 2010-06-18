@@ -311,14 +311,6 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
     if (!child_name_buff[0] || (child_name_buff[0] == '#'))
       continue;
 
-    if (!has_path(child_name_buff))
-    {
-      VOID(strmake(parent_name_buff + dir_length, child_name_buff,
-                   sizeof(parent_name_buff) - 1 - dir_length));
-      VOID(cleanup_dirname(child_name_buff, parent_name_buff));
-    }
-    else
-      fn_format(child_name_buff, child_name_buff, "", "", 0);
     DBUG_PRINT("info", ("child: '%s'", child_name_buff));
 
     /* Callback registers child with handler table. */

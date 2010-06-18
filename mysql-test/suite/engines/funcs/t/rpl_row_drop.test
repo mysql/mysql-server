@@ -1,0 +1,48 @@
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+# Bug#12415: DROP of temporary table on master stops slave
+connection master;
+--echo **** On Master ****
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TEMPORARY TABLE t2 (a int, b int);
+SHOW TABLES;
+sync_slave_with_master;
+--echo **** On Slave ****
+SHOW TABLES;
+connection master;
+--echo **** On Master ****
+DROP TABLE t2;        # Dropping the temporary table
+SHOW TABLES;
+sync_slave_with_master;
+--echo **** On Slave ****
+SHOW TABLES;          # There should be two tables on the slave
+
+connection master;
+--echo **** On Master ****
+CREATE TEMPORARY TABLE t2 (a int, b int);
+SHOW TABLES;
+sync_slave_with_master;
+--echo **** On Slave ****
+SHOW TABLES;
+connection master;
+--echo **** On Master ****
+# Should drop the non-temporary table t1 and the temporary table t2
+DROP TABLE t1,t2;
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
+--replace_regex /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS;
+SHOW TABLES;
+sync_slave_with_master;
+--echo **** On Slave ****
+SHOW TABLES;
+
+--disable_query_log
+--disable_warnings
+connection master;
+DROP TABLE IF EXISTS t2;
+sync_slave_with_master;
+--enable_warnings
+--enable_query_log

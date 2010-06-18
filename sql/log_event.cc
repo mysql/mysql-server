@@ -3160,10 +3160,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             ::do_apply_event(), then the companion SET also have so
             we don't need to reset_one_shot_variables().
   */
-  if (!strncmp(query_arg, "BEGIN", q_len_arg) ||
-      !strncmp(query_arg, "COMMIT", q_len_arg) ||
-      !strncmp(query_arg, "ROLLBACK", q_len_arg) ||
-      rpl_filter->db_ok(thd->db))
+  if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
     thd->set_query((char*)query_arg, q_len_arg);
@@ -8977,11 +8974,28 @@ static bool record_compare(TABLE *table)
   {
     for (int i = 0 ; i < 2 ; ++i)
     {
-      saved_x[i]= table->record[i][0];
-      saved_filler[i]= table->record[i][table->s->null_bytes - 1];
-      table->record[i][0]|= 1U;
-      table->record[i][table->s->null_bytes - 1]|=
-        256U - (1U << table->s->last_null_bit_pos);
+      /* 
+        If we have an X bit then we need to take care of it.
+      */
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+      {
+        saved_x[i]= table->record[i][0];
+        table->record[i][0]|= 1U;
+      }
+
+      /*
+         If (last_null_bit_pos == 0 && null_bytes > 1), then:
+
+         X bit (if any) + N nullable fields + M Field_bit fields = 8 bits 
+
+         Ie, the entire byte is used.
+      */
+      if (table->s->last_null_bit_pos > 0)
+      {
+        saved_filler[i]= table->record[i][table->s->null_bytes - 1];
+        table->record[i][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
     }
   }
 
@@ -9021,8 +9035,11 @@ record_compare_exit:
   {
     for (int i = 0 ; i < 2 ; ++i)
     {
-      table->record[i][0]= saved_x[i];
-      table->record[i][table->s->null_bytes - 1]= saved_filler[i];
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+        table->record[i][0]= saved_x[i];
+
+      if (table->s->last_null_bit_pos)
+        table->record[i][table->s->null_bytes - 1]= saved_filler[i];
     }
   }
 
@@ -9696,7 +9713,7 @@ Incident_log_event::write_data_body(IO_CACHE *file)
   they will always be printed for the first event.
 */
 st_print_event_info::st_print_event_info()
-  :flags2_inited(0), sql_mode_inited(0),
+  :flags2_inited(0), sql_mode_inited(0), sql_mode(0),
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),

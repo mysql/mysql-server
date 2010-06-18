@@ -751,7 +751,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 #define MY_NFILE	64	/* This is only used to save filenames */
 #ifndef OS_FILE_LIMIT
-#define OS_FILE_LIMIT	65535
+#define OS_FILE_LIMIT	UINT_MAX
 #endif
 
 /* #define EXT_IN_LIBNAME     */

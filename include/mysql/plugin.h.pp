@@ -149,3 +149,6 @@ int get_user_var_real(const char *name,
 int get_user_var_str(const char *name,
                      char *value, unsigned long len,
                      unsigned int precision, int *null_value);
+void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
+void thd_set_ha_data(void* thd, const struct handlerton *hton,
+                     const void *ha_data);
