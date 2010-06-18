@@ -11186,10 +11186,10 @@ flush_options:
             Lex->type|= REFRESH_TABLES;
             /*
               Set type of metadata and table locks for
-              FLUSH TABLES table_list WITH READ LOCK.
+              FLUSH TABLES table_list [WITH READ LOCK].
             */
             YYPS->m_lock_type= TL_READ_NO_INSERT;
-            YYPS->m_mdl_type= MDL_EXCLUSIVE;
+            YYPS->m_mdl_type= MDL_SHARED_HIGH_PRIO;
           }
           opt_table_list {}
           opt_with_read_lock {}
@@ -11199,7 +11199,13 @@ flush_options:
 opt_with_read_lock:
           /* empty */ {}
         | WITH READ_SYM LOCK_SYM
-          { Lex->type|= REFRESH_READ_LOCK; }
+          {
+            TABLE_LIST *tables= Lex->query_tables;
+            Lex->type|= REFRESH_READ_LOCK;
+            /* We acquire an X lock currently and then downgrade. */
+            for (; tables; tables= tables->next_global)
+              tables->mdl_request.set_type(MDL_EXCLUSIVE);
+          }
         ;
 
 flush_options_list:
