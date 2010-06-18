@@ -811,7 +811,7 @@ DROP TABLE t0;
 
 # The following test case fails when executed with subquery materialization
 # (Bug#54281).  Hence, skip it if semijoin=off and materialization=on
-if (`select locate('semijoin=on', @@optimizer_switch) + locate('materialization=off', @@optimizer_switch) > 0`) 
+if (`select (locate('materialization', @@optimizer_switch) = 0) OR locate('semijoin=on', @@optimizer_switch) + locate('materialization=off', @@optimizer_switch) > 0`) 
 {
 
 --echo
