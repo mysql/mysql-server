@@ -641,7 +641,6 @@ public:
   SEL_TREE(enum Type type_arg) :type(type_arg) {}
   SEL_TREE() :type(KEY)
   {
-    keys_map.clear_all();
     bzero((char*) keys,sizeof(keys));
   }
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
@@ -1146,7 +1145,6 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 
 SQL_SELECT::SQL_SELECT() :quick(0),cond(0),icp_cond(0),free_cond(0)
 {
-  quick_keys.clear_all(); needed_reg.clear_all();
   my_b_clear(&file);
 }
 
@@ -6263,7 +6261,6 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     DBUG_RETURN(tree1);
   }
   key_map  result_keys;
-  result_keys.clear_all();
   
   /* Join the trees key per key */
   SEL_ARG **key1,**key2,**end;
@@ -6430,7 +6427,6 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 
   SEL_TREE *result= 0;
   key_map  result_keys;
-  result_keys.clear_all();
   if (sel_trees_can_be_ored(tree1, tree2, param))
   {
     /* Join the trees key per key */
@@ -9840,8 +9836,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
           first Item? If so, then why? What is the array for?
         */
         /* Above we already checked that all group items are fields. */
-        DBUG_ASSERT((*tmp_group->item)->type() == Item::FIELD_ITEM);
-        Item_field *group_field= (Item_field *) (*tmp_group->item);
+        DBUG_ASSERT((*tmp_group->item)->real_item()->type() == Item::FIELD_ITEM);
+        Item_field *group_field= (Item_field *) (*tmp_group->item)->real_item();
         if (group_field->field->eq(cur_part->field))
         {
           cur_group_prefix_len+= cur_part->store_length;

@@ -179,9 +179,10 @@ inline bool sj_is_materialize_strategy(uint strategy)
   return strategy >= SJ_OPT_MATERIALIZE_LOOKUP;
 }
 
-typedef struct st_join_table
+typedef struct st_join_table : public Sql_alloc
 {
-  st_join_table() {}                          /* Remove gcc warning */
+  st_join_table();
+
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
@@ -379,6 +380,91 @@ typedef struct st_join_table
   }
   uint get_sj_strategy() const;
 } JOIN_TAB;
+
+
+inline
+st_join_table::st_join_table()
+  : table(NULL),
+    keyuse(NULL),
+    select(NULL),
+    select_cond(NULL),
+    quick(NULL),
+    on_expr_ref(NULL),
+    cond_equal(NULL),
+    first_inner(NULL),
+    found(FALSE),
+    not_null_compl(FALSE),
+    last_inner(NULL),
+    first_upper(NULL),
+    first_unmatched(NULL),
+    pre_idx_push_select_cond(NULL),
+    info(NULL),
+    packed_info(0),
+    read_first_record(NULL),
+    next_select(NULL),
+    read_record(),
+    save_read_first_record(NULL),
+    save_read_record(NULL),
+    worst_seeks(0.0),
+    const_keys(),
+    checked_keys(),
+    needed_reg(),
+    keys(),
+
+    records(0),
+    found_records(0),
+    read_time(0),
+
+    dependent(0),
+    key_dependent(0),
+    use_quick(0),
+    index(0),
+    status(0),
+    used_fields(0),
+    used_fieldlength(0),
+    used_blobs(0),
+    used_null_fields(0),
+    used_rowid_fields(0),
+    used_uneven_bit_fields(0),
+    type(JT_UNKNOWN),
+    cached_eq_ref_table(FALSE),
+    eq_ref_table(FALSE),
+    not_used_in_distinct(FALSE),
+    sorted(FALSE),
+
+    limit(0),
+    ref(),
+    use_join_cache(FALSE),
+    cache(NULL),
+
+    cache_idx_cond(NULL),
+    cache_select(NULL),
+    join(NULL),
+
+    emb_sj_nest(NULL),
+    first_sj_inner_tab(NULL),
+    last_sj_inner_tab(NULL),
+
+    flush_weedout_table(NULL),
+    check_weed_out_table(NULL),
+    do_firstmatch(NULL),
+    loosescan_match_tab(NULL),
+    loosescan_buf(NULL),
+    loosescan_key_len(0),
+    found_match(FALSE),
+
+    keep_current_rowid(0),
+    embedding_map(0)
+{
+  /**
+    @todo Add constructor to READ_RECORD.
+    All users do init_read_record(), which does bzero(),
+    rather than invoking a constructor.
+  */
+  bzero(&read_record, sizeof(read_record));
+}
+
+
 
 /* 
   Categories of data fields of variable length written into join cache buffers.
