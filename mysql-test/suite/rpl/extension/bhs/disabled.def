@@ -92,6 +92,8 @@ rpl_row_blob_myisam : BHS incompatible test
 rpl_row_colSize : BHS incompatible test
 rpl_row_conflicts : BHS incompatible test
 rpl_row_disabled_slave_key : BHS incompatible test
+rpl_row_event_max_size : BHS incompatible test
+rpl_row_find_row : BHS incompatible test
 rpl_row_idempotency : BHS incompatible test
 rpl_row_loaddata_concurrent : BHS incompatible test
 rpl_row_log : BHS incompatible test
@@ -99,6 +101,8 @@ rpl_row_log_innodb : BHS incompatible test
 rpl_row_max_relay_size : BHS incompatible test
 rpl_row_mixing_engines : BHS incompatible test
 rpl_row_mysqlbinlog : BHS incompatible test
+rpl_row_rec_comp_innodb : BHS incompatible test
+rpl_row_rec_comp_myisam : BHS incompatible test
 rpl_row_reset_slave : BHS incompatible test
 rpl_row_show_relaylog_events : BHS incompatible test
 rpl_row_sp002_innodb : BHS incompatible test
