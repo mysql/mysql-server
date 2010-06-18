@@ -31,8 +31,7 @@ ENDIF()
 
 # Create bootstrapper SQL script
 FILE(WRITE bootstrap.sql "use mysql;\n" )
-FOREACH(FILENAME mysql_system_tables.sql mysql_system_tables_data.sql
-   fill_help_tables.sql)
+FOREACH(FILENAME mysql_system_tables.sql mysql_system_tables_data.sql)
    FILE(STRINGS ${CMAKE_SOURCE_DIR}/scripts/${FILENAME} CONTENTS)
    FOREACH(STR ${CONTENTS})
     IF(NOT STR MATCHES "@current_hostname")
@@ -40,6 +39,8 @@ FOREACH(FILENAME mysql_system_tables.sql mysql_system_tables_data.sql
     ENDIF()
   ENDFOREACH()
 ENDFOREACH()
+FILE(READ ${CMAKE_SOURCE_DIR}/scripts/fill_help_tables.sql CONTENTS)
+FILE(APPEND bootstrap.sql ${CONTENTS})
 
 
 FILE(REMOVE_RECURSE mysql)
