@@ -9318,6 +9318,7 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
 
     c_newest_restorable_gci = m_gcp_save.m_gci;
+#ifdef ERROR_INSERT
     if ((ERROR_INSERTED(7222) || ERROR_INSERTED(7223)) &&
         !Sysfile::getLCPOngoing(SYSFILE->systemRestartBits) &&
         c_newest_restorable_gci >= c_lcpState.lcpStopGcp)
@@ -9349,6 +9350,7 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
                    , GSN_NDB_TAMPER, signal, 1, JBA);
       }
     }
+#endif
 
     if (m_micro_gcp.m_enabled == false)
     {
