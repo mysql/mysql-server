@@ -194,10 +194,9 @@ connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
 
 # Replication should have stopped, since max retries were not enough.
-# verify with show slave status 
+# verify with show slave status
 # 1205 = ER_LOCK_WAIT_TIMEOUT 
 --let $slave_sql_errno= 1205 
---let $show_slave_sql_error= 1 
 --source include/wait_for_slave_sql_error.inc
 
 # now set max retries high enough to succeed, and start slave again

@@ -385,10 +385,6 @@ source include/diff_tables.inc;
 connection slave;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
-# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
---let $slave_sql_errno= 1535 
---let $show_slave_sql_error= 1
---source include/wait_for_slave_sql_error.inc
 connection master;
 RESET MASTER;
 connection slave;
@@ -413,8 +409,8 @@ INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
-# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
---let $slave_sql_errno= 1535 
+# 1658 = ER_SLAVE_CONVERSION_FAILED 
+--let $slave_sql_errno= 1658 
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 connection master;
@@ -431,8 +427,8 @@ INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
-# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
---let $slave_sql_errno= 1535 
+# 1658 = ER_SLAVE_CONVERSION_FAILED 
+--let $slave_sql_errno= 1658 
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 connection master;

@@ -24,18 +24,7 @@ Master_SSL_CA_Path
 Master_SSL_CA_File	MYSQL_TEST_DIR/std_data/cacert.pem
 Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
-<<<<<<< TREE
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
 Checking that both slave threads are running.
->>>>>>> MERGE-SOURCE
 STOP SLAVE;
 select * from t1;
 t
@@ -46,18 +35,7 @@ Master_SSL_CA_Path
 Master_SSL_CA_File	MYSQL_TEST_DIR/std_data/cacert.pem
 Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
 Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
-<<<<<<< TREE
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	0
-Last_SQL_Error	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
 Checking that both slave threads are running.
->>>>>>> MERGE-SOURCE
 drop user replssl@localhost;
 drop table t1;
 End of 5.0 tests
