@@ -162,14 +162,16 @@ public:
    * Multi Range Read interface
    */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+                            uint n_ranges, uint key_parts, uint mode, 
+                            HANDLER_BUFFER *buf);
   int multi_range_read_next(char **range_info);
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,
                                       uint *flags, COST_VECT *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, COST_VECT *cost);
+                                uint key_parts, uint *bufsz, 
+                                uint *flags, COST_VECT *cost);
   
   /* Index condition pushdown implementation */
   Item *idx_cond_push(uint keyno, Item* idx_cond);

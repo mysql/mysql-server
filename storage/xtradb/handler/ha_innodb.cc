@@ -11025,9 +11025,10 @@ test_innobase_convert_name()
  */
 
 int ha_innobase::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                          uint n_ranges, uint mode, HANDLER_BUFFER *buf)
+                                       uint n_ranges, uint key_parts, uint mode,
+                                       HANDLER_BUFFER *buf)
 {
-  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, mode, buf);
+  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, key_parts, mode, buf);
 }
 
 int ha_innobase::multi_range_read_next(char **range_info)
@@ -11052,12 +11053,13 @@ ha_rows ha_innobase::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   return res;
 }
 
-ha_rows ha_innobase::multi_range_read_info(uint keyno, uint n_ranges, 
-                                           uint keys, uint *bufsz, 
+ha_rows ha_innobase::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                           uint key_parts, uint *bufsz, 
                                            uint *flags, COST_VECT *cost)
 {
   ds_mrr.init(this, table);
-  ha_rows res= ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
+  ha_rows res= ds_mrr.dsmrr_info(keyno, n_ranges, keys, key_parts, bufsz, 
+                                 flags, cost);
   return res;
 }
 

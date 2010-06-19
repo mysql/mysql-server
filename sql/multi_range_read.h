@@ -43,6 +43,17 @@ private:
   bool is_mrr_assoc;
 
   bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
+
+  bool doing_cpk_scan;
+  uint cpk_tuple_length;
+  uint cpk_n_parts;
+  bool cpk_is_unique_scan;
+  char *cpk_saved_range_info;
+  bool cpk_have_range;
+
+
+  bool check_cpk_scan(uint keyno, uint mrr_flags);
+  static int key_tuple_cmp(void* arg, uchar* key1, uchar* key2);
 public:
   void init(handler *h_arg, TABLE *table_arg)
   {
@@ -50,13 +61,16 @@ public:
     table= table_arg;
   }
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
-                 uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+                 uint n_ranges, uint key_parts, uint mode, 
+                 HANDLER_BUFFER *buf);
   void dsmrr_close();
   int dsmrr_fill_buffer();
+  int dsmrr_fill_buffer_cpk();
   int dsmrr_next(char **range_info);
+  int dsmrr_next_cpk(char **range_info);
 
-  ha_rows dsmrr_info(uint keyno, uint n_ranges, uint keys, uint *bufsz,
-                     uint *flags, COST_VECT *cost);
+  ha_rows dsmrr_info(uint keyno, uint n_ranges, uint keys, uint key_parts, 
+                     uint *bufsz, uint *flags, COST_VECT *cost);
 
   ha_rows dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq, 
                             void *seq_init_param, uint n_ranges, uint *bufsz,

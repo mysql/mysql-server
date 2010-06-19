@@ -7318,10 +7318,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_EQ_REF:
     if (cache_level <= 4)
       return 0;
-    flags= HA_MRR_NO_NULL_ENDPOINTS;
+    flags= HA_MRR_NO_NULL_ENDPOINTS | HA_MRR_SINGLE_POINT;
     if (tab->table->covering_keys.is_set(tab->ref.key))
       flags|= HA_MRR_INDEX_ONLY;
     rows= tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
+                                                  tab->ref.key_parts,
                                                   &bufsz, &flags, &cost);
     if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL) &&
         (!(flags & HA_MRR_NO_ASSOCIATION) || cache_level > 6) &&

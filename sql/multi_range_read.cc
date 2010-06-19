@@ -136,10 +136,11 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 */
 
 ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
-                                       uint *bufsz, uint *flags, COST_VECT *cost)
+                                       uint key_parts, uint *bufsz, 
+                                       uint *flags, COST_VECT *cost)
 {
   *bufsz= 0; /* Default implementation doesn't need a buffer */
-
+  //psergey2-todo: assert for singlepoint ranges here?
   *flags |= HA_MRR_USE_DEFAULT_IMPL;
 
   cost->zero();
@@ -197,7 +198,8 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
 int
 handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
-                               uint n_ranges, uint mode, HANDLER_BUFFER *buf)
+                               uint n_ranges, uint key_parts, uint mode, 
+                               HANDLER_BUFFER *buf)
 {
   DBUG_ENTER("handler::multi_range_read_init");
   mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
@@ -299,7 +301,8 @@ scan_it_again:
 */
 
 int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
-                           void *seq_init_param, uint n_ranges, uint mode,
+                           void *seq_init_param, uint n_ranges, uint key_parts,
+                           uint mode,
                            HANDLER_BUFFER *buf)
 {
   uint elem_size;
@@ -317,7 +320,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     use_default_impl= TRUE;
     const int retval=
       h->handler::multi_range_read_init(seq_funcs, seq_init_param,
-                                        n_ranges, mode, buf);
+                                        n_ranges, key_parts, mode, buf);
     DBUG_RETURN(retval);
   }
   rowids_buf= buf->buffer;
@@ -328,13 +331,33 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
  
   rowids_buf_end= buf->buffer_end;
-  elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
+
+
+  doing_cpk_scan= check_cpk_scan(h->active_index, mode); 
+  if (doing_cpk_scan)
+  {
+    uint keylen=0;
+    DBUG_ASSERT(key_parts != 0);
+    //psergey2-todo: new elem_size here
+    for (uint kp= 0; kp < key_parts; kp++)
+      keylen += table->key_info[h->active_index].key_part[kp].store_length;
+
+    cpk_tuple_length= keylen;
+    cpk_is_unique_scan= test(table->key_info[h->active_index].key_parts == 
+                             key_parts);
+    cpk_have_range= FALSE;
+    elem_size= keylen + (int)is_mrr_assoc * sizeof(void*);
+    use_default_impl= FALSE;
+  }
+  else
+    elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
+
   rowids_buf_last= rowids_buf + 
                       ((rowids_buf_end - rowids_buf)/ elem_size)*
                       elem_size;
   rowids_buf_end= rowids_buf_last;
 
-    /*
+  /*
     There can be two cases:
     - This is the first call since index_init(), h2==NULL
        Need to setup h2 then.
@@ -342,72 +365,88 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
        The caller might have called h->index_init(), need to switch h to
        rnd_pos calls.
   */
-  if (!h2)
+  //psergey2-todo: don't create secondary for CPK scan.
+  if (!doing_cpk_scan)
   {
-    /* Create a separate handler object to do rndpos() calls. */
-    THD *thd= current_thd;
-    /*
-      ::clone() takes up a lot of stack, especially on 64 bit platforms.
-      The constant 5 is an empiric result.
-    */
-    if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
-      DBUG_RETURN(1);
-    DBUG_ASSERT(h->active_index != MAX_KEY);
-    uint mrr_keyno= h->active_index;
-
-    /* Create a separate handler object to do rndpos() calls. */
-    if (!(new_h2= h->clone(thd->mem_root)) || 
-        new_h2->ha_external_lock(thd, F_RDLCK))
+    if (!h2)
     {
-      delete new_h2;
-      DBUG_RETURN(1);
+      /* Create a separate handler object to do rndpos() calls. */
+      THD *thd= current_thd;
+      /*
+        ::clone() takes up a lot of stack, especially on 64 bit platforms.
+        The constant 5 is an empiric result.
+      */
+      if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
+        DBUG_RETURN(1);
+      DBUG_ASSERT(h->active_index != MAX_KEY);
+      uint mrr_keyno= h->active_index;
+
+      /* Create a separate handler object to do rndpos() calls. */
+      if (!(new_h2= h->clone(thd->mem_root)) || 
+          new_h2->ha_external_lock(thd, F_RDLCK))
+      {
+        delete new_h2;
+        DBUG_RETURN(1);
+      }
+
+      if (mrr_keyno == h->pushed_idx_cond_keyno)
+        pushed_cond= h->pushed_idx_cond;
+
+      /*
+        Caution: this call will invoke this->dsmrr_close(). Do not put the
+        created secondary table handler into this->h2 or it will delete it.
+      */
+      if (h->ha_index_end())
+      {
+        h2=new_h2;
+        goto error;
+      }
+
+      h2= new_h2; /* Ok, now can put it into h2 */
+      table->prepare_for_position();
+      h2->extra(HA_EXTRA_KEYREAD);
+    
+      if (h2->ha_index_init(mrr_keyno, FALSE))
+        goto error;
+
+      use_default_impl= FALSE;
+      if (pushed_cond)
+        h2->idx_cond_push(mrr_keyno, pushed_cond);
     }
-
-    if (mrr_keyno == h->pushed_idx_cond_keyno)
-      pushed_cond= h->pushed_idx_cond;
-
-    /*
-      Caution: this call will invoke this->dsmrr_close(). Do not put the
-      created secondary table handler into this->h2 or it will delete it.
-    */
-    if (h->ha_index_end())
+    else
     {
-      h2=new_h2;
-      goto error;
+      /* 
+        We get here when the access alternates betwen MRR scan(s) and non-MRR
+        scans.
+
+        Calling h->index_end() will invoke dsmrr_close() for this object,
+        which will delete h2. We need to keep it, so save put it away and dont
+        let it be deleted:
+      */
+      handler *save_h2= h2;
+      h2= NULL;
+      int res= (h->inited == handler::INDEX && h->ha_index_end());
+      h2= save_h2;
+      use_default_impl= FALSE;
+      if (res)
+        goto error;
     }
-
-    h2= new_h2; /* Ok, now can put it into h2 */
-    table->prepare_for_position();
-    h2->extra(HA_EXTRA_KEYREAD);
-  
-    if (h2->ha_index_init(mrr_keyno, FALSE))
-      goto error;
-
-    use_default_impl= FALSE;
-    if (pushed_cond)
-      h2->idx_cond_push(mrr_keyno, pushed_cond);
   }
   else
   {
-    /* 
-      We get here when the access alternates betwen MRR scan(s) and non-MRR
-      scans.
-
-      Calling h->index_end() will invoke dsmrr_close() for this object,
-      which will delete h2. We need to keep it, so save put it away and dont
-      let it be deleted:
-    */
-    handler *save_h2= h2;
-    h2= NULL;
-    int res= (h->inited == handler::INDEX && h->ha_index_end());
-    h2= save_h2;
-    use_default_impl= FALSE;
-    if (res)
-      goto error;
+    //doing DS-MRR/CPK
+    // fill-buffer-analog
+    // eof
+    h->mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
+    h->mrr_funcs= *seq_funcs;
+    dsmrr_fill_buffer_cpk();
+    if (dsmrr_eof) 
+      buf->end_of_used_area= rowids_buf_last;
+    DBUG_RETURN(0); // nothing can go wrong while filling the buffer
   }
 
   if (h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                          mode, buf) || 
+                                         key_parts, mode, buf) || 
       dsmrr_fill_buffer())
   {
     goto error;
@@ -524,6 +563,149 @@ int DsMrr_impl::dsmrr_fill_buffer()
 }
 
 
+/* qsort-compatible function to compare key tuples */
+int DsMrr_impl::key_tuple_cmp(void* arg, uchar* key1, uchar* key2)
+{
+  DsMrr_impl *dsmrr= (DsMrr_impl*)arg;
+  TABLE *table= dsmrr->h->table;
+  
+  KEY_PART_INFO *part= table->key_info[table->s->primary_key].key_part;
+  KEY_PART_INFO *part_end= part + dsmrr->cpk_n_parts;
+
+  //uint32 *lengths=item->field_lengths;
+  for (; part < part_end; ++part)
+  {
+    Field* f = part->field;
+    int len = part->store_length;
+    int res = f->cmp(key1, key2);
+    if (res)
+      return res;
+    key1 += len;
+    key2 += len;
+  }
+  return 0;
+}
+
+
+//psergey2:
+int DsMrr_impl::dsmrr_fill_buffer_cpk()
+{
+  int res;
+  KEY_MULTI_RANGE cur_range;
+  DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer_cpk");
+
+  rowids_buf_cur= rowids_buf;
+  while ((rowids_buf_cur < rowids_buf_end) && 
+         !(res= h->mrr_funcs.next(h->mrr_iter, &cur_range)))
+  {
+    DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
+    DBUG_ASSERT(cpk_tuple_length == cur_range.start_key.length);
+
+    /* Put key, or {key, range_id} pair into the buffer */
+    memcpy(rowids_buf_cur, cur_range.start_key.key, cpk_tuple_length);
+    rowids_buf_cur += cpk_tuple_length;
+
+    if (is_mrr_assoc)
+    {
+      memcpy(rowids_buf_cur, &cur_range.ptr, sizeof(void*));
+      rowids_buf_cur += sizeof(void*);
+    }
+  }
+
+  dsmrr_eof= test(res);
+
+  /* Sort the buffer contents by rowid */
+  uint elem_size= cpk_tuple_length + (int)is_mrr_assoc * sizeof(void*);
+  uint n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
+  
+  my_qsort2(rowids_buf, n_rowids, elem_size, 
+            (qsort2_cmp)DsMrr_impl::key_tuple_cmp, (void*)this);
+  rowids_buf_last= rowids_buf_cur;
+  rowids_buf_cur=  rowids_buf;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  CPK: so, the source is 
+   - buffer exhaustion/re-fill
+   - advance to next range on "record-not-found" error.
+   - if scanning on a prefix, enumerate all records for a key.
+*/
+int DsMrr_impl::dsmrr_next_cpk(char **range_info)
+{
+  int res;
+
+  if (cpk_have_range)
+  {
+    res= h->index_next_same(table->record[0], rowids_buf_cur, cpk_tuple_length);
+    if (res != HA_ERR_END_OF_FILE)
+    {
+      // todo
+      if (is_mrr_assoc)
+        memcpy(range_info, &cpk_saved_range_info, sizeof(void*));
+      return res;
+    }
+    /* 
+      Ok, we got EOF for records in this range. Fall through to get to another
+      range.
+    */
+  }
+
+  do
+  {
+    /* First, make sure we have a range at start of the buffer*/
+    if (rowids_buf_cur == rowids_buf_last)
+    {
+      if (dsmrr_eof)
+      {
+        res= HA_ERR_END_OF_FILE;
+        goto end;
+      }
+      // TODO: the return values are mix of HA_ERR_ codes and TRUE as "generic
+      //       failure" error. Is this ok?
+      if ((res= dsmrr_fill_buffer_cpk()))
+        goto end;
+    }
+   
+    if (rowids_buf_cur == rowids_buf_last)
+    {
+      res= HA_ERR_END_OF_FILE;
+      goto end;
+    }
+    
+    //TODO: skip-record calls here?
+    //if (h2->mrr_funcs.skip_record &&
+    //	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
+    //  continue;
+    
+    /* Ok, got the range. Try making a lookup.  */
+    uchar *lookup_tuple= rowids_buf_cur;
+    rowids_buf_cur += cpk_tuple_length;
+    if (is_mrr_assoc)
+    {
+      memcpy(cpk_saved_range_info, rowids_buf_cur, sizeof(void*));
+      rowids_buf_cur += sizeof(void*) * test(is_mrr_assoc);
+    }
+      
+    res= h->index_read(table->record[0], lookup_tuple, cpk_tuple_length, 
+                       HA_READ_KEY_EXACT);
+
+    if (res && res != HA_ERR_END_OF_FILE)
+      goto end;
+
+    if (!res)
+    {
+      memcpy(range_info, cpk_saved_range_info, sizeof(void*));
+      cpk_have_range= !cpk_is_unique_scan;
+      break;
+    }
+  } while (true);
+ 
+end:
+  return res;
+}
+
 /**
   DS-MRR implementation: multi_range_read_next() function
 */
@@ -536,6 +718,9 @@ int DsMrr_impl::dsmrr_next(char **range_info)
 
   if (use_default_impl)
     return h->handler::multi_range_read_next(range_info);
+
+  if (doing_cpk_scan)
+    return dsmrr_next_cpk(range_info);
   
   do
   {
@@ -582,7 +767,8 @@ end:
 /**
   DS-MRR implementation: multi_range_read_info() function
 */
-ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
+ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows, 
+                               uint key_parts,
                                uint *bufsz, uint *flags, COST_VECT *cost)
 {  
   ha_rows res;
@@ -590,8 +776,8 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  res= h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
-                                         &def_flags, cost);
+  res= h->handler::multi_range_read_info(keyno, n_ranges, rows, key_parts, 
+                                         &def_bufsz, &def_flags, cost);
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
@@ -705,6 +891,13 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
   @retval TRUE   Default MRR implementation should be used
   @retval FALSE  DS-MRR implementation should be used
 */
+bool DsMrr_impl::check_cpk_scan(uint keyno, uint mrr_flags)
+{
+  return test((mrr_flags & HA_MRR_SINGLE_POINT) && 
+              !(mrr_flags & HA_MRR_SORTED) && 
+              keyno == table->s->primary_key && 
+              h->primary_key_is_clustered());
+}
 
 bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
                                  uint *bufsz, COST_VECT *cost)
@@ -712,8 +905,12 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   COST_VECT dsmrr_cost;
   bool res;
   THD *thd= current_thd;
+  //psergey2: check the criteria.
+  doing_cpk_scan= check_cpk_scan(keyno, *flags); 
+
   if (thd->variables.optimizer_use_mrr == 2 || *flags & HA_MRR_INDEX_ONLY ||
-      (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
+      (keyno == table->s->primary_key && h->primary_key_is_clustered() &&
+       !doing_cpk_scan) ||
        key_uses_partial_cols(table, keyno))
   {
     /* Use the default implementation */

@@ -8006,6 +8006,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 
   quick->mrr_buf_size= thd->variables.mrr_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, (uint)records,
+                                         uint(-1), 
                                          &quick->mrr_buf_size,
                                          &quick->mrr_flags, &cost))
     goto err;
@@ -8367,6 +8368,7 @@ int QUICK_RANGE_SELECT::reset()
  
   RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next, 0, 0};
   error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
+                                     uint(-1),
                                      mrr_flags, mrr_buf_desc? mrr_buf_desc: 
                                                               &empty_buf);
   DBUG_RETURN(error);
