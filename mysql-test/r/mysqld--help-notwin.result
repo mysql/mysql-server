@@ -408,9 +408,7 @@ The following options may be given as the first argument:
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown, materialization, semijoin,
- loosescan, firstmatch, mrr, mrr_cost_based,
- index_condition_pushdown} and val is one of {on, off,
+ engine_condition_pushdown} and val is one of {on, off,
  default}
  --performance-schema 
  Enable the performance schema.

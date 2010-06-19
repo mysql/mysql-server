@@ -1392,9 +1392,13 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
-       "index_merge_intersection, engine_condition_pushdown, materialization, "
+       "index_merge_intersection, engine_condition_pushdown"
+#ifdef OPTIMIZER_SWITCH_ALL
+       ", materialization, "
        "semijoin, loosescan, firstmatch, mrr, mrr_cost_based, "
-       "index_condition_pushdown} and val is one of {on, off, default}",
+       "index_condition_pushdown"
+#endif
+       "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
