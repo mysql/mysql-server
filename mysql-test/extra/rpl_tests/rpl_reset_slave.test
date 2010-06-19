@@ -20,6 +20,7 @@ source include/show_slave_status.inc;
 reset slave;
 source include/show_slave_status.inc;
 
+change master to master_user='root';
 source include/start_slave.inc;
 sync_with_master;
 source include/show_slave_status.inc;

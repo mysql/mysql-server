@@ -18,51 +18,7 @@ CREATE TABLE t1 (a DECIMAL(20, 10));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -78,51 +34,7 @@ CREATE TABLE t1 (a DECIMAL(27, 18));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(27,18)' to type 'decimal(27,9)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(27,18)' to type 'decimal(27,9)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'decimal(27,18)' to type 'decimal(27,9)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -138,51 +50,7 @@ CREATE TABLE t1 (a NUMERIC(20, 10));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -199,51 +67,7 @@ CREATE TABLE t1 (a FLOAT(47));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'double' to type 'float'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'double' to type 'float'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'double' to type 'float'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -260,51 +84,7 @@ CREATE TABLE t1 (a BIT(64));
 RESET MASTER;
 INSERT INTO t1 VALUES (B'10101');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -320,51 +100,7 @@ CREATE TABLE t1 (a BIT(12));
 RESET MASTER;
 INSERT INTO t1 VALUES (B'10101');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -381,51 +117,7 @@ CREATE TABLE t1 (a SET('1','2','3','4','5','6','7','8','9'));
 RESET MASTER;
 INSERT INTO t1 VALUES ('4');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'set' to type 'set('4')'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'set' to type 'set('4')'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'set' to type 'set('4')'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -442,51 +134,7 @@ CREATE TABLE t1 (a CHAR(20));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'char(20)' to type 'char(10)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'char(20)' to type 'char(10)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'char(20)' to type 'char(10)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -534,51 +182,7 @@ CREATE TABLE t1 (a ENUM(
 RESET MASTER;
 INSERT INTO t1 VALUES ('44');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'enum' to type 'enum('44','54')'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'enum' to type 'enum('44','54')'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'enum' to type 'enum('44','54')'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -595,51 +199,7 @@ CREATE TABLE t1 (a VARCHAR(2000));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(100)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(100)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(100)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -655,51 +215,7 @@ CREATE TABLE t1 (a VARCHAR(200));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(200)' to type 'varchar(10)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(200)' to type 'varchar(10)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'varchar(200)' to type 'varchar(10)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -715,51 +231,7 @@ CREATE TABLE t1 (a VARCHAR(2000));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(1000)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(1000)'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(1000)'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -776,51 +248,7 @@ CREATE TABLE t1 (a LONGBLOB);
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-<<<<<<< TREE
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1658
-Last_Error	Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-=======
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
->>>>>>> MERGE-SOURCE
+Last_SQL_Error = Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0

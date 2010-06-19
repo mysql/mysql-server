@@ -486,12 +486,12 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 
 --echo
 --echo ********************************************
---echo *** Expect slave to fail with Error 1535 ***
+--echo *** Expect slave to fail with Error 1658 ***
 --echo ********************************************
 --echo
 connection slave;
-# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF
---let $slave_sql_errno= 1535
+# 1658 = ER_SLAVE_CONVERSION_FAILED
+--let $slave_sql_errno= 1658
 --let $slave_skip_counter= 2
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
@@ -542,12 +542,12 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 
 --echo
 --echo ********************************************
---echo *** Expect slave to fail with Error 1535 ***
+--echo *** Expect slave to fail with Error 1658 ***
 --echo ********************************************
 --echo
 connection slave;
-# 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF
---let $slave_sql_errno= 1535
+# 1658 = ER_SLAVE_CONVERSION_FAILED
+--let $slave_sql_errno= 1658
 --let $slave_skip_counter= 2
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc

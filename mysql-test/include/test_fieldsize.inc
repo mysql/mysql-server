@@ -22,7 +22,7 @@ eval $test_insert;
 
 connection slave;
 START SLAVE;
---let $slave_sql_errno= 1535
+--let $slave_sql_errno= 1658
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
