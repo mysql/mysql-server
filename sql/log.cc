@@ -6142,8 +6142,6 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
   binlog_cache_mngr *cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
-  DBUG_EXECUTE_IF("crash_safe_slave", abort(););
-
   /*
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
