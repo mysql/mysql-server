@@ -2930,7 +2930,21 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
   return (source_size);
 }
 
+/**
+   Check to see if field size is compatible with destination.
 
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+   @param   order_var        Pointer to variable where the order
+                             between the source field and this field
+                             will be returned.
+
+   @return @c true
+*/
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
                                               Relay_log_info * __attribute__((unused)),
                                               uint16 mflags __attribute__((unused)),
@@ -8837,7 +8851,21 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
   return (source_size);
 }
 
+/**
+   Check to see if field size is compatible with destination.
 
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+   @param   order_var        Pointer to variable where the order
+                             between the source field and this field
+                             will be returned.
+
+   @return @c true
+*/
 bool
 Field_bit::compatible_field_size(uint field_metadata,
                                  Relay_log_info * __attribute__((unused)),
@@ -8846,8 +8874,7 @@ Field_bit::compatible_field_size(uint field_metadata,
 {
   DBUG_ENTER("Field_bit::compatible_field_size");
   DBUG_ASSERT((field_metadata >> 16) == 0);
-  uint from_bit_len=
-    8 * (field_metadata >> 8) + (field_metadata & 0xff);
+  uint from_bit_len= 8 * (field_metadata >> 8) + (field_metadata & 0xff);
   uint to_bit_len= max_display_length();
   DBUG_PRINT("debug", ("from_bit_len: %u, to_bit_len: %u",
                        from_bit_len, to_bit_len));
