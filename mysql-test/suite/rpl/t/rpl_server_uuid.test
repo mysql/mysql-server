@@ -17,7 +17,8 @@ CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
 --let $uuid_file= auto.cnf
 
 --let $master_datadir=`SELECT @@DATADIR`
-connection slave;
+# Sync suppressions
+sync_slave_with_master;
 --let $slave_datadir=`SELECT @@DATADIR`
 
 connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
@@ -106,7 +107,7 @@ connection slave;
 START SLAVE IO_THREAD;
 let $show_statement= SHOW SLAVE STATUS;
 let $field= Last_IO_Errno;
-let $connection= = 1593;
+let $condition= = '1593';
 --source include/wait_show_condition.inc
 --let $last_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1)
 echo Last_IO_Error;
@@ -155,7 +156,7 @@ START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 --let $show_statement= SHOW SLAVE STATUS
 --let $field= Master_UUID
---let $condition= <> '$original_master_uuid'
+--let $condition= = '$original_master_uuid'
 --source include/wait_show_condition.inc
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
@@ -182,7 +183,7 @@ START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 --let $show_statement= SHOW SLAVE STATUS
 --let $field= Master_UUID
---let $condition= <> '$original_master_uuid'
+--let $condition= = '$original_master_uuid'
 --source include/wait_show_condition.inc
 
 --echo
@@ -208,7 +209,7 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
 START SLAVE IO_THREAD;
 --let $show_statement= SHOW SLAVE STATUS
 --let $field= Master_UUID
---let $condition= <> '$original_master_uuid'
+--let $condition= = '$original_master_uuid'
 --source include/wait_show_condition.inc
 
 --echo
@@ -234,7 +235,7 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT,
 START SLAVE IO_THREAD;
 --let $show_statement= SHOW SLAVE STATUS
 --let $field= Master_UUID
---let $condition= <> '$original_master_uuid'
+--let $condition= = '$original_master_uuid'
 --source include/wait_show_condition.inc
 
 --echo
