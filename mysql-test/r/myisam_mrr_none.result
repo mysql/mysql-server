@@ -416,6 +416,7 @@ create table t1 (f1 int not null, f2 int not null,f3 int not null, f4 char(1), p
 select * from t1 where (f3>=5 and f3<=10) or (f3>=1 and f3<=4);
 f1	f2	f3	f4
 1	1	1	A
+10	10	10	A
 2	2	2	A
 3	3	3	A
 4	4	4	A
@@ -424,7 +425,6 @@ f1	f2	f3	f4
 7	7	7	A
 8	8	8	A
 9	9	9	A
-10	10	10	A
 drop table t1;
 
 BUG#37977: Wrong result returned on GROUP BY + OR + Innodb

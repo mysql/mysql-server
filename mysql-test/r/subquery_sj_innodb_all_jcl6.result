@@ -78,6 +78,10 @@ select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
 a	b	pk1	pk2
 0	0	0	0
 1	1	1	1
+10	10	10	10
+11	11	11	11
+12	12	12	12
+13	13	13	13
 2	2	2	2
 3	3	3	3
 4	4	4	4
@@ -86,10 +90,6 @@ a	b	pk1	pk2
 7	7	7	7
 8	8	8	8
 9	9	9	9
-10	10	10	10
-11	11	11	11
-12	12	12	12
-13	13	13	13
 set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 explain select * from t1 where a in (select b from t2);

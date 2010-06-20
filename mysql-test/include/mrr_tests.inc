@@ -24,9 +24,11 @@ select a,filler from t3 where a >= 'c-9011=w';
 # intervals:
 
 # 1. Split is in the middle of the range
+--sorted_result
 select a,filler from t3 where a >= 'c-1011=w' and a <= 'c-1015=w'; 
 
 # 2. Split is at range edge 
+--sorted_result
 select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
                               (a>='c-1014=w' and a <= 'c-1015=w');
 
@@ -34,16 +36,19 @@ select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
 insert into t3 values ('c-1013=z', 'c-1013=z', 'err');
 insert into t3 values ('a-1014=w', 'a-1014=w', 'err');
 
+--sorted_result
 select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
                               (a>='c-1014=w' and a <= 'c-1015=w');
 delete from t3 where b in ('c-1013=z', 'a-1014=w');
 
 # 4. Split is within the equality range.
+--sorted_result
 select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
                               a='c-1014=w' or a='c-1015=w';
 
 # 5. Split is at the edge of equality range.
 insert into t3 values ('c-1013=w', 'del-me', 'inserted');
+--sorted_result
 select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
                               a='c-1014=w' or a='c-1015=w';
 delete from t3 where b='del-me';
@@ -247,6 +252,7 @@ while ($1)
 --enable_query_log
 
 # The following must not crash:
+--sorted_result
 select * from t1 where (f3>=5 and f3<=10) or (f3>=1 and f3<=4);
 
 drop table t1;

@@ -36,19 +36,19 @@ SELECT CONCAT('c-',1000+t2.a,'=w'), CONCAT('c-',3000+t2.a,'=w'), 'filler-2'
 SELECT c1,c3 FROM t3 WHERE c1 >= 'c-1994=w' and c1 != 'c-1996=w' FOR UPDATE;
 c1	c3
 c-1994=w	filler
-c-1995=w	filler
-c-1997=w	filler
-c-1998=w	filler
-c-1999=w	filler
 c-1994=w	filler-1
-c-1995=w	filler-1
-c-1997=w	filler-1
-c-1998=w	filler-1
-c-1999=w	filler-1
 c-1994=w	filler-2
+c-1995=w	filler
+c-1995=w	filler-1
 c-1995=w	filler-2
+c-1997=w	filler
+c-1997=w	filler-1
 c-1997=w	filler-2
+c-1998=w	filler
+c-1998=w	filler-1
 c-1998=w	filler-2
+c-1999=w	filler
+c-1999=w	filler-1
 c-1999=w	filler-2
 DROP TABLE t1,t2,t3;
 #

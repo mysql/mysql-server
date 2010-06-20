@@ -1333,6 +1333,7 @@ explain select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 a
 # If the like starts with a certain letter key will be used.
 #
 
+--sorted_result
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
@@ -1854,6 +1855,7 @@ select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 # left [outer] join on
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
 select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # left join using
@@ -1864,6 +1866,7 @@ select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
 select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
 # right join on
 select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
+--sorted_result
 select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # right [outer] joing using
 select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
@@ -2534,10 +2537,14 @@ insert into t1 values(1),(2);
 insert into t2 values(1),(2);
 create view v2 (c) as select a1 from t1;
 
+--sorted_result
 select * from t1 natural left join t2;
+--sorted_result
 select * from t1 natural right join t2;
 
+--sorted_result
 select * from v2 natural left join t2;
+--sorted_result
 select * from v2 natural right join t2;
 
 drop table t1, t2;
@@ -2706,16 +2713,20 @@ create view v3 as select (t1.id+2) as id from t1 natural left join t2;
 # all queries must return the same result
 select t1.id from t1 left join v2 using (id);
 select t1.id from v2 right join t1 using (id);
+--sorted_result
 select t1.id from t1 left join v3 using (id);
 select * from t1 left join v2 using (id);
 select * from v2 right join t1 using (id);
+--sorted_result
 select * from t1 left join v3 using (id);
 
 select v1.id from v1 left join v2 using (id);
 select v1.id from v2 right join v1 using (id);
+--sorted_result
 select v1.id from v1 left join v3 using (id);
 select * from v1 left join v2 using (id);
 select * from v2 right join v1 using (id);
+--sorted_result
 select * from v1 left join v3 using (id);
 
 drop table t1, t2;
