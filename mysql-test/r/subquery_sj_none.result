@@ -2611,14 +2611,6 @@ from t1 ot where a in (select a from t2 it);
 a	mid(filler1, 1,10)	Z
 0	filler1234	1
 1	filler1234	1
-2	filler1234	1
-3	filler1234	1
-4	filler1234	1
-5	filler1234	1
-6	filler1234	1
-7	filler1234	1
-8	filler1234	1
-9	filler1234	1
 10	filler1234	1
 11	filler1234	1
 12	filler1234	1
@@ -2627,10 +2619,18 @@ a	mid(filler1, 1,10)	Z
 15	filler1234	1
 16	filler1234	1
 17	filler1234	1
+18	duplicate 	1
 18	filler1234	1
 19	filler1234	1
 2	duplicate 	1
-18	duplicate 	1
+2	filler1234	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
 explain select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -2643,14 +2643,6 @@ from t2 ot where a in (select a from t1 it);
 a	mid(filler1, 1,10)	length(filler1)=length(filler2)
 0	filler1234	1
 1	filler1234	1
-2	filler1234	1
-3	filler1234	1
-4	filler1234	1
-5	filler1234	1
-6	filler1234	1
-7	filler1234	1
-8	filler1234	1
-9	filler1234	1
 10	filler1234	1
 11	filler1234	1
 12	filler1234	1
@@ -2660,9 +2652,17 @@ a	mid(filler1, 1,10)	length(filler1)=length(filler2)
 16	filler1234	1
 17	filler1234	1
 18	filler1234	1
-19	filler1234	1
-3	duplicate 	1
 19	duplicate 	1
+19	filler1234	1
+2	filler1234	1
+3	duplicate 	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
 insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
 insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
 explain select 
@@ -2677,14 +2677,6 @@ from t1 ot where a in (select a from t2 it);
 a	mid(filler1, 1,10)	Z
 0	filler1234	1
 1	filler1234	1
-2	filler1234	1
-3	filler1234	1
-4	filler1234	1
-5	filler1234	1
-6	filler1234	1
-7	filler1234	1
-8	filler1234	1
-9	filler1234	1
 10	filler1234	1
 11	filler1234	1
 12	filler1234	1
@@ -2693,10 +2685,18 @@ a	mid(filler1, 1,10)	Z
 15	filler1234	1
 16	filler1234	1
 17	filler1234	1
+18	duplicate 	1
 18	filler1234	1
 19	filler1234	1
 2	duplicate 	1
-18	duplicate 	1
+2	filler1234	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
 explain select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -2709,14 +2709,6 @@ from t2 ot where a in (select a from t1 it);
 a	mid(filler1, 1,10)	length(filler1)=length(filler2)
 0	filler1234	1
 1	filler1234	1
-2	filler1234	1
-3	filler1234	1
-4	filler1234	1
-5	filler1234	1
-6	filler1234	1
-7	filler1234	1
-8	filler1234	1
-9	filler1234	1
 10	filler1234	1
 11	filler1234	1
 12	filler1234	1
@@ -2726,9 +2718,17 @@ a	mid(filler1, 1,10)	length(filler1)=length(filler2)
 16	filler1234	1
 17	filler1234	1
 18	filler1234	1
-19	filler1234	1
-3	duplicate 	1
 19	duplicate 	1
+19	filler1234	1
+2	filler1234	1
+3	duplicate 	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
 set @@join_buffer_size = @save_join_buffer_size;
 drop table t1, t2;
 create table t1 (a int, b int, key(a));
@@ -4221,14 +4221,17 @@ Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t0`.`a`) and (<cache>(`test`.`t0`.`a`) = `test`.`t1`.`a`))))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
-select * from t0 where t0.a in 
+create temporary table tmp select * from t0 where t0.a in 
 (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
+create temporary table tmp_as_ref (a int);
+insert into tmp_as_ref values(0),(1),(2),(3);
+select * from tmp;
 a
 0
 1
 2
 3
-drop table t0, t1, t2;
+drop table t0, t1, t2, tmp, tmp_as_ref;
 CREATE TABLE t1 (
 id int(11) NOT NULL,
 PRIMARY KEY (id));
@@ -4582,6 +4585,8 @@ where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
 name
 A
+A
+B
 B
 C
 D
@@ -4589,8 +4594,6 @@ E
 F
 G
 H
-A
-B
 I
 drop table t1,t2,t3,t4;
 #
