@@ -469,6 +469,7 @@ SELECT a1<>a2, a1, a2, b2, b3, c3,
        SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7; 
 
+--sorted_result
 SELECT a1<>a2, a1, a2, b2, b3, c3,
        SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
@@ -480,6 +481,7 @@ SELECT a1<>a2, a1, a2, b2, b3, c3,
        SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7; 
 
+--sorted_result
 SELECT a1<>a2, a1, a2, b2, b3, c3,
        SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
@@ -552,6 +554,7 @@ INSERT INTO t2 VALUES (3,3,0), (4,2,0), (5,3,0);
 INSERT INTO t3 VALUES (1,2,0), (2,2,0);
 INSERT INTO t4 VALUES (3,2,0), (4,2,0);
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2 LEFT JOIN (t3, t4) ON t2.b=t4.b
      WHERE t3.a+2<t2.a OR t3.c IS NULL;
@@ -567,8 +570,10 @@ insert into t1 values (2, 20), (3, 30), (1, 10);
 create table t2 (a int, c int);
 insert into t2 values (1, 101), (3, 102), (1, 100);
 
+--sorted_result
 select * from t1 left join t2 on t1.a=t2.a;
 explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
+--sorted_result
 select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 
 drop table t1, t2;
@@ -712,6 +717,7 @@ INSERT INTO t3(a,b) VALUES
   (5,30), (5,40), (5,50), (5,60), (5,70), (5,80),
   (7,30), (7,40), (7,50), (7,60), (7,70), (7,80);
 
+--sorted_result
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
   FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
     WHERE t1.a=t2.a; 
@@ -761,6 +767,7 @@ insert into t2 values (3,1, 'qwerty'),(3,4, 'qwerty');
 insert into t2 values (4,1, 'qwerty'),(4,2, 'qwerty'),(4,3, 'qwerty'),
                       (4,4, 'qwerty');
 
+--sorted_result
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
@@ -1218,6 +1225,7 @@ SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
     WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
           t5.enum2='Active' AND t3.id4=t2.id4 AND t2.id3=t1.id3 AND t3.text1<'D';
 
+--sorted_result
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
   FROM t1 JOIN  t2 JOIN  t3 JOIN  t4 JOIN  t5 
     WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND

@@ -2227,10 +2227,10 @@ a
 select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
 a	a
 1	2
-2	2
-3	2
 1	3
+2	2
 2	3
+3	2
 3	3
 select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a
@@ -2968,26 +2968,26 @@ create view v2 (c) as select a1 from t1;
 select * from t1 natural left join t2;
 a1	a2
 1	1
-2	1
 1	2
+2	1
 2	2
 select * from t1 natural right join t2;
 a2	a1
 1	1
-2	1
 1	2
+2	1
 2	2
 select * from v2 natural left join t2;
 c	a2
 1	1
-2	1
 1	2
+2	1
 2	2
 select * from v2 natural right join t2;
 a2	c
 1	1
-2	1
 1	2
+2	1
 2	2
 drop table t1, t2;
 drop view v2;
@@ -3167,9 +3167,9 @@ id
 102
 select t1.id from t1 left join v3 using (id);
 id
-102
 100
 101
+102
 select * from t1 left join v2 using (id);
 id
 100
@@ -3182,9 +3182,9 @@ id
 102
 select * from t1 left join v3 using (id);
 id
-102
 100
 101
+102
 select v1.id from v1 left join v2 using (id);
 id
 100
@@ -3197,9 +3197,9 @@ id
 102
 select v1.id from v1 left join v3 using (id);
 id
-102
 100
 101
+102
 select * from v1 left join v2 using (id);
 id
 100
@@ -3212,9 +3212,9 @@ id
 102
 select * from v1 left join v3 using (id);
 id
-102
 100
 101
+102
 drop table t1, t2;
 drop view v1, v2, v3;
 create table t1 (id int(11) not null default '0');

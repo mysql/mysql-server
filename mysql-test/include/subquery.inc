@@ -3535,6 +3535,7 @@ insert into t2 values
 
 select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 
+--sorted_result
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref); 
 
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
@@ -3577,6 +3578,7 @@ explain select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 
 select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 
+--sorted_result
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref); 
 
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
@@ -3641,6 +3643,7 @@ insert into t2 values
 
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2;
 
+--sorted_result
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref); 
 
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
@@ -3662,6 +3665,7 @@ explain select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) 
 
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) Z from t2;
 
+--sorted_result
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref); 
 
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
@@ -3696,6 +3700,7 @@ explain select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 
 select oref, a, a in (select ie from t1 where oref=t2.oref) Z from t2;
 
+--sorted_result
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);

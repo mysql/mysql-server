@@ -4538,8 +4538,8 @@ dd	NULL	0
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-ff	2
 aa	1
+ff	2
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 bb	2
@@ -4622,8 +4622,8 @@ dd	NULL	0
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-ff	2
 aa	1
+ff	2
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 bb	2
@@ -4716,8 +4716,8 @@ aa	1	1	1
 dd	1	NULL	0
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
-ff	2	2
 aa	1	1
+ff	2	2
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
 bb	2	1
@@ -4761,8 +4761,8 @@ aa	1	1	1
 dd	1	NULL	0
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
-ff	2	2
 aa	1	1
+ff	2	2
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
 bb	2	1
@@ -4808,8 +4808,8 @@ aa	1	1
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-cc	5
 aa	1
+cc	5
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 ee	NULL
