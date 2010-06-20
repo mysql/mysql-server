@@ -27,37 +27,37 @@ a	filler
 select a,filler from t3 where a >= 'c-1011=w' and a <= 'c-1015=w';
 a	filler
 c-1011=w	filler
-c-1012=w	filler
-c-1013=w	filler
-c-1014=w	filler
 c-1011=w	filler-1
-c-1012=w	filler-1
-c-1013=w	filler-1
-c-1014=w	filler-1
 c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
 c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
 c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
 c-1015=w	filler
 c-1015=w	filler-1
-c-1014=w	filler-2
 c-1015=w	filler-2
 select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
 (a>='c-1014=w' and a <= 'c-1015=w');
 a	filler
 c-1011=w	filler
-c-1012=w	filler
-c-1013=w	filler
-c-1014=w	filler
 c-1011=w	filler-1
-c-1012=w	filler-1
-c-1013=w	filler-1
-c-1014=w	filler-1
 c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
 c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
 c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
 c-1015=w	filler
 c-1015=w	filler-1
-c-1014=w	filler-2
 c-1015=w	filler-2
 insert into t3 values ('c-1013=z', 'c-1013=z', 'err');
 insert into t3 values ('a-1014=w', 'a-1014=w', 'err');
@@ -65,58 +65,58 @@ select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
 (a>='c-1014=w' and a <= 'c-1015=w');
 a	filler
 c-1011=w	filler
-c-1012=w	filler
-c-1013=w	filler
-c-1014=w	filler
 c-1011=w	filler-1
-c-1012=w	filler-1
-c-1013=w	filler-1
-c-1014=w	filler-1
 c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
 c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
 c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
 c-1015=w	filler
 c-1015=w	filler-1
-c-1014=w	filler-2
 c-1015=w	filler-2
 delete from t3 where b in ('c-1013=z', 'a-1014=w');
 select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
 a='c-1014=w' or a='c-1015=w';
 a	filler
 c-1011=w	filler
-c-1012=w	filler
-c-1013=w	filler
-c-1014=w	filler
 c-1011=w	filler-1
-c-1012=w	filler-1
-c-1013=w	filler-1
-c-1014=w	filler-1
 c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
 c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
 c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
 c-1015=w	filler
 c-1015=w	filler-1
-c-1014=w	filler-2
 c-1015=w	filler-2
 insert into t3 values ('c-1013=w', 'del-me', 'inserted');
 select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
 a='c-1014=w' or a='c-1015=w';
 a	filler
 c-1011=w	filler
-c-1012=w	filler
-c-1013=w	filler
-c-1014=w	filler
 c-1011=w	filler-1
-c-1012=w	filler-1
-c-1013=w	filler-1
 c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
 c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
 c-1013=w	filler-2
 c-1013=w	inserted
-c-1015=w	filler
+c-1014=w	filler
 c-1014=w	filler-1
-c-1015=w	filler-1
 c-1014=w	filler-2
+c-1015=w	filler
+c-1015=w	filler-1
 c-1015=w	filler-2
 delete from t3 where b='del-me';
 alter table t3 add primary key(b);
@@ -416,16 +416,16 @@ set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 create table t1 (f1 int not null, f2 int not null,f3 int not null, f4 char(1), primary key (f1,f2), key ix(f3));
 select * from t1 where (f3>=5 and f3<=10) or (f3>=1 and f3<=4);
 f1	f2	f3	f4
-10	10	10	A
-9	9	9	A
-8	8	8	A
-7	7	7	A
-6	6	6	A
-5	5	5	A
-4	4	4	A
-3	3	3	A
-2	2	2	A
 1	1	1	A
+10	10	10	A
+2	2	2	A
+3	3	3	A
+4	4	4	A
+5	5	5	A
+6	6	6	A
+7	7	7	A
+8	8	8	A
+9	9	9	A
 drop table t1;
 
 BUG#37977: Wrong result returned on GROUP BY + OR + Innodb

@@ -52,6 +52,7 @@ INSERT INTO t3
   SELECT CONCAT('c-',1000+t2.a,'=w'), CONCAT('c-',3000+t2.a,'=w'), 'filler-2'
   FROM t2;
 
+--sorted_result
 SELECT c1,c3 FROM t3 WHERE c1 >= 'c-1994=w' and c1 != 'c-1996=w' FOR UPDATE;
 
 DROP TABLE t1,t2,t3;
