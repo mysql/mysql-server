@@ -674,6 +674,7 @@ int DsMrr_impl::dsmrr_next_cpk(char **range_info)
       goto end;
     }
     
+    //TODO: make skip_index_tuple() calls, too?
     //TODO: skip-record calls here?
     //if (h2->mrr_funcs.skip_record &&
     //	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
