@@ -382,6 +382,160 @@ from t1 as t2
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t2.a = 1;
 
+# Test multiparent pushed joins where it is not possible
+# to find a single common parent by using the equality set
+#
+# NOTE: We should take care to join the multiparent linked
+# table on field refs. not also being refered from other join expr.
+# as this will make them candidates for equality set replacement.
+#
+set ndb_join_pushdown=true;
+
+# t3 refer both t1,t2 as parrent.
+# t1 should be identifed as a grandparent available
+# through its child t2.
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t2.c and t3.b = t1.c;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t2.c and t3.b = t1.c;
+
+# t4 is NOT pushable as t2 & t3 does not have 
+# a parent / grandparent relationship
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
+
+# t3 is a child of t2 and grandchild of t1
+# t4 is a child of t3 and grandchild of t2
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t2.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t2.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
+
+# t3 is a child of t2 and grandchild of t1
+# t4 is a child of t3 and grandgrandchild of t1
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t2.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t1.d;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t2.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t1.d;
+
+# Some testcases where t4 is not directly pushable, but
+# may be made pushable by equality set replacement.
+#
+# BEWARE: mysqld optimizer may do its own replacement
+#    before ha_ndbcluster analyze the AQP. We therefore 
+#    provide multiple similar testcases and hope that
+#    some of them will trigger the replacement code in 
+#    ha_ndbcluster :-o
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.a and t4.b = t2.c;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.a and t4.b = t2.c;
+
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.b and t4.b = t2.c;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.b and t4.b = t2.c;
+
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.a;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.a;
+
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.b;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t2.b;
+
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t1.c and t4.b = t2.c;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t1.c and t4.b = t2.c;
+
+explain
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t1.b;
+--sorted_result
+select straight_join *
+from t1
+ join t1 as t2 on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3 on t3.a = t1.c and t3.b = t1.d
+ join t1 as t4 on t4.a = t3.c and t4.b = t1.b;
+
 
 # Test a combination of pushed table scan (x, y)
 #  & pushed EQ-bound (indexScan) (z, t1)
