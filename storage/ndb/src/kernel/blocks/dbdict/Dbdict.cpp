@@ -7914,6 +7914,26 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     newTablePtr.p->tableVersion =
     alter_obj_inc_schema_version(tablePtr.p->tableVersion);
 
+  // rename stuff
+  {
+    ConstRope r1(c_rope_pool, tablePtr.p->tableName);
+    ConstRope r2(c_rope_pool, newTablePtr.p->tableName);
+
+    char name[MAX_TAB_NAME_SIZE];
+    r2.copy(name);
+
+    if (r1.compare(name) != 0)
+    {
+      jam();
+      if (get_object(name) != 0)
+      {
+        jam();
+        setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+        return;
+      }
+    }
+  }
+
   // add attribute stuff
   {
     const Uint32 noOfNewAttr =

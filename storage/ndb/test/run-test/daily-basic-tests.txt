@@ -711,6 +711,10 @@ max-time: 600
 cmd: testDict
 args: -n TableAddAttrsDuringError
 
+max-time: 500
+cmd: testDict
+args: -n Bug54651 T1
+
 #
 # TEST NDBAPI
 #
