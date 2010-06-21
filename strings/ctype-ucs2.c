@@ -1775,6 +1775,8 @@ CHARSET_INFO my_charset_utf16_general_ci=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
   &my_collation_utf16_general_ci_handler
 };
@@ -1808,6 +1810,8 @@ CHARSET_INFO my_charset_utf16_bin=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
   &my_collation_utf16_bin_handler
 };
@@ -2802,6 +2806,8 @@ CHARSET_INFO my_charset_utf32_general_ci=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
   &my_collation_utf32_general_ci_handler
 };
@@ -2835,6 +2841,8 @@ CHARSET_INFO my_charset_utf32_bin=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
   &my_collation_utf32_bin_handler
 };
@@ -3487,6 +3495,8 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
 };
@@ -3519,6 +3529,8 @@ CHARSET_INFO my_charset_ucs2_bin=
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler
 };
