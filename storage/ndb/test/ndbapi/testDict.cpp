@@ -2825,6 +2825,17 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
 
 struct RandSchemaOp
 {
+  RandSchemaOp(unsigned * randseed = 0) {
+    if (randseed == 0)
+    {
+      ownseed = (unsigned)NdbTick_CurrentMillisecond();
+      seed = &ownseed;
+    }
+    else
+    {
+      seed = randseed;
+    }
+  }
   struct Obj 
   { 
     BaseString m_name;
@@ -2842,9 +2853,13 @@ struct RandSchemaOp
   Obj* get_obj(Uint32 mask);
   int create_table(Ndb*);
   int create_index(Ndb*, Obj*);
+  int alter_table(Ndb*, Obj*);
   int drop_obj(Ndb*, Obj*);
 
   void remove_obj(Obj*);
+private:
+  unsigned * seed;
+  unsigned ownseed;
 };
 
 template class Vector<RandSchemaOp::Obj*>;
@@ -2855,7 +2870,7 @@ RandSchemaOp::schema_op(Ndb* ndb)
   struct Obj* obj = 0;
   Uint32 type = 0;
 loop:
-  switch((rand() >> 16) & 3){
+  switch((rand_r(seed) >> 16) % 5){
   case 0:
     return create_table(ndb);
   case 1:
@@ -2870,6 +2885,10 @@ loop:
       (1 << NdbDictionary::Object::UniqueHashIndex) |
       (1 << NdbDictionary::Object::OrderedIndex);    
     goto drop_object;
+  case 4:
+    if ((obj = get_obj(1 << NdbDictionary::Object::UserTable)) == 0)
+      goto loop;
+    return alter_table(ndb, obj);
   default:
     goto loop;
   }
@@ -2892,7 +2911,7 @@ RandSchemaOp::get_obj(Uint32 mask)
 
   if (tmp.size())
   {
-    return tmp[rand()%tmp.size()];
+    return tmp[rand_r(seed)%tmp.size()];
   }
   return 0;
 }
@@ -2901,16 +2920,17 @@ int
 RandSchemaOp::create_table(Ndb* ndb)
 {
   int numTables = NDBT_Tables::getNumTables();
-  int num = myRandom48(numTables);
+  int num = rand_r(seed) % numTables;
   NdbDictionary::Table pTab = * NDBT_Tables::getTable(num);
   
   NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  pTab.setForceVarPart(true);
 
   if (pDict->getTable(pTab.getName()))
   {
     char buf[100];
     BaseString::snprintf(buf, sizeof(buf), "%s-%d", 
-                         pTab.getName(), rand());
+                         pTab.getName(), rand_r(seed));
     pTab.setName(buf);
     if (pDict->createTable(pTab))
       return NDBT_FAILED;
@@ -2948,8 +2968,8 @@ RandSchemaOp::create_index(Ndb* ndb, Obj* tab)
     return NDBT_FAILED;
   }
 
-  bool ordered = (rand() >> 16) & 1;
-  bool stored = (rand() >> 16) & 1;
+  bool ordered = (rand_r(seed) >> 16) & 1;
+  bool stored = (rand_r(seed) >> 16) & 1;
 
   Uint32 type = ordered ? 
     NdbDictionary::Index::OrderedIndex :
@@ -3064,6 +3084,77 @@ RandSchemaOp::remove_obj(Obj* obj)
 }
 
 int
+RandSchemaOp::alter_table(Ndb* ndb, Obj* obj)
+{
+  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  const NdbDictionary::Table * pOld = pDict->getTable(obj->m_name.c_str());
+  NdbDictionary::Table tNew = * pOld;
+
+  BaseString ops;
+  unsigned mask = 3;
+
+  unsigned type;
+  while (ops.length() == 0 && (mask != 0))
+  {
+    switch((type = (rand_r(seed) >> 16) & 1)){
+    default:
+    case 0:{
+      if ((mask & (1 << type)) == 0)
+        break;
+      BaseString name;
+      name.assfmt("newcol_%d", tNew.getNoOfColumns());
+      NdbDictionary::Column col(name.c_str());
+      col.setType(NdbDictionary::Column::Unsigned);
+      col.setDynamic(true);
+      col.setPrimaryKey(false);
+      col.setNullable(true);
+      NdbDictionary::Table save = tNew;
+      tNew.addColumn(col);
+      if (!pDict->supportedAlterTable(* pOld, tNew))
+      {
+        ndbout_c("not supported...");
+        mask &= ~(1 << type);
+        tNew = save;
+        break;
+      }
+      ops.append(" addcol");
+      break;
+    }
+    case 1:{
+      BaseString name;
+      do
+      {
+        unsigned no = rand_r(seed);
+        name.assfmt("%s_%u", pOld->getName(), no);
+      } while (pDict->getTable(name.c_str()));
+      tNew.setName(name.c_str());
+      ops.appfmt(" rename: %s", name.c_str());
+      break;
+    }
+
+    }
+  }
+
+  if (ops.length())
+  {
+    ndbout_c("altering %s ops: %s", pOld->getName(), ops.c_str());
+    if (pDict->alterTable(*pOld, tNew) != 0)
+    {
+      g_err << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    pDict->invalidateTable(pOld->getName());
+    if (strcmp(pOld->getName(), tNew.getName()))
+    {
+      obj->m_name.assign(tNew.getName());
+    }
+  }
+
+  return NDBT_OK;
+}
+
+
+int
 RandSchemaOp::validate(Ndb* ndb)
 {
   NdbDictionary::Dictionary* pDict = ndb->getDictionary();
@@ -3132,15 +3223,17 @@ RandSchemaOp::cleanup(Ndb* ndb)
   return NDBT_OK;
 }
 
+extern unsigned opt_seed;
+
 int
 runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   int loops = ctx->getNumLoops();
 
-  NdbMixRestarter res;
-  
-  RandSchemaOp dict;
+  unsigned seed = opt_seed;
+  NdbMixRestarter res(&seed);
+  RandSchemaOp dict(&seed);
   if (res.getNumDbNodes() < 2)
     return NDBT_OK;
 
