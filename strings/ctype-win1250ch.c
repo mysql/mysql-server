@@ -36,19 +36,9 @@
  * .configure. strxfrm_multiply_win1250ch=2
  */
 
-#define REAL_MYSQL
-#ifdef REAL_MYSQL
-
 #include "my_global.h"
 #include "m_string.h"
 #include "m_ctype.h"
-
-#else
-
-#include <stdio.h>
-#define uchar unsigned char
-
-#endif
 
 #ifdef HAVE_CHARSET_cp1250
 
@@ -488,9 +478,11 @@ int my_strnncollsp_win1250ch(CHARSET_INFO * cs,
 }
 
 
-static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
-                                    uchar *dest, size_t len, 
-                                    const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
+                      uchar *dest, size_t len,
+                      uint nweights_arg __attribute__((unused)),
+                      const uchar *src, size_t srclen, uint flags)
 {
   int value;
   const uchar *p;
@@ -498,20 +490,27 @@ static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
   size_t totlen = 0;
   p = src;
 
-  do {
+  if (!(flags & 0x0F)) /* All levels by default */                              
+    flags|= 0x0F;
+
+  for (;;)
+  {
     NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
-    if (totlen <= len)
-      dest[totlen] = value;
-    totlen++;
-  } while (value) ;
-  if (len > totlen)
-    bfill(dest + totlen, len - totlen, ' ');
-  return len;
+    if (!value)
+      break;
+    if (totlen <= len && ((1 << pass) & flags))
+      dest[totlen++] = value;
+  }
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
+  {
+    bfill(dest + totlen, len - totlen, 0x00);
+    totlen= len;
+  }
+  return totlen;
 }
 
 #undef IS_END
 
-#ifdef REAL_MYSQL
 
 static uchar NEAR like_range_prefix_min_win1250ch[]=
 {
@@ -705,11 +704,11 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   0,				/* max_sort_char */
   ' ',                          /* pad char      */
   0,                            /* escape_with_backslash_is_dangerous */
+  2,                            /* levels_for_compare */
+  2,                            /* levels_for_order   */
   &my_charset_8bit_handler,
   &my_collation_czech_ci_handler
 };
 
-
-#endif /* REAL_MYSQL */
 
 #endif /* HAVE_CHARSET_cp1250 */
