@@ -58,12 +58,22 @@ delete marked clustered index record was delete unmarked and possibly also
 some of its fields were changed. Now, it is possible that the delete marked
 version has become obsolete at the time the undo is started. */
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***********************************************************//**
 Checks if also the previous version of the clustered index record was
 modified or inserted by the same transaction, and its undo number is such
 that it should be undone in the same rollback.
 @return	TRUE if also previous modify or insert of this row should be undone */
-UNIV_INLINE
+static
 ibool
 row_undo_mod_undo_also_prev_vers(
 /*=============================*/
@@ -230,6 +240,8 @@ row_undo_mod_clust(
 	undo_no_t	new_undo_no;
 
 	ut_ad(node && thr);
+
+	log_free_check();
 
 	/* Check if also the previous version of the clustered index record
 	should be undone in this same rollback operation */
