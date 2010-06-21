@@ -1278,7 +1278,7 @@ static int opt_loops;
 static int opt_timer;
 static char * opt_testname = NULL;
 static int opt_verbose;
-static int opt_seed = 0;
+unsigned opt_seed = 0;
 static int opt_nologging = 0;
 static int opt_temporary = 0;
 static int opt_noddl = 0;
@@ -1401,7 +1401,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   if (opt_seed == 0)
   {
-    opt_seed = (int)NdbTick_CurrentMillisecond();
+    opt_seed = (unsigned)NdbTick_CurrentMillisecond();
   }
   ndbout_c("random seed: %u", opt_seed);
   srand(opt_seed);

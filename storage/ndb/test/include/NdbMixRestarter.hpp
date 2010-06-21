@@ -57,7 +57,7 @@ public:
     SR_VALIDATING = 3
   };
   
-  NdbMixRestarter(const char* _addr = 0);
+  NdbMixRestarter(unsigned * seed = 0, const char* _addr = 0);
   ~NdbMixRestarter();
 
   void setRestartTypeMask(Uint32 mask);
@@ -69,6 +69,8 @@ public:
   int finish(NDBT_Context* ctx, NDBT_Step* step);
 
 private:
+  unsigned * seed;
+  unsigned ownseed;
   Uint32 m_mask;
   Vector<ndb_mgm_node_state> m_nodes;
   int restart_cluster(NDBT_Context* ctx, NDBT_Step* step, bool abort = true);
