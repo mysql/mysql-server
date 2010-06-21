@@ -236,16 +236,141 @@ private:
 
 /** 
  * This type is used in conjunction with AQP::Join_plan and represents a set 
- * of the table access operations of the join plan.
+ * of the table access operations of the join plan. 
+ * Had to subclass Bitmap as the default Bitmap<64> c'tor didn't initialize its
+ * map.
  */
-typedef Bitmap<(MAX_TABLES > 64 ? MAX_TABLES : 64)> ndb_table_access_map;
+#define TABLE_BITMAP Bitmap<(MAX_TABLES > 64 ? MAX_TABLES : 64)>
 
-/** This class represents a pushed (N-way) join operation.*/
+class ndb_table_access_map : public TABLE_BITMAP
+{
+public:
+  explicit ndb_table_access_map()
+   : TABLE_BITMAP(0)
+  {}
+
+  explicit ndb_table_access_map(const table_map& table)
+   : TABLE_BITMAP(0)
+  { set_map(table); }
+
+  explicit ndb_table_access_map(const AQP::Table_access* const table)
+   : TABLE_BITMAP(0)
+  { set_bit(table->get_table()->tablenr); }
+
+  void add(const ndb_table_access_map& table_map)
+  { // Require const_cast as signature of class Bitmap::merge is not const correct
+    merge(const_cast<ndb_table_access_map&>(table_map));
+  }
+  void add(const AQP::Table_access* const table)
+  {
+    ndb_table_access_map table_map(table);
+    add(table_map);
+  }
+
+  bool contain(const ndb_table_access_map& table_map) const
+  {
+    return table_map.is_subset(*this);
+  }
+  bool contain_table(const AQP::Table_access* const table) const
+  {
+    ndb_table_access_map table_map(table);
+    return contain(table_map);
+  }
+}; // class ndb_table_access_map
+
+
+/**
+ * Contains the context and helper methods used during ::make_pushed_join().
+ *
+ * Interacts with the AQP which provides interface to the query prepared by
+ * the mysqld optimizer.
+ *
+ * Execution plans built for pushed joins are stored inside this builder context.
+ */
+class ndb_pushed_builder_ctx
+{
+public:
+  ndb_pushed_builder_ctx(AQP::Join_plan& plan, const AQP::Table_access* const join_root)
+   : m_plan(plan), m_join_root(join_root), m_join_scope(join_root), m_const_scope()
+  {
+    for (uint i= 0; i<join_root->get_access_no(); i++)
+      m_const_scope.add(plan.get_table_access(i));
+  }
+
+  const AQP::Join_plan& plan() const
+  { return m_plan; }
+
+  const AQP::Table_access* join_root() const
+  { return m_join_root; }
+
+  const ndb_table_access_map& join_scope() const
+  { return m_join_scope; }
+
+  const ndb_table_access_map& const_scope() const
+  { return m_const_scope; }
+
+  const NdbQueryOperationDef* get_query_operation(const AQP::Table_access* table) const
+  { return m_tables[table->get_access_no()].op; }
+
+  const AQP::Table_access* get_referred_table_access(
+                  const ndb_table_access_map& used_tables) const;
+
+  void add_parent_candidate(
+                  const ndb_table_access_map& table,
+                  const ndb_table_access_map& old_parents,
+                  ndb_table_access_map& parents) const;
+
+  bool field_ref_is_join_pushable(
+                  const AQP::Table_access* table,
+                  const Item* join_items[],
+                  const AQP::Table_access*& parent);
+
+  void add_pushed(const AQP::Table_access* table,
+                  const AQP::Table_access* parent,
+                  const NdbQueryOperationDef* query_op);
+
+  // Check if 'table' is child of some of the specified 'parents'
+  bool is_child_of(const AQP::Table_access* table,
+                   const ndb_table_access_map& parents) const
+  {
+    DBUG_ASSERT(m_join_scope.contain_table(table));
+    DBUG_ASSERT(parents.is_subset(m_join_scope));
+    return parents.is_overlapping(m_tables[table->get_access_no()].m_ancestors);
+  }
+
+private:
+  const AQP::Join_plan& m_plan;
+  const AQP::Table_access* const m_join_root;
+
+  // Scope of tables covered by this pushed join
+  ndb_table_access_map m_join_scope;
+
+  // Scope of tables evaluated prior to 'm_join_root'
+  // These are effectively const or params wrt. the pushed join
+  ndb_table_access_map m_const_scope;
+
+  struct pushed_tables
+  {
+    pushed_tables() : m_ancestors(), op(NULL) {}
+    ndb_table_access_map m_ancestors;
+    const NdbQueryOperationDef* op;
+  } m_tables[MAX_TABLES];
+
+}; // class ndb_pushed_builder_ctx
+
+
+/** This class represents a prepared pushed (N-way) join operation.
+ *
+ *  It might be instantiated multiple times whenever the query,
+ *  or this subpart of the query, is being (re-)executed by
+ *  ::createQuery() or it's wrapper method 
+ *  ha_ndbcluster::create_pushed_join().
+ */
 class ndb_pushed_join
 {
 public:
   ndb_pushed_join(const AQP::Join_plan& plan, 
-                 ndb_table_access_map& pushed_operations,
+                 const ndb_table_access_map& pushed_operations,
                  uint field_refs, Field* const fields[],
                  const NdbQueryDef* query_def)
   :
@@ -258,7 +383,7 @@ public:
     for (uint i= 0; i < plan.get_access_count(); i++)
     {
       const AQP::Table_access* const join_tab= plan.get_table_access(i);
-      if (pushed_operations.is_set(join_tab->get_access_no()))
+      if (pushed_operations.contain_table(join_tab))
       {
         DBUG_ASSERT(m_operation_count < MAX_PUSHED_OPERATIONS);
         m_tables[m_operation_count++] = join_tab->get_table();
@@ -355,16 +480,103 @@ const char* get_referred_table_access_name(const Item_field* field_item){
 }
 
 
+void
+ndb_pushed_builder_ctx::add_pushed(
+                  const AQP::Table_access* table,
+                  const AQP::Table_access* parent,
+                  const NdbQueryOperationDef* query_op)
+{
+  uint table_no= table->get_access_no();
+  DBUG_ASSERT(table_no < MAX_TABLES);
+  m_join_scope.add(table);
+  m_tables[table_no].op= query_op;
+  if (likely(parent))
+  {
+    // Aggregated set of parent and grand...grand...parents to this table
+    ndb_table_access_map parent_map(parent);
+    DBUG_ASSERT(m_join_scope.contain(parent_map));
+    m_tables[table_no].m_ancestors= m_tables[parent->get_access_no()].m_ancestors;
+    m_tables[table_no].m_ancestors.add(parent_map);
+  }
+  else
+  {
+    m_tables[table_no].m_ancestors.clear_all();
+  }
+}
+
+/**
+ *  get_referred_table_access()
+ *
+ * Locate the 'Table_access' object for table with the specified bitmap id
+ */
+const AQP::Table_access*
+ndb_pushed_builder_ctx::get_referred_table_access(const ndb_table_access_map& find_table) const
+{
+  for (uint i= join_root()->get_access_no(); i < m_plan.get_access_count(); i++)
+  {
+    const AQP::Table_access* const table= m_plan.get_table_access(i);
+    ndb_table_access_map table_map(table);
+    if (m_join_scope.contain(table_map) && find_table==table_map)
+      return table;
+  }
+  return NULL;
+}
+
+/**
+ *  add_parent_candidate()
+ *
+ *  We have located a ref. to a parent table within our pushed join scope.
+ *  Due to the possible equality set replacement which may take place, we may
+ *  have multiple parent candidates for a single key_item in the join condition.
+ *  
+ *  Update our set of 'parents' references such that it only contain parent
+ *  tables which are/may be directly refered by all key_items in the join condition
+ *    or:
+ *  the table refered by the join conditin should be reachable as a grand parent
+ *  of the table(s) in the parents list.
+ *
+ *  - table: bitmap of table being added as parent candidate.
+ *  - old_parents: Set of parents calculated for all the previous key_items.
+ *  - parents: Set of parent candidates currently being calculated for this key_item.
+ */
+void
+ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
+                                             const ndb_table_access_map& old_parents,
+                                             ndb_table_access_map& parents) const
+
+{
+  DBUG_ASSERT(m_join_scope.contain(table));
+  if (!parents.contain(table)) // referred_table not already parent
+  {
+    if (old_parents.is_clear_all()  ||  // Initial assignment
+        old_parents.contain(table))     // Parent is common
+    {
+      parents.add(table);
+    }
+    else
+    {
+      const AQP::Table_access* const referred_table= get_referred_table_access(table);
+      ndb_table_access_map grandparents= m_tables[referred_table->get_access_no()].m_ancestors;
+      if (grandparents.is_overlapping(old_parents)) // Parent is real parent
+      {
+        parents.add(table);
+      }
+    }
+  }
+}
+
+
 /***************************************************************
  *  field_ref_is_join_pushable()
  *
- * Determines if the specified child ('child_access') can be appended to 
+ * Determines if the specified child ('table') can be appended to 
  * an existing chain of previously pushed join operations.
  *
  * To be considdered pushable the child operation should:
  *
  *  1) Have an EQ_REF to the previous parent operations.
- *  2) Refer only a single parent through it EQ_REF's
+ *  2) Refer only a single parent, or a grandparent reachable through 
+ *     a single parent common to all key fields in the 'EQ_REF'
  *
  * In order to increase pushability we use the COND_EQUAL sets 
  * to resolve cases (2) above) where multiple parents are refered.
@@ -373,25 +585,23 @@ const char* get_referred_table_access_name(const Item_field* field_item){
  * it pushable . The modified join condition is returned in 
  * join_items[] .
  ****************************************************************/
-static bool
-field_ref_is_join_pushable(const AQP::Join_plan& plan, 
-                           const AQP::Table_access* const join_root,
-                           const ndb_table_access_map parent_scope,
-                           const AQP::Table_access* child_access,
+bool
+ndb_pushed_builder_ctx::field_ref_is_join_pushable(
+                           const AQP::Table_access* table,
                            const Item* join_items[ndb_pushed_join::MAX_LINKED_KEYS+1],
                            const AQP::Table_access*& parent)
 {
   DBUG_ENTER("field_ref_is_join_pushable");
-  uint tab_no = child_access->get_access_no();
+  uint tab_no = table->get_access_no();
   parent= NULL;
 
-  DBUG_ASSERT (join_root < child_access);
+  DBUG_ASSERT (join_root() < table);
 
-  if (child_access->get_access_type() != AQP::AT_PRIMARY_KEY &&
-      child_access->get_access_type() != AQP::AT_UNIQUE_KEY)
+  if (table->get_access_type() != AQP::AT_PRIMARY_KEY &&
+      table->get_access_type() != AQP::AT_UNIQUE_KEY)
     DBUG_RETURN(false);
 
-  if (child_access->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
+  if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
   {
     DBUG_PRINT("info", ("  'key_parts >= ndb_pushed_join::MAX_LINKED_KEYS', "
                         "can't append table:%d", tab_no+1));
@@ -399,40 +609,22 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
   }
 
   DBUG_PRINT("info", ("Table:%d, Checking %d EQ_REF keys", tab_no, 
-                      child_access->get_no_of_key_fields()));
+                      table->get_no_of_key_fields()));
 
-  /**
-   * Explore child references to parent operation(s). For all FIELD_ITEMs
-   * aggregate the 'table->map' bitmask for all possible parent table ref's.
-   * Such that the refered table may be used as a source for all child refs.
-   *   *
-   * 1) Collect (or-aggregate) the set of parents currently referred
-   *    by table_access->ref in 'current_parents'.
-   *
-   * 2) For each FIELD_ITEM in childs 'ref.key' aggregate 'table->map'
-   *    bitmask for the table currently refered and alternative parents 
-   *    from COND_EQUAL in 'field_possible_parents'
-   *
-   * 3) Collect (and-aggregate) the total set of candidate parents being
-   *    the single parent for this child in 'all_linked_parents'
-   *    
-   **/
-
-  bool multiple_parents= false;
-  bool outside_scope= false;
-  ndb_table_access_map current_parents(0);
-  ndb_table_access_map all_common_parents(0);
+  ndb_table_access_map current_parents;
+  ndb_table_access_map parents;
 
   for (uint key_part_no= 0; 
-       key_part_no < child_access->get_no_of_key_fields(); 
+       key_part_no < table->get_no_of_key_fields(); 
        key_part_no++)
   {
     /* All parts of the key must be fields in some of the preceeding 
      * tables 
      */
-    const Item* const key_item= child_access->get_key_field(key_part_no);
+    const Item* const key_item= table->get_key_field(key_part_no);
     join_items[key_part_no]= key_item;
 
+    DBUG_ASSERT(key_item->const_item() == key_item->const_during_execution());
     if (key_item->const_item())  // ...->const_during_execution() ?
     {
       DBUG_PRINT("info", (" Item type:%d is 'const_item'", key_item->type()));
@@ -453,44 +645,60 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
                         key_item_field->field->field_name));
 
     if (!key_item_field->field
-        ->eq_def(child_access->get_key_part_info(key_part_no)->field))
+        ->eq_def(table->get_key_part_info(key_part_no)->field))
     {
       DBUG_PRINT("info", ("Item_field does not have same definition as EQ_REF'ed key"));
       DBUG_RETURN(false);
     }
 
-    // 1) Calculate current parent referrences
-    ndb_table_access_map field_possible_parents(0);
-    const AQP::Table_access* const referred_table= 
-      plan.get_referred_table_access(key_item_field,join_root);
-    if (referred_table && 
-        (parent_scope.is_set(referred_table->get_access_no())))
+    /**
+     * Below this point 'key_item_field' is a candidate for refering a parent table
+     * in a pushed join. It should either directly refer a parent common to all
+     * FIELD_ITEMs, or refer a grandparent of this common parent.
+     * There are different cases which should be handled:
+     *
+     *  1) 'key_item_field' may already refer one of the parent available within our
+     *      pushed scope.
+     *  2)  By using the equality set, we may find alternative parent references which
+     *      may make this a pushed join.
+     *  3)  In the steps above we may have found parent references which was 
+     *      temp. rejected as they were not in the set of common parents (old_parents).
+     *      Take a second look at rejected 'old_parents' and add any of these which refer
+     *      a parent as a grandparent.
+     */
+
+    ///////////////////////////////////////////////////////////////////
+    // 0) Prepare for calculating parent candidates for this FIELD_ITEM
+    //
+    ndb_table_access_map field_possible_parents;
+    ndb_table_access_map old_parents(parents);
+    parents.clear_all();
+
+    ////////////////////////////////////////////////////////////////////
+    // 1) Add our existing parent reference to the set of parent candidates
+    //
+    ndb_table_access_map parent_map(key_item_field->used_tables());
+    current_parents.add(parent_map);
+
+    if (m_join_scope.contain(parent_map))
     {
-      field_possible_parents.set_bit(referred_table->get_access_no());
-      current_parents.set_bit(referred_table->get_access_no());
-      multiple_parents= !(current_parents == field_possible_parents);
-      parent= referred_table;  // Assumed until further
-    }
-    else
-    {
-      outside_scope= true;
+      field_possible_parents.add(parent_map);
+      add_parent_candidate (parent_map, old_parents, parents);
     }
 
-    // 2) Aggregate alternative parents from equality set
-    AQP::Equal_set_iterator equal_iter(&plan, key_item_field);
+    //////////////////////////////////////////////////////////////////
+    // 2) Use the equality set to possibly find more parent candidates
+    //    usable by substituting existing 'key_item_field'
+    //
+    AQP::Equal_set_iterator equal_iter(&m_plan, key_item_field);
     const Item_field* substitute_field= equal_iter.next();
     while (substitute_field != NULL)
     {
       if (substitute_field != key_item_field)
       {
-        const AQP::Table_access* const substitute_table= 
-          plan.get_referred_table_access(substitute_field,join_root);
-        if (substitute_table && 
-            (parent_scope.is_set(substitute_table->get_access_no())) &&
-            substitute_table->get_access_no() < tab_no)
+        ndb_table_access_map substitute_table(substitute_field->used_tables());
+        if (m_join_scope.contain(substitute_table))
         {
-          // Substitute is inside linked scope
-          field_possible_parents.set_bit(substitute_table->get_access_no());
           DBUG_PRINT("info", 
                      (" join_items[%d] %s.%s can be replaced with %s.%s",
                       key_part_no,
@@ -498,25 +706,36 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
                       get_referred_field_name(key_item_field),
                       get_referred_table_access_name(substitute_field),
                       get_referred_field_name(substitute_field)));
+
+          field_possible_parents.add(substitute_table);
+          add_parent_candidate (substitute_table, old_parents, parents);
         }
       }
       substitute_field= equal_iter.next();
     } // while(substitute_field != NULL)
 
-    // 3) Aggregate set of possible single parent candidates serving all child refs
+    ////////////////////////////////////////////////////////////////////////////////
+    // 3) Handle possible rejected 'old_parents' which refer any possible_parents as
+    //    a grandparent
     if (!field_possible_parents.is_clear_all())
     {
-      if (all_common_parents.is_clear_all())
-        all_common_parents= field_possible_parents;
-      else
+      old_parents.subtract(parents);
+      if (!old_parents.is_clear_all())
       {
-        all_common_parents.intersect(field_possible_parents);
-        if (all_common_parents.is_clear_all())
-          break;
+        // Add all 'old_parents[parent_no]' with some of 'field_possible_parents' as grandparents
+        for (uint parent_no= join_root()->get_access_no(); parent_no < tab_no; parent_no++)
+        {
+          const AQP::Table_access* const table = m_plan.get_table_access(parent_no);
+          if (old_parents.contain_table(table) && is_child_of(table,field_possible_parents))
+          {
+            parents.add(table);
+          }
+        }
       }
+      if (parents.is_clear_all())
+        break;
     }
-    else if (referred_table && 
-             !(parent_scope.is_set(referred_table->get_access_no())))
+    else if (!m_const_scope.contain(parent_map))
     {
       DBUG_PRINT("info", ("Item_field %s.%s is outside scope of pushable join",
                   get_referred_table_access_name(key_item_field),
@@ -525,7 +744,9 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
     }
   } // for (uint key_part_no= 0 ...
 
-  if (all_common_parents.is_clear_all())
+  join_items[table->get_no_of_key_fields()]= NULL;
+
+  if (parents.is_clear_all())
   {
     // NOTE: This is a constant table in the context of this pushed join.
     //       It should be relatively simple to extend the SPJ block to 
@@ -534,40 +755,33 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
     DBUG_RETURN(false);
   }
 
+  DBUG_ASSERT(parents.is_subset(m_join_scope));
+
   /**
-   * Based on information we have aggregated above, resolve conditions where either:
-   *  - Multiple parents are refered from this child.
-   *  - Parent refered from this child is outside scope of visible parents.
-   *
-   * Situation is resolved by:
-   *
-   * 1) New (common) parent is selected as the 'most grand-' parent
-   *    in 'all_linked_parents' (new_parent)
-   *
-   * 2) For any FIELD_ITEMs in join_items[] not already refering a field from new_parent,
-   *    update join_items[] to refer the correct new_parent field available from the
-   *    equality set.
+   * Parent is selected among the set of 'parents'. To improve
+   * fanout (bushy joins!) we prefer the first of the available parents.
+   */
+  uint parent_no;
+  for (parent_no= join_root()->get_access_no();
+       parent_no < tab_no && !parents.contain_table(m_plan.get_table_access(parent_no));
+       parent_no++)
+  {}
+  parent= m_plan.get_table_access(parent_no);
+  ndb_table_access_map parent_map(parent);
+  DBUG_ASSERT(parents.contain(parent_map));
+
+  /**
+   * If there are any key_fields with 'current_parents' different from
+   * our selected 'parent', we have to find substitutes for
+   * those key_fields within the equality set.
    **/
-  if (multiple_parents || outside_scope)
+  if (!(parent_map==current_parents))
   {
-    DBUG_ASSERT(!all_common_parents.is_clear_all());
-    DBUG_ASSERT(all_common_parents.is_subset(parent_scope));
+    ndb_table_access_map grandparent_map= m_tables[parent_no].m_ancestors;
+    DBUG_ASSERT (!grandparent_map.contain(parent_map));
 
-    // 1) Parent should be first table found in 'all_linked_parents'
-    const AQP::Table_access* new_parent= NULL;
-
-    for (uint i= join_root->get_access_no(); i < tab_no; i++)
-    {
-      new_parent= plan.get_table_access(i);
-      if (all_common_parents.is_set(new_parent->get_access_no()))
-        break;
-    }
-    DBUG_ASSERT(all_common_parents.is_set(new_parent->get_access_no()));
-    parent= new_parent;
-
-    // 2) Update join_items[] not already refering new_parent
     for (uint key_part_no= 0; 
-         key_part_no < child_access->get_no_of_key_fields(); 
+         key_part_no < table->get_no_of_key_fields(); 
          key_part_no++)
     {
       DBUG_ASSERT(join_items[key_part_no]->const_item() || 
@@ -575,23 +789,24 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
 
       if (join_items[key_part_no]->type() == Item::FIELD_ITEM)
       {
-        const Item_field* const join_item 
+        const Item_field* join_item 
           = static_cast<const Item_field*>(join_items[key_part_no]);
         
-        const AQP::Table_access* const referred_table= 
-          plan.get_referred_table_access(join_item,join_root);
-        if (referred_table != new_parent)
+        ndb_table_access_map used_table(join_item->used_tables());
+        if (!(used_table == parent_map))
         {
-          AQP::Equal_set_iterator iter(&plan, join_item);
+          AQP::Equal_set_iterator iter(&m_plan, join_item);
           const Item_field* substitute_field= iter.next();
           while (substitute_field != NULL)
           {
-            const AQP::Table_access* const substitute_table= 
-              plan.get_referred_table_access(substitute_field,join_root);
-            if (substitute_table == new_parent)
+            ///////////////////////////////////////////////////////////
+            // Prefer to replace join_item with ref. to selected parent.
+            //
+            ndb_table_access_map substitute_table(substitute_field->used_tables());
+            if (substitute_table == parent_map)
             {
               DBUG_PRINT("info", 
-                         (" Replacing join_items[%d] %s.%s with %s.%s",
+                         (" Replacing join_items[%d] %s.%s with %s.%s (parent)",
                           key_part_no,
                           //join_item->field->table->alias,
                           get_referred_table_access_name(join_item),
@@ -599,20 +814,34 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
                           get_referred_table_access_name(substitute_field),
                           get_referred_field_name(substitute_field)));
 
-              join_items[key_part_no]= substitute_field;
-              current_parents.set_bit(substitute_table->get_access_no());
+              join_items[key_part_no]= join_item= substitute_field;
               break;
+            }
+
+            ////////////////////////////////////////////////////////////
+            // Second best is to replace join_item with grandparent ref.
+            // In this case we will continue to search for a common parent match
+            //
+            else if (!grandparent_map.contain(used_table) && grandparent_map.contain(substitute_table))
+            {
+              DBUG_PRINT("info", 
+                         (" Replacing join_items[%d] %s.%s with %s.%s (grandparent)",
+                          key_part_no,
+                          //join_item->field->table->alias,
+                          get_referred_table_access_name(join_item),
+                          get_referred_field_name(join_item),
+                          get_referred_table_access_name(substitute_field),
+                          get_referred_field_name(substitute_field)));
+
+              join_items[key_part_no]= join_item= substitute_field;
             }
             substitute_field= iter.next();
           }
         }
-      }
+      } // Item::FIELD_ITEM
     } // for all 'key_parts'
-  }
-  DBUG_ASSERT(parent_scope.is_set(parent->get_access_no()));
-  DBUG_ASSERT(current_parents.is_set(parent->get_access_no()));
+  } // substitute
 
-  join_items[child_access->get_no_of_key_fields()]= NULL;
   DBUG_RETURN(true);
 } // field_ref_is_join_pushable
 
@@ -710,9 +939,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
   DBUG_PRINT("info", ("join_root is pushable:"));
   DBUG_EXECUTE("info", join_root->dbug_print(););
 
-  ndb_table_access_map pushed_scope(0);
-  pushed_scope.set_bit(join_root->get_access_no());
-
   /**
    * Past this point we know at least join_root to be join pushable 
    * as parent operation. Search for tables to be appendable as child 
@@ -721,7 +947,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
    * appendable child.
    */
   NdbQueryBuilder builder(*m_thd_ndb->ndb);
-  const NdbQueryOperationDef* operation_defs[ndb_pushed_join::MAX_PUSHED_OPERATIONS];
+  ndb_pushed_builder_ctx context(plan, join_root);
 
   uint push_cnt= 0;
   uint fld_refs= 0;
@@ -730,9 +956,10 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
   for (uint join_cnt= join_root->get_access_no()+1; join_cnt<plan.get_access_count(); join_cnt++)
   {
     const Item* join_items[ndb_pushed_join::MAX_LINKED_KEYS+1];
-    const AQP::Table_access* join_parent= NULL;
+    const AQP::Table_access* join_parent;
 
     const AQP::Table_access* const join_tab= plan.get_table_access(join_cnt);
+    const NdbQueryOperationDef* query_op= NULL;
 
     if (join_tab->get_table()->file->ht != ht)
     {
@@ -758,7 +985,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt));
       continue;
     }
-    if (!field_ref_is_join_pushable(plan, join_root, pushed_scope, join_tab, join_items, join_parent))
+    if (!context.field_ref_is_join_pushable(join_tab, join_items, join_parent))
     {
       DBUG_PRINT("info", ("Table %d not EQ_REF-joined, not pushable", join_cnt));
       continue;
@@ -793,7 +1020,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
           DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
           DBUG_ASSERT(join_root->get_index_no() == 
                       static_cast<int>(table->s->primary_key));
-          operation_defs[0]= builder.readTuple(m_table, root_key);
+          query_op= builder.readTuple(m_table, root_key);
         }
         else
         {
@@ -801,7 +1028,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
           const NdbDictionary::Index* index 
             = m_index[join_root->get_index_no()].unique_index;
           DBUG_ASSERT(index);
-          operation_defs[0]= builder.readTuple(index, m_table, root_key);
+          query_op= builder.readTuple(index, m_table, root_key);
         }
       }
       /**
@@ -822,48 +1049,28 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
                             m_index[join_root->get_index_no()].index->getName()));
 
         // Bounds will be generated and supplied during execute
-        operation_defs[0]= 
-          builder.scanIndex(m_index[join_root->get_index_no()].index, m_table);
+        query_op= builder.scanIndex(m_index[join_root->get_index_no()].index, m_table);
       }
       else if (access_type == AQP::AT_TABLE_SCAN) 
       {
         DBUG_PRINT("info", ("Root operation is 'table scan'"));
-        operation_defs[0]= builder.scanTable(m_table);
+        query_op= builder.scanTable(m_table);
       }
       else
       {
         DBUG_ASSERT(false);
       }
 
-//    DBUG_ASSERT(operation_defs[0]);
-      if (unlikely(!operation_defs[0]))
+//    DBUG_ASSERT(query_op);
+      if (unlikely(!query_op))
         ERR_RETURN(builder.getNdbError());
 
+      context.add_pushed(join_root, NULL, query_op);
       push_cnt= 1;
-    } // End: 'define parent'
+    } // End: 'define root'
 
     DBUG_PRINT("info", ("Appending child, join_cnt:%d, key_parts:%d", push_cnt, 
                         join_tab->get_no_of_key_fields()));
-
-    // Locate the  common parent operation for all 'ref.key_parts'
-    // Key may refer any of the preceeding parent tables
-    const NdbQueryOperationDef* parent_op= NULL;
-    if (join_parent != NULL)
-    {
-      int op_ix= 0;
-      for (uint i= join_root->get_access_no(); i < join_cnt; i++)
-      {
-        const AQP::Table_access* const p= plan.get_table_access(i);
-        if (join_parent == p)
-        {
-          parent_op= operation_defs[op_ix];
-          break;
-        }
-        if (pushed_scope.is_set(p->get_access_no()))
-          op_ix++;
-      }
-      DBUG_ASSERT(parent_op != NULL);
-    }
 
     KEY *key= &handler->table->key_info[join_tab->get_index_no()];
     KEY_PART_INFO *key_part= key->key_part;
@@ -873,10 +1080,13 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
     build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
 
+    ndb_table_access_map parent_map(join_parent);
+
     for (uint i= 0; i < key->key_parts; i++, key_part++)
     {
       const Item* item= join_items[i];
       linked_key[map[i]]= NULL;
+      DBUG_ASSERT(item->const_item() == item->const_during_execution());
       if (item->const_item())
       {
         // Items constant value is already propagated to Field defining
@@ -892,22 +1102,30 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       else
       {
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
-        DBUG_ASSERT(join_parent >= 0);
         const Item_field* field_item= static_cast<const Item_field*>(item);
+        ndb_table_access_map used_table(field_item->used_tables());
 
-        const AQP::Table_access* const referred_table= 
-          plan.get_referred_table_access(field_item,join_root);
-        if (referred_table == join_parent)
+        if (context.join_scope().contain(used_table))
         {
+          const AQP::Table_access* const referred_table=
+            parent_map == used_table
+              ? join_parent
+              : context.get_referred_table_access(used_table);
+
+          // Locate the parent operation for this 'join_items[]'.
+          // May refer any of the preceeding parent tables
+          const NdbQueryOperationDef* parent_op= context.get_query_operation(referred_table);
+          DBUG_ASSERT(parent_op != NULL);
+
           // TODO use field_index ??
           linked_key[map[i]]=
               builder.linkedValue(parent_op, get_referred_field_name(field_item));
         }
         else
         {
+          DBUG_ASSERT(context.const_scope().contain(used_table));
           // Outside scope of join plan, Handle as parameter as its value
           // will be known when we are ready to execute this query.
-          DBUG_ASSERT (referred_table==NULL);
           if (unlikely(fld_refs >= ndb_pushed_join::MAX_REFERRED_FIELDS))
           {
             DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) encountered"));
@@ -926,7 +1144,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     // Link on primary key or an unique index
     if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
     {
-      operation_defs[push_cnt]= builder.readTuple(table, linked_key);
+      query_op= builder.readTuple(table, linked_key);
     }
     else
     {
@@ -934,18 +1152,15 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       const NdbDictionary::Index* index
         = handler->m_index[join_tab->get_index_no()].unique_index;
       DBUG_ASSERT(index != NULL);
-      operation_defs[push_cnt]= builder.readTuple(index, table, linked_key);
+      query_op= builder.readTuple(index, table, linked_key);
     }
 
-//  DBUG_ASSERT(operation_defs[push_cnt]);
-    if (unlikely(!operation_defs[push_cnt]))
+//  DBUG_ASSERT(query_op);
+    if (unlikely(!query_op))
       ERR_RETURN(builder.getNdbError());
 
-    pushed_scope.set_bit(join_tab->get_access_no());
+    context.add_pushed(join_tab, join_parent, query_op);
     push_cnt++;
-
-    if (push_cnt >= ndb_pushed_join::MAX_PUSHED_OPERATIONS)
-      break;
   } // for (uint join_cnt= 1; join_cnt<plan.get_access_count(); join_cnt++)
 
   if (push_cnt < 2)
@@ -967,7 +1182,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
   m_thd_ndb->m_query_defs = list_item;
   
   DBUG_PRINT("info", ("Created pushed join with %d child operations", push_cnt-1));
-  m_pushed_join= new ndb_pushed_join(plan, pushed_scope, fld_refs, referred_fields, query_def);
+  m_pushed_join= new ndb_pushed_join(context.plan(), context.join_scope(), fld_refs, referred_fields, query_def);
 
   for (uint i = 0; i < push_cnt; i++)
   {
