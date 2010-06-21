@@ -396,28 +396,17 @@ int my_wildcmp_bin(CHARSET_INFO *cs,
 }
 
 
-static size_t my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
-                              uchar *dest, size_t dstlen,
-                              const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_8bit_bin(CHARSET_INFO *cs,
+                     uchar * dst, size_t dstlen, uint nweights,
+                     const uchar *src, size_t srclen, uint flags)
 {
-  if (dest != src)
-    memcpy(dest, src, min(dstlen,srclen));
-  if (dstlen > srclen)
-    bfill(dest + srclen, dstlen - srclen, 0);
-  return dstlen;
-}
-
-
-static
-size_t my_strnxfrm_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
-                            uchar *dest, size_t dstlen,
-                            const uchar *src, size_t srclen)
-{
-  if (dest != src)
-    memcpy(dest, src, min(dstlen,srclen));
-  if (dstlen > srclen)
-    bfill(dest + srclen, dstlen - srclen, ' ');
-  return dstlen;
+  set_if_smaller(srclen, dstlen);
+  set_if_smaller(srclen, nweights);
+  if (dst != src)
+    memcpy(dst, src, srclen);
+  return my_strxfrm_pad_desc_and_reverse(cs, dst, dst + srclen, dst + dstlen,
+                                         nweights - srclen, flags, 0);
 }
 
 
@@ -503,7 +492,7 @@ static MY_COLLATION_HANDLER my_collation_binary_handler =
   NULL,			/* init */
   my_strnncoll_binary,
   my_strnncollsp_binary,
-  my_strnxfrm_bin,
+  my_strnxfrm_8bit_bin,
   my_strnxfrmlen_simple,
   my_like_range_simple,
   my_wildcmp_bin,
@@ -574,6 +563,8 @@ CHARSET_INFO my_charset_bin =
     255,			/* max_sort_char */
     0,                          /* pad char      */
     0,                          /* escape_with_backslash_is_dangerous */
+    1,                          /* levels_for_compare */
+    1,                          /* levels_for_order   */
     &my_charset_handler,
     &my_collation_binary_handler
 };
