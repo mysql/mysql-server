@@ -5271,7 +5271,6 @@ String *Field_time::val_str(String *val_buffer,
  
 bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  long tmp;
   THD *thd= table ? table->in_use : current_thd;
   if (!(fuzzydate & TIME_FUZZY_DATE))
   {
@@ -5281,19 +5280,7 @@ bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
                         thd->warning_info->current_row_for_warning());
     return 1;
   }
-  tmp=(long) sint3korr(ptr);
-  ltime->neg=0;
-  if (tmp < 0)
-  {
-    ltime->neg= 1;
-    tmp=-tmp;
-  }
-  ltime->hour=tmp/10000;
-  tmp-=ltime->hour*10000;
-  ltime->minute=   tmp/100;
-  ltime->second= tmp % 100;
-  ltime->year= ltime->month= ltime->day= ltime->second_part= 0;
-  return 0;
+  return Field_time::get_time(ltime);
 }
 
 
@@ -6588,7 +6575,11 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 void Field_string::sort_string(uchar *to,uint length)
 {
   uint tmp __attribute__((unused))=
-    my_strnxfrm(field_charset, to, length, ptr, field_length);
+    field_charset->coll->strnxfrm(field_charset,
+                                  to, length, char_length(),
+                                  ptr, field_length,
+                                  MY_STRXFRM_PAD_WITH_SPACE |
+                                  MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
 }
 
@@ -7042,9 +7033,11 @@ void Field_varstring::sort_string(uchar *to,uint length)
     length-= length_bytes;
   }
  
-  tot_length= my_strnxfrm(field_charset,
-			  to, length, ptr + length_bytes,
-			  tot_length);
+  tot_length= field_charset->coll->strnxfrm(field_charset,
+                                            to, length, char_length(),
+                                            ptr + length_bytes, tot_length,
+                                            MY_STRXFRM_PAD_WITH_SPACE |
+                                            MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tot_length == length);
 }
 
@@ -7755,8 +7748,11 @@ void Field_blob::sort_string(uchar *to,uint length)
     }
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
     
-    blob_length=my_strnxfrm(field_charset,
-                            to, length, blob, blob_length);
+    blob_length= field_charset->coll->strnxfrm(field_charset,
+                                               to, length, length,
+                                               blob, blob_length,
+                                               MY_STRXFRM_PAD_WITH_SPACE |
+                                               MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
 
 extern "C" void sql_alloc_error_handler(void)
 {
-  sql_print_error("%s", ER(ER_OUT_OF_RESOURCES));
-
   THD *thd= current_thd;
   if (thd && !thd->is_error())
   {
@@ -45,4 +43,9 @@ extern "C" void sql_alloc_error_handler(void)
                                    ER(ER_OUT_OF_RESOURCES),
                                    NULL);
   }
+
+  /* Skip writing to the error log to avoid mtr complaints */
+  DBUG_EXECUTE_IF("simulate_out_of_memory", return;);
+
+  sql_print_error("%s", ER(ER_OUT_OF_RESOURCES));
 }
