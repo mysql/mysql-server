@@ -18,18 +18,12 @@
 #include <my_dir.h>
 #include "unireg.h"                             // REQUIRED by other includes
 #include "rpl_mi.h"
-#include "slave.h"                              // SLAVE_MAX_HEARTBEAT_PERIOD
+#include "slave.h"
 
 #ifdef HAVE_REPLICATION
 
 #define DEFAULT_CONNECT_RETRY 60
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
-int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
-int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
