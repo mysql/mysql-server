@@ -8,16 +8,18 @@ SELECT * FROM t2;
 --eval $create_statement
 --eval $insert_statement
 --echo # State before failure
+--replace_result #p# #P#
 --list_files $DATADIR/test
 SHOW CREATE TABLE t1;
 --sorted_result
 SELECT * FROM t1;
 # accept all errors
 --disable_abort_on_error
---replace_regex /#sqlx-[0-9a-f_]*/#sqlx-nnnn_nnnn/i /errno: [0-9]*/errno: n/
+--replace_regex /#sqlx-[0-9a-f_]*/#sqlx-nnnn_nnnn/i /errno: [0-9-]*/errno: n/
 --eval $fail_statement
 --enable_abort_on_error
 --echo # State after failure
+--replace_result #p# #P#
 --list_files $DATADIR/test
 SHOW CREATE TABLE t1;
 --sorted_result
