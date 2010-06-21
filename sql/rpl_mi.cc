@@ -18,23 +18,20 @@
 #include <my_dir.h>
 
 #include "rpl_mi.h"
+#include "slave.h"
 
 #ifdef HAVE_REPLICATION
 
 #define DEFAULT_CONNECT_RETRY 60
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
-int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
-int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), 
-   port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
-   rli(is_slave_recovery), inited(0), abort_slave(0), 
+   rli(is_slave_recovery),
+   port(MYSQL_PORT),
+   connect_retry(DEFAULT_CONNECT_RETRY),
+   inited(0), abort_slave(0), 
    slave_running(0), slave_run_id(0), clock_diff_with_master(0), 
    sync_counter(0), heartbeat_period(0), received_heartbeats(0), 
    master_id(0)
