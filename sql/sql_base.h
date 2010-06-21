@@ -113,8 +113,6 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock);
 TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 
-bool get_key_map_from_key_list(key_map *map, TABLE *table,
-                               List<String> *index_list);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);

@@ -7791,46 +7791,6 @@ bool setup_tables_and_check_access(THD *thd,
 
 
 /*
-   Create a key_map from a list of index names
-
-   SYNOPSIS
-     get_key_map_from_key_list()
-     map		key_map to fill in
-     table		Table
-     index_list		List of index names
-
-   RETURN
-     0	ok;  In this case *map will includes the choosed index
-     1	error
-*/
-
-bool get_key_map_from_key_list(key_map *map, TABLE *table,
-                               List<String> *index_list)
-{
-  List_iterator_fast<String> it(*index_list);
-  String *name;
-  uint pos;
-
-  map->clear_all();
-  while ((name=it++))
-  {
-    if (table->s->keynames.type_names == 0 ||
-        (pos= find_type(&table->s->keynames, name->ptr(),
-                        name->length(), 1)) <=
-        0)
-    {
-      my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
-	       table->pos_in_table_list->alias);
-      map->set_all();
-      return 1;
-    }
-    map->set_bit(pos-1);
-  }
-  return 0;
-}
-
-
-/*
   Drops in all fields instead of current '*' field
 
   SYNOPSIS

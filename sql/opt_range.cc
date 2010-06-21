@@ -9763,7 +9763,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   uint best_param_idx= 0;
 
   const uint pk= param->table->s->primary_key;
-  uint max_key_part;  
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
   uint cur_param_idx=MAX_KEY;
@@ -9783,6 +9782,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     double cur_read_cost;
     ha_rows cur_records;
     key_map used_key_parts_map;
+    uint max_key_part= 0;
     uint cur_key_infix_len= 0;
     uchar cur_key_infix[MAX_KEY_LENGTH];
     uint cur_used_key_parts;
@@ -9817,8 +9817,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       }
     }
 
-    max_key_part= 0;
-    used_key_parts_map.clear_all();
     /*
       Check (GA1) for GROUP BY queries.
     */
