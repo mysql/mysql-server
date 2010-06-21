@@ -46,6 +46,16 @@ Created 2/25/1997 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***************************************************************//**
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
@@ -151,7 +161,6 @@ row_undo_ins_remove_sec_low(
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 
-	log_free_check();
 	mtr_start(&mtr);
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -337,6 +346,7 @@ row_undo_ins(
 			transactions. */
 			ut_a(trx_is_recv(node->trx));
 		} else {
+			log_free_check();
 			err = row_undo_ins_remove_sec(node->index, entry);
 
 			if (err != DB_SUCCESS) {
@@ -348,5 +358,6 @@ row_undo_ins(
 		node->index = dict_table_get_next_index(node->index);
 	}
 
+	log_free_check();
 	return(row_undo_ins_remove_clust_rec(node));
 }
