@@ -8349,6 +8349,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
             if ((error= quick->get_next()))
               DBUG_RETURN(error);
           }
+          quick->file->position(quick->record);
         }
         memcpy(last_rowid, quick->file->ref, head->file->ref_length);
         last_rowid_count= 1;
