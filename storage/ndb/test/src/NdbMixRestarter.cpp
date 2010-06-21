@@ -147,7 +147,7 @@ select_node_to_stop(unsigned * seed, Vector<ndb_mgm_node_state>& nodes)
   
   if (victims.size())
   {
-    int victim = rand_r(seed) % victims.size();
+    int victim = ndb_rand_r(seed) % victims.size();
     return victims[victim];
   }
   else
@@ -180,7 +180,7 @@ select_node_to_start(unsigned * seed,
 
   if (victims.size())
   {
-    int victim = rand_r(seed) % victims.size();
+    int victim = ndb_rand_r(seed) % victims.size();
     return victims[victim];
   }
   else
@@ -257,7 +257,7 @@ NdbMixRestarter::dostep(NDBT_Context* ctx, NDBT_Step* step)
   ndb_mgm_node_state* node = 0;
   int action;
 loop:
-  while(((action = (1 << (rand_r(seed) % RTM_COUNT))) & m_mask) == 0);
+  while(((action = (1 << (ndb_rand_r(seed) % RTM_COUNT))) & m_mask) == 0);
   switch(action){
   case RTM_RestartCluster:
     if (restart_cluster(ctx, step))
