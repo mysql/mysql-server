@@ -564,11 +564,11 @@ set lc_time_names=NULL;
 set lc_time_names=-1;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing locale with the last ID:
-set lc_time_names=109;
+set lc_time_names=110;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing a number beyond the valid ID range:
 --error ER_UNKNOWN_LOCALE
-set lc_time_names=110;
+set lc_time_names=111;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing that 0 is en_US:
 set lc_time_names=0;
@@ -773,6 +773,21 @@ show variables like 'hostname';
 --echo # Test 'myisam_mmap_size' option is not dynamic
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@myisam_mmap_size= 500M;
+
+
+--echo #
+--echo # Bug #52315: utc_date() crashes when system time > year 2037
+--echo #
+
+--error 0, ER_UNKNOWN_ERROR
+SET TIMESTAMP=2*1024*1024*1024;
+--echo #Should not crash
+--disable_result_log
+SELECT UTC_DATE();
+--enable_result_log
+SET TIMESTAMP=DEFAULT;
+
+
 --echo End of 5.0 tests
 
 #

@@ -38,7 +38,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"verbose", 'v',
    "Be more verbose. Give a warning, if kill can't handle signal 0.", 
-   (uchar**) &verbose, (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
