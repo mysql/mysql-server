@@ -444,6 +444,8 @@ CHARSET_INFO my_charset_latin1=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler
 };
@@ -655,22 +657,25 @@ static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-                                    uchar *dest, size_t len,
-                                    const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_latin1_de(CHARSET_INFO *cs,
+                      uchar *dst, size_t dstlen, uint nweights,
+                      const uchar* src, size_t srclen, uint flags)
 {
-  const uchar *de = dest + len;
-  const uchar *se = src + srclen;
-  for ( ; src < se && dest < de ; src++)
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  uchar *d0= dst;
+  for ( ; src < se && dst < de && nweights; src++, nweights--)
   {
-    uchar chr=combo1map[*src];
-    *dest++=chr;
-    if ((chr=combo2map[*src]) && dest < de)
-      *dest++=chr;
+    uchar chr= combo1map[*src];
+    *dst++= chr;
+    if ((chr= combo2map[*src]) && dst < de && nweights > 1)
+    {
+      *dst++= chr;
+      nweights--;
+    }
   }
-  if (dest < de)
-    bfill(dest, de - dest, ' ');
-  return (int) len;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
 
 
@@ -743,6 +748,8 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   247,					/* max_sort_char */
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
+  1,                                    /* levels_for_compare */
+  1,                                    /* levels_for_order   */
   &my_charset_handler,
   &my_collation_german2_ci_handler
 };
@@ -776,6 +783,8 @@ CHARSET_INFO my_charset_latin1_bin=
   255,					/* max_sort_char */
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
+  1,                                    /* levels_for_compare */
+  1,                                    /* levels_for_order   */
   &my_charset_handler,
   &my_collation_8bit_bin_handler
 };
