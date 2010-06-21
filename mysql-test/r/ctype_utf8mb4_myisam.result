@@ -942,41 +942,97 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+"BEGIN ctype_german.inc"
 drop table if exists t1;
 create table t1 as select repeat(' ', 64) as s1;
 select collation(s1) from t1;
 collation(s1)
 utf8mb4_general_ci
 delete from t1;
+INSERT INTO t1 VALUES ('ud'),('uf');
+INSERT INTO t1 VALUES ('od'),('of');
+INSERT INTO t1 VALUES ('e');
+INSERT INTO t1 VALUES ('ad'),('af');
 insert into t1 values ('a'),('ae'),(_latin1 0xE4);
 insert into t1 values ('o'),('oe'),(_latin1 0xF6);
 insert into t1 values ('s'),('ss'),(_latin1 0xDF);
 insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+INSERT INTO t1 VALUES (_latin1 0xE6), (_latin1 0xC6);
+INSERT INTO t1 VALUES (_latin1 0x9C), (_latin1 0x8C);
 select s1, hex(s1) from t1 order by s1, binary s1;
 s1	hex(s1)
 a	61
 ä	C3A4
+ad	6164
 ae	6165
+af	6166
+e	65
 o	6F
 ö	C3B6
+od	6F64
 oe	6F65
+of	6F66
 s	73
 ß	C39F
 ss	7373
 u	75
 ü	C3BC
+ud	7564
 ue	7565
+uf	7566
+Æ	C386
+æ	C3A6
+Œ	C592
+œ	C593
 select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a,ä
+ad
 ae
+af
+e
 o,ö
+od
 oe
+of
 s,ß
 ss
 u,ü
+ud
 ue
+uf
+Æ,æ
+Œ,œ
+SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
+s1	hex(s1)	hex(weight_string(s1))
+a	61	0041
+ä	C3A4	0041
+ad	6164	00410044
+ae	6165	00410045
+af	6166	00410046
+e	65	0045
+o	6F	004F
+ö	C3B6	004F
+od	6F64	004F0044
+oe	6F65	004F0045
+of	6F66	004F0046
+s	73	0053
+ß	C39F	0053
+ss	7373	00530053
+u	75	0055
+ü	C3BC	0055
+ud	7564	00550044
+ue	7565	00550045
+uf	7566	00550046
+Æ	C386	00C6
+æ	C3A6	00C6
+Œ	C592	0152
+œ	C593	0152
+SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
+s1	hex(s1)
+ae	6165
 drop table t1;
+"END ctype_german.inc"
 SET collation_connection='utf8mb4_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
