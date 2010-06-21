@@ -2870,7 +2870,7 @@ RandSchemaOp::schema_op(Ndb* ndb)
   struct Obj* obj = 0;
   Uint32 type = 0;
 loop:
-  switch((rand_r(seed) >> 16) % 5){
+  switch(ndb_rand_r(seed) % 5){
   case 0:
     return create_table(ndb);
   case 1:
@@ -2911,7 +2911,7 @@ RandSchemaOp::get_obj(Uint32 mask)
 
   if (tmp.size())
   {
-    return tmp[rand_r(seed)%tmp.size()];
+    return tmp[ndb_rand_r(seed)%tmp.size()];
   }
   return 0;
 }
@@ -2920,7 +2920,7 @@ int
 RandSchemaOp::create_table(Ndb* ndb)
 {
   int numTables = NDBT_Tables::getNumTables();
-  int num = rand_r(seed) % numTables;
+  int num = ndb_rand_r(seed) % numTables;
   NdbDictionary::Table pTab = * NDBT_Tables::getTable(num);
   
   NdbDictionary::Dictionary* pDict = ndb->getDictionary();
@@ -2930,7 +2930,7 @@ RandSchemaOp::create_table(Ndb* ndb)
   {
     char buf[100];
     BaseString::snprintf(buf, sizeof(buf), "%s-%d", 
-                         pTab.getName(), rand_r(seed));
+                         pTab.getName(), ndb_rand_r(seed));
     pTab.setName(buf);
     if (pDict->createTable(pTab))
       return NDBT_FAILED;
@@ -2968,8 +2968,8 @@ RandSchemaOp::create_index(Ndb* ndb, Obj* tab)
     return NDBT_FAILED;
   }
 
-  bool ordered = (rand_r(seed) >> 16) & 1;
-  bool stored = (rand_r(seed) >> 16) & 1;
+  bool ordered = ndb_rand_r(seed) & 1;
+  bool stored = ndb_rand_r(seed) & 1;
 
   Uint32 type = ordered ? 
     NdbDictionary::Index::OrderedIndex :
@@ -3096,7 +3096,7 @@ RandSchemaOp::alter_table(Ndb* ndb, Obj* obj)
   unsigned type;
   while (ops.length() == 0 && (mask != 0))
   {
-    switch((type = (rand_r(seed) >> 16) & 1)){
+    switch((type = (ndb_rand_r(seed) & 1))){
     default:
     case 0:{
       if ((mask & (1 << type)) == 0)
@@ -3124,7 +3124,7 @@ RandSchemaOp::alter_table(Ndb* ndb, Obj* obj)
       BaseString name;
       do
       {
-        unsigned no = rand_r(seed);
+        unsigned no = ndb_rand_r(seed);
         name.assfmt("%s_%u", pOld->getName(), no);
       } while (pDict->getTable(name.c_str()));
       tNew.setName(name.c_str());
