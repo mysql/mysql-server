@@ -1,3 +1,9 @@
+2010-06-21	The InnoDB Team
+
+	* dict/dict0load.c, fil/fil0fil.c:
+	Fix Bug#54658: InnoDB: Warning: allocated tablespace %lu,
+	old maximum was 0 (introduced in Bug #53578 fix)
+
 2010-06-16	The InnoDB Team
 
 	* row/row0merge.c:
