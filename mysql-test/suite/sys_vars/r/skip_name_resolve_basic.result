@@ -1,17 +1,3 @@
-GRANT ALL ON test.* TO mysqltest_1@'127.0.0.1/255.255.255.255';
-SHOW GRANTS FOR mysqltest_1@'127.0.0.1/255.255.255.255';
-Grants for mysqltest_1@127.0.0.1/255.255.255.255
-GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.1/255.255.255.255'
-GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'127.0.0.1/255.255.255.255'
-REVOKE ALL ON test.* FROM mysqltest_1@'127.0.0.1/255.255.255.255';
-DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
-SELECT USER();
-USER()
-#
-SHOW PROCESSLIST;
-#
-# Bug #37168: Missing variable - skip_name_resolve
-#
 SHOW VARIABLES LIKE 'skip_name_resolve';
 Variable_name	Value
 skip_name_resolve	ON
@@ -35,4 +21,3 @@ SET @@LOCAL.skip_name_resolve=0;
 ERROR HY000: Variable 'skip_name_resolve' is a read only variable
 SET @@GLOBAL.skip_name_resolve=0;
 ERROR HY000: Variable 'skip_name_resolve' is a read only variable
-End of 5.1 tests
