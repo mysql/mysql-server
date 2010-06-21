@@ -249,7 +249,7 @@ file '%s', errno %d)", fname, my_errno);
     }
 
     /* Init relay log with first entry in the relay index file */
-    if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
+    if (init_relay_log_pos(this,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
                            &msg, 0))
     {
       sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4)");
@@ -364,7 +364,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     if (is_relay_log_recovery && init_recovery(mi, &msg))
       goto err;
 
-    if (init_relay_log_pos(rli,
+    if (init_relay_log_pos(this,
                            group_relay_log_name,
                            group_relay_log_pos,
                            0 /* no data lock*/,
@@ -394,12 +394,12 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     before flush_relay_log_info
   */
   reinit_io_cache(&info_file, WRITE_CACHE,0L,0,1);
-  if ((error= flush_relay_log_info(rli)))
+  if ((error= flush_relay_log_info(this)))
   {
     msg= "Failed to flush relay log info file";
     goto err;
   }
-  if (count_relay_log_space(rli))
+  if (count_relay_log_space(this))
   {
     msg="Error counting relay log space";
     goto err;
