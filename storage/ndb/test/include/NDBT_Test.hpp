@@ -31,6 +31,7 @@
 #include <Vector.hpp>
 #include <NdbApi.hpp>
 #include <NdbDictionary.hpp>
+#include <ndb_rand.h>
 
 class NDBT_Step;
 class NDBT_TestCase;
