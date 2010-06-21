@@ -249,9 +249,16 @@ public:
    : TABLE_BITMAP(0)
   {}
 
-  explicit ndb_table_access_map(const table_map& table)
+  explicit ndb_table_access_map(table_map bitmap)
    : TABLE_BITMAP(0)
-  { set_map(table); }
+//{ set_map(table); } .. Bitmap<>::set_map() is expected to be available in the near future
+  {
+    for (uint i= 0; bitmap!=0; i++, bitmap>>=1)
+    {
+      if (bitmap & 1)
+        set_bit(i);
+    }
+  }
 
   explicit ndb_table_access_map(const AQP::Table_access* const table)
    : TABLE_BITMAP(0)
