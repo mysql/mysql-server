@@ -53,7 +53,8 @@ SET(BOOTSTRAP_COMMAND
   ${MYSQLD_EXECUTABLE} 
   --no-defaults 
   ${CONSOLE}
-  --bootstrap 
+  --bootstrap
+  --default-storage-engine=myisam
   --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
   --basedir=.
   --datadir=.
