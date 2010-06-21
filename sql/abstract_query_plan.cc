@@ -72,34 +72,6 @@ namespace AQP
     return m_join_tabs + join_tab_no;
   }
 
-  /**
-    Find the table that a given Item_field refers to. 
-    Returns a negative value if field_item does not refer a
-    table within this Join_plan.
-  */
-  const Table_access*
-  Join_plan::get_referred_table_access(const Item_field* field_item,
-                                       const Table_access* start_tab) const
-  {
-    DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
-    DBUG_ASSERT(start_tab >= m_table_accesses &&
-                start_tab < m_table_accesses+get_access_count());
-
-    table_map used_tables = field_item->used_tables();
-
-    /* Early elimination of outer referrences. */
-//  if (used_tables & OUTER_REF_TABLE_BIT)
-//    return NULL;
-
-    const Table_access* end_tab= m_table_accesses+get_access_count();
-    for (const Table_access* tab= start_tab; tab < end_tab; tab++)
-    {
-      if (tab->get_join_tab()->table->map == used_tables)
-        return tab;
-    }
-    return NULL;
-  }
-
   void
   Join_plan::find_skippabable_group_or_order() const
   {

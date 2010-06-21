@@ -19,6 +19,7 @@
 #ifndef ABSTRACT_QUERY_PLAN_H_INCLUDED
 #define ABSTRACT_QUERY_PLAN_H_INCLUDED
 
+struct st_table;
 struct st_join_table;
 typedef st_join_table JOIN_TAB;
 class JOIN;
@@ -68,10 +69,6 @@ namespace AQP
     const Table_access* get_table_access(uint access_no) const;
 
     uint get_access_count() const;
-
-    const Table_access* 
-    get_referred_table_access(const Item_field* field_item,
-                              const Table_access* base ) const;
 
     /**
       Can filesort(), normally required by execution of GROUP BY 
@@ -200,7 +197,7 @@ namespace AQP
 
   private:
 
-    /** The first access operation in the plan. */
+    /** Backref. to the Join_plan which this Table_access is part of */
     const Join_plan* m_join_plan;
 
     /** This operation corresponds to m_root_tab[m_tab_no].*/
