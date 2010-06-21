@@ -17,6 +17,14 @@
 #define SLAVE_H
 
 /**
+  MASTER_DELAY can be at most (1 << 31) - 1.
+*/
+#define MASTER_DELAY_MAX (0x7FFFFFFF)
+#if INT_MAX < 0x7FFFFFFF
+#error "don't support platforms where INT_MAX < 0x7FFFFFFF"
+#endif
+
+/**
   @defgroup Replication Replication
   @{
 
@@ -91,12 +99,14 @@ class Master_info;
 
   In Master_info: run_lock, data_lock
   run_lock protects all information about the run state: slave_running, thd
-  and the existence of the I/O thread to stop/start it, you need this mutex).
+  and the existence of the I/O thread (to stop/start it, you need this mutex).
   data_lock protects some moving members of the struct: counters (log name,
   position) and relay log (MYSQL_BIN_LOG object).
 
   In Relay_log_info: run_lock, data_lock
   see Master_info
+  However, note that run_lock does not protect
+  Relay_log_info.run_state; that is protected by data_lock.
   
   Order of acquisition: if you want to have LOCK_active_mi and a run_lock, you
   must acquire LOCK_active_mi first.
@@ -202,6 +212,12 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 void rotate_relay_log(Master_info* mi);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
+
+int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
+int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
+int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+                          const char *default_val);
+int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
 pthread_handler_t handle_slave_io(void *arg);
 pthread_handler_t handle_slave_sql(void *arg);
