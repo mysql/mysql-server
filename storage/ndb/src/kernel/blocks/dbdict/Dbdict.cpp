@@ -4436,6 +4436,19 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
 
     handleTabInfoInit(r, &aParseRecord, false); // Will not save info
+
+    if (AlterTableReq::getNameFlag(changeMask))
+    {
+      char tmp[MAX_TAB_NAME_SIZE];
+      ConstRope r(c_rope_pool, aParseRecord.tablePtr.p->tableName);
+      r.copy(tmp);
+
+      if (get_object(tmp))
+      {
+        aParseRecord.errorCode = CreateTableRef::TableAlreadyExist;
+        releaseTableObject(aParseRecord.tablePtr.i, false);
+      }
+    }
   
     if(aParseRecord.errorCode != 0)
     {
@@ -6657,7 +6670,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     jam();
     
     tabRequire(get_object(c_tableDesc.TableName, tableNameLength) == 0,
-               CreateTableRef::TableAlreadyExist;);
+               CreateTableRef::TableAlreadyExist);
   }
 
   TableRecordPtr tablePtr;
