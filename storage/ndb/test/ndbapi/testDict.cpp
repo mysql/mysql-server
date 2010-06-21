@@ -135,7 +135,7 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
-  const NdbDictionary::Table* pTab = ctx->getTab();
+  //const NdbDictionary::Table* pTab = ctx->getTab();
   
   // Try to create table in db
   pNdb->getDictionary()->dropTable(f_tablename);
@@ -3782,7 +3782,7 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   const NdbDictionary::Table* pTab = 0;
-  const NdbDictionary::Index* pInd = 0;
+  //const NdbDictionary::Index* pInd = 0;
   int loc = step->getStepNo() - 1;
   assert(loc > 0);
   g_err << "ops: loc:" << loc << endl;
@@ -3878,6 +3878,51 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
     ctx->stopTest();
   return result;
 }
+
+int
+runBug54651(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  for (Uint32 j = 0; j< 2; j++)
+  {
+    pDic->createTable(* ctx->getTab());
+    
+    const NdbDictionary::Table * pTab =pDic->getTable(ctx->getTab()->getName());
+    NdbDictionary::Table copy = * pTab;
+    BaseString name;
+    name.assfmt("%s_1", pTab->getName());
+    copy.setName(name.c_str());
+    
+    if (pDic->createTable(copy))
+    {
+      ndbout_c("Failed to create table...");
+      ndbout << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    
+    NdbDictionary::Table alter = * pTab;
+    alter.setName(name.c_str());
+    for (Uint32 i = 0; i<2; i++)
+    {
+      // now rename org table to same name...
+      if (pDic->alterTable(* pTab, alter) == 0)
+      {
+        ndbout << "Alter with duplicate name succeeded!!" << endl;
+        return NDBT_FAILED;
+      }
+      
+      ndbout << "Alter with duplicate name failed...good" << endl
+             << pDic->getNdbError() << endl;
+    }
+    
+    pDic->dropTable(copy.getName());
+    pDic->dropTable(ctx->getTab()->getName());
+  }
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
@@ -4105,6 +4150,9 @@ TESTCASE("Bug48604",
   STEP(runBug48604ops);
   STEP(runBug48604ops);
 #endif
+}
+TESTCASE("Bug54651", ""){
+  INITIALIZER(runBug54651);
 }
 NDBT_TESTSUITE_END(testDict);
 
