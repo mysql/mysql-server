@@ -777,7 +777,7 @@ ENDIF(NOT HAVE_POSIX_SIGNALS)
 # Assume regular sprintf
 SET(SPRINTFS_RETURNS_INT 1)
 
-IF(CMAKE_COMPILER_IS_GNUXX)
+IF(CMAKE_COMPILER_IS_GNUCXX)
 CHECK_CXX_SOURCE_COMPILES("
  #include <cxxabi.h>
  int main(int argc, char **argv) 
@@ -968,6 +968,14 @@ instructions for multi-processor or uniprocessor
 configuration. By default gcc built-in sync functions are used,
 if available and 'smp' configuration otherwise.")
 MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
+
+IF(WITH_VALGRIND)
+  CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
+    HAVE_VALGRIND_HEADERS)
+  IF(HAVE_VALGRIND_HEADERS)
+    SET(HAVE_VALGRIND 1)
+  ENDIF()
+ENDIF()
 
 #--------------------------------------------------------------------
 # Check for IPv6 support
