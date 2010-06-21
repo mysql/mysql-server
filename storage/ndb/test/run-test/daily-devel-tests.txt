@@ -17,10 +17,6 @@ max-time: 1500
 cmd: testDict
 args: -n CreateMaxTables T6 
 
-max-time: 1500
-cmd: testDict
-args: -l 25 -n DictRestart T1
-
 max-time: 500
 cmd: testIndex
 args: -n Bug25059 -r 3000 T1
