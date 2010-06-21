@@ -98,6 +98,14 @@ FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
   ENDIF()
 ENDFUNCTION()
 
+# Same for structs, setting HAVE_STRUCT_<name> instead
+FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
+  CHECK_TYPE_SIZE("struct ${type}" SIZEOF_${defbase})
+  IF(SIZEOF_${defbase})
+    SET(HAVE_STRUCT_${defbase} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
 # Searches function in libraries
 # if function is found, sets output parameter result to the name of the library
 # if function is found in libc, result will be empty 
@@ -991,8 +999,8 @@ ELSEIF(WIN32)
   SET(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} winsock2.h ws2ipdef.h)
 ENDIF()
 
-MY_CHECK_TYPE_SIZE("struct sockaddr_in6" SOCKADDR_IN6)
-MY_CHECK_TYPE_SIZE("struct in6_addr" IN6_ADDR)
+MY_CHECK_STRUCT_SIZE("sockaddr_in6" SOCKADDR_IN6)
+MY_CHECK_STRUCT_SIZE("in6_addr" IN6_ADDR)
 
 IF(HAVE_STRUCT_SOCKADDR_IN6 OR HAVE_STRUCT_IN6_ADDR)
   SET(HAVE_IPV6 TRUE CACHE INTERNAL "")
