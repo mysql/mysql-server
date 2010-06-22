@@ -657,17 +657,25 @@ connection master1;
 let $wait_condition=select count(*)=1 from information_schema.processlist
 where state='Waiting for table' and info='insert into t1 (a) values (f1())';
 --source include/wait_condition.inc
---echo # Sending 'drop function f1'. It will abort the table lock wait.
-drop function f1;
+--echo # Sending 'drop function f1'. It will wait till insert finishes.
+--send drop function f1;
 --echo # --> connection default
 connection default;
+--echo # Check that 'drop function f1' gets blocked.
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='Waiting for table' and info='drop function f1';
+--source include/wait_condition.inc
 --echo # Now let's let 'insert' go through...
 unlock tables;
---echo # --> connection con1
+--echo # --> connection master
 connection master;
 --echo # Reaping 'insert into t1 (a) values (f1())'...
---error ER_SP_DOES_NOT_EXIST
 --reap
+--echo # --> connection master1
+connection master1;
+--echo # Reaping 'drop function f1'
+--reap
+--echo # --> connection master
 connection master;
 select * from t1;
 sync_slave_with_master;

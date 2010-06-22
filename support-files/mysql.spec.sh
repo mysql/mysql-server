@@ -121,43 +121,62 @@
 %define distro_specific 0
 %endif
 %if %{distro_specific}
-  %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-    %if "%rhelver" == "4"
-      %define distro_description        Red Hat Enterprise Linux 4
-      %define distro_releasetag         rhel4
+  %if %(test -f /etc/enterprise-release && echo 1 || echo 0)
+    %define oelver %(rpm -qf --qf '%%{version}\\n' /etc/enterprise-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%oelver" == "4"
+      %define distro_description        Oracle Enterprise Linux 4
+      %define distro_releasetag         oel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-      %if "%rhelver" == "5"
-        %define distro_description      Red Hat Enterprise Linux 5
-        %define distro_releasetag       rhel5
+      %if "%oelver" == "5"
+        %define distro_description      Oracle Enterprise Linux 5
+        %define distro_releasetag       oel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
+        %{error:Oracle Enterprise Linux %{oelver} is unsupported}
       %endif
     %endif
   %else
-    %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-      %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
-      %if "%susever" == "10"
-        %define distro_description      SUSE Linux Enterprise Server 10
-        %define distro_releasetag       sles10
-        %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-        %define distro_requires         aaa_base coreutils grep procps pwdutils
+    %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+      %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+      %if "%rhelver" == "4"
+        %define distro_description      Red Hat Enterprise Linux 4
+        %define distro_releasetag       rhel4
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %if "%susever" == "11"
-          %define distro_description    SUSE Linux Enterprise Server 11
-          %define distro_releasetag     sles11
-          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %if "%rhelver" == "5"
+          %define distro_description    Red Hat Enterprise Linux 5
+          %define distro_releasetag     rhel5
+          %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+          %define distro_requires       chkconfig coreutils grep procps shadow-utils
         %else
-          %{error:SuSE %{susever} is unsupported}
+          %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
         %endif
       %endif
     %else
-      %{error:Unsupported distribution}
+      %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+        %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+        %if "%susever" == "10"
+          %define distro_description    SUSE Linux Enterprise Server 10
+          %define distro_releasetag     sles10
+          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %else
+          %if "%susever" == "11"
+            %define distro_description  SUSE Linux Enterprise Server 11
+            %define distro_releasetag   sles11
+            %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+            %define distro_requires     aaa_base coreutils grep procps pwdutils
+          %else
+            %{error:SuSE %{susever} is unsupported}
+          %endif
+        %endif
+      %else
+        %{error:Unsupported distribution}
+      %endif
     %endif
   %endif
 %else
@@ -396,30 +415,30 @@ mkdir debug
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
                   -e 's/ $//'`
-  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included
-  # XXX: before install_layout so we can't just set it based on
-  # XXX: INSTALL_LAYOUT=RPM
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make VERBOSE=1
 )
 # Build full release
 mkdir release
 (
   cd release
-  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included
-  # XXX: before install_layout so we can't just set it based on
-  # XXX: INSTALL_LAYOUT=RPM
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make VERBOSE=1
 )
 
@@ -470,10 +489,8 @@ install -d $RBR%{_sbindir}
 mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
-install -m 644 $MBD/release/support-files/mysql-log-rotate \
-  $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m 755 $MBD/release/support-files/mysql.server \
-  $RBR%{_sysconfdir}/init.d/mysql
+install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -646,9 +663,9 @@ fi
 # so a "stop" is attempted even if there is no PID file.
 # (Maybe the "stop" doesn't work then, but we might fix that in itself.)
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-  %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
-  echo "Giving mysqld 5 seconds to exit nicely"
-  sleep 5
+        %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
+        echo "Giving mysqld 5 seconds to exit nicely"
+        sleep 5
 fi
 
 %post -n MySQL-server%{product_suffix}
@@ -682,10 +699,10 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # for the other run levels exist(ed) before the upgrade?
 # use insserv for older SuSE Linux versions
 if [ -x /sbin/insserv ] ; then
-  /sbin/insserv %{_sysconfdir}/init.d/mysql
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
 # use chkconfig on Enterprise Linux and newer SuSE releases
 elif [ -x /sbin/chkconfig ] ; then
-  /sbin/chkconfig --add mysql
+        /sbin/chkconfig --add mysql
 fi
 
 # ----------------------------------------------------------------------
@@ -783,21 +800,27 @@ cat $STATUS_FILE >> $STATUS_HISTORY
 rm  $STATUS_FILE
 
 
+#echo "Thank you for installing the MySQL Community Server! For Production
+#systems, we recommend MySQL Enterprise, which contains enterprise-ready
+#software, intelligent advisory services, and full production support with
+#scheduled service packs and more.  Visit www.mysql.com/enterprise for more
+#information."
+
 %preun -n MySQL-server%{product_suffix}
 
 if [ $1 = 0 ] ; then
-  # Stop MySQL before uninstalling it
-  if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-    %{_sysconfdir}/init.d/mysql stop > /dev/null
-    # Remove autostart of MySQL
-    # For older SuSE Linux versions
-    if [ -x /sbin/insserv ] ; then
-      /sbin/insserv -r %{_sysconfdir}/init.d/mysql
-    # use chkconfig on Enterprise Linux and newer SuSE releases
-    elif [ -x /sbin/chkconfig ] ; then
-      /sbin/chkconfig --del mysql
-    fi
-  fi
+        # Stop MySQL before uninstalling it
+        if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+                %{_sysconfdir}/init.d/mysql stop > /dev/null
+                # Remove autostart of MySQL
+                # For older SuSE Linux versions
+                if [ -x /sbin/insserv ] ; then
+                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
+                # use chkconfig on Enterprise Linux and newer SuSE releases
+                elif [ -x /sbin/chkconfig ] ; then
+                        /sbin/chkconfig --del mysql
+                fi
+        fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
@@ -883,13 +906,13 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/audit_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/daemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
