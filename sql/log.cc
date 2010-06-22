@@ -370,8 +370,8 @@ bool LOGGER::is_log_table_enabled(uint log_table_type)
 
 
 /* Check if a given table is opened log table */
-int check_if_log_table(uint db_len, const char *db, uint table_name_len,
-                       const char *table_name, uint check_if_opened)
+int check_if_log_table(size_t db_len, const char *db, size_t table_name_len,
+                       const char *table_name, bool check_if_opened)
 {
   if (db_len == 5 &&
       !(lower_case_table_names ?

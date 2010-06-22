@@ -22,6 +22,7 @@
 #ifndef SQL_BITMAP_INCLUDED
 #define SQL_BITMAP_INCLUDED
 
+#include <my_sys.h>
 #include <my_bitmap.h>
 
 template <uint default_width> class Bitmap

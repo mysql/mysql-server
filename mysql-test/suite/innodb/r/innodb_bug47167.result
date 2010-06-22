@@ -1,24 +1,24 @@
-set @old_innodb_file_format_check=@@innodb_file_format_check;
-select @old_innodb_file_format_check;
-@old_innodb_file_format_check
+set @old_innodb_file_format_max=@@innodb_file_format_max;
+select @old_innodb_file_format_max;
+@old_innodb_file_format_max
 Antelope
-set global innodb_file_format_check = Barracuda;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
+set global innodb_file_format_max = Barracuda;
+select @@innodb_file_format_max;
+@@innodb_file_format_max
 Barracuda
-set global innodb_file_format_check = DEFAULT;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
-Barracuda
-set global innodb_file_format_check = @old_innodb_file_format_check;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
+set global innodb_file_format_max = DEFAULT;
+select @@innodb_file_format_max;
+@@innodb_file_format_max
 Antelope
-set global innodb_file_format_check = cheetah;
-ERROR 42000: Variable 'innodb_file_format_check' can't be set to the value of 'cheetah'
-set global innodb_file_format_check = Bear;
-ERROR 42000: Variable 'innodb_file_format_check' can't be set to the value of 'Bear'
-set global innodb_file_format_check = on;
-ERROR 42000: Variable 'innodb_file_format_check' can't be set to the value of 'ON'
-set global innodb_file_format_check = off;
-ERROR 42000: Variable 'innodb_file_format_check' can't be set to the value of 'off'
+set global innodb_file_format_max = @old_innodb_file_format_max;
+select @@innodb_file_format_max;
+@@innodb_file_format_max
+Antelope
+set global innodb_file_format_max = cheetah;
+ERROR 42000: Variable 'innodb_file_format_max' can't be set to the value of 'cheetah'
+set global innodb_file_format_max = Bear;
+ERROR 42000: Variable 'innodb_file_format_max' can't be set to the value of 'Bear'
+set global innodb_file_format_max = on;
+ERROR 42000: Variable 'innodb_file_format_max' can't be set to the value of 'ON'
+set global innodb_file_format_max = off;
+ERROR 42000: Variable 'innodb_file_format_max' can't be set to the value of 'off'
