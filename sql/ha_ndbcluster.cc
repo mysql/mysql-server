@@ -7408,9 +7408,10 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       DBUG_PRINT("info", ("Remove table %s/%s", db, file_name_str));
       // Delete the table and all related files
       TABLE_LIST table_list;
-      bzero((char*) &table_list,sizeof(table_list));
-      table_list.db= (char*) db;
-      table_list.alias= table_list.table_name= (char*)file_name_str;
+      table_list.init_one_table(db, strlen(db), file_name_str,
+                                strlen(file_name_str), file_name_str,
+                                TL_WRITE);
+      table_list.mdl_request.set_type(MDL_EXCLUSIVE);
       (void)mysql_rm_table_part2(thd, &table_list,
                                  FALSE,   /* if_exists */
                                  FALSE,   /* drop_temporary */ 
@@ -9509,7 +9510,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   if (thd->store_globals())
     goto ndb_util_thread_fail;
   thd->init_for_queries();
-  thd->version=refresh_version;
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
