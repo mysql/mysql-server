@@ -34,6 +34,7 @@
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/FsOpenReq.hpp>
+#include <signaldata/DropTab.hpp>
 
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
@@ -448,6 +449,7 @@ public:
     LqhFragReq m_lqhFragReq;
     LqhAddAttrReq m_addAttrReq;
     DropFragReq m_dropFragReq;
+    DropTabReq m_dropTabReq;
 
     Uint16 addfragErrorCode;
     Uint16 attrSentToTup;

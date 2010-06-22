@@ -25,7 +25,7 @@
 
 #include <version.h>
 #include <kernel_types.h>
-#include <my_daemon.h>
+#include <portlib/ndb_daemon.h>
 #include <NdbConfig.h>
 #include <NdbSleep.h>
 #include <ndb_version.h>
@@ -98,7 +98,7 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
     (uchar**) &opts.daemon, (uchar**) &opts.daemon, 0,
-    GET_BOOL, NO_ARG, IF_WIN(0,1), 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "interactive", NDB_OPT_NOSHORT,
     "Run interactive. Not supported but provided for testing purposes",
     (uchar**) &opts.interactive, (uchar**) &opts.interactive, 0,
@@ -110,7 +110,7 @@ static struct my_option my_long_options[] =
   { "nodaemon", NDB_OPT_NOSHORT,
     "Don't run as daemon, but don't read from stdin",
     (uchar**) &opts.non_interactive, (uchar**) &opts.non_interactive, 0,
-    GET_BOOL, NO_ARG, IF_WIN(1,0), 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "mycnf", NDB_OPT_NOSHORT,
     "Read cluster config from my.cnf",
     (uchar**) &opts.mycnf, (uchar**) &opts.mycnf, 0,
@@ -157,6 +157,7 @@ static struct my_option my_long_options[] =
 static void short_usage_sub(void)
 {
   ndb_short_usage_sub(my_progname, NULL);
+  ndb_service_print_options("ndb_mgmd");
 }
 
 static void usage()
@@ -175,7 +176,7 @@ static void mgmd_exit(int result)
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
-  my_daemon_exit(result);
+  ndb_daemon_exit(result);
 }
 
 
@@ -279,10 +280,10 @@ static int mgmd_main(int argc, char** argv)
 
       char *lockfile= NdbConfig_PidFileName(localNodeId);
       char *logfile=  NdbConfig_StdoutFileName(localNodeId);
-      if (my_daemonize(lockfile, logfile))
+      if (ndb_daemonize(lockfile, logfile))
       {
         g_eventLogger->error("Couldn't start as daemon, error: '%s'",
-                             my_daemon_error);
+                             ndb_daemon_error);
         mgmd_exit(1);
       }
     }
@@ -334,6 +335,6 @@ static void mgmd_stop(void)
 
 int main(int argc, char** argv)
 {
-  return my_daemon_init(argc, argv, mgmd_main, mgmd_stop,
-                        "ndb_mgmd", "MySQL Cluster Management Server");
+  return ndb_daemon_init(argc, argv, mgmd_main, mgmd_stop,
+                         "ndb_mgmd", "MySQL Cluster Management Server");
 }

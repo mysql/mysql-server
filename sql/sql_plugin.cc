@@ -1009,9 +1009,14 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
 
 static int plugin_initialize(struct st_plugin_int *plugin)
 {
+  int ret= 1;
   DBUG_ENTER("plugin_initialize");
 
   safe_mutex_assert_owner(&LOCK_plugin);
+  uint state= plugin->state;
+  DBUG_ASSERT(state == PLUGIN_IS_UNINITIALIZED);
+
+  pthread_mutex_unlock(&LOCK_plugin);
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -1030,8 +1035,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       goto err;
     }
   }
-
-  plugin->state= PLUGIN_IS_READY;
+  state= PLUGIN_IS_READY; // plugin->init() succeeded
 
   if (plugin->plugin->status_vars)
   {
@@ -1050,7 +1054,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     if (add_status_vars(array)) // add_status_vars makes a copy
       goto err;
 #else
-    add_status_vars(plugin->plugin->status_vars); // add_status_vars makes a copy
+    if (add_status_vars(plugin->plugin->status_vars))
+      goto err;
 #endif /* FIX_LATER */
   }
 
@@ -1070,9 +1075,12 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     }
   }
 
-  DBUG_RETURN(0);
+  ret= 0;
+
 err:
-  DBUG_RETURN(1);
+  pthread_mutex_lock(&LOCK_plugin);
+  plugin->state= state;
+  DBUG_RETURN(ret);
 }
 
 
@@ -1660,6 +1668,12 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
+
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
@@ -1736,9 +1750,17 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   struct st_plugin_int *plugin;
   DBUG_ENTER("mysql_uninstall_plugin");
 
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
+
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
+  if (check_table_access(thd, DELETE_ACL, &tables, 1, FALSE))
+    DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
@@ -2986,6 +3008,12 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
 
   options+= 2;
 
+  if (!my_strcasecmp(&my_charset_latin1, plugin_name_ptr, "NDBCLUSTER"))
+  {
+    plugin_name_ptr= const_cast<char*>("ndb"); // Use legacy "ndb" prefix
+    plugin_name_len= 3;
+  }
+
   /*
     Two passes as the 2nd pass will take pointer addresses for use
     by my_getopt and register_var() in the first pass uses realloc
@@ -3298,18 +3326,27 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     DBUG_RETURN(1);
   }
 
+  LEX_STRING plugin_name;
+  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "NDBCLUSTER"))
+  {
+    plugin_name.str= const_cast<char*>("ndb"); // Use legacy "ndb" prefix
+    plugin_name.length= 3;
+  }
+  else
+    plugin_name= tmp->name;
+
   error= 1;
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
   {
     if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
       continue;
-    if ((var= find_bookmark(tmp->name.str, o->name, o->flags)))
+    if ((var= find_bookmark(plugin_name.str, o->name, o->flags)))
       v= new (mem_root) sys_var_pluginvar(var->key + 1, o);
     else
     {
-      len= tmp->name.length + strlen(o->name) + 2;
+      len= plugin_name.length + strlen(o->name) + 2;
       varname= (char*) alloc_root(mem_root, len);
-      strxmov(varname, tmp->name.str, "-", o->name, NullS);
+      strxmov(varname, plugin_name.str, "-", o->name, NullS);
       my_casedn_str(&my_charset_latin1, varname);
       convert_dash_to_underscore(varname, len-1);
       v= new (mem_root) sys_var_pluginvar(varname, o);

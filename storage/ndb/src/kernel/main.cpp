@@ -19,29 +19,22 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <kernel/NodeBitmask.hpp>
+#include <portlib/ndb_daemon.h>
 
 #include "ndbd.hpp"
 #include "angel.hpp"
-
-#include "Configuration.hpp"
-#include "vm/SimBlockList.hpp"
-#include "ThreadConfig.hpp"
-#include <SignalLoggerManager.hpp>
-#include <NdbOut.hpp>
-#include <NdbDaemon.h>
-#include <NdbSleep.h>
-#include <NdbConfig.h>
-#include <WatchDog.hpp>
-#include <NdbAutoPtr.hpp>
-#include <Properties.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
-  opt_initial, opt_no_start, opt_initialstart, opt_verbose;
+  opt_initialstart, opt_verbose;
 static const char* opt_nowait_nodes = 0;
 static const char* opt_bind_address = 0;
+static int opt_report_fd;
+static int opt_initial;
+static int opt_no_start;
+static unsigned opt_allocated_nodeid;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
@@ -59,11 +52,11 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Start ndbd as daemon (default)",
     (uchar**) &opt_daemon, (uchar**) &opt_daemon, 0,
-    GET_BOOL, NO_ARG, IF_WIN(0,1), 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "nodaemon", NDB_OPT_NOSHORT,
     "Do not start ndbd as daemon, provided for testing purposes",
     (uchar**) &opt_no_daemon, (uchar**) &opt_no_daemon, 0,
-    GET_BOOL, NO_ARG, IF_WIN(1,0), 0, 0, 0, 0, 0 },
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "foreground", NDB_OPT_NOSHORT,
     "Run real ndbd in foreground, provided for debugging purposes"
     " (implies --nodaemon)",
@@ -86,14 +79,24 @@ static struct my_option my_long_options[] =
     "Write more log messages",
     (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
     GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "report-fd", 256,
+    "INTERNAL: fd where to write extra shutdown status",
+    (uchar**) &opt_report_fd, (uchar**) &opt_report_fd, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
+  { "allocated-nodeid", 256,
+    "INTERNAL: nodeid allocated by angel process",
+    (uchar**) &opt_allocated_nodeid, (uchar**) &opt_allocated_nodeid, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 const char *load_default_groups[]= { "mysql_cluster", "ndbd", 0 };
 
+
 static void short_usage_sub(void)
 {
   ndb_short_usage_sub(my_progname, NULL);
+  ndb_service_print_options("ndbd");
 }
 
 static void usage()
@@ -105,7 +108,14 @@ extern "C" void ndbSetOwnVersion();
 
 extern int g_ndb_init_need_monotonic;
 
-int main(int argc, char** argv)
+/**
+ * C++ Standard 3.6.1/3:
+ *  The function main shall not be used (3.2) within a program.
+ *
+ * So call "main" "real_main" to avoid this rule...
+ */
+int
+real_main(int argc, char** argv)
 {
   g_ndb_init_need_monotonic = 1;
   NDB_INIT(argv[0]);
@@ -114,6 +124,12 @@ int main(int argc, char** argv)
 
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
+
+#ifdef _WIN32
+  /* Output to Windows event log */
+  g_eventLogger->createEventLogHandler("MySQL Cluster Data Node Daemon");
+#endif
+
   g_eventLogger->setCategory("ndbd");
 
   // Turn on max loglevel for startup messages
@@ -125,6 +141,11 @@ int main(int argc, char** argv)
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndbd.trace";
 #endif
+
+  // Save the original arguments for angel
+  BaseString original_args;
+  for (int i = 0; i < argc; i++)
+    original_args.appfmt("%s ", argv[i]);
 
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
@@ -139,13 +160,6 @@ int main(int argc, char** argv)
   // Turn on debug printouts if --verbose
   if (opt_verbose)
     g_eventLogger->enable(Logger::LL_DEBUG);
-
-  DBUG_PRINT("info", ("no_start=%d", opt_no_start));
-  DBUG_PRINT("info", ("initial=%d", opt_initial));
-  DBUG_PRINT("info", ("daemon=%d", opt_daemon));
-  DBUG_PRINT("info", ("foreground=%d", opt_foreground));
-  DBUG_PRINT("info", ("ndb_connectstring=%s", opt_ndb_connectstring));
-  DBUG_PRINT("info", ("ndb_nodeid=%d", opt_ndb_nodeid));
 
   if (opt_nowait_nodes)
   {
@@ -164,51 +178,30 @@ int main(int argc, char** argv)
     }
   }
 
-  globalEmulatorData.create();
-
-  Configuration* theConfig = globalEmulatorData.theConfiguration;
-  if(!theConfig->init(opt_no_start, opt_initial,
-                      opt_initialstart, opt_daemon)){
-    g_eventLogger->error("Failed to init Configuration");
-    exit(-1);
-  }
-  char*cfg= getenv("WIN_NDBD_CFG");
-  if(cfg) {
-    int x,y,z;
-    if(3!=sscanf(cfg,"%d %d %d",&x,&y,&z)) {
-      g_eventLogger->error("internal error: couldn't find 3 parameters");
-      exit(1);
-    }
-    theConfig->setInitialStart(x);
-    globalData.theRestartFlag= (restartStates)y;
-    globalData.ownId= z;
-  }
-  { // Do configuration
-    theConfig->fetch_configuration(opt_ndb_connectstring,
-                                   opt_ndb_nodeid,
-                                   opt_bind_address);
-  }
-
-  my_setwd(NdbConfig_get_path(0), MYF(0));
-
-#ifndef NDB_WIN32
-  if (!opt_foreground)
+  if (opt_foreground ||
+      opt_allocated_nodeid ||
+      opt_report_fd)
   {
-    if (angel_run(opt_ndb_connectstring,
-                  opt_bind_address,
-                  opt_initialstart,
-                  opt_daemon))
-      return 1;
-    // ndbd continues here
+    ndbd_run(opt_foreground, opt_report_fd,
+             opt_ndb_connectstring, opt_ndb_nodeid, opt_bind_address,
+             opt_no_start, opt_initial, opt_initialstart,
+             opt_allocated_nodeid);
   }
-  else
-    g_eventLogger->info("Ndb started in foreground");
-#else
-  g_eventLogger->info("Ndb started");
-#endif
 
-  int res = ndbd_run(opt_foreground);
-  ndbd_exit(res);
-  return res;
+  angel_run(original_args,
+            opt_ndb_connectstring,
+            opt_ndb_nodeid,
+            opt_bind_address,
+            opt_initial,
+            opt_no_start,
+            opt_daemon);
+
+  return 1; // Never reached
 }
 
+int
+main(int argc, char** argv)
+{
+  return ndb_daemon_init(argc, argv, real_main, angel_stop,
+                         "ndbd", "MySQL Cluster Data Node Daemon");
+}

@@ -18,10 +18,19 @@
 
 #include "NdbMixRestarter.hpp"
 
-NdbMixRestarter::NdbMixRestarter(const char* _addr) :
+NdbMixRestarter::NdbMixRestarter(unsigned * _seed, const char* _addr) :
   NdbRestarter(_addr),
   m_mask(~(Uint32)0)
 {
+  if (_seed == 0)
+  {
+    ownseed = (unsigned)NdbTick_CurrentMillisecond();
+    seed = &ownseed;
+  }
+  else
+  {
+    seed = _seed;
+  }
 }
 
 NdbMixRestarter::~NdbMixRestarter()
@@ -131,14 +140,14 @@ select_nodes_to_stop(Vector<ndb_mgm_node_state*>& victims,
 
 static
 ndb_mgm_node_state*
-select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
+select_node_to_stop(unsigned * seed, Vector<ndb_mgm_node_state>& nodes)
 {
   Vector<ndb_mgm_node_state*> victims;
   select_nodes_to_stop(victims, nodes);
   
   if (victims.size())
   {
-    int victim = rand() % victims.size();
+    int victim = ndb_rand_r(seed) % victims.size();
     return victims[victim];
   }
   else
@@ -163,14 +172,15 @@ select_nodes_to_start(Vector<ndb_mgm_node_state*>& victims,
 
 static
 ndb_mgm_node_state*
-select_node_to_start(Vector<ndb_mgm_node_state>& nodes)
+select_node_to_start(unsigned * seed,
+                     Vector<ndb_mgm_node_state>& nodes)
 {
   Vector<ndb_mgm_node_state*> victims;
   select_nodes_to_start(victims, nodes);
 
   if (victims.size())
   {
-    int victim = rand() % victims.size();
+    int victim = ndb_rand_r(seed) % victims.size();
     return victims[victim];
   }
   else
@@ -247,7 +257,7 @@ NdbMixRestarter::dostep(NDBT_Context* ctx, NDBT_Step* step)
   ndb_mgm_node_state* node = 0;
   int action;
 loop:
-  while(((action = (1 << (rand() % RTM_COUNT))) & m_mask) == 0);
+  while(((action = (1 << (ndb_rand_r(seed) % RTM_COUNT))) & m_mask) == 0);
   switch(action){
   case RTM_RestartCluster:
     if (restart_cluster(ctx, step))
@@ -260,7 +270,7 @@ loop:
   case RTM_StopNode:
   case RTM_StopNodeInitial:
   {
-    if ((node = select_node_to_stop(m_nodes)) == 0)
+    if ((node = select_node_to_stop(seed, m_nodes)) == 0)
       goto loop;
     
     if (action == RTM_RestartNode || action == RTM_RestartNodeInitial)
@@ -289,7 +299,7 @@ loop:
       goto start;
   }
   case RTM_StartNode:
-    if ((node = select_node_to_start(m_nodes)) == 0)
+    if ((node = select_node_to_start(seed, m_nodes)) == 0)
       goto loop;
 start:
     ndbout << "Starting " << node->node_id << endl;
@@ -310,7 +320,7 @@ NdbMixRestarter::finish(NDBT_Context* ctx, NDBT_Step* step)
   Vector<int> not_started;
   {
     ndb_mgm_node_state* node = 0;
-    while((node = select_node_to_start(m_nodes)))
+    while((node = select_node_to_start(seed, m_nodes)))
     {
       not_started.push_back(node->node_id);
       node->node_status = NDB_MGM_NODE_STATUS_STARTED;

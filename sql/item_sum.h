@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2000-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -356,7 +354,7 @@ public:
   */
   void no_rows_in_result() { clear(); }
 
-  virtual bool setup(THD *thd) {return 0;}
+  virtual bool setup(THD* thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table,
@@ -846,7 +844,7 @@ protected:
     was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
-  void setup(Item *item, Item *value_arg);
+  void setup_hybrid(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();

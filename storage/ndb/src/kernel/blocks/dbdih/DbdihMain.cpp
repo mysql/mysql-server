@@ -115,16 +115,6 @@ extern EventLogger * g_eventLogger;
   } while (specNodePtr.i != RNIL);                                      \
 }
 
-#if 0
-static
-Uint32
-oldPrevLcpNo(Uint32 lcpNo){
-  if(lcpNo == 0)
-    return MAX_LCP_STORED - 1;
-  return lcpNo - 1;
-}
-#endif
-
 static
 Uint32
 prevLcpNo(Uint32 lcpNo){
@@ -1880,7 +1870,8 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
    * This set which GCI we will try to restart to
    */
   SYSFILE->newestRestorableGCI = gci;
-  
+  infoEvent("Restarting cluster to GCI: %u", gci);
+
   ndbrequire(isMaster());
   copyGciLab(signal, CopyGCIReq::RESTART); // We have already read the file!
 
@@ -3609,15 +3600,18 @@ Dbdih::nr_start_fragment(Signal* signal,
            replicaPtr.p->lcpStatus[idx] == ZVALID ? "VALID" : "NOT VALID");
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
+      Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
-      ndbout_c(" %u", stopGci);
+      ndbout_c(" maxGciCompleted: %u maxGciStarted: %u", startGci - 1, stopGci);
       for (; j>= 0; j--)
       {
-	ndbout_c("crashed replica: %d(%d) replicaLastGci: %d",
+	ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
 		 j, 
 		 replicaPtr.p->noCrashedReplicas,
+                 replicaPtr.p->createGci[j],
 		 replicaPtr.p->replicaLastGci[j]);
-	if (replicaPtr.p->replicaLastGci[j] > stopGci)
+	if (replicaPtr.p->createGci[j] <= startGci &&
+            replicaPtr.p->replicaLastGci[j] >= stopGci)
 	{
 	  maxLcpId = replicaPtr.p->lcpId[idx];
 	  maxLcpIndex = idx;
@@ -3636,14 +3630,17 @@ Dbdih::nr_start_fragment(Signal* signal,
   ndbout_c("- scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
   if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
   {
+    Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
     Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
     for (;j >= 0; j--)
     {
-      ndbout_c("crashed replica: %d(%d) replicaLastGci: %d",
+      ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
                j, 
                replicaPtr.p->noCrashedReplicas,
+               replicaPtr.p->createGci[j],
                replicaPtr.p->replicaLastGci[j]);
-      if (replicaPtr.p->replicaLastGci[j] > stopGci)
+      if (replicaPtr.p->createGci[j] <= startGci &&
+          replicaPtr.p->replicaLastGci[j] >= stopGci)
       {
         maxLcpId = replicaPtr.p->lcpId[idx];
         maxLcpIndex = idx;
@@ -3694,6 +3691,7 @@ done:
     }
     ndbassert(gci == restorableGCI);
     replicaPtr.p->m_restorable_gci = gci;
+    Uint32 startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex] + 1;
     ndbout_c("Found LCP: %d(%d) maxGciStarted: %d maxGciCompleted: %d restorable: %d(%d) newestRestorableGCI: %d",
 	     maxLcpId,
 	     maxLcpIndex,
@@ -3712,17 +3710,17 @@ done:
     req->fragId = takeOverPtr.p->toCurrentFragid;
     req->noOfLogNodes = 1;
     req->lqhLogNode[0] = takeOverPtr.p->toStartingNode;
-    req->startGci[0] = replicaPtr.p->maxGciCompleted[maxLcpIndex];
+    req->startGci[0] = startGci;
     req->lastGci[0] = gci;
 
     BlockReference ref = numberToRef(DBLQH, takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
 
-    if (replicaPtr.p->maxGciCompleted[maxLcpIndex] < takeOverPtr.p->startGci)
+    if (startGci < takeOverPtr.p->startGci)
     {
       jam();
-      takeOverPtr.p->startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex];
+      takeOverPtr.p->startGci = startGci;
     }
   }
 }
@@ -3858,6 +3856,7 @@ Dbdih::execSTART_TOREF(Signal* signal)
 
   StartToRef* ref = (StartToRef*)signal->getDataPtr();
   Uint32 errCode = ref->errorCode;
+  (void)errCode; // TODO check for "valid" error
 
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
@@ -4082,6 +4081,7 @@ Dbdih::execUPDATE_TOREF(Signal* signal)
   jamEntry();
   UpdateToRef* ref = (UpdateToRef*)signal->getDataPtr();
   Uint32 errCode = ref->errorCode;
+  (void)errCode; // TODO check for "valid" error
 
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
@@ -7565,7 +7565,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     Uint16 fragments[2 + MAX_FRAG_PER_NODE*MAX_REPLICAS*MAX_NDB_NODES];
     Uint32 align;
   };
-  (void)align;
+  (void)align; // kill warning
   SectionHandle handle(this, signal);
   SegmentedSectionPtr fragDataPtr;
   ndbrequire(handle.getSection(fragDataPtr, DiAddTabReq::FRAGMENTATION));
@@ -9372,6 +9372,9 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   const Uint32 gci_lo = signal->theData[3];
   const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
+  (void)gci; // TODO validate
+  (void)failureNr; // kill warning
+
   ndbrequire(m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT);
   receiveLoopMacro(GCP_COMMIT, senderNodeId);
 
@@ -10270,6 +10273,39 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
 
     c_newest_restorable_gci = m_gcp_save.m_gci;
+#ifdef ERROR_INSERT
+    if ((ERROR_INSERTED(7222) || ERROR_INSERTED(7223)) &&
+        !Sysfile::getLCPOngoing(SYSFILE->systemRestartBits) &&
+        c_newest_restorable_gci >= c_lcpState.lcpStopGcp)
+    {
+      if (ERROR_INSERTED(7222))
+      {
+        sendLoopMacro(COPY_TABREQ, nullRoutine, 0);
+        NodeReceiverGroup rg(CMVMI, c_COPY_TABREQ_Counter);
+
+        rg.m_nodes.clear(getOwnNodeId());
+        if (!rg.m_nodes.isclear())
+        {
+          signal->theData[0] = 9999;
+          sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBA);
+        }
+        signal->theData[0] = 9999;
+        sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+
+        signal->theData[0] = 932;
+        EXECUTE_DIRECT(QMGR, GSN_NDB_TAMPER, signal, 1);
+
+        return;
+      }
+      if (ERROR_INSERTED(7223))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+        signal->theData[0] = 9999;
+        sendSignal(numberToRef(CMVMI, c_error_insert_extra)
+                   , GSN_NDB_TAMPER, signal, 1, JBA);
+      }
+    }
+#endif
 
     if (m_micro_gcp.m_enabled == false)
     {
@@ -10866,6 +10902,11 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
     getFragstore(tabPtr.p, i, fragPtr);
     
     /**
+     * During SR restart distributionKey from 0
+     */
+    fragPtr.p->distributionKey = 0;
+
+    /**
      * 1) Start by moving all replicas into oldStoredReplicas
      */
     prepareReplicas(fragPtr);
@@ -10876,9 +10917,16 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
      */
     ReplicaRecordPtr replicaPtr;
     replicaPtr.i = fragPtr.p->oldStoredReplicas;
-    while (replicaPtr.i != RNIL) {
+    while (replicaPtr.i != RNIL)
+    {
       jam();
       ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+
+      /**
+       * invalidate LCP's not usable
+       */
+      resetReplica(replicaPtr);
+
       const Uint32 nextReplicaPtrI = replicaPtr.p->nextReplica;
 
       NodeRecordPtr nodePtr;
@@ -10956,6 +11004,61 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 }
 
 void
+Dbdih::resetReplica(ReplicaRecordPtr readReplicaPtr)
+{
+  Uint32 i;
+  /* ---------------------------------------------------------------------- */
+  /*       IF THE LAST COMPLETED LOCAL CHECKPOINT IS VALID AND LARGER THAN  */
+  /*       THE LAST COMPLETED CHECKPOINT THEN WE WILL INVALIDATE THIS LOCAL */
+  /*       CHECKPOINT FOR THIS REPLICA.                                     */
+  /* ---------------------------------------------------------------------- */
+  for (i = 0; i < MAX_LCP_STORED; i++)
+  {
+    jam();
+    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
+        readReplicaPtr.p->lcpId[i] > SYSFILE->latestLCP_ID)
+    {
+      jam();
+      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
+  /*       INVALIDATED BY MOVING BACK THE RESTART GCI.                      */
+  /* ---------------------------------------------------------------------- */
+  Uint32 lastCompletedGCI = SYSFILE->newestRestorableGCI;
+  for (i = 0; i < MAX_LCP_STORED; i++)
+  {
+    jam();
+    if (readReplicaPtr.p->lcpStatus[i] == ZVALID &&
+        readReplicaPtr.p->maxGciStarted[i] > lastCompletedGCI)
+    {
+      jam();
+      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*       WE WILL REMOVE ANY OCCURRENCES OF REPLICAS THAT HAVE CRASHED     */
+  /*       THAT ARE NO LONGER VALID DUE TO MOVING RESTART GCI BACKWARDS.    */
+  /* ---------------------------------------------------------------------- */
+  removeTooNewCrashedReplicas(readReplicaPtr, lastCompletedGCI);
+
+  /**
+   * Don't remove crashed replicas here,
+   *   as 1) this will disable optimized NR
+   *         if oldestRestorableGCI > GCI needed for local LCP's
+   *      2) This is anyway done during LCP, which will be run during SR
+   */
+  //removeOldCrashedReplicas(readReplicaPtr);
+
+  /* ---------------------------------------------------------------------- */
+  /*       FIND PROCESSOR RECORD                                            */
+  /* ---------------------------------------------------------------------- */
+}
+
+void
 Dbdih::resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci){
 
   Uint32 lcpNo = replicaP->nextLcp;
@@ -10963,8 +11066,10 @@ Dbdih::resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci){
   do {
     lcpNo = prevLcpNo(lcpNo);
     ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (replicaP->lcpStatus[lcpNo] == ZVALID) {
-      if (replicaP->maxGciStarted[lcpNo] < stopGci) {
+    if (replicaP->lcpStatus[lcpNo] == ZVALID)
+    {
+      if (replicaP->maxGciStarted[lcpNo] <= stopGci)
+      {
         jam();
 	/* ----------------------------------------------------------------- */
 	/*   WE HAVE FOUND A USEFUL LOCAL CHECKPOINT THAT CAN BE USED FOR    */
@@ -13386,7 +13491,8 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   signal->theData[1] = SYSFILE->latestLCP_ID;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-  if (c_newest_restorable_gci > c_lcpState.lcpStopGcp)
+  if (c_newest_restorable_gci > c_lcpState.lcpStopGcp &&
+      !(ERROR_INSERTED(7222) || ERROR_INSERTED(7223)))
   {
     jam();
     c_lcpState.lcpStopGcp = c_newest_restorable_gci;
@@ -14318,7 +14424,7 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   }
   else
   {
-    ndbassert(oldestRestorableGci < c_newest_restorable_gci);
+    ndbassert(oldestRestorableGci <= c_newest_restorable_gci);
   }
   return;
 }//Dbdih::findMinGci()
@@ -14334,8 +14440,13 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   {
     jam();
     if (replicaPtr.p->lcpStatus[i] == ZVALID &&
-        replicaPtr.p->maxGciStarted[i] < stopGci)
+        replicaPtr.p->maxGciStarted[i] <= stopGci)
     {
+      /**
+       * In order to use LCP
+       *   we must be able to run REDO atleast up until maxGciStarted
+       *   which is that highest GCI that
+       */
       jam();
       tmp[cnt] = i;
       cnt++;
@@ -15496,11 +15607,7 @@ void Dbdih::readFragment(RWFragment* rf, FragmentstorePtr fragPtr)
   ndbrequire(fragPtr.p->noStoredReplicas > 0);
   ndbrequire(TreadFid == rf->fragId);  
   ndbrequire(TdistKey < 256);
-  if ((cstarttype == NodeState::ST_NODE_RESTART) || 
-      (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)) {
-    jam();
-    fragPtr.p->distributionKey = TdistKey;
-  }//if
+  fragPtr.p->distributionKey = TdistKey;
 
   fragPtr.p->m_log_part_id = readPageWord(rf);
   inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
@@ -15546,49 +15653,6 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
     readReplicaPtr.p->createGci[i] = readPageWord(rf);
     readReplicaPtr.p->replicaLastGci[i] = readPageWord(rf);
   }
-
-  /* ---------------------------------------------------------------------- */
-  /*       IF THE LAST COMPLETED LOCAL CHECKPOINT IS VALID AND LARGER THAN  */
-  /*       THE LAST COMPLETED CHECKPOINT THEN WE WILL INVALIDATE THIS LOCAL */
-  /*       CHECKPOINT FOR THIS REPLICA.                                     */
-  /* ---------------------------------------------------------------------- */
-  Uint32 trraLcp = prevLcpNo(readReplicaPtr.p->nextLcp);
-  ndbrequire(trraLcp < MAX_LCP_STORED);
-  if ((readReplicaPtr.p->lcpStatus[trraLcp] == ZVALID) &&
-      (readReplicaPtr.p->lcpId[trraLcp] > SYSFILE->latestLCP_ID)) {
-    jam();
-    readReplicaPtr.p->lcpStatus[trraLcp] = ZINVALID;
-  }//if
-
-  /* ---------------------------------------------------------------------- */
-  /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
-  /*       INVALIDATED BY MOVING BACK THE RESTART GCI.                      */
-  /* ---------------------------------------------------------------------- */
-  for (i = 0; i < MAX_LCP_STORED; i++) {
-    jam();
-    if ((readReplicaPtr.p->lcpStatus[i] == ZVALID) &&
-        (readReplicaPtr.p->maxGciStarted[i] > SYSFILE->newestRestorableGCI)) {
-      jam();
-      readReplicaPtr.p->lcpStatus[i] = ZINVALID;
-    }//if
-  }//for
-  /* ---------------------------------------------------------------------- */
-  /*       WE WILL REMOVE ANY OCCURRENCES OF REPLICAS THAT HAVE CRASHED     */
-  /*       THAT ARE NO LONGER VALID DUE TO MOVING RESTART GCI BACKWARDS.    */
-  /* ---------------------------------------------------------------------- */
-  removeTooNewCrashedReplicas(readReplicaPtr);
-
-  /**
-   * Don't remove crashed replicas here,
-   *   as 1) this will disable optimized NR
-   *         if oldestRestorableGCI > GCI needed for local LCP's
-   *      2) This is anyway done during LCP, which will be run during SR
-   */
-  //removeOldCrashedReplicas(readReplicaPtr);
-  
-  /* ---------------------------------------------------------------------- */
-  /*       FIND PROCESSOR RECORD                                            */
-  /* ---------------------------------------------------------------------- */
 }//Dbdih::readReplica()
 
 void Dbdih::readReplicas(RWFragment* rf, FragmentstorePtr fragPtr)
@@ -15854,7 +15918,7 @@ void Dbdih::removeStoredReplica(FragmentstorePtr fragPtr,
 /*************************************************************************/
 /*       REMOVE ALL TOO NEW CRASHED REPLICAS THAT IS IN THIS REPLICA.    */
 /*************************************************************************/
-void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr) 
+void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr, Uint32 lastCompletedGCI)
 {
   while (rtnReplicaPtr.p->noCrashedReplicas > 0) {
     jam();
@@ -15864,8 +15928,8 @@ void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr)
     /*       TOO MANY TIMES.                                                 */
     /* --------------------------------------------------------------------- */
     arrGuard(rtnReplicaPtr.p->noCrashedReplicas - 1, MAX_CRASHED_REPLICAS);
-    if (rtnReplicaPtr.p->createGci[rtnReplicaPtr.p->noCrashedReplicas - 1] > 
-        SYSFILE->newestRestorableGCI){
+    if (rtnReplicaPtr.p->createGci[rtnReplicaPtr.p->noCrashedReplicas - 1] > lastCompletedGCI)
+    {
       jam();
       rtnReplicaPtr.p->createGci[rtnReplicaPtr.p->noCrashedReplicas - 1] = 
 	ZINIT_CREATE_GCI;

@@ -482,13 +482,14 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
                             &m_max_parallel_index_build);
 
-  if (isNdbMt())
+  if (isNdbMtLqh() && globalData.ndbMtLqhThreads > 1)
   {
     /**
-     * Disable for now...
-     * TODO: Figure out why this doesnt work
+     * Divide by LQH threads
      */
-    m_max_parallel_index_build = 0;
+    Uint32 val = m_max_parallel_index_build;
+    val = (val + instance() - 1) / globalData.ndbMtLqhThreads;
+    m_max_parallel_index_build = val;
   }
   
   initialiseRecordsLab(signal, 0, ref, senderData);

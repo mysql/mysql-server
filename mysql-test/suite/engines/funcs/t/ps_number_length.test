@@ -1,0 +1,1180 @@
+--disable_warnings
+DROP TABLE IF EXISTS t4,t5;
+--enable_warnings
+CREATE TABLE t4(c1 DECIMAL(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 DECIMAL(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+CREATE TABLE t4(c1 DEC(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 DEC(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+CREATE TABLE t4(c1 FIXED(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 FIXED(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+CREATE TABLE t4(c1 NUMERIC(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 NUMERIC(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+CREATE TABLE t4(c1 DOUBLE(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 DOUBLE(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+CREATE TABLE t4(c1 REAL(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 REAL(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+CREATE TABLE t4(c1 DOUBLE PRECISION(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 DOUBLE PRECISION(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+CREATE TABLE t4(c1 FLOAT(1,0) NOT NULL);
+PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+--sorted_result
+PREPARE stmt4 FROM 'SELECT * FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+PREPARE stmt4 FROM 'UPDATE t4 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=1.0;
+SET @b=0;
+EXECUTE stmt4 USING @a,@b;
+SET @a=-9.0;
+SET @b=7.0;
+EXECUTE stmt4 USING @a,@b;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+PREPARE stmt4 FROM 'DELETE FROM t4 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt4 USING @a;
+SET @a=1.0;
+EXECUTE stmt4 USING @a;
+SET @a=-9.0;
+EXECUTE stmt4 USING @a;
+DEALLOCATE PREPARE stmt4;
+--sorted_result
+SELECT * FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t4;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t4 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t4 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t4 WHERE c1 = 0.0;
+DROP TABLE t4;
+CREATE TABLE t5(c1 FLOAT(5,4) NOT NULL);
+PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+--sorted_result
+PREPARE stmt5 FROM 'SELECT * FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+PREPARE stmt5 FROM 'UPDATE t5 SET c1 = ? WHERE c1 = ?';
+SET @a=0;
+SET @b=1.0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.0;
+SET @a=0;
+EXECUTE stmt5 USING @a,@b;
+SET @a=1.2345;
+SET @a=3.5432;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.0;
+SET @a=-9.1;
+EXECUTE stmt5 USING @a,@b;
+SET @a=-9.12345;
+SET @a=-8.54321;
+EXECUTE stmt5 USING @a,@b;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+PREPARE stmt5 FROM 'DELETE FROM t5 WHERE c1 = ?';
+SET @a=0;
+EXECUTE stmt5 USING @a;
+SET @a=1.0;
+EXECUTE stmt5 USING @a;
+SET @a=1.2345;
+EXECUTE stmt5 USING @a;
+SET @a=-9.0;
+EXECUTE stmt5 USING @a;
+SET @a=-9.12345;
+EXECUTE stmt5 USING @a;
+--sorted_result
+SELECT * FROM t5;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t5 WHERE c1 > 0.0;
+--sorted_result
+SELECT COUNT(c1) AS negative_rows FROM t5 WHERE c1 < 0.0;
+--sorted_result
+SELECT COUNT(c1) AS zero_rows FROM t5 WHERE c1 = 0.0;
+DEALLOCATE PREPARE stmt5;
+DROP TABLE t5;
+

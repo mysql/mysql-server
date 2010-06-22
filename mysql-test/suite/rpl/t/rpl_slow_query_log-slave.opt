@@ -1,0 +1,1 @@
+--force-restart --log-slow-slave-statements --log-slow-queries

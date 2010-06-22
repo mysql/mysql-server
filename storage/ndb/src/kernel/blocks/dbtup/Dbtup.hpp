@@ -1103,6 +1103,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
       struct {
         Uint32 m_fragOpPtrI;
         Uint32 defValSectionI;
+        Local_key defValLocation; 
       } m_createTable;
       struct {
         Uint32 m_gci_hi;

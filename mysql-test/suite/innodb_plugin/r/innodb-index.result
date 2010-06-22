@@ -1,0 +1,1172 @@
+create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
+insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
+commit;
+alter table t1 add index b (b), add index b (b);
+ERROR 42000: Duplicate key name 'b'
+alter table t1 add index (b,b);
+ERROR 42S21: Duplicate column name 'b'
+alter table t1 add index d2 (d);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  KEY `d2` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+explain select * from t1 force index(d2) order by d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	d2	23	NULL	4	
+select * from t1 force index (d2) order by d;
+a	b	c	d
+3	4	ad	ad
+2	3	ak	ak
+5	5	oo	oo
+4	4	tr	tr
+alter table t1 add unique index (b);
+ERROR 23000: Duplicate entry '4' for key 'b'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  KEY `d2` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 add index (b);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  KEY `d2` (`d`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE=InnoDB;
+alter table t1 add unique index (c), add index (d);
+ERROR HY000: Table 'test.t1#1' already exists
+rename table `t1#1` to `t1#2`;
+alter table t1 add unique index (c), add index (d);
+ERROR HY000: Table 'test.t1#2' already exists
+drop table `t1#2`;
+alter table t1 add unique index (c), add index (d);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  UNIQUE KEY `c` (`c`),
+  KEY `d2` (`d`),
+  KEY `b` (`b`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	10	NULL	4	
+alter table t1 add primary key (a), drop index c;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `d2` (`d`),
+  KEY `b` (`b`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 add primary key (c);
+ERROR 42000: Multiple primary key defined
+alter table t1 drop primary key, add primary key (b);
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+create unique index c on t1 (c);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `c` (`c`),
+  KEY `d2` (`d`),
+  KEY `b` (`b`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	10	NULL	4	
+select * from t1 force index(c) order by c;
+a	b	c	d
+3	4	ad	ad
+2	3	ak	ak
+5	5	oo	oo
+4	4	tr	tr
+alter table t1 drop index b, add index (b);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `c` (`c`),
+  KEY `d2` (`d`),
+  KEY `d` (`d`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values(6,1,'ggg','ggg');
+select * from t1;
+a	b	c	d
+2	3	ak	ak
+3	4	ad	ad
+4	4	tr	tr
+5	5	oo	oo
+6	1	ggg	ggg
+select * from t1 force index(b) order by b;
+a	b	c	d
+6	1	ggg	ggg
+2	3	ak	ak
+3	4	ad	ad
+4	4	tr	tr
+5	5	oo	oo
+select * from t1 force index(c) order by c;
+a	b	c	d
+3	4	ad	ad
+2	3	ak	ak
+6	1	ggg	ggg
+5	5	oo	oo
+4	4	tr	tr
+select * from t1 force index(d) order by d;
+a	b	c	d
+3	4	ad	ad
+2	3	ak	ak
+6	1	ggg	ggg
+5	5	oo	oo
+4	4	tr	tr
+explain select * from t1 force index(b) order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	5	
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	10	NULL	5	
+explain select * from t1 force index(d) order by d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	d	23	NULL	5	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) NOT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `c` (`c`),
+  KEY `d2` (`d`),
+  KEY `d` (`d`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ad','ad'),(4,4,'afe','afe');
+commit;
+alter table t1 add index (c(2));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`(2))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 add unique index (d(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `d` (`d`(10)),
+  KEY `c` (`c`(2))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values(5,1,'ggg','ggg');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	3	ad	ad
+4	4	afe	afe
+5	1	ggg	ggg
+select * from t1 force index(c) order by c;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	3	ad	ad
+4	4	afe	afe
+5	1	ggg	ggg
+select * from t1 force index(d) order by d;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	3	ad	ad
+4	4	afe	afe
+5	1	ggg	ggg
+explain select * from t1 order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using filesort
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using filesort
+explain select * from t1 force index(d) order by d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using filesort
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `d` (`d`(10)),
+  KEY `c` (`c`(2))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 drop index d;
+insert into t1 values(8,9,'fff','fff');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	3	ad	ad
+4	4	afe	afe
+5	1	ggg	ggg
+8	9	fff	fff
+select * from t1 force index(c) order by c;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	3	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+5	1	ggg	ggg
+explain select * from t1 order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+explain select * from t1 order by d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`(2))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
+commit;
+alter table t1 add unique index (b,c);
+insert into t1 values(8,9,'fff','fff');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+select * from t1 force index(b) order by b;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+explain select * from t1 force index(b) order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	16	NULL	5	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 add index (b,c);
+insert into t1 values(11,11,'kkk','kkk');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+11	11	kkk	kkk
+select * from t1 force index(b) order by b;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+11	11	kkk	kkk
+explain select * from t1 force index(b) order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	16	NULL	6	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`,`c`),
+  KEY `b_2` (`b`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 add unique index (c,d);
+insert into t1 values(13,13,'yyy','aaa');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+11	11	kkk	kkk
+13	13	yyy	aaa
+select * from t1 force index(b) order by b;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+11	11	kkk	kkk
+13	13	yyy	aaa
+select * from t1 force index(c) order by c;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+11	11	kkk	kkk
+13	13	yyy	aaa
+explain select * from t1 force index(b) order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	16	NULL	7	
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	34	NULL	7	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`,`c`),
+  UNIQUE KEY `c` (`c`,`d`),
+  KEY `b_2` (`b`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, b int not null, c int, primary key (a), key (b)) engine = innodb;
+create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
+create table t4(a int not null, d int not null, e int, primary key (a), key (d)) engine = innodb;
+create table t2(a int not null, b int not null, c int not null, d int not null, e int,
+foreign key (b) references t1(b) on delete cascade,
+foreign key (c) references t3(c), foreign key (d) references t4(d))
+engine = innodb;
+alter table t1 drop index b;
+ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
+alter table t3 drop index c;
+ERROR HY000: Cannot drop index 'c': needed in a foreign key constraint
+alter table t4 drop index d;
+ERROR HY000: Cannot drop index 'd': needed in a foreign key constraint
+alter table t2 drop index b;
+ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
+alter table t2 drop index b, drop index c, drop index d;
+ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
+create unique index dc on t2 (d,c);
+create index dc on t1 (b,c);
+alter table t2 add primary key (a);
+insert into t1 values (1,1,1);
+insert into t3 values (1,1,1);
+insert into t4 values (1,1,1);
+insert into t2 values (1,1,1,1,1);
+commit;
+alter table t4 add constraint dc foreign key (a) references t1(a);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  `e` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `d` (`d`),
+  CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t3 add constraint dc foreign key (a) references t1(a);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 121)
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t2 drop index b, add index (b);
+ERROR 42000: Incorrect index name 'b'
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  `e` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `dc` (`d`,`c`),
+  KEY `b` (`b`),
+  KEY `c` (`c`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE CASCADE,
+  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`c`),
+  CONSTRAINT `t2_ibfk_3` FOREIGN KEY (`d`) REFERENCES `t4` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+delete from t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+drop index dc on t4;
+ERROR 42000: Can't DROP 'dc'; check that column/key exists
+alter table t3 drop foreign key dc;
+ERROR HY000: Error on rename of './test/t3' to '#sql2-temporary' (errno: 152)
+alter table t4 drop foreign key dc;
+select * from t2;
+a	b	c	d	e
+1	1	1	1	1
+delete from t1;
+select * from t2;
+a	b	c	d	e
+drop table t2,t4,t3,t1;
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb default charset=utf8;
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
+commit;
+alter table t1 add unique index (b);
+ERROR 23000: Duplicate entry '2' for key 'b'
+insert into t1 values(8,9,'fff','fff');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+alter table t1 add index (b);
+insert into t1 values(10,10,'kkk','iii');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+10	10	kkk	iii
+select * from t1 force index(b) order by b;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+10	10	kkk	iii
+explain select * from t1 force index(b) order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	6	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+alter table t1 add unique index (c), add index (d);
+insert into t1 values(11,11,'aaa','mmm');
+select * from t1;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+10	10	kkk	iii
+11	11	aaa	mmm
+select * from t1 force index(b) order by b;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+10	10	kkk	iii
+11	11	aaa	mmm
+select * from t1 force index(c) order by c;
+a	b	c	d
+11	11	aaa	mmm
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+10	10	kkk	iii
+select * from t1 force index(d) order by d;
+a	b	c	d
+1	1	ab	ab
+2	2	ac	ac
+3	2	ad	ad
+4	4	afe	afe
+8	9	fff	fff
+10	10	kkk	iii
+11	11	aaa	mmm
+explain select * from t1 force index(b) order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	7	
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	31	NULL	7	
+explain select * from t1 force index(d) order by d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	d	63	NULL	7	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `c` (`c`),
+  KEY `b` (`b`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1(a int not null, b int) engine = innodb;
+insert into t1 values (1,1),(1,1),(1,1),(1,1);
+alter table t1 add unique index (a);
+ERROR 23000: Duplicate entry '1' for key 'a'
+alter table t1 add unique index (b);
+ERROR 23000: Duplicate entry '1' for key 'b'
+alter table t1 add unique index (a), add unique index(b);
+ERROR 23000: Duplicate entry '1' for key 'a'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, c int not null,b int, primary key(a), unique key(c), key(b)) engine = innodb;
+alter table t1 drop index c, drop index b;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, b int, primary key(a)) engine = innodb;
+alter table t1 add index (b);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
+alter table t1 add unique index (b), add unique index (c), add unique index (d);
+ERROR 23000: Duplicate entry '4' for key 'b'
+alter table t1 add unique index (c), add unique index (b), add index (d);
+ERROR 23000: Duplicate entry 'ac' for key 'c'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `d` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a int not null, b int not null, c int, primary key (a), key(c)) engine=innodb;
+insert into t1 values (5,1,5),(4,2,4),(3,3,3),(2,4,2),(1,5,1);
+alter table t1 add unique index (b);
+insert into t1 values (10,20,20),(11,19,19),(12,18,18),(13,17,17);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+explain select * from t1 force index(c) order by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	c	5	NULL	9	
+explain select * from t1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	9	
+explain select * from t1 force index(b) order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	4	NULL	9	
+select * from t1 order by a;
+a	b	c
+1	5	1
+2	4	2
+3	3	3
+4	2	4
+5	1	5
+10	20	20
+11	19	19
+12	18	18
+13	17	17
+select * from t1 force index(b) order by b;
+a	b	c
+5	1	5
+4	2	4
+3	3	3
+2	4	2
+1	5	1
+13	17	17
+12	18	18
+11	19	19
+10	20	20
+select * from t1 force index(c) order by c;
+a	b	c
+1	5	1
+2	4	2
+3	3	3
+4	2	4
+5	1	5
+13	17	17
+12	18	18
+11	19	19
+10	20	20
+drop table t1;
+create table t1(a int not null, b int not null) engine=innodb;
+insert into t1 values (1,1);
+alter table t1 add primary key(b);
+insert into t1 values (2,2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select * from t1;
+a	b
+1	1
+2	2
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+explain select * from t1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using filesort
+explain select * from t1 order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	
+checksum table t1;
+Table	Checksum
+test.t1	582702641
+drop table t1;
+create table t1(a int not null) engine=innodb;
+insert into t1 values (1);
+alter table t1 add primary key(a);
+insert into t1 values (2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+commit;
+select * from t1;
+a
+1
+2
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	Using index
+explain select * from t1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	Using index
+drop table t1;
+create table t2(d varchar(17) primary key) engine=innodb default charset=utf8;
+create table t3(a int primary key) engine=innodb;
+insert into t3 values(22),(44),(33),(55),(66);
+insert into t2 values ('jejdkrun87'),('adfd72nh9k'),
+('adfdpplkeock'),('adfdijnmnb78k'),('adfdijn0loKNHJik');
+create table t1(a int, b blob, c text, d text not null)
+engine=innodb default charset = utf8;
+insert into t1
+select a,left(repeat(d,100*a),65535),repeat(d,20*a),d from t2,t3;
+drop table t2, t3;
+select count(*) from t1 where a=44;
+count(*)
+5
+select a,
+length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
+a	length(b)	b=left(repeat(d,100*a),65535)	length(c)	c=repeat(d,20*a)	d
+22	22000	1	4400	1	adfd72nh9k
+22	35200	1	7040	1	adfdijn0loKNHJik
+22	28600	1	5720	1	adfdijnmnb78k
+22	26400	1	5280	1	adfdpplkeock
+22	22000	1	4400	1	jejdkrun87
+33	33000	1	6600	1	adfd72nh9k
+33	52800	1	10560	1	adfdijn0loKNHJik
+33	42900	1	8580	1	adfdijnmnb78k
+33	39600	1	7920	1	adfdpplkeock
+33	33000	1	6600	1	jejdkrun87
+44	44000	1	8800	1	adfd72nh9k
+44	65535	1	14080	1	adfdijn0loKNHJik
+44	57200	1	11440	1	adfdijnmnb78k
+44	52800	1	10560	1	adfdpplkeock
+44	44000	1	8800	1	jejdkrun87
+55	55000	1	11000	1	adfd72nh9k
+55	65535	1	17600	1	adfdijn0loKNHJik
+55	65535	1	14300	1	adfdijnmnb78k
+55	65535	1	13200	1	adfdpplkeock
+55	55000	1	11000	1	jejdkrun87
+66	65535	1	13200	1	adfd72nh9k
+66	65535	1	21120	1	adfdijn0loKNHJik
+66	65535	1	17160	1	adfdijnmnb78k
+66	65535	1	15840	1	adfdpplkeock
+66	65535	1	13200	1	jejdkrun87
+alter table t1 add primary key (a), add key (b(20));
+ERROR 23000: Duplicate entry '22' for key 'PRIMARY'
+delete from t1 where a%2;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+alter table t1 add primary key (a,b(255),c(255)), add key (b(767));
+select count(*) from t1 where a=44;
+count(*)
+5
+select a,
+length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
+a	length(b)	b=left(repeat(d,100*a),65535)	length(c)	c=repeat(d,20*a)	d
+22	22000	1	4400	1	adfd72nh9k
+22	35200	1	7040	1	adfdijn0loKNHJik
+22	28600	1	5720	1	adfdijnmnb78k
+22	26400	1	5280	1	adfdpplkeock
+22	22000	1	4400	1	jejdkrun87
+44	44000	1	8800	1	adfd72nh9k
+44	65535	1	14080	1	adfdijn0loKNHJik
+44	57200	1	11440	1	adfdijnmnb78k
+44	52800	1	10560	1	adfdpplkeock
+44	44000	1	8800	1	jejdkrun87
+66	65535	1	13200	1	adfd72nh9k
+66	65535	1	21120	1	adfdijn0loKNHJik
+66	65535	1	17160	1	adfdijnmnb78k
+66	65535	1	15840	1	adfdpplkeock
+66	65535	1	13200	1	jejdkrun87
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` blob NOT NULL,
+  `c` text NOT NULL,
+  `d` text NOT NULL,
+  PRIMARY KEY (`a`,`b`(255),`c`(255)),
+  KEY `b` (`b`(767))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+explain select * from t1 where b like 'adfd%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	15	Using where
+create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
+insert into t2 select a,left(b,255) from t1;
+drop table t1;
+rename table t2 to t1;
+set innodb_lock_wait_timeout=1;
+begin;
+select a from t1 limit 1 for update;
+a
+22
+set innodb_lock_wait_timeout=1;
+create index t1ba on t1 (b,a);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+begin;
+select a from t1 limit 1 lock in share mode;
+a
+22
+create index t1ba on t1 (b,a);
+drop index t1ba on t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+explain select a from t1 order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	t1ba	261	NULL	15	Using index
+select a,sleep(2+a/100) from t1 order by b limit 3;
+select sleep(1);
+sleep(1)
+0
+drop index t1ba on t1;
+a	sleep(2+a/100)
+22	0
+44	0
+66	0
+explain select a from t1 order by b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	261	NULL	15	Using index; Using filesort
+select a from t1 order by b limit 3;
+a
+22
+66
+44
+commit;
+drop table t1;
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
+create table t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,h blob,
+i blob,j blob,k blob,l blob,m blob,n blob,o blob,p blob,
+q blob,r blob,s blob,t blob,u blob)
+engine=innodb row_format=dynamic;
+create index t1a on t1 (a(1));
+create index t1b on t1 (b(1));
+create index t1c on t1 (c(1));
+create index t1d on t1 (d(1));
+create index t1e on t1 (e(1));
+create index t1f on t1 (f(1));
+create index t1g on t1 (g(1));
+create index t1h on t1 (h(1));
+create index t1i on t1 (i(1));
+create index t1j on t1 (j(1));
+create index t1k on t1 (k(1));
+create index t1l on t1 (l(1));
+create index t1m on t1 (m(1));
+create index t1n on t1 (n(1));
+create index t1o on t1 (o(1));
+create index t1p on t1 (p(1));
+create index t1q on t1 (q(1));
+create index t1r on t1 (r(1));
+create index t1s on t1 (s(1));
+create index t1t on t1 (t(1));
+create index t1u on t1 (u(1));
+ERROR HY000: Too big row
+create index t1ut on t1 (u(1), t(1));
+ERROR HY000: Too big row
+create index t1st on t1 (s(1), t(1));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob,
+  `b` blob,
+  `c` blob,
+  `d` blob,
+  `e` blob,
+  `f` blob,
+  `g` blob,
+  `h` blob,
+  `i` blob,
+  `j` blob,
+  `k` blob,
+  `l` blob,
+  `m` blob,
+  `n` blob,
+  `o` blob,
+  `p` blob,
+  `q` blob,
+  `r` blob,
+  `s` blob,
+  `t` blob,
+  `u` blob,
+  KEY `t1a` (`a`(1)),
+  KEY `t1b` (`b`(1)),
+  KEY `t1c` (`c`(1)),
+  KEY `t1d` (`d`(1)),
+  KEY `t1e` (`e`(1)),
+  KEY `t1f` (`f`(1)),
+  KEY `t1g` (`g`(1)),
+  KEY `t1h` (`h`(1)),
+  KEY `t1i` (`i`(1)),
+  KEY `t1j` (`j`(1)),
+  KEY `t1k` (`k`(1)),
+  KEY `t1l` (`l`(1)),
+  KEY `t1m` (`m`(1)),
+  KEY `t1n` (`n`(1)),
+  KEY `t1o` (`o`(1)),
+  KEY `t1p` (`p`(1)),
+  KEY `t1q` (`q`(1)),
+  KEY `t1r` (`r`(1)),
+  KEY `t1s` (`s`(1)),
+  KEY `t1t` (`t`(1)),
+  KEY `t1st` (`s`(1),`t`(1))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+create index t1u on t1 (u(1));
+ERROR HY000: Too big row
+alter table t1 row_format=compact;
+create index t1u on t1 (u(1));
+drop table t1;
+set global innodb_file_per_table=0;
+set global innodb_file_format=Antelope;
+set global innodb_file_format_check=Antelope;
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+CREATE TABLE t1(
+c1	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t2(
+c1	BIGINT(16) NOT NULL,
+c2	BIGINT(12) NOT NULL,
+c3	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3) REFERENCES t1(c1);
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `i_t2_c3_c2` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+INSERT INTO t2 VALUES(0,0,0);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`))
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0,0,0);
+DROP TABLE t2;
+CREATE TABLE t2(
+c1	BIGINT(16) NOT NULL,
+c2	BIGINT(12) NOT NULL,
+c3	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1,c2,c3)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3) REFERENCES t1(c1);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`),
+  KEY `fk_t2_ca` (`c3`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`),
+  KEY `i_t2_c3_c2` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t2 VALUES(0,0,1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`))
+INSERT INTO t2 VALUES(0,0,0);
+DELETE FROM t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`))
+DELETE FROM t2;
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1(
+c1	BIGINT(12) NOT NULL,
+c2	INT(4) NOT NULL,
+PRIMARY KEY (c2,c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t2(
+c1	BIGINT(16) NOT NULL,
+c2	BIGINT(12) NOT NULL,
+c3	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(12) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  PRIMARY KEY (`c2`,`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c2_c1 ON t2(c2, c1);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`,`c2`),
+  KEY `i_t2_c2_c1` (`c2`,`c1`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c1_c2 ON t2(c3, c1, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`,`c2`),
+  KEY `i_t2_c2_c1` (`c2`,`c1`),
+  KEY `i_t2_c3_c1_c2` (`c3`,`c1`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `i_t2_c2_c1` (`c2`,`c1`),
+  KEY `i_t2_c3_c1_c2` (`c3`,`c1`,`c2`),
+  KEY `i_t2_c3_c2` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+BEGIN;
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+CREATE INDEX t1a ON t1(a);
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+COMMIT;
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
+DROP TABLE t1;

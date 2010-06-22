@@ -2145,13 +2145,8 @@ bool
 NdbDictionary::Dictionary::supportedAlterTable(const Table & f,
 					       const Table & t)
 {
-  int ret;
-  DO_TRANS(
-    ret,
-    m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
-                               NdbTableImpl::getImpl(t))
-  );
-  return ret;
+  return m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
+                                    NdbTableImpl::getImpl(t));
 }
 
 int

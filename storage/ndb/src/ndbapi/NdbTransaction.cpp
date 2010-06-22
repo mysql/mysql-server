@@ -2533,9 +2533,11 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   op->m_key_row= key_row;
   op->m_attribute_record= attribute_record;
   op->m_attribute_row= attribute_row;
-  attribute_record->copyMask(op->m_read_mask, mask);
   op->m_abortOption=default_ao;
   op->theLockHandle = const_cast<NdbLockHandle*>(lh);
+  
+  AttributeMask readMask;
+  attribute_record->copyMask(readMask.rep.data, mask);
   
   /*
    * Handle options
@@ -2563,14 +2565,15 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
      * been asked for
      */
     if (op->getBlobHandlesNdbRecordDelete(this,
-                                          (attribute_row != NULL)) == -1)
+                                          (attribute_row != NULL),
+                                          readMask.rep.data) == -1)
       return NULL;
   }
   else if (unlikely((attribute_record->flags & NdbRecord::RecHasBlob) &&
                     (type != NdbOperation::UnlockRequest)))
   {
     /* Create blob handles for non-delete, non-unlock operations */
-    if (op->getBlobHandlesNdbRecord(this) == -1)
+    if (op->getBlobHandlesNdbRecord(this, readMask.rep.data) == -1)
       return NULL;
   }
 
@@ -2578,7 +2581,8 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
    * Now prepare the signals to be sent...
    *
    */
-  int returnCode=op->buildSignalsNdbRecord(theTCConPtr, theTransactionId);
+  int returnCode=op->buildSignalsNdbRecord(theTCConPtr, theTransactionId,
+                                           readMask.rep.data);
 
   if (returnCode)
   {

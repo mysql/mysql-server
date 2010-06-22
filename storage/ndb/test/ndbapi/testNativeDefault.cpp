@@ -30,34 +30,31 @@ static const unsigned int column_count_table1 = 8;
 static const unsigned int column_count_table2 = 2;
 static const unsigned int column_count_table3 = 2;
 
-static int connect_ndb();
-static int disconnect_ndb();
-
 static struct NdbError g_ndberror;
 static int create_table();
 
-static int connect_ndb()
+static bool
+connect_ndb()
 {
   g_cluster_connection = new Ndb_cluster_connection();
   if(g_cluster_connection->connect(12, 5, 1) != 0)
-  {
-    return NDBT_FAILED;
-  }
+    return false;
+
   g_ndb = new Ndb(g_cluster_connection, "TEST");
   g_ndb->init();
-  if(g_ndb->waitUntilReady(30) == 0){
-    return NDBT_OK;
-  }
-  return NDBT_FAILED;
+  if(g_ndb->waitUntilReady(30) != 0)
+    return false;
+
+  return true;
 }
 
-static int disconnect_ndb()                                            {
+static void
+disconnect_ndb()                                            {
   delete g_ndb;
   delete g_cluster_connection;
   g_ndb = 0;
 //  g_table = 0;
   g_cluster_connection= 0;
-  return NDBT_OK;
 }
 
 #define PRINT_ERROR(error) \
@@ -787,24 +784,41 @@ static int do_read()
 
 int main(int argc, char* argv[])
 {
-  int ret = NDBT_OK;
+  int ret;
   ndb_init();
-  connect_ndb();
-  if ((ret = create_table_error()) == NDBT_FAILED)
-   return ret;
 
-  if ((ret = create_table()) == NDBT_FAILED)
-    return ret;
-  if ((ret = do_insert()) == NDBT_FAILED)
-    return ret;
-  if ((ret = do_read()) == NDBT_FAILED)
-    return ret;
+  ndbout << "testNativeDefault started" << endl;
 
-  if ((ret = drop_table()) == NDBT_FAILED)
-    return ret;
+  if (!connect_ndb())
+  {
+    ndbout << "Failed to connect to NDB" << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  ndbout << "connected.." << endl;
+
+  ndbout << "checking create table errors..." << endl;
+  if ((ret = create_table_error()) != NDBT_OK)
+    return NDBT_ProgramExit(ret);
+
+  ndbout << "creating table..." << endl;
+  if ((ret = create_table()) != NDBT_OK)
+    return NDBT_ProgramExit(ret);
+
+  ndbout << "inserting..." << endl;
+  if ((ret = do_insert()) != NDBT_OK)
+    return NDBT_ProgramExit(ret);
+
+  ndbout << "reading..." << endl;
+  if ((ret = do_read()) != NDBT_OK)
+    return NDBT_ProgramExit(ret);
+
+  if ((ret = drop_table()) != NDBT_OK)
+    return NDBT_ProgramExit(ret);
+
+  ndbout << "done!" << endl;
 
   disconnect_ndb();
 
   ndbout << "All tests successful" << endl;
-  return NDBT_OK;
+  return NDBT_ProgramExit(NDBT_OK);
 }
