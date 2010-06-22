@@ -1,0 +1,98 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
+CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
+
+# Case 1:
+# Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
+# Slave's UUID appears in the resule of 'SHOW SLAVE HOSTS'.
+-----------------------------------------------------------------------------
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Master_id	Slave_UUID
+2	127.0.0.1	SLAVE_PORT	1	SLAVE_UUID
+
+# Case 2: 
+# After executing 'STOP SLAVE [IO_THREAD|SQL_THREAD]' successfully, Master's UUID
+# is still kept into Slave status.
+-----------------------------------------------------------------------------
+STOP SLAVE IO_THREAD;
+STOP SLAVE SQL_THREAD;
+include/start_slave.inc
+include/stop_slave.inc
+
+# Case 3:
+# Slave generates an errror and aborts, if master's UUID is
+# equal to slave's UUID unless --replicate-same-server-id
+# option is set.
+-----------------------------------------------------------------------------
+START SLAVE IO_THREAD;
+
+# slave2 is running with --replicate-same-server-id option 
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
+MASTER_PORT= MASTER_PORT,
+MASTER_USER= 'root',
+MASTER_LOG_FILE='master-bin.000001';
+include/start_slave.inc
+include/stop_slave.inc
+
+# Case 4:
+# When executing 'CHANGE MASTER ...', master's UUID and server_id will be
+# cleared if master_host or/and master_port are changed.
+# Master's UUID and server_id will not be cleared if both master_port
+# and master_host are not changed.
+-----------------------------------------------------------------------------
+START SLAVE IO_THREAD;
+include/stop_slave.inc
+
+# Only change MASTER_PORT
+CHANGE MASTER TO MASTER_PORT= 1111;
+CHANGE MASTER TO MASTER_PORT= MASTER_PORT,
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+START SLAVE IO_THREAD;
+
+# Only change MASTER_HOST
+STOP SLAVE IO_THREAD;
+CHANGE MASTER TO MASTER_HOST= 'localhost';
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+START SLAVE IO_THREAD;
+
+# Both MASTER_HOST and MASTER_PORT are changed
+STOP SLAVE IO_THREAD;
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= 1111;
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT,
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+START SLAVE IO_THREAD;
+
+# Both MASTER_HOST and MASTER_PORT are NOT changed
+STOP SLAVE IO_THREAD;
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT;
+CHANGE MASTER TO 
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+
+# Case 5:
+# After executing 'RESET SLAVE' successfully, Master's UUID is still kept 
+# into Slave status.
+-----------------------------------------------------------------------------
+RESET SLAVE;
+CHANGE MASTER TO 
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+include/start_slave.inc
+
+# Case 6:
+# Try to get the value of the MASTER_UUID from master under network disconnection
+-----------------------------------------------------------------------------
+stop slave;
+SET @@global.debug= "+d,'debug_lock.before_get_MASTER_UUID'";
+start slave;
+slave is going to hang in get_master_version_and_clock
+slave is unblocked
+SET DEBUG_SYNC='now SIGNAL signal.get_master_uuid';
+Check network error happened here
+set @@global.debug = "-d,'debug_lock.before_get_MASTER_UUID'";
+set global debug= '';
+SET DEBUG_SYNC= 'RESET';
