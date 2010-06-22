@@ -779,6 +779,7 @@ Log_event::Log_event(const char* buf,
 
 int Log_event::do_update_pos(Relay_log_info *rli)
 {
+  DBUG_ASSERT(!rli->belongs_to_client());
   /*
     rli is null when (as far as I (Guilhem) know) the caller is
     Load_log_event::do_apply_event *and* that one is called from
@@ -5025,6 +5026,9 @@ bool Rotate_log_event::write(IO_CACHE* file)
   in a A -> B -> A setup.
   The NOTES below is a wrong comment which will disappear when 4.1 is merged.
 
+  This must only be called from the Slave SQL thread, since it calls
+  flush_relay_log_info().
+
   @retval
     0	ok
 */
@@ -6073,6 +6077,9 @@ void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   were we must do this cleaning is in
   Start_log_event_v3::do_apply_event(), not here. Because if we come
   here, the master was sane.
+
+  This must only be called from the Slave SQL thread, since it calls
+  flush_relay_log_info().
 */
 int Stop_log_event::do_update_pos(Relay_log_info *rli)
 {

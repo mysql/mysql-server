@@ -316,6 +316,7 @@ static SYMBOL symbols[] = {
   { "LOW_PRIORITY",	SYM(LOW_PRIORITY)},
   { "MASTER",           SYM(MASTER_SYM)},
   { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM)},
+  { "MASTER_DELAY",     SYM(MASTER_DELAY_SYM)},
   { "MASTER_HOST",           SYM(MASTER_HOST_SYM)},
   { "MASTER_LOG_FILE",           SYM(MASTER_LOG_FILE_SYM)},
   { "MASTER_LOG_POS",           SYM(MASTER_LOG_POS_SYM)},
@@ -462,6 +463,7 @@ static SYMBOL symbols[] = {
   { "RESUME",           SYM(RESUME_SYM)},
   { "RETURN",           SYM(RETURN_SYM)},
   { "RETURNS",		SYM(RETURNS_SYM)},
+  { "REVERSE",		SYM(REVERSE_SYM)},
   { "REVOKE",		SYM(REVOKE)},
   { "RIGHT",		SYM(RIGHT)},
   { "RLIKE",		SYM(REGEXP)},	/* Like in mSQL2 */
@@ -602,6 +604,7 @@ static SYMBOL symbols[] = {
   { "WAIT",		SYM(WAIT_SYM)},
   { "WARNINGS",		SYM(WARNINGS)},
   { "WEEK",		SYM(WEEK_SYM)},
+  { "WEIGHT_STRING",	SYM(WEIGHT_STRING_SYM)},
   { "WHEN",		SYM(WHEN_SYM)},
   { "WHERE",		SYM(WHERE)},
   { "WHILE",            SYM(WHILE_SYM)},
