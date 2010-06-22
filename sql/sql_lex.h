@@ -999,7 +999,7 @@ extern const LEX_STRING null_lex_str;
 extern const LEX_STRING empty_lex_str;
 
 
-struct Sroutine_hash_entry;
+class Sroutine_hash_entry;
 
 /*
   Class representing list of all tables used by statement and other
