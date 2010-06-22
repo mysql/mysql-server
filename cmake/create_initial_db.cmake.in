@@ -58,6 +58,7 @@ SET(BOOTSTRAP_COMMAND
   --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
   --basedir=.
   --datadir=.
+  --default-storage-engine=MyISAM
   --loose-skip-innodb
   --loose-skip-ndbcluster
   --max_allowed_packet=8M
