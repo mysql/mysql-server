@@ -790,7 +790,8 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     const Item* const key_item= table->get_key_field(key_part_no);
     join_items[key_part_no]= key_item;
 
-    DBUG_ASSERT(key_item->const_item() == key_item->const_during_execution());
+    // TODO: extend to also handle ->const_during_execution() which includes 
+    // mysql parameters in addition to contant values/expressions
     if (key_item->const_item())  // ...->const_during_execution() ?
     {
       DBUG_PRINT("info", (" Item type:%d is 'const_item'", key_item->type()));
@@ -1255,10 +1256,19 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_ASSERT(item->const_item() == item->const_during_execution());
       if (item->const_item())
       {
-        // Items constant value is already propagated to Field defining
-        // the value of this key_part:
+        // Propagate Items constant value to Field containing the value of this key_part:
         Field* field= key_part->field;
-        DBUG_ASSERT(!field->is_real_null());
+        int error= const_cast<Item*>(item)->save_in_field_no_warnings(field, true);
+        if (unlikely(error))
+        {
+          DBUG_PRINT("info", ("Failed to store constant Item into Field -> not pushable"));
+          DBUG_RETURN(0);
+        }
+        if (field->is_real_null())
+        {
+          DBUG_PRINT("info", ("NULL constValues in key -> not pushable"));
+          DBUG_RETURN(0);
+        }
         const uchar* const ptr= (field->real_type() == MYSQL_TYPE_VARCHAR)
                 ? field->ptr + ((Field_varstring*)field)->length_bytes
                 : field->ptr;
