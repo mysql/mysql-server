@@ -415,7 +415,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   THR_LOCK_DATA **lock=sql_lock->locks;
   for (i=found=0 ; i < sql_lock->lock_count ; i++)
   {
-    if (sql_lock->locks[i]->type >= TL_WRITE_ALLOW_READ)
+    if (sql_lock->locks[i]->type > TL_WRITE_ALLOW_WRITE)
     {
       swap_variables(THR_LOCK_DATA *, *lock, sql_lock->locks[i]);
       lock++;
@@ -435,7 +435,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   for (i=found=0 ; i < sql_lock->table_count ; i++)
   {
     DBUG_ASSERT(sql_lock->table[i]->lock_position == i);
-    if ((uint) sql_lock->table[i]->reginfo.lock_type >= TL_WRITE_ALLOW_READ)
+    if ((uint) sql_lock->table[i]->reginfo.lock_type > TL_WRITE_ALLOW_WRITE)
     {
       swap_variables(TABLE *, *table, sql_lock->table[i]);
       table++;
@@ -871,6 +871,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
          before calling it. Also it cannot be called while holding
          LOCK_open mutex. Both these invariants are enforced by asserts
          in MDL_context::acquire_locks().
+   @note Initialization of MDL_request members of TABLE_LIST elements
+         is a responsibility of the caller.
 
    @retval FALSE  Success.
    @retval TRUE   Failure (OOM or thread was killed).
@@ -885,12 +887,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
-  {
-    lock_table->mdl_request.init(MDL_key::TABLE,
-                                 lock_table->db, lock_table->table_name,
-                                 MDL_EXCLUSIVE);
     mdl_requests.push_front(&lock_table->mdl_request);
-  }
 
   mdl_requests.push_front(&global_request);
 
@@ -1306,7 +1303,8 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
     old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
 				"Waiting for release of readlock");
     while (must_wait && ! thd->killed &&
-	   (!abort_on_refresh || thd->version == refresh_version))
+	   (!abort_on_refresh || !thd->open_tables ||
+            thd->open_tables->s->version == refresh_version))
     {
       DBUG_PRINT("signal", ("Waiting for COND_global_read_lock"));
       mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
