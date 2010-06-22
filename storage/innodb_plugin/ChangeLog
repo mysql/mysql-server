@@ -1,3 +1,9 @@
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54686: "field->col->mtype == type" assertion error at
+	row/row0sel.c
+
 2010-06-21	The InnoDB Team
 
 	* dict/dict0load.c, fil/fil0fil.c:
