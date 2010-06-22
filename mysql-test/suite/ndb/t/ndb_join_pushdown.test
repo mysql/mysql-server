@@ -1218,7 +1218,12 @@ select straight_join * from
   JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3
   JOIN t3 as X2 on X2.b3 = Y1.b3
   JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
-
+--sorted_result
+select straight_join * from
+  t3 as X1
+  JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3
+  JOIN t3 as X2 on X2.b3 = Y1.b3
+  JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
 
 drop table t3;
 

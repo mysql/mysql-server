@@ -1488,6 +1488,23 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, uint 
             DBUG_ASSERT(false);
             break;
         }
+
+        if (likely(pushable))
+        {
+          // There may be referrences to Field values from tables outside the scope of
+          // our pushed join which are supplied as paramValues().
+          // If any of these are NULL values, join can't be pushed
+          for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
+          {
+            Field* field= m_pushed_join->get_field_ref(i);
+            if (field->is_real_null())
+            {
+              DBUG_PRINT("info", ("paramValue is NULL, can not execute as pushed join"));
+              pushable= false;
+              break;
+            }
+          }
+        }
       }
     }
     else
@@ -1536,7 +1553,7 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
   {
     Field* field= m_pushed_join->get_field_ref(i);
     bool shrinkVarChar= is_shrinked_varchar(field);
-    DBUG_ASSERT(!field->is_real_null());
+    DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
     paramValues[paramOffs+i]= NdbQueryParamValue(field->ptr, shrinkVarChar);
   }
 
