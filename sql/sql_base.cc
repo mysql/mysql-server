@@ -16,18 +16,18 @@
 
 /* Basic functions needed by many modules */
 
+#include "sql_base.h"                           // setup_table_map
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "debug_sync.h"
-#include "sql_base.h"                           // setup_table_map
 #include "lock.h"        // broadcast_refresh, mysql_lock_remove,
                          // mysql_unlock_tables,
                          // mysql_lock_have_duplicate
 #include "sql_show.h"    // append_identifier
 #include "strfunc.h"     // find_type
 #include "parse_file.h"  // sql_parse_prepare, File_parser
-#include "sql_view.h"    // mysql_frm_type, mysql_make_view, VIEW_ANY_ACL
+#include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
 #include "sql_insert.h"  // kill_delayed_threads
 #include "sql_acl.h"     // *_ACL, check_grant_all_columns,
@@ -52,6 +52,7 @@
 #include <hash.h>
 #include "rpl_filter.h"
 #include "sql_table.h"                          // build_table_filename
+#include "datadict.h"   // dd_frm_type()
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -438,6 +439,9 @@ static void table_def_unuse_table(TABLE *table)
 {
   DBUG_ASSERT(table->in_use);
 
+  /* We shouldn't put the table to 'unused' list if the share is old. */
+  DBUG_ASSERT(! table->s->needs_reopen());
+
   table->in_use= 0;
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);
@@ -564,7 +568,9 @@ found:
     DBUG_RETURN(0);
   }
 
-  if (!share->ref_count++ && share->prev)
+  ++share->ref_count;
+
+  if (share->ref_count == 1 && share->prev)
   {
     /*
       Share was not used before and it was in the old_unused_share list
@@ -691,7 +697,6 @@ static TABLE_SHARE
 
 void release_table_share(TABLE_SHARE *share)
 {
-  bool to_be_deleted= 0;
   DBUG_ENTER("release_table_share");
   DBUG_PRINT("enter",
              ("share: 0x%lx  table: %s.%s  ref_count: %u  version: %lu",
@@ -703,9 +708,8 @@ void release_table_share(TABLE_SHARE *share)
   DBUG_ASSERT(share->ref_count);
   if (!--share->ref_count)
   {
-    if (share->version != refresh_version ||
-        table_def_shutdown_in_progress)
-      to_be_deleted=1;
+    if (share->needs_reopen() || table_def_shutdown_in_progress)
+      my_hash_delete(&table_def_cache, (uchar*) share);
     else
     {
       /* Link share last in used_table_share list */
@@ -717,15 +721,14 @@ void release_table_share(TABLE_SHARE *share)
       end_of_unused_share.prev= &share->next;
       share->next= &end_of_unused_share;
 
-      to_be_deleted= (table_def_cache.records > table_def_size);
+      if (table_def_cache.records > table_def_size)
+      {
+        /* Delete the least used share to preserve LRU order. */
+        my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+      }
     }
   }
 
-  if (to_be_deleted)
-  {
-    DBUG_PRINT("info", ("Deleting share"));
-    my_hash_delete(&table_def_cache, (uchar*) share);
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -840,7 +843,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
     I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
     while (it++)
       ++(*start_list)->in_use;
-    (*start_list)->locked= (share->version == 0) ? 1 : 0;
+    (*start_list)->locked= 0;                   /* Obsolete. */
     start_list= &(*start_list)->next;
     *start_list=0;
   }
@@ -1029,6 +1032,9 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     TABLE_LIST *tables_to_reopen= (tables ? tables :
                                   thd->locked_tables_list.locked_tables());
 
+    /* Close open HANLER instances to avoid self-deadlock. */
+    mysql_ha_flush_tables(thd, tables_to_reopen);
+
     for (TABLE_LIST *table_list= tables_to_reopen; table_list;
          table_list= table_list->next_global)
     {
@@ -1056,7 +1062,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   {
     found= FALSE;
     /*
-      To avoid self and other kinds of deadlock we have to flush open HANDLERs.
+      To a self-deadlock or deadlocks with other FLUSH threads
+      waiting on our open HANDLERs, we have to flush them.
     */
     mysql_ha_flush(thd);
     DEBUG_SYNC(thd, "after_flush_unlock");
@@ -1071,7 +1078,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
       {
         TABLE_SHARE *share=(TABLE_SHARE*) my_hash_element(&table_def_cache,
                                                           idx);
-        if (share->version != refresh_version)
+        if (share->needs_reopen())
         {
           found= TRUE;
           break;
@@ -1083,7 +1090,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
       for (TABLE_LIST *table= tables; table; table= table->next_local)
       {
         TABLE_SHARE *share= get_cached_table_share(table->db, table->table_name);
-        if (share && share->version != refresh_version)
+        if (share && share->needs_reopen())
         {
 	  found= TRUE;
           break;
@@ -1301,29 +1308,21 @@ static void close_open_tables(THD *thd)
 
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  mysql_mutex_lock(&LOCK_open);
-
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
   while (thd->open_tables)
     found_old_table|= close_thread_table(thd, &thd->open_tables);
 
-  /* Free tables to hold down open files */
-  while (table_cache_count > table_cache_size && unused_tables)
-    free_cache_entry(unused_tables);
   if (found_old_table)
   {
     /* Tell threads waiting for refresh that something has happened */
     broadcast_refresh();
   }
-
-  mysql_mutex_unlock(&LOCK_open);
 }
 
 
 /**
-  Close all open instances of the table but keep the MDL lock,
-  if any.
+  Close all open instances of the table but keep the MDL lock.
 
   Works both under LOCK TABLES and in the normal mode.
   Removes all closed instances of the table from the table cache.
@@ -1337,6 +1336,8 @@ static void close_open_tables(THD *thd)
                      In that case the documented behaviour is to
                      implicitly remove the table from LOCK TABLES
                      list.
+
+  @pre Must be called with an X MDL lock on the table.
 */
 
 void
@@ -1345,17 +1346,12 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length= share->table_cache_key.length;
+  const char *db= key;
+  const char *table_name= db + share->db.length + 1;
 
   memcpy(key, share->table_cache_key.str, key_length);
 
   mysql_mutex_assert_not_owner(&LOCK_open);
-  /*
-    We need to hold LOCK_open while changing the open_tables
-    list, since another thread may work on it.
-    @sa mysql_notify_thread_having_shared_lock()
-  */
-  mysql_mutex_lock(&LOCK_open);
-
   for (TABLE **prev= &thd->open_tables; *prev; )
   {
     TABLE *table= *prev;
@@ -1363,10 +1359,9 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     if (table->s->table_cache_key.length == key_length &&
         !memcmp(table->s->table_cache_key.str, key, key_length))
     {
-      /* Inform handler that table will be dropped after close */
-      if (table->db_stat)
-        table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-
+      thd->locked_tables_list.unlink_from_list(thd,
+                                               table->pos_in_locked_tables,
+                                               remove_from_locked_tables);
       /*
         Does nothing if the table is not locked.
         This allows one to use this function after a table
@@ -1374,12 +1369,9 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       */
       mysql_lock_remove(thd, thd->lock, table);
 
-      thd->locked_tables_list.unlink_from_list(thd,
-                                               table->pos_in_locked_tables,
-                                               remove_from_locked_tables);
-
-      /* Make sure the table is removed from the cache */
-      table->s->version= 0;
+      /* Inform handler that table will be dropped after close */
+      if (table->db_stat) /* Not true for partitioned tables. */
+        table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
       close_thread_table(thd, prev);
     }
     else
@@ -1388,9 +1380,15 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       prev= &table->next;
     }
   }
-  /* We have been removing tables from the table cache. */
-  broadcast_refresh();
+  /* Remove the table share from the cache. */
+  mysql_mutex_lock(&LOCK_open);
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name);
   mysql_mutex_unlock(&LOCK_open);
+  /*
+    There could be a FLUSH thread waiting
+    on the table to go away. Wake it up.
+  */
+  broadcast_refresh();
 }
 
 
@@ -1589,30 +1587,43 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
-  mysql_mutex_assert_owner(&LOCK_open);
-
-  *table_ptr=table->next;
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   table->mdl_ticket= NULL;
-  if (table->s->needs_reopen() ||
-      thd->version != refresh_version || table->needs_reopen() ||
+
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  *table_ptr=table->next;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+  if (! table->needs_reopen())
+  {
+    /* Avoid having MERGE tables with attached children in unused_tables. */
+    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+    /* Free memory and reset for next loop. */
+    free_field_buffers_larger_than(table, MAX_TDC_BLOB_SIZE);
+    table->file->ha_reset();
+  }
+
+  mysql_mutex_lock(&LOCK_open);
+
+  if (table->s->needs_reopen() || table->needs_reopen() ||
       table_def_shutdown_in_progress)
   {
     free_cache_entry(table);
-    found_old_table=1;
+    found_old_table= 1;
   }
   else
   {
-    /* Avoid to have MERGE tables with attached children in unused_tables. */
     DBUG_ASSERT(table->file);
-    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
-
-    /* Free memory and reset for next loop */
-    free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
-    
-    table->file->ha_reset();
     table_def_unuse_table(table);
+    /*
+      We free the least used table, not the subject table,
+      to keep the LRU order.
+    */
+    if (table_cache_count > table_cache_size)
+      free_cache_entry(unused_tables);
   }
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(found_old_table);
 }
 
@@ -2233,14 +2244,15 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     DBUG_ASSERT(table == thd->open_tables);
 
     handlerton *table_type= table->s->db_type();
-    /* Ensure the table is removed from the cache. */
-    table->s->version= 0;
 
-    mysql_mutex_lock(&LOCK_open);
     table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     close_thread_table(thd, &thd->open_tables);
-    quick_rm_table(table_type, db_name, table_name, 0);
+    /* Remove the table share from the table cache. */
+    mysql_mutex_lock(&LOCK_open);
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db_name, table_name);
     mysql_mutex_unlock(&LOCK_open);
+    /* Remove the table from the storage engine and rm the .frm. */
+    quick_rm_table(table_type, db_name, table_name, 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -2300,7 +2312,7 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
     @param[out]  exists  Out parameter which is set to TRUE if table
                          exists and to FALSE otherwise.
 
-    @note This function assumes that caller owns LOCK_open mutex.
+    @note This function acquires LOCK_open internally.
           It also assumes that the fact that there are no exclusive
           metadata locks on the table was checked beforehand.
 
@@ -2308,28 +2320,30 @@ void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
           of engines (e.g. it was created on another node of NDB cluster)
           this function will fetch and create proper .FRM file for it.
 
-    @retval  TRUE   Some error occured
+    @retval  TRUE   Some error occurred
     @retval  FALSE  No error. 'exists' out parameter set accordingly.
 */
 
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 {
   char path[FN_REFLEN + 1];
-  int rc;
+  int rc= 0;
   DBUG_ENTER("check_if_table_exists");
 
-  mysql_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_not_owner(&LOCK_open);
 
   *exists= TRUE;
 
+  mysql_mutex_lock(&LOCK_open);
+
   if (get_cached_table_share(table->db, table->table_name))
-    DBUG_RETURN(FALSE);
+    goto end;
 
   build_table_filename(path, sizeof(path) - 1, table->db, table->table_name,
                        reg_ext, 0);
 
   if (!access(path, F_OK))
-    DBUG_RETURN(FALSE);
+    goto end;
 
   /* .FRM file doesn't exist. Check if some engine can provide it. */
 
@@ -2339,19 +2353,17 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
   {
     /* Table does not exists in engines as well. */
     *exists= FALSE;
-    DBUG_RETURN(FALSE);
+    rc= 0;
   }
-  else if (!rc)
-  {
-    /* Table exists in some engine and .FRM for it was created. */
-    DBUG_RETURN(FALSE);
-  }
-  else /* (rc > 0) */
+  else if (rc)
   {
     my_printf_error(ER_UNKNOWN_ERROR, "Failed to open '%-.64s', error while "
                     "unpacking from engine", MYF(0), table->table_name);
-    DBUG_RETURN(TRUE);
   }
+
+end:
+  mysql_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(test(rc));
 }
 
 
@@ -2370,82 +2382,192 @@ void table_share_release_hook(void *share)
 
 
 /**
-   A helper function that acquires an MDL lock for a table
-   being opened.
+  An error handler which converts, if possible, ER_LOCK_DEADLOCK error
+  that can occur when we are trying to acquire a metadata lock to
+  a request for back-off and re-start of open_tables() process.
+*/
+
+class MDL_deadlock_handler : public Internal_error_handler
+{
+public:
+  MDL_deadlock_handler(Open_table_context *ot_ctx_arg)
+    : m_ot_ctx(ot_ctx_arg), m_is_active(FALSE)
+  {}
+
+  virtual ~MDL_deadlock_handler() {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl);
+
+private:
+  /** Open table context to be used for back-off request. */
+  Open_table_context *m_ot_ctx;
+  /**
+    Indicates that we are already in the process of handling
+    ER_LOCK_DEADLOCK error. Allows to re-emit the error from
+    the error handler without falling into infinite recursion.
+  */
+  bool m_is_active;
+};
+
+
+bool MDL_deadlock_handler::handle_condition(THD *,
+                                            uint sql_errno,
+                                            const char*,
+                                            MYSQL_ERROR::enum_warning_level,
+                                            const char*,
+                                            MYSQL_ERROR ** cond_hdl)
+{
+  *cond_hdl= NULL;
+  if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
+  {
+    /* Disable the handler to avoid infinite recursion. */
+    m_is_active= TRUE;
+    (void) m_ot_ctx->request_backoff_action(Open_table_context::OT_MDL_CONFLICT,
+                                            NULL);
+    m_is_active= FALSE;
+    /*
+      If the above back-off request failed, a new instance of
+      ER_LOCK_DEADLOCK error was emitted. Thus the current
+      instance of error condition can be treated as handled.
+    */
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/**
+  Try to acquire an MDL lock for a table being opened.
+
+  @param[in,out] thd      Session context, to report errors.
+  @param[out]    ot_ctx   Open table context, to hold the back off
+                          state. If we failed to acquire a lock
+                          due to a lock conflict, we add the
+                          failed request to the open table context.
+  @param[in,out] mdl_request A request for an MDL lock.
+                          If we managed to acquire a ticket
+                          (no errors or lock conflicts occurred),
+                          contains a reference to it on
+                          return. However, is not modified if MDL
+                          lock type- modifying flags were provided.
+  @param[in]    flags flags MYSQL_OPEN_FORCE_SHARED_MDL,
+                          MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL or
+                          MYSQL_OPEN_FAIL_ON_MDL_CONFLICT
+                          @sa open_table().
+  @param[out]   mdl_ticket Only modified if there was no error.
+                          If we managed to acquire an MDL
+                          lock, contains a reference to the
+                          ticket, otherwise is set to NULL.
+
+  @retval TRUE  An error occurred.
+  @retval FALSE No error, but perhaps a lock conflict, check mdl_ticket.
 */
 
 static bool
-open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
+open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
                         MDL_request *mdl_request,
-                        Open_table_context *ot_ctx,
-                        uint flags)
+                        uint flags,
+                        MDL_ticket **mdl_ticket)
 {
-  if (table_list->lock_strategy)
+  if (flags & (MYSQL_OPEN_FORCE_SHARED_MDL |
+               MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
-    MDL_request_list mdl_requests;
-    MDL_request *global_request;
     /*
-      In case of CREATE TABLE .. If NOT EXISTS .. SELECT, the table
-      may not yet exist. Let's acquire an exclusive lock for that
-      case. If later it turns out the table existsed, we will
-      downgrade the lock to shared. Note that, according to the
-      locking protocol, all exclusive locks must be acquired before
-      shared locks. This invariant is preserved here and is also
-      enforced by asserts in metadata locking subsystem.
+      MYSQL_OPEN_FORCE_SHARED_MDL flag means that we are executing
+      PREPARE for a prepared statement and want to override
+      the type-of-operation aware metadata lock which was set
+      in the parser/during view opening with a simple shared
+      metadata lock.
+      This is necessary to allow concurrent execution of PREPARE
+      and LOCK TABLES WRITE statement against the same table.
+
+      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL flag means that we open
+      the table in order to get information about it for one of I_S
+      queries and also want to override the type-of-operation aware
+      shared metadata lock which was set earlier (e.g. during view
+      opening) with a high-priority shared metadata lock.
+      This is necessary to avoid unnecessary waiting and extra
+      ER_WARN_I_S_SKIPPED_TABLE warnings when accessing I_S tables.
+
+      These two flags are mutually exclusive.
     */
+    DBUG_ASSERT(!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) ||
+                !(flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL));
 
-    mdl_request->set_type(MDL_EXCLUSIVE);
-    DBUG_ASSERT(! thd->mdl_context.has_locks() ||
-                thd->handler_tables_hash.records ||
-                thd->global_read_lock.is_acquired());
+    mdl_request= new (thd->mem_root) MDL_request(mdl_request);
+    if (mdl_request == NULL)
+      return TRUE;
 
-    if (!(global_request= ot_ctx->get_global_mdl_request(thd)))
-      return 1;
+    mdl_request->set_type((flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
+                          MDL_SHARED : MDL_SHARED_HIGH_PRIO);
+  }
 
-    mdl_requests.push_front(mdl_request);
-    mdl_requests.push_front(global_request);
+  ot_ctx->add_request(mdl_request);
 
-    if (thd->mdl_context.acquire_locks(&mdl_requests, ot_ctx->get_timeout()))
-      return 1;
+  if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
+  {
+    /*
+      When table is being open in order to get data for I_S table,
+      we might have some tables not only open but also locked (e.g. when
+      this happens under LOCK TABLES or in a stored function).
+      As a result by waiting on a conflicting metadata lock to go away
+      we may create a deadlock which won't entirely belong to the
+      MDL subsystem and thus won't be detectable by this subsystem's
+      deadlock detector.
+      To avoid such situation we skip the trouble-making table if
+      there is a conflicting lock.
+    */
+    if (thd->mdl_context.try_acquire_lock(mdl_request))
+      return TRUE;
+    if (mdl_request->ticket == NULL)
+    {
+      my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
+               mdl_request->key.db_name(), mdl_request->key.name());
+      return TRUE;
+    }
   }
   else
   {
-    if (flags & MYSQL_OPEN_FORCE_SHARED_MDL)
-    {
-      /*
-        While executing PREPARE for prepared statement we override
-        type-of-operation aware type of shared metadata lock which
-        was set in the parser with simple shared metadata lock.
-        This is necessary to allow concurrent execution of PREPARE
-        and LOCK TABLES WRITE statement which locks one of the tables
-        used in the statement being prepared.
-      */
-      DBUG_ASSERT(!(flags & (MYSQL_OPEN_TAKE_UPGRADABLE_MDL |
-                             MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)));
+    /*
+      We are doing a normal table open. Let us try to acquire a metadata
+      lock on the table. If there is a conflicting lock, acquire_lock()
+      will wait for it to go away. Sometimes this waiting may lead to a
+      deadlock, with the following results:
+      1) If a deadlock is entirely within MDL subsystem, it is
+         detected by the deadlock detector of this subsystem.
+         ER_LOCK_DEADLOCK error is produced. Then, the error handler
+         that is installed prior to the call to acquire_lock() attempts
+         to request a back-off and retry. Upon success, ER_LOCK_DEADLOCK
+         error is suppressed, otherwise propagated up the calling stack.
+      2) Otherwise, a deadlock may occur when the wait-for graph
+         includes edges not visible to the MDL deadlock detector.
+         One such example is a wait on an InnoDB row lock, e.g. when:
+         conn C1 gets SR MDL lock on t1 with SELECT * FROM t1
+         conn C2 gets a row lock on t2 with  SELECT * FROM t2 FOR UPDATE
+         conn C3 gets in and waits on C1 with DROP TABLE t0, t1
+         conn C2 continues and blocks on C3 with SELECT * FROM t0
+         conn C1 deadlocks by waiting on C2 by issuing SELECT * FROM
+         t2 LOCK IN SHARE MODE.
+         Such circular waits are currently only resolved by timeouts,
+         e.g. @@innodb_lock_wait_timeout or @@lock_wait_timeout.
+    */
+    MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
 
-      mdl_request->set_type(MDL_SHARED);
-    }
-    else if (flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)
-    {
-      DBUG_ASSERT(!(flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL));
-      mdl_request->set_type(MDL_SHARED_HIGH_PRIO);
-    }
+    thd->push_internal_handler(&mdl_deadlock_handler);
+    bool result= thd->mdl_context.acquire_lock(mdl_request,
+                                               ot_ctx->get_timeout());
+    thd->pop_internal_handler();
 
-    ot_ctx->add_request(mdl_request);
-
-    if (thd->mdl_context.try_acquire_lock(mdl_request))
-      return 1;
-
-    if (mdl_request->ticket == NULL)
-    {
-      if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
-        my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0), table_list->db, table_list->table_name);
-      else
-        ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_MDL_LOCK);
-      return 1;
-    }
+    if (result && !ot_ctx->can_recover_from_failed_open())
+      return TRUE;
   }
-  return 0;
+  *mdl_ticket= mdl_request->ticket;
+  return FALSE;
 }
 
 
@@ -2480,11 +2602,9 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
     is never opened. In both cases, metadata locks are always taken according
     to the lock strategy.
 
-    This function will take a exclusive metadata lock on the table if
-    TABLE_LIST::lock_strategy is EXCLUSIVE_DOWNGRADABLE_MDL or EXCLUSIVE_MDL.
-    If the lock strategy is EXCLUSIVE_DOWNGRADABLE_MDL and opening the table
-    is successful, the exclusive metadata lock is downgraded to a shared
-    lock.
+    If the lock strategy is OTLS_DOWNGRADE_IF_EXISTS and opening the table
+    is successful, the exclusive metadata lock acquired by the caller
+    is downgraded to a shared lock.
 
   RETURN
     TRUE  Open failed. "action" parameter may contain type of action
@@ -2496,13 +2616,13 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
 
 
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-                Open_table_context *ot_ctx, uint flags)
+                Open_table_context *ot_ctx)
 {
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   char	*alias= table_list->alias;
-  MDL_request *mdl_request;
+  uint flags= ot_ctx->get_flags();
   MDL_ticket *mdl_ticket;
   int error;
   TABLE_SHARE *share;
@@ -2538,9 +2658,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     if (thd->global_read_lock.wait_if_global_read_lock(thd, 1, 1))
       DBUG_RETURN(TRUE);
 
-    if (thd->version != refresh_version)
+    if (thd->open_tables && thd->open_tables->s->version != refresh_version)
     {
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
+      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
+                                            NULL);
       DBUG_RETURN(TRUE);
     }
   }
@@ -2684,7 +2805,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         during prelocking process (in this case in theory we still
         should hold shared metadata lock on it).
       */
-      if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
+      if (dd_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
                            mem_root, 0))
@@ -2713,66 +2834,45 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     This is the normal use case.
   */
 
-  mdl_request= &table_list->mdl_request;
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
-    if (open_table_get_mdl_lock(thd, table_list, mdl_request, ot_ctx, flags))
+    if (open_table_get_mdl_lock(thd, ot_ctx, &table_list->mdl_request,
+                                flags, &mdl_ticket) ||
+        mdl_ticket == NULL)
     {
       DEBUG_SYNC(thd, "before_open_table_wait_refresh");
       DBUG_RETURN(TRUE);
     }
     DEBUG_SYNC(thd, "after_open_table_mdl_shared");
   }
-
-  /*
-    Grab reference to the granted MDL lock ticket. Must be done after
-    open_table_get_mdl_lock as the lock on the table might have been
-    acquired previously (MYSQL_OPEN_HAS_MDL_LOCK).
-  */
-  mdl_ticket= mdl_request->ticket;
+  else
+  {
+    /*
+      Grab reference to the MDL lock ticket that was acquired
+      by the caller.
+    */
+    mdl_ticket= table_list->mdl_request.ticket;
+  }
 
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
-  mysql_mutex_lock(&LOCK_open);
 
-  /*
-    If it's the first table from a list of tables used in a query,
-    remember refresh_version (the version of open_cache state).
-    If the version changes while we're opening the remaining tables,
-    we will have to back off, close all the tables opened-so-far,
-    and try to reopen them.
-    Note: refresh_version is currently changed only during FLUSH TABLES.
-  */
-  if (!thd->open_tables)
-    thd->version=refresh_version;
-  else if ((thd->version != refresh_version) &&
-           ! (flags & MYSQL_OPEN_IGNORE_FLUSH))
-  {
-    /* Someone did a refresh while thread was opening tables */
-    mysql_mutex_unlock(&LOCK_open);
-    (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
-    DBUG_RETURN(TRUE);
-  }
 
   if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS)
   {
     bool exists;
 
     if (check_if_table_exists(thd, table_list, &exists))
-      goto err_unlock2;
+      DBUG_RETURN(TRUE);
 
     if (!exists)
-    {
-      mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(FALSE);
-    }
+
     /* Table exists. Let us try to open it. */
   }
   else if (table_list->open_strategy == TABLE_LIST::OPEN_STUB)
-  {
-    mysql_mutex_unlock(&LOCK_open);
     DBUG_RETURN(FALSE);
-  }
 
+  mysql_mutex_lock(&LOCK_open);
 #ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
   if (!(share= (TABLE_SHARE *) mdl_ticket->get_cached_object()))
 #endif
@@ -2794,7 +2894,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         my_error(ER_WRONG_MRG_TABLE, MYF(0));
         goto err_unlock;
       }
-      
+
       /*
         This table is a view. Validate its metadata version: in particular,
         that it was a view when the statement was prepared.
@@ -2808,26 +2908,15 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       if (open_new_frm(thd, share, alias,
                        (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                HA_GET_INDEX | HA_TRY_READ_ONLY),
-                       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
-                       (flags & OPEN_VIEW_NO_PARSE), thd->open_options,
+                       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                       thd->open_options,
                        0, table_list, mem_root))
         goto err_unlock;
 
       /* TODO: Don't free this */
       release_table_share(share);
 
-      if (flags & OPEN_VIEW_NO_PARSE)
-      {
-        /*
-          VIEW not really opened, only frm were read.
-          Set 1 as a flag here
-        */
-        table_list->view= (LEX*)1;
-      }
-      else
-      {
-        DBUG_ASSERT(table_list->view);
-      }
+      DBUG_ASSERT(table_list->view);
 
       mysql_mutex_unlock(&LOCK_open);
       DBUG_RETURN(FALSE);
@@ -2874,7 +2963,15 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
 #endif
 
-  if (share->version != refresh_version)
+
+  /*
+    If the version changes while we're opening the tables,
+    we have to back off, close all the tables opened-so-far,
+    and try to reopen them. Note: refresh_version is currently
+    changed only during FLUSH TABLES.
+  */
+  if (share->needs_reopen() ||
+      (thd->open_tables && thd->open_tables->s->version != share->version))
   {
     if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
     {
@@ -2890,11 +2987,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
        */
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
+      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
+                                            NULL);
       DBUG_RETURN(TRUE);
     }
-    /* Force close at once after usage */
-    thd->version= share->version;
   }
 
   if (!share->free_tables.is_empty())
@@ -2910,9 +3006,11 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     while (table_cache_count > table_cache_size && unused_tables)
       free_cache_entry(unused_tables);
 
+    mysql_mutex_unlock(&LOCK_open);
+
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
-      goto err_unlock;
+      goto err_lock;
 
     error= open_table_from_share(thd, share, alias,
                                  (uint) (HA_OPEN_KEYFILE |
@@ -2928,26 +3026,23 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       my_free(table, MYF(0));
 
       if (error == 7)
-      {
-        share->version= 0;
-        (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER);
-      }
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
+                                              table_list);
       else if (share->crashed)
-      {
-        share->version= 0;
-        (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR);
-      }
+        (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
+                                              table_list);
 
-      goto err_unlock;
+      goto err_lock;
     }
 
     if (open_table_entry_fini(thd, share, table))
     {
       closefrm(table, 0);
       my_free((uchar*)table, MYF(0));
-      goto err_unlock;
+      goto err_lock;
     }
 
+    mysql_mutex_lock(&LOCK_open);
     /* Add table to the share's used tables list. */
     table_def_add_used_table(thd, table);
   }
@@ -2959,14 +3054,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     table exists now we should downgrade our exclusive metadata
     lock on this table to SW metadata lock.
   */
-  if (table_list->lock_strategy == TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL &&
+  if (table_list->lock_strategy == TABLE_LIST::OTLS_DOWNGRADE_IF_EXISTS &&
       !(flags & MYSQL_OPEN_HAS_MDL_LOCK))
     mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_WRITE);
 
   table->mdl_ticket= mdl_ticket;
 
-  table->next=thd->open_tables;		/* Link into simple list */
-  thd->open_tables=table;
+  table->next= thd->open_tables;		/* Link into simple list */
+  thd->set_open_tables(table);
 
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
@@ -3009,6 +3104,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     table->file->extra(HA_EXTRA_DETACH_CHILDREN);
   DBUG_RETURN(FALSE);
 
+err_lock:
+  mysql_mutex_lock(&LOCK_open);
 err_unlock:
   release_table_share(share);
 err_unlock2:
@@ -3306,7 +3403,6 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
   */
   if (reopen_count)
   {
-    mysql_mutex_lock(&LOCK_open);
     while (reopen_count--)
     {
       /*
@@ -3323,7 +3419,6 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
       close_thread_table(thd, &thd->open_tables);
     }
     broadcast_refresh();
-    mysql_mutex_unlock(&LOCK_open);
   }
   /* Exclude all closed tables from the LOCK TABLES list. */
   for (TABLE_LIST *table_list= m_locked_tables; table_list; table_list=
@@ -3357,7 +3452,7 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
 bool
 Locked_tables_list::reopen_tables(THD *thd)
 {
-  Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
   size_t reopen_count= 0;
   MYSQL_LOCK *lock;
   MYSQL_LOCK *merged_lock;
@@ -3369,8 +3464,7 @@ Locked_tables_list::reopen_tables(THD *thd)
       continue;
 
     /* Links into thd->open_tables upon success */
-    if (open_table(thd, table_list, thd->mem_root, &ot_ctx_unused,
-                   MYSQL_OPEN_REOPEN))
+    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
     {
       unlink_all_closed_tables(thd, 0, reopen_count);
       return TRUE;
@@ -3725,7 +3819,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
   TABLE_SHARE *share;
   TABLE *entry;
   int not_used;
-  bool result= FALSE;
+  bool result= TRUE;
   my_hash_value_type hash_value;
 
   cache_key_length= create_table_def_key(thd, cache_key, table_list, 0);
@@ -3740,20 +3834,19 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                                            cache_key_length,
                                            OPEN_VIEW, &not_used,
                                            hash_value)))
-  {
-    mysql_mutex_unlock(&LOCK_open);
-    return TRUE;
-  }
+    goto end_unlock;
 
   if (share->is_view)
-    goto end_with_lock_open;
+  {
+    release_table_share(share);
+    goto end_unlock;
+  }
 
   if (!(entry= (TABLE*)my_malloc(sizeof(TABLE), MYF(MY_WME))))
   {
-    result= TRUE;
-    goto end_with_lock_open;
+    release_table_share(share);
+    goto end_unlock;
   }
-  share->version= 0;
   mysql_mutex_unlock(&LOCK_open);
 
   if (open_table_from_share(thd, share, table_list->alias,
@@ -3772,19 +3865,21 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                     share->table_name.str);
     if (entry->file)
       closefrm(entry, 0);
-    result= TRUE;
   }
   else
   {
     thd->clear_error();			// Clear error message
     closefrm(entry, 0);
+    result= FALSE;
   }
   my_free(entry, MYF(0));
 
   mysql_mutex_lock(&LOCK_open);
-
-end_with_lock_open:
   release_table_share(share);
+  /* Remove the repaired share from the table cache. */
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                   table_list->db, table_list->table_name);
+end_unlock:
   mysql_mutex_unlock(&LOCK_open);
   return result;
 }
@@ -3792,14 +3887,17 @@ end_with_lock_open:
 
 /** Open_table_context */
 
-Open_table_context::Open_table_context(THD *thd, ulong timeout)
-  :m_action(OT_NO_ACTION),
+Open_table_context::Open_table_context(THD *thd, uint flags)
+  :m_failed_table(NULL),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
+   m_global_mdl_request(NULL),
+   m_timeout(flags & MYSQL_LOCK_IGNORE_TIMEOUT ?
+             LONG_TIMEOUT : thd->variables.lock_wait_timeout),
+   m_flags(flags),
+   m_action(OT_NO_ACTION),
    m_has_locks((thd->in_multi_stmt_transaction_mode() &&
                 thd->mdl_context.has_locks()) ||
-                thd->mdl_context.trans_sentinel()),
-   m_global_mdl_request(NULL),
-   m_timeout(timeout)
+                thd->mdl_context.trans_sentinel())
 {}
 
 
@@ -3813,10 +3911,8 @@ MDL_request *Open_table_context::get_global_mdl_request(THD *thd)
 {
   if (! m_global_mdl_request)
   {
-    char *buff;
-    if ((buff= (char*)thd->alloc(sizeof(MDL_request))))
+    if ((m_global_mdl_request= new (thd->mem_root) MDL_request()))
     {
-      m_global_mdl_request= new (buff) MDL_request();
       m_global_mdl_request->init(MDL_key::GLOBAL, "", "",
                                  MDL_INTENTION_EXCLUSIVE);
     }
@@ -3835,30 +3931,51 @@ MDL_request *Open_table_context::get_global_mdl_request(THD *thd)
 
 bool
 Open_table_context::
-request_backoff_action(enum_open_table_action action_arg)
+request_backoff_action(enum_open_table_action action_arg,
+                       TABLE_LIST *table)
 {
   /*
-    We are inside a transaction that already holds locks and have
-    met a broken table or a table which needs re-discovery.
-    Performing any recovery action requires acquiring an exclusive
-    metadata lock on this table. Doing that with locks breaks the
-    metadata locking protocol and might lead to deadlocks,
-    so we report an error.
+    A back off action may be one of the three kinds:
 
-    However, if we have only met a conflicting lock or an old
-    TABLE version, and just need to wait for the conflict to
-    disappear/old version to go away, allow waiting.
-    While waiting, we use a simple empiric to detect
-    deadlocks: we never wait on someone who's waiting too.
-    Waiting will be done after releasing metadata locks acquired
-    by this statement.
+    * We met a broken table that needs repair, or a table that
+      is not present on this MySQL server and needs re-discovery.
+      To perform the action, we need an exclusive metadata lock on
+      the table. Acquiring an X lock while holding other shared
+      locks is very deadlock-prone. If this is a multi- statement
+      transaction that holds metadata locks for completed
+      statements, we don't do it, and report an error instead.
+    * Our attempt to acquire an MDL lock lead to a deadlock,
+      detected by the MDL deadlock detector. The current
+      session was chosen a victim. If this is a multi-statement
+      transaction that holds metadata locks for completed statements,
+      restarting locking for the current statement may lead
+      to a livelock. Thus, again, if m_has_locks is set,
+      we report an error. Otherwise, when there are no metadata
+      locks other than which belong to this statement, we can
+      try to recover from error by releasing all locks and
+      restarting the pre-locking.
+    * Finally, we could have met a TABLE_SHARE with old version.
+      Again, if this is a first statement in a transaction we can
+      close all tables, release all metadata locks and wait for
+      the old version to go away. Otherwise, waiting with MDL locks
+      may lead to criss-cross wait between this connection and a
+      connection that has an open table and waits on a metadata lock,
+      i.e. to a deadlock.
+      Since there is no way to detect such a deadlock, we prevent
+      it by reporting an error.
   */
-  if (m_has_locks && action_arg != OT_WAIT_MDL_LOCK)
+  if (m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     return TRUE;
   }
   m_action= action_arg;
+  /*
+    If auto-repair or discovery are requested, a pointer to table
+    list element must be provided.
+  */
+  DBUG_ASSERT((m_action != OT_DISCOVER && m_action != OT_REPAIR) || table);
+  m_failed_table= table;
   return FALSE;
 }
 
@@ -3867,10 +3984,6 @@ request_backoff_action(enum_open_table_action action_arg)
    Recover from failed attempt of open table by performing requested action.
 
    @param  thd     Thread context
-   @param  mdl_request MDL_request of the object that caused the problem.
-   @param  table   Optional (can be NULL). Used only if action is OT_REPAIR.
-                   In that case a TABLE_LIST for the table to be repaired.
-                   @todo: It's unnecessary and should be removed.
 
    @pre This function should be called only with "action" != OT_NO_ACTION
         and after having called @sa close_tables_for_reopen().
@@ -3881,8 +3994,7 @@ request_backoff_action(enum_open_table_action action_arg)
 
 bool
 Open_table_context::
-recover_from_failed_open(THD *thd, MDL_request *mdl_request,
-                         TABLE_LIST *table)
+recover_from_failed_open(THD *thd)
 {
   bool result= FALSE;
   /*
@@ -3893,8 +4005,7 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
   /* Execute the action. */
   switch (m_action)
   {
-    case OT_WAIT_MDL_LOCK:
-      result= thd->mdl_context.wait_for_lock(mdl_request, get_timeout());
+    case OT_MDL_CONFLICT:
       break;
     case OT_WAIT_TDC:
       result= tdc_wait_for_old_versions(thd, &m_mdl_requests, get_timeout());
@@ -3903,7 +4014,7 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
     case OT_DISCOVER:
       {
         MDL_request mdl_global_request;
-        MDL_request mdl_xlock_request(mdl_request);
+        MDL_request mdl_xlock_request(&m_failed_table->mdl_request);
         MDL_request_list mdl_requests;
 
         mdl_global_request.init(MDL_key::GLOBAL, "", "",
@@ -3917,14 +4028,11 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
              thd->mdl_context.acquire_locks(&mdl_requests, get_timeout())))
           break;
 
-        DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
         mysql_mutex_lock(&LOCK_open);
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
-                         mdl_request->key.db_name(),
-                         mdl_request->key.name());
-        ha_create_table_from_engine(thd,
-                                    mdl_request->key.db_name(),
-                                    mdl_request->key.name());
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
+                         m_failed_table->table_name);
+        ha_create_table_from_engine(thd, m_failed_table->db,
+                                    m_failed_table->table_name);
         mysql_mutex_unlock(&LOCK_open);
 
         thd->warning_info->clear_warning_info(thd->query_id);
@@ -3935,7 +4043,7 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
     case OT_REPAIR:
       {
         MDL_request mdl_global_request;
-        MDL_request mdl_xlock_request(mdl_request);
+        MDL_request mdl_xlock_request(&m_failed_table->mdl_request);
         MDL_request_list mdl_requests;
 
         mdl_global_request.init(MDL_key::GLOBAL, "", "",
@@ -3949,14 +4057,12 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
              thd->mdl_context.acquire_locks(&mdl_requests, get_timeout())))
           break;
 
-        DBUG_ASSERT(mdl_request->key.mdl_namespace() == MDL_key::TABLE);
         mysql_mutex_lock(&LOCK_open);
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
-                         mdl_request->key.db_name(),
-                         mdl_request->key.name());
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
+                         m_failed_table->table_name);
         mysql_mutex_unlock(&LOCK_open);
 
-        result= auto_repair_table(thd, table);
+        result= auto_repair_table(thd, m_failed_table);
         thd->mdl_context.release_transactional_locks();
         break;
       }
@@ -3965,6 +4071,12 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
   }
   /* Remove all old requests, they will be re-added. */
   m_mdl_requests.empty();
+  /*
+    Reset the pointers to conflicting MDL request and the
+    TABLE_LIST element, set when we need auto-discovery or repair,
+    for safety.
+  */
+  m_failed_table= NULL;
   /* Prepare for possible another back-off. */
   m_action= OT_NO_ACTION;
   return result;
@@ -4087,15 +4199,25 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         */
         DBUG_ASSERT(rt->mdl_request.type == MDL_SHARED);
 
-        if (thd->mdl_context.try_acquire_lock(&rt->mdl_request))
+        /*
+          Waiting for a conflicting metadata lock to go away may
+          lead to a deadlock, detected by MDL subsystem.
+          If possible, we try to resolve such deadlocks by releasing all
+          metadata locks and restarting the pre-locking process.
+          To prevent the error from polluting the diagnostics area
+          in case of successful resolution, install a special error
+          handler for ER_LOCK_DEADLOCK error.
+        */
+        MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+
+        thd->push_internal_handler(&mdl_deadlock_handler);
+        bool result= thd->mdl_context.acquire_lock(&rt->mdl_request,
+                                                   ot_ctx->get_timeout());
+        thd->pop_internal_handler();
+
+        if (result)
           DBUG_RETURN(TRUE);
 
-        if (rt->mdl_request.ticket == NULL)
-        {
-          /* A lock conflict. Someone's trying to modify SP metadata. */
-          ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_MDL_LOCK);
-          DBUG_RETURN(TRUE);
-        }
         DEBUG_SYNC(thd, "after_shared_lock_pname");
 
         /* Ensures the routine is up-to-date and cached, if exists. */
@@ -4240,12 +4362,14 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     */
     if (tables->view)
     {
+      MDL_ticket *mdl_ticket;
       /*
         We still need to take a MDL lock on the merged view to protect
         it from concurrent changes.
       */
-      if (!open_table_get_mdl_lock(thd, tables, &tables->mdl_request,
-                                   ot_ctx, flags))
+      if (!open_table_get_mdl_lock(thd, ot_ctx, &tables->mdl_request,
+                                   flags, &mdl_ticket) &&
+          mdl_ticket != NULL)
         goto process_view_routines;
       /* Fall-through to return error. */
     }
@@ -4274,12 +4398,12 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     */
     Prelock_error_handler prelock_handler;
     thd->push_internal_handler(& prelock_handler);
-    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx);
     thd->pop_internal_handler();
     safe_to_ignore_table= prelock_handler.safely_trapped_errors();
   }
   else
-    error= open_table(thd, tables, new_frm_mem, ot_ctx, flags);
+    error= open_table(thd, tables, new_frm_mem, ot_ctx);
 
   free_root(new_frm_mem, MYF(MY_KEEP_PREALLOC));
 
@@ -4435,6 +4559,8 @@ end:
                        should be acquired.
   @param tables_end    End of list of tables.
   @param ot_ctx        Context of open_tables() operation.
+  @param flags         Bitmap of flags to modify how the tables will be
+                       open, see open_table() description for details.
 
   @retval FALSE  Success.
   @retval TRUE   Failure (e.g. connection was killed)
@@ -4443,31 +4569,30 @@ end:
 static bool
 open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
                                    TABLE_LIST *tables_end,
-                                   Open_table_context *ot_ctx)
+                                   Open_table_context *ot_ctx,
+                                   uint flags)
 {
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
-  DEBUG_SYNC(thd, "open_tables_acquire_upgradable_mdl");
 
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if (table->mdl_request.type >= MDL_SHARED_NO_WRITE &&
         !(table->open_type == OT_TEMPORARY_ONLY ||
+          (flags & MYSQL_OPEN_TEMPORARY_ONLY) ||
           (table->open_type != OT_BASE_ONLY &&
+           ! (flags & MYSQL_OPEN_SKIP_TEMPORARY) &&
            find_temporary_table(thd, table))))
-    {
-      table->mdl_request.set_type(table->lock_type > TL_WRITE_ALLOW_READ ?
-                                  MDL_SHARED_NO_READ_WRITE :
-                                  MDL_SHARED_NO_WRITE);
       mdl_requests.push_front(&table->mdl_request);
-    }
   }
 
   if (! mdl_requests.is_empty())
   {
+    DEBUG_SYNC(thd, "open_tables_acquire_upgradable_mdl");
+
     MDL_request *global_request= ot_ctx->get_global_mdl_request(thd);
 
     if (global_request == NULL)
@@ -4481,11 +4606,8 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
-    {
+    if (table->mdl_request.type >= MDL_SHARED_NO_WRITE)
       table->mdl_request.ticket= NULL;
-      table->mdl_request.set_type(MDL_SHARED_WRITE);
-    }
   }
 
   return FALSE;
@@ -4501,6 +4623,8 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   @param tables_start  Start of list of tables on which upgradable locks
                        should be searched for.
   @param tables_end    End of list of tables.
+  @param flags         Bitmap of flags to modify how the tables will be
+                       open, see open_table() description for details.
 
   @retval FALSE  Success.
   @retval TRUE   Failure (e.g. connection was killed)
@@ -4508,7 +4632,7 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 
 static bool
 open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
-                                 TABLE_LIST *tables_end)
+                                 TABLE_LIST *tables_end, uint flags)
 {
   TABLE_LIST *table;
 
@@ -4517,9 +4641,11 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+    if (table->mdl_request.type >= MDL_SHARED_NO_WRITE &&
         !(table->open_type == OT_TEMPORARY_ONLY ||
+          (flags & MYSQL_OPEN_TEMPORARY_ONLY) ||
           (table->open_type != OT_BASE_ONLY &&
+           ! (flags & MYSQL_OPEN_SKIP_TEMPORARY) &&
            find_temporary_table(thd, table))))
     {
       /*
@@ -4531,8 +4657,14 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
         lock, all other instances of TABLE for the same table will have the
         same ticket.
 
-        Note that find_table_for_mdl_upgrade() will report an error if a
-        ticket is not found.
+        Note that this works OK even for CREATE TABLE statements which
+        request X type of metadata lock. This is because under LOCK TABLES
+        such statements don't create the table but only check if it exists
+        or, in most complex case, only insert into it.
+        Thus SNRW lock should be enough.
+
+        Note that find_table_for_mdl_upgrade() will report an error if
+        no suitable ticket is found.
       */
       if (!find_table_for_mdl_upgrade(thd->open_tables, table->db,
                                       table->table_name, FALSE))
@@ -4586,24 +4718,11 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   TABLE_LIST **table_to_open;
   Sroutine_hash_entry **sroutine_to_open;
   TABLE_LIST *tables;
-  Open_table_context ot_ctx(thd, (flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
-                            LONG_TIMEOUT : thd->variables.lock_wait_timeout);
+  Open_table_context ot_ctx(thd, flags);
   bool error= FALSE;
   MEM_ROOT new_frm_mem;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
-
-  /*
-    Close HANDLER tables which are marked for flush or against which there
-    are pending exclusive metadata locks. Note that we do this not to avoid
-    deadlocks (calls to mysql_ha_flush() in mdl_wait_for_locks() and
-    tdc_wait_for_old_version() are enough for this) but in order to have
-    a point during statement execution at which such HANDLERs are closed
-    even if they don't create problems for current thread (i.e. to avoid
-    having DDL blocked by HANDLERs opened for long time).
-  */
-  if (thd->handler_tables_hash.records)
-    mysql_ha_flush(thd);
 
   /*
     temporary mem_root for new .frm parsing.
@@ -4613,6 +4732,17 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
 
   thd->current_tablenr= 0;
 restart:
+  /*
+    Close HANDLER tables which are marked for flush or against which there
+    are pending exclusive metadata locks. This is needed both in order to
+    avoid deadlocks and to have a point during statement execution at
+    which such HANDLERs are closed even if they don't create problems for
+    the current session (i.e. to avoid having a DDL blocked by HANDLERs
+    opened for a long time).
+  */
+  if (thd->handler_tables_hash.records)
+    mysql_ha_flush(thd);
+
   has_prelocking_list= thd->lex->requires_prelocking();
   table_to_open= start;
   sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
@@ -4624,21 +4754,19 @@ restart:
     (in non-LOCK TABLES mode) we might have to acquire upgradable
     semi-exclusive metadata locks (SNW or SNRW) on some of the
     tables to be opened.
-    So we acquire all such locks at once here as doing this in one
+    When executing CREATE TABLE .. If NOT EXISTS .. SELECT, the
+    table may not yet exist, in which case we acquire an exclusive
+    lock.
+    We acquire all such locks at once here as doing this in one
     by one fashion may lead to deadlocks or starvation. Later when
     we will be opening corresponding table pre-acquired metadata
     lock will be reused (thanks to the fact that in recursive case
     metadata locks are acquired without waiting).
   */
-  if (flags & MYSQL_OPEN_TAKE_UPGRADABLE_MDL)
+  if (! (flags & (MYSQL_OPEN_HAS_MDL_LOCK |
+                  MYSQL_OPEN_FORCE_SHARED_MDL |
+                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL)))
   {
-    /*
-      open_tables_acquire_upgradable_mdl() does not currenly handle
-      these two flags. At this point, that does not matter as they
-      are not used together with MYSQL_OPEN_TAKE_UPGRADABLE_MDL.
-    */
-    DBUG_ASSERT(!(flags & (MYSQL_OPEN_SKIP_TEMPORARY |
-                           MYSQL_OPEN_TEMPORARY_ONLY)));
     if (thd->locked_tables_mode)
     {
       /*
@@ -4646,7 +4774,8 @@ restart:
         need to check if appropriate locks were pre-acquired.
       */
       if (open_tables_check_upgradable_mdl(thd, *start,
-                                           thd->lex->first_not_own_table()))
+                                           thd->lex->first_not_own_table(),
+                                           flags))
       {
         error= TRUE;
         goto err;
@@ -4654,7 +4783,7 @@ restart:
     }
     else if (open_tables_acquire_upgradable_mdl(thd, *start,
                                                 thd->lex->first_not_own_table(),
-                                                &ot_ctx))
+                                                &ot_ctx, flags))
     {
       error= TRUE;
       goto err;
@@ -4700,7 +4829,6 @@ restart:
             have failed to open since closing tables can trigger removal of
             elements from the table list (if MERGE tables are involved),
           */
-          TABLE_LIST *failed_table= *table_to_open;
           close_tables_for_reopen(thd, start, ot_ctx.start_of_statement_svp());
 
           /*
@@ -4708,8 +4836,7 @@ restart:
             TABLE_LIST element. Altough currently this assumption is valid
             it may change in future.
           */
-          if (ot_ctx.recover_from_failed_open(thd, &failed_table->mdl_request,
-                                              failed_table))
+          if (ot_ctx.recover_from_failed_open(thd))
             goto err;
 
           error= FALSE;
@@ -4753,7 +4880,7 @@ restart:
           {
             close_tables_for_reopen(thd, start,
                                     ot_ctx.start_of_statement_svp());
-            if (ot_ctx.recover_from_failed_open(thd, &rt->mdl_request, NULL))
+            if (ot_ctx.recover_from_failed_open(thd))
               goto err;
 
             error= FALSE;
@@ -5060,8 +5187,8 @@ static bool check_lock_and_start_stmt(THD *thd,
   else
     lock_type= table_list->lock_type;
 
-  if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
-      (int) table_list->table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
+  if ((int) lock_type > (int) TL_WRITE_ALLOW_WRITE &&
+      (int) table_list->table->reginfo.lock_type <= (int) TL_WRITE_ALLOW_WRITE)
   {
     my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_list->alias);
     DBUG_RETURN(1);
@@ -5162,8 +5289,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
                    uint lock_flags)
 {
   TABLE *table;
-  Open_table_context ot_ctx(thd, (lock_flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
-                            LONG_TIMEOUT : thd->variables.lock_wait_timeout);
+  Open_table_context ot_ctx(thd, lock_flags);
   bool error;
   DBUG_ENTER("open_ltable");
 
@@ -5175,7 +5301,10 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
 
-  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, lock_flags)) &&
+  /* This function can't properly handle requests for such metadata locks. */
+  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_NO_WRITE);
+
+  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
   {
     /*
@@ -5185,8 +5314,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     */
     thd->mdl_context.rollback_to_savepoint(ot_ctx.start_of_statement_svp());
     table_list->mdl_request.ticket= 0;
-    if (ot_ctx.recover_from_failed_open(thd, &table_list->mdl_request,
-                                        table_list))
+    if (ot_ctx.recover_from_failed_open(thd))
       break;
   }
 
@@ -5560,15 +5688,6 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     /* We have to cleanup translation tables of views. */
     tmp->cleanup_items();
   }
-  /*
-    Metadata lock requests for tables from extended part of prelocking set
-    are part of list of requests to be waited for in Open_table_context.
-    So to satisfy assumptions in MDL_context::wait_for_locks(), which will
-    performs the waiting, we have to reset MDL_request::ticket values for
-    them as well.
-  */
-  for (tmp= first_not_own_table; tmp; tmp= tmp->next_global)
-    tmp->mdl_request.ticket= NULL;
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(start_of_statement_svp);
 }
@@ -8496,7 +8615,7 @@ my_bool mysql_rm_tmp_tables(void)
     all not used tables.
 */
 
-void flush_tables()
+void tdc_flush_unused_tables()
 {
   mysql_mutex_lock(&LOCK_open);
   while (unused_tables)
@@ -8547,10 +8666,10 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
     mysql_mutex_unlock(&in_use->mysys_var->mutex);
     signalled= TRUE;
   }
-  mysql_mutex_lock(&LOCK_open);
 
   if (needs_thr_lock_abort)
   {
+    mysql_mutex_lock(&in_use->LOCK_thd_data);
     for (TABLE *thd_table= in_use->open_tables;
          thd_table ;
          thd_table= thd_table->next)
@@ -8561,10 +8680,11 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
         and do not remove such instances from the THD::open_tables
         for some time, during which other thread can see those instances
         (e.g. see partitioning code).
-        */
+      */
       if (!thd_table->needs_reopen())
         signalled|= mysql_lock_abort_for_thread(thd, thd_table);
     }
+    mysql_mutex_unlock(&in_use->LOCK_thd_data);
   }
   /*
     Wake up threads waiting in tdc_wait_for_old_versions().
@@ -8577,7 +8697,6 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
     a multi-statement transaction.
   */
   broadcast_refresh();
-  mysql_mutex_unlock(&LOCK_open);
   return signalled;
 }
 
@@ -8686,8 +8805,12 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests,
   while (!thd->killed)
   {
     /*
-      Here we have situation as in mdl_wait_for_locks() we need to
-      get rid of offending HANDLERs to avoid deadlock.
+      We have to get rid of HANDLERs which are open by this thread
+      and have old TABLE versions. Otherwise we might get a deadlock
+      in situation when we are waiting for an old TABLE object which
+      corresponds to a HANDLER open by another session. And this
+      other session waits for our HANDLER object to get closed.
+
       TODO: We should also investigate in which situations we have
             to broadcast on COND_refresh because of this.
     */
@@ -8704,7 +8827,7 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests,
 
       if ((share= get_cached_table_share(mdl_request->key.db_name(),
                                          mdl_request->key.name())) &&
-          share->version != refresh_version)
+          share->needs_reopen())
         break;
     }
     if (!mdl_request)

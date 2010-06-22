@@ -29,9 +29,9 @@ connection default;
 # Wait until statement is successfully executed while
 # all rows in table are X-locked. This means that it
 # does not acquire any row locks.
-# We use wait_condition.inc instead of simply executing
+# We use wait_condition.inc instead of simply reaping 
 # statement here in order to avoid deadlocks if test
-# fails and timing out instead.
+# fails and to time out gracefully instead.
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where info = "$statement";

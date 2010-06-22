@@ -18,7 +18,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "debug_sync.h"
 #include "unireg.h"
 #include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"                         // For select_describe
@@ -28,7 +27,6 @@
                                               // primary_key_name,
                                               // build_table_filename
 #include "repl_failsafe.h"
-#include "sql_view.h"                           // mysql_frm_type
 #include "sql_parse.h"             // check_access, check_table_access
 #include "sql_partition.h"         // partition_element
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
@@ -50,8 +48,9 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
-#include "debug_sync.h"
 #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
+#include "debug_sync.h"
+#include "datadict.h"   // dd_frm_type()
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -2366,7 +2365,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   Table_ident *table_ident;
   table_ident= new Table_ident(thd, *db_name, *table_name, 1);
   sel->init_query();
-  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
+  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
 }
@@ -2966,6 +2965,9 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                        (can_deadlock ?
                                         MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
   lex->sql_command= save_sql_command;
+
+  DEBUG_SYNC(thd, "after_open_table_ignore_flush");
+
   /*
     get_all_tables() returns 1 on failure and 0 on success thus
     return only these and not the result code of ::process_table()
@@ -3025,7 +3027,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     char path[FN_REFLEN + 1];
     (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
-    switch (mysql_frm_type(thd, path, &not_used)) {
+    switch (dd_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
       table->field[3]->store(STRING_WITH_LEN("ERROR"),
                              system_charset_info);
@@ -3133,15 +3135,27 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   bool error;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           MDL_SHARED_HIGH_PRIO);
-  while (!(error=
-           thd->mdl_context.try_acquire_lock(&table->mdl_request)) &&
-         !table->mdl_request.ticket && !can_deadlock)
+
+  if (can_deadlock)
   {
-    if ((error=
-         thd->mdl_context.wait_for_lock(&table->mdl_request,
-                                        thd->variables.lock_wait_timeout)))
-      break;
+    /*
+      When .FRM is being open in order to get data for an I_S table,
+      we might have some tables not only open but also locked.
+      E.g. this happens when a SHOW or I_S statement is run
+      under LOCK TABLES or inside a stored function.
+      By waiting for the conflicting metadata lock to go away we
+      might create a deadlock which won't entirely belong to the
+      MDL subsystem and thus won't be detectable by this subsystem's
+      deadlock detector. To avoid such situation, when there are
+      other locked tables, we prefer not to wait on a conflicting
+      lock.
+    */
+    error= thd->mdl_context.try_acquire_lock(&table->mdl_request);
   }
+  else
+    error= thd->mdl_context.acquire_lock(&table->mdl_request,
+                                         thd->variables.lock_wait_timeout);
+
   return error;
 }
 
@@ -6568,7 +6582,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                        strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
-                              0, 0, TL_READ))
+                              0, 0, TL_READ, MDL_SHARED_READ))
   {
     DBUG_RETURN(1);
   }
