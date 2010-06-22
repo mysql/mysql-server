@@ -82,6 +82,7 @@ private:
   bool do_get_info(const int pos, Server_ids *value,
                    const Server_ids *default_value);
   char* do_get_description_info();
+  bool do_is_transactional();
 
   Rpl_info_table& operator=(const Rpl_info_table& info);
   Rpl_info_table(const Rpl_info_table& info);

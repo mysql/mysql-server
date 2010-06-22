@@ -295,7 +295,7 @@ public:
     @retval TRUE If transactional.
     @retval FALSE Otherwise.
   */
-  bool is_transactional() { return is_trans; }
+  bool is_transactional() { return do_is_transactional(); }
 
   /*                                                                                                                                    
     Pre-store information before writing it to the repository and if
@@ -326,11 +326,6 @@ protected:
   */
   uint sync_period;
 
-  /*
-    Indicates if the repository is_transactional.
-  */
-  bool is_trans;
-
 private:
   virtual int do_init_info()= 0;
   virtual int do_check_info()= 0;
@@ -356,6 +351,7 @@ private:
   virtual bool do_get_info(const int pos, Server_ids *value,
                            const Server_ids *default_value)= 0;
   virtual char* do_get_description_info()= 0;
+  virtual bool do_is_transactional()= 0;
 
   Rpl_info_handler& operator=(const Rpl_info_handler& handler);
   Rpl_info_handler(const Rpl_info_handler& handler);

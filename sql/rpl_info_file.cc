@@ -312,3 +312,8 @@ char* Rpl_info_file::do_get_description_info()
 {
   return info_fname;
 }
+
+bool Rpl_info_file::do_is_transactional()
+{
+  return FALSE;
+}
