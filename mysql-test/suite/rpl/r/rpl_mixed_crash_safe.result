@@ -139,9 +139,6 @@ INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id);
 INSERT INTO nt_6(trans_id, stmt_id) VALUES (NEW.trans_id, in_stmt_id + 1);
 END|
 SET @commands= '';
-SELECT * FROM mysql.slave_relay_log_info;
-Master_id	Relay_log_name	Relay_log_pos	Master_log_name	Master_log_pos
-2	./slave-relay-bin.000003	4036	master-bin.000001	3889
 ###################################################################################
 #                         EXECUTE CASES CRASHING THE XID
 ###################################################################################
