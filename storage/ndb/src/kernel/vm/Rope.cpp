@@ -189,3 +189,42 @@ Rope::hash(const char * p, Uint32 len){
   return h;
 }
 
+bool
+ConstRope::equal(const ConstRope& r2) const
+{
+  if (head.used != r2.head.used)
+    return false;
+
+  if (src.m_hash != r2.src.m_hash)
+    return false;
+
+  Uint32 left = head.used;
+  Ptr<Segment> s1, s2;
+  s1.i = head.firstItem;
+  s2.i = r2.head.firstItem;
+  while(left > 4 * getSegmentSize())
+  {
+    thePool.getPtr(s1);
+    thePool.getPtr(s2);
+    int res = memcmp(s1.p->data, s2.p->data, 4 * getSegmentSize());
+    if(res != 0)
+    {
+      return false;
+    }
+    s1.i = s1.p->nextPool;
+    s2.i = s2.p->nextPool;
+    left -= 4 * getSegmentSize();
+  }
+  
+  if(left > 0)
+  {
+    thePool.getPtr(s1);
+    thePool.getPtr(s2);
+    int res = memcmp(s1.p->data, s2.p->data, left);
+    if (res != 0)
+    {
+      return false;
+    }
+  }
+  return true;
+}

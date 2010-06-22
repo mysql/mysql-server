@@ -3736,7 +3736,7 @@ private:
   void restart_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void restartEndPass_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void restart_fromWriteSchemaFile(Signal*, Uint32, Uint32);
-  void restart_nextOp(Signal*);
+  void restart_nextOp(Signal*, bool commit = false);
 
   void checkSchemaStatus(Signal* signal);
   void checkPendingSchemaTrans(XSchemaFile* xsf);
