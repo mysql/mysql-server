@@ -37,6 +37,7 @@ Master_info::Master_info(bool is_slave_recovery)
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
+  master_uuid[0]=0;
 
   my_init_dynamic_array(&ignore_server_ids, sizeof(::server_id), 16, 16);
   bzero((char*) &file, sizeof(file));
@@ -130,8 +131,10 @@ enum {
   LINE_FOR_MASTER_BIND = 17,
   /* 6.0 added value of master_ignore_server_id */
   LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 18,
+  /* 6.0 added value of master_uuid */
+  LINE_FOR_MASTER_UUID= 19,
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_UUID
 };
 
 int init_master_info(Master_info* mi, const char* master_info_fname,
@@ -343,6 +346,10 @@ file '%s')", mi->info_file_name);
         sql_print_error("Failed to initialize master info ignore_server_ids");
         goto errwithmsg;
       }
+
+      if (lines >= LINE_FOR_MASTER_UUID &&
+          init_strvar_from_file(mi->master_uuid, sizeof(mi->master_uuid), &mi->file, 0))
+        goto errwithmsg;
     }
 
 #ifndef HAVE_OPENSSL
@@ -485,14 +492,14 @@ int flush_master_info(Master_info* mi,
   my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
   my_b_seek(file, 0L);
   my_b_printf(file,
-              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n%s\n",
               LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
-              heartbeat_buf, "", ignore_server_ids_buf);
+              heartbeat_buf, "", ignore_server_ids_buf, mi->master_uuid);
   my_free(ignore_server_ids_buf, MYF(0));
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 

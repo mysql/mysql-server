@@ -1284,7 +1284,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       ulong pos;
       ushort flags;
-      uint32 slave_server_id;
+      String slave_uuid;
 
       status_var_increment(thd->status_var.com_other);
       thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -1294,10 +1294,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* TODO: The following has to be changed to an 8 byte integer */
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
-      thd->server_id=0; /* avoid suicide */
-      if ((slave_server_id= uint4korr(packet+6))) // mysqlbinlog.server_id==0
-	kill_zombie_dump_threads(slave_server_id);
-      thd->server_id = slave_server_id;
+      thd->server_id= uint4korr(packet+6);
+
+      get_slave_uuid(thd, &slave_uuid);
+      kill_zombie_dump_threads(&slave_uuid);
 
       general_log_print(thd, command, "Log: '%s'  Pos: %ld", packet+10,
                       (long) pos);
