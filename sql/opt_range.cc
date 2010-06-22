@@ -8368,7 +8368,6 @@ int QUICK_RANGE_SELECT::reset()
  
   RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next, 0, 0};
   error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
-                                     uint(-1),
                                      mrr_flags, mrr_buf_desc? mrr_buf_desc: 
                                                               &empty_buf);
   DBUG_RETURN(error);

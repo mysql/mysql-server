@@ -2217,10 +2217,10 @@ static int myisam_init(void *p)
  ***************************************************************************/
 
 int ha_myisam::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                                     uint n_ranges, uint key_parts, uint mode, 
+                                     uint n_ranges, uint mode, 
                                      HANDLER_BUFFER *buf)
 {
-  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, key_parts, mode, buf);
+  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, mode, buf);
 }
 
 int ha_myisam::multi_range_read_next(char **range_info)

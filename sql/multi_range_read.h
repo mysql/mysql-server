@@ -87,8 +87,7 @@ public:
     table= table_arg;
   }
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
-                 uint n_ranges, uint key_parts, uint mode, 
-                 HANDLER_BUFFER *buf);
+                 uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
   int dsmrr_next(char **range_info);
 

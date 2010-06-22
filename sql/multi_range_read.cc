@@ -1,4 +1,5 @@
 #include "mysql_priv.h"
+#include <my_bit.h>
 #include "sql_select.h"
 
 /****************************************************************************
@@ -203,8 +204,7 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
 int
 handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
-                               uint n_ranges, uint key_parts, uint mode, 
-                               HANDLER_BUFFER *buf)
+                               uint n_ranges, uint mode, HANDLER_BUFFER *buf)
 {
   DBUG_ENTER("handler::multi_range_read_init");
   mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
@@ -306,8 +306,7 @@ scan_it_again:
 */
 
 int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
-                           void *seq_init_param, uint n_ranges, uint key_parts,
-                           uint mode,
+                           void *seq_init_param, uint n_ranges, uint mode,
                            HANDLER_BUFFER *buf)
 {
   uint elem_size;
@@ -324,8 +323,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   {
     use_default_impl= TRUE;
     const int retval=
-      h->handler::multi_range_read_init(seq_funcs, seq_init_param,
-                                        n_ranges, key_parts, mode, buf);
+      h->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges, 
+                                        mode, buf);
     DBUG_RETURN(retval);
   }
   mrr_buf= buf->buffer;
@@ -337,50 +336,24 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
  
   mrr_buf_end= buf->buffer_end;
 
-
-  doing_cpk_scan= check_cpk_scan(h->active_index, mode); 
-  if (doing_cpk_scan)
+  if ((doing_cpk_scan= check_cpk_scan(h->active_index, mode)))
   {
-    /* 
-      When doing a scan on CPK, the buffer stores {lookup_tuple, range_id}
-      pairs 
-    */
-    uint keylen=0;
-    DBUG_ASSERT(key_parts != 0);
-    for (uint kp= 0; kp < key_parts; kp++)
-      keylen += table->key_info[h->active_index].key_part[kp].store_length;
-
-    cpk_tuple_length= keylen;
-    cpk_is_unique_scan= test(table->key_info[h->active_index].key_parts == 
-                             key_parts);
+    /* It's a DS-MRR/CPK scan */
+    cpk_tuple_length= 0; /* dummy value telling it needs to be inited */
     cpk_have_range= FALSE;
-    elem_size= keylen + (int)is_mrr_assoc * sizeof(void*);
     use_default_impl= FALSE;
-  }
-  else
-  {
-    /* In regular DS-MRR, buffer stores {rowid, range_id} pairs */
-    elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
-  }
-
-  mrr_buf_last= mrr_buf + 
-                      ((mrr_buf_end - mrr_buf)/ elem_size)*
-                      elem_size;
-  mrr_buf_end= mrr_buf_last;
-
-  if (doing_cpk_scan)
-  {
-    /* 
-      DS-MRR/CPK: fill buffer with lookup tuples and sort; also we don't need a
-      secondary handler object.
-    */
     h->mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
     h->mrr_funcs= *seq_funcs;
     dsmrr_fill_buffer_cpk();
-    if (dsmrr_eof) 
+    if (dsmrr_eof)
       buf->end_of_used_area= mrr_buf_last;
     DBUG_RETURN(0); /* nothing could go wrong while filling the buffer */
   }
+
+  /* In regular DS-MRR, buffer stores {rowid, range_id} pairs */
+  elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
+  mrr_buf_last= mrr_buf + ((mrr_buf_end - mrr_buf)/ elem_size)* elem_size;
+  mrr_buf_end= mrr_buf_last;
 
   /*
     There can be two cases:
@@ -454,8 +427,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       goto error;
   }
 
-  if (h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                         key_parts, mode, buf) || 
+  if (h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges, 
+                                         mode, buf) ||
       dsmrr_fill_buffer())
   {
     goto error;
@@ -604,6 +577,9 @@ int DsMrr_impl::key_tuple_cmp(void* arg, uchar* key1, uchar* key2)
 
 /*
   DS-MRR/CPK: Fill the buffer with (lookup_tuple, range_id) pairs and sort
+  
+  SYNOPSIS
+    DsMrr_impl::dsmrr_fill_buffer_cpk()
 
   DESCRIPTION
     DS-MRR/CPK: Fill the buffer with (lookup_tuple, range_id) pairs and sort
@@ -623,7 +599,18 @@ void DsMrr_impl::dsmrr_fill_buffer_cpk()
          !(res= h->mrr_funcs.next(h->mrr_iter, &cur_range)))
   {
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
-    DBUG_ASSERT(cpk_tuple_length == cur_range.start_key.length);
+    DBUG_ASSERT(!cpk_tuple_length || 
+                cpk_tuple_length == cur_range.start_key.length);
+    if (!cpk_tuple_length)
+    {
+      cpk_tuple_length= cur_range.start_key.length;
+      cpk_is_unique_scan= test(table->key_info[h->active_index].key_parts == 
+                               my_count_bits(cur_range.start_key.keypart_map));
+      uint elem_size= cpk_tuple_length + (int)is_mrr_assoc * sizeof(void*);
+      mrr_buf_last= mrr_buf + ((mrr_buf_end - mrr_buf)/elem_size) * elem_size;
+      mrr_buf_end= mrr_buf_last;
+    }
+
     /* Put key, or {key, range_id} pair into the buffer */
     memcpy(mrr_buf_cur, cur_range.start_key.key, cpk_tuple_length);
     mrr_buf_cur += cpk_tuple_length;
