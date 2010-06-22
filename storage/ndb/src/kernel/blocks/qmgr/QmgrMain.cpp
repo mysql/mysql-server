@@ -5549,6 +5549,7 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
   if (mask.isclear())
   {
     jam();
+    releaseSections(handle);
     return;
   }
 
