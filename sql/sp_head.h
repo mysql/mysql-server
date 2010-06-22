@@ -1342,7 +1342,9 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
-		       thr_lock_type locktype);
+                       thr_lock_type locktype,
+                       enum_mdl_type mdl_type);
+
 Item *
 sp_prepare_func_item(THD* thd, Item **it_addr);
 

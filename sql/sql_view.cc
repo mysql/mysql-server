@@ -32,6 +32,7 @@
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_cache.h"
+#include "datadict.h"   // dd_frm_type()
 
 #define MD5_BUFF_LENGTH 33
 
@@ -433,7 +434,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   lex->link_first_table_back(view, link_to_local);
   view->open_strategy= TABLE_LIST::OPEN_STUB;
-  view->lock_strategy= TABLE_LIST::EXCLUSIVE_MDL;
+  view->lock_strategy= TABLE_LIST::OTLS_NONE;
   view->open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
@@ -1663,7 +1664,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
                          view->db, view->table_name, reg_ext, 0);
 
     if (access(path, F_OK) || 
-        FRMTYPE_VIEW != (type= mysql_frm_type(thd, path, &not_used)))
+        FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
     {
       char name[FN_REFLEN];
       my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
@@ -1738,54 +1739,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   }
   my_ok(thd);
   DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Check type of .frm if we are not going to parse it
-
-  SYNOPSIS
-    mysql_frm_type()
-    path	path to file
-
-  RETURN
-    FRMTYPE_ERROR	error
-    FRMTYPE_TABLE	table
-    FRMTYPE_VIEW	view
-*/
-
-frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
-{
-  File file;
-  uchar header[10];	//"TYPE=VIEW\n" it is 10 characters
-  size_t error;
-  DBUG_ENTER("mysql_frm_type");
-
-  *dbt= DB_TYPE_UNKNOWN;
-
-  if ((file= mysql_file_open(key_file_frm,
-                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
-    DBUG_RETURN(FRMTYPE_ERROR);
-  error= mysql_file_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
-  mysql_file_close(file, MYF(MY_WME));
-
-  if (error)
-    DBUG_RETURN(FRMTYPE_ERROR);
-  if (!strncmp((char*) header, "TYPE=VIEW\n", sizeof(header)))
-    DBUG_RETURN(FRMTYPE_VIEW);
-
-  /*
-    This is just a check for DB_TYPE. We'll return default unknown type
-    if the following test is true (arg #3). This should not have effect
-    on return value from this function (default FRMTYPE_TABLE)
-  */
-  if (header[0] != (uchar) 254 || header[1] != 1 ||
-      (header[2] != FRM_VER && header[2] != FRM_VER+1 &&
-       (header[2] < FRM_VER+3 || header[2] > FRM_VER+4)))
-    DBUG_RETURN(FRMTYPE_TABLE);
-
-  *dbt= (enum legacy_db_type) (uint) *(header + 3);
-  DBUG_RETURN(FRMTYPE_TABLE);                   // Is probably a .frm table
 }
 
 
