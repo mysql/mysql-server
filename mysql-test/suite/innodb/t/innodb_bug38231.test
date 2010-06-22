@@ -71,30 +71,7 @@ UNLOCK TABLES;
 
 DROP TABLE bug38231_1;
 
-# test that TRUNCATE works with row-level locks
-
-DROP TABLE IF EXISTS bug38231_2;
-CREATE TABLE bug38231_2 (a INT);
-
 -- enable_query_log
 -- enable_result_log
 
-INSERT INTO bug38231_2 VALUES (1), (10), (300);
-
--- connect (con4,localhost,root,,)
-
--- connection con4
-SET autocommit=0;
-SELECT * FROM bug38231_2 FOR UPDATE;
-
 -- connection default
-TRUNCATE TABLE bug38231_2;
-
--- connection con4
-COMMIT;
-
--- connection default
-
--- disconnect con4
-
-DROP TABLE bug38231_2;

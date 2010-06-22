@@ -29,6 +29,7 @@
                         // start_waiting_global_read_lock
 #include "sql_base.h"   // tdc_remove_table
 #include "sql_handler.h"                        // mysql_ha_rm_tables
+#include "datadict.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -283,7 +284,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   build_table_filename(name, sizeof(name) - 1,
                        ren_table->db, old_alias, reg_ext, 0);
 
-  frm_type= mysql_frm_type(thd, name, &table_type);
+  frm_type= dd_frm_type(thd, name, &table_type);
   switch (frm_type)
   {
     case FRMTYPE_TABLE:
