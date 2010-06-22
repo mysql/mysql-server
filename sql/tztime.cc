@@ -1692,7 +1692,11 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   }
 
   for (TABLE_LIST *tl= tz_tables; tl; tl= tl->next_global)
+  {
     tl->table->use_all_columns();
+    /* Force close at the end of the function to free memory. */
+    tl->table->m_needs_reopen= TRUE;
+  }
 
   /*
     Now we are going to load leap seconds descriptions that are shared
@@ -1781,7 +1785,6 @@ end_with_setting_default_tz:
 end_with_close:
   if (time_zone_tables_exist)
   {
-    thd->version--; /* Force close to free memory */
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
   }

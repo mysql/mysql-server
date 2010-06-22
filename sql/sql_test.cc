@@ -45,7 +45,6 @@ static const char *lock_descriptions[] =
   /* TL_READ_HIGH_PRIORITY      */  "High priority read lock",
   /* TL_READ_NO_INSERT          */  "Read lock without concurrent inserts",
   /* TL_WRITE_ALLOW_WRITE       */  "Write lock that allows other writers",
-  /* TL_WRITE_ALLOW_READ        */  "Write lock, but allow reading",
   /* TL_WRITE_CONCURRENT_INSERT */  "Concurrent insert lock",
   /* TL_WRITE_DELAYED           */  "Lock used by delayed insert",
   /* TL_WRITE_DEFAULT           */  NULL,

@@ -59,30 +59,31 @@ SET DEBUG_SYNC= 'RESET';
 #
 # Bug #48246 assert in close_thread_table
 #
+CREATE TABLE t0 (b INTEGER);
 CREATE TABLE t1 (a INTEGER);
 CREATE FUNCTION f1(b INTEGER) RETURNS INTEGER RETURN 1;
-CREATE PROCEDURE p1() SELECT COUNT(f1(a)) FROM t1;
+CREATE PROCEDURE p1() SELECT COUNT(f1(a)) FROM t1, t0;
+INSERT INTO t0 VALUES(1);
 INSERT INTO t1 VALUES(1), (2);
 # Connection 2
 CALL p1();
 COUNT(f1(a))
 2
-# Connection default
-SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR called';
-# Sending:
-CREATE TABLE t1 (a INTEGER);
-# Connection 2
-SET DEBUG_SYNC= 'now WAIT_FOR locked';
-SET DEBUG_SYNC= 'before_open_table_wait_refresh SIGNAL called WAIT_FOR created';
-# This call used to cause an assertion. MDL locking conflict will
-# cause back-off and retry. A variable indicating if a prelocking list
-# exists, used to be not reset properly causing an eventual assert.
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked_t1 WAIT_FOR go_for_t0';
+# This call used to cause an assertion. MDL deadlock with upcoming
+# LOCK TABLES statement will cause back-off and retry.
+# A variable indicating if a prelocking list exists, used to be not
+# reset properly causing an eventual assert.
 # Sending:
 CALL p1();
 # Connection default
-# Reaping: CREATE TABLE t1 (a INTEGER)
-ERROR 42S01: Table 't1' already exists
-SET DEBUG_SYNC= 'now SIGNAL created';
+SET DEBUG_SYNC= 'now WAIT_FOR locked_t1';
+# Issue LOCK TABLES statement which will enter in MDL deadlock
+# with CALL statement and as result will cause it to perform
+# back-off and retry.
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL go_for_t0';
+LOCK TABLES t0 WRITE, t1 WRITE;
+UNLOCK TABLES;
 # Connection 2
 # Reaping: CALL p1()
 COUNT(f1(a))
@@ -90,5 +91,5 @@ COUNT(f1(a))
 # Connection default
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
-DROP TABLE t1;
+DROP TABLES t0, t1;
 SET DEBUG_SYNC= 'RESET';

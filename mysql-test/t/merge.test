@@ -2187,5 +2187,20 @@ UNLOCK TABLES;
 DROP TABLE m1, t1;
 
 
+--echo #
+--echo # Test for bug #37371 "CREATE TABLE LIKE merge loses UNION parameter"
+--echo #
+--disable_warnings
+drop tables if exists t1, m1, m2;
+--enable_warnings
+create table t1 (i int) engine=myisam;
+create table m1 (i int) engine=mrg_myisam union=(t1) insert_method=first;
+create table m2 like m1;
+--echo # Table definitions should match
+show create table m1;
+show create table m2;
+drop tables m1, m2, t1;
+
+
 --echo End of 6.0 tests
 
