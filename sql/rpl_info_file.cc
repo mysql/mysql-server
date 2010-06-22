@@ -307,3 +307,8 @@ bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
 
   return error;
 }
+
+char* Rpl_info_file::do_get_description_info()
+{
+  return info_fname;
+}
