@@ -33,6 +33,7 @@
 #include "sql_base.h"            // release_table_share
 #include <m_ctype.h>
 #include "my_md5.h"
+#include "sql_select.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -4913,6 +4914,61 @@ void init_mdl_requests(TABLE_LIST *table_list)
                                  table_list->db, table_list->table_name,
                                  table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
                                  MDL_SHARED_WRITE : MDL_SHARED_READ);
+}
+
+
+/**
+  Update TABLE::const_key_parts for single table UPDATE/DELETE query
+
+  @param conds               WHERE clause expression
+
+  @retval TRUE   error (OOM)
+  @retval FALSE  success
+
+  @note
+    Set const_key_parts bits if key fields are equal to constants in
+    the WHERE expression.
+*/
+
+bool TABLE::update_const_key_parts(COND *conds)
+{
+  bzero((char*) const_key_parts, sizeof(key_part_map) * s->keys);
+
+  if (conds == NULL)
+    return FALSE;
+
+  for (uint index= 0; index < s->keys; index++)
+  {
+    KEY_PART_INFO *keyinfo= key_info[index].key_part;
+    KEY_PART_INFO *keyinfo_end= keyinfo + key_info[index].key_parts;
+
+    for (key_part_map part_map= (key_part_map)1; 
+        keyinfo < keyinfo_end;
+        keyinfo++, part_map<<= 1)
+    {
+      if (const_expression_in_where(conds, NULL, keyinfo->field))
+        const_key_parts[index]|= part_map;
+    }
+  }
+  return FALSE;
+}
+
+/**
+  Test if the order list consists of simple field expressions
+
+  @param order                Linked list of ORDER BY arguments
+
+  @return TRUE if @a order is empty or consist of simple field expressions
+*/
+
+bool is_simple_order(ORDER *order)
+{
+  for (ORDER *ord= order; ord; ord= ord->next)
+  {
+    if (ord->item[0]->real_item()->type() != Item::FIELD_ITEM)
+      return FALSE;
+  }
+  return TRUE;
 }
 
 
