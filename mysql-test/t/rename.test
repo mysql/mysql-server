@@ -79,17 +79,15 @@ connection default;
 --echo End of 4.1 tests
 
 
-#
-# Bug#14959: ALTER TABLE isn't able to rename a view
-#
+--echo #
+--echo # Bug#14959: "ALTER TABLE isn't able to rename a view"
+--echo # Bug#53976: "ALTER TABLE RENAME is allowed on views
+--echo #             (not documented, broken)"
+--echo #
 create table t1(f1 int);
 create view v1 as select * from t1;
+--error ER_WRONG_OBJECT
 alter table v1 rename to v2;
---error ER_NO_SUCH_TABLE
-alter table v1 rename to v2;
-rename table v2 to v1;
---error ER_TABLE_EXISTS_ERROR
-rename table v2 to v1;
 drop view v1;
 drop table t1;
 

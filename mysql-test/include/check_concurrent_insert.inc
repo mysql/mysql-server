@@ -10,9 +10,9 @@
 #   $con_aux2      Name of the second auxiliary connection to be used by this
 #                  script.
 #   $statement     Statement to be checked.
-#   $restore_table Table which might be modified affected by statement to be
-#                  checked and thus needs backing up before its execution
-#                  and restoring after it (can be empty).
+#   $restore_table Table which might be modified by statement to be checked
+#                  and thus needs backing up before its execution and
+#                  restoring after it (can be empty).
 #
 # EXAMPLE
 #    lock_sync.test
@@ -25,7 +25,7 @@ set debug_sync= "RESET";
 
 if (`SELECT '$restore_table' <> ''`)
 {
---eval create table t_backup select * from $restore_table;
+--eval create temporary table t_backup select * from $restore_table;
 }
 
 connection $con_aux1;
@@ -34,19 +34,19 @@ set debug_sync='after_lock_tables_takes_lock SIGNAL parked WAIT_FOR go';
 
 connection $con_aux2;
 set debug_sync='now WAIT_FOR parked';
---send_eval insert into $table values (0);
+--send_eval insert into $table (i) values (0);
 
 --enable_result_log
 --enable_query_log
 connection default;
 # Wait until concurrent insert is successfully executed while
 # statement being checked has its tables locked.
-# We use wait_condition.inc instead of simply executing
+# We use wait_condition.inc instead of simply reaping 
 # concurrent insert here in order to avoid deadlocks if test
-# fails and timing out instead.
+# fails and to time out gracefully instead.
 let $wait_condition=
   select count(*) = 0 from information_schema.processlist
-  where info = "insert into $table values (0)";
+  where info = "insert into $table (i) values (0)";
 --source include/wait_condition.inc
 
 --disable_result_log
@@ -86,7 +86,7 @@ if (`SELECT '$restore_table' <> ''`)
 {
 --eval truncate table $restore_table;
 --eval insert into $restore_table select * from t_backup;
-drop table t_backup;
+drop temporary table t_backup;
 }
 
 # Clean-up. Reset DEBUG_SYNC facility after use.

@@ -203,7 +203,6 @@ pre_init_event_thread(THD* thd)
   */
 
   thd->proc_info= "Initialized";
-  thd->version= refresh_version;
   thd->set_time();
 
   /* Do not use user-supplied timeout value for system threads. */

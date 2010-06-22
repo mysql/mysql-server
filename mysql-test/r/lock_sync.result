@@ -511,7 +511,7 @@ Success: 'insert into t2 values (f13((select i+10 from t1 where i=1)))' doesn't 
 # strong locks on the data it reads.
 Success: 'call p2(@a)' allows concurrent inserts into 't1'.
 #
-# 5.2 Function that modifes data and uses CALL, 
+# 5.2 Function that modifies data and uses CALL, 
 #     which reads a table through SELECT.
 #
 # Since a call to such function is written to the binary
