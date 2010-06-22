@@ -102,7 +102,6 @@ static int init_failsafe_rpl_thread(THD* thd)
 
   thd->mem_root->free= thd->mem_root->used= 0;
   thd_proc_info(thd, "Thread initialized");
-  thd->version=refresh_version;
   thd->set_time();
   DBUG_RETURN(0);
 }
