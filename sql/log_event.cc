@@ -5478,6 +5478,11 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
 
+  if (is_trans_repo)
+  {
+    pthread_mutex_lock(&rli_ptr->data_lock);
+  }
+
   DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
     rli_ptr->get_group_master_log_name(),
     (ulong) rli_ptr->get_group_master_log_pos(),
@@ -5493,8 +5498,6 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   */
   if (is_trans_repo)
   {
-    pthread_mutex_lock(&rli_ptr->data_lock);
-
     rli_ptr->inc_event_relay_log_pos();
     rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
     rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
