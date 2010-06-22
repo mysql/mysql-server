@@ -114,7 +114,9 @@ buf_flush_insert_in_flush_rbt(
 	p_node = rbt_prev(buf_pool->flush_rbt, c_node);
 
 	if (p_node != NULL) {
-		prev = *rbt_value(buf_page_t*, p_node);
+		buf_page_t**	value;
+		value = rbt_value(buf_page_t*, p_node);
+		prev = *value;
 		ut_a(prev != NULL);
 	}
 
@@ -2088,13 +2090,13 @@ buf_flush_validate_low(
 		ut_a(om > 0);
 
 		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
-			buf_page_t* rpage;
+			buf_page_t** prpage;
 
 			ut_a(rnode);
-			rpage = *rbt_value(buf_page_t*, rnode);
+			prpage = rbt_value(buf_page_t*, rnode);
 
-			ut_a(rpage);
-			ut_a(rpage == bpage);
+			ut_a(*prpage);
+			ut_a(*prpage == bpage);
 			rnode = rbt_next(buf_pool->flush_rbt, rnode);
 		}
 
