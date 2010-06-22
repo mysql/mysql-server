@@ -902,7 +902,14 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
       if (parents.is_clear_all())
         break;
     }
-    else if (!m_const_scope.contain(parent_map))
+    else if (m_const_scope.contain(parent_map))
+    {
+      // This key item is const. and did not cause the set of possible parents
+      // to be recalculated. Reuse what we had before this key item.
+      DBUG_ASSERT(parents.is_clear_all());
+      parents= old_parents;
+    }
+    else
     {
       DBUG_PRINT("info", ("Item_field %s.%s is outside scope of pushable join",
                   get_referred_table_access_name(key_item_field),
