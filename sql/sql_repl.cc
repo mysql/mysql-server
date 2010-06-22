@@ -1282,24 +1282,32 @@ err:
 
   SYNOPSIS
     kill_zombie_dump_threads()
-    slave_server_id     the slave's server id
+    slave_uuid      the slave's UUID
 
 */
 
 
-void kill_zombie_dump_threads(uint32 slave_server_id)
+void kill_zombie_dump_threads(String *slave_uuid)
 {
+  if (slave_uuid->length() == 0)
+    return;
+  DBUG_ASSERT(slave_uuid->length() == UUID_LENGTH);
+
   pthread_mutex_lock(&LOCK_thread_count);
   I_List_iterator<THD> it(threads);
   THD *tmp;
 
   while ((tmp=it++))
   {
-    if (tmp->command == COM_BINLOG_DUMP &&
-       tmp->server_id == slave_server_id)
+    if (tmp != current_thd && tmp->command == COM_BINLOG_DUMP)
     {
-      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
-      break;
+      String tmp_uuid;
+      if (get_slave_uuid(tmp, &tmp_uuid) != NULL &&
+          !strncmp(slave_uuid->c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH))
+      {
+        pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
+        break;
+      }
     }
   }
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -1394,6 +1402,13 @@ bool change_master(THD* thd, Master_info* mi)
     If the user specified host or port without binlog or position,
     reset binlog's name to FIRST and position to 4.
   */
+
+  if ((lex_mi->host && strcmp(lex_mi->host, mi->host)) ||
+      (lex_mi->port && lex_mi->port != mi->port))
+  {
+    mi->master_uuid[0]= 0;
+    mi->master_id= 0;
+  }
 
   if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
   {
