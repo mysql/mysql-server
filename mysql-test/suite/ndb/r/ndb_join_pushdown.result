@@ -1724,6 +1724,154 @@ a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47	47	63	2	47
 63	31	3	63	63	31	3	63	63	31	3	63
 drop table t3;
+create table t3 (a3 int not null, b3 int not null, c3 int, d3 int,
+primary key(a3), unique key(b3,d3), unique key(c3,b3), unique key(c3,d3)) engine = ndb;
+insert into t3 values (0x1f, 0x2f, 1,    0x1f);
+insert into t3 values (0x2f, 0x3f, 2,    0x2f);
+insert into t3 values (0x3f, 0x1f, 3,    0x3f);
+insert into t3 values (0x40, 0,    NULL, NULL);
+insert into t3 values (0x41, 0,    NULL, NULL);
+insert into t3 values (0x42, 0,    4,    NULL);
+insert into t3 values (0x43, 0,    NULL, 0x43);
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	
+1	SIMPLE	Y	ref	b3	b3	4	test.X.b3	1	
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3;
+a3	b3	c3	d3	a3	b3	c3	d3
+31	47	1	31	31	47	1	31
+47	63	2	47	47	63	2	47
+63	31	3	63	63	31	3	63
+64	0	NULL	NULL	64	0	NULL	NULL
+64	0	NULL	NULL	65	0	NULL	NULL
+64	0	NULL	NULL	66	0	4	NULL
+64	0	NULL	NULL	67	0	NULL	67
+65	0	NULL	NULL	64	0	NULL	NULL
+65	0	NULL	NULL	65	0	NULL	NULL
+65	0	NULL	NULL	66	0	4	NULL
+65	0	NULL	NULL	67	0	NULL	67
+66	0	4	NULL	64	0	NULL	NULL
+66	0	4	NULL	65	0	NULL	NULL
+66	0	4	NULL	66	0	4	NULL
+66	0	4	NULL	67	0	NULL	67
+67	0	NULL	67	64	0	NULL	NULL
+67	0	NULL	67	65	0	NULL	NULL
+67	0	NULL	67	66	0	4	NULL
+67	0	NULL	67	67	0	NULL	67
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+where Y.d3 = 0x2f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Child of pushed join@1; Using where with pushed condition
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+where Y.d3 = 0x2f;
+a3	b3	c3	d3	a3	b3	c3	d3
+47	63	2	47	47	63	2	47
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.c3 = Y.c3
+where Y.d3 = 0x2f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	c3,c3_2	NULL	NULL	NULL	7	
+1	SIMPLE	Y	ref	c3,c3_2	c3	5	test.X.c3	1	Using where with pushed condition
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.c3 = Y.c3
+where Y.d3 = 0x2f;
+a3	b3	c3	d3	a3	b3	c3	d3
+47	63	2	47	47	63	2	47
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.d3 = Y.d3
+where Y.b3 = 0x2f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	NULL	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	const,test.X.d3	1	Child of pushed join@1; Using where
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.d3 = Y.d3
+where Y.b3 = 0x2f;
+a3	b3	c3	d3	a3	b3	c3	d3
+31	47	1	31	31	47	1	31
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.d3 = Y.d3
+where Y.b3 = 0x20+0x2f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	NULL	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	const,test.X.d3	1	Child of pushed join@1; Using where
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.d3 = Y.d3
+where Y.b3 = 0x20+0x2f;
+a3	b3	c3	d3	a3	b3	c3	d3
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+where Y.d3 is not NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	
+1	SIMPLE	Y	ref	b3	b3	4	test.X.b3	1	Using where with pushed condition
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+where Y.d3 is not NULL;
+a3	b3	c3	d3	a3	b3	c3	d3
+31	47	1	31	31	47	1	31
+47	63	2	47	47	63	2	47
+63	31	3	63	63	31	3	63
+64	0	NULL	NULL	67	0	NULL	67
+65	0	NULL	NULL	67	0	NULL	67
+66	0	4	NULL	67	0	NULL	67
+67	0	NULL	67	67	0	NULL	67
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+where Y.d3 is NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Using where with pushed condition
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+where Y.d3 is NULL;
+a3	b3	c3	d3	a3	b3	c3	d3
+64	0	NULL	NULL	64	0	NULL	NULL
+64	0	NULL	NULL	65	0	NULL	NULL
+64	0	NULL	NULL	66	0	4	NULL
+65	0	NULL	NULL	64	0	NULL	NULL
+65	0	NULL	NULL	65	0	NULL	NULL
+65	0	NULL	NULL	66	0	4	NULL
+66	0	4	NULL	64	0	NULL	NULL
+66	0	4	NULL	65	0	NULL	NULL
+66	0	4	NULL	66	0	4	NULL
+67	0	NULL	67	64	0	NULL	NULL
+67	0	NULL	67	65	0	NULL	NULL
+67	0	NULL	67	66	0	4	NULL
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.c3 = Y.c3
+where Y.b3 = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	c3,c3_2	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3,c3,c3_2	c3	9	test.X.c3,const	1	Child of pushed join@1; Using where
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.c3 = Y.c3
+where Y.b3 = 0;
+a3	b3	c3	d3	a3	b3	c3	d3
+66	0	4	NULL	66	0	4	NULL
+explain
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.c3 = Y.c3
+where Y.b3 is NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select straight_join * 
+from t3 as X JOIN t3 as Y on X.c3 = Y.c3
+where Y.b3 is NULL;
+a3	b3	c3	d3	a3	b3	c3	d3
+drop table t3;
 create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
 insert into t1 values (1,null, 2);
 insert into t1 values (2,1, null);
