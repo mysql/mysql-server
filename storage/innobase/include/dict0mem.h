@@ -88,6 +88,10 @@ combination of types */
 						new BLOB treatment */
 /** Maximum supported file format */
 #define DICT_TF_FORMAT_MAX		DICT_TF_FORMAT_ZIP
+
+/** Minimum supported file format */
+#define DICT_TF_FORMAT_MIN		DICT_TF_FORMAT_51
+
 /* @} */
 #define DICT_TF_BITS			6	/*!< number of flag bits */
 #if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= DICT_TF_FORMAT_MAX
