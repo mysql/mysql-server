@@ -853,19 +853,72 @@ err:
 }
 
 
-void kill_zombie_dump_threads(uint32 slave_server_id)
+/**
+  An auxiliary function extracts slave UUID.
+
+  @param[in]    thd  THD to access a user variable
+  @param[out]   value String to return UUID value.
+
+  @return       if success value is returned else NULL is returned.
+*/
+String *get_slave_uuid(THD *thd, String *value)
 {
+  uchar name[]= "slave_uuid";
+
+  if (value == NULL)
+    return NULL;
+  user_var_entry *entry=
+    (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);
+  if (entry && entry->length > 0)
+  {
+    value->copy(entry->value, entry->length, NULL);
+    return value;
+  }
+  else
+    return NULL;
+}
+
+/*
+
+  Kill all Binlog_dump threads which previously talked to the same slave
+  ("same" means with the same server id). Indeed, if the slave stops, if the
+  Binlog_dump thread is waiting (mysql_cond_wait) for binlog update, then it
+  will keep existing until a query is written to the binlog. If the master is
+  idle, then this could last long, and if the slave reconnects, we could have 2
+  Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
+  binlog. To avoid this, when the slave reconnects and sends COM_BINLOG_DUMP,
+  the master kills any existing thread with the slave's server id (if this id is
+  not zero; it will be true for real slaves, but false for mysqlbinlog when it
+  sends COM_BINLOG_DUMP to get a remote binlog dump).
+
+  SYNOPSIS
+    kill_zombie_dump_threads()
+    slave_uuid      the slave's UUID
+
+*/
+
+
+void kill_zombie_dump_threads(String *slave_uuid)
+{
+  if (slave_uuid->length() == 0)
+    return;
+  DBUG_ASSERT(slave_uuid->length() == UUID_LENGTH);
+
   mysql_mutex_lock(&LOCK_thread_count);
   I_List_iterator<THD> it(threads);
   THD *tmp;
 
   while ((tmp=it++))
   {
-    if (tmp->command == COM_BINLOG_DUMP &&
-       tmp->server_id == slave_server_id)
+    if (tmp != current_thd && tmp->command == COM_BINLOG_DUMP)
     {
-      mysql_mutex_lock(&tmp->LOCK_thd_data);    // Lock from delete
-      break;
+      String tmp_uuid;
+      if (get_slave_uuid(tmp, &tmp_uuid) != NULL &&
+          !strncmp(slave_uuid->c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH))
+      {
+        mysql_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
+        break;
+      }
     }
   }
   mysql_mutex_unlock(&LOCK_thread_count);

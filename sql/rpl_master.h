@@ -32,9 +32,10 @@ typedef struct st_slave_info
   THD* thd;
 } SLAVE_INFO;
 
+String *get_slave_uuid(THD *thd, String *value);
 bool mysql_show_binlog_events(THD* thd);
 bool show_binlogs(THD* thd);
-void kill_zombie_dump_threads(uint32 slave_server_id);
+void kill_zombie_dump_threads(String *slave_uuid);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
 int reset_master(THD* thd);
 #endif /* RPL_MASTER_H_INCLUDED */

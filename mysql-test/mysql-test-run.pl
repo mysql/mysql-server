@@ -4820,6 +4820,7 @@ sub start_servers($) {
 
       # Save this test case information, so next can examine it
       $mysqld->{'started_tinfo'}= $tinfo;
+      mtr_milli_sleep(500);
     }
 
   }
