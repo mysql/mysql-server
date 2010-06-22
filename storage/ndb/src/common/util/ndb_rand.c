@@ -41,3 +41,9 @@ void ndb_srand(unsigned seed)
   next= seed;
 }
 
+int
+ndb_rand_r(unsigned * seed)
+{
+  * seed = (* seed) * 1103515245 + 12345;
+  return ((unsigned)(*seed / 65536) % 32768);
+}

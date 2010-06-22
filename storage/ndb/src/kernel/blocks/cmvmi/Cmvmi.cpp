@@ -599,7 +599,8 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
     }
   }
   
-  if (userRef != 0) {
+  if (userRef != 0)
+  {
     jam(); 
     signal->theData[0] = tStartingNode;
     signal->theData[1] = tData2;
@@ -654,7 +655,6 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
 {
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 hostId = rep->nodeId;
-
   jamEntry();
 
   setNodeInfo(hostId).m_connected = false;
@@ -857,7 +857,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
       type = NRT_DoStart_InitialStart;
     if(!StopReq::getNoStart(tmp)&&!StopReq::getInitialStart(tmp))
       type = NRT_DoStart_Restart;
-    NdbShutdown(NST_Restart, type);
+    NdbShutdown(0, NST_Restart, type);
   }
 
   if(globalData.theRestartFlag == system_started){

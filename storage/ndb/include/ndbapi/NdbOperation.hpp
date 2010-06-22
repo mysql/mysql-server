@@ -1253,7 +1253,8 @@ protected:
                                      Uint32 &wordsWritten);
 
   // Method which prepares signals at operation definition time.
-  int    buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId);
+  int    buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
+                               const Uint32 * read_mask);
 
   // Method which does final preparations at execute time.
   int    prepareSendNdbRecord(AbortOption ao);
@@ -1299,8 +1300,9 @@ protected:
   NdbBlob *linkInBlobHandle(NdbTransaction *aCon,
                             const NdbColumnImpl *column,
                             NdbBlob * & lastPtr);
-  int getBlobHandlesNdbRecord(NdbTransaction* aCon);
-  int getBlobHandlesNdbRecordDelete(NdbTransaction* aCon, bool checkReadSet);
+  int getBlobHandlesNdbRecord(NdbTransaction* aCon, const Uint32 * mask);
+  int getBlobHandlesNdbRecordDelete(NdbTransaction* aCon, 
+                                    bool checkReadSet, const Uint32 * mask);
 
   // Handle ATTRINFO signals   
   int insertATTRINFO(Uint32 aData);
@@ -1468,7 +1470,7 @@ protected:
     Do not use clas Bitmask/BitmaskPOD here, to avoid having to
     #include <Bitmask.hpp> in application code.
   */
-  Uint32 m_read_mask[(NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5];
+  Uint32 m_unused_read_mask[(128+31)>>5];
   /* Interpreted program for NdbRecord operations. */
   const NdbInterpretedCode *m_interpreted_code;
 

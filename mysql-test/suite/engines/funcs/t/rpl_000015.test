@@ -1,0 +1,51 @@
+#####################
+# Change Author: JBM
+# Change Date: 2006-01-17
+# Change: added order by in select
+##################### 
+source include/master-slave.inc;
+
+reset master;
+show master status;
+save_master_pos;
+connection slave;
+stop slave;
+reset slave;
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+show slave status;
+
+change master to master_host='127.0.0.1';
+# The following needs to be cleaned up when change master is fixed
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+show slave status;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$MASTER_MYPORT;
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+show slave status;
+start slave;
+sync_with_master;
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 5 # 8 # 9 # 23 # 33 #
+--replace_column 33 #
+show slave status;
+connection master;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (n int, PRIMARY KEY(n));
+insert into t1 values (10),(45),(90);
+sync_slave_with_master;
+connection slave;
+SELECT * FROM t1 ORDER BY n;
+connection master;
+SELECT * FROM t1 ORDER BY n;
+drop table t1;
+sync_slave_with_master;

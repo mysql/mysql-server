@@ -222,7 +222,10 @@ HugoCalculator::calcValue(int record,
       Uint32 bits= attr->getLength();
       Uint32 tmp = bits >> 5;
       Uint32 size = bits & 31;
-      ((Uint32*)buf)[tmp] &= ((1 << size) - 1);
+      Uint32 copy;
+      memcpy(&copy, ((Uint32*)buf)+tmp, 4);
+      copy &= ((1 << size) - 1);
+      memcpy(((Uint32*)buf)+tmp, &copy, 4);
     }
     break;
   case NdbDictionary::Column::Varbinary:

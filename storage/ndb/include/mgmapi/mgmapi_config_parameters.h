@@ -166,6 +166,7 @@
 
 #define CFG_DB_LCP_TRY_LOCK_TIMEOUT   605
 #define CFG_DB_MT_BUILD_INDEX         606
+#define CFG_DB_HB_ORDER               607
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

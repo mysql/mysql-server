@@ -823,7 +823,90 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
     ThostPtr.p->nodestatus = ZNODE_DOWN;
   }//for
   cpackedListIndex = 0;
-  sendNdbSttorryLab(signal);
+
+  bool do_init =
+    (cstartType == NodeState::ST_INITIAL_START) ||
+    (cstartType == NodeState::ST_INITIAL_NODE_RESTART);
+
+  LogFileRecordPtr prevLogFilePtr;
+  LogFileRecordPtr zeroLogFilePtr;
+
+  ndbrequire(cnoLogFiles != 0);
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  {
+    jam();
+    ptrAss(logPartPtr, logPartRecord);
+    initLogpart(signal);
+    for (Uint32 fileNo = 0; fileNo < cnoLogFiles; fileNo++)
+    {
+      seizeLogfile(signal);
+      if (fileNo != 0)
+      {
+        jam();
+        prevLogFilePtr.p->nextLogFile = logFilePtr.i;
+        logFilePtr.p->prevLogFile = prevLogFilePtr.i;
+      }
+      else
+      {
+        jam();
+        logPartPtr.p->firstLogfile = logFilePtr.i;
+        logPartPtr.p->currentLogfile = logFilePtr.i;
+        zeroLogFilePtr.i = logFilePtr.i;
+        zeroLogFilePtr.p = logFilePtr.p;
+      }//if
+      prevLogFilePtr.i = logFilePtr.i;
+      prevLogFilePtr.p = logFilePtr.p;
+      initLogfile(signal, fileNo);
+      if (do_init)
+      {
+        jam();
+        if (logFilePtr.i == zeroLogFilePtr.i)
+        {
+          jam();
+/* ------------------------------------------------------------------------- */
+/*IN AN INITIAL START WE START BY CREATING ALL LOG FILES AND SETTING THEIR   */
+/*PROPER SIZE AND INITIALISING PAGE ZERO IN ALL FILES.                       */
+/*WE START BY CREATING FILE ZERO IN EACH LOG PART AND THEN PROCEED           */
+/*SEQUENTIALLY THROUGH ALL LOG FILES IN THE LOG PART.                        */
+/* ------------------------------------------------------------------------- */
+          if (m_use_om_init == 0 || logPartPtr.i == 0)
+          {
+            /**
+             * initialize one file at a time if using OM_INIT
+             */
+            jam();
+#ifdef VM_TRACE
+            if (m_use_om_init)
+            {
+              jam();
+              /**
+               * FSWRITEREQ does cross-thread execute-direct
+               *   which makes the clear_global_variables "unsafe"
+               *   disable it until we're finished with init log-files
+               */
+              disable_global_variables();
+            }
+#endif
+            openLogfileInit(signal);
+          }
+        }//if
+      }//if
+    }//for
+    zeroLogFilePtr.p->prevLogFile = logFilePtr.i;
+    logFilePtr.p->nextLogFile = zeroLogFilePtr.i;
+  }
+
+  initReportStatus(signal);
+  if (!do_init)
+  {
+    jam();
+    sendNdbSttorryLab(signal);
+  }
+  else
+  {
+    reportStatus(signal);
+  }
+
   return;
 }//Dblqh::startphase1Lab()
 
@@ -916,88 +999,18 @@ void Dblqh::execTUPSEIZECONF(Signal* signal)
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void Dblqh::startphase3Lab(Signal* signal) 
 {
-  LogFileRecordPtr prevLogFilePtr;
-  LogFileRecordPtr zeroLogFilePtr;
-
   caddNodeState = ZTRUE;
 /* ***************<< */
 /*  READ_NODESREQ  < */
 /* ***************<< */
   cinitialStartOngoing = ZTRUE;
-  ndbrequire(cnoLogFiles != 0);
-  if ((cstartType == NodeState::ST_INITIAL_START) ||
-      (cstartType == NodeState::ST_INITIAL_NODE_RESTART)) {
-    reportStatus(signal); 
-  }
-  initReportStatus(signal);
-  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
+
+  switch(cstartType){
+  case NodeState::ST_NODE_RESTART:
+  case NodeState::ST_SYSTEM_RESTART:
     jam();
-    ptrAss(logPartPtr, logPartRecord);
-    initLogpart(signal);
-    for (Uint32 fileNo = 0; fileNo < cnoLogFiles; fileNo++) {
-      seizeLogfile(signal);
-      if (fileNo != 0) {
-        jam();
-        prevLogFilePtr.p->nextLogFile = logFilePtr.i;
-        logFilePtr.p->prevLogFile = prevLogFilePtr.i;
-      } else {
-        jam();
-        logPartPtr.p->firstLogfile = logFilePtr.i;
-        logPartPtr.p->currentLogfile = logFilePtr.i;
-        zeroLogFilePtr.i = logFilePtr.i;
-        zeroLogFilePtr.p = logFilePtr.p;
-      }//if
-      prevLogFilePtr.i = logFilePtr.i;
-      prevLogFilePtr.p = logFilePtr.p;
-      initLogfile(signal, fileNo);
-      if ((cstartType == NodeState::ST_INITIAL_START) ||
-	  (cstartType == NodeState::ST_INITIAL_NODE_RESTART)) {
-        if (logFilePtr.i == zeroLogFilePtr.i)
-        {
-          jam();
-/* ------------------------------------------------------------------------- */
-/*IN AN INITIAL START WE START BY CREATING ALL LOG FILES AND SETTING THEIR   */
-/*PROPER SIZE AND INITIALISING PAGE ZERO IN ALL FILES.                       */
-/*WE START BY CREATING FILE ZERO IN EACH LOG PART AND THEN PROCEED           */
-/*SEQUENTIALLY THROUGH ALL LOG FILES IN THE LOG PART.                        */
-/* ------------------------------------------------------------------------- */
-          if (m_use_om_init == 0 || logPartPtr.i == 0)
-          {
-            /**
-             * initialize one file at a time if using OM_INIT
-             */
-            jam();
-#ifdef VM_TRACE
-            if (m_use_om_init)
-            {
-              jam();
-              /**
-               * FSWRITEREQ does cross-thread execute-direct
-               *   which makes the clear_global_variables "unsafe"
-               *   disable it until we're finished with init log-files
-               */
-              disable_global_variables();
-            }
-#endif
-            openLogfileInit(signal);
-          }
-        }//if
-      }//if
-    }//for
-    zeroLogFilePtr.p->prevLogFile = logFilePtr.i;
-    logFilePtr.p->nextLogFile = zeroLogFilePtr.i;
-  }//for
-  if (cstartType != NodeState::ST_INITIAL_START && 
-      cstartType != NodeState::ST_INITIAL_NODE_RESTART) {
-    jam();
-    ndbrequire(cstartType == NodeState::ST_NODE_RESTART || 
-	       cstartType == NodeState::ST_SYSTEM_RESTART);
-    /** --------------------------------------------------------------------
-     * THIS CODE KICKS OFF THE SYSTEM RESTART AND NODE RESTART. IT STARTS UP 
-     * THE RESTART BY FINDING THE END OF THE LOG AND FROM THERE FINDING THE 
-     * INFO ABOUT THE GLOBAL CHECKPOINTS IN THE FRAGMENT LOG. 
-     --------------------------------------------------------------------- */
-    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
       jam();
       LogFileRecordPtr locLogFilePtr;
       ptrAss(logPartPtr, logPartRecord);
@@ -1006,7 +1019,19 @@ void Dblqh::startphase3Lab(Signal* signal)
       locLogFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_FRONTPAGE;
       openFileRw(signal, locLogFilePtr);
     }//for
-  }//if
+    break;
+  case NodeState::ST_INITIAL_START:
+  case NodeState::ST_INITIAL_NODE_RESTART:
+    jam();
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      jam();
+      signal->theData[0] = ZINIT_FOURTH;
+      signal->theData[1] = logPartPtr.i;
+      sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+    }
+    break;
+  }
 
   signal->theData[0] = cownref;
   sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
@@ -2352,10 +2377,8 @@ void
 Dblqh::execDROP_TAB_REQ(Signal* signal){
   jamEntry();
 
-  DropTabReq* req = (DropTabReq*)signal->getDataPtr();
-  
-  Uint32 senderRef = req->senderRef;
-  Uint32 senderData = req->senderData;
+  DropTabReq reqCopy = * (DropTabReq*)signal->getDataPtr();
+  DropTabReq* req = &reqCopy;
   
   TablerecPtr tabPtr;
   tabPtr.i = req->tableId;
@@ -2390,8 +2413,8 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
       tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
       signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
       signal->theData[1] = tabPtr.i;
-      signal->theData[2] = senderRef;
-      signal->theData[3] = senderData;
+      signal->theData[2] = req->senderRef;
+      signal->theData[3] = req->senderData;
       dropTab_wait_usage(signal);
       return;
       break;
@@ -2416,19 +2439,16 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     DropTabRef * ref = (DropTabRef*)signal->getDataPtrSend();
     ref->tableId = tabPtr.i;
     ref->senderRef = reference();
-    ref->senderData = senderData;
+    ref->senderData = req->senderData;
     ref->errorCode = errCode;
-    sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
+    sendSignal(req->senderRef, GSN_DROP_TAB_REF, signal,
                DropTabRef::SignalLength, JBB);
     return;
   }
 
   ndbrequire(tabPtr.p->usageCountR == 0 && tabPtr.p->usageCountW == 0);
   seizeAddfragrec(signal);
-  addfragptr.p->m_dropFragReq.tableId = tabPtr.i;
-  addfragptr.p->m_dropFragReq.senderRef = senderRef;
-  addfragptr.p->m_dropFragReq.senderData = senderData;
-
+  addfragptr.p->m_dropTabReq = * req;
   dropTable_nextStep(signal, addfragptr);
 }
 
@@ -2467,7 +2487,7 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
   jam();
 
   TablerecPtr tabPtr;
-  tabPtr.i = addFragPtr.p->m_dropFragReq.tableId;
+  tabPtr.i = addFragPtr.p->m_dropTabReq.tableId;
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
 
   Uint32 ref = 0;
@@ -2513,7 +2533,7 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
     req->senderRef = reference();
     req->tableId = tabPtr.i;
     req->tableVersion = tabPtr.p->schemaVersion;
-    req->requestType = DropTabReq::OnlineDropTab;
+    req->requestType = addFragPtr.p->m_dropTabReq.requestType;
     sendSignal(ref, GSN_DROP_TAB_REQ, signal,
                DropTabReq::SignalLength, JBB);
     return;
@@ -2522,12 +2542,11 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
   removeTable(tabPtr.i);
   tabPtr.p->tableStatus = Tablerec::NOT_DEFINED;
 
-  ref = addFragPtr.p->m_dropFragReq.senderRef;
   DropTabConf* conf = (DropTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
-  conf->senderData = addFragPtr.p->m_dropFragReq.senderData;
+  conf->senderData = addFragPtr.p->m_dropTabReq.senderData;
   conf->tableId = tabPtr.i;
-  sendSignal(ref, GSN_DROP_TAB_CONF, signal,
+  sendSignal(addFragPtr.p->m_dropTabReq.senderRef, GSN_DROP_TAB_CONF, signal,
              DropTabConf::SignalLength, JBB);
 
   addfragptr = addFragPtr;
@@ -12892,7 +12911,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     jam();
 
     lcpPtr.p->firstFragmentFlag= true;
-    
+
 #ifdef ERROR_INSERT
     if (check_ndb_versions())
     {
@@ -13189,6 +13208,21 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
    * ----------------------------------------------------------------------- */
   fragptr.i = lcpPtr.p->currentFragment.fragPtrI;
   c_fragment_pool.getPtr(fragptr);
+
+  /**
+   * Update maxGciInLcp after scan has been performed
+   */
+#if defined VM_TRACE || defined ERROR_INSERTED
+  if (fragptr.p->newestGci != fragptr.p->maxGciInLcp)
+  {
+    ndbout_c("tab: %u frag: %u increasing maxGciInLcp from %u to %u",
+             fragptr.p->tabRef,
+             fragptr.p->fragId,
+             fragptr.p->maxGciInLcp, fragptr.p->newestGci);
+  }
+#endif
+
+  fragptr.p->maxGciInLcp = fragptr.p->newestGci;
   
   contChkpNextFragLab(signal);
   return;
@@ -15131,10 +15165,9 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
   logPartPtr.p->logLap = 1;
 
-  if (m_use_om_init && logPartPtr.i  != clogPartFileSize - 1)
+  if (m_use_om_init && ++logPartPtr.i != clogPartFileSize)
   {
     jam();
-    logPartPtr.i++;
     ptrAss(logPartPtr, logPartRecord);
     logFilePtr.i = logPartPtr.p->firstLogfile;
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
@@ -15142,41 +15175,26 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
     return;
   }
 
-  logPartPtr.i = 0;
-CHECK_LOG_PARTS_LOOP:
-  ptrAss(logPartPtr, logPartRecord);
-  if (logPartPtr.p->logPartState != LogPartRecord::SR_FIRST_PHASE_COMPLETED) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  {
     jam();
+    ptrAss(logPartPtr, logPartRecord);
+    if (logPartPtr.p->logPartState != LogPartRecord::SR_FIRST_PHASE_COMPLETED)
+    {
+      jam();
 /*---------------------------------------------------------------------------*/
 /* THIS PART HAS STILL NOT COMPLETED. WAIT FOR THIS TO OCCUR.                */
 /*---------------------------------------------------------------------------*/
-    return;
-  }//if
-  if (logPartPtr.i + 1 == clogPartFileSize) {
-    jam();
-/*---------------------------------------------------------------------------*/
-/* ALL LOG PARTS ARE COMPLETED. NOW WE CAN CONTINUE WITH THE RESTART         */
-/* PROCESSING. THE NEXT STEP IS TO PREPARE FOR EXECUTING OPERATIONS. THUS WE */
-/* NEED TO INITIALISE ALL NEEDED DATA AND TO OPEN FILE ZERO AND THE NEXT AND */
-/* TO SET THE CURRENT LOG PAGE TO BE PAGE 1 IN FILE ZERO.                    */
-/*---------------------------------------------------------------------------*/
-    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
+      return;
+    }//if
+  }
+
 #ifdef VM_TRACE
-      enable_global_variables();
+  enable_global_variables();
 #endif
-      ptrAss(logPartPtr, logPartRecord);
-      signal->theData[0] = ZINIT_FOURTH;
-      signal->theData[1] = logPartPtr.i;
-      sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
-    }//for
-    logfileInitCompleteReport(signal);
-    return;
-  } else {
-    jam();
-    logPartPtr.i = logPartPtr.i + 1;
-    goto CHECK_LOG_PARTS_LOOP;
-  }//if
-}//Dblqh::checkInitCompletedLab()
+  logfileInitCompleteReport(signal);
+  sendNdbSttorryLab(signal);
+}
 
 /* ========================================================================= */
 /* =======       INITIATE LOG FILE OPERATION RECORD WHEN ALLOCATED   ======= */
@@ -16125,6 +16143,11 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     jamEntry();
   }
 
+  if (ERROR_INSERTED(5055))
+  {
+    ndbrequire(c_lcpId == 0 || lcpId == 0 || c_lcpId == lcpId);
+  }
+
   c_lcpId = (c_lcpId == 0 ? lcpId : c_lcpId);
   c_lcpId = (c_lcpId < lcpId ? c_lcpId : lcpId);
   c_lcp_waiting_fragments.add(fragptr);
@@ -16331,6 +16354,11 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
 
   Uint32 sender= signal->theData[0];
   
+  if (ERROR_INSERTED(5055))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+
   lcpPtr.p->m_outstanding--;
   if(lcpPtr.p->m_outstanding)
   {
@@ -16434,7 +16462,8 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
 
   tabptr.i = tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  if (!DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  if (! (DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
+         tabptr.p->tableStatus == Tablerec::TABLE_DEFINED))
   {
     jam();
     signal->theData[0] = ZREBUILD_ORDERED_INDEXES;
@@ -20626,6 +20655,7 @@ void Dblqh::seizeAddfragrec(Signal* signal)
   bzero(&addfragptr.p->m_lqhFragReq, sizeof(addfragptr.p->m_lqhFragReq));
   bzero(&addfragptr.p->m_addAttrReq, sizeof(addfragptr.p->m_addAttrReq));
   bzero(&addfragptr.p->m_dropFragReq, sizeof(addfragptr.p->m_dropFragReq));
+  bzero(&addfragptr.p->m_dropTabReq, sizeof(addfragptr.p->m_dropTabReq));
   addfragptr.p->addfragErrorCode = 0;
   addfragptr.p->attrSentToTup = 0;
   addfragptr.p->attrReceived = 0;

@@ -2825,6 +2825,17 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
 
 struct RandSchemaOp
 {
+  RandSchemaOp(unsigned * randseed = 0) {
+    if (randseed == 0)
+    {
+      ownseed = (unsigned)NdbTick_CurrentMillisecond();
+      seed = &ownseed;
+    }
+    else
+    {
+      seed = randseed;
+    }
+  }
   struct Obj 
   { 
     BaseString m_name;
@@ -2842,9 +2853,13 @@ struct RandSchemaOp
   Obj* get_obj(Uint32 mask);
   int create_table(Ndb*);
   int create_index(Ndb*, Obj*);
+  int alter_table(Ndb*, Obj*);
   int drop_obj(Ndb*, Obj*);
 
   void remove_obj(Obj*);
+private:
+  unsigned * seed;
+  unsigned ownseed;
 };
 
 template class Vector<RandSchemaOp::Obj*>;
@@ -2855,7 +2870,7 @@ RandSchemaOp::schema_op(Ndb* ndb)
   struct Obj* obj = 0;
   Uint32 type = 0;
 loop:
-  switch((rand() >> 16) & 3){
+  switch(ndb_rand_r(seed) % 5){
   case 0:
     return create_table(ndb);
   case 1:
@@ -2870,6 +2885,10 @@ loop:
       (1 << NdbDictionary::Object::UniqueHashIndex) |
       (1 << NdbDictionary::Object::OrderedIndex);    
     goto drop_object;
+  case 4:
+    if ((obj = get_obj(1 << NdbDictionary::Object::UserTable)) == 0)
+      goto loop;
+    return alter_table(ndb, obj);
   default:
     goto loop;
   }
@@ -2892,7 +2911,7 @@ RandSchemaOp::get_obj(Uint32 mask)
 
   if (tmp.size())
   {
-    return tmp[rand()%tmp.size()];
+    return tmp[ndb_rand_r(seed)%tmp.size()];
   }
   return 0;
 }
@@ -2901,16 +2920,17 @@ int
 RandSchemaOp::create_table(Ndb* ndb)
 {
   int numTables = NDBT_Tables::getNumTables();
-  int num = myRandom48(numTables);
+  int num = ndb_rand_r(seed) % numTables;
   NdbDictionary::Table pTab = * NDBT_Tables::getTable(num);
   
   NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  pTab.setForceVarPart(true);
 
   if (pDict->getTable(pTab.getName()))
   {
     char buf[100];
     BaseString::snprintf(buf, sizeof(buf), "%s-%d", 
-                         pTab.getName(), rand());
+                         pTab.getName(), ndb_rand_r(seed));
     pTab.setName(buf);
     if (pDict->createTable(pTab))
       return NDBT_FAILED;
@@ -2948,8 +2968,8 @@ RandSchemaOp::create_index(Ndb* ndb, Obj* tab)
     return NDBT_FAILED;
   }
 
-  bool ordered = (rand() >> 16) & 1;
-  bool stored = (rand() >> 16) & 1;
+  bool ordered = ndb_rand_r(seed) & 1;
+  bool stored = ndb_rand_r(seed) & 1;
 
   Uint32 type = ordered ? 
     NdbDictionary::Index::OrderedIndex :
@@ -3064,6 +3084,77 @@ RandSchemaOp::remove_obj(Obj* obj)
 }
 
 int
+RandSchemaOp::alter_table(Ndb* ndb, Obj* obj)
+{
+  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  const NdbDictionary::Table * pOld = pDict->getTable(obj->m_name.c_str());
+  NdbDictionary::Table tNew = * pOld;
+
+  BaseString ops;
+  unsigned mask = 3;
+
+  unsigned type;
+  while (ops.length() == 0 && (mask != 0))
+  {
+    switch((type = (ndb_rand_r(seed) & 1))){
+    default:
+    case 0:{
+      if ((mask & (1 << type)) == 0)
+        break;
+      BaseString name;
+      name.assfmt("newcol_%d", tNew.getNoOfColumns());
+      NdbDictionary::Column col(name.c_str());
+      col.setType(NdbDictionary::Column::Unsigned);
+      col.setDynamic(true);
+      col.setPrimaryKey(false);
+      col.setNullable(true);
+      NdbDictionary::Table save = tNew;
+      tNew.addColumn(col);
+      if (!pDict->supportedAlterTable(* pOld, tNew))
+      {
+        ndbout_c("not supported...");
+        mask &= ~(1 << type);
+        tNew = save;
+        break;
+      }
+      ops.append(" addcol");
+      break;
+    }
+    case 1:{
+      BaseString name;
+      do
+      {
+        unsigned no = ndb_rand_r(seed);
+        name.assfmt("%s_%u", pOld->getName(), no);
+      } while (pDict->getTable(name.c_str()));
+      tNew.setName(name.c_str());
+      ops.appfmt(" rename: %s", name.c_str());
+      break;
+    }
+
+    }
+  }
+
+  if (ops.length())
+  {
+    ndbout_c("altering %s ops: %s", pOld->getName(), ops.c_str());
+    if (pDict->alterTable(*pOld, tNew) != 0)
+    {
+      g_err << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    pDict->invalidateTable(pOld->getName());
+    if (strcmp(pOld->getName(), tNew.getName()))
+    {
+      obj->m_name.assign(tNew.getName());
+    }
+  }
+
+  return NDBT_OK;
+}
+
+
+int
 RandSchemaOp::validate(Ndb* ndb)
 {
   NdbDictionary::Dictionary* pDict = ndb->getDictionary();
@@ -3132,15 +3223,17 @@ RandSchemaOp::cleanup(Ndb* ndb)
   return NDBT_OK;
 }
 
+extern unsigned opt_seed;
+
 int
 runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   int loops = ctx->getNumLoops();
 
-  NdbMixRestarter res;
-  
-  RandSchemaOp dict;
+  unsigned seed = opt_seed;
+  NdbMixRestarter res(&seed);
+  RandSchemaOp dict(&seed);
   if (res.getNumDbNodes() < 2)
     return NDBT_OK;
 
@@ -3737,7 +3830,7 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   const NdbDictionary::Table* pTab = 0;
-  const NdbDictionary::Index* pInd = 0;
+  //const NdbDictionary::Index* pInd = 0;
   int loc = step->getStepNo() - 1;
   assert(loc > 0);
   g_err << "ops: loc:" << loc << endl;
@@ -3832,6 +3925,50 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
   if (result != NDBT_OK)
     ctx->stopTest();
   return result;
+}
+
+int
+runBug54651(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  for (Uint32 j = 0; j< 2; j++)
+  {
+    pDic->createTable(* ctx->getTab());
+    
+    const NdbDictionary::Table * pTab =pDic->getTable(ctx->getTab()->getName());
+    NdbDictionary::Table copy = * pTab;
+    BaseString name;
+    name.assfmt("%s_1", pTab->getName());
+    copy.setName(name.c_str());
+    
+    if (pDic->createTable(copy))
+    {
+      ndbout_c("Failed to create table...");
+      ndbout << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    
+    NdbDictionary::Table alter = * pTab;
+    alter.setName(name.c_str());
+    for (Uint32 i = 0; i<2; i++)
+    {
+      // now rename org table to same name...
+      if (pDic->alterTable(* pTab, alter) == 0)
+      {
+        ndbout << "Alter with duplicate name succeeded!!" << endl;
+        return NDBT_FAILED;
+      }
+      
+      ndbout << "Alter with duplicate name failed...good" << endl
+             << pDic->getNdbError() << endl;
+    }
+    
+    pDic->dropTable(copy.getName());
+    pDic->dropTable(ctx->getTab()->getName());
+  }
+  return NDBT_OK;
 }
 
 /** telco-6.4 **/
@@ -6211,7 +6348,7 @@ static int
 st_test_mnf_prepare(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   ST_Errins errins = st_get_errins(c, st_errins_end_trans1);
   int i;
 
@@ -6246,7 +6383,7 @@ static int
 st_test_mnf_commit1(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   ST_Errins errins = st_get_errins(c, st_errins_end_trans2);
   int i;
 
@@ -6278,7 +6415,7 @@ static int
 st_test_mnf_commit2(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   ST_Errins errins = st_get_errins(c, st_errins_end_trans3);
   int i;
 
@@ -6312,7 +6449,7 @@ st_test_mnf_run_commit(ST_Con& c, int arg = -1)
 {
   const NdbDictionary::Table* pTab;
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   int i;
 
   if (arg == FAIL_BEGIN)
@@ -6375,7 +6512,7 @@ static int
 st_test_mnf_run_abort(ST_Con& c, int arg = -1)
 {
   NdbRestarter restarter;
-  int master = restarter.getMasterNodeId();
+  //int master = restarter.getMasterNodeId();
   const NdbDictionary::Table* pTab;
   bool do_abort = (arg == SUCCEED_ABORT);
   int i;
@@ -7645,6 +7782,142 @@ end:
   return result;
 }
 
+int
+runBug53944(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  NdbDictionary::Table tab(*ctx->getTab());
+  NdbRestarter res;
+
+  Vector<int> ids;
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    int res = pDic->createTable(copy);
+    if (res)
+    {
+      g_err << "Failed to create table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    ids.push_back(tab->getObjectId());
+  }
+
+  res.restartAll2(NdbRestarter::NRRF_ABORT | NdbRestarter::NRRF_NOSTART);
+  res.waitClusterNoStart();
+  res.startAll();
+  res.waitClusterStarted();
+
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    int res = pDic->dropTable(copy.getName());
+    if (res)
+    {
+      g_err << "Failed to drop table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  Vector<int> ids2;
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    int res = pDic->createTable(copy);
+    if (res)
+    {
+      g_err << "Failed to create table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    ids2.push_back(tab->getObjectId());
+  }
+
+  for (unsigned i = 0; i< 25; i++)
+  {
+    NdbDictionary::Table copy = tab;
+    BaseString name;
+    name.appfmt("%s_%u", copy.getName(), i);
+    copy.setName(name.c_str());
+    const NdbDictionary::Table* tab = pDic->getTable(copy.getName());
+    if (tab == 0)
+    {
+      g_err << "Failed to retreive table" << copy.getName() << endl;
+      return NDBT_FAILED;
+      
+    }
+    int res = pDic->dropTable(copy.getName());
+    if (res)
+    {
+      g_err << "Failed to drop table" << copy.getName() << "\n"
+            << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  /**
+   * With Bug53944 - none of the table-id have been reused in this scenario
+   *   check that atleast 15 of the 25 have been to return OK
+   */
+  size_t reused = 0;
+  for (size_t i = 0; i<ids.size(); i++)
+  {
+    int id = ids[i];
+    for (size_t j = 0; j<ids2.size(); j++)
+    {
+      if (ids2[j] == id)
+      {
+        reused++;
+        break;
+      }
+    }
+  }
+
+  ndbout_c("reused %u table-ids out of %u", 
+           (unsigned)reused, (unsigned)ids.size());
+
+  if (reused >= (ids.size() >> 2))
+  {
+    return NDBT_OK;
+  }
+  else
+  {
+    return NDBT_FAILED;
+  }
+}
+
 /** telco-6.4 **/
  
 NDBT_TESTSUITE(testDict);
@@ -7866,6 +8139,9 @@ TESTCASE("Bug48604",
   STEP(runBug48604ops);
 #endif
 }
+TESTCASE("Bug54651", ""){
+  INITIALIZER(runBug54651);
+}
 /** telco-6.4 **/
 TESTCASE("SchemaTrans",
          "Schema transactions"){
@@ -7899,6 +8175,10 @@ TESTCASE("Bug46585", "")
 {
   INITIALIZER(runWaitStarted);
   INITIALIZER(runBug46585);
+}
+TESTCASE("Bug53944", "")
+{
+  INITIALIZER(runBug53944);
 }
 /** telco-6.4 **/
 NDBT_TESTSUITE_END(testDict);

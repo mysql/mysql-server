@@ -256,6 +256,7 @@ Qmgr::execSTART_ORD(Signal* signal)
   {
     ptrAss(nodePtr, nodeRec);
     nodePtr.p->ndynamicId = 0;	
+    nodePtr.p->hbOrder = 0;
     Uint32 cnt = 0;
     Uint32 type = getNodeInfo(nodePtr.i).m_type;
     switch(type){
@@ -755,6 +756,17 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     return;
   }
 
+  if (!ndb_check_hb_order_version(startingVersion) &&
+      m_hb_order_config_used)
+  {
+    jam();
+    infoEvent("Connection from node %u refused as it does not support "
+              "user-defined HeartbeatOrder",
+              addNodePtr.i);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+    return;
+  }
+
   if (check_start_type(start_type, c_start.m_start_type))
   {
     jam();
@@ -889,7 +901,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   /**
    * Assign dynamic id
    */
-  UintR TdynId = ++c_maxDynamicId;
+  UintR TdynId = (++c_maxDynamicId) & 0xFFFF;
+  TdynId |= (addNodePtr.p->hbOrder << 16);
   setNodeInfo(addNodePtr.i).m_version = startingVersion;
   setNodeInfo(addNodePtr.i).m_mysql_version = startingMysqlVersion;
   recompute_version_info(NodeInfo::DB, startingVersion);
@@ -988,6 +1001,18 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     return;
   }
 
+  if (!ndb_check_hb_order_version(cmRegConf->presidentVersion) &&
+      m_hb_order_config_used) {
+    jam();
+    char buf[128];
+    BaseString::snprintf(buf,sizeof(buf), 
+			 "incompatible version own=0x%x other=0x%x, "
+			 "due to user-defined HeartbeatOrder, shutting down", 
+			 NDB_VERSION, cmRegConf->presidentVersion);
+    progError(__LINE__, NDBD_EXIT_UNSUPPORTED_VERSION, buf);  
+    return;
+  }
+
   myNodePtr.i = getOwnNodeId();
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   
@@ -997,7 +1022,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   cpdistref    = cmRegConf->presidentBlockRef;
   cpresident   = cmRegConf->presidentNodeId;
   UintR TdynamicId   = cmRegConf->dynamicId;
-  c_maxDynamicId = TdynamicId;
+  c_maxDynamicId = TdynamicId & 0xFFFF;
   c_clusterNodes.assign(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
 
   myNodePtr.p->ndynamicId = TdynamicId;
@@ -1616,7 +1641,7 @@ Qmgr::electionWon(Signal* signal){
   cpdistref = reference();
   cneighbourl = ZNIL;
   cneighbourh = ZNIL;
-  myNodePtr.p->ndynamicId = 1;
+  myNodePtr.p->ndynamicId = 1 | (myNodePtr.p->hbOrder << 16);
   c_maxDynamicId = 1;
   c_clusterNodes.clear();
   c_clusterNodes.set(getOwnNodeId());
@@ -1628,7 +1653,7 @@ Qmgr::electionWon(Signal* signal){
   signal->theData[0] = NDB_LE_CM_REGCONF;
   signal->theData[1] = getOwnNodeId();
   signal->theData[2] = cpresident;
-  signal->theData[3] = 1;
+  signal->theData[3] = myNodePtr.p->ndynamicId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 
   c_start.m_starting_nodes.clear(getOwnNodeId());
@@ -1779,7 +1804,7 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
     lqh_workers = 0;
   setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
 
-  c_maxDynamicId = req->dynamicId;
+  c_maxDynamicId = req->dynamicId & 0xFFFF;
 
   cmAddPrepare(signal, addNodePtr, nodePtr.p);
 }//Qmgr::execCM_NODEINFOREQ()
@@ -2434,6 +2459,44 @@ void Qmgr::initData(Signal* signal)
   }
 
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
+
+  ndb_mgm_configuration_iterator * iter =
+    m_ctx.m_config.getClusterConfigIterator();
+  for (ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
+  {
+    jam();
+    Uint32 nodeId = 0;
+    if (ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &nodeId) == 0)
+    {
+      jam();
+      if (nodeId < MAX_NDB_NODES && getNodeInfo(nodeId).m_type == NodeInfo::DB)
+      {
+        Uint32 hbOrder = 0;
+        ndb_mgm_get_int_parameter(iter, CFG_DB_HB_ORDER, &hbOrder);
+
+        NodeRecPtr nodePtr;
+        nodePtr.i = nodeId;
+        ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+        nodePtr.p->hbOrder = hbOrder;
+      }
+    }
+  }
+  int hb_order_error = check_hb_order_config();
+  if (hb_order_error == -1)
+  {
+    char msg[] = "Illegal HeartbeatOrder config, "
+                 "all nodes must have non-zero config value";
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, msg);
+    return;
+  }
+  if (hb_order_error == -2)
+  {
+    char msg[] = "Illegal HeartbeatOrder config, "
+                 "the nodes must have distinct config values";
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, msg);
+    return;
+  }
+  ndbrequire(hb_order_error == 0);
 }//Qmgr::initData()
 
 
@@ -4438,9 +4501,9 @@ void Qmgr::failReport(Signal* signal,
         jam();
         ptrAss(nodePtr, nodeRec);
         if (nodePtr.p->phase == ZRUNNING) {
-          if (nodePtr.p->ndynamicId < tfrMinDynamicId) {
+          if ((nodePtr.p->ndynamicId & 0xFFFF) < tfrMinDynamicId) {
             jam();
-            tfrMinDynamicId = nodePtr.p->ndynamicId;
+            tfrMinDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
             cpresident = nodePtr.i;
           }//if
         }//if
@@ -5671,6 +5734,36 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
     ndbout_c("disconnecting %u", signal->theData[1]);
     api_failed(signal, signal->theData[1]);
   }
+
+  if (signal->theData[0] == 908)
+  {
+    int tag = signal->getLength() < 2 ? -1 : signal->theData[1];
+    char buf[8192];
+    // for easy grepping in *out.log ...
+    strcpy(buf, "HB:");
+    if (tag >= 0)
+      sprintf(buf+strlen(buf), "%d:", tag);
+    sprintf(buf+strlen(buf), " pres:%u", cpresident);
+    sprintf(buf+strlen(buf), " own:%u", getOwnNodeId());
+    NodeRecPtr myNodePtr;
+    myNodePtr.i = getOwnNodeId();
+    ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
+    sprintf(buf+strlen(buf), " dyn:%u-%u", myNodePtr.p->ndynamicId & 0xFFFF, myNodePtr.p->ndynamicId >> 16);
+    sprintf(buf+strlen(buf), " mxdyn:%u", c_maxDynamicId);
+    sprintf(buf+strlen(buf), " hb:%u->%u->%u", cneighbourl, getOwnNodeId(), cneighbourh);
+    sprintf(buf+strlen(buf), " node:dyn-hi,cfg:");
+    NodeRecPtr nodePtr;
+    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+    {
+      ptrAss(nodePtr, nodeRec);
+      Uint32 type = getNodeInfo(nodePtr.i).m_type;
+      if (type == NodeInfo::DB)
+      {
+        sprintf(buf+strlen(buf), " %u:%u-%u,%u", nodePtr.i, nodePtr.p->ndynamicId & 0xFFFF, nodePtr.p->ndynamicId >> 16, nodePtr.p->hbOrder);
+      }
+    }
+    ndbout << buf << endl;
+  }
 }//Qmgr::execDUMP_STATE_ORD()
 
 
@@ -6009,4 +6102,60 @@ Qmgr::check_multi_node_shutdown(Signal* signal)
     return true;
   }
   return false;
+}
+
+int
+Qmgr::check_hb_order_config()
+{
+  m_hb_order_config_used = false;
+  Uint32 count = 0;
+  Uint32 count_zero = 0;
+  NodeRecPtr nodePtr;
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    ptrAss(nodePtr, nodeRec);
+    const NodeInfo& nodeInfo = getNodeInfo(nodePtr.i);
+    if (nodeInfo.m_type == NodeInfo::DB)
+    {
+      count++;
+      if (nodePtr.p->hbOrder == 0)
+        count_zero++;
+    }
+  }
+  ndbrequire(count != 0); // must have node info
+  if (count_zero == count)
+  {
+    jam();
+    return 0; // no hbOrder defined
+  }
+  if (count_zero != 0)
+  {
+    jam();
+    return -1; // error: not all zero or all nonzero
+  }
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    ptrAss(nodePtr, nodeRec);
+    const NodeInfo& nodeInfo = getNodeInfo(nodePtr.i);
+    if (nodeInfo.m_type == NodeInfo::DB)
+    {
+      NodeRecPtr nodePtr2;
+      for (nodePtr2.i = nodePtr.i + 1; nodePtr2.i < MAX_NDB_NODES; nodePtr2.i++)
+      {
+        ptrAss(nodePtr2, nodeRec);
+        const NodeInfo& nodeInfo2 = getNodeInfo(nodePtr2.i);
+        if (nodeInfo2.m_type == NodeInfo::DB)
+        {
+          if (nodePtr.i != nodePtr2.i &&
+              nodePtr.p->hbOrder == nodePtr2.p->hbOrder)
+          {
+            jam();
+            return -2; // error: duplicate nonzero value
+          }
+        }
+      }
+    }
+  }
+  m_hb_order_config_used = true;
+  return 0;
 }

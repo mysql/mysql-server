@@ -950,63 +950,151 @@ BackupRestore::report_completed(unsigned backup_id, unsigned node_id)
 }
 
 bool
-BackupRestore::table_equal(const TableS &tableS)
+BackupRestore::column_compatible_check(const char* tableName, 
+                                       const NDBCOL* backupCol, 
+                                       const NDBCOL* dbCol)
 {
-  if (!m_restore)
+  if (backupCol->equal(*dbCol))
     return true;
 
-  const char *tablename = tableS.getTableName();
-
-  if(tableS.m_dictTable == NULL){
-    ndbout<<"Table %s has no m_dictTable " << tablename << endl;
-    return false;
-  }
-  /**
-   * Ignore blob tables
+  /* Something is different between the columns, but some differences don't
+   * matter.
+   * Investigate which parts are different, and inform user
    */
-  if(match_blob(tablename) >= 0)
-    return true;
+  bool similarEnough = true;
 
-  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
-  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
-    return true;
-  }
-
-  BaseString tmp(tablename);
-  Vector<BaseString> split;
-  if(tmp.split(split, "/") != 3){
-    err << "Invalid table name format " << tablename << endl;
-    return false;
-  }
-
-  m_ndb->setDatabaseName(split[0].c_str());
-  m_ndb->setSchemaName(split[1].c_str());
-
-  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();  
-  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
-  if(tab == 0){
-    err << "Unable to find table: " << split[2].c_str() << endl;
-    return false;
-  }
-
-  if(tab->getNoOfColumns() != tableS.m_dictTable->getNoOfColumns())
+  /* We check similar things to NdbColumnImpl::equal() here */
+  if (strcmp(backupCol->getName(), dbCol->getName()) != 0)
   {
-    ndbout_c("m_columns.size %d != %d",tab->getNoOfColumns(),
-                       tableS.m_dictTable->getNoOfColumns());
-    return false;
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " has different name in DB (" << dbCol->getName() << ")"
+         << endl;
+    similarEnough = false;
+  }
+  
+  if (backupCol->getType() != dbCol->getType())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " has different type in DB.  Promotion may be required." << endl;
+    similarEnough = false;
   }
 
- for(int i = 0; i<tab->getNoOfColumns(); i++)
+  if (backupCol->getPrimaryKey() != dbCol->getPrimaryKey())
   {
-    if(!tab->getColumn(i)->equal(*(tableS.m_dictTable->getColumn(i))))
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getPrimaryKey()?" is":" is not")
+         << " a primary key in the DB." << endl;
+    similarEnough = false;
+  }
+  else
+  {
+    if (backupCol->getPrimaryKey())
     {
-      ndbout_c("m_columns %s != %s",tab->getColumn(i)->getName(),
-                tableS.m_dictTable->getColumn(i)->getName());
-      return false;
+      if (backupCol->getDistributionKey() != dbCol->getDistributionKey())
+      {
+        info << "Column " << tableName << "." << backupCol->getName()
+             << (dbCol->getDistributionKey()?" is":" is not")
+             << " a distribution key in the DB." << endl;
+        /* Not a problem for restore though */
+      }
     }
   }
 
-  return true;
+  if (backupCol->getNullable() != dbCol->getNullable())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getNullable()?" is":" is not")
+         << " nullable in the DB." << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getPrecision() != dbCol->getPrecision())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " precision is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getScale() != dbCol->getScale())
+  {
+    info <<  "Column " << tableName << "." << backupCol->getName()
+         << " scale is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getLength() != dbCol->getLength())
+  {
+    info <<  "Column " << tableName << "." << backupCol->getName()
+         << " length is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getCharset() != dbCol->getCharset())
+  {
+    info <<  "Column " << tableName << "." << backupCol->getName()
+         << " charset is different in the DB" << endl;
+    similarEnough = false;
+  }
+  
+  if (backupCol->getAutoIncrement() != dbCol->getAutoIncrement())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getAutoIncrement()?" is":" is not")
+         << " AutoIncrementing in the DB" << endl;
+    /* TODO : Can this be ignored? */
+    similarEnough = false;
+  }
+  
+  {
+    unsigned int backupDefaultLen, dbDefaultLen;
+    const void *backupDefaultPtr, *dbDefaultPtr;
+    backupDefaultPtr = backupCol->getDefaultValue(&backupDefaultLen);
+    dbDefaultPtr = dbCol->getDefaultValue(&dbDefaultLen);
+    
+    if ((backupDefaultLen != dbDefaultLen) ||
+        (memcmp(backupDefaultPtr, dbDefaultPtr, backupDefaultLen) != 0))
+    {
+      info << "Column " << tableName << "." << backupCol->getName()
+           << " Default value is different in the DB" << endl;
+      /* This doesn't matter */
+    }
+  }
+
+  if (backupCol->getArrayType() != dbCol->getArrayType())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " ArrayType is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getStorageType() != dbCol->getStorageType())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " Storagetype is different in the DB" << endl;
+    /* This doesn't matter */
+  }
+
+  if (backupCol->getBlobVersion() != dbCol->getBlobVersion())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << " Blob version is different in the DB" << endl;
+    similarEnough = false;
+  }
+
+  if (backupCol->getDynamic() != dbCol->getDynamic())
+  {
+    info << "Column " << tableName << "." << backupCol->getName()
+         << (dbCol->getDynamic()?" is":" is not")
+         << " Dynamic in the DB" << endl;
+    /* This doesn't matter */
+  }
+
+  if (similarEnough)
+    info << "  Difference(s) will be ignored during restore." << endl;
+  else
+    info << "  Difference(s) cannot be ignored.  Cannot restore this column as is." << endl;
+
+  return similarEnough;
 }
 
 bool
@@ -1014,11 +1102,6 @@ BackupRestore::table_compatible_check(const TableS & tableS)
 {
   if (!m_restore)
     return true;
-
-  if (m_tableChangesMask == 0)
-  {
-    return table_equal(tableS);
-  }
 
   const char *tablename = tableS.getTableName();
 
@@ -1073,6 +1156,11 @@ BackupRestore::table_compatible_check(const TableS & tableS)
         return false;
       }
 
+      info << "Column in backup ("
+           << tableS.m_dictTable->getName() << "."
+           << col_in_backup->getName()
+           << ") missing in DB.  Excluding column from restore." << endl;
+
       attr_desc->m_exclude = true;
     }
     else
@@ -1100,20 +1188,27 @@ BackupRestore::table_compatible_check(const TableS & tableS)
       }
 
       /**
-       * only nullable && not primary keys can be missing from backup
+       * only nullable or defaulted non primary key columns can be missing from backup
        *
-       * NOTE: In 7.1 we could allow columsn with default value as well
        */
       if (col_in_kernel->getPrimaryKey() ||
-          col_in_kernel->getNullable() == false)
+          ((col_in_kernel->getNullable() == false) &&
+           (col_in_kernel->getDefaultValue() == NULL)))
       {
         ndbout << "Missing column("
                << tableS.m_dictTable->getName() << "."
                << col_in_kernel->getName()
-               << ") in backup is primary key or not nullable in DB"
+               << ") in backup is primary key or not nullable or defaulted in DB"
                << endl;
         return false;
       }
+
+      info << "Column in DB ("
+           << tableS.m_dictTable->getName() << "."
+           << col_in_kernel->getName()
+           << ") missing in Backup.  Will be set to "
+           << ((col_in_kernel->getDefaultValue() == NULL)?"Null":"Default value")
+           << "." << endl;
     }
   }
 
@@ -1127,7 +1222,9 @@ BackupRestore::table_compatible_check(const TableS & tableS)
     const NDBCOL * col_in_kernel = tab->getColumn(attr_desc->attrId);
     const NDBCOL * col_in_backup = tableS.m_dictTable->getColumn(i);
 
-    if(col_in_kernel->equal(*col_in_backup))
+    if(column_compatible_check(tablename,
+                               col_in_backup, 
+                               col_in_kernel))
     {
       continue;
     }
@@ -1184,6 +1281,11 @@ BackupRestore::table_compatible_check(const TableS & tableS)
 
           memset(attr_desc->parameter, 0, size + 2); 
         }
+
+        info << "Data for column " 
+             << tablename << "."
+             << col_in_backup->getName()
+             << " will be converted from Backup type into DB type." << endl;
       }
       else
       {

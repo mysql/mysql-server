@@ -1,0 +1,112 @@
+#
+# Bug#38231 Innodb crash in lock_reset_all_on_table() on TRUNCATE + LOCK / UNLOCK
+# http://bugs.mysql.com/38231
+#
+
+-- source include/have_innodb_plugin.inc
+
+SET storage_engine=InnoDB;
+
+# we care only that the following SQL commands do not crash the server
+-- disable_query_log
+-- disable_result_log
+
+DROP TABLE IF EXISTS bug38231;
+CREATE TABLE bug38231 (a INT);
+
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
+-- connect (con3,localhost,root,,)
+
+-- connection con1
+SET autocommit=0;
+LOCK TABLE bug38231 WRITE;
+
+-- connection con2
+SET autocommit=0;
+-- send
+LOCK TABLE bug38231 WRITE;
+
+# When con1 does UNLOCK below this will release either con2 or con3 which are
+# both waiting on LOCK. At the end we must first --reap and UNLOCK the
+# connection that has been released, otherwise it will wait forever. We assume
+# that the released connection will be the first one that has gained the LOCK,
+# thus we force the order here - con2 does LOCK first, then con3. In other
+# words we wait for LOCK from con2 above to be exected before doing LOCK in
+# con3.
+-- connection con1
+let $wait_condition =
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = 'LOCK TABLE bug38231 WRITE';
+-- source include/wait_condition.inc
+# the above enables query log, re-disable it
+-- disable_query_log
+
+-- connection con3
+SET autocommit=0;
+-- send
+LOCK TABLE bug38231 WRITE;
+
+-- connection default
+-- send
+TRUNCATE TABLE bug38231;
+
+-- connection con1
+# Wait for TRUNCATE and the other two LOCKs to be executed; without this,
+# sometimes UNLOCK executes before them. We assume there are no other
+# sessions executing at the same time with the same SQL commands.
+let $wait_condition =
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = 'TRUNCATE TABLE bug38231';
+-- source include/wait_condition.inc
+let $wait_condition =
+  SELECT COUNT(*) = 2 FROM information_schema.processlist
+  WHERE info = 'LOCK TABLE bug38231 WRITE';
+-- source include/wait_condition.inc
+# the above enables query log, re-disable it
+-- disable_query_log
+
+# this crashes the server if the bug is present
+UNLOCK TABLES;
+
+# clean up
+
+-- connection con2
+-- reap
+UNLOCK TABLES;
+
+-- connection con3
+-- reap
+UNLOCK TABLES;
+
+-- connection default
+-- reap
+
+-- disconnect con1
+-- disconnect con2
+-- disconnect con3
+
+# test that TRUNCATE works with with row-level locks
+
+-- enable_query_log
+-- enable_result_log
+
+INSERT INTO bug38231 VALUES (1), (10), (300);
+
+-- connect (con4,localhost,root,,)
+
+-- connection con4
+SET autocommit=0;
+SELECT * FROM bug38231 FOR UPDATE;
+
+-- connection default
+TRUNCATE TABLE bug38231;
+
+-- connection con4
+COMMIT;
+
+-- connection default
+
+-- disconnect con4
+
+DROP TABLE bug38231;

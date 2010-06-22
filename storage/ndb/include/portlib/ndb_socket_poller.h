@@ -185,6 +185,7 @@ public:
     // Not counting nfds on Windows since select ignores it anyway
     assert(m_nfds == 0);
 #else
+    int fd = ndb_socket_get_native(sock);
     if (fd < 0 || fd >= FD_SETSIZE)
     {
       fprintf(stderr, "Maximum value for FD_SETSIZE: %d exceeded when"

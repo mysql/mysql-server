@@ -1643,7 +1643,7 @@ create table t1 (a int) type=MyISAM;
 drop table t1;
 end|
 Warnings:
-Warning	1287	The syntax 'TYPE=storage_engine' is deprecated and will be removed in MySQL 6.0. Please use 'ENGINE=storage_engine' instead
+Warning	1287	'TYPE=storage_engine' is deprecated and will be removed in a future release. Please use 'ENGINE=storage_engine' instead
 call p1();
 call p1();
 drop procedure p1;

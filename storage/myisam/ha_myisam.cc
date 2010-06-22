@@ -1451,9 +1451,17 @@ int ha_myisam::enable_indexes(uint mode)
     {
       sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
                         my_errno, param.db_name, param.table_name);
-      /* Repairing by sort failed. Now try standard repair method. */
-      param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
-      error= (repair(thd,param,0) != HA_ADMIN_OK);
+      /*
+        Repairing by sort failed. Now try standard repair method.
+        Still we want to fix only index file. If data file corruption
+        was detected (T_RETRY_WITHOUT_QUICK), we shouldn't do much here.
+        Let implicit repair do this job.
+      */
+      if (!(param.testflag & T_RETRY_WITHOUT_QUICK))
+      {
+        param.testflag&= ~T_REP_BY_SORT;
+        error= (repair(thd,param,0) != HA_ADMIN_OK);
+      }
       /*
         If the standard repair succeeded, clear all error messages which
         might have been set by the first repair. They can still be seen

@@ -2440,6 +2440,7 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   
   tabPtr.p->m_dropTable.tabUserPtr= tabPtr.p->m_attributes[DD].m_no_of_fixsize;
   tabPtr.p->m_dropTable.tabUserRef= tabPtr.p->m_attributes[DD].m_no_of_varsize;
+  tabPtr.p->m_createTable.defValLocation = tabPtr.p->m_default_value_location;
   
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
   for(Uint32 i= 0; i<tabPtr.p->m_no_of_attributes; i++)
@@ -2456,6 +2457,7 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.p->m_no_of_disk_attributes = 0;
   tabPtr.p->m_attributes[DD].m_no_of_fixsize = 0;
   tabPtr.p->m_attributes[DD].m_no_of_varsize = 0;
+  tabPtr.p->m_default_value_location.setNull();
 }
 void
 Dbtup::complete_restore_lcp(Signal* signal, 
@@ -2472,6 +2474,7 @@ Dbtup::complete_restore_lcp(Signal* signal,
   tabPtr.p->m_no_of_disk_attributes = 
     tabPtr.p->m_attributes[DD].m_no_of_fixsize + 
     tabPtr.p->m_attributes[DD].m_no_of_varsize;
+  tabPtr.p->m_default_value_location = tabPtr.p->m_createTable.defValLocation;
   
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
   for(Uint32 i= 0; i<tabPtr.p->m_no_of_attributes; i++)

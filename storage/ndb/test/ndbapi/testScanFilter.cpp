@@ -351,6 +351,7 @@ int get_rand_op_str(char *str)
   len2 = get_rand_col_str(temp+len1);
   len = len1 + len2;
   temp[len] = 'x';
+  temp[len+1] = '\0'; // Add ending \0
   BaseString::snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
   return len+1;
 }
@@ -1065,9 +1066,10 @@ bool getBit(const Uint32* bitMap,
   return ((bitMap[ bitNum >> 5 ] & (1 << (bitNum & 31))) != 0);
 }
 
-void setBit(Uint32* bitMap,
+void setBit(Uint32* bitMap, int bitMapByteSize,
             int bitNum)
 {
+  assert(bitNum >= 0 && bitNum < (bitMapByteSize * 8));
   bitMap[ bitNum >> 5 ] |= (1 << (bitNum & 31));
 }
 
@@ -1287,7 +1289,7 @@ int insertBitRows(Ndb* pNdb)
         if (bitsToSet >= 0)
         {
           for (int idx=0; idx <= bitsToSet; idx++)
-            setBit(buff, idx);
+            setBit(buff, sizeof(buff), idx);
         }
         
         if (insertOp->setValue(col, (char *)buff) != 0)
@@ -1468,18 +1470,18 @@ int verifyBitScanFilter(Ndb* pNdb)
         if ((bitsSetInFilter >= 0) ||
             invert)
         {
-          for (int idx=0; idx <= (32 * buffSize); idx++)
+          for (int idx=0; idx < (32 * buffSize); idx++)
           {
             if ((idx >= offset) && 
                 (idx <= (offset + bitsSetInFilter)))
             {
               if (!invert)
-                setBit(buff, idx);
+                setBit(buff, sizeof(buff), idx);
             }
             else
             {
               if (invert)
-                setBit(buff, idx);
+                setBit(buff, sizeof(buff), idx);
             }
           }
         }

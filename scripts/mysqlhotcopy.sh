@@ -267,6 +267,14 @@ foreach my $rdb ( @db_desc ) {
     my $db = $rdb->{src};
     my @dbh_tables = get_list_of_tables( $db );
 
+    ## filter out certain system non-lockable tables. 
+    ## keep in sync with mysqldump.
+    if ($db =~ m/^mysql$/i)
+    {
+      @dbh_tables = grep 
+        { !/^(apply_status|schema|general_log|slow_log)$/ } @dbh_tables
+    }
+
     ## generate regex for tables/files
     my $t_regex;
     my $negated;

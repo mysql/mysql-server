@@ -48,6 +48,7 @@ void Qmgr::initData()
   ndbrequire((Uint32)NodeInfo::MGM == 2); 
 
   m_micro_gcp_enabled = false;
+  m_hb_order_config_used = false;
 
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();

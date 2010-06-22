@@ -1070,8 +1070,8 @@ check_get_nodeid_wrong_nodetype(NdbMgmd& mgmd)
   assert(nodeId && nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
 
   nodeType = (nodeType + 1) / NDB_MGM_NODE_TYPE_MAX;
-  assert(nodeType >= NDB_MGM_NODE_TYPE_MIN &&
-         nodeType <= NDB_MGM_NODE_TYPE_MAX);
+  assert((int)nodeType >= (int)NDB_MGM_NODE_TYPE_MIN &&
+         (int)nodeType <= (int)NDB_MGM_NODE_TYPE_MAX);
 
   Properties args, reply;
   args.put("nodeid",nodeId);
@@ -1155,8 +1155,7 @@ check_transporter_connect(NdbMgmd& mgmd, const char * hello)
   SocketOutputStream out(mgmd.socket());
 
   // Call 'transporter connect'
-  if (out.println("transporter connect") ||
-      out.println(""))
+  if (out.println("transporter connect\n"))
   {
     g_err << "Send failed" << endl;
     return false;

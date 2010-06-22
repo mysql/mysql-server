@@ -861,6 +861,7 @@ private:
   void addTable_closeConf(Signal* signal, Uint32 tabPtrI);
   void resetReplicaSr(TabRecordPtr tabPtr);
   void resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci);
+  void resetReplica(Ptr<ReplicaRecord>);
 
 //------------------------------------
 // Methods for LCP functionality
@@ -1095,7 +1096,7 @@ private:
   void packCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void releaseReplicas(Uint32 * replicaPtr);
   void removeOldCrashedReplicas(Uint32, Uint32, ReplicaRecordPtr rocReplicaPtr);
-  void removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr);
+  void removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr, Uint32 lastCompletedGCI);
   void mergeCrashedReplicas(ReplicaRecordPtr pcrReplicaPtr);
   void seizeReplicaRec(ReplicaRecordPtr& replicaPtr);
 
