@@ -5499,7 +5499,6 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
     rli_ptr->set_group_master_log_pos(log_pos);
   }
   
-  lex_start(thd); 
   if ((error= rli_ptr->flush_info(TRUE)))
     goto err;
 

@@ -48,6 +48,9 @@ int Rpl_info_table::do_init_info()
   thd->variables.sql_mode= 0;
   tmp_disable_binlog(thd);
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
   /*
     Opens and locks the rpl_info table before accessing it.
   */
@@ -107,6 +110,10 @@ int Rpl_info_table::do_flush_info(const bool force)
   sync_counter= 0;
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
+
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -192,6 +199,9 @@ int Rpl_info_table::do_reset_info()
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
   /*
     Opens and locks the rpl_info table before accessing it.
   */
@@ -239,6 +249,9 @@ int Rpl_info_table::do_check_info()
   THD *thd= access->create_fake_thd();
 
   DBUG_ENTER("Rpl_info_table::do_check_info");
+
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
 
   /*
     Opens and locks the rpl_info table before accessing it.
