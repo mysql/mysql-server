@@ -1,3 +1,10 @@
+2010-06-22	The InnoDB Team
+
+	* dict/dict0dict.c, dict/dict0mem.c, include/dict0mem.h,
+	include/univ.i, page/page0zip.c, row/row0merge.c:
+	Fix Bug#47991 InnoDB Dictionary Cache memory usage increases
+	indefinitely when renaming tables
+
 2010-06-21	The InnoDB Team
 
 	* dict/dict0load.c, fil/fil0fil.c:
