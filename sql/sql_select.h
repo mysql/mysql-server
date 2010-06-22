@@ -851,4 +851,12 @@ inline bool optimizer_flag(THD *thd, uint flag)
   return (thd->variables.optimizer_switch & flag);
 }
 
+uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
+                         ha_rows limit, bool *need_sort, bool *reverse);
+ORDER *simple_remove_const(ORDER *order, COND *where);
+bool const_expression_in_where(COND *cond, Item *comp_item,
+                               Field *comp_field= NULL,
+                               Item **const_item= NULL);
+
+
 #endif /* SQL_SELECT_INCLUDED */

@@ -306,8 +306,8 @@ Handler_read_first	0
 Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	1
-Handler_read_rnd_next	9
+Handler_read_rnd	0
+Handler_read_rnd_next	0
 alter table t1 disable keys;
 flush status;
 delete from t1 order by a limit 1;
