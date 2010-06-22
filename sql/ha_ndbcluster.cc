@@ -1409,6 +1409,100 @@ int ndbcluster_make_pushed_join(handlerton *hton, THD* thd,
 } // ndbcluster_make_pushed_join
 
 
+/**
+ * C++98 does not allow forward declarations of enum types. By using this 
+ * class instead of using NdbQueryOperationDef::Type directly, 
+ * ha_ndbcluster.h avoids including NdbQueryBuilder.h.
+ */
+class NdbQueryOperationTypeWrapper
+{
+public:
+  /** Implcit conversion from NdbQueryOperationDef::Type.*/
+  NdbQueryOperationTypeWrapper(NdbQueryOperationDef::Type type)
+    :m_type(type)
+  {}
+
+  /** Implcit conversion to NdbQueryOperationDef::Type.*/
+  operator NdbQueryOperationDef::Type() const
+  { return m_type; }
+
+private:
+  const NdbQueryOperationDef::Type m_type;
+};
+
+
+/**
+ * Check if this table access operation (and a number of succeding operation)
+ * can be pushed to the cluster and executed there. This requires that there
+ * is an NdbQueryDefiniton and that it still matches the corresponds to the 
+ * type of operation that we intend to execute. (The MySQL server will 
+ * sometimes change its mind and replace a scan with a lookup or vice versa
+ * as it works its way into the nested loop join.)
+ *
+ * @param type This is the operation type that the server want to execute.
+ * @param idx  Index used whenever relevant for operation type
+ * @return True if the operation may be pushed.
+ */
+bool 
+ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, uint idx) const
+{
+  bool pushable= FALSE;
+
+  if (m_pushed_join != NULL)
+  {
+    const NdbQueryOperationDef* const root_operation= 
+      m_pushed_join->get_query_def().getQueryOperation(0U);
+
+    const NdbQueryOperationTypeWrapper& query_def_type=  root_operation->getType();
+
+    if (query_def_type == type)
+    {
+      if (m_disable_pushed_join)
+      {
+        DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
+      }
+      else
+      {
+        const NdbDictionary::Index* const expected_index= root_operation->getIndex();
+        pushable= TRUE;
+
+        switch (type)
+        {
+          case NdbQueryOperationDef::PrimaryKeyAccess:
+            DBUG_ASSERT(idx==table->s->primary_key);
+            break;
+          case NdbQueryOperationDef::UniqueIndexAccess:
+            DBUG_ASSERT(idx<MAX_KEY);
+//          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
+            pushable= (m_index[idx].unique_index == expected_index);
+            break;
+          case NdbQueryOperationDef::TableScan:
+            DBUG_ASSERT (idx==MAX_KEY);
+            break;
+          case NdbQueryOperationDef::OrderedIndexScan:
+            DBUG_ASSERT(idx<MAX_KEY);
+//          DBUG_ASSERT(m_index[idx].index == expected_index);
+            pushable= (m_index[idx].index == expected_index);
+            break;
+          default:
+            DBUG_ASSERT(false);
+            break;
+        }
+      }
+    }
+    else
+    {
+      DBUG_PRINT("info", 
+                 ("Cannot execute push join. Root operation prepared as %s "
+                  "not executable as %s w/ index %d",
+                  NdbQueryOperationDef::getTypeName(query_def_type),
+                  NdbQueryOperationDef::getTypeName(type), idx));
+    }
+  }
+  return pushable;
+}
+
+
 static
 bool
 is_shrinked_varchar(const Field *field)
@@ -1492,6 +1586,17 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
 
   DBUG_RETURN(0);
 } // ha_ndbcluster::create_pushed_join
+
+
+/**
+ * Check if this table access operation is part if a pushed join operation
+ * which is actively executing.
+ */
+bool 
+ha_ndbcluster::check_is_pushed() const
+{
+  return (m_pushed_join_member && m_pushed_join_member->m_active_query);
+}
 
 
 uint 
@@ -3806,111 +3911,6 @@ bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
 
   DBUG_RETURN(true);
 }
-
-/**
- * C++98 does not allow forward declarations of enum types. By using this 
- * class instead of using NdbQueryOperationDef::Type directly, 
- * ha_ndbcluster.h avoids including NdbQueryBuilder.h.
- */
-class NdbQueryOperationTypeWrapper
-{
-public:
-  /** Implcit conversion from NdbQueryOperationDef::Type.*/
-  NdbQueryOperationTypeWrapper(NdbQueryOperationDef::Type type)
-    :m_type(type)
-  {}
-
-  /** Implcit conversion to NdbQueryOperationDef::Type.*/
-  operator NdbQueryOperationDef::Type() const
-  { return m_type; }
-
-private:
-  const NdbQueryOperationDef::Type m_type;
-};
-
-
-/**
- * Check if this table access operation (and a number of succeding operation)
- * can be pushed to the cluster and executed there. This requires that there
- * is an NdbQueryDefiniton and that it still matches the corresponds to the 
- * type of operation that we intend to execute. (The MySQL server will 
- * sometimes change its mind and replace a scan with a lookup or vice versa
- * as it works its way into the nested loop join.)
- *
- * @param type This is the operation type that the server want to execute.
- * @param idx  Index used whenever relevant for operation type
- * @return True if the operation may be pushed.
- */
-bool 
-ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, uint idx) const
-{
-  bool pushable= FALSE;
-
-  if (m_pushed_join != NULL)
-  {
-    const NdbQueryOperationDef* const root_operation= 
-      m_pushed_join->get_query_def().getQueryOperation(0U);
-
-    const NdbQueryOperationTypeWrapper& query_def_type=  root_operation->getType();
-
-    if (query_def_type == type)
-    {
-      if (m_disable_pushed_join)
-      {
-        DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
-      }
-      else
-      {
-        const NdbDictionary::Index* const expected_index= root_operation->getIndex();
-        pushable= TRUE;
-
-        switch (type)
-        {
-          case NdbQueryOperationDef::PrimaryKeyAccess:
-            DBUG_ASSERT(idx==table->s->primary_key);
-            break;
-          case NdbQueryOperationDef::UniqueIndexAccess:
-            DBUG_ASSERT(idx<MAX_KEY);
-//          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
-            pushable= (m_index[idx].unique_index == expected_index);
-            break;
-          case NdbQueryOperationDef::TableScan:
-            DBUG_ASSERT (idx==MAX_KEY);
-            break;
-          case NdbQueryOperationDef::OrderedIndexScan:
-            DBUG_ASSERT(idx<MAX_KEY);
-//          DBUG_ASSERT(m_index[idx].index == expected_index);
-            pushable= (m_index[idx].index == expected_index);
-            break;
-          default:
-            DBUG_ASSERT(false);
-            break;
-        }
-      }
-    }
-    else
-    {
-      DBUG_PRINT("info", 
-                 ("Cannot execute push join. Root operation prepared as %s "
-                  "not executable as %s w/ index %d",
-                  NdbQueryOperationDef::getTypeName(query_def_type),
-                  NdbQueryOperationDef::getTypeName(type), idx));
-    }
-  }
-  return pushable;
-}
-
-
-/**
- * Check if this table access operation is part if a pushed join operation
- * which is actively executing.
- */
-bool 
-ha_ndbcluster::check_is_pushed() const
-{
-  return (m_pushed_join_member && m_pushed_join_member->m_active_query);
-}
-
 
 /**
   Read one record from NDB using primary key.
