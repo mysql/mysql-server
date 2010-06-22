@@ -47,7 +47,7 @@
 */
 
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_I_List<ORDER> *order, ha_rows limit, ulonglong options)
+                  SQL_I_List<ORDER> *order_list, ha_rows limit, ulonglong options)
 {
   bool          will_batch;
   int		error, loc_error;
@@ -58,6 +58,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool		transactional_table, safe_update, const_cond;
   bool          const_cond_result;
   ha_rows	deleted= 0;
+  bool          reverse= FALSE;
+  ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
+                           order_list->first : NULL);
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   THD::killed_state killed_status= THD::NOT_KILLED;
@@ -79,7 +82,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(TRUE);
 
   /* check ORDER BY even if it can be ignored */
-  if (order && order->elements)
+  if (order)
   {
     TABLE_LIST   tables;
     List<Item>   fields;
@@ -89,9 +92,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     tables.table = table;
     tables.alias = table_list->alias;
 
-      if (select_lex->setup_ref_array(thd, order->elements) ||
+      if (select_lex->setup_ref_array(thd, order_list->elements) ||
 	  setup_order(thd, select_lex->ref_pointer_array, &tables,
-                    fields, all_fields, order->first))
+                    fields, all_fields, order))
     {
       delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -182,6 +185,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   table->covering_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
+
   select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
     DBUG_RETURN(TRUE);
@@ -217,22 +221,25 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);
 
-  if (order && order->elements)
+  if (order)
   {
     uint         length= 0;
     SORT_FIELD  *sortorder;
     ha_rows examined_rows;
     
-    if ((!select || table->quick_keys.is_clear_all()) && limit != HA_POS_ERROR)
-      usable_index= get_index_for_order(table, order->first, limit);
+    table->update_const_key_parts(conds);
+    order= simple_remove_const(order, conds);
 
-    if (usable_index == MAX_KEY)
+    bool need_sort;
+    usable_index= get_index_for_order(order, table, select, limit,
+                                      &need_sort, &reverse);
+    if (need_sort)
     {
+      DBUG_ASSERT(usable_index == MAX_KEY);
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                    MYF(MY_FAE | MY_ZEROFILL));
     
-      if (!(sortorder= make_unireg_sortorder(order->first,
-                                             &length, NULL)) ||
+      if (!(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
                                                 select, HA_POS_ERROR, 1,
                                                 &examined_rows))
@@ -263,7 +270,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (usable_index==MAX_KEY || (select && select->quick))
     init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
-    init_read_record_idx(&info, thd, table, 1, usable_index);
+    init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
   init_ftfuncs(thd, select_lex, 1);
   thd_proc_info(thd, "updating");
