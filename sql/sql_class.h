@@ -2478,7 +2478,14 @@ public:
   /** Return FALSE if connection to client is broken. */
   bool is_connected()
   {
-    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+    /*
+      The slave SQL thread and the event worker thread are connected
+      but not using vio. So this function always returns true for
+      them.
+    */
+    return system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+      system_thread == SYSTEM_THREAD_EVENT_WORKER ||
+      (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
