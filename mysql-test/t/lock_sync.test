@@ -716,7 +716,7 @@ let $restore_table= ;
 --source include/check_concurrent_insert.inc
 
 --echo #
---echo # 5.2 Function that modifes data and uses CALL, 
+--echo # 5.2 Function that modifies data and uses CALL, 
 --echo #     which reads a table through SELECT.
 --echo #
 --echo # Since a call to such function is written to the binary
