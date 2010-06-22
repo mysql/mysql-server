@@ -1871,6 +1871,17 @@ select straight_join *
 from t3 as X JOIN t3 as Y on X.c3 = Y.c3
 where Y.b3 is NULL;
 a3	b3	c3	d3	a3	b3	c3	d3
+explain
+select straight_join * from
+t3 as X1
+JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3
+JOIN t3 as X2 on X2.b3 = Y1.b3
+JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X1	ALL	b3,c3,c3_2	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y1	ref	b3	b3	9	test.X1.b3,test.X1.d3	1	Child of pushed join@1; Using where
+1	SIMPLE	X2	ref	b3,c3,c3_2	b3	4	test.X1.b3	1	Parent of 2 pushed join@2
+1	SIMPLE	Y2	ref	b3	b3	9	test.X2.c3,test.X1.c3	1	Child of pushed join@2; Using where
 drop table t3;
 create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
 insert into t1 values (1,null, 2);
