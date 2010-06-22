@@ -6670,7 +6670,7 @@ alter_list_item:
             {
               MYSQL_YYABORT;
             }
-            if (check_table_name($3->table.str,$3->table.length) ||
+            if (check_table_name($3->table.str,$3->table.length, FALSE) ||
                 ($3->db.str && check_and_convert_db_name(&$3->db, FALSE)))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);

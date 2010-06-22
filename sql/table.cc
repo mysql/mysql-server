@@ -311,13 +311,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->version=       refresh_version;
 
     /*
-      This constant is used to mark that no table map version has been
-      assigned.  No arithmetic is done on the value: it will be
-      overwritten with a value taken from MYSQL_BIN_LOG.
-    */
-    share->table_map_version= ~(ulonglong)0;
-
-    /*
       Since alloc_table_share() can be called without any locking (for
       example, ha_create_table... functions), we do not assign a table
       map id here.  Instead we assign a value that is not used
@@ -383,11 +376,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   share->path.length= share->normalized_path.length= strlen(path);
   share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
 
-  /*
-    Temporary tables are not replicated, but we set up these fields
-    anyway to be able to catch errors.
-   */
-  share->table_map_version= ~(ulonglong)0;
   share->cached_row_logging_check= -1;
 
   /*
@@ -500,6 +488,26 @@ inline bool is_system_table_name(const char *name, uint length)
 }
 
 
+/**
+  Check if a string contains path elements
+*/  
+
+static inline bool has_disabled_path_chars(const char *str)
+{
+  for (; *str; str++)
+    switch (*str)
+    {
+      case FN_EXTCHAR:
+      case '/':
+      case '\\':
+      case '~':
+      case '@':
+        return TRUE;
+    }
+  return FALSE;
+}
+
+
 /*
   Read table definition from a binary / text based .frm file
   
@@ -556,7 +564,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         This kind of tables must have been opened only by the
         mysql_file_open() above.
     */
-    if (strchr(share->table_name.str, '@') ||
+    if (has_disabled_path_chars(share->table_name.str) ||
+        has_disabled_path_chars(share->db.str) ||
         !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
                  MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
         !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
@@ -2765,7 +2774,6 @@ bool check_and_convert_db_name(LEX_STRING *org_name, bool preserve_lettercase)
             (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
 }
 
-
 /*
   Allow anything as a table name, as long as it doesn't contain an
   ' ' at the end
@@ -2773,7 +2781,7 @@ bool check_and_convert_db_name(LEX_STRING *org_name, bool preserve_lettercase)
 */
 
 
-bool check_table_name(const char *name, uint length)
+bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
   uint name_length= 0;  // name length in symbols
   const char *end= name+length;
@@ -2800,6 +2808,9 @@ bool check_table_name(const char *name, uint length)
         continue;
       }
     }
+    if (check_for_path_chars &&
+        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
+      return 1;
 #endif
     name++;
     name_length++;

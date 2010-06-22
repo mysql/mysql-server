@@ -49,7 +49,8 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
-#include "lock.h"                           // MYSQL_LOCK_IGNORE_FLUSH
+#include "debug_sync.h"
+#include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -3548,6 +3549,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
             res= open_normal_and_derived_tables(thd, show_table_list,
                    (MYSQL_OPEN_IGNORE_FLUSH |
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |

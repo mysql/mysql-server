@@ -99,7 +99,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where (`test`.`t2`.`d` = NULL)) AS `RESULT` from dual
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual
 first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -110,7 +110,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where (`test`.`t2`.`d` = ifnull(NULL,NULL))) AS `RESULT` from dual group by NULL
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
 second equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -121,7 +121,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where (`test`.`t2`.`d` = NULL)) AS `RESULT` from dual group by NULL
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
 DROP TABLE t1,t2;
 #
 # BUG#45928 "Differing query results depending on MRR and
