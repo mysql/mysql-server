@@ -29,8 +29,8 @@
 
 #include "repl_failsafe.h"
 #include "sql_acl.h"                            // REPL_SLAVE_ACL
-#include "sql_repl.h"
-#include "slave.h"
+#include "rpl_master.h"
+#include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "log_event.h"

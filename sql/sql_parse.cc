@@ -76,7 +76,8 @@
 #include "sql_help.h"         // mysqld_help
 #include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
 #include "log_event.h"
-#include "sql_repl.h"
+#include "rpl_slave.h"
+#include "rpl_master.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include <m_ctype.h>
@@ -2442,7 +2443,13 @@ case SQLCOM_PREPARE:
     res = show_slave_hosts(thd);
     break;
   }
-  case SQLCOM_SHOW_RELAYLOG_EVENTS: /* fall through */
+  case SQLCOM_SHOW_RELAYLOG_EVENTS:
+  {
+    if (check_global_access(thd, REPL_SLAVE_ACL))
+      goto error;
+    res = mysql_show_relaylog_events(thd);
+    break;
+  }
   case SQLCOM_SHOW_BINLOG_EVENTS:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))

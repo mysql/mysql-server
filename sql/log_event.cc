@@ -37,7 +37,7 @@
 #include "tztime.h"     // struct Time_zone
 #include "sql_load.h"   // mysql_load
 #include "sql_db.h"     // load_db_opt_by_name
-#include "slave.h"
+#include "rpl_slave.h"
 #include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"

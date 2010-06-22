@@ -26,12 +26,11 @@
 
 #include "sql_priv.h"
 #include "my_global.h"
-#include "slave.h"
+#include "rpl_slave.h"
 #include "sql_parse.h"                         // execute_init_command
 #include "sql_table.h"                         // mysql_rm_table
 #include "rpl_mi.h"
 #include "rpl_rli.h"
-#include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include "transaction.h"
@@ -4982,6 +4981,615 @@ bool rpl_master_erroneous_autoinc(THD *thd)
 template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
+
+/**
+  a copy of active_mi->rli->slave_skip_counter, for showing in SHOW VARIABLES,
+  INFORMATION_SCHEMA.GLOBAL_VARIABLES and @@sql_slave_skip_counter without
+  taking all the mutexes needed to access active_mi->rli->slave_skip_counter
+  properly.
+*/
+uint sql_slave_skip_counter;
+
+/**
+  Execute a START SLAVE statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object for the slave's IO thread.
+
+  @param net_report If true, saves the exit status into thd->stmt_da.
+
+  @retval 0 success
+  @retval 1 error
+*/
+int start_slave(THD* thd , Master_info* mi,  bool net_report)
+{
+  int slave_errno= 0;
+  int thread_mask;
+  DBUG_ENTER("start_slave");
+
+  if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
+    DBUG_RETURN(1);
+  lock_slave_threads(mi);  // this allows us to cleanly read slave_running
+  // Get a mask of _stopped_ threads
+  init_thread_mask(&thread_mask,mi,1 /* inverse */);
+  /*
+    Below we will start all stopped threads.  But if the user wants to
+    start only one thread, do as if the other thread was running (as we
+    don't wan't to touch the other thread), so set the bit to 0 for the
+    other thread
+  */
+  if (thd->lex->slave_thd_opt)
+    thread_mask&= thd->lex->slave_thd_opt;
+  if (thread_mask) //some threads are stopped, start them
+  {
+    if (init_master_info(mi,master_info_file,relay_log_info_file, 0,
+			 thread_mask))
+      slave_errno=ER_MASTER_INFO;
+    else if (server_id_supplied && *mi->host)
+    {
+      /*
+        If we will start SQL thread we will care about UNTIL options If
+        not and they are specified we will ignore them and warn user
+        about this fact.
+      */
+      if (thread_mask & SLAVE_SQL)
+      {
+        mysql_mutex_lock(&mi->rli.data_lock);
+
+        if (thd->lex->mi.pos)
+        {
+          mi->rli.until_condition= Relay_log_info::UNTIL_MASTER_POS;
+          mi->rli.until_log_pos= thd->lex->mi.pos;
+          /*
+             We don't check thd->lex->mi.log_file_name for NULL here
+             since it is checked in sql_yacc.yy
+          */
+          strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
+                  sizeof(mi->rli.until_log_name)-1);
+        }
+        else if (thd->lex->mi.relay_log_pos)
+        {
+          mi->rli.until_condition= Relay_log_info::UNTIL_RELAY_POS;
+          mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
+          strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
+                  sizeof(mi->rli.until_log_name)-1);
+        }
+        else
+          mi->rli.clear_until_condition();
+
+        if (mi->rli.until_condition != Relay_log_info::UNTIL_NONE)
+        {
+          /* Preparing members for effective until condition checking */
+          const char *p= fn_ext(mi->rli.until_log_name);
+          char *p_end;
+          if (*p)
+          {
+            //p points to '.'
+            mi->rli.until_log_name_extension= strtoul(++p,&p_end, 10);
+            /*
+              p_end points to the first invalid character. If it equals
+              to p, no digits were found, error. If it contains '\0' it
+              means  conversion went ok.
+            */
+            if (p_end==p || *p_end)
+              slave_errno=ER_BAD_SLAVE_UNTIL_COND;
+          }
+          else
+            slave_errno=ER_BAD_SLAVE_UNTIL_COND;
+
+          /* mark the cached result of the UNTIL comparison as "undefined" */
+          mi->rli.until_log_names_cmp_result=
+            Relay_log_info::UNTIL_LOG_NAMES_CMP_UNKNOWN;
+
+          /* Issuing warning then started without --skip-slave-start */
+          if (!opt_skip_slave_start)
+            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         ER_MISSING_SKIP_SLAVE,
+                         ER(ER_MISSING_SKIP_SLAVE));
+        }
+
+        mysql_mutex_unlock(&mi->rli.data_lock);
+      }
+      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
+                     ER(ER_UNTIL_COND_IGNORED));
+
+      if (!slave_errno)
+        slave_errno = start_slave_threads(0 /*no mutex */,
+					1 /* wait for start */,
+					mi,
+					master_info_file,relay_log_info_file,
+					thread_mask);
+    }
+    else
+      slave_errno = ER_BAD_SLAVE;
+  }
+  else
+  {
+    /* no error if all threads are already started, only a warning */
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
+                 ER(ER_SLAVE_WAS_RUNNING));
+  }
+
+  unlock_slave_threads(mi);
+
+  if (slave_errno)
+  {
+    if (net_report)
+      my_message(slave_errno, ER(slave_errno), MYF(0));
+    DBUG_RETURN(1);
+  }
+  else if (net_report)
+    my_ok(thd);
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Execute a STOP SLAVE statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object for the slave's IO thread.
+
+  @param net_report If true, saves the exit status into thd->stmt_da.
+
+  @retval 0 success
+  @retval 1 error
+*/
+int stop_slave(THD* thd, Master_info* mi, bool net_report )
+{
+  DBUG_ENTER("stop_slave");
+  
+  int slave_errno;
+  if (!thd)
+    thd = current_thd;
+
+  if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
+    DBUG_RETURN(1);
+  thd_proc_info(thd, "Killing slave");
+  int thread_mask;
+  lock_slave_threads(mi);
+  // Get a mask of _running_ threads
+  init_thread_mask(&thread_mask,mi,0 /* not inverse*/);
+  /*
+    Below we will stop all running threads.
+    But if the user wants to stop only one thread, do as if the other thread
+    was stopped (as we don't wan't to touch the other thread), so set the
+    bit to 0 for the other thread
+  */
+  if (thd->lex->slave_thd_opt)
+    thread_mask &= thd->lex->slave_thd_opt;
+
+  if (thread_mask)
+  {
+    slave_errno= terminate_slave_threads(mi,thread_mask,
+                                         1 /*skip lock */);
+  }
+  else
+  {
+    //no error if both threads are already stopped, only a warning
+    slave_errno= 0;
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
+                 ER(ER_SLAVE_WAS_NOT_RUNNING));
+  }
+  unlock_slave_threads(mi);
+  thd_proc_info(thd, 0);
+
+  if (slave_errno)
+  {
+    if (net_report)
+      my_message(slave_errno, ER(slave_errno), MYF(0));
+    DBUG_RETURN(1);
+  }
+  else if (net_report)
+    my_ok(thd);
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Execute a RESET SLAVE statement.
+
+  @param thd Pointer to THD object of the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object for the slave.
+
+  @retval 0 success
+  @retval 1 error
+*/
+int reset_slave(THD *thd, Master_info* mi)
+{
+  MY_STAT stat_area;
+  char fname[FN_REFLEN];
+  int thread_mask= 0, error= 0;
+  uint sql_errno=ER_UNKNOWN_ERROR;
+  const char* errmsg= "Unknown error occured while reseting slave";
+  DBUG_ENTER("reset_slave");
+
+  lock_slave_threads(mi);
+  init_thread_mask(&thread_mask,mi,0 /* not inverse */);
+  if (thread_mask) // We refuse if any slave thread is running
+  {
+    sql_errno= ER_SLAVE_MUST_STOP;
+    error=1;
+    goto err;
+  }
+
+  ha_reset_slave(thd);
+
+  // delete relay logs, clear relay log coordinates
+  if ((error= purge_relay_logs(&mi->rli, thd,
+			       1 /* just reset */,
+			       &errmsg)))
+  {
+    sql_errno= ER_RELAY_LOG_FAIL;
+    goto err;
+  }
+
+  /* Clear master's log coordinates */
+  init_master_log_pos(mi);
+  /*
+     Reset errors (the idea is that we forget about the
+     old master).
+  */
+  mi->clear_error();
+  mi->rli.clear_error();
+  mi->rli.clear_until_condition();
+
+  // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
+  end_master_info(mi);
+  // and delete these two files
+  fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
+  if (mysql_file_stat(key_file_master_info, fname, &stat_area, MYF(0)) &&
+      mysql_file_delete(key_file_master_info, fname, MYF(MY_WME)))
+  {
+    error=1;
+    goto err;
+  }
+  // delete relay_log_info_file
+  fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
+  if (mysql_file_stat(key_file_relay_log_info, fname, &stat_area, MYF(0)) &&
+      mysql_file_delete(key_file_relay_log_info, fname, MYF(MY_WME)))
+  {
+    error=1;
+    goto err;
+  }
+
+  RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
+err:
+  unlock_slave_threads(mi);
+  if (error)
+    my_error(sql_errno, MYF(0), errmsg);
+  DBUG_RETURN(error);
+}
+
+/*
+
+  Kill all Binlog_dump threads which previously talked to the same slave
+  ("same" means with the same server id). Indeed, if the slave stops, if the
+  Binlog_dump thread is waiting (mysql_cond_wait) for binlog update, then it
+  will keep existing until a query is written to the binlog. If the master is
+  idle, then this could last long, and if the slave reconnects, we could have 2
+  Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
+  binlog. To avoid this, when the slave reconnects and sends COM_BINLOG_DUMP,
+  the master kills any existing thread with the slave's server id (if this id is
+  not zero; it will be true for real slaves, but false for mysqlbinlog when it
+  sends COM_BINLOG_DUMP to get a remote binlog dump).
+
+  SYNOPSIS
+    kill_zombie_dump_threads()
+    slave_server_id     the slave's server id
+
+*/
+
+
+/**
+  Execute a CHANGE MASTER statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @param mi Pointer to Master_info object belonging to the slave's IO
+  thread.
+
+  @retval FALSE success
+  @retval TRUE error
+*/
+bool change_master(THD* thd, Master_info* mi)
+{
+  int thread_mask;
+  const char* errmsg= 0;
+  bool need_relay_log_purge= 1;
+  bool ret= FALSE;
+  char saved_host[HOSTNAME_LENGTH + 1];
+  uint saved_port;
+  char saved_log_name[FN_REFLEN];
+  my_off_t saved_log_pos;
+  DBUG_ENTER("change_master");
+
+  lock_slave_threads(mi);
+  init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
+  if (thread_mask) // We refuse if any slave thread is running
+  {
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+    ret= TRUE;
+    goto err;
+  }
+
+  thd_proc_info(thd, "Changing master");
+  /* 
+    We need to check if there is an empty master_host. Otherwise
+    change master succeeds, a master.info file is created containing 
+    empty master_host string and when issuing: start slave; an error
+    is thrown stating that the server is not configured as slave.
+    (See BUG#28796).
+  */
+  if(lex_mi->host && !*lex_mi->host) 
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_HOST");
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+  }
+  // TODO: see if needs re-write
+  if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
+		       thread_mask))
+  {
+    my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
+    ret= TRUE;
+    goto err;
+  }
+
+  /*
+    Data lock not needed since we have already stopped the running threads,
+    and we have the hold on the run locks which will keep all threads that
+    could possibly modify the data structures from running
+  */
+
+  /*
+    Before processing the command, save the previous state.
+  */
+  char *pos;
+  pos= strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  pos= '\0';
+  saved_port= mi->port;
+  pos= strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
+  pos= '\0';
+  saved_log_pos= mi->master_log_pos;
+
+  /*
+    If the user specified host or port without binlog or position,
+    reset binlog's name to FIRST and position to 4.
+  */
+
+  if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
+  {
+    mi->master_log_name[0] = 0;
+    mi->master_log_pos= BIN_LOG_HEADER_SIZE;
+  }
+
+  if (lex_mi->log_file_name)
+    strmake(mi->master_log_name, lex_mi->log_file_name,
+	    sizeof(mi->master_log_name)-1);
+  if (lex_mi->pos)
+  {
+    mi->master_log_pos= lex_mi->pos;
+  }
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
+
+  if (lex_mi->host)
+    strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
+  if (lex_mi->user)
+    strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
+  if (lex_mi->password)
+    strmake(mi->password, lex_mi->password, sizeof(mi->password)-1);
+  if (lex_mi->port)
+    mi->port = lex_mi->port;
+  if (lex_mi->connect_retry)
+    mi->connect_retry = lex_mi->connect_retry;
+  if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->heartbeat_period = lex_mi->heartbeat_period;
+  else
+    mi->heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                      (slave_net_timeout/2.0));
+  mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
+  /*
+    reset the last time server_id list if the current CHANGE MASTER 
+    is mentioning IGNORE_SERVER_IDS= (...)
+  */
+  if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+    reset_dynamic(&mi->ignore_server_ids);
+  for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
+  {
+    ulong s_id;
+    get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
+    if (s_id == ::server_id && replicate_same_server_id)
+    {
+      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), s_id);
+      ret= TRUE;
+      goto err;
+    }
+    else
+    {
+      if (bsearch((const ulong *) &s_id,
+                  mi->ignore_server_ids.buffer,
+                  mi->ignore_server_ids.elements, sizeof(ulong),
+                  (int (*) (const void*, const void*))
+                  change_master_server_id_cmp) == NULL)
+        insert_dynamic(&mi->ignore_server_ids, (uchar*) &s_id);
+    }
+  }
+  sort_dynamic(&mi->ignore_server_ids, (qsort_cmp) change_master_server_id_cmp);
+
+  if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
+
+  if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->ssl_verify_server_cert=
+      (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
+
+  if (lex_mi->ssl_ca)
+    strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
+  if (lex_mi->ssl_capath)
+    strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath)-1);
+  if (lex_mi->ssl_cert)
+    strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert)-1);
+  if (lex_mi->ssl_cipher)
+    strmake(mi->ssl_cipher, lex_mi->ssl_cipher, sizeof(mi->ssl_cipher)-1);
+  if (lex_mi->ssl_key)
+    strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
+#ifndef HAVE_OPENSSL
+  if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
+      lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
+      lex_mi->ssl_verify_server_cert )
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                 ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
+#endif
+
+  if (lex_mi->relay_log_name)
+  {
+    need_relay_log_purge= 0;
+    char relay_log_name[FN_REFLEN];
+    mi->rli.relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
+    strmake(mi->rli.group_relay_log_name, relay_log_name,
+	    sizeof(mi->rli.group_relay_log_name)-1);
+    strmake(mi->rli.event_relay_log_name, relay_log_name,
+	    sizeof(mi->rli.event_relay_log_name)-1);
+  }
+
+  if (lex_mi->relay_log_pos)
+  {
+    need_relay_log_purge= 0;
+    mi->rli.group_relay_log_pos= mi->rli.event_relay_log_pos= lex_mi->relay_log_pos;
+  }
+
+  /*
+    If user did specify neither host nor port nor any log name nor any log
+    pos, i.e. he specified only user/password/master_connect_retry, he probably
+    wants replication to resume from where it had left, i.e. from the
+    coordinates of the **SQL** thread (imagine the case where the I/O is ahead
+    of the SQL; restarting from the coordinates of the I/O would lose some
+    events which is probably unwanted when you are just doing minor changes
+    like changing master_connect_retry).
+    A side-effect is that if only the I/O thread was started, this thread may
+    restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
+    much more unlikely situation than the one we are fixing here).
+    Note: coordinates of the SQL thread must be read here, before the
+    'if (need_relay_log_purge)' block which resets them.
+  */
+  if (!lex_mi->host && !lex_mi->port &&
+      !lex_mi->log_file_name && !lex_mi->pos &&
+      need_relay_log_purge)
+   {
+     /*
+       Sometimes mi->rli.master_log_pos == 0 (it happens when the SQL thread is
+       not initialized), so we use a max().
+       What happens to mi->rli.master_log_pos during the initialization stages
+       of replication is not 100% clear, so we guard against problems using
+       max().
+      */
+     mi->master_log_pos = max(BIN_LOG_HEADER_SIZE,
+			      mi->rli.group_master_log_pos);
+     strmake(mi->master_log_name, mi->rli.group_master_log_name,
+             sizeof(mi->master_log_name)-1);
+  }
+  /*
+    Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
+    a slave before).
+  */
+  if (flush_master_info(mi, FALSE, FALSE))
+  {
+    my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
+    ret= TRUE;
+    goto err;
+  }
+  if (need_relay_log_purge)
+  {
+    relay_log_purge= 1;
+    thd_proc_info(thd, "Purging old relay logs");
+    if (purge_relay_logs(&mi->rli, thd,
+			 0 /* not only reset, but also reinit */,
+			 &errmsg))
+    {
+      my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
+      ret= TRUE;
+      goto err;
+    }
+  }
+  else
+  {
+    const char* msg;
+    relay_log_purge= 0;
+    /* Relay log is already initialized */
+    if (init_relay_log_pos(&mi->rli,
+			   mi->rli.group_relay_log_name,
+			   mi->rli.group_relay_log_pos,
+			   0 /*no data lock*/,
+			   &msg, 0))
+    {
+      my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
+      ret= TRUE;
+      goto err;
+    }
+  }
+  /*
+    Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
+    so restore them to good values. If we left them to ''/0, that would work;
+    but that would fail in the case of 2 successive CHANGE MASTER (without a
+    START SLAVE in between): because first one would set the coords in mi to
+    the good values of those in rli, the set those in rli to ''/0, then
+    second CHANGE MASTER would set the coords in mi to those of rli, i.e. to
+    ''/0: we have lost all copies of the original good coordinates.
+    That's why we always save good coords in rli.
+  */
+  mi->rli.group_master_log_pos= mi->master_log_pos;
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
+  strmake(mi->rli.group_master_log_name,mi->master_log_name,
+	  sizeof(mi->rli.group_master_log_name)-1);
+
+  if (!mi->rli.group_master_log_name[0]) // uninitialized case
+    mi->rli.group_master_log_pos=0;
+
+  mysql_mutex_lock(&mi->rli.data_lock);
+  mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
+  /* Clear the errors, for a clean start */
+  mi->rli.clear_error();
+  mi->rli.clear_until_condition();
+
+  sql_print_information("'CHANGE MASTER TO executed'. "
+    "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'. "
+    "New state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'.", saved_host, saved_port, saved_log_name,
+    (ulong) saved_log_pos, mi->host, mi->port, mi->master_log_name,
+    (ulong) mi->master_log_pos);
+
+  /*
+    If we don't write new coordinates to disk now, then old will remain in
+    relay-log.info until START SLAVE is issued; but if mysqld is shutdown
+    before START SLAVE, then old will remain in relay-log.info, and will be the
+    in-memory value at restart (thus causing errors, as the old relay log does
+    not exist anymore).
+  */
+  flush_relay_log_info(&mi->rli);
+  mysql_cond_broadcast(&mi->data_cond);
+  mysql_mutex_unlock(&mi->rli.data_lock);
+
+err:
+  unlock_slave_threads(mi);
+  thd_proc_info(thd, 0);
+  if (ret == FALSE)
+    my_ok(thd);
+  delete_dynamic(&lex_mi->repl_ignore_server_ids); //freeing of parser-time alloc
+  DBUG_RETURN(ret);
+}
 
 /**
   @} (end of group Replication)

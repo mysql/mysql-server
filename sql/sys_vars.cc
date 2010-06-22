@@ -34,7 +34,7 @@
 
 #include "events.h"
 #include <thr_alarm.h>
-#include "slave.h"
+#include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "mysqld.h"
