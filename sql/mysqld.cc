@@ -53,9 +53,9 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
-#include "slave.h"
+#include "rpl_slave.h"
+#include "rpl_master.h"
 #include "rpl_mi.h"
-#include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include <my_stacktrace.h>

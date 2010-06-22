@@ -19,7 +19,7 @@
 #include "sql_acl.h"                            // *_ACL
 #include "rpl_rli.h"
 #include "base64.h"
-#include "slave.h"                              // apply_event_and_update_pos
+#include "rpl_slave.h"                              // apply_event_and_update_pos
 #include "log_event.h"                          // Format_description_log_event,
                                                 // EVENT_LEN_OFFSET,
                                                 // EVENT_TYPE_OFFSET,

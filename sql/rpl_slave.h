@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef SLAVE_H
-#define SLAVE_H
+#ifndef RPL_SLAVE_H
+#define RPL_SLAVE_H
 
 /**
   @defgroup Replication Replication
@@ -36,6 +36,7 @@
 #ifdef HAVE_REPLICATION
 
 #include "log.h"
+#include "binlog.h"
 #include "my_list.h"
 #include "rpl_filter.h"
 #include "rpl_tblmap.h"
@@ -48,6 +49,7 @@
 class Relay_log_info;
 class Master_info;
 
+extern bool server_id_supplied;
 
 /*****************************************************************************
 
@@ -144,10 +146,15 @@ extern ulonglong relay_log_space_limit;
 */
 #define SLAVE_FORCE_ALL 4
 
+int start_slave(THD* thd, Master_info* mi, bool net_report);
+int stop_slave(THD* thd, Master_info* mi, bool net_report);
+bool change_master(THD* thd, Master_info* mi);
+int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
+		   const char* log_file_name2, ulonglong log_pos2);
+int reset_slave(THD *thd, Master_info* mi);
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
 void init_slave_skip_errors(const char* arg);
-bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(Master_info* mi, int thread_mask,
 			     bool skip_lock = 0);
@@ -193,19 +200,11 @@ void end_slave(); /* release slave threads */
 void close_active_mi(); /* clean up slave threads data */
 void clear_until_condition(Relay_log_info* rli);
 void clear_slave_error(Relay_log_info* rli);
-void end_relay_log_info(Relay_log_info* rli);
 void lock_slave_threads(Master_info* mi);
 void unlock_slave_threads(Master_info* mi);
 void init_thread_mask(int* mask,Master_info* mi,bool inverse);
-int init_relay_log_pos(Relay_log_info* rli,const char* log,ulonglong pos,
-		       bool need_data_lock, const char** errmsg,
-                       bool look_for_description_event);
-
-int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
-		     const char** errmsg);
 void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
-void rotate_relay_log(Master_info* mi);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 
 pthread_handler_t handle_slave_io(void *arg);

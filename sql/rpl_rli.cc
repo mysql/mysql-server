@@ -19,10 +19,10 @@
 #include "rpl_rli.h"
 #include "sql_base.h"                        // close_thread_tables
 #include <my_dir.h>    // For MY_STAT
-#include "sql_repl.h"  // For check_binlog_magic
 #include "log_event.h" // Format_description_log_event, Log_event,
                        // FORMAT_DESCRIPTION_LOG_EVENT, ROTATE_EVENT,
                        // PREFIX_SQL_LOAD
+#include "rpl_slave.h"
 #include "rpl_utility.h"
 #include "transaction.h"
 #include "sql_parse.h"                          // end_trans, ROLLBACK
@@ -1243,4 +1243,32 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
   close_thread_tables(thd);
   clear_tables_to_lock();
 }
+/**
+  Execute a SHOW RELAYLOG EVENTS statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
+bool mysql_show_relaylog_events(THD* thd)
+{
+  Protocol *protocol= thd->protocol;
+  List<Item> field_list;
+  DBUG_ENTER("mysql_show_relaylog_events");
+
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
+
+  Log_event::init_show_field_list(&field_list);
+  if (protocol->send_result_set_metadata(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+  if (!active_mi)
+    DBUG_RETURN(TRUE);
+  
+  DBUG_RETURN(show_binlog_events(thd, &active_mi->rli.relay_log));
+}
+
 #endif

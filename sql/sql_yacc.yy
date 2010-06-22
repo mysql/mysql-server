@@ -44,7 +44,7 @@
 #include "sql_acl.h"                          /* *_ACL */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql_class.h"      /* Key_part_spec, enum_filetype, Diag_condition_item_name */
-#include "slave.h"
+#include "rpl_slave.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"

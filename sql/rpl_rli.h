@@ -19,7 +19,8 @@
 #include "rpl_tblmap.h"
 #include "rpl_reporting.h"
 #include "rpl_utility.h"
-#include "log.h"                         /* LOG_INFO, MYSQL_BIN_LOG */
+#include "log.h"                         /* LOG_INFO */
+#include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
 
 struct RPL_TABLE_LIST;
@@ -443,6 +444,15 @@ private:
 
 // Defined in rpl_rli.cc
 int init_relay_log_info(Relay_log_info* rli, const char* info_fname);
+bool flush_relay_log_info(Relay_log_info* rli);
+void end_relay_log_info(Relay_log_info* rli);
+int init_relay_log_pos(Relay_log_info* rli,const char* log,ulonglong pos,
+		       bool need_data_lock, const char** errmsg,
+                       bool look_for_description_event);
 
+int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
+		     const char** errmsg);
+void rotate_relay_log(Master_info* mi);
+bool mysql_show_relaylog_events(THD* thd);
 
 #endif /* RPL_RLI_H */
