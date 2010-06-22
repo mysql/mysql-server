@@ -77,7 +77,7 @@ static MYSQL_THDVAR_UINT(
   NULL,                              /* update func. */
   1,                                 /* default */
   1,                                 /* min */
-  256,                               /* max */
+  65535,                             /* max */
   0                                  /* block */
 );
 
