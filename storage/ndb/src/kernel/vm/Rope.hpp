@@ -51,7 +51,8 @@ public:
   
   int compare(const char * s) const { return compare(s, (Uint32)strlen(s) + 1);}
   int compare(const char *, Uint32 len) const; 
-  
+
+  bool equal(const ConstRope& r2) const;
 private:
   const RopeHandle & src;
 };
