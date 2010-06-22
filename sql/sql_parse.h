@@ -130,11 +130,6 @@ bool check_simple_select();
 Item *negate_expression(THD *thd, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
-bool begin_trans(THD *thd);
-bool end_active_trans(THD *thd);
-int end_trans(THD *thd, enum enum_mysql_completiontype completion);
-
-
 /* Variables */
 
 extern const char* any_db;

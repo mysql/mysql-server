@@ -272,6 +272,7 @@ ELSEIF (MYSQL_VERSION_ID LESS "50137")
 ELSE()
 	# New plugin support, cross-platform ,  base name for shared module is "ha_innodb"
 	MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
+		DEFAULT
 		MODULE_OUTPUT_NAME ha_innodb
 		LINK_LIBRARIES ${ZLIB_LIBRARY})
 ENDIF()
