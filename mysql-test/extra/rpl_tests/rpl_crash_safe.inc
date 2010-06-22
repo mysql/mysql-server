@@ -18,7 +18,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   --source extra/rpl_tests/rpl_mixing_engines.inc
 
   --sync_slave_with_master
-  SELECT * FROM mysql.slave_relay_log_info;
+  connection master;
 }
 
 #
