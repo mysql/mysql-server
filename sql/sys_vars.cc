@@ -2029,24 +2029,38 @@ static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
   return FALSE;
 }
 
-/*
-  If one doesn't use the SESSION modifier, the isolation level
-  is only active for the next command.
-*/
-static bool fix_tx_isolation(sys_var *self, THD *thd, enum_var_type type)
+
+bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
-  if (type == OPT_SESSION)
-    thd->session_tx_isolation= (enum_tx_isolation)thd->variables.tx_isolation;
-  return false;
+  if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
+    return TRUE;
+  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  {
+    /*
+      Update the isolation level of the next transaction.
+      I.e. if one did:
+      COMMIT;
+      SET SESSION ISOLATION LEVEL ...
+      BEGIN; <-- this transaction has the new isolation
+      Note, that in case of:
+      COMMIT;
+      SET TRANSACTION ISOLATION LEVEL ...
+      SET SESSION ISOLATION LEVEL ...
+      BEGIN; <-- the session isolation level is used, not the
+      result of SET TRANSACTION statement.
+     */
+    thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
+  }
+  return FALSE;
 }
 
+
 // NO_CMD_LINE - different name of the option
-static Sys_var_enum Sys_tx_isolation(
+static Sys_var_tx_isolation Sys_tx_isolation(
        "tx_isolation", "Default transaction isolation level",
        SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation),
-       ON_UPDATE(fix_tx_isolation));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",

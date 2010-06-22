@@ -29,6 +29,10 @@
 static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table, 
                                     MEM_ROOT *mem_root);
+static int
+heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
+                            HP_CREATE_INFO *hp_create_info);
+
 
 int heap_panic(handlerton *hton, ha_panic_function flag)
 {
@@ -96,43 +100,48 @@ const char **ha_heap::bas_ext() const
 
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
-  if ((test_if_locked & HA_OPEN_INTERNAL_TABLE) ||
-      (!(file= heap_open(name, mode)) && my_errno == ENOENT))
+  internal_table= test(test_if_locked & HA_OPEN_INTERNAL_TABLE);
+  if (internal_table || (!(file= heap_open(name, mode)) && my_errno == ENOENT))
   {
-    HA_CREATE_INFO create_info;
-    internal_table= test(test_if_locked & HA_OPEN_INTERNAL_TABLE);
-    bzero(&create_info, sizeof(create_info));
+    HP_CREATE_INFO create_info;
+    my_bool created_new_share;
+    int rc;
     file= 0;
-    if (!create(name, table, &create_info))
+    if (heap_prepare_hp_create_info(table, internal_table, &create_info))
+      goto end;
+    create_info.pin_share= TRUE;
+
+    rc= heap_create(name, &create_info, &internal_share, &created_new_share);
+    my_free((uchar*) create_info.keydef, MYF(0));
+    if (rc)
+      goto end;
+
+    implicit_emptied= test(created_new_share);
+    if (internal_table)
+      file= heap_open_from_share(internal_share, mode);
+    else
+      file= heap_open_from_share_and_register(internal_share, mode);
+
+    if (!file)
     {
-        file= internal_table ?
-          heap_open_from_share(internal_share, mode) :
-          heap_open_from_share_and_register(internal_share, mode);
-      if (!file)
-      {
-         /* Couldn't open table; Remove the newly created table */
-        mysql_mutex_lock(&THR_LOCK_heap);
-        hp_free(internal_share);
-        mysql_mutex_unlock(&THR_LOCK_heap);
-      }
-      implicit_emptied= 1;
+      heap_release_share(internal_share, internal_table);
+      goto end;
     }
   }
+
   ref_length= sizeof(HEAP_PTR);
-  if (file)
-  {
-    /* Initialize variables for the opened table */
-    set_keys_for_scanning();
-    /*
-      We cannot run update_key_stats() here because we do not have a
-      lock on the table. The 'records' count might just be changed
-      temporarily at this moment and we might get wrong statistics (Bug
-      #10178). Instead we request for update. This will be done in
-      ha_heap::info(), which is always called before key statistics are
-      used.
+  /* Initialize variables for the opened table */
+  set_keys_for_scanning();
+  /*
+    We cannot run update_key_stats() here because we do not have a
+    lock on the table. The 'records' count might just be changed
+    temporarily at this moment and we might get wrong statistics (Bug
+    #10178). Instead we request for update. This will be done in
+    ha_heap::info(), which is always called before key statistics are
+    used.
     */
-    key_stat_version= file->s->key_stat_version-1;
-  }
+  key_stat_version= file->s->key_stat_version-1;
+end:
   return (file ? 0 : 1);
 }
 
@@ -624,17 +633,19 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
 }
 
 
-int ha_heap::create(const char *name, TABLE *table_arg,
-		    HA_CREATE_INFO *create_info)
+static int
+heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
+                            HP_CREATE_INFO *hp_create_info)
 {
   uint key, parts, mem_per_row= 0, keys= table_arg->s->keys;
   uint auto_key= 0, auto_key_type= 0;
   ha_rows max_rows;
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
-  int error;
   TABLE_SHARE *share= table_arg->s;
   bool found_real_auto_increment= 0;
+
+  bzero(hp_create_info, sizeof(*hp_create_info));
 
   for (key= parts= 0; key < keys; key++)
     parts+= table_arg->key_info[key].key_parts;
@@ -715,29 +726,45 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     }
   }
   mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));
-  max_rows = (ha_rows) (table_arg->in_use->variables.max_heap_table_size /
-			(ulonglong) mem_per_row);
   if (table_arg->found_next_number_field)
   {
     keydef[share->next_number_index].flag|= HA_AUTO_KEY;
     found_real_auto_increment= share->next_number_key_offset == 0;
   }
+  hp_create_info->auto_key= auto_key;
+  hp_create_info->auto_key_type= auto_key_type;
+  hp_create_info->max_table_size=current_thd->variables.max_heap_table_size;
+  hp_create_info->with_auto_increment= found_real_auto_increment;
+  hp_create_info->internal_table= internal_table;
+
+  max_rows= (ha_rows) (hp_create_info->max_table_size / mem_per_row);
+  if (share->max_rows && share->max_rows < max_rows)
+    max_rows= share->max_rows;
+
+  hp_create_info->max_records= (ulong) max_rows;
+  hp_create_info->min_records= (ulong) share->min_rows;
+  hp_create_info->keys= share->keys;
+  hp_create_info->reclength= share->reclength;
+  hp_create_info->keydef= keydef;
+  return 0;
+}
+
+
+int ha_heap::create(const char *name, TABLE *table_arg,
+		    HA_CREATE_INFO *create_info)
+{
+  int error;
+  my_bool created;
   HP_CREATE_INFO hp_create_info;
-  hp_create_info.auto_key= auto_key;
-  hp_create_info.auto_key_type= auto_key_type;
+
+  error= heap_prepare_hp_create_info(table_arg, internal_table,
+                                     &hp_create_info);
+  if (error)
+    return error;
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
-  hp_create_info.max_table_size=current_thd->variables.max_heap_table_size;
-  hp_create_info.with_auto_increment= found_real_auto_increment;
-  hp_create_info.internal_table= internal_table;
-  max_rows = (ha_rows) (hp_create_info.max_table_size / mem_per_row);
-  error= heap_create(name,
-		     keys, keydef, share->reclength,
-		     (ulong) ((share->max_rows < max_rows &&
-			       share->max_rows) ? 
-			      share->max_rows : max_rows),
-		     (ulong) share->min_rows, &hp_create_info, &internal_share);
-  my_free((uchar*) keydef, MYF(0));
+  error= heap_create(name, &hp_create_info, &internal_share, &created);
+  my_free((uchar*) hp_create_info.keydef, MYF(0));
   DBUG_ASSERT(file == 0);
   return (error);
 }
