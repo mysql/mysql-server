@@ -112,21 +112,24 @@ insert into t2 values (11,33), (11,22), (11,11);
 explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
 select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
 
+# Check a real resultset for comaprison:
 set join_cache_level=0;
 select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
 set join_cache_level=6;
 
-drop table t1,t2;
 
 #
 # Check that Index Condition Pushdown (BKA) actually works:
 #
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
 
-# TODO
+set optimizer_switch='index_condition_pushdown=off';
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+set optimizer_switch='index_condition_pushdown=on';
 
-#
-# Check that record-check-func is done:
-# 
+drop table t1,t2;
 
 set @@join_cache_level= @save_join_cache_level;
 set storage_engine=@save_storage_engine;

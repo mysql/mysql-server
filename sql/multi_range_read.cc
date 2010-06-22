@@ -624,7 +624,6 @@ void DsMrr_impl::dsmrr_fill_buffer_cpk()
   {
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
     DBUG_ASSERT(cpk_tuple_length == cur_range.start_key.length);
-
     /* Put key, or {key, range_id} pair into the buffer */
     memcpy(mrr_buf_cur, cur_range.start_key.key, cpk_tuple_length);
     mrr_buf_cur += cpk_tuple_length;
@@ -654,7 +653,8 @@ void DsMrr_impl::dsmrr_fill_buffer_cpk()
   DS-MRR/CPK: multi_range_read_next() function
 
   DESCRIPTION
-    DsMrr_impl::dsmrr_next_cpk() 
+    DsMrr_impl::dsmrr_next_cpk()
+      range_info  OUT  identifier of range that the returned record belongs to
 
   DESCRIPTION
     DS-MRR/CPK: multi_range_read_next() function. 
@@ -673,16 +673,31 @@ int DsMrr_impl::dsmrr_next_cpk(char **range_info)
 {
   int res;
 
-  if (cpk_have_range)
+  while (cpk_have_range)
   {
+
+    if (h->mrr_funcs.skip_record &&
+        h->mrr_funcs.skip_record(h->mrr_iter, cpk_saved_range_info, NULL))
+    {
+      cpk_have_range= FALSE;
+      break;
+    }
+
     res= h->index_next_same(table->record[0], mrr_buf_cur, cpk_tuple_length);
+
+    if (h->mrr_funcs.skip_index_tuple &&
+        h->mrr_funcs.skip_index_tuple(h->mrr_iter, cpk_saved_range_info))
+      continue;
+
     if (res != HA_ERR_END_OF_FILE)
     {
       if (is_mrr_assoc)
         memcpy(range_info, &cpk_saved_range_info, sizeof(void*));
       return res;
     }
-    /* No more records in this range. Fall through to get to another range  */
+
+    /* No more records in this range. Exit this loop and go get another range */
+    cpk_have_range= FALSE;
   }
 
   do
@@ -703,30 +718,43 @@ int DsMrr_impl::dsmrr_next_cpk(char **range_info)
       goto end;
     }
     
-    //psergey2-todo: make skip_index_tuple() calls, too?
-    //psergey2-todo: skip-record calls here?
-    //if (h2->mrr_funcs.skip_record &&
-    //	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
-    //  continue;
-    
     /* Ok, got the range. Try making a lookup.  */
     uchar *lookup_tuple= mrr_buf_cur;
     mrr_buf_cur += cpk_tuple_length;
     if (is_mrr_assoc)
     {
-      memcpy(cpk_saved_range_info, mrr_buf_cur, sizeof(void*));
+      memcpy(&cpk_saved_range_info, mrr_buf_cur, sizeof(void*));
       mrr_buf_cur += sizeof(void*) * test(is_mrr_assoc);
     }
       
+    if (h->mrr_funcs.skip_record &&
+        h->mrr_funcs.skip_record(h->mrr_iter, cpk_saved_range_info, NULL))
+      continue;
+    
     res= h->index_read(table->record[0], lookup_tuple, cpk_tuple_length, 
                        HA_READ_KEY_EXACT);
+
+    /*
+      Check pushed index condition. Performance-wise, it does not make any
+      sense to put this call here (the above call has already accessed the full
+      record). That's the best I could do, though, because:
+      - ha_innobase doesn't support IndexConditionPushdown on clustered PK
+      - MRR interface doesn't allow the storage engine to refuse a pushed index
+        condition.
+      Having this call here is not fully harmless: EXPLAIN shows "pushed index
+      condition", which is technically true but doesn't bring the benefits that
+      one might expect.
+    */
+    if (h->mrr_funcs.skip_index_tuple &&
+        h->mrr_funcs.skip_index_tuple(h->mrr_iter, cpk_saved_range_info))
+      continue;
 
     if (res && res != HA_ERR_END_OF_FILE)
       goto end;
 
     if (!res)
     {
-      memcpy(range_info, cpk_saved_range_info, sizeof(void*));
+      memcpy(range_info, &cpk_saved_range_info, sizeof(void*));
       /* 
         Attempt reading more rows from this range only if there actually can
         be multiple matches:
