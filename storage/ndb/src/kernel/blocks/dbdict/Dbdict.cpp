@@ -3895,7 +3895,7 @@ Dbdict::restart_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 }
 
 void
-Dbdict::restart_nextOp(Signal* signal)
+Dbdict::restart_nextOp(Signal* signal, bool commit)
 {
   c_restartRecord.m_op_cnt++;
 
@@ -3910,7 +3910,7 @@ Dbdict::restart_nextOp(Signal* signal)
     c_restartRecord.m_op_cnt = ZRESTART_OPS_PER_TRANS;
   }
 
-  if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
+  if (commit || c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
   {
     jam();
     c_restartRecord.m_op_cnt = 0;
@@ -7931,6 +7931,50 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
         setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
         return;
       }
+
+      if (master)
+      {
+        jam();
+        AlterTableReq::setNameFlag(impl_req->changeMask, 1);
+      }
+      else if (!AlterTableReq::getNameFlag(impl_req->changeMask))
+      {
+        jam();
+        setError(error, AlterTableRef::Inconsistency, __LINE__);
+        return;
+      }
+    }
+    else if (AlterTableReq::getNameFlag(impl_req->changeMask))
+    {
+      jam();
+      setError(error, AlterTableRef::Inconsistency, __LINE__);
+      return;
+    }
+  }
+
+  // frm stuff
+  {
+    ConstRope r1(c_rope_pool, tablePtr.p->frmData);
+    ConstRope r2(c_rope_pool, newTablePtr.p->frmData);
+    if (!r1.equal(r2))
+    {
+      if (master)
+      {
+        jam();
+        AlterTableReq::setFrmFlag(impl_req->changeMask, 1);
+      }
+      else if (!AlterTableReq::getFrmFlag(impl_req->changeMask))
+      {
+        jam();
+        setError(error, AlterTableRef::Inconsistency, __LINE__);
+        return;
+      }
+    }
+    else if (AlterTableReq::getFrmFlag(impl_req->changeMask))
+    {
+      jam();
+      setError(error, AlterTableRef::Inconsistency, __LINE__);
+      return;
     }
   }
 
@@ -7938,11 +7982,29 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   {
     const Uint32 noOfNewAttr =
       newTablePtr.p->noOfAttributes - tablePtr.p->noOfAttributes;
-    const bool addAttrFlag =
-      AlterTableReq::getAddAttrFlag(impl_req->changeMask);
 
-    if (!(newTablePtr.p->noOfAttributes >= tablePtr.p->noOfAttributes) ||
-        (noOfNewAttr != 0) != addAttrFlag) {
+    if (newTablePtr.p->noOfAttributes > tablePtr.p->noOfAttributes)
+    {
+      if (master)
+      {
+        jam();
+        AlterTableReq::setAddAttrFlag(impl_req->changeMask, 1);
+      }
+      else if (!AlterTableReq::getAddAttrFlag(impl_req->changeMask))
+      {
+        jam();
+        setError(error, AlterTableRef::Inconsistency, __LINE__);
+        return;
+      }
+    }
+    else if (AlterTableReq::getAddAttrFlag(impl_req->changeMask))
+    {
+      jam();
+      setError(error, AlterTableRef::Inconsistency, __LINE__);
+      return;
+    }
+    else if (newTablePtr.p->noOfAttributes < tablePtr.p->noOfAttributes)
+    {
       jam();
       setError(error, AlterTableRef::UnsupportedChange, __LINE__);
       return;
@@ -7955,10 +8017,11 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       impl_req->newNoOfCharsets = newTablePtr.p->noOfCharsets;
       impl_req->newNoOfKeyAttrs = newTablePtr.p->noOfPrimkey;
     }
-    else
+    else if (impl_req->noOfNewAttr != noOfNewAttr)
     {
       jam();
-      ndbrequire(impl_req->noOfNewAttr == noOfNewAttr);
+      setError(error, AlterTableRef::Inconsistency, __LINE__);
+      return;
     }
 
     LocalDLFifoList<AttributeRecord>
