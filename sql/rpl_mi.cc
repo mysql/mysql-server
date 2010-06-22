@@ -24,7 +24,7 @@ enum {
   LINES_IN_MASTER_INFO_WITH_SSL= 14,
 
   /* 5.1.16 added value of master_ssl_verify_server_cert */
-  LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 14,
+  LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
 
   /* 5.5 added value of master_heartbeat_period */
   LINE_FOR_MASTER_HEARTBEAT_PERIOD= 16,
@@ -46,7 +46,7 @@ enum {
 */
 const char *info_mi_fields []=
 { 
-  "lines",
+  "number_of_lines",
   "master_log_name",
   "master_log_pos",
   "host",
@@ -65,8 +65,6 @@ const char *info_mi_fields []=
   "ignore_server_ids",
   "retry_count"
 };
-
-#define DEFAULT_CONNECT_RETRY 60
 
 Master_info::Master_info()
    :Rpl_info("I/O"),
