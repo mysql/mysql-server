@@ -2450,8 +2450,10 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
       To make the slave crash-safe positions are updated while processing
       the XID event and as such do not need to be updated again.
     */
-    int error= (ev->get_type_code() != XID_EVENT || skip_event) ?
-                ev->update_pos(rli) : 0;
+    int error= 0;
+    if (ev->get_type_code() != XID_EVENT || skip_event ||
+        !rli->is_transactional())
+      error= ev->update_pos(rli);
 #ifdef HAVE_purify
     if (!rli->is_fake)
 #endif

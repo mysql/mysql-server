@@ -275,6 +275,28 @@ public:
   */
   void set_sync_period(uint period);
 
+  /**
+    Returns a string describing the repository. For instance, if the
+    repository is a file, the returned string is path where data is
+    stored.
+
+    @return a pointer to a string.
+  */
+  char *get_description_info()
+  {
+    return (do_get_description_info());
+  }
+
+  /**
+    Any transactional repository may have its updates rolled back in case
+    of a failure. If this is possible, the repository is classified as
+    transactional.
+
+    @retval TRUE If transactional.
+    @retval FALSE Otherwise.
+  */
+  bool is_transactional() { return is_trans; }
+
   /*                                                                                                                                    
     Pre-store information before writing it to the repository and if
     necessary after reading it from the repository. The decision is
@@ -304,6 +326,11 @@ protected:
   */
   uint sync_period;
 
+  /*
+    Indicates if the repository is_transactional.
+  */
+  bool is_trans;
+
 private:
   virtual int do_init_info()= 0;
   virtual int do_check_info()= 0;
@@ -328,6 +355,7 @@ private:
                            const float default_value)= 0;
   virtual bool do_get_info(const int pos, Server_ids *value,
                            const Server_ids *default_value)= 0;
+  virtual char* do_get_description_info()= 0;
 
   Rpl_info_handler& operator=(const Rpl_info_handler& handler);
   Rpl_info_handler(const Rpl_info_handler& handler);

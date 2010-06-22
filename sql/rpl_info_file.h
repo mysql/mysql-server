@@ -64,6 +64,7 @@ private:
                    const float default_value);
   bool do_get_info(const int pos, Server_ids *value,
                    const Server_ids *default_value);
+  char* do_get_description_info();
 
   Rpl_info_file& operator=(const Rpl_info_file& info);
   Rpl_info_file(const Rpl_info_file& info);

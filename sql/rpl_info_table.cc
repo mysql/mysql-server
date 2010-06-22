@@ -21,9 +21,28 @@ Rpl_info_table::Rpl_info_table(uint nparam, uint param_field_idx,
                                const char *param_table)
 :Rpl_info_handler(nparam), field_idx(param_field_idx), use_default(FALSE)
 {
+
   strmov(str_schema, param_schema);
   strmov(str_table, param_table);
+  char *pos= strmov(description, param_schema);
+  pos= strmov(pos, ".");
+  pos= strmov(pos, param_table);
   access= new Rpl_info_table_access();
+  if (access)
+  {
+    TABLE *table= NULL;
+    Open_tables_state backup;
+
+    THD *thd= access->create_fake_thd();
+    /*
+      Opens and locks the rpl_info table before accessing it.
+    */
+    if (!access->open_table(thd, str_schema, str_table, get_number_info(),
+                            TL_READ, &table, &backup))
+      is_trans= table->file->has_transactions();
+    access->close_table(thd, table, &backup);
+    access->drop_fake_thd(thd, 0);
+  }
 }
 
 Rpl_info_table::~Rpl_info_table()
@@ -472,4 +491,9 @@ bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
     return TRUE;
 
   return FALSE;
+}
+
+char* Rpl_info_table::do_get_description_info()
+{
+  return description;
 }

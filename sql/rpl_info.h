@@ -59,6 +59,16 @@ public:
     return (handler->reset_info());
   }
 
+  bool is_transactional()
+  {
+    return (handler->is_transactional());
+  }
+
+  char *get_description_info()
+  {
+    return (handler->get_description_info());
+  }
+
   /**
     Sets the persistency component/handler.
 

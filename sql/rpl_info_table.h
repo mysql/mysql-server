@@ -46,6 +46,11 @@ private:
     up with default values.
   */
   bool use_default;
+  /*
+    This property represents a description of the repository.
+    Speciffically, "schema"."table".
+  */
+  char description[2 * FN_REFLEN];
 
   /*
     This is a pointer to a class that facilitates manipulation
@@ -76,6 +81,7 @@ private:
                    const float default_value);
   bool do_get_info(const int pos, Server_ids *value,
                    const Server_ids *default_value);
+  char* do_get_description_info();
 
   Rpl_info_table& operator=(const Rpl_info_table& info);
   Rpl_info_table(const Rpl_info_table& info);
