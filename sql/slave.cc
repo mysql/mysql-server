@@ -4704,7 +4704,6 @@ static Log_event* next_event(Relay_log_info* rli)
 
       if (relay_log_purge)
       {
-        lex_start(thd);
         /*
           purge_first_log will properly set up relay log coordinates in rli.
           If the group's coordinates are equal to the event's coordinates
