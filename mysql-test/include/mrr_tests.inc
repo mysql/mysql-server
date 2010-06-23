@@ -24,9 +24,11 @@ select a,filler from t3 where a >= 'c-9011=w';
 # intervals:
 
 # 1. Split is in the middle of the range
+--sorted_result
 select a,filler from t3 where a >= 'c-1011=w' and a <= 'c-1015=w'; 
 
 # 2. Split is at range edge 
+--sorted_result
 select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
                               (a>='c-1014=w' and a <= 'c-1015=w');
 
@@ -34,16 +36,19 @@ select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
 insert into t3 values ('c-1013=z', 'c-1013=z', 'err');
 insert into t3 values ('a-1014=w', 'a-1014=w', 'err');
 
+--sorted_result
 select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
                               (a>='c-1014=w' and a <= 'c-1015=w');
 delete from t3 where b in ('c-1013=z', 'a-1014=w');
 
 # 4. Split is within the equality range.
+--sorted_result
 select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
                               a='c-1014=w' or a='c-1015=w';
 
 # 5. Split is at the edge of equality range.
 insert into t3 values ('c-1013=w', 'del-me', 'inserted');
+--sorted_result
 select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
                               a='c-1014=w' or a='c-1015=w';
 delete from t3 where b='del-me';
@@ -113,6 +118,203 @@ select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
 
 select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
 drop table t1, t2;
+
+#
+# BUG#30622: Incorrect query results for MRR + filesort
+# 
+CREATE TABLE t1 (
+  ID int(10) unsigned NOT NULL AUTO_INCREMENT,
+  col1 int(10) unsigned DEFAULT NULL,
+  key1 int(10) unsigned NOT NULL DEFAULT '0',
+  key2 int(10) unsigned DEFAULT NULL,
+  text1 text,
+  text2 text,
+  col2 smallint(6) DEFAULT '100',
+  col3 enum('headers','bodyandsubject') NOT NULL DEFAULT 'bodyandsubject',
+  col4 tinyint(3) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (ID),
+  KEY (key1),
+  KEY (key2)
+) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+(1,NULL,1130,NULL,'Hello',NULL,100,'bodyandsubject',0),
+(2,NULL,1130,NULL,'bye',NULL,100,'bodyandsubject',0),
+(3,NULL,1130,NULL,'red',NULL,100,'bodyandsubject',0),
+(4,NULL,1130,NULL,'yellow',NULL,100,'bodyandsubject',0),
+(5,NULL,1130,NULL,'blue',NULL,100,'bodyandsubject',0);
+
+select * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1;
+
+drop table t1;
+
+
+--echo 
+--echo  BUG#37851: Crash in test_if_skip_sort_order tab->select is zero
+--echo 
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  int_key int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY int_key (int_key)
+);
+INSERT INTO t2 VALUES (1,1),(2,6),(3,0);
+
+EXPLAIN EXTENDED
+SELECT MIN(t1.pk)
+FROM t1 WHERE EXISTS (
+ SELECT t2.pk
+ FROM t2
+ WHERE t2.int_key IS NULL
+ GROUP BY t2.pk
+);
+
+DROP TABLE t1, t2;
+
+-- echo #
+-- echo # BUG#42048 Discrepancy between MyISAM and Maria's ICP implementation
+-- echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b char(20), filler char(200), key(a,b(10)));
+insert into t1 select A.a + 10*(B.a + 10*C.a), 'bbb','filler' from t0 A, t0 B, t0 C;
+update t1 set b=repeat(char(65+a), 20) where a < 25;
+
+--echo This must show range + using index condition:
+explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+drop table t0,t1;
+
+-- echo #
+-- echo # BUG#41136: ORDER BY + range access: EXPLAIN shows "Using MRR" while MRR is actually not used
+-- echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0 A, t0 B, t0 C; 
+-- echo This mustn't show "Using MRR":
+explain select * from t1 where a < 20  order by a;
+drop table t0, t1;
+
+# Try big rowid sizes
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=64;
+
+# By default InnoDB will fill values only for key parts used by the query,
+# which will cause DS-MRR to supply an invalid tuple on scan restoration. 
+# Verify that DS-MRR's code extra(HA_EXTRA_RETRIEVE_ALL_COLS) call has effect:
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a char(8), b char(8), c char(8), filler char(100), key(a,b,c) );
+
+insert into t2 select 
+  concat('a-', 1000 + A.a, '-a'),
+  concat('b-', 1000 + B.a, '-b'),
+  concat('c-', 1000 + C.a, '-c'),
+  'filler'
+from t1 A, t1 B, t1 C;
+
+explain
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+drop table t2;
+
+# Try a very big rowid
+create table t2 (a char(100), b char(100), c char(100), d int, 
+                 filler char(10), key(d), primary key (a,b,c));
+insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
+## -- [DISABLED Bug#54398]
+#explain select * from t2 force index (d) where d < 10;
+drop table t2;
+
+drop table t1;
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+
+#
+# BUG#33033 "MySQL/InnoDB crashes with simple select range query"
+#
+create table t1 (f1 int not null, f2 int not null,f3 int not null, f4 char(1), primary key (f1,f2), key ix(f3));
+
+--disable_query_log
+let $1=55;
+
+while ($1)
+{
+  eval insert into t1(f1,f2,f3,f4) values ($1,$1,$1,'A');
+  dec $1;
+}
+--enable_query_log
+
+# The following must not crash:
+--sorted_result
+select * from t1 where (f3>=5 and f3<=10) or (f3>=1 and f3<=4);
+
+drop table t1;
+
+--echo
+--echo BUG#37977: Wrong result returned on GROUP BY + OR + Innodb
+--echo
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `int_key` int(11) NOT NULL,
+  `date_key` date NOT NULL,
+  `date_nokey` date NOT NULL,
+  `time_key` time NOT NULL,
+  `time_nokey` time NOT NULL,
+  `datetime_key` datetime NOT NULL,
+  `datetime_nokey` datetime NOT NULL,
+  `varchar_key` varchar(5) DEFAULT NULL,
+  `varchar_nokey` varchar(5) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `date_key` (`date_key`),
+  KEY `time_key` (`time_key`),
+  KEY `datetime_key` (`datetime_key`),
+  KEY `varchar_key` (`varchar_key`)
+);
+
+INSERT INTO t1 VALUES 
+(1,5,5,'2009-10-16','2009-10-16','09:28:15','09:28:15','2007-09-14 05:34:08','2007-09-14 05:34:08','qk','qk'),
+(2,6,6,'0000-00-00','0000-00-00','23:06:39','23:06:39','0000-00-00 00:00:00','0000-00-00 00:00:00','j','j'),
+(3,10,10,'2000-12-18','2000-12-18','22:16:19','22:16:19','2006-11-04 15:42:50','2006-11-04 15:42:50','aew','aew'),
+(4,0,0,'2001-09-18','2001-09-18','00:00:00','00:00:00','2004-03-23 13:23:35','2004-03-23 13:23:35',NULL,NULL),
+(5,6,6,'2007-08-16','2007-08-16','22:13:38','22:13:38','2004-08-19 11:01:28','2004-08-19 11:01:28','qu','qu');
+select pk from t1 WHERE `varchar_key` > 'kr' group by pk;
+select pk from t1 WHERE `int_nokey` IS NULL OR  `varchar_key` > 'kr' group by pk;
+drop table t1;
+
+--echo #
+--echo # BUG#39447: Error with NOT NULL condition and LIMIT 1
+--echo #
+CREATE TABLE t1 (                 
+   id int(11) NOT NULL,                
+   parent_id int(11) DEFAULT NULL,     
+   name varchar(10) DEFAULT NULL,      
+   PRIMARY KEY (id),                   
+   KEY ind_parent_id (parent_id)     
+);
+
+insert into t1 (id, parent_id, name) values
+(10,NULL,'A'),
+(20,10,'B'),
+(30,10,'C'),
+(40,NULL,'D'),
+(50,40,'E'),
+(60,40,'F'),
+(70,NULL,'J');
+
+SELECT id FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+--echo This must show type=index, extra=Using where
+explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+drop table t1;
 
 --echo #
 --echo # Bug#50381 "Assertion failing in handler.h:1283: 

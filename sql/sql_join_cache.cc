@@ -140,7 +140,7 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
     
 
 /* 
-  Determine different counters of fields associated with a record in the cache  
+  Determine various counters of fields associated with a record in the cache
 
   SYNOPSIS
     calc_record_fields()
@@ -150,7 +150,8 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
     of the cache and saves this number in the 'fields' member. It also
     determines the number of flag fields and the number of blobs.
     The function sets 'with_match_flag' on if 'join_tab' needs a match flag
-    i.e. if it is the first inner table of an outer join or a semi-join.  
+    i.e. if it is the first inner table of an outer join, or of a semi-join
+    with FirstMatch strategy.
 
   RETURN
     none 
@@ -179,7 +180,9 @@ void JOIN_CACHE::calc_record_fields()
 
     fields+= tab->check_rowid_field();
   }
-  if ((with_match_flag= join_tab->use_match_flag()))
+  if ((with_match_flag= (join_tab->is_first_inner_for_outer_join() ||
+                         (join_tab->first_sj_inner_tab == join_tab &&
+                          join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH))))
     flag_fields++;
   fields+= flag_fields;
 }
@@ -432,6 +435,8 @@ void JOIN_CACHE::set_constants()
                (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) + 
                length;
   pack_length_with_blob_ptrs= pack_length + blobs*sizeof(uchar *);
+
+  check_only_first_match= calc_check_only_first_match(join_tab);
 }
 
 
@@ -1634,7 +1639,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   JOIN_TAB *tab;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
-
+  DBUG_ENTER("JOIN_CACHE::join_records");
   if (outer_join_first_inner && !join_tab->first_unmatched)
     join_tab->not_null_compl= TRUE;   
 
@@ -1715,7 +1720,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 finish:
   restore_last_record();
   reset(TRUE);
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -1754,7 +1759,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   JOIN_TAB *tab;
   READ_RECORD *info;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool check_only_first_match= join_tab->check_only_first_match();
   SQL_SELECT *select= join_tab->cache_select;
 
   join_tab->table->null_row= 0;
@@ -1987,19 +1991,26 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
   if (join_tab->select && join_tab->select->skip_record())
     return FALSE;
 
-  if (!join_tab->is_last_inner_table())
-    return TRUE;
+  if (!((join_tab->first_inner &&
+         join_tab->first_inner->last_inner == join_tab) ||
+        (join_tab->last_sj_inner_tab == join_tab &&
+         join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH)))
+    return TRUE; // not the last inner table
 
   /* 
      This is the last inner table of an outer join,
      and maybe of other embedding outer joins, or
      this is the last inner table of a semi-join.
   */
-  JOIN_TAB *first_inner= join_tab->get_first_inner_table();
+  JOIN_TAB *first_inner= join_tab->first_inner ?
+    join_tab->first_inner :
+    ((join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH) ?
+     join_tab->first_sj_inner_tab : NULL);
+
   do
   {
     set_match_flag_if_none(first_inner, rec_ptr);
-    if (first_inner->check_only_first_match() &&
+    if (calc_check_only_first_match(first_inner) &&
         !join_tab->first_inner)
       return TRUE;
     /* 
@@ -2056,11 +2067,11 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   uint cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
-  bool is_last_inner= join_tab == join_tab->first_unmatched->last_inner;
- 
+  DBUG_ENTER("JOIN_CACHE::join_null_complements");
+
   /* Return at once if there are no records in the join buffer */
   if (!records)
-    return NESTED_LOOP_OK;
+    DBUG_RETURN(NESTED_LOOP_OK);
   
   cnt= records - (is_key_access() ? 0 : test(skip_last));
 
@@ -2083,38 +2094,14 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       /* The outer row is complemented by nulls for each inner table */
       restore_record(join_tab->table, s->default_values);
       mark_as_null_row(join_tab->table);  
-      /* Check all pushdown conditions attached to the inner table */
-      join_tab->first_unmatched->found= 1;
-      if (join_tab->select && join_tab->select->skip_record())
-        continue;
-      if (is_last_inner)
-      { 
-        JOIN_TAB *first_upper= join_tab->first_unmatched->first_upper;
-        while (first_upper && first_upper->last_inner == join_tab)
-        {
-          set_match_flag_if_none(first_upper, get_curr_rec());
-          for (JOIN_TAB* tab= first_upper; tab <= join_tab; tab++)
-          {
-            if (tab->select && tab->select->skip_record())
-              goto next;
-          }
-          first_upper= first_upper->first_upper;
-        }
-      }
-      /* Find all matches for the remaining join tables */
-      rc= (*join_tab->next_select)(join, join_tab+1, 0);
+      rc= generate_full_extensions(get_curr_rec());
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-      {
-        reset(TRUE);
         goto finish;
-      }
     }
-  next:
-    ;
   }
 
 finish:
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -2282,7 +2269,6 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   handler *file= join_tab->table->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   uchar *rec_ptr= 0;
-  bool check_only_first_match= join_tab->check_only_first_match();
 
   /* Set functions to iterate over keys in the join buffer */
 
@@ -3168,7 +3154,6 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
   uchar *key_chain_ptr;
   handler *file= join_tab->table->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool check_only_first_match= join_tab->check_only_first_match();
   bool no_association= test(mrr_mode &  HA_MRR_NO_ASSOCIATION);
 
   /* Set functions to iterate over keys in the join buffer */

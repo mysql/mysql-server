@@ -100,7 +100,9 @@ template <> class Bitmap<64>
 {
   ulonglong map;
 public:
-  Bitmap<64>() { }
+  Bitmap<64>() { init(); }
+  enum { ALL_BITS = 64 };
+
 #if defined(__NETWARE__) || defined(__MWERKS__)
   /*
     Metwork compiler gives error on Bitmap<64>
@@ -111,7 +113,7 @@ public:
 #else
   explicit Bitmap<64>(uint prefix_to_set) { set_prefix(prefix_to_set); }
 #endif
-  void init() { }
+  void init() { clear_all(); }
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }
   void set_bit(uint n) { map|= ((ulonglong)1) << n; }
