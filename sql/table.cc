@@ -2701,43 +2701,29 @@ bool check_db_name(LEX_STRING *org_name)
 {
   char *name= org_name->str;
   uint name_length= org_name->length;
+  bool check_for_path_chars;
 
   if (!name_length || name_length > NAME_LEN)
     return 1;
 
+  if ((check_for_path_chars= check_mysql50_prefix(name)))
+  {
+    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+    name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+  }
+
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-#if defined(USE_MB) && defined(USE_MB_IDENT)
-  if (use_mb(system_charset_info))
-  {
-    name_length= 0;
-    bool last_char_is_space= TRUE;
-    char *end= name + org_name->length;
-    while (name < end)
-    {
-      int len;
-      last_char_is_space= my_isspace(system_charset_info, *name);
-      len= my_ismbchar(system_charset_info, name, end);
-      if (!len)
-        len= 1;
-      name+= len;
-      name_length++;
-    }
-    return (last_char_is_space || name_length > NAME_CHAR_LEN);
-  }
-  else
-#endif
-    return ((org_name->str[org_name->length - 1] != ' ') ||
-            (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
+  return check_table_name(name, name_length, check_for_path_chars);
 }
+
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
   ' ' at the end
   returns 1 on error
 */
-
 
 bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
@@ -2766,10 +2752,10 @@ bool check_table_name(const char *name, uint length, bool check_for_path_chars)
         continue;
       }
     }
+#endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
       return 1;
-#endif
     name++;
     name_length++;
   }
