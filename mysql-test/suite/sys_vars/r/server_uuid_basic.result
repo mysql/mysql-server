@@ -48,6 +48,3 @@ SELECT COUNT(@@GLOBAL.server_uuid);
 COUNT(@@GLOBAL.server_uuid)
 1
 1 Expected
-SELECT server_uuid = @@SESSION.datadir;
-ERROR 42S22: Unknown column 'server_uuid' in 'field list'
-Expected error 'Readonly variable'
