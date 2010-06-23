@@ -1196,6 +1196,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       (void) filename_to_tablename(file->name, table_list->table_name,
                                  MYSQL50_TABLE_NAME_PREFIX_LENGTH +
                                  strlen(file->name) + 1);
+      table_list->open_type= OT_BASE_ONLY;
 
       /* To be able to correctly look up the table in the table cache. */
       if (lower_case_table_names)
