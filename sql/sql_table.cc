@@ -1964,7 +1964,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       for (table= tables; table; table= table->next_local)
-        if (find_temporary_table(thd, table->db, table->table_name))
+        if (table->open_type != OT_BASE_ONLY &&
+	    find_temporary_table(thd, table->db, table->table_name))
         {
           /*
             A temporary table.
@@ -2009,8 +2010,11 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                          table->db, table->table_name, (long) table->table,
                          table->table ? (long) table->table->s : (long) -1));
 
-    error= drop_temporary_table(thd, table);
-
+    if (table->open_type == OT_BASE_ONLY)
+      error= 1;
+    else
+      error= drop_temporary_table(thd, table);
+ 
     switch (error) {
     case  0:
       // removed temporary table
