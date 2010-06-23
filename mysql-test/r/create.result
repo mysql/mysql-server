@@ -99,6 +99,14 @@ create table t1 (`` int);
 ERROR 42000: Incorrect column name ''
 create table t1 (i int, index `` (i));
 ERROR 42000: Incorrect index name ''
+create table t1 (i int);
+lock tables t1 read;
+create table t2 (j int);
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+create temporary table t2 (j int);
+drop temporary table t2;
+unlock tables;
+drop table t1;
 create table t1 (a int auto_increment not null primary key, B CHAR(20));
 insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
@@ -377,6 +385,17 @@ ERROR 42S01: Table 't3' already exists
 drop table t1, t2, t3;
 drop table t3;
 drop database mysqltest;
+create table t1 (i int);
+create table t2 (j int);
+lock tables t1 read;
+create table t3 like t1;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+create temporary table t3 like t1;
+drop temporary table t3;
+create temporary table t3 like t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
+drop tables t1, t2;
 SET SESSION storage_engine="heap";
 SELECT @@storage_engine;
 @@storage_engine
@@ -2033,3 +2052,39 @@ ID
 3
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
+# 
+# Bug #22909 "Using CREATE ... LIKE is possible to create field
+#             with invalid default value"
+#
+# Altough original bug report suggests to use older version of MySQL
+# for producing .FRM with invalid defaults we use sql_mode to achieve
+# the same effect.
+drop tables if exists t1, t2;
+# Attempt to create table with invalid default should fail in normal mode
+create table t1 (dt datetime default '2008-02-31 00:00:00');
+ERROR 42000: Invalid default value for 'dt'
+set @old_mode= @@sql_mode;
+set @@sql_mode='ALLOW_INVALID_DATES';
+# The same should be possible in relaxed mode
+create table t1 (dt datetime default '2008-02-31 00:00:00');
+set @@sql_mode= @old_mode;
+# In normal mode attempt to create copy of table with invalid
+# default should fail
+create table t2 like t1;
+ERROR 42000: Invalid default value for 'dt'
+set @@sql_mode='ALLOW_INVALID_DATES';
+# But should work in relaxed mode
+create table t2 like t1;
+# Check that table definitions match
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `dt` datetime DEFAULT '2008-02-31 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `dt` datetime DEFAULT '2008-02-31 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+set @@sql_mode= @old_mode;
+drop tables t1, t2;
