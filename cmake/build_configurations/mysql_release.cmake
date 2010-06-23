@@ -80,7 +80,7 @@ IF(FEATURE_SET)
   ENDFOREACH()
 ENDIF()
 
-OPTION(ENABLE_LOCAL_INFILE "" ON)
+OPTION(ENABLED_LOCAL_INFILE "" ON)
 SET(WITH_SSL bundled CACHE STRING "")
 SET(WITH_ZLIB bundled CACHE STRING "")
 
@@ -107,42 +107,53 @@ ENDIF()
 
 
 # Compiler options
-IF(UNIX)  
+IF(UNIX)
+
+  # Defaults if not set at all
+
+  SET(OPT_FLG "-O")
+  SET(DBG_FLG "-g")
+  SET(COMMON_CFLAGS   "")
+  SET(COMMON_CXXFLAGS "")
+
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCXX)
-   SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O3 -static-libgcc -fno-omit-frame-pointer")
-   SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -O3 -static-libgcc -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti")
+    SET(OPT_FLG "-O3")
+    SET(DBG_FLG "-O")
+    SET(COMMON_CFLAGS   "-static-libgcc -g -fno-omit-frame-pointer")
+    SET(COMMON_CXXFLAGS "${COMMON_CFLAGS} -fno-implicit-templates -felide-constructors -fno-exceptions -fno-rtti")
   ENDIF()
-
   
   # HPUX flags
   IF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
     IF(CMAKE_C_COMPILER_ID MATCHES "HP")
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "ia64")
-        SET(CMAKE_C_FLAGS 
-          "${CMAKE_C_FLAGS} +DD64 +DSitanium2 -mt -AC99")
-        SET(CMAKE_CXX_FLAGS 
-          "${CMAKE_CXX_FLAGS} +DD64 +DSitanium2 -mt -Aa")
-        SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS} +O2")
-        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} +O2")
+	SET(OPT_FLG "+O2")
+	SET(DBG_FLG "+O0")
+        SET(COMMON_CFLAGS   "+DD64 +DSitanium2 -mt -AC99")
+        SET(COMMON_CXXFLAGS "+DD64 +DSitanium2 -mt -Aa")
       ENDIF()
     ENDIF()
-    SET(WITH_SSL)
+    SET(WITH_SSL no)
   ENDIF()
   
   # Linux flags
   IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-static-intel -static-libgcc -g -O3 -unroll2 -ip -mp -restrict -no-ftz -no-prefetch")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-static-intel -static-libgcc -g -O3 -unroll2 -ip -mp -restrict -no-ftz -no-prefetch")
+      SET(OPT_FLG "-O3 -unroll2 -ip")
+      SET(DBG_FLG "")
+      SET(COMMON_CFLAGS   "-static-intel -static-libgcc -g -mp -restrict -no-ftz -no-prefetch")
+      SET(COMMON_CXXFLAGS "-static-intel -static-libgcc -g -mp -restrict -no-ftz -no-prefetch")
       SET(WITH_SSL no)
     ENDIF()
   ENDIF()
   
   # OSX flags
   IF(APPLE)
-   SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -Os -fno-common")
-   SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -Os -felide-constructors -fno-common")
+    SET(OPT_FLG "-Os")
+    SET(DBG_FLG "-O")
+    SET(COMMON_CFLAGS   "-g -fno-common")
+    SET(COMMON_CXXFLAGS "-g -felide-constructors -fno-common")
   ENDIF()
   
   # Solaris flags
@@ -152,38 +163,48 @@ IF(UNIX)
       SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
     ENDIF()
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+      SET(DBG_FLG "")
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
-          # Solaris x86
-          SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-            "-g -xO2 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
-          SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-            "-g0 -xO2 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -features=no%except -xlibmil -xlibmopt -xtarget=generic")
+	  # Solaris x86
+          SET(OPT_FLG "-xO2")
         ELSE()
-          #  Solaris x64
-          SET(CMAKE_C_FLAGS_RELWITHDEBINFO 
-            "-g -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
-          SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO 
-            "-g0 -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -features=no%except -xlibmil -xlibmopt -xtarget=generic")
-         ENDIF()
-       ELSE() 
-          IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
-            # Solaris sparc 32 bit
-            SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-g -xO3 -Xa -xstrconst -mt -xarch=sparc")
-            SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g0 -xO3 -noex -mt -xarch=sparc")
-          ELSE()
-            # Solaris sparc 64 bit
-            SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-g -xO3 -Xa -xstrconst -mt")
-            SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g0 -xO3 -noex -mt")
-          ENDIF()
-       ENDIF()
+	  # Solaris x86_64
+          SET(OPT_FLG "-xO3")
+        ENDIF()
+	SET(COMMON_CFLAGS
+	  "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
+	SET(COMMON_CXXFLAGS
+	  "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -features=no%except -xlibmil -xlibmopt -xtarget=generic")
+      ELSE() 
+        IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
+          # Solaris sparc 32 bit
+          SET(OPT_FLG "-xO3")
+          SET(COMMON_CFLAGS   "-g -Xa -xstrconst -mt -xarch=sparc")
+          SET(COMMON_CXXFLAGS "-g0 -noex -mt -xarch=sparc")
+        ELSE()
+          # Solaris sparc 64 bit
+          SET(OPT_FLG "-xO3")
+          SET(COMMON_CFLAGS   "-g -Xa -xstrconst -mt")
+          SET(COMMON_CXXFLAGS "-g0 -noex -mt")
+        ENDIF()
+      ENDIF()
     ENDIF()
   ENDIF()
-  
-  IF(CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}"
-      CACHE STRING "Compile flags")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}"
-      CACHE STRING "Compile flags")
-  ENDIF()
+
+  SET(CMAKE_CXX_FLAGS_RELEASE "${OPT_FLG} ${COMMON_CXXFLAGS}"
+    CACHE STRING "Release type C++ compiler flags")
+  SET(CMAKE_C_FLAGS_RELEASE "${OPT_FLG} ${COMMON_CFLAGS}"
+    CACHE STRING "Release type C compile flags")
+
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${OPT_FLG} ${COMMON_CXXFLAGS}"
+    CACHE STRING "Default/RelWithDebInfo type C++ compiler flags")
+  SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${OPT_FLG} ${COMMON_CFLAGS}"
+    CACHE STRING "Default/RelWithDebInfo type C compiler flags")
+
+  SET(CMAKE_CXX_FLAGS_DEBUG "${DBG_FLG} ${COMMON_CXXFLAGS}"
+    CACHE STRING "Debug type C++ compiler flags")
+  SET(CMAKE_C_FLAGS_DEBUG "${DBG_FLG} ${COMMON_CFLAGS}"
+    CACHE STRING "Debug type C compiler flags")
+
 ENDIF()
