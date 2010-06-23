@@ -167,10 +167,22 @@ typedef enum_nested_loop_state
 Next_select_func setup_end_select_func(JOIN *join);
 int rr_sequential(READ_RECORD *info);
 
+#define SJ_OPT_NONE 0
+#define SJ_OPT_DUPS_WEEDOUT 1
+#define SJ_OPT_LOOSE_SCAN   2
+#define SJ_OPT_FIRST_MATCH  3
+#define SJ_OPT_MATERIALIZE_LOOKUP  4
+#define SJ_OPT_MATERIALIZE_SCAN  5
 
-typedef struct st_join_table
+inline bool sj_is_materialize_strategy(uint strategy)
 {
-  st_join_table() {}                          /* Remove gcc warning */
+  return strategy >= SJ_OPT_MATERIALIZE_LOOKUP;
+}
+
+typedef struct st_join_table : public Sql_alloc
+{
+  st_join_table();
+
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
@@ -266,7 +278,12 @@ typedef struct st_join_table
   */
   TABLE_LIST    *emb_sj_nest;
 
-  /* FirstMatch variables (final QEP) */
+  /**
+    Boundaries of semijoin inner tables around this table. Valid only once
+    final QEP has been chosen. Depending on the strategy, they may define an
+    interval (all tables inside are inner of a semijoin) or
+    not. last_sj_inner_tab is not set for Duplicates Weedout.
+  */
   struct st_join_table *first_sj_inner_tab;
   struct st_join_table *last_sj_inner_tab;
 
@@ -331,17 +348,13 @@ typedef struct st_join_table
     }
     return test(used_rowid_fields);
   }
-  bool is_inner_table_of_semi_join_with_first_match()
-  {
-    return first_sj_inner_tab != NULL;
-  }
   bool is_inner_table_of_outer_join()
   {
     return first_inner != NULL;
   }
-  bool is_single_inner_of_semi_join_with_first_match()
+  bool is_single_inner_of_semi_join()
   {
-    return first_sj_inner_tab == this && last_sj_inner_tab == this;            
+    return first_sj_inner_tab == this && last_sj_inner_tab == this;
   }
   bool is_single_inner_of_outer_join()
   {
@@ -350,27 +363,6 @@ typedef struct st_join_table
   bool is_first_inner_for_outer_join()
   {
     return first_inner && first_inner == this;
-  }
-  bool use_match_flag()
-  {
-    return is_first_inner_for_outer_join() || first_sj_inner_tab == this ; 
-  }
-  bool check_only_first_match()
-  {
-    return  last_sj_inner_tab == this ||
-           (first_inner && first_inner->last_inner == this &&
-            table->reginfo.not_exists_optimize);
-  }
-  bool is_last_inner_table()
-  {
-    return (first_inner && first_inner->last_inner == this) ||
-           last_sj_inner_tab == this;
-  }
-  struct st_join_table *get_first_inner_table()
-  {
-    if (first_inner)
-      return first_inner;
-    return first_sj_inner_tab; 
   }
   void set_select_cond(COND *to, uint line)
   {
@@ -386,7 +378,93 @@ typedef struct st_join_table
       select->cond= new_cond;
     return tmp_select_cond;
   }
+  uint get_sj_strategy() const;
 } JOIN_TAB;
+
+
+inline
+st_join_table::st_join_table()
+  : table(NULL),
+    keyuse(NULL),
+    select(NULL),
+    select_cond(NULL),
+    quick(NULL),
+    on_expr_ref(NULL),
+    cond_equal(NULL),
+    first_inner(NULL),
+    found(FALSE),
+    not_null_compl(FALSE),
+    last_inner(NULL),
+    first_upper(NULL),
+    first_unmatched(NULL),
+    pre_idx_push_select_cond(NULL),
+    info(NULL),
+    packed_info(0),
+    read_first_record(NULL),
+    next_select(NULL),
+    read_record(),
+    save_read_first_record(NULL),
+    save_read_record(NULL),
+    worst_seeks(0.0),
+    const_keys(),
+    checked_keys(),
+    needed_reg(),
+    keys(),
+
+    records(0),
+    found_records(0),
+    read_time(0),
+
+    dependent(0),
+    key_dependent(0),
+    use_quick(0),
+    index(0),
+    status(0),
+    used_fields(0),
+    used_fieldlength(0),
+    used_blobs(0),
+    used_null_fields(0),
+    used_rowid_fields(0),
+    used_uneven_bit_fields(0),
+    type(JT_UNKNOWN),
+    cached_eq_ref_table(FALSE),
+    eq_ref_table(FALSE),
+    not_used_in_distinct(FALSE),
+    sorted(FALSE),
+
+    limit(0),
+    ref(),
+    use_join_cache(FALSE),
+    cache(NULL),
+
+    cache_idx_cond(NULL),
+    cache_select(NULL),
+    join(NULL),
+
+    emb_sj_nest(NULL),
+    first_sj_inner_tab(NULL),
+    last_sj_inner_tab(NULL),
+
+    flush_weedout_table(NULL),
+    check_weed_out_table(NULL),
+    do_firstmatch(NULL),
+    loosescan_match_tab(NULL),
+    loosescan_buf(NULL),
+    loosescan_key_len(0),
+    found_match(FALSE),
+
+    keep_current_rowid(0),
+    embedding_map(0)
+{
+  /**
+    @todo Add constructor to READ_RECORD.
+    All users do init_read_record(), which does bzero(),
+    rather than invoking a constructor.
+  */
+  bzero(&read_record, sizeof(read_record));
+}
+
+
 
 /* 
   Categories of data fields of variable length written into join cache buffers.
@@ -631,6 +709,9 @@ protected:
     to records in the buffer.   */
   uchar *curr_rec_link;
 
+  /** Cached value of calc_check_only_first_match(join_tab) */
+  bool check_only_first_match;
+
   void calc_record_fields();     
   int alloc_fields(uint external_fields);
   void create_flag_fields();
@@ -725,6 +806,15 @@ protected:
 
   /* Check matching to a partial join record from the join buffer */
   bool check_match(uchar *rec_ptr);
+
+  /** @returns whether we should check only the first match for this table */
+  bool calc_check_only_first_match(const JOIN_TAB *t) const
+  {
+    return (t->last_sj_inner_tab == t &&
+            t->get_sj_strategy() == SJ_OPT_FIRST_MATCH) ||
+      (t->first_inner && t->first_inner->last_inner == t &&
+       t->table->reginfo.not_exists_optimize);
+  }
 
 public:
 
@@ -1466,17 +1556,6 @@ public:
   SJ_TMP_TABLE *next; 
 };
 
-#define SJ_OPT_NONE 0
-#define SJ_OPT_DUPS_WEEDOUT 1
-#define SJ_OPT_LOOSE_SCAN   2
-#define SJ_OPT_FIRST_MATCH  3
-#define SJ_OPT_MATERIALIZE_LOOKUP  4
-#define SJ_OPT_MATERIALIZE_SCAN  5
-
-inline bool sj_is_materialize_strategy(uint strategy)
-{
-  return strategy >= SJ_OPT_MATERIALIZE_LOOKUP;
-}
 
 class JOIN :public Sql_alloc
 {

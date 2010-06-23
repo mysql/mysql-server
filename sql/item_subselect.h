@@ -297,6 +297,8 @@ protected:
   */
   List<Cached_item> *left_expr_cache;
   bool first_execution;
+  /** The need for expr cache may be optimized away, @sa init_left_expr_cache. */
+  bool need_expr_cache;
 
   /*
     expr & optimizer used in subselect rewriting to store Item for
@@ -366,6 +368,7 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
+    need_expr_cache(TRUE),
     optimizer(0), abort_on_null(0), pushed_cond_guards(NULL),
     exec_method(NOT_TRANSFORMED), upper_item(0)
   {}
@@ -704,7 +707,7 @@ protected:
   /*
     The old engine already chosen at parse time and stored in permanent memory.
     Through this member we can re-create and re-prepare materialize_join for
-    each execution of a prepared statement. We akso resuse the functionality
+    each execution of a prepared statement. We also reuse the functionality
     of subselect_single_select_engine::[prepare | cols].
   */
   subselect_single_select_engine *materialize_engine;
@@ -728,7 +731,10 @@ public:
   bool init_permanent(List<Item> *tmp_columns);
   bool init_runtime();
   void cleanup();
-  int prepare() { return 0; }
+  int prepare() 
+  { 
+    return materialize_engine->prepare();
+  }
   int exec();
   void print (String *str, enum_query_type query_type);
   uint cols()
