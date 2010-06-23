@@ -541,7 +541,7 @@ public:
   {
     DBUG_ENTER("LogFile::open");
     DBUG_PRINT("enter", ("dir: '%s', name: '%s'",
-                         dir, name));
+                         val_or_null(dir), val_or_null(name)));
     if (!name)
     {
       m_file= stdout;

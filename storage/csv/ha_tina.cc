@@ -489,6 +489,9 @@ int ha_tina::encode_quote(uchar *buf)
       ptr= attribute.ptr();
       end_ptr= attribute.length() + ptr;
 
+      if (buffer.realloc(attribute.length()*2+2))
+        return 0;                              // Failure
+
       buffer.append('"');
 
       while (ptr < end_ptr) 

@@ -1441,6 +1441,7 @@ static void free_resources()
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_host, MYF(MY_ALLOW_ZERO_PTR));
   if (hash_inited(&ignore_table))
     hash_free(&ignore_table);
   if (extended_insert)
@@ -4222,7 +4223,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
     }
     mysql_free_result(table_res);
   }
-  DBUG_PRINT("exit", ("new_table_name: %s", name));
+  DBUG_PRINT("exit", ("new_table_name: %s", val_or_null(name)));
   DBUG_RETURN(name);
 }
 
@@ -4818,6 +4819,7 @@ static my_bool get_view_structure(char *table, char* db)
   field= mysql_fetch_field_direct(table_res, 0);
   if (strcmp(field->name, "View") != 0)
   {
+    mysql_free_result(table_res);
     switch_character_set_results(mysql, default_charset);
     verbose_msg("-- It's base table, skipped\n");
     DBUG_RETURN(0);
@@ -4827,8 +4829,10 @@ static my_bool get_view_structure(char *table, char* db)
   if (path)
   {
     if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
+    {
+      mysql_free_result(table_res);
       DBUG_RETURN(1);
-
+    }
     write_header(sql_file, db);
   }
 
