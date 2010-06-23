@@ -92,11 +92,16 @@ SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   sql_binlog.cc rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
+ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl ${RPL_SOURCE})
 SET (MASTER_SOURCE rpl_master.cc)
+ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
+ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
+ADD_DEPENDENCIES(slave GenError)
+
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
