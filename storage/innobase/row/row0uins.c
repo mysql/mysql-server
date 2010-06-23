@@ -78,7 +78,7 @@ row_undo_ins_remove_clust_rec(
 					    &mtr);
 	ut_a(success);
 
-	if (ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+	if (node->table->id == DICT_INDEXES_ID) {
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		/* Drop the index tree associated with the row in
@@ -260,7 +260,7 @@ row_undo_ins_parse_undo_rec(
 	dict_index_t*	clust_index;
 	byte*		ptr;
 	undo_no_t	undo_no;
-	dulint		table_id;
+	table_id_t	table_id;
 	ulint		type;
 	ulint		dummy;
 	ibool		dummy_extern;

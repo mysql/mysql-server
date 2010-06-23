@@ -111,7 +111,7 @@ dict_load_column_low(
 					for temporary storage */
 	dict_col_t*	column,		/*!< out: dict_column_t to fill,
 					or NULL if table != NULL */
-	dulint*		table_id,	/*!< out: table id */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name,	/*!< out: column name */
 	const rec_t*	rec);		/*!< in: SYS_COLUMNS record */
 /********************************************************************//**
@@ -174,7 +174,7 @@ UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-	dulint	table_id);	/*!< in: table id */
+	table_id_t	table_id);	/*!< in: table id */
 /********************************************************************//**
 This function is called when the database is booted.
 Loads system table index definitions except for the clustered index which
@@ -256,7 +256,7 @@ dict_process_sys_indexes_rec(
 	const rec_t*	rec,		/*!< in: current SYS_INDEXES rec */
 	dict_index_t*	index,		/*!< out: dict_index_t to be
 					filled */
-	dulint*		table_id);	/*!< out: table id */
+	table_id_t*	table_id);	/*!< out: table id */
 /********************************************************************//**
 This function parses a SYS_COLUMNS record and populate a dict_column_t
 structure with the information from the record.
@@ -268,7 +268,7 @@ dict_process_sys_columns_rec(
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
 	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
-	dulint*		table_id,	/*!< out: table id */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name);	/*!< out: column name */
 /********************************************************************//**
 This function parses a SYS_FIELDS record and populate a dict_field_t
@@ -283,8 +283,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	dulint*		index_id,	/*!< out: current index id */
-	dulint		last_id);	/*!< in: previous index id */
+	index_id_t*	index_id,	/*!< out: current index id */
+	index_id_t	last_id);	/*!< in: previous index id */
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information

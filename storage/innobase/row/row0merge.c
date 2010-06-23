@@ -2023,7 +2023,7 @@ row_merge_drop_index(
 
 	ut_ad(index && table && trx);
 
-	pars_info_add_dulint_literal(info, "indexid", index->id);
+	pars_info_add_ull_literal(info, "indexid", index->id);
 
 	trx_start_if_not_started(trx);
 	trx->op_info = "dropping index";
@@ -2093,7 +2093,7 @@ row_merge_drop_temp_indexes(void)
 		const rec_t*	rec;
 		const byte*	field;
 		ulint		len;
-		dulint		table_id;
+		table_id_t	table_id;
 		dict_table_t*	table;
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -2320,7 +2320,7 @@ row_merge_rename_indexes(
 
 	trx->op_info = "renaming indexes";
 
-	pars_info_add_dulint_literal(info, "tableid", table->id);
+	pars_info_add_ull_literal(info, "tableid", table->id);
 
 	err = que_eval_sql(info, rename_indexes, FALSE, trx);
 
@@ -2508,8 +2508,7 @@ row_merge_create_index(
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
-		index->trx_id = (ib_uint64_t)
-			ut_conv_dulint_to_longlong(trx->id);
+		index->trx_id = trx->id;
 	} else {
 		index = NULL;
 	}
@@ -2526,10 +2525,8 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	return(!trx->read_view || read_view_sees_trx_id(
-		       trx->read_view,
-		       ut_dulint_create((ulint) (index->trx_id >> 32),
-					(ulint) index->trx_id & 0xFFFFFFFF)));
+	return(!trx->read_view
+	       || read_view_sees_trx_id(trx->read_view, index->trx_id));
 }
 
 /*********************************************************************//**

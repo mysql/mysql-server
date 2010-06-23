@@ -75,8 +75,8 @@ UNIV_INTERN
 dict_table_t*
 dict_table_get_on_id(
 /*=================*/
-        dulint  table_id,       /*!< in: table id */
-        trx_t*  trx);           /*!< in: transaction handle */
+        table_id_t	table_id,	/*!< in: table id */
+        trx_t*		trx);		/*!< in: transaction handle */
 /********************************************************************//**
 Decrements the count of open MySQL handles to a table. */
 UNIV_INTERN
@@ -277,7 +277,7 @@ void
 dict_table_change_id_in_cache(
 /*==========================*/
 	dict_table_t*	table,	/*!< in/out: table object already in cache */
-	dulint		new_id);/*!< in: new id to set */
+	table_id_t	new_id);/*!< in: new id to set */
 /**********************************************************************//**
 Adds a foreign key constraint object to the dictionary cache. May free
 the object if there already is an object with the same identifier in.
@@ -397,7 +397,7 @@ dict_index_t*
 dict_index_get_on_id_low(
 /*=====================*/
 	dict_table_t*	table,		/*!< in: table */
-	dulint		index_id);	/*!< in: index id */
+	index_id_t	index_id);	/*!< in: index id */
 /**********************************************************************//**
 Checks if a table is in the dictionary cache.
 @return	table, NULL if not found */
@@ -423,7 +423,7 @@ UNIV_INLINE
 dict_table_t*
 dict_table_get_on_id_low(
 /*=====================*/
-	dulint	table_id);	/*!< in: table id */
+	table_id_t	table_id);	/*!< in: table id */
 /**********************************************************************//**
 Find an index that is equivalent to the one passed in and is not marked
 for deletion.
@@ -710,7 +710,7 @@ UNIV_INTERN
 dict_index_t*
 dict_index_find_on_id_low(
 /*======================*/
-	dulint	id);	/*!< in: index id */
+	index_id_t	id);	/*!< in: index id */
 /**********************************************************************//**
 Adds an index to the dictionary cache.
 @return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
@@ -901,7 +901,7 @@ UNIV_INTERN
 dict_index_t*
 dict_index_get_if_in_cache_low(
 /*===========================*/
-	dulint	index_id);	/*!< in: index id */
+	index_id_t	index_id);	/*!< in: index id */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Returns an index object if it is found in the dictionary cache.
@@ -910,7 +910,7 @@ UNIV_INTERN
 dict_index_t*
 dict_index_get_if_in_cache(
 /*=======================*/
-	dulint	index_id);	/*!< in: index id */
+	index_id_t	index_id);	/*!< in: index id */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
@@ -1135,7 +1135,7 @@ struct dict_sys_struct{
 					and DROP TABLE, as well as reading
 					the dictionary data for a table from
 					system tables */
-	dulint		row_id;		/*!< the next row id to assign;
+	row_id_t	row_id;		/*!< the next row id to assign;
 					NOTE that at a checkpoint this
 					must be written to the dict system
 					header and flushed to a file; in
