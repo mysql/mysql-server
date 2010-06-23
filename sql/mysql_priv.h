@@ -2287,6 +2287,7 @@ uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
+bool check_mysql50_prefix(const char *name);
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
