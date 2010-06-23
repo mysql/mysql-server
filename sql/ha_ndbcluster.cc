@@ -1658,6 +1658,19 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
 
     DBUG_RETURN(true);
   }
+  case HA_PUSH_BLOCK_JOINCACHE:
+    /**
+     * Join cache is blocked for pushed join root if the 
+     * pushed join may refer column values (paramValues)
+     * from rows stored in the join cache.
+     */
+    if (m_pushed_join &&
+         (m_pushed_join->get_field_referrences_count() > 0 || // Childs has field refs
+         !m_pushed_join->get_query_def().isScanQuery()))      // Roots lookup keys may refer joincache
+    {
+      DBUG_RETURN(true);
+    }
+    DBUG_RETURN(false);
 
   default:
     DBUG_ASSERT(0);

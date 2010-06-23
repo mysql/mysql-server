@@ -404,6 +404,11 @@ enum ha_push_flag {
 
   /* Handler prefers index scan over file-sort for order by wo/ limit */
   ,HA_PUSH_PREFER_INDEX
+
+  /* Handler want to block 'Using join buffer' on the pushed join
+     having this handler instance as *root*.
+   */
+  ,HA_PUSH_BLOCK_JOINCACHE
 };
 
 /**
