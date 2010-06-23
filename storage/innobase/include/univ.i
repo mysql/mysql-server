@@ -371,14 +371,19 @@ typedef unsigned long long int	ullint;
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
+/** The bitmask of 32-bit unsigned integer */
+#define ULINT32_MASK		0xFFFFFFFF
 /* The undefined 32-bit unsigned integer */
-#define	ULINT32_UNDEFINED	0xFFFFFFFF
+#define	ULINT32_UNDEFINED	ULINT32_MASK
 
 /* Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
 
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
+
+/** The generic InnoDB system object identifier data type */
+typedef ib_uint64_t	ib_id_t;
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

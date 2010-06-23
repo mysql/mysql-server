@@ -573,6 +573,11 @@ identifier is added to this constant. */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
 /** Contents of TRX_SYS_FILE_FORMAT_TAG+4 when valid */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
+/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid.  The file format
+identifier is added to this 64-bit constant. */
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N					\
+	((ib_uint64_t) TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH << 32	\
+	 | TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW)
 /* @} */
 
 /** Doublewrite control struct */

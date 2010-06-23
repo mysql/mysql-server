@@ -2967,9 +2967,9 @@ innobase_close_connection(
 		global_system_variables.log_warnings) {
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  %lu row modifications will "
+			"InnoDB transaction.  %llu row modifications will "
 			"roll back.",
-			(ulong) trx->undo_no.low);
+			(ullint) trx->undo_no);
 	}
 
 	innobase_rollback_trx(trx);
