@@ -489,7 +489,11 @@ int ha_tina::encode_quote(uchar *buf)
       ptr= attribute.ptr();
       end_ptr= attribute.length() + ptr;
 
-      if (buffer.realloc(attribute.length()*2+2))
+      /*
+        Ensure that buffer is big enough. This will also speed things up
+        as we don't have to do any new allocation in the loop below
+      */
+      if (buffer.realloc(buffer.length() + attribute.length()*2+2))
         return 0;                              // Failure
 
       buffer.append('"');
