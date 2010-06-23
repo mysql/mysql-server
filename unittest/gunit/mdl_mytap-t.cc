@@ -700,8 +700,7 @@ TEST_F(MDL_test, concurrent_exclusive_shared)
   release_locks.notify();
 
   // The other thread should eventually release its locks.
-  EXPECT_FALSE(m_mdl_context.wait_for_lock(&m_request, long_timeout));
-  EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
   EXPECT_NE(m_null_ticket, m_request.ticket);
 
   mdl_thread.join();
