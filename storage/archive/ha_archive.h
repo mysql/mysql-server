@@ -148,5 +148,6 @@ public:
   bool fix_rec_buff(unsigned int length);
   int unpack_row(azio_stream *file_to_read, uchar *record);
   unsigned int pack_row(uchar *record);
+  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 };
 

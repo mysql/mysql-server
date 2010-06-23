@@ -912,6 +912,7 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_ALL_PARTITION      (1L << 21)
 #define ALTER_REMOVE_PARTITIONING (1L << 22)
 #define ALTER_FOREIGN_KEY        (1L << 23)
+#define ALTER_EXCHANGE_PARTITION (1L << 24)
 
 enum enum_alter_table_change_level
 {
@@ -919,6 +920,24 @@ enum enum_alter_table_change_level
   ALTER_TABLE_DATA_CHANGED= 1,
   ALTER_TABLE_INDEX_CHANGED= 2
 };
+
+
+/**
+  Temporary hack to enable a class bound forward declaration
+  of the enum_alter_table_change_level enumeration. To be
+  removed once Alter_info is moved ta the sql_alter_table.h
+  header.
+*/
+class Alter_table_change_level
+{
+private:
+  typedef enum enum_alter_table_change_level enum_type;
+  enum_type value;
+public:
+  void operator = (enum_type v) { value = v; }
+  operator enum_type () { return value; }
+};
+
 
 /**
   @brief Parsing data for CREATE or ALTER TABLE.

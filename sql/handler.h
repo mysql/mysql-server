@@ -970,7 +970,6 @@ struct st_table_log_memory_entry;
 class partition_info;
 
 struct st_partition_iter;
-#define NOT_A_PARTITION_ID ((uint32)-1)
 
 enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 

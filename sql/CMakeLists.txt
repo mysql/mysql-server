@@ -72,8 +72,8 @@ SET (SQL_SOURCE
                sql_tablespace.cc events.cc ../sql-common/my_user.c 
                partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
                rpl_rli.cc rpl_mi.cc sql_servers.cc sql_audit.cc
-               sql_connect.cc scheduler.cc 
-               sql_profile.cc event_parse_data.cc
+               sql_connect.cc scheduler.cc sql_partition_admin.cc
+               sql_profile.cc event_parse_data.cc sql_alter_table.cc
                sql_signal.cc rpl_handler.cc mdl.cc
                transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
                ${GEN_SOURCES}

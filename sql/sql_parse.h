@@ -156,6 +156,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
+bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                   GRANT_INTERNAL_INFO *grant_internal_info,
@@ -184,8 +185,8 @@ inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }
 inline bool check_access(THD *thd, ulong access, const char *db,
-                         ulong *save_priv, bool no_grant, bool no_errors,
-                         bool schema_db)
+                         ulong *save_priv, GRANT_INTERNAL_INFO *no_grant,
+                         bool no_errors, bool schema_db)
 {
   if (save_priv)
     *save_priv= GLOBAL_ACLS;
