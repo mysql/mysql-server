@@ -94,30 +94,31 @@ mach_parse_compressed(
 }
 
 /*********************************************************//**
-Reads a dulint in a compressed form if the log record fully contains it.
-@return	pointer to end of the stored field, NULL if not complete */
+Reads a 64-bit integer in a compressed form
+if the log record fully contains it.
+@return pointer to end of the stored field, NULL if not complete */
 UNIV_INTERN
 byte*
-mach_dulint_parse_compressed(
-/*=========================*/
-	byte*	ptr,	/*!< in: pointer to buffer from where to read */
-	byte*	end_ptr,/*!< in: pointer to end of the buffer */
-	dulint*	val)	/*!< out: read value */
+mach_ull_parse_compressed(
+/*======================*/
+	byte*		ptr,	/* in: pointer to buffer from where to read */
+	byte*		end_ptr,/* in: pointer to end of the buffer */
+	ib_uint64_t*	val)	/* out: read value */
 {
-	ulint	high;
-	ulint	low;
-	ulint	size;
+	ulint		size;
 
-	ut_ad(ptr && end_ptr && val);
+	ut_ad(ptr);
+	ut_ad(end_ptr);
+	ut_ad(val);
 
 	if (end_ptr < ptr + 5) {
 
 		return(NULL);
 	}
 
-	high = mach_read_compressed(ptr);
+	*val = mach_read_compressed(ptr);
 
-	size = mach_get_compressed_size(high);
+	size = mach_get_compressed_size((ulint) *val);
 
 	ptr += size;
 
@@ -126,9 +127,8 @@ mach_dulint_parse_compressed(
 		return(NULL);
 	}
 
-	low = mach_read_from_4(ptr);
-
-	*val = ut_dulint_create(high, low);
+	*val <<= 32;
+	*val |= mach_read_from_4(ptr);
 
 	return(ptr + 4);
 }

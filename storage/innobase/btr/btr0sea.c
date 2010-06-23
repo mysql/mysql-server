@@ -523,9 +523,9 @@ btr_search_update_hash_ref(
 	buf_block_t*	block,	/*!< in: buffer block where cursor positioned */
 	btr_cur_t*	cursor)	/*!< in: cursor */
 {
-	ulint	fold;
-	rec_t*	rec;
-	dulint	index_id;
+	ulint		fold;
+	rec_t*		rec;
+	index_id_t	index_id;
 
 	ut_ad(cursor->flag == BTR_CUR_HASH_FAIL);
 #ifdef UNIV_SYNC_DEBUG
@@ -830,7 +830,7 @@ btr_search_guess_on_hash(
 	buf_block_t*	block;
 	rec_t*		rec;
 	ulint		fold;
-	dulint		index_id;
+	index_id_t	index_id;
 #ifdef notdefined
 	btr_cur_t	cursor2;
 	btr_pcur_t	pcur;
@@ -922,8 +922,7 @@ btr_search_guess_on_hash(
 	is positioned on. We cannot look at the next of the previous
 	record to determine if our guess for the cursor position is
 	right. */
-	if (UNIV_EXPECT
-	    (ut_dulint_cmp(index_id, btr_page_get_index_id(block->frame)), 0)
+	if (UNIV_UNLIKELY(index_id != btr_page_get_index_id(block->frame))
 	    || !btr_search_check_guess(cursor,
 				       has_search_latch,
 				       tuple, mode, mtr)) {
@@ -1028,7 +1027,7 @@ btr_search_drop_page_hash_index(
 	const rec_t*		rec;
 	ulint			fold;
 	ulint			prev_fold;
-	dulint			index_id;
+	index_id_t		index_id;
 	ulint			n_cached;
 	ulint			n_recs;
 	ulint*			folds;
@@ -1088,7 +1087,7 @@ retry:
 
 	index_id = btr_page_get_index_id(page);
 
-	ut_a(0 == ut_dulint_cmp(index_id, index->id));
+	ut_a(index_id == index->id);
 
 	prev_fold = 0;
 
@@ -1245,7 +1244,7 @@ btr_search_build_page_hash_index(
 	rec_t*		next_rec;
 	ulint		fold;
 	ulint		next_fold;
-	dulint		index_id;
+	index_id_t	index_id;
 	ulint		n_cached;
 	ulint		n_recs;
 	ulint*		folds;
@@ -1498,7 +1497,7 @@ btr_search_update_hash_on_delete(
 	buf_block_t*	block;
 	rec_t*		rec;
 	ulint		fold;
-	dulint		index_id;
+	index_id_t	index_id;
 	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
@@ -1604,7 +1603,7 @@ btr_search_update_hash_on_insert(
 	rec_t*		rec;
 	rec_t*		ins_rec;
 	rec_t*		next_rec;
-	dulint		index_id;
+	index_id_t	index_id;
 	ulint		fold;
 	ulint		ins_fold;
 	ulint		next_fold = 0; /* remove warning (??? bug ???) */
@@ -1784,6 +1783,7 @@ btr_search_validate(void)
 				= buf_block_align(node->data);
 			const buf_block_t*	hash_block;
 			buf_pool_t*		buf_pool;
+			index_id_t		page_index_id;
 
 			buf_pool = buf_pool_from_bpage((buf_page_t*) block);
 
@@ -1828,12 +1828,15 @@ btr_search_validate(void)
 						  + (block->curr_n_bytes > 0),
 						  &heap);
 
-			if (!block->is_hashed || node->fold
-			    != rec_fold((rec_t*)(node->data),
-					offsets,
-					block->curr_n_fields,
-					block->curr_n_bytes,
-					btr_page_get_index_id(block->frame))) {
+			page_index_id = btr_page_get_index_id(block->frame);
+
+			if (UNIV_UNLIKELY
+			    (!block->is_hashed || node->fold
+			     != rec_fold((rec_t*)(node->data),
+					 offsets,
+					 block->curr_n_fields,
+					 block->curr_n_bytes,
+					 page_index_id))) {
 				const page_t*	page = block->frame;
 
 				ok = FALSE;
@@ -1843,21 +1846,17 @@ btr_search_validate(void)
 					"  InnoDB: Error in an adaptive hash"
 					" index pointer to page %lu\n"
 					"InnoDB: ptr mem address %p"
-					" index id %lu %lu,"
+					" index id %llu,"
 					" node fold %lu, rec fold %lu\n",
 					(ulong) page_get_page_no(page),
 					node->data,
-					(ulong) ut_dulint_get_high(
-						btr_page_get_index_id(page)),
-					(ulong) ut_dulint_get_low(
-						btr_page_get_index_id(page)),
+					(ullint) page_index_id,
 					(ulong) node->fold,
 					(ulong) rec_fold((rec_t*)(node->data),
 							 offsets,
 							 block->curr_n_fields,
 							 block->curr_n_bytes,
-							 btr_page_get_index_id(
-								 page)));
+							 page_index_id));
 
 				fputs("InnoDB: Record ", stderr);
 				rec_print_new(stderr, (rec_t*)node->data,

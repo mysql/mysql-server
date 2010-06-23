@@ -737,7 +737,7 @@ btr_create(
 	ulint		space,	/*!< in: space where created */
 	ulint		zip_size,/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	dulint		index_id,/*!< in: index id */
+	index_id_t	index_id,/*!< in: index id */
 	dict_index_t*	index,	/*!< in: index */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
@@ -1020,7 +1020,7 @@ btr_page_reorganize_low(
 		/* In crash recovery, dict_index_is_sec_or_ibuf() always
 		returns TRUE, even for clustered indexes.  max_trx_id is
 		unused in clustered index pages. */
-		ut_ad(!ut_dulint_is_zero(max_trx_id) || recovery);
+		ut_ad(max_trx_id != 0 || recovery);
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)
@@ -2883,7 +2883,7 @@ btr_discard_only_page_on_level(
 		ibuf_reset_free_bits(block);
 
 		if (page_is_leaf(buf_block_get_frame(block))) {
-			ut_a(!ut_dulint_is_zero(max_trx_id));
+			ut_a(max_trx_id);
 			page_set_max_trx_id(block,
 					    buf_block_get_page_zip(block),
 					    max_trx_id, mtr);

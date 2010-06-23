@@ -161,9 +161,9 @@ is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
 #ifdef UNIV_LOG_ARCHIVE
-extern ibool	srv_log_archive_on;
-extern ibool	srv_archive_recovery;
-extern dulint	srv_archive_recovery_limit_lsn;
+extern ibool		srv_log_archive_on;
+extern ibool		srv_archive_recovery;
+extern ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
 extern char*	srv_file_flush_method_str;

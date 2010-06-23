@@ -982,8 +982,8 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
-			mach_write_ull(page_zip->data
-				       + FIL_PAGE_LSN, newest_lsn);
+			mach_write_to_8(page_zip->data
+					+ FIL_PAGE_LSN, newest_lsn);
 			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
@@ -1005,10 +1005,10 @@ buf_flush_init_for_writing(
 	}
 
 	/* Write the newest modification lsn to the page header and trailer */
-	mach_write_ull(page + FIL_PAGE_LSN, newest_lsn);
+	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
-	mach_write_ull(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-		       newest_lsn);
+	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+			newest_lsn);
 
 	/* Store the new formula checksum */
 
@@ -1096,8 +1096,8 @@ buf_flush_write_block_low(
 			ut_a(mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
 			     == page_zip_calc_checksum(frame, zip_size));
 		}
-		mach_write_ull(frame + FIL_PAGE_LSN,
-			       bpage->newest_modification);
+		mach_write_to_8(frame + FIL_PAGE_LSN,
+				bpage->newest_modification);
 		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 		break;
 	case BUF_BLOCK_FILE_PAGE:

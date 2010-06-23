@@ -364,7 +364,7 @@ dict_process_sys_indexes_rec(
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_INDEXES rec */
 	dict_index_t*	index,		/*!< out: index to be filled */
-	dulint*		table_id)	/*!< out: index table id */
+	table_id_t*	table_id)	/*!< out: index table id */
 {
 	const char*	err_msg;
 	byte*		buf;
@@ -390,7 +390,7 @@ dict_process_sys_columns_rec(
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
 	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
-	dulint*		table_id,	/*!< out: table id */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name)	/*!< out: column name */
 {
 	const char*	err_msg;
@@ -414,8 +414,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	dulint*		index_id,	/*!< out: current index id */
-	dulint		last_id)	/*!< in: previous index id */
+	index_id_t*	index_id,	/*!< out: current index id */
+	index_id_t	last_id)	/*!< in: previous index id */
 {
 	byte*		buf;
 	byte*		last_index_id;
@@ -789,7 +789,7 @@ dict_load_column_low(
 					for temporary storage */
 	dict_col_t*	column,		/*!< out: dict_column_t to fill,
 					or NULL if table != NULL */
-	dulint*		table_id,	/*!< out: table id */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name,	/*!< out: column name */
 	const rec_t*	rec)		/*!< in: SYS_COLUMNS record */
 {
@@ -819,8 +819,7 @@ err_len:
 
 	if (table_id) {
 		*table_id = mach_read_from_8(field);
-	} else if (UNIV_UNLIKELY(ut_dulint_cmp(table->id,
-				 mach_read_from_8(field)))) {
+	} else if (UNIV_UNLIKELY(table->id != mach_read_from_8(field))) {
 		return("SYS_COLUMNS.TABLE_ID mismatch");
 	}
 
@@ -1199,7 +1198,7 @@ dict_load_index_low(
 	ulint		len;
 	ulint		name_len;
 	char*		name_buf;
-	dulint		id;
+	index_id_t	id;
 	ulint		n_fields;
 	ulint		type;
 	ulint		space;
@@ -1316,18 +1315,10 @@ dict_load_indexes(
 	dfield_t*	dfield;
 	const rec_t*	rec;
 	byte*		buf;
-	ibool		is_sys_table;
 	mtr_t		mtr;
 	ulint		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-
-	if ((ut_dulint_get_high(table->id) == 0)
-	    && (ut_dulint_get_low(table->id) < DICT_HDR_FIRST_ID)) {
-		is_sys_table = TRUE;
-	} else {
-		is_sys_table = FALSE;
-	}
 
 	mtr_start(&mtr);
 
@@ -1414,7 +1405,7 @@ corrupted:
 			      " is not clustered!\n", stderr);
 
 			goto corrupted;
-		} else if (is_sys_table
+		} else if (table->id < DICT_HDR_FIRST_ID
 			   && (dict_index_is_clust(index)
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
@@ -1774,7 +1765,7 @@ UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-	dulint	table_id)	/*!< in: table id */
+	table_id_t	table_id)	/*!< in: table id */
 {
 	byte		id_buf[8];
 	btr_pcur_t	pcur;
@@ -1837,7 +1828,7 @@ dict_load_table_on_id(
 	ut_ad(len == 8);
 
 	/* Check if the table id in record is the one searched for */
-	if (ut_dulint_cmp(table_id, mach_read_from_8(field)) != 0) {
+	if (table_id != mach_read_from_8(field)) {
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
