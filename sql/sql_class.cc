@@ -353,7 +353,7 @@ int thd_sql_command(const THD *thd)
 extern "C"
 int thd_tx_isolation(const THD *thd)
 {
-  return (int) thd->variables.tx_isolation;
+  return (int) thd->tx_isolation;
 }
 
 extern "C"
@@ -592,7 +592,7 @@ THD::THD()
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
-  init_open_tables_state(this, refresh_version);
+  reset_open_tables_state(this);
 
   init();
 #if defined(ENABLED_PROFILING)
@@ -960,7 +960,7 @@ void THD::init(void)
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
-  session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   update_charset();
   reset_current_stmt_binlog_format_row();
   bzero((char *) &status_var, sizeof(status_var));
