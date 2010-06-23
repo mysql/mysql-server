@@ -14,6 +14,7 @@ partition by range (a)
 insert into t1 values (1), (11), (21), (33);
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
+--replace_result #p# #P#
 --list_files $MYSQLD_DATADIR/test
 
 SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
@@ -36,6 +37,7 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
 disconnect con1;
 connection default;
 --reap
+--replace_result #p# #P#
 --list_files $MYSQLD_DATADIR/test
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;

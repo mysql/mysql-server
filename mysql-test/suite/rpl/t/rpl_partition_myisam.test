@@ -1,0 +1,9 @@
+# Test of partitioning features with replication for MyISAM
+--source include/have_partition.inc
+--source include/master-slave.inc
+
+# Set the default connection to 'master'
+
+let $engine_type= 'MyISAM';
+
+--source suite/rpl/include/rpl_partition.inc

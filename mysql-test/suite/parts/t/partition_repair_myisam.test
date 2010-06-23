@@ -2,15 +2,54 @@
 --source include/have_partition.inc
 --disable_warnings
 --disable_query_log
-drop table if exists t1_will_crash;
+drop table if exists t, tp, t1_will_crash;
 call mtr.add_suppression("Got an error from thread_id=.*ha_myisam.cc:");
 call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
+call mtr.add_suppression("is marked as crashed and should be repaired");
+
 --enable_query_log
 --enable_warnings
 
 --echo # REPAIR USE_FRM is not implemented for partitioned tables.
 
 let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo # Test what happens if we exchange a crashed partition with a table
+SHOW VARIABLES LIKE 'myisam_recover_options';
+CREATE TABLE t (a INT, KEY (a)) ENGINE=MyISAM;
+CREATE TABLE tp (a INT, KEY (a)) ENGINE=MyISAM
+PARTITION BY RANGE (a)
+(PARTITION pCrashed VALUES LESS THAN (15),
+ PARTITION pMAX VALUES LESS THAN MAXVALUE);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+INSERT INTO tp VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+FLUSH TABLES;
+--echo # replacing tp#P#pCrashed.MYI with a corrupt + unclosed one created by doing:
+--echo # 'create table t1 (a int key(a))' head -c1024 t1.MYI > corrupt_t1.MYI 
+--remove_file $MYSQLD_DATADIR/test/tp#P#pCrashed.MYI
+--copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/tp#P#pCrashed.MYI
+CHECK TABLE tp;
+--replace_regex /[^']*test[^']*t/.\/test\/t/
+--error 145
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+REPAIR TABLE tp;
+CHECK TABLE tp;
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+CHECK TABLE t;
+CHECK TABLE tp;
+FLUSH TABLES;
+--remove_file $MYSQLD_DATADIR/test/t.MYI
+--copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t.MYI
+CHECK TABLE t;
+--replace_regex /[^']*test[^']*t/.\/test\/t/
+--error 145
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+REPAIR TABLE t;
+CHECK TABLE t;
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+CHECK TABLE tp;
+CHECK TABLE t;
+DROP TABLE t, tp;
 
 --echo # test of non partitioned myisam for reference
 CREATE TABLE t1_will_crash (a INT, KEY (a)) ENGINE=MyISAM;

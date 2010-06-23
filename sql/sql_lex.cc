@@ -402,6 +402,7 @@ void lex_start(THD *thd)
   lex->spname= NULL;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->m_stmt= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
   lex->query_tables= 0;
