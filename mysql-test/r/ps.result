@@ -695,11 +695,11 @@ REPEATABLE-READ
 set transaction isolation level read committed;
 execute stmt;
 @@tx_isolation
-READ-COMMITTED
+REPEATABLE-READ
 set transaction isolation level serializable;
 execute stmt;
 @@tx_isolation
-SERIALIZABLE
+REPEATABLE-READ
 set @@tx_isolation=default;
 execute stmt;
 @@tx_isolation

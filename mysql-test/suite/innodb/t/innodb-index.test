@@ -2,7 +2,7 @@
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
@@ -403,7 +403,7 @@ create index t1u on t1 (u(1));
 drop table t1;
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
-eval set global innodb_file_format_check=$format;
+eval set global innodb_file_format_max=$format;
 
 #
 # Test to check whether CREATE INDEX handles implicit foreign key
@@ -550,4 +550,4 @@ DROP TABLE t1;
 #
 
 -- disable_query_log
-eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
+eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
