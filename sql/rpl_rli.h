@@ -469,6 +469,9 @@ public:
   size_t get_number_info_rli_fields();
 
 private:
+  bool read_info(Rpl_info_handler *from);
+  bool write_info(Rpl_info_handler *to, bool force);
+
   Relay_log_info& operator=(const Relay_log_info& info);
   Relay_log_info(const Relay_log_info& info);
 

@@ -128,6 +128,9 @@ public:
   size_t get_number_info_mi_fields();
 
 private:
+  bool read_info(Rpl_info_handler *from);
+  bool write_info(Rpl_info_handler *to, bool force);
+
   Master_info& operator=(const Master_info& info);
   Master_info(const Master_info& info);
 };
