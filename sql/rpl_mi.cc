@@ -173,35 +173,7 @@ int Master_info::flush_info(bool force)
   */
   handler->set_sync_period(sync_masterinfo_period);
 
-  /*
-     In certain cases this code may create master.info files that seems
-     corrupted, because of extra lines filled with garbage in the end
-     file (this happens if new contents take less space than previous
-     contents of file). But because of number of lines in the first line
-     of file we don't care about this garbage.
-  */
-  if (handler->prepare_info_for_write() ||
-      handler->set_info((int) LINES_IN_MASTER_INFO) ||
-      handler->set_info(master_log_name) ||
-      handler->set_info((ulong)master_log_pos) ||
-      handler->set_info(host) ||
-      handler->set_info(user) ||
-      handler->set_info(password) ||
-      handler->set_info((int) port) ||
-      handler->set_info((int) connect_retry) ||
-      handler->set_info((int) ssl) ||
-      handler->set_info(ssl_ca) ||
-      handler->set_info(ssl_capath) ||
-      handler->set_info(ssl_cert) ||
-      handler->set_info(ssl_cipher) ||
-      handler->set_info(ssl_key) ||
-      handler->set_info(ssl_verify_server_cert) ||
-      handler->set_info(heartbeat_period) ||
-      handler->set_info(ignore_server_ids) ||
-      handler->set_info(retry_count))
-    goto err;
-
-  if (handler->flush_info(force))
+  if (write_info(handler, force))
     goto err;
 
   DBUG_RETURN(0);
@@ -218,11 +190,6 @@ void Master_info::set_relay_log_info(Relay_log_info* info)
 
 int Master_info::init_info()
 {
-  int lines= 0;
-  char *first_non_digit= NULL;
-  ulong temp_master_log_pos= 0;
-  int temp_ssl= 0;
-
   DBUG_ENTER("Master_info::init_info");
 
   if (inited)
@@ -243,6 +210,34 @@ int Master_info::init_info()
     init_master_log_pos();
     goto end;
   }
+  else if (read_info(handler))
+    goto err;
+
+end:
+  if (flush_info(TRUE))
+    goto err;
+
+  inited= 1;
+  DBUG_RETURN(0);
+
+err:
+  sql_print_error("Error reading master configuration");
+  DBUG_RETURN(1);
+}
+
+size_t Master_info::get_number_info_mi_fields()
+{
+  return sizeof(info_mi_fields)/sizeof(info_mi_fields[0]); 
+}
+
+bool Master_info::read_info(Rpl_info_handler *from)
+{
+  int lines= 0;
+  char *first_non_digit= NULL;
+  ulong temp_master_log_pos= 0;
+  int temp_ssl= 0;
+
+  DBUG_ENTER("Master_info::read_info");
 
   /*
      Starting from 4.1.x master.info has new format. Now its
@@ -263,9 +258,9 @@ int Master_info::init_info()
      is this.
   */
 
-  if (handler->prepare_info_for_read() || 
-      handler->get_info(master_log_name, sizeof(master_log_name), ""))
-    goto err;
+  if (from->prepare_info_for_read() || 
+      from->get_info(master_log_name, sizeof(master_log_name), ""))
+    DBUG_RETURN(TRUE);
 
   lines= strtoul(master_log_name, &first_non_digit, 10);
 
@@ -273,21 +268,21 @@ int Master_info::init_info()
       *first_non_digit=='\0' && lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
     /* Seems to be new format => read master log name */
-    if (handler->get_info(master_log_name,  sizeof(master_log_name), ""))
-      goto err;
+    if (from->get_info(master_log_name,  sizeof(master_log_name), ""))
+      DBUG_RETURN(TRUE);
   }
   else 
     lines= 7;
 
-  if (handler->get_info(&temp_master_log_pos,
+  if (from->get_info(&temp_master_log_pos,
                         (ulong) BIN_LOG_HEADER_SIZE) ||
-      handler->get_info(host, sizeof(host), 0) ||
-      handler->get_info(user, sizeof(user), "test") ||
-      handler->get_info(password, sizeof(password), 0) ||
-      handler->get_info((int *) &port, (int) MYSQL_PORT) ||
-      handler->get_info((int *) &connect_retry,
+      from->get_info(host, sizeof(host), 0) ||
+      from->get_info(user, sizeof(user), "test") ||
+      from->get_info(password, sizeof(password), 0) ||
+      from->get_info((int *) &port, (int) MYSQL_PORT) ||
+      from->get_info((int *) &connect_retry,
                         (int) DEFAULT_CONNECT_RETRY))
-    goto err;
+      DBUG_RETURN(TRUE);
 
   /*
     If file has ssl part use it even if we have server without
@@ -297,13 +292,13 @@ int Master_info::init_info()
   */
   if (lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
-    if (handler->get_info((int *) &temp_ssl, 0) ||
-        handler->get_info(ssl_ca, sizeof(ssl_ca), 0) ||
-        handler->get_info(ssl_capath, sizeof(ssl_capath), 0) ||
-        handler->get_info(ssl_cert, sizeof(ssl_cert), 0) ||
-        handler->get_info(ssl_cipher, sizeof(ssl_cipher), 0) ||
-        handler->get_info(ssl_key, sizeof(ssl_key), 0))
-      goto err;
+    if (from->get_info((int *) &temp_ssl, 0) ||
+        from->get_info(ssl_ca, sizeof(ssl_ca), 0) ||
+        from->get_info(ssl_capath, sizeof(ssl_capath), 0) ||
+        from->get_info(ssl_cert, sizeof(ssl_cert), 0) ||
+        from->get_info(ssl_cipher, sizeof(ssl_cipher), 0) ||
+        from->get_info(ssl_key, sizeof(ssl_key), 0))
+      DBUG_RETURN(TRUE);
   }
 
   /*
@@ -312,17 +307,18 @@ int Master_info::init_info()
   */
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT)
   { 
-    if (handler->get_info((int *) &ssl_verify_server_cert, 0))
-      goto err;
+    if (from->get_info((int *) &ssl_verify_server_cert, 0))
+      DBUG_RETURN(TRUE);
   }
+
   /*
     Starting from 5.5 master_heartbeat_period might be
     in the file
   */
   if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD)
   {
-    if (handler->get_info(&heartbeat_period, (float) 0.0))
-      goto err;
+    if (from->get_info(&heartbeat_period, (float) 0.0))
+      DBUG_RETURN(TRUE);
   }
 
   /*
@@ -331,16 +327,16 @@ int Master_info::init_info()
   */
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS)
   {
-     if (handler->get_info(ignore_server_ids, NULL))
-       goto err;
+     if (from->get_info(ignore_server_ids, NULL))
+      DBUG_RETURN(TRUE);
   }
 
   /* Starting from 5.5 the master_retry_count may be in the repository. */
   retry_count= master_retry_count;
   if (lines >= LINE_FOR_MASTER_RETRY_COUNT)
   {
-    if (handler->get_info(&retry_count, master_retry_count))
-      goto err;
+    if (from->get_info(&retry_count, master_retry_count))
+      DBUG_RETURN(TRUE);
   }
 
   ssl= (my_bool) temp_ssl;
@@ -352,20 +348,44 @@ int Master_info::init_info()
                       "compiled without SSL support.");
 #endif /* HAVE_OPENSSL */
 
-end:
-  if (flush_info(TRUE))
-    goto err;
-
-  inited= 1;
-  DBUG_RETURN(0);
-
-err:
-  sql_print_error("Error reading master configuration");
-  DBUG_RETURN(1);
+  DBUG_RETURN(FALSE);
 }
 
-size_t Master_info::get_number_info_mi_fields()
+bool Master_info::write_info(Rpl_info_handler *to, bool force)
 {
-  return sizeof(info_mi_fields)/sizeof(info_mi_fields[0]); 
+  DBUG_ENTER("Master_info::write_info");
+
+  /*
+     In certain cases this code may create master.info files that seems
+     corrupted, because of extra lines filled with garbage in the end
+     file (this happens if new contents take less space than previous
+     contents of file). But because of number of lines in the first line
+     of file we don't care about this garbage.
+  */
+  if (to->prepare_info_for_write() ||
+      to->set_info((int) LINES_IN_MASTER_INFO) ||
+      to->set_info(master_log_name) ||
+      to->set_info((ulong)master_log_pos) ||
+      to->set_info(host) ||
+      to->set_info(user) ||
+      to->set_info(password) ||
+      to->set_info((int) port) ||
+      to->set_info((int) connect_retry) ||
+      to->set_info((int) ssl) ||
+      to->set_info(ssl_ca) ||
+      to->set_info(ssl_capath) ||
+      to->set_info(ssl_cert) ||
+      to->set_info(ssl_cipher) ||
+      to->set_info(ssl_key) ||
+      to->set_info(ssl_verify_server_cert) ||
+      to->set_info(heartbeat_period) ||
+      to->set_info(ignore_server_ids) ||
+      to->set_info(retry_count))
+    DBUG_RETURN(TRUE);
+
+  if (to->flush_info(force))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
 }
 #endif /* HAVE_REPLICATION */

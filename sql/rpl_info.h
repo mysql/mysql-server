@@ -69,6 +69,14 @@ public:
     return (handler->get_description_info());
   }
 
+  bool copy_info(Rpl_info_handler *from, Rpl_info_handler *to)
+  {
+    if (read_info(from) || write_info(to, TRUE))
+      return(TRUE);
+
+    return(FALSE);
+  }
+
   /**
     Sets the persistency component/handler.
 
@@ -77,10 +85,12 @@ public:
   void set_rpl_info_handler(Rpl_info_handler * handler);
 
 protected:
-
   Rpl_info_handler *handler;
 
 private:
+  virtual bool read_info(Rpl_info_handler *from)= 0;
+  virtual bool write_info(Rpl_info_handler *to, bool force)= 0;
+
   Rpl_info& operator=(const Rpl_info& info);
   Rpl_info(const Rpl_info& info);
 };

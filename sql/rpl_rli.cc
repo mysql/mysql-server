@@ -952,8 +952,6 @@ int Relay_log_info::init_info()
 {
   int error= 0;
   const char *msg= NULL;
-  ulong temp_group_relay_log_pos= 0;
-  ulong temp_group_master_log_pos= 0;
 
   DBUG_ENTER("Relay_log_info::init_info");
   DBUG_ASSERT(!no_storage);
@@ -1096,22 +1094,12 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
   }
   else
   {
-    if (handler->prepare_info_for_read() ||
-        handler->get_info(group_relay_log_name,
-                          sizeof(group_relay_log_name), "") ||
-        handler->get_info((ulong *) &temp_group_relay_log_pos,
-                          (ulong) BIN_LOG_HEADER_SIZE) ||
-        handler->get_info(group_master_log_name,
-                          sizeof(group_relay_log_name), "") ||
-        handler->get_info((ulong *) &temp_group_master_log_pos,
-                          (ulong) 0))
+    if (read_info(handler))
     {
       msg= "Error reading relay log configuration";
       error= 1;
       goto err;
     }
-    group_relay_log_pos=  temp_group_relay_log_pos;
-    group_master_log_pos= temp_group_master_log_pos;
 
     if (is_relay_log_recovery && init_recovery(mi, &msg))
     {
@@ -1236,7 +1224,7 @@ void Relay_log_info::set_master_info(Master_info* info)
 */
 int Relay_log_info::flush_info(bool force)
 {
-  DBUG_ENTER("Relay_log_info::write");
+  DBUG_ENTER("Relay_log_info::flush_info");
 
   if (unlikely(no_storage))
     DBUG_RETURN(0);
@@ -1249,24 +1237,58 @@ int Relay_log_info::flush_info(bool force)
   */
   handler->set_sync_period(sync_relayloginfo_period);
 
-  if (handler->prepare_info_for_write() ||
-      handler->set_info(group_relay_log_name) ||
-      handler->set_info((ulong) group_relay_log_pos) ||
-      handler->set_info(group_master_log_name) ||
-      handler->set_info((ulong) group_master_log_pos))
+  if (write_info(handler, force))
     goto err;
 
-  if (handler->flush_info(force))
-    goto err;
-
-   DBUG_RETURN(0);
+  DBUG_RETURN(0);
 
 err:
   sql_print_error("Error writing relay log configuration");
-   DBUG_RETURN(1);
+  DBUG_RETURN(1);
 }
 
 size_t Relay_log_info::get_number_info_rli_fields() 
 { 
   return sizeof(info_rli_fields)/sizeof(info_rli_fields[0]);
+}
+
+bool Relay_log_info::read_info(Rpl_info_handler *from)
+{
+  ulong temp_group_relay_log_pos= 0;
+  ulong temp_group_master_log_pos= 0;
+
+  DBUG_ENTER("Relay_log_info::read");
+
+  if (from->prepare_info_for_read() ||
+      from->get_info(group_relay_log_name,
+                        sizeof(group_relay_log_name), "") ||
+      from->get_info((ulong *) &temp_group_relay_log_pos,
+                        (ulong) BIN_LOG_HEADER_SIZE) ||
+      from->get_info(group_master_log_name,
+                        sizeof(group_relay_log_name), "") ||
+      from->get_info((ulong *) &temp_group_master_log_pos,
+                        (ulong) 0))
+    DBUG_RETURN(TRUE);
+
+  group_relay_log_pos=  temp_group_relay_log_pos;
+  group_master_log_pos= temp_group_master_log_pos;
+
+  DBUG_RETURN(FALSE);
+}
+
+bool Relay_log_info::write_info(Rpl_info_handler *to, bool force)
+{
+  DBUG_ENTER("Relay_log_info::read");
+
+  if (to->prepare_info_for_write() ||
+      to->set_info(group_relay_log_name) ||
+      to->set_info((ulong) group_relay_log_pos) ||
+      to->set_info(group_master_log_name) ||
+      to->set_info((ulong) group_master_log_pos))
+    DBUG_RETURN(TRUE);
+
+  if (to->flush_info(force))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
 }
