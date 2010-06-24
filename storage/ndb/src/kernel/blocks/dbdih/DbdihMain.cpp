@@ -1495,14 +1495,37 @@ void Dbdih::execSTTOR(Signal* signal)
 {
   jamEntry();
 
+  Callback c = { safe_cast(&Dbdih::sendSTTORRY), 0 };
+  m_sendSTTORRY = c;
+
+  switch(signal->theData[1]){
+  case 1:
+    createMutexes(signal, 0);
+    return;
+  case 2:
+    break;
+  case 3:
+    signal->theData[0] = reference();
+    sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
+    return;
+  }
+
+  sendSTTORRY(signal);
+}//Dbdih::execSTTOR()
+
+void
+Dbdih::sendSTTORRY(Signal* signal, Uint32 senderData, Uint32 retVal)
+{
   signal->theData[0] = 0;
   signal->theData[1] = 0;
   signal->theData[2] = 0;
   signal->theData[3] = 1;   // Next start phase
-  signal->theData[4] = 255; // Next start phase
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  signal->theData[4] = 2;   // Next start phase
+  signal->theData[5] = 3;
+  signal->theData[6] = 255; // Next start phase
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
   return;
-}//Dbdih::execSTTOR()
+}
 
 void Dbdih::initialStartCompletedLab(Signal* signal) 
 {
@@ -1577,14 +1600,29 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     // to continue the system restart.
     // The permission is given by the master node in the alive set.  
     /*-----------------------------------------------------------------------*/
-    createMutexes(signal, 0);
     if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
     {
       jam();
       c_set_initial_start_flag = TRUE; // In sysfile...
     }
-    break;
-    
+
+    if (cstarttype == NodeState::ST_INITIAL_START) {
+      jam();
+      // setInitialActiveStatus is moved into makeNodeGroups
+    } else if (cstarttype == NodeState::ST_SYSTEM_RESTART) {
+      jam();
+      /*empty*/;
+    } else if ((cstarttype == NodeState::ST_NODE_RESTART) ||
+               (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)) {
+      jam();
+      nodeRestartPh2Lab(signal);
+      return;
+    } else {
+      ndbrequire(false);
+    }//if
+    ndbsttorry10Lab(signal, __LINE__);
+    return;
+
   case ZNDB_SPH3:
     jam();
     /*-----------------------------------------------------------------------*/
@@ -1770,9 +1808,8 @@ Dbdih::createMutexes(Signal * signal, Uint32 count){
     return;
   }
   }
-  
-  signal->theData[0] = reference();
-  sendSignal(cntrlblockref, GSN_READ_NODESREQ, signal, 1, JBB);
+
+  execute(signal, m_sendSTTORRY, 0);
 }
 
 void
@@ -1874,26 +1911,6 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
 
   ndbrequire(isMaster());
   copyGciLab(signal, CopyGCIReq::RESTART); // We have already read the file!
-
-  /**
-   * Keep bitmap of nodes that can be restored...
-   *   and nodes that need take-over
-   *   
-   */
-  m_sr_nodes.clear();
-  m_to_nodes.clear();
-
-  // Start with assumption that all can restore
-  {
-    NodeRecordPtr specNodePtr;
-    specNodePtr.i = cfirstAliveNode;
-    do {
-      jam();
-      m_sr_nodes.set(specNodePtr.i);
-      ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);            
-      specNodePtr.i = specNodePtr.p->nextNode;
-    } while (specNodePtr.i != RNIL);
-  }
 }//Dbdih::ndbStartReqLab()
 
 void Dbdih::execREAD_NODESCONF(Signal* signal) 
@@ -1984,25 +2001,28 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     makeNodeGroups(nodeArray);
   }//if
   ndbrequire(checkNodeAlive(cmasterNodeId));
-  if (cstarttype == NodeState::ST_INITIAL_START) {
-    jam();
-    // setInitialActiveStatus is moved into makeNodeGroups
-  } else if (cstarttype == NodeState::ST_SYSTEM_RESTART) {
-    jam();
-    /*empty*/;
-  } else if ((cstarttype == NodeState::ST_NODE_RESTART) || 
-             (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)) {
-    jam();
-    nodeRestartPh2Lab(signal);
-    return;
-  } else {
-    ndbrequire(false);
-  }//if
-  /**------------------------------------------------------------------------
-   * ESTABLISH CONNECTIONS WITH THE OTHER DIH BLOCKS AND INITIALISE THIS 
-   * NODE-LIST THAT HANDLES CONNECTION WITH OTHER DIH BLOCKS. 
-   *-------------------------------------------------------------------------*/
-  ndbsttorry10Lab(signal, __LINE__);
+
+  /**
+   * Keep bitmap of nodes that can be restored...
+   *   and nodes that need take-over
+   *
+   */
+  m_sr_nodes.clear();
+  m_to_nodes.clear();
+
+  // Start with assumption that all can restore
+  {
+    NodeRecordPtr specNodePtr;
+    specNodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      m_sr_nodes.set(specNodePtr.i);
+      ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
+      specNodePtr.i = specNodePtr.p->nextNode;
+    } while (specNodePtr.i != RNIL);
+  }
+
+  execute(signal, m_sendSTTORRY, 0);
 }//Dbdih::execREAD_NODESCONF()
 
 /*---------------------------------------------------------------------------*/
