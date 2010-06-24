@@ -332,6 +332,7 @@ private:
   Uint8 cstartPhase;
   Uint16 cinternalStartphase;
 
+  bool m_cntr_start_conf;
   Uint16 cmasterNodeId;
   Uint16 cndbBlocksCount;
   Uint16 cnoStartNodes;

@@ -818,6 +818,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
   tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
   c_startedNodes.bitOR(tmp);
   c_start.m_starting.assign(NdbNodeBitmask::Size, conf->startingNodes);
+  m_cntr_start_conf = true;
   ph2GLab(signal);
 }
 
@@ -2102,7 +2103,8 @@ void Ndbcntr::execREAD_NODESREQ(Signal* signal)
   readNodes->noOfNodes = c_allDefinedNodes.count();
   readNodes->masterNodeId = cmasterNodeId;
   readNodes->ndynamicId = cdynamicNodeId;
-  if (cstartPhase > ZSTART_PHASE_2) {
+  if (m_cntr_start_conf)
+  {
     jam();
     sendSignal(TuserBlockref, GSN_READ_NODESCONF, signal, 
 	       ReadNodesConf::SignalLength, JBB);
