@@ -5827,24 +5827,23 @@ struct my_option my_long_options[] =
    /* app_type */ 0
   },
   {"binlog-checksum", OPT_BINLOG_CHECKSUM,
-   "Adding checksum for binlogged events. Two possible values"
-   "NONE and CRC32 the only currently implemented algorithm"
-   "Disabled by default.",
+   "Include checksum for log events in the binary log. Possible values are "
+   "NONE and CRC32; default is NONE.",
    (uchar**) &binlog_checksum_default,
    (uchar**) &binlog_checksum_default,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-verify-checksum", OPT_MASTER_VERIFY_CHECKSUM,
-   "Forcing verification of binlogged events checksum before sending them "
-   "to slaves and in show binlog event. "
+   "Force checksum verification of logged events in binary log before "
+   "sending them to slaves or printing them in output of SHOW BINLOG EVENTS. "
    "Enabled by default.",
    (uchar**) &opt_master_verify_checksum,
    (uchar**) &opt_master_verify_checksum,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
   {"slave-sql-verify-checksum", OPT_SLAVE_SQL_VERIFY_CHECKSUM,
-   "Forcing verification of CRC-checksum of replication events after reading "
-   "them from the relay log. Notice, CRC-ed events are always verified by slave at "
-   "receiving from the network before to be written to the relay log. "
-   "Enabled by default.",
+   "Force checksum verification of replication events after reading them "
+   "from relay log. Note: Events are always checksum-verified by slave on "
+   "receiving them from the network before writing them to the relay "
+   "log. Enabled by default.",
    (uchar**) &opt_slave_sql_verify_checksum,
    (uchar**) &opt_slave_sql_verify_checksum,
    0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 0, 0},
