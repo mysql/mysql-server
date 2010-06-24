@@ -3291,6 +3291,9 @@ public:
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);
 
+  uint get_size() const { return size; }
+  ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
+
   friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
 };
