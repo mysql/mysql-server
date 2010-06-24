@@ -2908,7 +2908,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       description_event_for_queue->created= 0;
       /* Don't set log_pos in event header */
       description_event_for_queue->set_artificial_event();
-      
+
       if (description_event_for_queue->write(&log_file))
         goto err;
       bytes_written+= description_event_for_queue->data_written;
@@ -4957,7 +4957,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
   group= (uint)my_b_tell(&log_file);
   hdr_offs= carry= 0;
-  if  (do_checksum)
+  if (do_checksum)
     crc= crc_0= my_checksum(0L, NULL, 0);
 
   do

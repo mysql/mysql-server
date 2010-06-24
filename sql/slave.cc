@@ -1229,10 +1229,39 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   }
 
   /*
-    FD_q's (A) is made compatible with RL's (A). That is natural property for
-    FD_q derived (in queue_event) from FD_m where the Relay-Log's checksum alg
-    is set to a new value as well: RL.(A) := FD_q.(A). 
-    For the first FD_q it's in reverse FD_q.(A) := RL.(A).
+    FD_q's (A) is set initially from RL's (A): FD_q.(A) := RL.(A).
+    It's necessary to adjust FD_q.(A) at this point because in the following
+    course FD_q is going to be dumped to RL.
+    Generally FD_q is derived from a received FD_m (roughly FD_q := FD_m) 
+    in queue_event and the master's (A) is installed.
+    At one step with the assignment the Relay-Log's checksum alg is set to 
+    a new value: RL.(A) := FD_q.(A). If the slave service is stopped
+    the last time assigned RL.(A) will be passed over to the restarting
+    service (to the current execution point).
+    RL.A is a "codec" to verify checksum in queue_event() almost all the time
+    the first fake Rotate event.
+    Starting from this point IO thread will executes the following checksum
+    warmup sequence  of actions:
+
+    FD_q.A := RL.A,
+    A_m^0 := master.@@global.binlog_checksum,
+    {queue_event(R_f): verifies(R_f, A_m^0)},
+    {queue_event(FD_m): verifies(FD_m, FD_m.A), dump(FD_q), rotate(RL),
+                        FD_q := FD_m, RL.A := FD_q.A)}
+
+    See legends definition on MYSQL_BIN_LOG::relay_log_checksum_alg
+    docs lines (log.h).
+    In above A_m^0 - the value of master's
+    @@binlog_checksum determined in the upcoming handshake (stored in
+    mi->checksum_alg_before_fd).
+
+
+    After the warm sequence IO gets to "normal" checksum verification mode
+    to use RL.A in 
+    
+    {queue_event(E_m): verifies(E_m, RL.A)}
+
+    until it has received a new FD_m.
   */
   mi->rli.relay_log.description_event_for_queue->checksum_alg=
     mi->rli.relay_log.relay_log_checksum_alg;

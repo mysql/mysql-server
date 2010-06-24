@@ -1071,7 +1071,7 @@ public:
   bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong data_length);
   bool write_header(IO_CACHE* file, ulong data_length);
   bool write_footer(IO_CACHE* file);
-  my_bool need_checksum(IO_CACHE* file);
+  my_bool need_checksum();
 
   virtual bool write(IO_CACHE* file)
   {
