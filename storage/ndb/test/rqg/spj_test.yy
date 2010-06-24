@@ -287,7 +287,31 @@ join_condition:
 int_condition: 
    existing_left_table.int_field_name = existing_right_table.int_field_name     # General rule
  | existing_left_table.int_indexed = existing_right_table.int_indexed           # Want more joins on indexed field
+ | int_multi_conditions
  ;
+
+# Most of these join conditions crafted to match specific unique indexes
+int_multi_conditions:
+   # ix1(col_int,col_int_unique)
+   existing_left_table.col_int = existing_right_table.col_int AND
+   existing_left_table.col_int_unique = existing_right_table.col_int_unique
+ |
+   # ix2((col_int_key,col_int_unique))
+   existing_left_table.col_int_key = existing_right_table.col_int_key AND
+   existing_left_table.col_int_unique = existing_right_table.col_int_unique
+ |
+   # Variant of ix2() above
+   existing_left_table.col_int_key = existing_right_table.int_field_name AND
+   existing_left_table.col_int_unique = existing_right_table.int_field_name
+ |
+   # ix3(col_int,col_int_key,col_int_unique)
+   existing_left_table.col_int = existing_right_table.col_int AND
+   existing_left_table.col_int_key = existing_right_table.col_int_key AND
+   existing_left_table.col_int_unique = existing_right_table.col_int_unique
+ |
+   int_condition AND int_condition
+ ;
+
 
 char_condition:
    existing_left_table.char_field_name = existing_right_table.char_field_name   # General rule

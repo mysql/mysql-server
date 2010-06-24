@@ -1780,9 +1780,12 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
         uint32 levels = 0;
         while (parent != &linkedOp.getParentOperation())
         {
+          if (parent->getType() == NdbQueryOperationDef::UniqueIndexAccess)  // Represented with two nodes QueryTree
+            levels+=2;
+          else
+            levels+=1;
           assert(parent->getNoOfParentOperations() > 0);
           parent = &parent->getParentOperation(0);
-          levels++;
         }
         if (levels > 0)
         {
