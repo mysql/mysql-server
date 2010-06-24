@@ -4127,4 +4127,5 @@ EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
 
+
 --echo End of 5.1 tests
