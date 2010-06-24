@@ -707,6 +707,12 @@ trx_undo_parse_page_header(
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
 	trx_id_t	trx_id;
+	/* Silence a GCC warning about possibly uninitialized variable
+	when mach_ull_parse_compressed() is not inlined. */
+	ut_d(trx_id = 0);
+	/* Declare the variable uninitialized in Valgrind, so that the
+	above initialization will not mask any bugs. */
+	UNIV_MEM_INVALID(&trx_id, sizeof trx_id);
 
 	ptr = mach_ull_parse_compressed(ptr, end_ptr, &trx_id);
 
