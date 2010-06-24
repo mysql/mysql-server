@@ -1,3 +1,10 @@
+2010-06-10	The InnoDB Team
+
+	* include/log0log.ic, row/row0ins.c, row/row0purge.c,
+	row/row0uins.c, row/row0umod.c, row/row0upd.c:
+	Fix Bug#39168 ERROR: the age of the last checkpoint ... exceeds
+	the log group capacity
+
 2010-06-08	The InnoDB Team
 
 	* dict/dict0load.c:
