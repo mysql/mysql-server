@@ -43,7 +43,7 @@ trx_undo_build_roll_ptr(
 #if DATA_ROLL_PTR_LEN != 7
 # error "DATA_ROLL_PTR_LEN != 7"
 #endif
-	ut_ad(is_insert <= 1);
+	ut_ad(is_insert == 0 || is_insert == 1);
 	ut_ad(rseg_id < TRX_SYS_N_RSEGS);
 	ut_ad(offset < 65536);
 
