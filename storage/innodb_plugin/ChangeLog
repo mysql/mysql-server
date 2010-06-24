@@ -1,3 +1,9 @@
+2010-06-24	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54679 alter table causes compressed row_format to revert
+	to compact
+
 2010-06-22	The InnoDB Team
 
 	* dict/dict0dict.c, dict/dict0mem.c, include/dict0mem.h,
