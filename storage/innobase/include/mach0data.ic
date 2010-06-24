@@ -496,6 +496,46 @@ mach_ull_read_much_compressed(
 
 	return(n);
 }
+
+/*********************************************************//**
+Reads a 64-bit integer in a compressed form
+if the log record fully contains it.
+@return pointer to end of the stored field, NULL if not complete */
+UNIV_INLINE
+byte*
+mach_ull_parse_compressed(
+/*======================*/
+	byte*		ptr,	/* in: pointer to buffer from where to read */
+	byte*		end_ptr,/* in: pointer to end of the buffer */
+	ib_uint64_t*	val)	/* out: read value */
+{
+	ulint		size;
+
+	ut_ad(ptr);
+	ut_ad(end_ptr);
+	ut_ad(val);
+
+	if (end_ptr < ptr + 5) {
+
+		return(NULL);
+	}
+
+	*val = mach_read_compressed(ptr);
+
+	size = mach_get_compressed_size((ulint) *val);
+
+	ptr += size;
+
+	if (end_ptr < ptr + 4) {
+
+		return(NULL);
+	}
+
+	*val <<= 32;
+	*val |= mach_read_from_4(ptr);
+
+	return(ptr + 4);
+}
 #ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Reads a double. It is stored in a little-endian format.
