@@ -4320,6 +4320,13 @@ best_access_path(JOIN      *join,
   double best=              DBL_MAX;
   double best_time=         DBL_MAX;
   double records=           DBL_MAX;
+  /* Holds the current number of records from the range optimizer, if any */
+  double quick_records=     DBL_MAX;
+  /* 
+     When a key from the range optimizer matches more parts than a ref key, the
+     estimates from these sources are not comparable.
+  */
+  double best_quick_records= DBL_MAX;
   table_map best_ref_depends_map= 0;
   double tmp;
   ha_rows rec;
@@ -4349,6 +4356,12 @@ best_access_path(JOIN      *join,
       /* Calculate how many key segments of the current key we can use */
       start_key= keyuse;
 
+      /* 
+         True if we find some keys from the range optimizer that match more
+         key parts than the best ref key. We then choose the best range key.
+      */
+      bool quick_matches_more_parts= false;
+      
       do /* For each keypart */
       {
         uint keypart= keyuse->keypart;
@@ -4583,7 +4596,10 @@ best_access_path(JOIN      *join,
                 if (!found_ref && table->quick_keys.is_set(key) &&    // (1)
                     table->quick_key_parts[key] > max_key_part &&     // (2)
                     records < (double)table->quick_rows[key])         // (3)
-                  records= (double)table->quick_rows[key];
+                {
+                  records= quick_records= (double)table->quick_rows[key];
+                  quick_matches_more_parts= true;                  
+                }
 
                 tmp= records;
               }
@@ -4672,8 +4688,11 @@ best_access_path(JOIN      *join,
             tmp= best_time;                    // Do nothing
         }
       } /* not ft_key */
-      if (tmp < best_time - records/(double) TIME_FOR_COMPARE)
+      if (tmp < best_time - records/(double) TIME_FOR_COMPARE ||
+          (quick_matches_more_parts && 
+           quick_records < best_quick_records))
       {
+        best_quick_records = quick_records;
         best_time= tmp + records/(double) TIME_FOR_COMPARE;
         best= tmp;
         best_records= records;
