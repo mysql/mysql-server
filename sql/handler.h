@@ -1375,6 +1375,19 @@ public:
   }
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
+
+
+/**
+   The cost of reading a set of ranges from the table using an index
+   to access it.
+   
+   @param index  The index number.
+   @param ranges The number of ranges to be read.
+   @param rows   Total number of rows to be read.
+   
+   This method can be used to calculate the total cost of scanning a table
+   using an index by calling it using read_time(index, 1, table_size).
+*/
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
