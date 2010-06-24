@@ -283,7 +283,7 @@ mach_parse_compressed(
 Reads a 64-bit integer in a compressed form
 if the log record fully contains it.
 @return pointer to end of the stored field, NULL if not complete */
-UNIV_INTERN
+UNIV_INLINE
 byte*
 mach_ull_parse_compressed(
 /*======================*/
