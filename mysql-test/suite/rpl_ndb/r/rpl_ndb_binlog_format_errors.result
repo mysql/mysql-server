@@ -56,7 +56,7 @@ INSERT INTO t_slave_stmt VALUES (1);
 [on slave]
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Error 'Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging.' on opening tables
-set global sql_slave_skip_counter=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave.inc
 SELECT * FROM t_slave_stmt /* should be empty */;
 a
@@ -153,7 +153,7 @@ INSERT INTO t VALUES (COALESCE(1, UUID()));
 [on slave]
 --source include/wait_for_slave_sql_error_and_skip.inc
 Last_SQL_Error = Error 'Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT.' on opening tables
-set global sql_slave_skip_counter=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave.inc
 SELECT * FROM t /* should be empty */;
 a

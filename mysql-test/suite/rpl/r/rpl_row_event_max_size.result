@@ -65,4 +65,3 @@ drop table t1;
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
 drop table t1;
-last_io_errno= 1236

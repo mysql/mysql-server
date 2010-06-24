@@ -3150,14 +3150,14 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 SET SESSION binlog_format = MIXED;
 # Check if the statement is logged in row format.
 INSERT INTO t2 SET a = func_modify_t1();
-SHOW BINLOG EVENTS FROM 1493;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1493	Query	1	1561	BEGIN
-master-bin.000001	1561	Table_map	1	1603	table_id: 205 (test.t2)
-master-bin.000001	1603	Table_map	1	1645	table_id: 206 (test.t1)
-master-bin.000001	1645	Write_rows	1	1683	table_id: 206
-master-bin.000001	1683	Write_rows	1	1721	table_id: 205 flags: STMT_END_F
-master-bin.000001	1721	Query	1	1790	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1,t2;
 DROP FUNCTION func_modify_t1;
 SET SESSION binlog_format = STATEMENT;
@@ -3177,16 +3177,16 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 SET SESSION binlog_format = MIXED;
 # Check if the statement is logged in row format.
 INSERT INTO t1 SET a = 2;
-SHOW BINLOG EVENTS FROM 2773;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	2773	Query	1	2841	BEGIN
-master-bin.000001	2841	Table_map	1	2882	table_id: 208 (test.t1)
-master-bin.000001	2882	Table_map	1	2924	table_id: 209 (test.t3)
-master-bin.000001	2924	Table_map	1	2966	table_id: 210 (test.t2)
-master-bin.000001	2966	Write_rows	1	3004	table_id: 210
-master-bin.000001	3004	Write_rows	1	3042	table_id: 209
-master-bin.000001	3042	Write_rows	1	3076	table_id: 208 flags: STMT_END_F
-master-bin.000001	3076	Query	1	3145	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1,t2,t3;
 SET SESSION binlog_format = STATEMENT;
 CREATE TABLE t1 (a VARCHAR(1000));
