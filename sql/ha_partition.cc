@@ -88,7 +88,9 @@ static int partition_initialize(void *p)
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
   partition_hton->alter_table_flags= alter_table_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  partition_hton->flags= HTON_NOT_USER_SELECTABLE |
+                         HTON_HIDDEN |
+                         HTON_TEMPORARY_NOT_SUPPORTED;
 
   return 0;
 }
@@ -1836,6 +1838,13 @@ uint ha_partition::del_ren_cre_table(const char *from,
   uint i;
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
+
+  /* Not allowed to create temporary partitioned tables */
+  if (create_info && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);
