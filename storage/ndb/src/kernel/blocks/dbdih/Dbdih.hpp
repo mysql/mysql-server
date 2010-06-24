@@ -983,6 +983,8 @@ private:
   void checkLocalNodefailComplete(Signal*, Uint32 failedNodeId,
 				  NodefailHandlingStep step);
   
+  Callback m_sendSTTORRY;
+  void sendSTTORRY(Signal*, Uint32 senderData = 0, Uint32 retVal = 0);
   void ndbsttorry10Lab(Signal *, Uint32 _line);
   void createMutexes(Signal* signal, Uint32 no);
   void createMutex_done(Signal* signal, Uint32 no, Uint32 retVal);
