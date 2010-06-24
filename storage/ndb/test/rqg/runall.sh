@@ -181,19 +181,19 @@ EOF
     export NDB_JOIN_PUSHDOWN
     for t in 1 2 3 4 5
     do
-	$mysqltest ${pre}_myisam < $tmp > ${opre}.$no.myisam.$i.txt
+	$mysqltest ${pre}_myisam < $tmp >> ${opre}.$no.myisam.$i.txt
     done
 
     for t in 1 2 3 4 5
     do
-	$mysqltest ${pre}_ndb < $tmp > ${opre}.$no.ndb.$i.txt
+	$mysqltest ${pre}_ndb < $tmp >> ${opre}.$no.ndb.$i.txt
     done
 
     NDB_JOIN_PUSHDOWN=on
     export NDB_JOIN_PUSHDOWN
     for t in 1 2 3 4 5
     do
-	$mysqltest ${pre}_ndb < $tmp > ${opre}.$no.ndb.$i.txt
+	$mysqltest ${pre}_ndb < $tmp >> ${opre}.$no.ndbpush.$i.txt
     done
 
     cnt=`md5sum ${opre}.$no.*.txt | awk '{ print $1;}' | sort | uniq | wc -l`
@@ -242,8 +242,7 @@ run_all() {
     $mysqltest ${pre}_ndb < $file > ${opre}_ndbpush.out
     md5_ndbpush=`md5sum ${opre}_ndbpush.out | awk '{ print $1;}'`
 
-#   if [ "$md5_myisam" != "$md5_ndb" ] || [ "$md5_myisam" != "$md5_ndbpush" ]
-    if [ "$md5_ndb" != "$md5_ndbpush" ]
+    if [ "$md5_myisam" != "$md5_ndb" ] || [ "$md5_myisam" != "$md5_ndbpush" ]
     then
 	echo "md5 missmatch: $md5_myisam $md5_ndb $md5_ndbpush"
 	echo "locating failing query(s)"
