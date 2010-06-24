@@ -3242,11 +3242,6 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_BLOB:
 	case MYSQL_TYPE_LONG_BLOB:
 		return(DATA_BLOB);
-	case MYSQL_TYPE_NULL:
-		/* MySQL currently accepts "NULL" datatype, but will
-		reject such datatype in the next release. We will cope
-		with it and not trigger assertion failure in 5.1 */
-		break;
 	default:
 		assert(0);
 	}
@@ -5268,22 +5263,7 @@ create_table_def(
 		field = form->field[i];
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
-							     field);
-
-		if (!col_type) {
-			push_warning_printf(
-				(THD*) trx->mysql_thd,
-				MYSQL_ERROR::WARN_LEVEL_WARN,
-				ER_CANT_CREATE_TABLE,
-				"Error creating table '%s' with "
-				"column '%s'. Please check its "
-				"column type and try to re-create "
-				"the table with an appropriate "
-				"column type.",
-				table->name, (char*) field->field_name);
-			goto err_col;
-		}
-
+									field);
 		if (field->null_ptr) {
 			nulls_allowed = 0;
 		} else {
@@ -5340,7 +5320,7 @@ create_table_def(
 				"different column name.",
 				table->name, (char*) field->field_name,
 				(char*) field->field_name);
-err_col:
+
 			dict_mem_table_free(table);
 			trx_commit_for_mysql(trx);
 
