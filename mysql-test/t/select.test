@@ -4077,4 +4077,19 @@ SELECT * FROM t1 WHERE 102 < c;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug #54459: Assertion failed: param.sort_length, 
+--echo # file .\filesort.cc, line 149 (part II)
+--echo #
+CREATE TABLE t1(a ENUM('') NOT NULL);
+INSERT INTO t1 VALUES (), (), ();
+EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+DROP TABLE t1;
+
+create table t1(a enum('a'))engine=myisam charset=latin1;
+insert into t1 values (''),(''),(''),(NULL);
+select a, substr(a, 0, 0) from t1 order by substr(a, 0, 0);
+select a, a collate latin1_german2_ci from t1 order by a collate latin1_german2_ci;
+
 --echo End of 5.1 tests
