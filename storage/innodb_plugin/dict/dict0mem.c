@@ -68,7 +68,8 @@ dict_mem_table_create(
 	table->heap = heap;
 
 	table->flags = (unsigned int) flags;
-	table->name = mem_heap_strdup(heap, name);
+	table->name = ut_malloc(strlen(name) + 1);
+	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
 	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
 
@@ -106,6 +107,7 @@ dict_mem_table_free(
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
+	ut_free(table->name);
 	mem_heap_free(table->heap);
 }
 
