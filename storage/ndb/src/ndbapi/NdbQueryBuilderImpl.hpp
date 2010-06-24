@@ -359,10 +359,10 @@ public:
   Uint32 getQueryOperationId() const
   { return m_id; }
 
-protected:
   // Get type of query operation
   virtual NdbQueryOperationDef::Type getType() const = 0;
 
+protected:
   // QueryTree building:
   // Append list of parent nodes to serialized code
   void appendParentList(Uint32Buffer& serializedDef) const;

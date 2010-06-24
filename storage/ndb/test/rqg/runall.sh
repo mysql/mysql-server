@@ -76,6 +76,40 @@ BEGIN
                          ' engine = ', dstengine);
        PREPARE stmt from @ddl;
        EXECUTE stmt;
+
+       ## Add some composite unique indexes
+       if tabname > 'O' then
+          set @ddl = CONCAT('CREATE UNIQUE INDEX ix1 ON ', dstdb, '.', tabname, 
+                            '(col_int,col_int_unique)');
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+          set @ddl = CONCAT('CREATE UNIQUE INDEX ix2 ON ', dstdb, '.', tabname, 
+                            '(col_int_key,col_int_unique)');
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+
+          ## Drop the original indexes covered by the indexes created above
+          set @ddl = CONCAT('DROP INDEX col_int_key ON ', dstdb, '.', tabname);
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+          set @ddl = CONCAT('DROP INDEX col_int_unique ON ', dstdb, '.', tabname);
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+       elseif tabname > 'H' then
+          set @ddl = CONCAT('CREATE UNIQUE INDEX ix3 ON ', dstdb, '.', tabname, 
+                            '(col_int,col_int_key,col_int_unique)');
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+
+          ## Drop the original indexes covered by the indexes created above
+          set @ddl = CONCAT('DROP INDEX col_int_key ON ', dstdb, '.', tabname);
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+          set @ddl = CONCAT('DROP INDEX col_int_unique ON ', dstdb, '.', tabname);
+          PREPARE stmt from @ddl;
+          EXECUTE stmt;
+       end if;
+
        set @ddl = CONCAT('INSERT INTO ', dstdb, '.', tabname, 
                          ' SELECT * FROM ', srcdb, '.', tabname);
        PREPARE stmt from @ddl;
