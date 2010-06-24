@@ -149,6 +149,7 @@ struct cachetable {
     PAIR  head,tail;              // of LRU list. head is the most recently used. tail is least recently used.
     CACHEFILE cachefiles;         // list of cachefiles that use this cachetable
     CACHEFILE cachefiles_in_checkpoint; //list of cachefiles included in checkpoint in progress
+    int64_t size_reserved;           // How much memory is reserved (e.g., by the loader)
     int64_t size_current;            // the sum of the sizes of the pairs in the cachetable
     int64_t size_limit;              // the limit to the sum of the pair sizes
     int64_t size_writing;            // the sum of the sizes of the pairs being written
@@ -284,6 +285,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     rwlock_init(&ct->pending_lock);
     XCALLOC_N(ct->table_size, ct->table);
     ct->size_limit = size_limit;
+    ct->size_reserved = 0;
     ct->logger = logger;
     toku_init_workers(&ct->wq, &ct->threadpool);
     ct->mutex = workqueue_lock_ref(&ct->wq);
@@ -300,7 +302,8 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
 uint64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
     cachetable_lock(ct);
     cachetable_wait_write(ct);
-    uint64_t reserved_memory = fraction*ct->size_limit;
+    uint64_t reserved_memory = fraction*(ct->size_limit-ct->size_reserved);
+    ct->size_reserved += reserved_memory;
     {
 	int r = maybe_flush_some(ct, reserved_memory);
 	if (r) {
@@ -316,6 +319,7 @@ uint64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
 void toku_cachetable_release_reserved_memory(CACHETABLE ct, uint64_t reserved_memory) {
     cachetable_lock(ct);
     ct->size_current -= reserved_memory;
+    ct->size_reserved -= reserved_memory;
     assert(ct->size_current >= 0);
     cachetable_unlock(ct);
 }
