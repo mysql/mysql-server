@@ -4763,7 +4763,11 @@ best_access_path(JOIN      *join,
     else
     {
       /* Estimate cost of reading table. */
-      tmp= s->table->file->scan_time();
+      if (s->table->force_index && !best_key)
+        tmp= s->table->file->read_time(s->ref.key, 1, s->records);
+      else
+        tmp= s->table->file->scan_time();
+
       if (s->table->map & join->outer_join)     // Can't use join cache
       {
         /*
@@ -5464,7 +5468,11 @@ best_extension_by_limited_search(JOIN      *join,
         if (join->sort_by_table &&
             join->sort_by_table !=
             join->positions[join->const_tables].table->table)
-          /* We have to make a temp table */
+          /* 
+             We may have to make a temp table, note that this is only a 
+             heuristic since we cannot know for sure at this point. 
+             Hence it may be wrong.
+          */
           current_read_time+= current_record_count;
         if ((search_depth == 1) || (current_read_time < join->best_read))
         {
