@@ -1,3 +1,33 @@
+2010-06-24	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54679 alter table causes compressed row_format to revert
+	to compact
+
+2010-06-22	The InnoDB Team
+
+	* dict/dict0dict.c, dict/dict0mem.c, include/dict0mem.h,
+	include/univ.i, page/page0zip.c, row/row0merge.c:
+	Fix Bug#47991 InnoDB Dictionary Cache memory usage increases
+	indefinitely when renaming tables
+
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54686: "field->col->mtype == type" assertion error at
+	row/row0sel.c
+
+2010-06-21	The InnoDB Team
+
+	* dict/dict0load.c, fil/fil0fil.c:
+	Fix Bug#54658: InnoDB: Warning: allocated tablespace %lu,
+	old maximum was 0 (introduced in Bug #53578 fix)
+
+2010-06-16	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#54330 Broken fast index creation
+
 2010-06-10	The InnoDB Team
 
 	* include/log0log.ic, row/row0ins.c, row/row0purge.c,

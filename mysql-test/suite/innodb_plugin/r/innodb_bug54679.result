@@ -1,0 +1,91 @@
+SET GLOBAL innodb_file_format='Barracuda';
+SET GLOBAL innodb_file_per_table=ON;
+SET innodb_strict_mode=ON;
+CREATE TABLE bug54679 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables
+WHERE TABLE_NAME='bug54679';
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
+bug54679	Compressed	row_format=COMPRESSED
+ALTER TABLE bug54679 ADD COLUMN b INT;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables
+WHERE TABLE_NAME='bug54679';
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
+bug54679	Compressed	row_format=COMPRESSED
+DROP TABLE bug54679;
+CREATE TABLE bug54679 (a INT) ENGINE=InnoDB;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables
+WHERE TABLE_NAME='bug54679';
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
+bug54679	Compact	
+ALTER TABLE bug54679 KEY_BLOCK_SIZE=1;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables
+WHERE TABLE_NAME='bug54679';
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
+bug54679	Compressed	KEY_BLOCK_SIZE=1
+ALTER TABLE bug54679 ROW_FORMAT=REDUNDANT;
+ERROR HY000: Can't create table '#sql-temporary' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.
+Error	1005	Can't create table '#sql-temporary' (errno: 1478)
+DROP TABLE bug54679;
+CREATE TABLE bug54679 (a INT) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables
+WHERE TABLE_NAME='bug54679';
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
+bug54679	Redundant	row_format=REDUNDANT
+ALTER TABLE bug54679 KEY_BLOCK_SIZE=2;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables
+WHERE TABLE_NAME='bug54679';
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
+bug54679	Compressed	row_format=REDUNDANT KEY_BLOCK_SIZE=2
+SET GLOBAL innodb_file_format=Antelope;
+ALTER TABLE bug54679 KEY_BLOCK_SIZE=4;
+ERROR HY000: Can't create table '#sql-temporary' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Error	1005	Can't create table '#sql-temporary' (errno: 1478)
+ALTER TABLE bug54679 ROW_FORMAT=DYNAMIC;
+ERROR HY000: Can't create table '#sql-temporary' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
+Error	1005	Can't create table '#sql-temporary' (errno: 1478)
+DROP TABLE bug54679;
+CREATE TABLE bug54679 (a INT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+ERROR HY000: Can't create table 'test.bug54679' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.bug54679' (errno: 1478)
+CREATE TABLE bug54679 (a INT) ENGINE=InnoDB;
+SET GLOBAL innodb_file_format=Barracuda;
+SET GLOBAL innodb_file_per_table=OFF;
+ALTER TABLE bug54679 KEY_BLOCK_SIZE=4;
+ERROR HY000: Can't create table '#sql-temporary' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Error	1005	Can't create table '#sql-temporary' (errno: 1478)
+ALTER TABLE bug54679 ROW_FORMAT=DYNAMIC;
+ERROR HY000: Can't create table '#sql-temporary' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
+Error	1005	Can't create table '#sql-temporary' (errno: 1478)
+DROP TABLE bug54679;
+CREATE TABLE bug54679 (a INT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+ERROR HY000: Can't create table 'test.bug54679' (errno: 1478)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
+Error	1005	Can't create table 'test.bug54679' (errno: 1478)
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE bug54679 (a INT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+DROP TABLE bug54679;
+SET GLOBAL innodb_file_format=Antelope;
+SET GLOBAL innodb_file_format_check=Antelope;
+SET GLOBAL innodb_file_per_table=0;
