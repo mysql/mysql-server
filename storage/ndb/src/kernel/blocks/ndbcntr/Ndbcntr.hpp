@@ -95,6 +95,8 @@ public:
       Uint32 m_lastGci;
     } m_logNodes[MAX_NDB_NODES];
     Uint32 m_logNodesCount;
+
+    Uint32 m_wait_sp[MAX_NDB_NODES];
   } c_start;
   
   struct NdbBlocksRec {
@@ -278,6 +280,13 @@ private:
   void waitpoint61Lab(Signal* signal);
   void waitpoint71Lab(Signal* signal);
   void waitpoint42To(Signal* signal);
+
+  /**
+   * Wait before starting sp
+   *   so that all nodes in cluster is waiting for >= sp
+   */
+  bool wait_sp(Signal*, Uint32 sp);
+  void wait_sp_rep(Signal*);
 
   void execSTART_COPYREF(Signal*);
   void execSTART_COPYCONF(Signal*);
