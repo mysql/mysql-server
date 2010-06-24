@@ -1,10 +1,5 @@
 2010-06-22	The InnoDB Team
 
-	* handler/ha_innodb.cc, innodb_bug54044.test, innodb_bug54044.result
-	Fix Bug#54044, Create temporary tables and using innodb crashes.
-
-2010-06-22	The InnoDB Team
-
 	* dict/dict0dict.c, dict/dict0mem.c, include/dict0mem.h,
 	include/univ.i, page/page0zip.c, row/row0merge.c:
 	Fix Bug#47991 InnoDB Dictionary Cache memory usage increases
