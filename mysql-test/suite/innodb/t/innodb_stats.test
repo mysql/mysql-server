@@ -5,6 +5,19 @@
 -- source include/have_innodb.inc
 -- source suite/innodb/include/innodb_stats_bootstrap.inc
 
+-- disable_warnings
+-- disable_query_log
+
+DROP TABLE IF EXISTS test_innodb_stats;
+
+CREATE TABLE test_innodb_stats (
+	a INT,
+	KEY a_key (a)
+) ENGINE=INNODB;
+
+-- enable_warnings
+-- enable_query_log
+
 # test empty table
 -- let $insert = SELECT 'dummy INSERT, the table should be empty'
 -- source suite/innodb/include/innodb_stats.inc
