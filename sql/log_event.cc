@@ -3254,9 +3254,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       thd->table_map_for_update= (table_map)table_map_for_update;
       
       /* Execute the query (note that we bypass dispatch_command()) */
-      Parser_state parser_state(thd, thd->query(), thd->query_length());
-      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
-      log_slow_statement(thd);
+      Parser_state parser_state;
+      if (!parser_state.init(thd, thd->query(), thd->query_length()))
+      {
+        mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        log_slow_statement(thd);
+      }
 
       /*
         Resetting the enable_slow_log thd variable.
@@ -9160,8 +9163,35 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     */
     if (table->key_info->flags & HA_NOSAME)
     {
-      table->file->ha_index_end();
-      goto ok;
+      /* Unique does not have non nullable part */
+      if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
+      {
+        table->file->ha_index_end();
+        goto ok;
+      }
+      else
+      {
+        KEY *keyinfo= table->key_info;
+        /*
+          Unique has nullable part. We need to check if there is any field in the
+          BI image that is null and part of UNNI.
+        */
+        bool null_found= FALSE;
+        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
+        {
+          uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
+          Field **f= table->field+fieldnr;
+          null_found= (*f)->is_null();
+        }
+
+        if (!null_found)
+        {
+          table->file->ha_index_end();
+          goto ok;
+        }
+
+        /* else fall through to index scan */
+      }
     }
 
     /*

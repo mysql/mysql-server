@@ -2386,12 +2386,33 @@ static ulonglong read_timestamp(THD *thd)
 {
   return (ulonglong) thd->start_time;
 }
+
+
+static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
+{
+  time_t val;
+
+  if (!var->value)
+    return FALSE;
+
+  val= (time_t) var->save_result.ulonglong_value;
+  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  {
+    my_message(ER_UNKNOWN_ERROR, 
+               "This version of MySQL doesn't support dates later than 2038",
+               MYF(0));
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 static Sys_var_session_special Sys_timestamp(
        "timestamp", "Set the time for this client",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
        VALID_RANGE(0, ~(time_t)0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_timestamp),
-       ON_READ(read_timestamp));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_timestamp), 
+       ON_UPDATE(update_timestamp), ON_READ(read_timestamp));
 
 static bool update_last_insert_id(THD *thd, set_var *var)
 {
