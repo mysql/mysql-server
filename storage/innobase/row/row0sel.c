@@ -2659,8 +2659,10 @@ row_sel_store_mysql_rec(
 					which was described in prebuilt's
 					template; must be protected by
 					a page latch */
-	const ulint*	offsets)	/*!< in: array returned by
+	const ulint*	offsets,	/*!< in: array returned by
 					rec_get_offsets() */
+        ulint start_field_no,
+        ulint end_field_no)
 {
 	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
@@ -2678,8 +2680,8 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
-	for (i = 0; i < prebuilt->n_template; i++) {
-
+//	for (i = 0; i < prebuilt->n_template; i++) {
+        for (i = start_field_no; i < end_field_no ; i++) {
 		templ = prebuilt->mysql_template + i;
 
 		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
@@ -3138,7 +3140,9 @@ row_sel_push_cache_row_for_mysql(
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
 	const rec_t*	rec,		/*!< in: record to push; must
 					be protected by a page latch */
-	const ulint*	offsets)	/*!< in: rec_get_offsets() */
+	const ulint*	offsets,	/*!< in: rec_get_offsets() */
+        ulint           start_field_no, /* psergey: start from this field */
+        byte*           remainder_buf)  /* if above !=0 -> where to take prev fields */
 {
 	byte*	buf;
 	ulint	i;
@@ -3173,10 +3177,47 @@ row_sel_push_cache_row_for_mysql(
 	if (UNIV_UNLIKELY(!row_sel_store_mysql_rec(
 				  prebuilt->fetch_cache[
 					  prebuilt->n_fetch_cached],
-				  prebuilt, rec, offsets))) {
+				  prebuilt, rec, offsets, start_field_no,
+                                  prebuilt->n_template))) {
 		ut_error;
 	}
+        if (start_field_no) {
+		/* If index condition pushdown is used, the table
+		   columns start at start_field_no. Columns from 0 to
+		   start_field_no are index columns. Table columns
+		   were copied above; now copy the index columns. */
+          for (i=0; i < start_field_no; i++) {
+            register ulint offs;
+	    mysql_row_templ_t* templ;
+            templ = prebuilt->mysql_template + i;
 
+            if (templ->mysql_null_bit_mask) {
+              /* 
+				   Store a pointer to the null byte in
+				   the record in the fetch cache
+				   (the mysql record). Update this null
+				   byte as follows:
+				   1. Clear the null bit for this index entry.
+				   2. Set the correct value for the
+				      null bit based on the null bit
+				      in the internal record representation 
+				      found in remainder_buf.
+				*/ 
+				register byte* null_byte;
+				offs= templ->mysql_null_byte_offset;
+				null_byte= prebuilt->fetch_cache[
+					  prebuilt->n_fetch_cached]+offs;
+
+				(*null_byte)&= ~templ->mysql_null_bit_mask;
+				(*null_byte)|= (*(remainder_buf + offs) & 
+						templ->mysql_null_bit_mask);
+            }
+            offs= templ->mysql_col_offset;
+            memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached] + offs,
+                   remainder_buf + offs,
+                   templ->mysql_col_len);
+          }
+        }
 	prebuilt->n_fetch_cached++;
 }
 
@@ -3315,6 +3356,8 @@ row_search_for_mysql(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+        ibool           some_fields_in_buffer;
+        ibool           get_clust_rec= 0;
 
 	rec_offs_init(offsets_);
 
@@ -3571,7 +3614,8 @@ row_search_for_mysql(
 				mtr_commit(&mtr). */
 
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
-							     rec, offsets)) {
+							     rec, offsets, 0, 
+                                                             prebuilt->n_template)) {
 					err = DB_TOO_BIG_RECORD;
 
 					/* We let the main loop to do the
@@ -4195,7 +4239,8 @@ no_gap_lock:
 
 			ut_ad(index != clust_index);
 
-			goto requires_clust_rec;
+                        get_clust_rec= TRUE;
+			goto idx_cond_check;
 		}
 	}
 
@@ -4239,12 +4284,40 @@ no_gap_lock:
 		goto next_rec;
 	}
 
+idx_cond_check:
+        if (prebuilt->idx_cond_func)
+        {
+          int res;
+
+          /*
+            The current ICP code does not support the case where InnoDB
+            has decided to change from just reading the index entry
+            to reading the entire record. In this situation the
+            mysql_template array is set up to compare fields from
+            record not just the index entry's fields. ICP should not
+            be in use in this case but to detect if this anyway
+            happens the following assert is added.
+          */
+          ut_ad(prebuilt->template_type == ROW_MYSQL_REC_FIELDS);
+
+          offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+          row_sel_store_mysql_rec(buf, prebuilt, rec,
+                                  offsets, 0, prebuilt->n_index_fields);
+          res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
+          if (res == 0)
+            goto next_rec;
+          if (res == 2)
+          {
+            err = DB_RECORD_NOT_FOUND;
+            goto idx_cond_failed;
+          }
+        }
 	/* Get the clustered index record if needed, if we did not do the
 	search using the clustered index. */
 
-	if (index != clust_index && prebuilt->need_to_access_clustered) {
+	if (get_clust_rec || (index != clust_index &&
+            prebuilt->need_to_access_clustered)) {
 
-requires_clust_rec:
 		/* We use a 'goto' to the preceding label if a consistent
 		read of a secondary index record requires us to look up old
 		versions of the associated clustered index record. */
@@ -4350,9 +4423,14 @@ requires_clust_rec:
 		are BLOBs in the fields to be fetched. In HANDLER we do
 		not cache rows because there the cursor is a scrollable
 		cursor. */
+                some_fields_in_buffer= (index != clust_index &&
+                                        prebuilt->idx_cond_func);
 
 		row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
-						 offsets);
+						 offsets, 
+                                                 some_fields_in_buffer? 
+                                                 prebuilt->n_index_fields: 0,
+                                                 buf);
 		if (prebuilt->n_fetch_cached == MYSQL_FETCH_CACHE_SIZE) {
 
 			goto got_row;
@@ -4368,7 +4446,10 @@ requires_clust_rec:
 					rec_offs_extra_size(offsets) + 4);
 		} else {
 			if (!row_sel_store_mysql_rec(buf, prebuilt,
-						     result_rec, offsets)) {
+						     result_rec, offsets,
+                                                     prebuilt->idx_cond_func? 
+                                                     prebuilt->n_index_fields: 0,
+                                                     prebuilt->n_template)) {
 				err = DB_TOO_BIG_RECORD;
 
 				goto lock_wait_or_error;
@@ -4396,7 +4477,10 @@ got_row:
 	HANDLER command where the user can move the cursor with PREV or NEXT
 	even after a unique search. */
 
-	if (!unique_search_from_clust_index
+	err = DB_SUCCESS;
+
+idx_cond_failed:
+        if (!unique_search_from_clust_index
 	    || prebuilt->select_lock_type != LOCK_NONE
 	    || prebuilt->used_in_HANDLER) {
 
@@ -4405,12 +4489,11 @@ got_row:
 		btr_pcur_store_position(pcur, &mtr);
 	}
 
-	err = DB_SUCCESS;
-
 	goto normal_return;
 
 next_rec:
 	/* Reset the old and new "did semi-consistent read" flags. */
+        get_clust_rec= FALSE;
 	if (UNIV_UNLIKELY(prebuilt->row_read_type
 			  == ROW_READ_DID_SEMI_CONSISTENT)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
