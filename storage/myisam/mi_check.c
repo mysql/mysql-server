@@ -1736,6 +1736,21 @@ err:
     {
       mysql_file_close(new_file, MYF(0));
       info->dfile=new_file= -1;
+      /*
+        On Windows, the old data file cannot be deleted if it is either
+        open, or memory mapped. Closing the file won't remove the memory
+        map implicilty on Windows. We closed the data file, but we keep
+        the MyISAM table open. A memory map will be closed on the final
+        mi_close() only. So we need to unmap explicitly here. After
+        renaming the new file under the hook, we couldn't use the map of
+        the old file any more anyway.
+      */
+      if (info->s->file_map)
+      {
+        (void) my_munmap((char*) info->s->file_map,
+                         (size_t) info->s->mmaped_length);
+        info->s->file_map= NULL;
+      }
       if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?

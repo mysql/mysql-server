@@ -4882,6 +4882,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (wait_while_table_is_used(thd, table->table,
                                    HA_EXTRA_PREPARE_FOR_RENAME))
         goto err;
+      DEBUG_SYNC(thd, "after_admin_flush");
       /* Flush entries in the query cache involving this table. */
       query_cache_invalidate3(thd, table->table, 0);
       /*
@@ -5149,7 +5150,11 @@ send_result_message:
     {
       if (table->table->s->tmp_table)
       {
-        if (open_for_modify)
+        /*
+          If the table was not opened successfully, do not try to get
+          status information. (Bug#47633)
+        */
+        if (open_for_modify && !open_error)
           table->table->file->info(HA_STATUS_CONST);
       }
       else if (open_for_modify || fatal_error)

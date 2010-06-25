@@ -103,6 +103,7 @@
 #include "myrg_def.h"
 #include "thr_malloc.h"                         // int_sql_alloc
 #include "sql_class.h"                          // THD
+#include "debug_sync.h"
 
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
@@ -755,6 +756,7 @@ int ha_myisammrg::attach_children(void)
   /* Must not call this with attached children. */
   DBUG_ASSERT(!this->file->children_attached);
 
+  DEBUG_SYNC(current_thd, "before_myisammrg_attach");
   /* Must call this with children list in place. */
   DBUG_ASSERT(this->table->pos_in_table_list->next_global == this->children_l);
 
