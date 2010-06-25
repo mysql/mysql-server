@@ -61,6 +61,8 @@ static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
 inline bool is_system_table_name(const char *name, uint length);
 
+static ulong get_form_pos(File file, uchar *head);
+
 /**************************************************************************
   Object_creation_ctx implementation.
 **************************************************************************/
@@ -706,7 +708,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   disk_buff= 0;
 
   error= 3;
-  if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
+  /* Position of the form in the form file. */
+  if (!(pos= get_form_pos(file, head)))
     goto err;                                   /* purecov: inspected */
 
   mysql_file_seek(file,pos,MY_SEEK_SET,MYF(0));
@@ -2084,52 +2087,46 @@ void free_field_buffers_larger_than(TABLE *table, uint32 size)
   }
 }
 
-	/* Find where a form starts */
-	/* if formname is NullS then only formnames is read */
+/**
+  Find where a form starts.
 
-ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
+  @param head The start of the form file.
+
+  @remark If formname is NULL then only formnames is read.
+
+  @retval The form position.
+*/
+
+static ulong get_form_pos(File file, uchar *head)
 {
-  uint a_length,names,length;
-  uchar *pos,*buf;
+  uchar *pos, *buf;
+  uint names, length;
   ulong ret_value=0;
   DBUG_ENTER("get_form_pos");
 
-  names=uint2korr(head+8);
-  a_length=(names+2)*sizeof(char *);		/* Room for two extra */
+  names= uint2korr(head+8);
 
-  if (!save_names)
-    a_length=0;
-  else
-    save_names->type_names=0;			/* Clear if error */
+  if (!(names= uint2korr(head+8)))
+    DBUG_RETURN(0);
 
-  if (names)
+  length= uint2korr(head+4);
+
+  mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
+
+  if (!(buf= (uchar*) my_malloc(length+names*4, MYF(MY_WME))))
+    DBUG_RETURN(0);
+
+  if (mysql_file_read(file, buf, length+names*4, MYF(MY_NABP)))
   {
-    length=uint2korr(head+4);
-    mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
-    if (!(buf= (uchar*) my_malloc((size_t) length+a_length+names*4,
-				  MYF(MY_WME))) ||
-        mysql_file_read(file, buf+a_length, (size_t) (length+names*4),
-                        MYF(MY_NABP)))
-    {						/* purecov: inspected */
-      x_free((uchar*) buf);			/* purecov: inspected */
-      DBUG_RETURN(0L);				/* purecov: inspected */
-    }
-    pos= buf+a_length+length;
-    ret_value=uint4korr(pos);
+    x_free(buf);
+    DBUG_RETURN(0);
   }
-  if (! save_names)
-  {
-    if (names)
-      my_free((uchar*) buf,MYF(0));
-  }
-  else if (!names)
-    bzero((char*) save_names,sizeof(save_names));
-  else
-  {
-    char *str;
-    str=(char *) (buf+a_length);
-    fix_type_pointers((const char ***) &buf,save_names,1,&str);
-  }
+
+  pos= buf+length;
+  ret_value= uint4korr(pos);
+
+  my_free(buf, MYF(0));
+
   DBUG_RETURN(ret_value);
 }
 
@@ -4430,6 +4427,27 @@ void TABLE::mark_columns_used_by_index(uint index)
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Add fields used by a specified index to the table's read_set.
+
+  NOTE:
+    The original state can be restored with
+    restore_column_maps_after_mark_index().
+*/
+
+void TABLE::add_read_columns_used_by_index(uint index)
+{
+  MY_BITMAP *bitmap= &tmp_set;
+  DBUG_ENTER("TABLE::add_read_columns_used_by_index");
+
+  set_keyread(TRUE);
+  bitmap_copy(bitmap, read_set);
+  mark_columns_used_by_index_no_reset(index, bitmap);
+  column_bitmaps_set(bitmap, write_set);
   DBUG_VOID_RETURN;
 }
 

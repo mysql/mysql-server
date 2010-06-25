@@ -586,7 +586,7 @@ reset master;
 UPDATE t2,t1 SET t2.a=t1.a+2;
 # check
 select * from t2 /* must be (3,1), (4,4) */;
-show master status /* there must be the UPDATE query event */;
+source include/show_binlog_events.inc;
 
 # B. testing multi_update::send_error() ineffective update
 # (as there is a policy described at mysql_update() still go to binlog)
@@ -597,7 +597,7 @@ insert into t2 values (1,2),(3,4),(4,4);
 reset master;
 --error ER_DUP_ENTRY
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-show master status /* there must be the UPDATE query event */;
+source include/show_binlog_events.inc;
 
 # cleanup
 drop table t1, t2;
