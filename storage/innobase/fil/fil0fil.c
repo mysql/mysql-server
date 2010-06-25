@@ -1214,7 +1214,7 @@ try_again:
 	space->tablespace_version = fil_system->tablespace_version;
 	space->mark = FALSE;
 
-	if (UNIV_LIKELY(purpose == FIL_TABLESPACE)
+	if (UNIV_LIKELY(purpose == FIL_TABLESPACE && !recv_recovery_on)
 	    && UNIV_UNLIKELY(id > fil_system->max_assigned_id)) {
 		if (!fil_system->space_id_reuse_warned) {
 			fil_system->space_id_reuse_warned = TRUE;

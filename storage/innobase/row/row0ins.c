@@ -51,6 +51,15 @@ Created 4/20/1996 Heikki Tuuri
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
 
 /*********************************************************************//**
 Creates an insert node struct.
