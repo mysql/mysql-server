@@ -333,3 +333,78 @@ IF(WITH_EMBEDDED_SERVER)
   ADD_SUBDIRECTORY(libmysqld/examples)
 ENDIF(WITH_EMBEDDED_SERVER)
 ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
+
+# Set up the installer
+SET(CPACK_PACKAGE_NAME "MariaDB")
+STRING(REPLACE "-MariaDB" "" CPACK_PACKAGE_VERSION ${VERSION})
+SET(CPACK_PACKAGE_VENDOR "Monty Program AB http://www.montyprogram.com")
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "MariaDB")
+SET(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/COPYING)
+SET(CPACK_GENERATOR NSIS)
+
+# Installer components and grouping
+SET(CPACK_COMPONENT_GROUP_SERVER_DESCRIPTION "The files necessary for running the MariaDB server.")
+SET(CPACK_COMPONENT_GROUP_DEVELOPMENT_DESCRIPTION "Files used in development on the MariaDB server.")
+SET(CPACK_ALL_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "MariaDB server")
+SET(CPACK_COMPONENT_RUNTIME_DESCRIPTION "The server itself. You want to install this one.")
+SET(CPACK_COMPONENT_RUNTIME_GROUP "Server")
+SET(CPACK_COMPONENT_RUNTIME_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_HEADERS_DISPLAY_NAME "Development headers")
+SET(CPACK_COMPONENT_HEADERS_DESCRIPTION "Header files for development on MariaDB.")
+SET(CPACK_COMPONENT_HEADERS_DEPENDS runtime)
+SET(CPACK_COMPONENT_HEADERS_GROUP "Development")
+SET(CPACK_COMPONENT_HEADERS_INSTALL_TYPES Development)
+SET(CPACK_COMPONENT_PERLSCRIPTS_DISPLAY_NAME "Server perl scripts")
+SET(CPACK_COMPONENT_PERLSCRIPTS_DESCRIPTION "Scripts to controll and modify the server. You need a perl installation for these to work.")
+SET(CPACK_COMPONENT_PERLSCRIPTS_DEPENDS runtime)
+SET(CPACK_COMPONENT_PERLSCRIPTS_GROUP "Server")
+SET(CPACK_COMPONENT_PERLSCRIPTS_INSTALL_TYPES Normal Development)
+# TODO: Add debug files
+# TODO: Add embedded server files
+# TODO: Add test files
+# TODO: Add sql-bench
+
+# Add files to the installer
+INSTALL(FILES COPYING EXCEPTIONS-CLIENT DESTINATION .)
+INSTALL(FILES support-files/my-huge.ini support-files/my-innodb-heavy-4G.ini DESTINATION .)
+INSTALL(FILES support-files/my-large.ini support-files/my-medium.ini DESTINATION .)
+INSTALL(FILES support-files/my-small.ini DESTINATION .)
+INSTALL(FILES Docs/INSTALL-BINARY DESTINATION Docs)
+INSTALL(FILES COPYING DESTINATION Docs)
+FILE(GLOB headerfiles "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+INSTALL(FILES ${headerfiles} DESTINATION include COMPONENT headers)
+INSTALL(FILES include/mysql/plugin.h DESTINATION include/mysql COMPONENT headers)
+INSTALL(FILES libmysql/libmysql.def DESTINATION include COMPONENT headers)
+
+# Handle the database files
+FILE(GLOB datafiles "${CMAKE_CURRENT_SOURCE_DIR}/win/data/mysql/*")
+INSTALL(FILES ${datafiles} DESTINATION data/clean/mysql)
+INSTALL(FILES win/data/maria_log.00000001 win/data/maria_log_control DESTINATION data/clean)
+INSTALL(DIRECTORY win/data/test DESTINATION data/clean)
+SET(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
+  IfFileExists '$INSTDIR\\\\data\\\\mysql\\\\db.frm' 0 CopyDatabaseFiles
+    MessageBox MB_OK 'There are already database files present in the data directory. Clean database files are not written to the directory'
+    GoTo EndCopyDatabaseFiles
+  CopyDatabaseFiles:
+    CopyFiles '$INSTDIR\\\\data\\\\clean\\\\*' '$INSTDIR\\\\data'
+  EndCopyDatabaseFiles:")
+SET(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
+  MessageBox MB_OK 'This will not delete the database files in $INSTDIR\\\\data'")
+
+# Files in the share dir
+INSTALL(FILES sql/share/errmsg.txt DESTINATION share COMPONENT runtime)
+FILE(GLOB charsets sql/share/charsets/*)
+INSTALL(FILES ${charsets} DESTINATION share/charsets COMPONENT runtime)
+FILE(GLOB share_dirs sql/share/*)
+FOREACH(SUBDIR ${share_dirs})
+  FILE(RELATIVE_PATH DIRNAME ${PROJECT_SOURCE_DIR}/sql/share ${SUBDIR})
+  IF (EXISTS ${SUBDIR}/errmsg.sys)
+    INSTALL(FILES ${SUBDIR}/errmsg.sys DESTINATION share/${DIRNAME} COMPONENT runtime)
+  ENDIF(EXISTS ${SUBDIR}/errmsg.sys)
+ENDFOREACH(SUBDIR ${share_dirs})
+
+INCLUDE(InstallRequiredSystemLibraries)
+
+# This must always be the last line
+INCLUDE(CPack)

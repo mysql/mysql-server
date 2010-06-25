@@ -83,3 +83,5 @@ IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("echo" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
 
+INSTALL(TARGETS mysql mysqltest mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow
+	mysqlbinlog mysqladmin mysqlslap echo DESTINATION bin COMPONENT runtime)
