@@ -406,7 +406,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     bl->generate_row_for_put = g;
     bl->cachetable = cachetable;
     if (bl->cachetable)
-        bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 0.5);
+        bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 2.0/3.0); // allocate 2/3 of the unreserved part (which is 3/4 of the memory to start with).
     else
 	bl->reserved_memory = 512*1024*1024; // if no cache table use 512MB.
     //printf("Reserved memory=%ld\n", bl->reserved_memory);

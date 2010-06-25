@@ -277,6 +277,9 @@ u_int32_t toku_get_checkpoint_period (CACHETABLE ct) {
     return toku_minicron_get_period(&ct->checkpointer);
 }
 
+// reserve 25% as "unreservable".  The loader cannot have it.
+#define unreservable_memory(size) ((size)/4)
+
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
     TAGMALLOC(CACHETABLE, ct);
     if (ct == 0) return ENOMEM;
@@ -285,7 +288,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     rwlock_init(&ct->pending_lock);
     XCALLOC_N(ct->table_size, ct->table);
     ct->size_limit = size_limit;
-    ct->size_reserved = 0;
+    ct->size_reserved = unreservable_memory(size_limit);
     ct->logger = logger;
     toku_init_workers(&ct->wq, &ct->threadpool);
     ct->mutex = workqueue_lock_ref(&ct->wq);
@@ -299,7 +302,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     return 0;
 }
 
-uint64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
+u_int64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
     cachetable_lock(ct);
     cachetable_wait_write(ct);
     uint64_t reserved_memory = fraction*(ct->size_limit-ct->size_reserved);
@@ -320,7 +323,7 @@ void toku_cachetable_release_reserved_memory(CACHETABLE ct, uint64_t reserved_me
     cachetable_lock(ct);
     ct->size_current -= reserved_memory;
     ct->size_reserved -= reserved_memory;
-    assert(ct->size_current >= 0);
+    assert(ct->size_current >= unreservable_memory(ct->size_limit));
     cachetable_unlock(ct);
 }
 
