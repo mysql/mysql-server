@@ -60,7 +60,7 @@ Created Jan 06, 2010 Vasil Dimov
 #define DEBUG_PRINTF(fmt, ...)	/* noop */
 #endif
 
-/* number of distinct records on a given level that are required to stop 
+/* number of distinct records on a given level that are required to stop
 descending to lower levels and fetch
 srv_stats_persistent_sample_pages records from that level */
 #define N_DIFF_REQUIRED	(srv_stats_persistent_sample_pages * 10)
@@ -87,7 +87,9 @@ dict_stats_update_transient(
 
 	if (index == NULL) {
 		/* Table definition is corrupt */
-
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: table %s has no indexes. "
+			"Cannot calculate statistics.\n", table->name);
 		return;
 	}
 
