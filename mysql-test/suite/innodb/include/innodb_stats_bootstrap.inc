@@ -31,13 +31,6 @@ CREATE TABLE innodb.index_stats (
 	  REFERENCES table_stats (database_name, table_name)
 ) ENGINE=INNODB;
 
-DROP TABLE IF EXISTS test_innodb_stats;
-
-CREATE TABLE test_innodb_stats (
-	a INT,
-	KEY a_key (a)
-) ENGINE=INNODB;
-
 SET SESSION innodb_analyze_is_persistent=1;
 
 -- enable_warnings
