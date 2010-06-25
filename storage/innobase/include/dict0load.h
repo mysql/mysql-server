@@ -109,7 +109,8 @@ dict_load_column_low(
 					a SYS_COLUMNS record */
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
-	dict_col_t*	column,		/*!< out: dict_column_t to fill */
+	dict_col_t*	column,		/*!< out: dict_column_t to fill,
+					or NULL if table != NULL */
 	dulint*		table_id,	/*!< out: table id */
 	const char**	col_name,	/*!< out: column name */
 	const rec_t*	rec);		/*!< in: SYS_COLUMNS record */

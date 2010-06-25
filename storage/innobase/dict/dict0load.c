@@ -644,7 +644,7 @@ dict_check_tablespaces_and_store_max_id(
 	dict_index_t*	sys_index;
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
-	ulint		max_space_id	= 0;
+	ulint		max_space_id;
 	mtr_t		mtr;
 
 	mutex_enter(&(dict_sys->mutex));
@@ -654,6 +654,11 @@ dict_check_tablespaces_and_store_max_id(
 	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 	ut_a(!dict_table_is_comp(sys_tables));
+
+	max_space_id = mtr_read_ulint(dict_hdr_get(&mtr)
+				      + DICT_HDR_MAX_SPACE_ID,
+				      MLOG_4BYTES, &mtr);
+	fil_set_max_space_id_if_bigger(max_space_id);
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
 				    TRUE, &mtr);
@@ -777,12 +782,13 @@ const char*
 dict_load_column_low(
 /*=================*/
 	dict_table_t*	table,		/*!< in/out: table, could be NULL
-					if we just polulate a dict_column_t
+					if we just populate a dict_column_t
 					struct with information from
 					a SYS_COLUMNS record */
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
-	dict_col_t*	column,		/*!< out: dict_column_t to fill */
+	dict_col_t*	column,		/*!< out: dict_column_t to fill,
+					or NULL if table != NULL */
 	dulint*		table_id,	/*!< out: table id */
 	const char**	col_name,	/*!< out: column name */
 	const rec_t*	rec)		/*!< in: SYS_COLUMNS record */
@@ -794,6 +800,8 @@ dict_load_column_low(
 	ulint		prtype;
 	ulint		col_len;
 	ulint		pos;
+
+	ut_ad(table || column);
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 		return("delete-marked record in SYS_COLUMNS");
@@ -822,9 +830,9 @@ err_len:
 		goto err_len;
 	}
 
-	if (!table) {
-		pos = mach_read_from_4(field);
-	} else if (UNIV_UNLIKELY(table->n_def != mach_read_from_4(field))) {
+	pos = mach_read_from_4(field);
+
+	if (UNIV_UNLIKELY(table && table->n_def != pos)) {
 		return("SYS_COLUMNS.POS mismatch");
 	}
 
