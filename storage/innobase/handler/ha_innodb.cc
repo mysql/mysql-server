@@ -7699,7 +7699,7 @@ ha_innobase::info_low(
 					/*!< out: HA_ERR_* error code */
 	uint			flag,	/*!< in: what information MySQL
 					requests */
-	enum dict_stats_upd_how	stats_upd_how)
+	dict_stats_upd_option_t	stats_upd_option)
 					/*!< in: whether to (re)calc
 					the stats or to fetch them from
 					the persistent storage */
@@ -7753,7 +7753,7 @@ ha_innobase::info_low(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			ret = dict_stats_update(ib_table, stats_upd_how);
+			ret = dict_stats_update(ib_table, stats_upd_option);
 
 			if (ret != DB_SUCCESS) {
 				prebuilt->trx->op_info = "";
@@ -8010,19 +8010,19 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	enum dict_stats_upd_how	upd_how;
+	dict_stats_upd_option_t	upd_option;
 	int			ret;
 
 	if (THDVAR(thd, analyze_is_persistent)) {
-		upd_how = DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE;
+		upd_option = DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE;
 	} else {
-		upd_how = DICT_STATS_UPD_RECALC_TRANSIENT;
+		upd_option = DICT_STATS_UPD_RECALC_TRANSIENT;
 	}
 
 	/* Simply call ::info_low() with all the flags
 	and request recalculation of the statistics */
 	ret = info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
-		       upd_how);
+		       upd_option);
 
 	if (ret != 0) {
 		return(HA_ADMIN_FAILED);
