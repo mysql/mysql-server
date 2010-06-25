@@ -33,6 +33,215 @@ my_bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 #endif
 
+#define SLAVE_LIST_CHUNK 128
+#define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
+HASH slave_list;
+
+#define get_object(p, obj, msg) \
+{\
+  uint len = (uint)*p++;  \
+  if (p + len > p_end || len >= sizeof(obj)) \
+  {\
+    errmsg= msg;\
+    goto err; \
+  }\
+  strmake(obj,(char*) p,len); \
+  p+= len; \
+}\
+
+extern "C" uint32
+*slave_list_key(SLAVE_INFO* si, size_t *len,
+		my_bool not_used __attribute__((unused)))
+{
+  *len = 4;
+  return &si->server_id;
+}
+
+extern "C" void slave_info_free(void *s)
+{
+  my_free(s, MYF(MY_WME));
+}
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_slave_list;
+
+static PSI_mutex_info all_slave_list_mutexes[]=
+{
+  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_GLOBAL}
+};
+
+static void init_all_slave_list_mutexes(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_slave_list_mutexes);
+  PSI_server->register_mutex(category, all_slave_list_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
+void init_slave_list()
+{
+#ifdef HAVE_PSI_INTERFACE
+  init_all_slave_list_mutexes();
+#endif
+
+  my_hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
+               (my_hash_get_key) slave_list_key,
+               (my_hash_free_key) slave_info_free, 0);
+  mysql_mutex_init(key_LOCK_slave_list, &LOCK_slave_list, MY_MUTEX_INIT_FAST);
+}
+
+void end_slave_list()
+{
+  /* No protection by a mutex needed as we are only called at shutdown */
+  if (my_hash_inited(&slave_list))
+  {
+    my_hash_free(&slave_list);
+    mysql_mutex_destroy(&LOCK_slave_list);
+  }
+}
+
+/**
+  Register slave in 'slave_list' hash table.
+
+  @return
+    0	ok
+  @return
+    1	Error.   Error message sent to client
+*/
+
+int register_slave(THD* thd, uchar* packet, uint packet_length)
+{
+  int res;
+  SLAVE_INFO *si;
+  uchar *p= packet, *p_end= packet + packet_length;
+  const char *errmsg= "Wrong parameters to function register_slave";
+
+  if (check_access(thd, REPL_SLAVE_ACL, any_db, NULL, NULL, 0, 0))
+    return 1;
+  if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
+    goto err2;
+
+  thd->server_id= si->server_id= uint4korr(p);
+  p+= 4;
+  get_object(p,si->host, "Failed to register slave: too long 'report-host'");
+  get_object(p,si->user, "Failed to register slave: too long 'report-user'");
+  get_object(p,si->password, "Failed to register slave; too long 'report-password'");
+  if (p+10 > p_end)
+    goto err;
+  si->port= uint2korr(p);
+  p += 2;
+  /* 
+     We need to by pass the bytes used in the fake rpl_recovery_rank
+     variable. It was removed in patch for BUG#13963. But this would 
+     make a server with that patch unable to connect to an old master.
+     See: BUG#49259
+  */
+  p += 4;
+  if (!(si->master_id= uint4korr(p)))
+    si->master_id= server_id;
+  si->thd= thd;
+
+  mysql_mutex_lock(&LOCK_slave_list);
+  unregister_slave(thd,0,0);
+  res= my_hash_insert(&slave_list, (uchar*) si);
+  mysql_mutex_unlock(&LOCK_slave_list);
+  return res;
+
+err:
+  my_free(si, MYF(MY_WME));
+  my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0)); /* purecov: inspected */
+err2:
+  return 1;
+}
+
+void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
+{
+  if (thd->server_id)
+  {
+    if (need_mutex)
+      mysql_mutex_lock(&LOCK_slave_list);
+
+    SLAVE_INFO* old_si;
+    if ((old_si = (SLAVE_INFO*)my_hash_search(&slave_list,
+                                              (uchar*)&thd->server_id, 4)) &&
+	(!only_mine || old_si->thd == thd))
+    my_hash_delete(&slave_list, (uchar*)old_si);
+
+    if (need_mutex)
+      mysql_mutex_unlock(&LOCK_slave_list);
+  }
+}
+
+
+/**
+  Execute a SHOW SLAVE HOSTS statement.
+
+  @param thd Pointer to THD object for the client thread executing the
+  statement.
+
+  @retval FALSE success
+  @retval TRUE failure
+*/
+bool show_slave_hosts(THD* thd)
+{
+  List<Item> field_list;
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("show_slave_hosts");
+
+  field_list.push_back(new Item_return_int("Server_id", 10,
+					   MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Host", 20));
+  if (opt_show_slave_auth_info)
+  {
+    field_list.push_back(new Item_empty_string("User",20));
+    field_list.push_back(new Item_empty_string("Password",20));
+  }
+  field_list.push_back(new Item_return_int("Port", 7, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Master_id", 10,
+					   MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Slave_UUID", UUID_LENGTH));
+
+  if (protocol->send_result_set_metadata(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+  mysql_mutex_lock(&LOCK_slave_list);
+
+  for (uint i = 0; i < slave_list.records; ++i)
+  {
+    SLAVE_INFO* si = (SLAVE_INFO*) my_hash_element(&slave_list, i);
+    protocol->prepare_for_resend();
+    protocol->store((uint32) si->server_id);
+    protocol->store(si->host, &my_charset_bin);
+    if (opt_show_slave_auth_info)
+    {
+      protocol->store(si->user, &my_charset_bin);
+      protocol->store(si->password, &my_charset_bin);
+    }
+    protocol->store((uint32) si->port);
+    protocol->store((uint32) si->master_id);
+
+    /* get slave's UUID */
+    String slave_uuid;
+    if (get_slave_uuid(si->thd, &slave_uuid));
+      protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
+    if (protocol->write())
+    {
+      mysql_mutex_unlock(&LOCK_slave_list);
+      DBUG_RETURN(TRUE);
+    }
+  }
+  mysql_mutex_unlock(&LOCK_slave_list);
+  my_eof(thd);
+  DBUG_RETURN(FALSE);
+}
+
+
 /*
     fake_rotate_event() builds a fake (=which does not exist physically in any
     binlog) Rotate event, which contains the name of the binlog we are going to

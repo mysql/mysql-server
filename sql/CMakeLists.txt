@@ -52,7 +52,7 @@ SET (SQL_SOURCE
                mysqld.cc net_serv.cc  keycaches.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
-               protocol.cc records.cc repl_failsafe.cc set_var.cc 
+               protocol.cc records.cc set_var.cc 
                sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
                sp_rcontext.cc spatial.cc sql_acl.cc sql_analyse.cc sql_base.cc 
                sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
