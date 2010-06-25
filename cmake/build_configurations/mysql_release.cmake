@@ -103,6 +103,16 @@ IF(UNIX)
   ENDIF()
 
   OPTION(WITH_PIC "" ON) # Why?
+
+  # Ensure aio is available on Linux (required by InnoDB)
+  IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
+    CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
+    IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
+      MESSAGE(FATAL_ERROR "aio is required on Linux")
+    ENDIF()
+  ENDIF()
+
 ENDIF()
 
 
