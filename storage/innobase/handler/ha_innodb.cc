@@ -3689,6 +3689,8 @@ retry:
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
+	MONITOR_INC(MONITOR_TABLE_OPEN);
+
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		sql_print_error("MySQL is trying to open a table handle but "
 				"the .ibd file for\ntable %s does not exist.\n"
