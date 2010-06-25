@@ -1931,7 +1931,8 @@ insert into T1 values (2, 3, 4);
 insert into T1 values (3, 4, 5);
 
 # Find the total number of lookups issued by the SPJ blocks.
-select @spj_lookups:=sum(val) from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+let $spj_lookups = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT'), Value, 1);
+
 
 # Root scan should give only one tuple if scan filter is pushed. 
 # Therefore only one lookup on 'y'.
@@ -1939,7 +1940,9 @@ explain select * from T1 x, T1 y where x.b=y.a and x.c=4;
 
 select * from T1 x, T1 y where x.b=y.a and x.c=4;
 
-select sum(val) - @spj_lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+--disable_query_log
+--eval select sum(val) - $spj_lookups AS lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT')
+--enable_query_log
 
 # Lookup on y should only give one result tuple if filter is pushed.
 # This should give 3 lookups on 'y' and 1 on 'z', 4 in all.
@@ -1947,7 +1950,9 @@ explain select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
 select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
-select sum(val) - @spj_lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+--disable_query_log
+--eval select sum(val) - $spj_lookups AS lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT')
+--enable_query_log
 
 drop table T1;
 
