@@ -9575,7 +9575,7 @@ test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 
 static bool equal(Item *i1, Item *i2, Field *f2)
 {
-  DBUG_ASSERT(i2 == NULL ^ f2 == NULL);
+  DBUG_ASSERT((i2 == NULL) ^ (f2 == NULL));
 
   if (i2 != NULL)
     return i1->eq(i2, 1);
@@ -9605,7 +9605,7 @@ bool
 const_expression_in_where(COND *cond, Item *comp_item, Field *comp_field,
                           Item **const_item)
 {
-  DBUG_ASSERT(comp_item == NULL ^ comp_field == NULL);
+  DBUG_ASSERT((comp_item == NULL) ^ (comp_field == NULL));
 
   Item *intermediate= NULL;
   if (const_item == NULL)
