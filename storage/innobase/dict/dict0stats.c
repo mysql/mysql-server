@@ -2148,7 +2148,7 @@ enum db_err
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
-	enum dict_stats_upd_how	stats_upd_how)
+	dict_stats_upd_option_t	stats_upd_option)
 					/*!< in: whether to (re)calc
 					the stats or to fetch them from
 					the persistent storage */
@@ -2175,7 +2175,7 @@ dict_stats_update(
 		return(DB_SUCCESS);
 	}
 
-	switch (stats_upd_how) {
+	switch (stats_upd_option) {
 	case DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE:
 	case DICT_STATS_UPD_RECALC_PERSISTENT_SILENT:
 		/* Persistent recalculation requested, probably called from
@@ -2197,7 +2197,7 @@ dict_stats_update(
 			/* Fall back to transient stats since the persistent
 			storage is not present or is corrupted */
 
-			if (stats_upd_how
+			if (stats_upd_option
 			    == DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE) {
 
 				ut_print_timestamp(stderr);
