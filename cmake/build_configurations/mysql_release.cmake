@@ -15,6 +15,8 @@
 
 # This file includes build settings used for MySQL release
 
+INCLUDE(CheckIncludeFiles)
+INCLUDE(CheckLibraryExists)
  
 SET(FEATURE_SET "community" CACHE STRING 
 " Selection of features. Options are
