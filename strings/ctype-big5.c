@@ -177,7 +177,7 @@ static uchar NEAR sort_order_big5[]=
 };
 
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   /* A200-A20F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -370,7 +370,7 @@ static MY_UNICASE_INFO cA2[256]=
 };
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   /* A300-A30F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -563,7 +563,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cC7[256]=
+static MY_UNICASE_CHARACTER cC7[256]=
 {
   /* C700-C70F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -756,7 +756,7 @@ static MY_UNICASE_INFO cC7[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_big5[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_big5[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -790,6 +790,13 @@ static MY_UNICASE_INFO *my_caseinfo_big5[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_big5=
+{
+  0xFFFF,
+  my_caseinfo_pages_big5
 };
 
 
@@ -6962,11 +6969,10 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_big5,   /* caseinfo     */
+    &my_caseinfo_big5,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -6997,11 +7003,10 @@ CHARSET_INFO my_charset_big5_bin=
     to_lower_big5,
     to_upper_big5,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_big5,   /* caseinfo     */
+    &my_caseinfo_big5,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
