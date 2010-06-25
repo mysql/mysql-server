@@ -715,8 +715,6 @@ dict_table_get(
 
 	if (inc_mysql_count && table) {
 		table->n_mysql_handles_opened++;
-
-		MONITOR_INC(MONITOR_TABLE_OPEN);
 	}
 
 	mutex_exit(&(dict_sys->mutex));
