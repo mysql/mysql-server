@@ -3959,7 +3959,6 @@ sub mysqld_arguments ($$$$) {
     mtr_error("unknown mysqld type")
       unless $mysqld->{'type'} eq 'slave';
 
-    mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
     if (! ( $opt_skip_slave_binlog || $skip_binlog ))
     {
       mtr_add_arg($args, "%s--log-bin=%s/log/slave%s-bin", $prefix,
@@ -4016,9 +4015,7 @@ sub mysqld_arguments ($$$$) {
 #    	            $master->[0]->{'port'}); # First master
 #      }
       my $slave_server_id=  2 + $idx;
-      my $slave_rpl_rank= $slave_server_id;
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
-      mtr_add_arg($args, "%s--rpl-recovery-rank=%d", $prefix, $slave_rpl_rank);
     }
 
     my $cluster= $clusters->[$mysqld->{'cluster'}];
@@ -4094,12 +4091,7 @@ sub mysqld_arguments ($$$$) {
     mtr_add_arg($args, "%s%s", $prefix, "--core-file");
   }
 
-  if ( $opt_bench )
-  {
-    mtr_add_arg($args, "%s--rpl-recovery-rank=1", $prefix);
-    mtr_add_arg($args, "%s--init-rpl-role=master", $prefix);
-  }
-  elsif ( $mysqld->{'type'} eq 'master' )
+  if ( !$opt_bench and $mysqld->{'type'} eq 'master' )
   {
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
   }
