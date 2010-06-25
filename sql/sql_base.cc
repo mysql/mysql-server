@@ -4429,6 +4429,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   bool error= FALSE;
   bool safe_to_ignore_table= FALSE;
   DBUG_ENTER("open_and_process_table");
+  DEBUG_SYNC(thd, "open_and_process_table");
 
   /*
     Ignore placeholders for derived tables. After derived tables
