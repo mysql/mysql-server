@@ -311,13 +311,14 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
-const char **handler_errmsgs;
+static const char **handler_errmsgs;
 
-
-const char **get_handler_errmsgs()
+C_MODE_START
+static const char **get_handler_errmsgs()
 {
   return handler_errmsgs;
 }
+C_MODE_END
 
 
 /**

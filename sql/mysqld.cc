@@ -857,12 +857,15 @@ void Buffered_logs::print()
 /** Logs reported before a logger is available. */
 static Buffered_logs buffered_logs;
 
+#ifndef EMBEDDED_LIBRARY
 /**
   Error reporter that buffer log messages.
   @param level          log message level
   @param format         log message format string
 */
-void buffered_option_error_reporter(enum loglevel level, const char *format, ...)
+C_MODE_START
+static void buffered_option_error_reporter(enum loglevel level,
+                                           const char *format, ...)
 {
   va_list args;
   char buffer[1024];
@@ -872,6 +875,8 @@ void buffered_option_error_reporter(enum loglevel level, const char *format, ...
   va_end(args);
   buffered_logs.buffer(level, buffer);
 }
+C_MODE_END
+#endif /* !EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static my_socket unix_sock,ip_sock;
@@ -973,7 +978,6 @@ uint connection_count= 0;
 
 pthread_handler_t signal_hand(void *arg);
 static int mysql_init_variables(void);
-extern "C" void option_error_reporter(enum loglevel level, const char *format, ...);
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static bool add_terminator(DYNAMIC_ARRAY *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
@@ -3601,7 +3605,6 @@ static int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
-  mysys_uses_curses=0;
 #ifdef USE_REGEX
   my_regex_init(&my_charset_latin1);
 #endif
@@ -4021,9 +4024,8 @@ static int init_server_components()
     }
   }
 
-  proc_info_hook= (const char *(*)(void *, const char *, const char *,
-                                   const char *, const unsigned int))
-                  set_thd_proc_info;
+  proc_info_hook= set_thd_proc_info;
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
     Parsing the performance schema command line option may have reported
@@ -5344,11 +5346,11 @@ inline void kill_broken_server()
 
 void handle_connections_sockets()
 {
-  my_socket sock,new_sock;
+  my_socket UNINIT_VAR(sock), UNINIT_VAR(new_sock);
   uint error_count=0;
   THD *thd;
   struct sockaddr_storage cAddr;
-  int ip_flags=0,socket_flags=0,flags,retval;
+  int ip_flags=0,socket_flags=0,flags=0,retval;
   st_vio *vio_tmp;
 #ifdef HAVE_POLL
   int socket_count= 0;
@@ -5359,8 +5361,6 @@ void handle_connections_sockets()
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
-
-  LINT_INIT(new_sock);
 
 #ifndef HAVE_POLL
   FD_ZERO(&clientFDs);
@@ -7424,10 +7424,7 @@ mysqld_get_one_option(int optid,
 
 /** Handle arguments for multiple key caches. */
 
-extern "C" int mysql_getopt_value(uchar **value,
-                                  const char *keyname, uint key_length,
-                                  const struct my_option *option,
-                                  int *error);
+C_MODE_START
 
 static uchar* *
 mysql_getopt_value(const char *keyname, uint key_length,
@@ -7463,7 +7460,7 @@ mysql_getopt_value(const char *keyname, uint key_length,
   return option->value;
 }
 
-void option_error_reporter(enum loglevel level, const char *format, ...)
+static void option_error_reporter(enum loglevel level, const char *format, ...)
 {
   va_list args;
   va_start(args, format);
@@ -7477,6 +7474,7 @@ void option_error_reporter(enum loglevel level, const char *format, ...)
   va_end(args);
 }
 
+C_MODE_END
 
 /**
   Get server options from the command line,

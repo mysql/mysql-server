@@ -693,7 +693,6 @@ public:
   bool have_prev_rowid; /* true if prev_rowid has valid data */
   uint rowid_length;    /* table rowid length */
 private:
-  static int queue_cmp(void *arg, uchar *val1, uchar *val2);
   bool scans_inited; 
 };
 

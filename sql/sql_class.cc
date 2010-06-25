@@ -261,11 +261,13 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info,
+const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_function,
                               const char *calling_file,
                               const unsigned int calling_line)
 {
+  THD *thd= (THD *) thd_arg;
+
   if (!thd)
     thd= current_thd;
 
@@ -491,7 +493,6 @@ THD::THD()
    rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   sql_log_bin_toplevel(false),
    binlog_unsafe_warning_flags(0), binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -960,7 +961,11 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_format_row();
   bzero((char *) &status_var, sizeof(status_var));
-  sql_log_bin_toplevel= variables.option_bits & OPTION_BIN_LOG;
+
+  if (variables.sql_log_bin)
+    variables.option_bits|= OPTION_BIN_LOG;
+  else
+    variables.option_bits&= ~OPTION_BIN_LOG;
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
@@ -3190,6 +3195,11 @@ extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 {
   return binlog_filter->db_ok(thd->db);
 }
+
+extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
+{
+  return sqlcom_can_generate_row_events(thd);
+}
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
 /****************************************************************************
@@ -3915,7 +3925,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         */
         my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE), MYF(0));
       }
-      else if (variables.binlog_format == BINLOG_FORMAT_ROW)
+      else if (variables.binlog_format == BINLOG_FORMAT_ROW &&
+               sqlcom_can_generate_row_events(this))
       {
         /*
           2. Error: Cannot modify table that uses a storage engine
@@ -3953,7 +3964,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           */
           my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_MODE), MYF(0));
         }
-        else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0 &&
+                 sqlcom_can_generate_row_events(this))
         {
           /*
             5. Error: Cannot modify table that uses a storage engine
@@ -4198,7 +4210,9 @@ field_type_name(enum_field_types type)
 #endif
 
 
-namespace {
+/* Declare in unnamed namespace. */
+CPP_UNNAMED_NS_START
+
   /**
      Class to handle temporary allocation of memory for row data.
 
@@ -4317,8 +4331,8 @@ namespace {
     uchar *m_memory;
     uchar *m_ptr[2];
   };
-}
 
+CPP_UNNAMED_NS_END
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           MY_BITMAP const* cols, size_t colcnt, 
@@ -4609,8 +4623,13 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     because the warnings should be printed only if the statement is
     actually logged. When executing decide_logging_format(), we cannot
     know for sure if the statement will be logged.
+
+    Besides, we should not try to print these warnings if it is not
+    possible to write statements to the binary log as it happens when
+    the execution is inside a function, or generaly speaking, when
+    the variables.option_bits & OPTION_BIN_LOG is false.
   */
-  if (sql_log_bin_toplevel)
+  if (variables.option_bits & OPTION_BIN_LOG)
     issue_unsafe_warnings();
 
   switch (qtype) {

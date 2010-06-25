@@ -1,7 +1,7 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 2008-2009 Sun Microsystems, Inc
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1295,14 +1295,22 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *freebsd*|*dragonfly*)
-    AC_MSG_WARN([Adding fix for interrupted reads])
+    dnl These dependencies have not really been checked for some time
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
-    if test "$OSVERSION" -gt "480100" && \
+    if test "$OSVERSION" -gt "600000"
+    then
+       # Post user-level threads, MYSQLD_NET_RETRY_COUNT is not needed any more
+       AC_MSG_WARN([Adding fix for broken realpath])
+       CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
+       CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_REALPATH"
+    elif test "$OSVERSION" -gt "480100" && \
        test "$OSVERSION" -lt "500000" || \
        test "$OSVERSION" -gt "500109"
     then
+       AC_MSG_WARN([Adding fix for interrupted reads])
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
     else
+       AC_MSG_WARN([Adding fix for interrupted reads and broken realpath])
        CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
     fi
@@ -1902,6 +1910,17 @@ else
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
   CFLAGS="$OPTIMIZE_CFLAGS $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
+fi
+
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
 fi
 
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.

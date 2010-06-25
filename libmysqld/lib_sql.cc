@@ -953,7 +953,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
                      server_field.type <= (int) MYSQL_TYPE_BLOB) ?
                      server_field.length / item->collation.collation->mbminlen :
                      server_field.length / item->collation.collation->mbmaxlen;
-      client_field->length= max_char_len * thd_cs->mbmaxlen;
+      client_field->length= char_to_byte_length_safe(max_char_len,
+                                                     thd_cs->mbmaxlen);
     }
     client_field->type=   server_field.type;
     client_field->flags= server_field.flags;

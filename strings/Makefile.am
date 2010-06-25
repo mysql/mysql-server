@@ -25,28 +25,36 @@
 #
 
 INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include -DDISABLE_MYSQL_THREAD_H
-pkglib_LIBRARIES =	libmystrings.a
+pkglib_LTLIBRARIES =	libmystrings.la
+libmystrings_la_LDFLAGS = -static
+libmystrings_la_SOURCES =
+libmystrings_la_LIBADD = libmystringslt.la
+# Force C++ linking with non existing EXTRA file
+nodist_EXTRA_libmystrings_la_SOURCES = dummy.cxx
 
 # Exact one of ASSEMBLER_X
 if ASSEMBLER_x86
 ASRCS		= strings-x86.s longlong2str-x86.s my_strtoll10-x86.s
-CSRCS		= bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c str_alloc.c longlong2str_asm.c my_strchr.c dtoa.c strmov.c
+CSRCS		= bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c bcmp.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c str_alloc.c longlong2str_asm.c dtoa.c strmov.c
 else
 if ASSEMBLER_sparc32
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
 ASRCS		= bmove_upp-sparc.s strappend-sparc.s strend-sparc.s strinstr-sparc.s strmake-sparc.s strmov-sparc.s strnmov-sparc.s strstr-sparc.s
-CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c strxmov.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c my_strchr.c dtoa.c strmov.c
+CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c bcmp.c strtoll.c strtoull.c llstr.c strnlen.c strxmov.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c dtoa.c strmov.c
 else
 #no assembler
 ASRCS		=
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
-CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c my_strchr.c dtoa.c
+CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c bcmp.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c dtoa.c
 endif
 endif
 
-libmystrings_a_SOURCES = $(ASRCS) $(CSRCS)
+noinst_LTLIBRARIES =	libmystringslt.la
+
+libmystringslt_la_SOURCES = bfill.c r_strinstr.c strtol.c strtoul.c my_strchr.c $(ASRCS) $(CSRCS)
+
 noinst_PROGRAMS = conf_to_src
 CLEANFILES = str_test uctypedump test_decimal
 # Default charset definitions
@@ -65,9 +73,8 @@ EXTRA_DIST =		ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc
 			t_ctype.h my_strchr.c CMakeLists.txt \
 			CHARSET_INFO.txt
 
-libmystrings_a_LIBADD=
-conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c bcmp.c
-conf_to_src_LDADD=
+conf_to_src_SOURCES =	conf_to_src.c
+conf_to_src_LDADD =	libmystringslt.la
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc
 conf_to_src_LDFLAGS= @NOINST_LDFLAGS@

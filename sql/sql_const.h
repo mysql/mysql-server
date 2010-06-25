@@ -136,7 +136,6 @@
 #ifndef MYSQLD_NET_RETRY_COUNT
 #define MYSQLD_NET_RETRY_COUNT  10	///< Abort read after this many int.
 #endif
-#define TEMP_POOL_SIZE          128
 
 #define QUERY_ALLOC_BLOCK_SIZE		8192
 #define QUERY_ALLOC_PREALLOC_SIZE   	8192
@@ -146,11 +145,8 @@
 #define ACL_ALLOC_BLOCK_SIZE		1024
 #define UDF_ALLOC_BLOCK_SIZE		1024
 #define TABLE_ALLOC_BLOCK_SIZE		1024
-#define BDB_LOG_ALLOC_BLOCK_SIZE	1024
 #define WARN_ALLOC_BLOCK_SIZE		2048
 #define WARN_ALLOC_PREALLOC_SIZE	1024
-#define PROFILE_ALLOC_BLOCK_SIZE  2048
-#define PROFILE_ALLOC_PREALLOC_SIZE 1024
 
 /*
   The following parameters is to decide when to use an extra cache to
