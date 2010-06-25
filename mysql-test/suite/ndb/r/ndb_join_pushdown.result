@@ -2958,6 +2958,38 @@ READS_SENT	7
 drop table old_count;
 drop table new_count;
 drop table T1;
+create table T1 (
+a int primary key, 
+b int,
+c int) engine = ndb;
+insert into T1 values (1, 2, 3);
+insert into T1 values (2, 3, 4);
+insert into T1 values (3, 4, 5);
+select @spj_lookups:=sum(val) from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+@spj_lookups:=sum(val)
+7620
+explain select * from T1 x, T1 y where x.b=y.a and x.c=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	4	test.x.b	1	Child of pushed join@1
+select * from T1 x, T1 y where x.b=y.a and x.c=4;
+a	b	c	a	b	c
+2	3	4	3	4	5
+select sum(val) - @spj_lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+sum(val) - @spj_lookups
+1.000000000000000000000000000000
+explain select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Parent of 3 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	4	test.x.b	1	Child of pushed join@1; Using where with pushed condition
+1	SIMPLE	z	eq_ref	PRIMARY	PRIMARY	4	test.y.b	1	Child of pushed join@1
+select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
+a	b	c	a	b	c	a	b	c
+1	2	3	2	3	4	3	4	5
+select sum(val) - @spj_lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+sum(val) - @spj_lookups
+5.000000000000000000000000000000
+drop table T1;
 create table T1(
 a int not null,
 b int not null,

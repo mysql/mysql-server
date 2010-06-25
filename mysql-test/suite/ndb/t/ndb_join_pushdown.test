@@ -1919,6 +1919,38 @@ drop table old_count;
 drop table new_count;
 drop table T1;
 
+### Test that scan filters are used for pushed operations.
+
+create table T1 (
+       a int primary key, 
+       b int,
+       c int) engine = ndb;
+
+insert into T1 values (1, 2, 3);
+insert into T1 values (2, 3, 4);
+insert into T1 values (3, 4, 5);
+
+# Find the total number of lookups issued by the SPJ blocks.
+select @spj_lookups:=sum(val) from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+
+# Root scan should give only one tuple if scan filter is pushed. 
+# Therefore only one lookup on 'y'.
+explain select * from T1 x, T1 y where x.b=y.a and x.c=4;
+
+select * from T1 x, T1 y where x.b=y.a and x.c=4;
+
+select sum(val) - @spj_lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+
+# Lookup on y should only give one result tuple if filter is pushed.
+# This should give 3 lookups on 'y' and 1 on 'z', 4 in all.
+explain select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
+
+select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
+
+select sum(val) - @spj_lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT');
+
+drop table T1;
+
 if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
 {
   --disable_query_log

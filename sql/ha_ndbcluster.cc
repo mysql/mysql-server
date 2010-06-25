@@ -1562,7 +1562,7 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
     ERR_RETURN(m_thd_ndb->trans->getNdbError());
 
   // Append filters for for pushed conditions where available
-  for (uint i= 1; i < m_pushed_join->get_operation_count(); i++)
+  for (uint i= 0; i < m_pushed_join->get_operation_count(); i++)
   {
     const TABLE* const tab= m_pushed_join->get_table(i);
     ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
