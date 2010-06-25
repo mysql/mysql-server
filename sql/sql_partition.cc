@@ -4584,7 +4584,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     partition_info *tab_part_info= table->part_info;
     partition_info *alt_part_info= thd->work_part_info;
     uint flags= 0;
-    bool is_last_partition_reorged;
+    bool is_last_partition_reorged= FALSE;
     part_elem_value *tab_max_elem_val= NULL;
     part_elem_value *alt_max_elem_val= NULL;
     longlong tab_max_range= 0, alt_max_range= 0;

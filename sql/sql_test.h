@@ -26,8 +26,8 @@ typedef struct st_sort_field SORT_FIELD;
 
 #ifndef DBUG_OFF
 void print_where(COND *cond,const char *info, enum_query_type query_type);
-void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
+void TEST_join(JOIN *join);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
 void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl);

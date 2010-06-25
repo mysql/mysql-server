@@ -225,7 +225,7 @@ typedef struct st_join_table : public Sql_alloc
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
   double	worst_seeks;
   key_map	const_keys;			/**< Keys with constant part */
-  key_map	checked_keys;			/**< Keys checked in find_best */
+  key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
 
@@ -1930,7 +1930,6 @@ typedef struct st_select_check {
 } SELECT_CHECK;
 
 extern const char *join_type_str[];
-void TEST_join(JOIN *join);
 
 /* Extern functions in sql_select.cc */
 bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
@@ -2116,6 +2115,9 @@ protected:
     if (!inited)
     {
       inited=1;
+      TABLE *table= to_field->table;
+      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
+                                                       table->write_set);
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
@@ -2127,6 +2129,7 @@ protected:
         */
       if (!err && to_field->table->in_use->is_error())
         err= 1; /* STORE_KEY_FATAL */
+      dbug_tmp_restore_column_map(table->write_set, old_map);
     }
     null_key= to_field->is_null() || item->null_value;
     return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
