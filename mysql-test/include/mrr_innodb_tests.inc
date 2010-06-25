@@ -51,3 +51,42 @@ connection default;
 disconnect con1;
 disconnect con2;
 
+--echo #
+--echo # Bug#54286 "Server crash at lock timeout with MRR"
+--echo #
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+
+SET AUTOCOMMIT=0;
+
+CREATE TABLE t1 (
+  dummy INT PRIMARY KEY,
+  a INT UNIQUE,
+  b INT
+) ENGINE=InnoDB;
+
+COMMIT;
+
+INSERT INTO t1 VALUES (1,1,1),(3,3,3),(5,5,5);
+
+connection con2;
+
+SET AUTOCOMMIT=0;
+
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1 WHERE a > 2 FOR UPDATE;
+ROLLBACK;
+
+connection con1;
+
+ROLLBACK;
+DROP TABLE t1;
+COMMIT;
+
+connection default;
+disconnect con1;
+disconnect con2;
+
