@@ -67,7 +67,7 @@ dict_stats_update(
 					the persistent storage */
 
 /*********************************************************************//**
-Removes the information for a particular index from the persistent
+Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
 The transaction is not committed, it must not be committed in this
 function because this is the user trx that is running DROP INDEX.
