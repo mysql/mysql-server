@@ -138,7 +138,7 @@ static uchar NEAR to_upper_gbk[]=
 };
 
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -342,7 +342,7 @@ static MY_UNICASE_INFO cA2[256]=
   {0xA2FF,0xA2FF,0xA2FF}
 };
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -547,7 +547,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA6[256]=
+static MY_UNICASE_CHARACTER cA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -752,7 +752,7 @@ static MY_UNICASE_INFO cA6[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -957,7 +957,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_gbk[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -993,6 +993,12 @@ static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
+
+static MY_UNICASE_INFO my_caseinfo_gbk=
+{
+  0xFFFF,
+  my_caseinfo_pages_gbk
+};
 
 
 static uchar NEAR sort_order_gbk[]=
@@ -10897,11 +10903,10 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gbk,    /* caseinfo     */
+    &my_caseinfo_gbk,   /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10931,11 +10936,10 @@ CHARSET_INFO my_charset_gbk_bin=
     to_lower_gbk,
     to_upper_gbk,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gbk,    /* caseinfo     */
+    &my_caseinfo_gbk,   /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

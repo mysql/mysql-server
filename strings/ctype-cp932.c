@@ -197,7 +197,7 @@ static uint mbcharlen_cp932(CHARSET_INFO *cs __attribute__((unused)),uint c)
 #define cp932code(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
 
-static MY_UNICASE_INFO c81[256]=
+static MY_UNICASE_CHARACTER c81[256]=
 {
   /* 8100-810F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -407,7 +407,7 @@ static MY_UNICASE_INFO c81[256]=
 };
 
 
-static MY_UNICASE_INFO c82[256]=
+static MY_UNICASE_CHARACTER c82[256]=
 {
   /* 8200-820F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -615,7 +615,7 @@ static MY_UNICASE_INFO c82[256]=
 };
 
 
-static MY_UNICASE_INFO c83[256]=
+static MY_UNICASE_CHARACTER c83[256]=
 {
   /* 8300-830F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -825,7 +825,7 @@ static MY_UNICASE_INFO c83[256]=
 };
 
 
-static MY_UNICASE_INFO c84[256]=
+static MY_UNICASE_CHARACTER c84[256]=
 {
   /* 8400-840F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1035,7 +1035,7 @@ static MY_UNICASE_INFO c84[256]=
 };
 
 
-static MY_UNICASE_INFO c87[256]=
+static MY_UNICASE_CHARACTER c87[256]=
 {
   /* 8700-870F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1245,7 +1245,7 @@ static MY_UNICASE_INFO c87[256]=
 };
 
 
-static MY_UNICASE_INFO cEE[256]=
+static MY_UNICASE_CHARACTER cEE[256]=
 {
   /* EE00-EE0F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1456,7 +1456,7 @@ static MY_UNICASE_INFO cEE[256]=
 };
 
 
-static MY_UNICASE_INFO cFA[256]=
+static MY_UNICASE_CHARACTER cFA[256]=
 {
   /* FA00-FA0F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1666,7 +1666,7 @@ static MY_UNICASE_INFO cFA[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_cp932[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_cp932[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1702,6 +1702,12 @@ static MY_UNICASE_INFO *my_caseinfo_cp932[256]=
   NULL, NULL, cFA,  NULL, NULL, NULL, NULL, NULL
 };
 
+
+MY_UNICASE_INFO my_caseinfo_cp932=
+{
+  0xFFFF,
+  my_caseinfo_pages_cp932
+};
 
 static int my_strnncoll_cp932_internal(CHARSET_INFO *cs,
 				      const uchar **a_res, size_t a_length,
@@ -34881,11 +34887,10 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     to_lower_cp932,
     to_upper_cp932,
     sort_order_cp932,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_cp932,  /* caseinfo     */
+    &my_caseinfo_cp932, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -34915,11 +34920,10 @@ CHARSET_INFO my_charset_cp932_bin=
     to_lower_cp932,
     to_upper_cp932,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_cp932,  /* caseinfo     */
+    &my_caseinfo_cp932, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

@@ -1332,7 +1332,9 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
   return FALSE;
 }
 
-static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(size_t))
+static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(size_t),
+                                 char *error __attribute__((unused)),
+                                 size_t errsize __attribute__((unused)))
 {
   cs->caseup_multiply= 1;
   cs->casedn_multiply= 1;
@@ -1360,7 +1362,9 @@ static void set_max_sort_char(CHARSET_INFO *cs)
 }
 
 static my_bool my_coll_init_simple(CHARSET_INFO *cs,
-                                   void *(*alloc)(size_t) __attribute__((unused)))
+                                   void *(*alloc)(size_t) __attribute__((unused)),
+                                   char *error __attribute__((unused)),
+                                   size_t errsize __attribute__((unused)))
 {
   set_max_sort_char(cs);
   return FALSE;
