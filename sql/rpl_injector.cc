@@ -20,6 +20,7 @@
 #include "sql_parse.h"                          // begin_trans, end_trans, COMMIT
 #include "sql_base.h"                           // close_thread_tables
 #include "log_event.h"                          // Incident_log_event
+#include "binlog.h"                             // mysql_bin_log
 
 /*
   injector::transaction - member definitions
