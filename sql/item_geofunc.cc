@@ -36,6 +36,8 @@
 #ifdef HAVE_SPATIAL
 #include <m_ctype.h>
 
+const double EPSILON= 1e-8;
+
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 {
   Field *result;
@@ -638,16 +640,275 @@ const char *Item_func_spatial_rel::func_name() const
 }
 
 
-longlong Item_func_spatial_rel::val_int()
+static double count_edge_t(const gcalc_heap::info *ea,
+                           const gcalc_heap::info *eb,
+                           const gcalc_heap::info *v,
+                           double &ex, double &ey, double &vx, double &vy,
+                           double &e_sqrlen)
 {
-  DBUG_ENTER("Item_func_spatial_rel::val_int");
-  DBUG_ASSERT(fixed == 1);
+  ex= eb->x - ea->x;
+  ey= eb->y - ea->y;
+  vx= v->x - ea->x;
+  vy= v->y - ea->y;
+  e_sqrlen= ex*ex + ey*ey;
+  return (ex*vx + ey*vy) / e_sqrlen;
+}
+
+
+static double distance_to_line(double ex, double ey, double vx, double vy,
+                               double e_sqrlen)
+{
+  return fabs(vx*ey - vy*ex) / sqrt(e_sqrlen);
+}
+
+
+static double distance_points(const gcalc_heap::info *a,
+                              const gcalc_heap::info *b)
+{
+  double x= a->x - b->x;
+  double y= a->y - b->y;
+  return sqrt(x*x + y*y);
+}
+
+
+/*
+  Calculates the distance between objects.
+*/
+
+static int calc_distance(double *result, gcalc_heap *collector, int obj2_si,
+                         gcalc_function *func, gcalc_scan_iterator *scan_it)
+{
+  bool above_cur_point, cur_point_edge;
+  const gcalc_scan_iterator::point *evpos;
+  const gcalc_heap::info *cur_point, *dist_point;
+  gcalc_scan_events ev;
+  double t, distance, cur_distance;
+  double ex, ey, vx, vy, e_sqrlen;
+
+  DBUG_ENTER("calc_distance");
+
+  above_cur_point= false;
+  distance= DBL_MAX;
+
+  while (scan_it->more_points())
+  {
+    if (scan_it->step())
+      goto mem_error;
+    evpos= scan_it->get_event_position();
+    ev= scan_it->get_event();
+    cur_point= evpos->pi;
+
+    /*
+       handling intersection we only need to check if it's the intersecion
+       of objects 1 and 2. In this case distance is 0
+    */
+    if (ev == scev_intersection)
+    {
+      if ((evpos->get_next()->pi->shape >= obj2_si) !=
+            (cur_point->shape >= obj2_si))
+      {
+        distance= 0;
+        goto exit;
+      }
+      continue;
+    }
+
+    /*
+       if we get 'scev_point | scev_end | scev_two_ends' we don't need
+       to check for intersection of objects.
+       Though we need to calculate distances.
+    */
+    if (ev & (scev_point | scev_end | scev_two_ends))
+      goto calculate_distance;
+
+    goto calculate_distance;
+    /*
+       having these events we need to check for possible intersection
+       of objects
+       scev_thread | scev_two_threads | scev_single_point
+    */
+    DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
+
+    func->clear_state();
+    for (gcalc_point_iterator pit(scan_it); pit.point() != evpos; ++pit)
+    {
+      gcalc_shape_info si= pit.point()->get_shape();
+      if ((func->get_shape_kind(si) == gcalc_function::shape_polygon))
+        func->invert_state(si);
+    }
+    func->invert_state(evpos->get_shape());
+    if (func->count())
+    {
+      /* Point of one object is inside the other - intersection found */
+      distance= 0;
+      goto exit;
+    }
+
+
+calculate_distance:
+    if (cur_point->shape >= obj2_si)
+      continue;
+    cur_point_edge= !cur_point->is_bottom();
+
+    for (dist_point= collector->get_first(); dist_point; dist_point= dist_point->get_next())
+    {
+      /* We only check vertices of object 2 */
+      if (dist_point->shape < obj2_si)
+        continue;
+
+      /* if we have an edge to check */
+      if (dist_point->left)
+      {
+        t= count_edge_t(dist_point, dist_point->left, cur_point,
+                        ex, ey, vx, vy, e_sqrlen);
+        if ((t>0.0) && (t<1.0))
+        {
+          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
+          if (distance > cur_distance)
+            distance= cur_distance;
+        }
+      }
+      if (cur_point_edge)
+      {
+        t= count_edge_t(cur_point, cur_point->left, dist_point,
+                        ex, ey, vx, vy, e_sqrlen);
+        if ((t>0.0) && (t<1.0))
+        {
+          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
+          if (distance > cur_distance)
+            distance= cur_distance;
+        }
+      }
+      cur_distance= distance_points(cur_point, dist_point);
+      if (distance > cur_distance)
+        distance= cur_distance;
+    }
+  }
+
+exit:
+  *result= distance;
+  DBUG_RETURN(0);
+
+mem_error:
+  DBUG_RETURN(1);
+}
+
+
+int Item_func_spatial_rel::func_touches()
+{
+  bool above_cur_point, cur_point_edge;
+  double x1, x2, y1, y2, ex, ey;
+  double distance, area;
+  int result= 0;
+  int cur_func= 0;
+
+  gcalc_operation_transporter trn(&func, &collector);
+
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
+  int obj2_si;
+
+  DBUG_ENTER("Item_func_spatial_rel::func_touches");
+  DBUG_ASSERT(fixed == 1);
+
+  if ((null_value= (args[0]->null_value || args[1]->null_value ||
+          !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
+          !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
+    goto mem_error;
+
+  if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
+      (g2->get_class_info()->m_type_id == Geometry::wkb_point))
+  {
+    if (((Gis_point *)g1)->get_xy(&x1, &y1) ||
+        ((Gis_point *)g2)->get_xy(&x2, &y2))
+      goto mem_error;
+    ex= x2 - x1;
+    ey= y2 - y1;
+    DBUG_RETURN((ex * ex + ey * ey) < EPSILON);
+  }
+
+  if (func.reserve_op_buffer(1))
+    goto mem_error;
+  func.add_operation(gcalc_function::op_intersection, 2);
+
+  if (g1->store_shapes(&trn))
+    goto mem_error;
+  obj2_si= func.get_nshapes();
+
+  if (g2->store_shapes(&trn) || func.alloc_states())
+    goto mem_error;
+
+  collector.prepare_operation();
+  scan_it.init(&collector);
+
+  if (calc_distance(&distance, &collector, obj2_si, &func, &scan_it))
+   goto mem_error;
+  if (distance > EPSILON)
+    goto exit;
+
+  scan_it.reset();
+  scan_it.init(&collector);
+
+  above_cur_point= false;
+  distance= DBL_MAX;
+
+  while (scan_it.more_trapeziums())
+  {
+    if (scan_it.step())
+      goto mem_error;
+
+    func.clear_state();
+    for (gcalc_trapezium_iterator ti(&scan_it); ti.more(); ++ti)
+    {
+      gcalc_shape_info si= ti.lb()->get_shape();
+      if ((func.get_shape_kind(si) == gcalc_function::shape_polygon))
+      {
+        func.invert_state(si);
+        cur_func= func.count();
+      }
+      if (cur_func)
+      {
+        area= scan_it.get_h() *
+              ((ti.rb()->x - ti.lb()->x) + (ti.rt()->x - ti.lt()->x));
+        if (area > EPSILON)
+        {
+          result= 0;
+          goto exit;
+        }
+      }
+    }
+  }
+  result= 1;
+
+exit:
+  collector.reset();
+  func.reset();
+  scan_it.reset();
+  DBUG_RETURN(result);
+mem_error:
+  null_value= 1;
+  DBUG_RETURN(0);
+}
+
+
+longlong Item_func_spatial_rel::val_int()
+{
+  DBUG_ENTER("Item_func_spatial_rel::val_int");
+  DBUG_ASSERT(fixed == 1);
+  String *res1;
+  String *res2;
+  Geometry_buffer buffer1, buffer2;
+  Geometry *g1, *g2;
   int result= 0;
   int mask= 0;
+
+  if (spatial_rel == SP_TOUCHES_FUNC)
+    DBUG_RETURN(func_touches());
+
+  res1= args[0]->val_str(&tmp_value1);
+  res2= args[1]->val_str(&tmp_value2);
   gcalc_operation_transporter trn(&func, &collector);
 
   if (func.reserve_op_buffer(1))
@@ -671,8 +932,6 @@ longlong Item_func_spatial_rel::val_int()
     case SP_INTERSECTS_FUNC:
       func.add_operation(gcalc_function::op_intersection, 2);
       break;
-    case SP_TOUCHES_FUNC:
-      goto exit;
     case SP_OVERLAPS_FUNC:
       func.add_operation(gcalc_function::op_intersection, 2);
       break;
@@ -1388,37 +1647,6 @@ longlong Item_func_srid::val_int()
     return 0;
 
   return (longlong) (uint4korr(swkb->ptr()));
-}
-
-
-static double count_edge_t(const gcalc_heap::info *ea,
-                           const gcalc_heap::info *eb,
-                           const gcalc_heap::info *v,
-                           double &ex, double &ey, double &vx, double &vy,
-                           double &e_sqrlen)
-{
-  ex= eb->x - ea->x;
-  ey= eb->y - ea->y;
-  vx= v->x - ea->x;
-  vy= v->y - ea->y;
-  e_sqrlen= ex*ex + ey*ey;
-  return (ex*vx + ey*vy) / e_sqrlen;
-}
-
-
-static double distance_to_line(double ex, double ey, double vx, double vy,
-                               double e_sqrlen)
-{
-  return fabs(vx*ey - vy*ex) / sqrt(e_sqrlen);
-}
-
-
-static double distance_points(const gcalc_heap::info *a,
-                              const gcalc_heap::info *b)
-{
-  double x= a->x - b->x;
-  double y= a->y - b->y;
-  return sqrt(x*x + y*y);
 }
 
 

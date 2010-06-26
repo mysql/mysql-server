@@ -246,6 +246,8 @@ public:
 
   void fix_length_and_dec() { maybe_null= 1; }
   bool is_null() { (void) val_int(); return null_value; }
+protected:
+  int func_touches();
 };
 
 
