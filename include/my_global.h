@@ -60,6 +60,10 @@
 #define USE_PRAGMA_INTERFACE
 #endif
 
+#if defined(__OpenBSD__) && (OpenBSD >= 200411)
+#define HAVE_ERRNO_AS_DEFINE
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
@@ -71,6 +75,11 @@
 #else
 #define C_MODE_START
 #define C_MODE_END
+#endif
+
+#ifdef __cplusplus
+#define CPP_UNNAMED_NS_START  namespace {
+#define CPP_UNNAMED_NS_END    }
 #endif
 
 #if defined(_WIN32) 

@@ -39,5 +39,14 @@ a
 2
 DROP TABLE t1;
 #
+# Bug#42064: low memory crash when importing hex strings, in Item_hex_string::Item_hex_string
+#
+CREATE TABLE t1(a BLOB);
+SET SESSION debug="+d,bug42064_simulate_oom";
+INSERT INTO t1 VALUES("");
+Got one of the listed errors
+SET SESSION debug=DEFAULT;
+DROP TABLE t1;
+#
 # End of 5.1 tests
 #

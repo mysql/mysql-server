@@ -50,6 +50,32 @@
 
 extern "C" uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first);
 
+/**
+  Helper function which operates on a THD object to set the query start_time to
+  the current time.
+
+  @param[in, out] thd The session object
+
+*/
+
+static void reset_start_time_for_sp(THD *thd)
+{
+  if (!thd->in_sub_stmt)
+  {
+    /*
+      First investigate if there is a cached time stamp
+    */
+    if (thd->user_time)
+    {
+      thd->start_time= thd->user_time;
+    }
+    else
+    {
+      my_micro_time_and_time(&thd->start_time);
+    }
+  }
+}
+
 Item_result
 sp_map_result_type(enum enum_field_types type)
 {
@@ -1240,11 +1266,11 @@ sp_head::execute(THD *thd)
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
     /*
-      Make current_time() et al work. But don't change NOW() in FUNCTION
-      or TRIGGER.
+      We need to reset start_time to allow for time to flow inside a stored
+      procedure. This is only done for SP since time is suppose to be constant
+      during execution of triggers and functions.
     */
-    if (!thd->in_sub_stmt)
-      thd->set_time();
+    reset_start_time_for_sp(thd);
 
     /*
       We have to set thd->stmt_arena before executing the instruction
@@ -4002,6 +4028,11 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
       table->trg_event_map= stab->trg_event_map;
+      /*
+        Since we don't allow DDL on base tables in prelocked mode it
+        is safe to infer the type of metadata lock from the type of
+        table lock.
+      */
       table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                               table->lock_type >= TL_WRITE_ALLOW_WRITE ?
                               MDL_SHARED_WRITE : MDL_SHARED_READ);
@@ -4031,8 +4062,9 @@ sp_head::add_used_tables_to_table_list(THD *thd,
 
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
-                       const char *db, const char *name,
-                       thr_lock_type locktype)
+		       const char *db, const char *name,
+                       thr_lock_type locktype,
+                       enum_mdl_type mdl_type)
 {
   TABLE_LIST *table;
 
@@ -4047,8 +4079,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                          MDL_SHARED_WRITE : MDL_SHARED_READ);
+                          mdl_type);
 
   lex->add_to_query_tables(table);
   return table;

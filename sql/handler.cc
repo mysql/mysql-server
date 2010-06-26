@@ -299,13 +299,14 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
-const char **handler_errmsgs;
+static const char **handler_errmsgs;
 
-
-const char **get_handler_errmsgs()
+C_MODE_START
+static const char **get_handler_errmsgs()
 {
   return handler_errmsgs;
 }
+C_MODE_END
 
 
 /**
@@ -1301,7 +1302,6 @@ int ha_commit_one_phase(THD *thd, bool all)
       if (thd->transaction.changed_tables)
         query_cache.invalidate(thd->transaction.changed_tables);
 #endif
-      thd->variables.tx_isolation=thd->session_tx_isolation;
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
@@ -1378,8 +1378,6 @@ int ha_rollback_trans(THD *thd, bool all)
     if (is_real_trans && thd->transaction_rollback_request &&
         thd->transaction.xid_state.xa_state != XA_NOTR)
       thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
-    if (all)
-      thd->variables.tx_isolation=thd->session_tx_isolation;
   }
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)

@@ -489,8 +489,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   else
   {
     tables->table= open_n_lock_single_table(thd, tables,
-                                            TL_WRITE_ALLOW_READ,
-                                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+                                            TL_READ_NO_INSERT, 0);
     if (! tables->table)
       goto end;
     tables->table->use_all_columns();
@@ -682,7 +681,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   old_field= new_field= table->field;
 
-  for (trg_field= (Item_trigger_field *)(lex->trg_table_fields.first);
+  for (trg_field= lex->trg_table_fields.first;
        trg_field; trg_field= trg_field->next_trg_field)
   {
     /*
@@ -1327,9 +1326,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
-        Parser_state parser_state(thd,
-                                  trg_create_str->str,
-                                  trg_create_str->length);
+        Parser_state parser_state;
+        if (parser_state.init(thd, trg_create_str->str, trg_create_str->length))
+          goto err_with_lex_cleanup;
 
         Trigger_creation_ctx *creation_ctx=
           Trigger_creation_ctx::create(thd,
@@ -1443,7 +1442,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         */
         triggers->trigger_fields[lex.trg_chistics.event]
                                 [lex.trg_chistics.action_time]=
-          (Item_trigger_field *)(lex.trg_table_fields.first);
+          lex.trg_table_fields.first;
         /*
           Also let us bind these objects to Field objects in table being
           opened.
@@ -1453,8 +1452,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           SELECT)...
           Anyway some things can be checked only during trigger execution.
         */
-        for (Item_trigger_field *trg_field=
-               (Item_trigger_field *)(lex.trg_table_fields.first);
+        for (Item_trigger_field *trg_field= lex.trg_table_fields.first;
              trg_field;
              trg_field= trg_field->next_trg_field)
         {
@@ -1667,7 +1665,8 @@ bool add_table_for_trigger(THD *thd,
     DBUG_RETURN(TRUE);
 
   *table= sp_add_to_query_tables(thd, lex, trg_name->m_db.str,
-                                 tbl_name.str, TL_IGNORE);
+                                 tbl_name.str, TL_IGNORE,
+                                 MDL_SHARED_NO_WRITE);
 
   DBUG_RETURN(*table ? FALSE : TRUE);
 }

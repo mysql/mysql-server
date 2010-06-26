@@ -756,3 +756,51 @@ SET NAMES latin1;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set collation_connection=ucs2_general_ci;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+
+set collation_connection=ucs2_bin;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+
+--echo #
+--echo # Bug #36418 Character sets: crash if char(256 using utf32)
+--echo #
+select hex(char(0x01 using ucs2));
+select hex(char(0x0102 using ucs2));
+select hex(char(0x010203 using ucs2));
+select hex(char(0x01020304 using ucs2));
+
+--echo #
+--echo # Bug#10094 Displays wrong error message for UNIQUE key index on CHAR(255) Unicode datatype
+--echo #
+CREATE TABLE t1 (f1 CHAR(255) unicode);
+INSERT INTO t1 values ('abc'),('bcd'),('abc');
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD UNIQUE Index_1 (f1);
+DROP TABLE t1;
+
+--echo #
+--echo # Test how character set works with date/time
+--echo #
+SET collation_connection=ucs2_general_ci;
+--source include/ctype_datetime.inc
+SET NAMES latin1;
+
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

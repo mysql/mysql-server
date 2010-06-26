@@ -261,11 +261,13 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info,
+const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_function,
                               const char *calling_file,
                               const unsigned int calling_line)
 {
+  THD *thd= (THD *) thd_arg;
+
   if (!thd)
     thd= current_thd;
 
@@ -351,7 +353,7 @@ int thd_sql_command(const THD *thd)
 extern "C"
 int thd_tx_isolation(const THD *thd)
 {
-  return (int) thd->variables.tx_isolation;
+  return (int) thd->tx_isolation;
 }
 
 extern "C"
@@ -590,7 +592,7 @@ THD::THD()
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
-  init_open_tables_state(this, refresh_version);
+  reset_open_tables_state(this);
 
   init();
 #if defined(ENABLED_PROFILING)
@@ -876,6 +878,9 @@ THD::raise_condition_no_handler(uint sql_errno,
   if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
     DBUG_RETURN(NULL);
 
+  /* When simulating OOM, skip writing to error log to avoid mtr errors */
+  DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
+
   cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
@@ -955,7 +960,7 @@ void THD::init(void)
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
-  session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   update_charset();
   reset_current_stmt_binlog_format_row();
   bzero((char *) &status_var, sizeof(status_var));
@@ -4207,7 +4212,9 @@ field_type_name(enum_field_types type)
 #endif
 
 
-namespace {
+/* Declare in unnamed namespace. */
+CPP_UNNAMED_NS_START
+
   /**
      Class to handle temporary allocation of memory for row data.
 
@@ -4326,8 +4333,8 @@ namespace {
     uchar *m_memory;
     uchar *m_ptr[2];
   };
-}
 
+CPP_UNNAMED_NS_END
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           MY_BITMAP const* cols, size_t colcnt, 

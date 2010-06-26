@@ -91,7 +91,9 @@ static int partition_initialize(void *p)
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
   partition_hton->alter_table_flags= alter_table_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  partition_hton->flags= HTON_NOT_USER_SELECTABLE |
+                         HTON_HIDDEN |
+                         HTON_TEMPORARY_NOT_SUPPORTED;
 
   return 0;
 }
@@ -360,7 +362,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
   }
   else if (get_from_handler_file(table_share->normalized_path.str, mem_root))
   {
-    mem_alloc_error(2);
+    my_error(ER_FAILED_READ_FROM_PAR_FILE, MYF(0));
     DBUG_RETURN(1);
   }
   /*
@@ -1306,7 +1308,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
     assumes that external_lock() is last call that may fail here.
     Otherwise see description for cleanup_new_partition().
   */
-  if ((error= file->ha_external_lock(ha_thd(), m_lock_type)))
+  if ((error= file->ha_external_lock(ha_thd(), F_WRLCK)))
     goto error_external_lock;
   DBUG_PRINT("info", ("partition %s external locked", part_name));
 
@@ -1896,6 +1898,13 @@ uint ha_partition::del_ren_cre_table(const char *from,
   uint i;
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
+
+  /* Not allowed to create temporary partitioned tables */
+  if (create_info && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);

@@ -39,7 +39,9 @@ DTRACEFILES =           filesort.o \
                         sql_connect.o \
                         sql_cursor.o \
                         sql_delete.o \
+                        sql_truncate.o \
                         sql_insert.o \
+                        datadict.o \
                         sql_parse.o \
                         sql_prepare.o \
                         sql_select.o \
@@ -56,7 +58,9 @@ DTRACEFILES_DEPEND =    filesort.o \
                         sql_connect.o \
                         sql_cursor.o \
                         sql_delete.o \
+                        sql_truncate.o \
                         sql_insert.o \
+                        datadict.o \
                         sql_parse.o \
                         sql_prepare.o \
                         sql_select.o \
@@ -67,10 +71,11 @@ noinst_LTLIBRARIES=	libndb.la \
 			udf_example.la
 
 SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/mysys/libmysyswrap.la \
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
 			$(top_builddir)/regex/libregex.a \
-			$(top_builddir)/strings/libmystrings.a
+			$(top_builddir)/strings/libmystringslt.la
 mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
 mysqld_LDADD =		libndb.la \
@@ -121,9 +126,9 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_audit.h \
 			contributors.h sql_servers.h sql_signal.h records.h \
 			sql_prepare.h rpl_handler.h replication.h mdl.h \
-			sql_plist.h transaction.h sys_vars.h \
-			gcalc_slicescan.h gcalc_tools.h \
-			plistsort.c
+			sql_plist.h transaction.h sys_vars.h sql_truncate.h \
+			gcalc_slicescan.h gcalc_tools.h plistsort.c \
+			datadict.h
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
@@ -138,10 +143,10 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
 			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
-			sql_profile.cc \
+			datadict.cc sql_profile.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
-			procedure.cc sql_test.cc \
+			procedure.cc sql_test.cc sql_truncate.cc \
 			log.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
 			log_event.cc rpl_record.cc \
