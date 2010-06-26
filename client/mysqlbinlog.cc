@@ -53,7 +53,6 @@ ulong open_files_limit;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
 static FILE *result_file;
-static char **defaults_argv;
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
@@ -130,10 +129,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname);
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
-
-static void force_quit(int param);
-static void quit(Exit_status retval);
-static void init_signals(void);
 
 class Load_log_processor
 {
@@ -2147,12 +2142,12 @@ static int args_post_process(void)
 
 int main(int argc, char** argv)
 {
-  Exit_status retval= OK_STOP;
+  char **defaults_argv;
+  Exit_status retval= OK_CONTINUE;
   ulonglong save_stop_position;
-
   MY_INIT(argv[0]);
-
-  init_signals();
+  DBUG_ENTER("main");
+  DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
 
@@ -2165,12 +2160,13 @@ int main(int argc, char** argv)
   if (!argc)
   {
     usage();
-    quit(ERROR_STOP);
+    free_defaults(defaults_argv);
+    exit(1);
   }
 
   /* Check for argument conflicts and do any post-processing */
   if (args_post_process() == ERROR_STOP)
-    quit(ERROR_STOP);
+    exit(1);
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
@@ -2251,25 +2247,6 @@ int main(int argc, char** argv)
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
-  quit(retval);
-}
-
-/* Catch all these signals so that we can close files safely when exiting */
-static void init_signals(void)
-{
-  int signals[] = {SIGINT,SIGTERM};
-
-  for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
-    signal(signals[i], force_quit);
-}
-
-static void force_quit(int param)
-{
-  quit(OK_STOP);
-}
-
-static void quit(Exit_status retval)
-{
   if (result_file && (result_file != stdout))
     my_fclose(result_file, MYF(0));
   cleanup();
@@ -2281,6 +2258,8 @@ static void quit(Exit_status retval)
   my_end(my_end_arg | MY_DONT_FREE_DBUG);
 
   exit(retval == ERROR_STOP ? 1 : 0);
+  /* Keep compilers happy. */
+  DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }
 
 /*
