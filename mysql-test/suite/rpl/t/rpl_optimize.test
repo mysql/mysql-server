@@ -15,6 +15,10 @@
 -- source include/not_staging.inc
 -- source include/master-slave.inc
 
+--disable_warnings
+drop tables if exists t1;
+--enable_warnings
+
 CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
 
 create table t1 (a int not null auto_increment primary key, b int, key(b));
@@ -51,10 +55,9 @@ sync_with_master; # won't work if slave SQL thread stopped
 
 connection master; # cleanup
 drop table t1;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # If the machine is so fast that slave syncs before OPTIMIZE
-# starts, this test wil demonstrate nothing but will pass.
+# starts, this test will demonstrate nothing but will pass.
 
 # End of 4.1 tests

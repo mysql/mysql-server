@@ -89,18 +89,38 @@ USE information_schema;
 --echo 1 Prepare test.
 --echo   connection default (user=root)
 --echo ####################################################################################
-if (`SELECT COUNT(*) <> 1 FROM processlist`)
+
+# Check that we have only one connection around.
+# If there is more, it may be the check() connection that has not yet ended,
+# so we wait for it for up to 10 seconds.
+
+let $counter=100;
+while ($counter)
 {
-   --echo This test expects one connection to the server.
-   --echo Expectation: USER  HOST       DB                  COMMAND  STATE      INFO
-   --echo Expectation: root  localhost  information_schema  Query    executing  SELECT USER,HOST,DB,COMMAND,STATE,INFO FROM processlist ORDER BY ID
-   --echo But we found in the moment:
-   SELECT USER,HOST,DB,COMMAND,STATE,INFO FROM processlist ORDER BY ID;
-   --echo Maybe
-   --echo - the base configuration (no of parallel auxiliary sessions) of the server has changed
-   --echo - a parallel test intended for another server accidently connected to our current one
-   --echo We cannot proceed in this situation. Abort
-   exit;
+  dec $counter;
+  let $res= `SELECT COUNT(*) <> 1 FROM processlist`;
+  if (!$res)
+  {
+    # Success; Abort while loop
+    let $counter=0;
+  }
+  if ($res)
+  {
+    --sleep 0.1
+    if (!$counter)
+    {   
+      --echo This test expects one connection to the server.
+        --echo Expectation: USER  HOST       DB                  COMMAND  STATE      INFO
+        --echo Expectation: root  localhost  information_schema  Query    executing  SELECT USER,HOST,DB,COMMAND,STATE,INFO FROM processlist ORDER BY ID
+        --echo But we found in the moment:
+      SELECT USER,HOST,DB,COMMAND,STATE,INFO FROM processlist ORDER BY ID;
+      --echo Maybe
+      --echo - the base configuration (no of parallel auxiliary sessions) of the server has changed
+      --echo - a parallel test intended for another server accidently connected to our current one
+      --echo We cannot proceed in this situation. Abort
+      exit;
+     }
+  }
 }
 
 --echo ####################################################################################

@@ -1813,6 +1813,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   uint tzid, ttid;
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
+  uchar keybuff[32];
   String abbr(buff, sizeof(buff), &my_charset_latin1);
   char *alloc_buff, *tz_name_buff;
   /*
@@ -1891,9 +1892,10 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->get_key_image(keybuff, sizeof(keybuff), Field::itRAW);
   (void)table->file->ha_index_init(0, 1);
 
-  if (table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  if (table->file->ha_index_read_map(table->record[0], keybuff,
                                      HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     sql_print_error("Can't find description of time zone '%u'", tzid);
@@ -1918,9 +1920,10 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->get_key_image(keybuff, sizeof(keybuff), Field::itRAW);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res= table->file->ha_index_read_map(table->record[0], keybuff,
                                       (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
@@ -1968,8 +1971,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 
     tmp_tz_info.typecnt= ttid + 1;
 
-    res= table->file->ha_index_next_same(table->record[0],
-                                         table->field[0]->ptr, 4);
+    res= table->file->ha_index_next_same(table->record[0], keybuff, 4);
   }
 
   if (res != HA_ERR_END_OF_FILE)
@@ -1991,7 +1993,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res= table->file->ha_index_read_map(table->record[0], keybuff,
                                       (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
@@ -2021,8 +2023,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
       ("time_zone_transition table: tz_id: %u  tt_time: %lu  tt_id: %u",
        tzid, (ulong) ttime, ttid));
 
-    res= table->file->ha_index_next_same(table->record[0],
-                                         table->field[0]->ptr, 4);
+    res= table->file->ha_index_next_same(table->record[0], keybuff, 4);
   }
 
   /*

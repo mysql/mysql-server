@@ -3505,9 +3505,26 @@ mysql_declare_plugin(federated)
   PLUGIN_LICENSE_GPL,
   federatedx_db_init, /* Plugin Init */
   federatedx_done, /* Plugin Deinit */
-  0x0100 /* 1.0 */,
+  0x0200 /* 2.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(federated)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &federatedx_storage_engine,
+  "FEDERATED",
+  "Patrick Galbraith",
+  "FederatedX pluggable storage engine",
+  PLUGIN_LICENSE_GPL,
+  federatedx_db_init, /* Plugin Init */
+  federatedx_done, /* Plugin Deinit */
+  0x0200 /* 2.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "2.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_BETA /* maturity */
+}
+maria_declare_plugin_end;

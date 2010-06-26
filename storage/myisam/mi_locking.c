@@ -68,7 +68,9 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks &&
 	  !share->delay_key_write && flush_key_blocks(share->key_cache,
-						      share->kfile,FLUSH_KEEP))
+						      share->kfile,
+                                                      &share->dirty_part_map,
+                                                      FLUSH_KEEP))
       {
 	error=my_errno;
         mi_print_error(info->s, HA_ERR_CRASHED);
@@ -328,7 +330,6 @@ void mi_update_status(void* param)
 			    (long) info->s->state.state.data_file_length));
 #endif
     info->s->state.state= *info->state;
-    info->state= &info->s->state.state;
 #ifdef HAVE_QUERY_CACHE
     DBUG_PRINT("info", ("invalidator... '%s' (status update)",
                         info->filename));
@@ -336,6 +337,7 @@ void mi_update_status(void* param)
     (*info->s->chst_invalidator)((const char *)info->filename);
 #endif
   }
+  info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
 
   /*
@@ -513,7 +515,8 @@ int _mi_test_if_changed(register MI_INFO *info)
   {						/* Keyfile has changed */
     DBUG_PRINT("info",("index file changed"));
     if (share->state.process != share->this_process)
-      VOID(flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE));
+      VOID(flush_key_blocks(share->key_cache, share->kfile,
+                            &share->dirty_part_map, FLUSH_RELEASE));
     share->last_process=share->state.process;
     info->last_unique=	share->state.unique;
     info->last_loop=	share->state.update_count;

@@ -555,6 +555,18 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
 }
 
 
+Item_ident::Item_ident(TABLE_LIST *view_arg, const char *field_name_arg)
+  :orig_db_name(NullS), orig_table_name(view_arg->table_name),
+   orig_field_name(field_name_arg), context(&view_arg->view->select_lex.context),
+   db_name(NullS), table_name(view_arg->alias),
+   field_name(field_name_arg),
+   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_table(NULL), depended_from(NULL)
+{
+  name = (char*) field_name_arg;
+}
+
+
 /**
   Constructor used by Item_field & Item_*_ref (see Item comment)
 */
@@ -1727,7 +1739,16 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
+    {
+      /*
+        We should disable const subselect item evaluation because
+        subselect transformation does not happen in view_prepare_mode
+        and thus val_...() methods can not be called for const items.
+      */
+      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
+                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
+      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
+    }
 
     if (!conv)
     {
@@ -2262,14 +2283,14 @@ String *Item_int::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  str->set(value, &my_charset_bin);
+  str->set_int(value, unsigned_flag, &my_charset_bin);
   return str;
 }
 
 void Item_int::print(String *str, enum_query_type query_type)
 {
   // my_charset_bin is good enough for numbers
-  str_value.set(value, &my_charset_bin);
+  str_value.set_int(value, unsigned_flag, &my_charset_bin);
   str->append(str_value);
 }
 
@@ -3556,7 +3577,7 @@ void Item_copy_decimal::copy()
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
-    memcpy (&cached_value, nr, sizeof (my_decimal)); 
+    my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
 }
 
@@ -4361,13 +4382,16 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
             Item_ref *rf= new Item_ref(context, db_name,table_name,field_name);
             if (!rf)
               return 1;
-            thd->change_item_tree(reference, rf);
-            /*
-              Because Item_ref never substitutes itself with other items 
-              in Item_ref::fix_fields(), we can safely use the original 
-              pointer to it even after fix_fields()
-             */
-            return rf->fix_fields(thd, reference) ||  rf->check_cols(1);
+            bool ret= rf->fix_fields(thd, (Item **) &rf) || rf->check_cols(1);
+            if (ret)
+              return TRUE;
+           
+            SELECT_LEX *select= thd->lex->current_select;
+            thd->change_item_tree(reference,
+                                  select->parsing_place == IN_GROUP_BY && 
+				  alias_name_used  ?  *rf->ref : rf);
+
+            return FALSE;
           }
         }
       }
@@ -4531,6 +4555,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  item_equal= NULL;
   null_value= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -5106,14 +5131,22 @@ int Item_field::save_in_field(Field *to, bool no_conversions)
   if (result_field->is_null())
   {
     null_value=1;
-    res= set_field_to_null_with_conversions(to, no_conversions);
+    return set_field_to_null_with_conversions(to, no_conversions);
   }
-  else
+  to->set_notnull();
+
+  /*
+    If we're setting the same field as the one we're reading from there's 
+    nothing to do. This can happen in 'SET x = x' type of scenarios.
+  */  
+  if (to == result_field)
   {
-    to->set_notnull();
-    res= field_conv(to,result_field);
     null_value=0;
+    return 0;
   }
+
+  res= field_conv(to,result_field);
+  null_value=0;
   return res;
 }
 
@@ -5213,7 +5246,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
     field->set_notnull();
     error=field->store(nr, unsigned_flag);
   }
-  return error ? error : (field->table->in_use->is_error() ? 2 : 0);
+  return error ? error : (field->table->in_use->is_error() ? 1 : 0);
 }
 
 
@@ -5392,13 +5425,25 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+Item_hex_string::Item_hex_string()
+{
+  hex_string_init("", 0);
+}
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
+{
+  hex_string_init(str, str_length);
+}
+
+void Item_hex_string::hex_string_init(const char *str, uint str_length)
 {
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
+  {
+    str_value.set("", 0, &my_charset_bin);
     return;
+  }
   str_value.set(ptr,max_length,&my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
@@ -5746,9 +5791,14 @@ void Item_field::print(String *str, enum_query_type query_type)
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
     field->val_str(&tmp);
-    str->append('\'');
-    str->append(tmp);
-    str->append('\'');
+    if (field->is_null())
+      str->append("NULL");
+    else
+    {
+      str->append('\'');
+      str->append(tmp);
+      str->append('\'');
+    }
     return;
   }
   Item_ident::print(str, query_type);
@@ -5799,6 +5849,20 @@ public:
     }
   }
 };
+
+Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
+                   const char *field_name_arg, bool alias_name_used_arg)
+  :Item_ident(view_arg, field_name_arg),
+   result_field(NULL), ref(item)
+{
+  alias_name_used= alias_name_used_arg;
+  /*
+    This constructor is used to create some internal references over fixed items
+  */
+  if (ref && *ref && (*ref)->fixed)
+    set_properties();
+}
+
 
 /**
   Resolve the name of a reference to a column reference.
@@ -6506,6 +6570,42 @@ void Item_ref::fix_after_pullout(st_select_lex *new_parent, Item **refptr)
 
 
 /**
+  Mark references from inner selects used in group by clause
+
+  The method is used by the walk method when called for the expressions
+  from the group by clause. The callsare  occurred in the function
+  fix_inner_refs invoked by JOIN::prepare.
+  The parameter passed to Item_outer_ref::check_inner_refs_processor
+  is the iterator over the list of inner references from the subselects
+  of the select to be prepared. The function marks those references
+  from this list whose occurrences are encountered in the group by 
+  expressions passed to the walk method.  
+ 
+  @param arg  pointer to the iterator over a list of inner references
+
+  @return
+    FALSE always
+*/
+
+bool Item_outer_ref::check_inner_refs_processor(uchar *arg)
+{
+  List_iterator_fast<Item_outer_ref> *it=
+    ((List_iterator_fast<Item_outer_ref> *) arg);
+  Item_outer_ref *ref;
+  while ((ref= (*it)++))
+  {
+    if (ref == this)
+    {
+      ref->found_in_group_by= 1;
+      break;
+    }
+  }
+  (*it).rewind();
+  return FALSE;
+}
+
+
+/**
   Compare two view column references for equality.
 
   A view column reference is considered equal to another column
@@ -6604,7 +6704,8 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 {
   if (!arg)
   {
-    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+        field_arg->real_type() != MYSQL_TYPE_ENUM)
     {
       if (field_arg->reset())
       {
@@ -7133,7 +7234,7 @@ bool  Item_cache_int::cache_value()
 }
 
 
-void Item_cache_int::store(Item *item, longlong val_arg)
+void Item_cache_int::store_longlong(Item *item, longlong val_arg)
 {
   /* An explicit values is given, save it. */
   value_cached= TRUE;

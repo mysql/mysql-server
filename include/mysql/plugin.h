@@ -57,7 +57,10 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
+/* MySQL plugin interface version */
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0101
+/* MariaDB plugin interface version */
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0100
 
 /*
   The allowable types of plugins
@@ -67,7 +70,10 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_DAEMON_PLUGIN          3  /* The daemon/raw plugin type */
 #define MYSQL_INFORMATION_SCHEMA_PLUGIN  4  /* The I_S plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    5  /* The number of plugin types   */
+#define MYSQL_AUDIT_PLUGIN           5  /* The Audit plugin type        */
+#define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
+#define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    8  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -77,6 +83,14 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define PLUGIN_LICENSE_PROPRIETARY_STRING "PROPRIETARY"
 #define PLUGIN_LICENSE_GPL_STRING "GPL"
 #define PLUGIN_LICENSE_BSD_STRING "BSD"
+
+/* definitions of code maturity for plugins */
+#define MariaDB_PLUGIN_MATURITY_UNKNOWN 0
+#define MariaDB_PLUGIN_MATURITY_EXPERIMENTAL 1
+#define MariaDB_PLUGIN_MATURITY_ALPHA 2
+#define MariaDB_PLUGIN_MATURITY_BETA 3
+#define MariaDB_PLUGIN_MATURITY_GAMMA 4
+#define MariaDB_PLUGIN_MATURITY_STABLE 5
 
 /*
   Macros for beginning and ending plugin declarations.  Between
@@ -90,11 +104,24 @@ typedef struct st_mysql_xid MYSQL_XID;
 int VERSION= MYSQL_PLUGIN_INTERFACE_VERSION;                                  \
 int PSIZE= sizeof(struct st_mysql_plugin);                                    \
 struct st_mysql_plugin DECLS[]= {
+
+#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                    \
+int VERSION= MARIA_PLUGIN_INTERFACE_VERSION;                                   \
+int PSIZE= sizeof(struct st_maria_plugin);                                     \
+struct st_maria_plugin DECLS[]= {
+
 #else
+
 #define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \
 MYSQL_PLUGIN_EXPORT int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION;         \
 MYSQL_PLUGIN_EXPORT int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin);          \
 MYSQL_PLUGIN_EXPORT struct st_mysql_plugin _mysql_plugin_declarations_[]= {
+
+#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                \
+MYSQL_PLUGIN_EXPORT int _maria_plugin_interface_version_= MARIA_PLUGIN_INTERFACE_VERSION;   \
+MYSQL_PLUGIN_EXPORT int _maria_sizeof_struct_st_plugin_= sizeof(struct st_maria_plugin);    \
+MYSQL_PLUGIN_EXPORT struct st_maria_plugin _maria_plugin_declarations_[]= {
+
 #endif
 
 #define mysql_declare_plugin(NAME) \
@@ -103,7 +130,14 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
                  builtin_ ## NAME ## _sizeof_struct_st_plugin, \
                  builtin_ ## NAME ## _plugin)
 
+#define maria_declare_plugin(NAME) \
+MARIA_DECLARE_PLUGIN__(NAME, \
+                 builtin_maria_ ## NAME ## _plugin_interface_version, \
+                 builtin_maria_ ## NAME ## _sizeof_struct_st_plugin, \
+                 builtin_maria_ ## NAME ## _plugin)
+
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0}}
+#define maria_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
 /*
   declarations for SHOW STATUS support in plugins
@@ -389,6 +423,29 @@ struct st_mysql_plugin
   int type;             /* the plugin type (a MYSQL_XXX_PLUGIN value)   */
   void *info;           /* pointer to type-specific plugin descriptor   */
   const char *name;     /* plugin name                                  */
+  const char *author;   /* plugin author (for I_S.PLUGINS)              */
+  const char *descr;    /* general descriptive text (for I_S.PLUGINS)   */
+  int license;          /* the plugin license (PLUGIN_LICENSE_XXX)      */
+  int (*init)(void *);  /* the function to invoke when plugin is loaded */
+  int (*deinit)(void *);/* the function to invoke when plugin is unloaded */
+  unsigned int version; /* plugin version (for I_S.PLUGINS)             */
+  struct st_mysql_show_var *status_vars;
+  struct st_mysql_sys_var **system_vars;
+  void * __reserved1;   /* reserved for dependency checking             */
+};
+
+/*
+  MariaDB extension for plugins declaration structure.
+
+  It also copy current MySQL plugin fields to have more independency
+  in plugins extension
+*/
+
+struct st_maria_plugin
+{
+  int type;             /* the plugin type (a MYSQL_XXX_PLUGIN value)   */
+  void *info;           /* pointer to type-specific plugin descriptor   */
+  const char *name;     /* plugin name                                  */
   const char *author;   /* plugin author (for SHOW PLUGINS)             */
   const char *descr;    /* general descriptive text (for SHOW PLUGINS ) */
   int license;          /* the plugin license (PLUGIN_LICENSE_XXX)      */
@@ -397,7 +454,8 @@ struct st_mysql_plugin
   unsigned int version; /* plugin version (for SHOW PLUGINS)            */
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
-  void * __reserved1;   /* reserved for dependency checking             */
+  const char *version_info;  /* plugin version string */
+  int maturity;              /* MariaDB_PLUGIN_MATURITY_XXX */
 };
 
 /*************************************************************************
@@ -752,30 +810,37 @@ void mysql_query_cache_invalidate4(MYSQL_THD thd,
                                    const char *key, unsigned int key_length,
                                    int using_trx);
 
-#ifdef __cplusplus
-}
-#endif
 
-#ifdef __cplusplus
 /**
   Provide a handler data getter to simplify coding
 */
-inline
-void *
-thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
-{
-  return *thd_ha_data(thd, hton);
-}
+void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
+
 
 /**
   Provide a handler data setter to simplify coding
+
+  @details
+  Set ha_data pointer (storage engine per-connection information).
+
+  To avoid unclean deactivation (uninstall) of storage engine plugin
+  in the middle of transaction, additional storage engine plugin
+  lock is acquired.
+
+  If ha_data is not null and storage engine plugin was not locked
+  by thd_set_ha_data() in this connection before, storage engine
+  plugin gets locked.
+
+  If ha_data is null and storage engine plugin was locked by
+  thd_set_ha_data() in this connection before, storage engine
+  plugin lock gets released.
+
+  If handlerton::close_connection() didn't reset ha_data, server does
+  it immediately after calling handlerton::close_connection().
 */
-inline
-void
-thd_set_ha_data(const MYSQL_THD thd, const struct handlerton *hton,
-                const void *ha_data)
-{
-  *thd_ha_data(thd, hton)= (void*) ha_data;
+void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
+                     const void *ha_data);
+#ifdef __cplusplus
 }
 #endif
 

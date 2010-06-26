@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef SQL_TABLE_INCLUDED
+#define SQL_TABLE_INCLUDED
 
 /* Structs that defines the TABLE */
 
@@ -340,6 +342,8 @@ typedef struct st_table_share
 #ifdef NOT_YET
   struct st_table *open_tables;		/* link to open tables */
 #endif
+  engine_option_value *option_list;     /* text options for table */
+  void *option_struct;                  /* structure with parsed options */
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -914,6 +918,24 @@ struct st_table {
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
   bool is_children_attached(void);
+  inline void enable_keyread()
+  {
+    DBUG_ENTER("enable_keyread");
+    DBUG_ASSERT(key_read == 0);
+    key_read= 1;
+    file->extra(HA_EXTRA_KEYREAD);
+    DBUG_VOID_RETURN;
+  }
+  inline void disable_keyread()
+  {
+    DBUG_ENTER("disable_keyread");
+    if (key_read)
+    {
+      key_read= 0;
+      file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    DBUG_VOID_RETURN;
+  }
 };
 
 enum enum_schema_table_state
@@ -953,6 +975,7 @@ enum enum_schema_tables
   SCH_GLOBAL_STATUS,
   SCH_GLOBAL_VARIABLES,
   SCH_INDEX_STATS,
+  SCH_KEY_CACHES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
   SCH_PARTITIONS,
@@ -1825,3 +1848,4 @@ static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
 
 size_t max_row_length(TABLE *table, const uchar *data);
 
+#endif

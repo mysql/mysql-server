@@ -364,6 +364,9 @@ typedef struct XTTable : public XTHeap {
 	xtWord4					tab_rec_fnum;							/* The count of the number of free rows on the free list. */
 	xt_mutex_type			tab_rec_lock;							/* Lock for the free list. */
 
+	xt_mutex_type			tab_ind_stat_lock;						/* Aquired when calculating index statistics. */
+	time_t					tab_ind_stat_calc_time;					/* Zero means the index stats have not be calculated, otherwize this is a time. */
+
 	xt_mutex_type			tab_ind_flush_lock;						/* Required while the index file is being flushed. */
 	xtLogID					tab_ind_rec_log_id;						/* The point before which index entries have been written. */
 	xtLogOffset				tab_ind_rec_log_offset;					/* The log offset of the write point. */
@@ -372,7 +375,7 @@ typedef struct XTTable : public XTHeap {
 	xtIndexNodeID			tab_ind_free;							/* The start of the free page list of the index. */
 	XTIndFreeListPtr		tab_ind_free_list;						/* A cache of the free list (if exists, don't go to disk!) */
 	xt_mutex_type			tab_ind_lock;							/* Lock for reading and writing the index free list. */
-	xtWord2					tab_ind_flush_seq;
+	xtWord4					tab_ind_flush_seq;
 } XTTableHRec, *XTTableHPtr;		/* Heap pointer */
 
 /* Used for an in-memory list of the tables, ordered by ID. */
@@ -403,6 +406,8 @@ typedef struct XTOpenTable {
 	size_t					ot_rec_size;							/* Cached from table for quick access. */
 	
 	char					ot_error_key[XT_IDENTIFIER_NAME_SIZE];
+	struct XTOpenTable		*ot_prev_update;						/* The UPDATE statement stack! {UPDATE-STACK} */
+	u_int					ot_update_id;							/* The update statement ID. */	
 	xtBool					ot_for_update;							/* True if reading FOR UPDATE. */
 	xtBool					ot_is_modify;							/* True if UPDATE or DELETE. */
 	xtRowID					ot_temp_row_lock;						/* The temporary row lock set on this table. */
@@ -507,11 +512,11 @@ void				xt_check_tables(struct XTThread *self);
 char				*xt_tab_file_to_name(size_t size, char *tab_name, char *file_name);
 
 void				xt_create_table(struct XTThread *self, XTPathStrPtr name, XTDictionaryPtr dic);
-XTTableHPtr			xt_use_table(struct XTThread *self, XTPathStrPtr name, xtBool no_load, xtBool missing_ok, xtBool *opened);
+XTTableHPtr			xt_use_table(struct XTThread *self, XTPathStrPtr name, xtBool no_load, xtBool missing_ok);
 void				xt_sync_flush_table(struct XTThread *self, XTOpenTablePtr ot);
 xtBool				xt_flush_record_row(XTOpenTablePtr ot, off_t *bytes_flushed, xtBool have_table_loc);
 void				xt_flush_table(struct XTThread *self, XTOpenTablePtr ot);
-XTTableHPtr			xt_use_table_no_lock(XTThreadPtr self, struct XTDatabase *db, XTPathStrPtr name, xtBool no_load, xtBool missing_ok, XTDictionaryPtr dic, xtBool *opened);
+XTTableHPtr			xt_use_table_no_lock(XTThreadPtr self, struct XTDatabase *db, XTPathStrPtr name, xtBool no_load, xtBool missing_ok, XTDictionaryPtr dic);
 int					xt_use_table_by_id(struct XTThread *self, XTTableHPtr *tab, struct XTDatabase *db, xtTableID tab_id);
 XTOpenTablePtr		xt_open_table(XTTableHPtr tab);
 void				xt_close_table(XTOpenTablePtr ot, xtBool flush, xtBool have_table_lock);

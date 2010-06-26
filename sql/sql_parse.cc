@@ -444,9 +444,8 @@ static void handle_bootstrap_impl(THD *thd)
 
   thd_proc_info(thd, 0);
   thd->version=refresh_version;
-  thd->security_ctx->priv_user=
-    thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
-  thd->security_ctx->priv_host[0]=0;
+  thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
+  thd->security_ctx->priv_user[0]= thd->security_ctx->priv_host[0]=0;
   /*
     Make the "client" handle multiple results. This is necessary
     to enable stored procedures with SELECTs and Dynamic SQL
@@ -1093,96 +1092,34 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CHANGE_USER:
   {
     status_var_increment(thd->status_var.com_other);
-    char *user= (char*) packet, *packet_end= packet + packet_length;
-    /* Safe because there is always a trailing \0 at the end of the packet */
-    char *passwd= strend(user)+1;
 
     thd->change_user();
     thd->clear_error();                         // if errors from rollback
 
-    /*
-      Old clients send null-terminated string ('\0' for empty string) for
-      password.  New clients send the size (1 byte) + string (not null
-      terminated, so also '\0' for empty string).
+    /* acl_authenticate() takes the data from net->read_pos */
+    net->read_pos= (uchar*)packet;
 
-      Cast *passwd to an unsigned char, so that it doesn't extend the sign
-      for *passwd > 127 and become 2**32-127 after casting to uint.
-    */
-    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
-    char *db= passwd;
-    char *save_db;
-    /*
-      If there is no password supplied, the packet must contain '\0',
-      in any type of handshake (4.1 or pre-4.1).
-     */
-    if (passwd >= packet_end)
-    {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      break;
-    }
-    uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                      (uchar)(*passwd++) : strlen(passwd));
-    uint dummy_errors, save_db_length, db_length;
-    int res;
+    uint save_db_length= thd->db_length;
+    char *save_db= thd->db;
+    USER_CONN *save_user_connect= thd->user_connect;
     Security_context save_security_ctx= *thd->security_ctx;
-    USER_CONN *save_user_connect;
+    CHARSET_INFO *save_character_set_client=
+      thd->variables.character_set_client;
+    CHARSET_INFO *save_collation_connection=
+      thd->variables.collation_connection;
+    CHARSET_INFO *save_character_set_results=
+      thd->variables.character_set_results;
 
-    db+= passwd_len + 1;
-    /*
-      Database name is always NUL-terminated, so in case of empty database
-      the packet must contain at least the trailing '\0'.
-    */
-    if (db >= packet_end)
-    {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      break;
-    }
-    db_length= strlen(db);
-
-    char *ptr= db + db_length + 1;
-    uint cs_number= 0;
-
-    if (ptr < packet_end)
-    {
-      if (ptr + 2 > packet_end)
-      {
-        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-        break;
-      }
-
-      cs_number= uint2korr(ptr);
-    }
-
-    /* Convert database name to utf8 */
-    db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
-                             system_charset_info, db, db_length,
-                             thd->charset(), &dummy_errors)]= 0;
-    db= db_buff;
-
-    /* Save user and privileges */
-    save_db_length= thd->db_length;
-    save_db= thd->db;
-    save_user_connect= thd->user_connect;
-
-    if (!(thd->security_ctx->user= my_strdup(user, MYF(0))))
-    {
-      thd->security_ctx->user= save_security_ctx.user;
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      break;
-    }
-
-    /* Clear variables that are allocated */
-    thd->user_connect= 0;
-    thd->security_ctx->priv_user= thd->security_ctx->user;
-    res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
-
-    if (res)
+    if (acl_authenticate(thd, 0, packet_length))
     {
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
-      thd->db= save_db;
-      thd->db_length= save_db_length;
+      thd->reset_db(save_db, save_db_length);
+      thd->variables.character_set_client= save_character_set_client;
+      thd->variables.collation_connection= save_collation_connection;
+      thd->variables.character_set_results= save_character_set_results;
+      thd->update_charset();
     }
     else
     {
@@ -1193,12 +1130,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       x_free(save_db);
       x_free(save_security_ctx.user);
-
-      if (cs_number)
-      {
-        thd_init_client_charset(thd, cs_number);
-        thd->update_charset();
-      }
     }
     break;
   }
@@ -1310,10 +1241,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #else
   {
-    char *fields, *packet_end= packet + packet_length, *arg_end;
+    char *fields, *packet_end= packet + packet_length, *wildcard;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
-    LEX_STRING conv_name;
+    char db_buff[NAME_LEN+1];
+    uint32 db_length;
+    uint dummy_errors, query_length;
 
     /* used as fields initializator */
     lex_start(thd);
@@ -1324,12 +1257,29 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     /*
       We have name + wildcard in packet, separated by endzero
+      (The packet is guaranteed to end with an end zero)
     */
-    arg_end= strend(packet);
-    thd->convert_string(&conv_name, system_charset_info,
-			packet, (uint) (arg_end - packet), thd->charset());
-    table_list.alias= table_list.table_name= conv_name.str;
-    packet= arg_end + 1;
+    wildcard= strend(packet);
+    db_length= wildcard - packet;
+    wildcard++;
+    query_length= (uint) (packet_end - wildcard); // Don't count end \0
+    if (db_length > NAME_LEN || query_length > NAME_LEN)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
+    db_length= copy_and_convert(db_buff, sizeof(db_buff)-1,
+                                system_charset_info, packet, db_length,
+                                thd->charset(), &dummy_errors);
+    db_buff[db_length]= '\0';
+    if (check_table_name(db_buff, db_length, FALSE))
+    {
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), db_buff);
+      break;
+    }
+    table_list.alias= table_list.table_name= db_buff;
+    if (!(fields= (char *) thd->memdup(wildcard, query_length + 1)))
+      break;
 
     if (is_schema_db(table_list.db, table_list.db_length))
     {
@@ -1338,9 +1288,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    uint query_length= (uint) (packet_end - packet); // Don't count end \0
-    if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
-      break;
     thd->set_query(fields, query_length);
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)
@@ -1716,9 +1663,9 @@ void log_slow_statement(THD *thd)
 
   /*
     Do not log administrative statements unless the appropriate option is
-    set; do not log into slow log if reading from backup.
+    set.
   */
-  if (thd->enable_slow_log && !thd->user_time)
+  if (thd->enable_slow_log)
   {
     ulonglong end_utime_of_query= thd->current_utime();
     thd_proc_info(thd, "logging slow query");
@@ -3321,7 +3268,7 @@ end_with_restore_list:
           TODO: this is workaround. right way will be move invalidating in
           the unlock procedure.
         */
-        if (first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
+        if (!res && first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
             thd->lock)
         {
           /* INSERT ... SELECT should invalidate only the very first table */
@@ -4349,8 +4296,8 @@ end_with_restore_list:
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                       ER_PROC_AUTO_GRANT_FAIL,
-                       ER(ER_PROC_AUTO_GRANT_FAIL));
+                       ER_PROC_AUTO_GRANT_FAIL, ER(ER_PROC_AUTO_GRANT_FAIL));
+        thd->clear_error();
       }
 
       /*
@@ -5041,6 +4988,7 @@ create_sp_error:
     break;
   }
   thd_proc_info(thd, "query end");
+  thd->update_stats();
 
   /*
     Binlog-related cleanup:
@@ -6157,7 +6105,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       char *change,
                        List<String> *interval_list, CHARSET_INFO *cs,
 		       uint uint_geom_type,
-		       Virtual_column_info *vcol_info)
+		       Virtual_column_info *vcol_info,
+                       engine_option_value *create_options)
 {
   register Create_field *new_field;
   LEX  *lex= thd->lex;
@@ -6175,7 +6124,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
     key= new Key(Key::PRIMARY, NullS,
                       &default_key_create_info,
-                      0, lex->col_list);
+                      0, lex->col_list, NULL);
     lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }
@@ -6185,7 +6134,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
     key= new Key(Key::UNIQUE, NullS,
                  &default_key_create_info, 0,
-                 lex->col_list);
+                 lex->col_list, NULL);
     lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }
@@ -6243,7 +6192,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (!(new_field= new Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type, vcol_info))
+                      interval_list, cs, uint_geom_type, vcol_info,
+                      create_options))
     DBUG_RETURN(1);
 
   lex->alter_info.create_list.push_back(new_field);
@@ -6335,7 +6285,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
   if (!test(table_options & TL_OPTION_ALIAS) && 
-      check_table_name(table->table.str, table->table.length))
+      check_table_name(table->table.str, table->table.length, FALSE))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
     DBUG_RETURN(0);
@@ -7729,8 +7679,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
 
-  definer->password.str= NULL;
-  definer->password.length= 0;
+  definer->password= null_lex_str;
+  definer->plugin= empty_lex_str;
+  definer->auth= empty_lex_str;
 }
 
 

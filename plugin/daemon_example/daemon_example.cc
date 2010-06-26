@@ -200,3 +200,20 @@ mysql_declare_plugin(daemon_example)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(daemon_example)
+{
+  MYSQL_DAEMON_PLUGIN,
+  &daemon_example_plugin,
+  "daemon_example",
+  "Brian Aker",
+  "Daemon example, creates a heartbeat beat file in mysql-heartbeat.log",
+  PLUGIN_LICENSE_GPL,
+  daemon_example_plugin_init, /* Plugin Init */
+  daemon_example_plugin_deinit, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL /* maturity */
+}
+maria_declare_plugin_end;

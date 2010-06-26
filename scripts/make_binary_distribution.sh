@@ -276,6 +276,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # Do a install that we later are to pack. Use the same paths as in
   # the build for the relevant directories.
   # ----------------------------------------------------------------------
+
   @MAKE@ DESTDIR=$BASE install \
     pkglibdir=@pkglibdir@ \
     pkgincludedir=@pkgincludedir@ \
@@ -444,6 +445,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   tests/mysql_client_test$BS \
   libmysqld/examples/mysql_client_test_embedded$BS \
   libmysqld/examples/mysqltest_embedded$BS \
+  storage/pbxt/bin/xtstat$BS \
   ";
 
 # Platform-specific bin dir files:

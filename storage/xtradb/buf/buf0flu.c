@@ -711,7 +711,9 @@ buf_flush_init_for_writing(
 
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 			srv_use_checksums
-			? buf_calc_page_new_checksum(page)
+			? (!srv_fast_checksum
+			   ? buf_calc_page_new_checksum(page)
+			   : buf_calc_page_new_checksum_32(page))
 			: BUF_NO_CHECKSUM_MAGIC);
 
 	/* We overwrite the first 4 bytes of the end lsn field to store
@@ -1271,7 +1273,7 @@ buf_flush_LRU_recommendation(void)
 
 	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
 		have_LRU_mutex = TRUE;
-
+retry:
 	//buf_pool_mutex_enter();
 	if (have_LRU_mutex)
 		mutex_enter(&LRU_list_mutex);
@@ -1313,6 +1315,10 @@ buf_flush_LRU_recommendation(void)
 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
 
 		return(0);
+	} else if (!have_LRU_mutex) {
+		/* confirm it again with LRU_mutex for exactness */
+		have_LRU_mutex = TRUE;
+		goto retry;
 	}
 
 	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN

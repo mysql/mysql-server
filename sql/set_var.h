@@ -1427,6 +1427,7 @@ public:
     my_free((uchar*) name, MYF(0));
   }
   friend bool process_key_caches(process_key_cache_t func);
+  friend int fill_key_cache_tables(THD *thd, TABLE_LIST *tables, COND *cond);
   friend void delete_elements(I_List<NAMED_LIST> *list,
 			      void (*free_element)(const char*, uchar*));
 };

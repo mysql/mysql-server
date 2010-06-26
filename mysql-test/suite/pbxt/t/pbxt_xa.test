@@ -1,0 +1,28 @@
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+# This warning is indication of a real bug, MBug#578117.
+# But it is not a regression, so we suppress it to get a clean test run.
+# This suppression must be removed as part of MBug#578117 fix.
+CALL mtr.add_suppression("Found wrong usage of mutex 'LOCK_sync' and 'LOCK_active'");
+
+#
+# bug lp:544173, xa crash with two 2pc-capable storage engines without binlog
+#
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2 (b INT PRIMARY KEY) ENGINE=pbxt;
+BEGIN;
+# verify that binlog is off
+SELECT @@log_bin;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+select * from t1;
+select * from t2;
+drop table t1, t2;
+drop database pbxt;
+

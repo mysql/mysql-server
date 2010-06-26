@@ -72,15 +72,6 @@ static void unlink_blobs(register TABLE *table);
 #endif
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 
-/* Define to force use of my_malloc() if the allocated memory block is big */
-
-#ifndef HAVE_ALLOCA
-#define my_safe_alloca(size, min_length) my_alloca(size)
-#define my_safe_afree(ptr, size, min_length) my_afree(ptr)
-#else
-#define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(0)))
-#define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr,MYF(0))
-#endif
 
 /*
   Check that insert/update fields are from the same single table of a view.
@@ -1778,8 +1769,10 @@ public:
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
   {
-    thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
+    thd.security_ctx->user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
+    strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
+            USERNAME_LENGTH);
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
@@ -3194,7 +3187,7 @@ bool select_insert::send_data(List<Item> &values)
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
   store_values(values);
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error())
   {
     table->auto_increment_field_not_null= FALSE;

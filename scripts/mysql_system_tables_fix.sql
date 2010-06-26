@@ -221,12 +221,29 @@ ALTER TABLE func
 
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
-ALTER TABLE general_log MODIFY COLUMN server_id INTEGER UNSIGNED NOT NULL;
+ALTER TABLE general_log
+  MODIFY event_time TIMESTAMP NOT NULL,
+  MODIFY user_host MEDIUMTEXT NOT NULL,
+  MODIFY thread_id INTEGER NOT NULL,
+  MODIFY server_id INTEGER UNSIGNED NOT NULL,
+  MODIFY command_type VARCHAR(64) NOT NULL,
+  MODIFY argument MEDIUMTEXT NOT NULL;
 SET GLOBAL general_log = @old_log_state;
 
 SET @old_log_state = @@global.slow_query_log;
 SET GLOBAL slow_query_log = 'OFF';
-ALTER TABLE slow_log MODIFY COLUMN server_id INTEGER UNSIGNED NOT NULL;
+ALTER TABLE slow_log
+  MODIFY start_time TIMESTAMP NOT NULL,
+  MODIFY user_host MEDIUMTEXT NOT NULL,
+  MODIFY query_time TIME NOT NULL,
+  MODIFY lock_time TIME NOT NULL,
+  MODIFY rows_sent INTEGER NOT NULL,
+  MODIFY rows_examined INTEGER NOT NULL,
+  MODIFY db VARCHAR(512) NOT NULL,
+  MODIFY last_insert_id INTEGER NOT NULL,
+  MODIFY insert_id INTEGER NOT NULL,
+  MODIFY server_id INTEGER UNSIGNED NOT NULL,
+  MODIFY sql_text MEDIUMTEXT NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
 #
@@ -368,7 +385,7 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
                             'IGNORE_SPACE',
-                            'NOT_USED',
+                            'IGNORE_BAD_TABLE_OPTIONS',
                             'ONLY_FULL_GROUP_BY',
                             'NO_UNSIGNED_SUBTRACTION',
                             'NO_DIR_IN_CREATE',
@@ -482,14 +499,14 @@ ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NO
 ALTER TABLE event DROP PRIMARY KEY;
 ALTER TABLE event ADD PRIMARY KEY(db, name);
 # Add sql_mode column just in case.
-ALTER TABLE event ADD sql_mode set ('NOT_USED') AFTER on_completion;
+ALTER TABLE event ADD sql_mode set ('IGNORE_BAD_TABLE_OPTIONS') AFTER on_completion;
 # Update list of sql_mode values.
 ALTER TABLE event MODIFY sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
                             'IGNORE_SPACE',
-                            'NOT_USED',
+                            'IGNORE_BAD_TABLE_OPTIONS',
                             'ONLY_FULL_GROUP_BY',
                             'NO_UNSIGNED_SUBTRACTION',
                             'NO_DIR_IN_CREATE',
@@ -570,6 +587,9 @@ ALTER TABLE db MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT
 ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
+
+ALTER TABLE user ADD plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL,  ADD auth_string TEXT NOT NULL;
+ALTER TABLE user MODIFY plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL;
 
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above

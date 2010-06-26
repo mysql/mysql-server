@@ -107,6 +107,7 @@ Key::Key(const Key &rhs, MEM_ROOT *mem_root)
   key_create_info(rhs.key_create_info),
   columns(rhs.columns, mem_root),
   name(rhs.name),
+  option_list(rhs.option_list),
   generated(rhs.generated)
 {
   list_copy_and_replace_each_value(columns, mem_root);
@@ -340,6 +341,37 @@ void **thd_ha_data(const THD *thd, const struct handlerton *hton)
 {
   return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
+
+
+/**
+  Provide a handler data getter to simplify coding
+*/
+extern "C"
+void *thd_get_ha_data(const THD *thd, const struct handlerton *hton)
+{
+  return *thd_ha_data(thd, hton);
+}
+
+
+/**
+  Provide a handler data setter to simplify coding
+  @see thd_set_ha_data() definition in plugin.h
+*/
+extern "C"
+void thd_set_ha_data(THD *thd, const struct handlerton *hton,
+                     const void *ha_data)
+{
+  plugin_ref *lock= &thd->ha_data[hton->slot].lock;
+  if (ha_data && !*lock)
+    *lock= ha_lock_engine(NULL, (handlerton*) hton);
+  else if (!ha_data && *lock)
+  {
+    plugin_unlock(NULL, *lock);
+    *lock= NULL;
+  }
+  *thd_ha_data(thd, hton)= (void*) ha_data;
+}
+
 
 extern "C"
 long long thd_test_options(const THD *thd, long long test_options)
@@ -776,6 +808,7 @@ THD::THD()
 
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
+  DBUG_ENTER("THD::push_internal_handler");
   if (m_internal_handler)
   {
     handler->m_prev_internal_handler= m_internal_handler;
@@ -785,6 +818,7 @@ void THD::push_internal_handler(Internal_error_handler *handler)
   {
     m_internal_handler= handler;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -793,7 +827,7 @@ bool THD::handle_error(uint sql_errno, const char *message,
 {
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
-       error_handler= m_internal_handler->m_prev_internal_handler)
+       error_handler= error_handler->m_prev_internal_handler)
   {
     if (error_handler->handle_error(sql_errno, message, level, this))
       return TRUE;
@@ -802,10 +836,13 @@ bool THD::handle_error(uint sql_errno, const char *message,
 }
 
 
-void THD::pop_internal_handler()
+Internal_error_handler *THD::pop_internal_handler()
 {
+  DBUG_ENTER("THD::pop_internal_handler");
   DBUG_ASSERT(m_internal_handler != NULL);
+  Internal_error_handler *popped_handler= m_internal_handler;
   m_internal_handler= m_internal_handler->m_prev_internal_handler;
+  DBUG_RETURN(popped_handler);
 }
 
 extern "C"
@@ -922,13 +959,10 @@ void THD::update_stats(void)
   /* sql_command == SQLCOM_END in case of parse errors or quit */
   if (lex->sql_command != SQLCOM_END)
   {
-    /* The replication thread has the COM_CONNECT command */
-    DBUG_ASSERT(command == COM_QUERY || command == COM_CONNECT);
-
     /* A SQL query. */
     if (lex->sql_command == SQLCOM_SELECT)
       select_commands++;
-    else if (! sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
+    else if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
     {
       /* Ignore 'SHOW ' commands */
     }
@@ -960,9 +994,8 @@ void THD::update_all_stats()
   status_var_add(status_var.cpu_time, cpu_time);
   status_var_add(status_var.busy_time, busy_time);
 
-  /* Updates THD stats and the global user stats. */
-  update_stats();
   update_global_user_stats(this, TRUE, save_time);
+  userstat_running= 0;
 }
 
 
@@ -1990,8 +2023,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   else
     (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
 
-  if (opt_secure_file_priv &&
-      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  if (!is_secure_file_path(path))
   {
     /* Write only allowed to dir or subdir specified by secure_file_priv */
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
@@ -3055,9 +3087,9 @@ void THD::set_status_var_init()
 
 void Security_context::init()
 {
-  host= user= priv_user= ip= 0;
+  host= user= ip= 0;
   host_or_ip= "connecting host";
-  priv_host[0]= '\0';
+  priv_user[0]= priv_host[0]= '\0';
   master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
@@ -3081,8 +3113,7 @@ void Security_context::skip_grants()
   /* privileges for the user are unknown everything is allowed */
   host_or_ip= (char *)"";
   master_access= ~NO_ACCESS;
-  priv_user= (char *)"";
-  *priv_host= '\0';
+  *priv_user= *priv_host= '\0';
 }
 
 
@@ -3124,7 +3155,7 @@ bool Security_context::set_user(char *user_arg)
   of a statement under credentials of a different user, e.g.
   definer of a procedure, we authenticate this user in a local
   instance of Security_context by means of this method (and
-  ultimately by means of acl_getroot_no_password), and make the
+  ultimately by means of acl_getroot), and make the
   local instance active in the thread by re-setting
   thd->security_ctx pointer.
 
@@ -3158,19 +3189,12 @@ change_security_context(THD *thd,
   DBUG_ASSERT(definer_user->str && definer_host->str);
 
   *backup= NULL;
-  /*
-    The current security context may have NULL members
-    if we have just started the thread and not authenticated
-    any user. This use case is currently in events worker thread.
-  */
-  needs_change= (thd->security_ctx->priv_user == NULL ||
-                 strcmp(definer_user->str, thd->security_ctx->priv_user) ||
-                 thd->security_ctx->priv_host == NULL ||
+  needs_change= (strcmp(definer_user->str, thd->security_ctx->priv_user) ||
                  my_strcasecmp(system_charset_info, definer_host->str,
                                thd->security_ctx->priv_host));
   if (needs_change)
   {
-    if (acl_getroot_no_password(this, definer_user->str, definer_host->str,
+    if (acl_getroot(this, definer_user->str, definer_host->str,
                                 definer_host->str, db->str))
     {
       my_error(ER_NO_SUCH_USER, MYF(0), definer_user->str,
@@ -3357,6 +3381,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   }
 #endif
   
+  backup->count_cuted_fields= count_cuted_fields;
   backup->options=         options;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
@@ -3395,6 +3420,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
+  DBUG_ENTER("THD::restore_sub_statement_state");
 #ifndef EMBEDDED_LIBRARY
   /* BUG#33029, if we are replicating from a buggy master, restore
      auto_inc_intervals_forced so that the top statement can use the
@@ -3421,6 +3447,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     /* ha_release_savepoint() never returns error. */
     (void)ha_release_savepoint(this, sv);
   }
+  count_cuted_fields= backup->count_cuted_fields;
   transaction.savepoints= backup->savepoints;
   options=          backup->options;
   in_sub_stmt=      backup->in_sub_stmt;
@@ -3451,6 +3478,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+  DBUG_VOID_RETURN;
 }
 
 

@@ -47,7 +47,8 @@ int mi_panic(enum ha_panic_function flag)
       if (info->s->options & HA_OPTION_READ_ONLY_DATA)
 	break;
 #endif
-      if (flush_key_blocks(info->s->key_cache, info->s->kfile, FLUSH_RELEASE))
+      if (flush_key_blocks(info->s->key_cache, info->s->kfile,
+                           &info->s->dirty_part_map, FLUSH_RELEASE))
 	error=my_errno;
       if (info->opt_flag & WRITE_CACHE_USED)
 	if (flush_io_cache(&info->rec_cache))

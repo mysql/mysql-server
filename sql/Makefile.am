@@ -80,7 +80,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			event_data_objects.h event_scheduler.h \
 			sql_partition.h partition_info.h partition_element.h \
 			contributors.h sql_servers.h \
-                        multi_range_read.h
+                        multi_range_read.h \
+			create_options.h
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
@@ -128,11 +129,11 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc event_parse_data.cc \
-			opt_table_elimination.cc \
+                        opt_table_elimination.cc create_options.cc \
 			multi_range_read.cc \
 			opt_index_cond_pushdown.cc
 
-nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
+nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c client_plugin.c
 
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
@@ -146,10 +147,10 @@ mysql_tzinfo_to_sql_SOURCES = tztime.cc
 mysql_tzinfo_to_sql_CXXFLAGS= -DTZINFO2SQL
 
 DEFS =			-DMYSQL_SERVER \
-			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DPLUGINDIR="\"$(pkgplugindir)\"" \
+			-DDEFAULT_MYSQL_HOME='"$(MYSQLBASEdir)"' \
+			-DMYSQL_DATADIR='"$(MYSQLDATAdir)"' \
+			-DSHAREDIR='"$(MYSQLSHAREdir)"' \
+			-DPLUGINDIR='"$(pkgplugindir)"' \
 			-DHAVE_EVENT_SCHEDULER \
 			@DEFS@
 
@@ -173,6 +174,8 @@ link_sources:
 	@LN_CP_F@ $(top_srcdir)/sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/client.c client.c
+	rm -f client_plugin.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/client_plugin.c client_plugin.c
 	rm -f my_time.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
 	rm -f my_user.c

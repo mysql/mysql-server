@@ -52,6 +52,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "create_options.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -1746,13 +1747,23 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 
 void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
 {
-  handler **file_array= m_file;
+  handler **file_array;
   table= table_arg;
   table_share= share;
-  do
+  /*
+    m_file can be NULL when using an old cached table in DROP TABLE, when the
+    table just has REMOVED PARTITIONING, see Bug#42438
+  */
+  if (m_file)
   {
-    (*file_array)->change_table_ptr(table_arg, share);
-  } while (*(++file_array));
+    file_array= m_file;
+    DBUG_ASSERT(*file_array);
+    do
+    {
+      (*file_array)->change_table_ptr(table_arg, share);
+    } while (*(++file_array));
+  }
+
   if (m_added_file && m_added_file[0])
   {
     /* if in middle of a drop/rename etc */
@@ -1869,6 +1880,8 @@ uint ha_partition::del_ren_cre_table(const char *from,
     {
       if ((error= set_up_table_before_create(table_arg, from_buff,
                                              create_info, i, NULL)) ||
+          parse_engine_table_options(ha_thd(), (*file)->ht,
+                                     (*file)->table_share) ||
           ((error= (*file)->ha_create(from_buff, table_arg, create_info))))
         goto create_error;
     }
@@ -3623,6 +3636,7 @@ int ha_partition::rnd_next(uchar *buf)
   int result= HA_ERR_END_OF_FILE;
   uint part_id= m_part_spec.start_part;
   DBUG_ENTER("ha_partition::rnd_next");
+  decrement_statistics(&SSV::ha_read_rnd_next_count);
 
   if (NO_CURRENT_PART_ID == part_id)
   {
@@ -3766,6 +3780,7 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
   uint part_id;
   handler *file;
   DBUG_ENTER("ha_partition::rnd_pos");
+  decrement_statistics(&SSV::ha_read_rnd_count);
 
   part_id= uint2korr((const uchar *) pos);
   DBUG_ASSERT(part_id < m_tot_parts);
@@ -3978,6 +3993,7 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
                                  enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_partition::index_read_map");
+  decrement_statistics(&SSV::ha_read_key_count);
   end_range= 0;
   m_index_scan_type= partition_index_read;
   m_start_key.key= key;
@@ -4106,6 +4122,7 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
 int ha_partition::index_first(uchar * buf)
 {
   DBUG_ENTER("ha_partition::index_first");
+  decrement_statistics(&SSV::ha_read_first_count);
 
   end_range= 0;
   m_index_scan_type= partition_index_first;
@@ -4137,6 +4154,7 @@ int ha_partition::index_first(uchar * buf)
 int ha_partition::index_last(uchar * buf)
 {
   DBUG_ENTER("ha_partition::index_last");
+  decrement_statistics(&SSV::ha_read_last_count);
 
   m_index_scan_type= partition_index_last;
   DBUG_RETURN(common_first_last(buf));
@@ -4165,39 +4183,6 @@ int ha_partition::common_first_last(uchar *buf)
 
 
 /*
-  Read last using key
-
-  SYNOPSIS
-    index_read_last_map()
-    buf                   Read row in MySQL Row Format
-    key                   Key
-    keypart_map           Which part of key is used
-
-  RETURN VALUE
-    >0                    Error code
-    0                     Success
-
-  DESCRIPTION
-    This is used in join_read_last_key to optimise away an ORDER BY.
-    Can only be used on indexes supporting HA_READ_ORDER
-*/
-
-int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
-                                      key_part_map keypart_map)
-{
-  DBUG_ENTER("ha_partition::index_read_last");
-
-  m_ordered= TRUE;				// Safety measure
-  end_range= 0;
-  m_index_scan_type= partition_index_read_last;
-  m_start_key.key= key;
-  m_start_key.keypart_map= keypart_map;
-  m_start_key.flag= HA_READ_PREFIX_LAST;
-  DBUG_RETURN(common_index_read(buf, TRUE));
-}
-
-
-/*
   Read next record in a forward index scan
 
   SYNOPSIS
@@ -4215,6 +4200,7 @@ int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
 int ha_partition::index_next(uchar * buf)
 {
   DBUG_ENTER("ha_partition::index_next");
+  decrement_statistics(&SSV::ha_read_next_count);
 
   /*
     TODO(low priority):
@@ -4251,6 +4237,7 @@ int ha_partition::index_next(uchar * buf)
 int ha_partition::index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   DBUG_ENTER("ha_partition::index_next_same");
+  decrement_statistics(&SSV::ha_read_next_count);
 
   DBUG_ASSERT(keylen == m_start_key.length);
   DBUG_ASSERT(m_index_scan_type != partition_index_last);
@@ -4278,6 +4265,7 @@ int ha_partition::index_next_same(uchar *buf, const uchar *key, uint keylen)
 int ha_partition::index_prev(uchar * buf)
 {
   DBUG_ENTER("ha_partition::index_prev");
+  decrement_statistics(&SSV::ha_read_prev_count);
 
   /* TODO: read comment in index_next */
   DBUG_ASSERT(m_index_scan_type != partition_index_first);
@@ -4689,12 +4677,6 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
         break;
       }
       error= file->ha_index_last(rec_buf_ptr);
-      reverse_order= TRUE;
-      break;
-    case partition_index_read_last:
-      error= file->ha_index_read_last_map(rec_buf_ptr,
-                                          m_start_key.key,
-                                          m_start_key.keypart_map);
       reverse_order= TRUE;
       break;
     case partition_read_range:
@@ -5120,6 +5102,7 @@ int ha_partition::info(uint flag)
 
     file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
+    stats.block_size= file->stats.block_size;
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
   }
@@ -6093,7 +6076,13 @@ void ha_partition::print_error(int error, myf errflag)
   if (error == HA_ERR_NO_PARTITION_FOUND)
     m_part_info->print_no_partition_found(table);
   else
-    m_file[m_last_part]->print_error(error, errflag);
+  {
+    /* In case m_file has not been initialized, like in bug#42438 */
+    if (m_file)
+      m_file[m_last_part]->print_error(error, errflag);
+    else
+      handler::print_error(error, errflag);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -6103,7 +6092,12 @@ bool ha_partition::get_error_message(int error, String *buf)
   DBUG_ENTER("ha_partition::get_error_message");
 
   /* Should probably look for my own errors first */
-  DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
+
+  /* In case m_file has not been initialized, like in bug#42438 */
+  if (m_file)
+    DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
+  DBUG_RETURN(handler::get_error_message(error, buf));
+
 }
 
 
@@ -6471,9 +6465,22 @@ void ha_partition::release_auto_increment()
     ulonglong next_auto_inc_val;
     lock_auto_increment();
     next_auto_inc_val= ha_data->next_auto_inc_val;
+    /*
+      If the current auto_increment values is lower than the reserved
+      value, and the reserved value was reserved by this thread,
+      we can lower the reserved value.
+    */
     if (next_insert_id < next_auto_inc_val &&
         auto_inc_interval_for_cur_row.maximum() >= next_auto_inc_val)
-      ha_data->next_auto_inc_val= next_insert_id;
+    {
+      THD *thd= ha_thd();
+      /*
+        Check that we do not lower the value because of a failed insert
+        with SET INSERT_ID, i.e. forced/non generated values.
+      */
+      if (thd->auto_inc_intervals_forced.maximum() < next_insert_id)
+        ha_data->next_auto_inc_val= next_insert_id;
+    }
     DBUG_PRINT("info", ("ha_data->next_auto_inc_val: %lu",
                         (ulong) ha_data->next_auto_inc_val));
 
@@ -6715,5 +6722,22 @@ mysql_declare_plugin(partition)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(partition)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &partition_storage_engine,
+  "partition",
+  "Mikael Ronstrom, MySQL AB",
+  "Partition Storage Engine Helper",
+  PLUGIN_LICENSE_GPL,
+  partition_initialize, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100, /* 1.0 */
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version                  */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity                     */
+}
+maria_declare_plugin_end;
 
 #endif

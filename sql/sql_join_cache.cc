@@ -1797,13 +1797,29 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
       rc= NESTED_LOOP_KILLED;
       goto finish; 
     }
-    
+    int err= 0;
+
+    /*
+     psergey3-merge: should we have this here by any chance:
+     if (rc == NESTED_LOOP_OK)
+      update_virtual_fields(join_tab->table);
+    */
+ 
     /* 
       Do not look for matches if the last read record of the joined table
       does not meet the conditions that have been pushed to this table
     */
-    if (rc == NESTED_LOOP_OK && (!select || !select->skip_record()))
+    if (rc == NESTED_LOOP_OK && 
+        (!select || (err= select->skip_record(join->thd)) != 0))
     {
+      if (err < 0)
+        return NESTED_LOOP_ERROR;
+      rc= NESTED_LOOP_OK;
+      //psergey3-merge: todo: check if all other places in this file
+      //  should have the 
+      //     skip_record(...) <0  -->  return error
+      //  code.
+
       /* Prepare to read records from the join buffer */
       reset(FALSE);
 
@@ -1968,7 +1984,7 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
 inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
 {
   /* Check whether pushdown conditions are satisfied */
-  if (join_tab->select && join_tab->select->skip_record())
+  if (join_tab->select && join_tab->select->skip_record(join->thd) < 1)
     return FALSE;
 
   if (!join_tab->is_last_inner_table())
@@ -1998,7 +2014,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     */      
     for (JOIN_TAB *tab= first_inner; tab <= join_tab; tab++)
     {
-      if (tab->select && tab->select->skip_record())
+      if (tab->select && tab->select->skip_record(join->thd) < 1)
         return FALSE;
     }
   }
@@ -2069,7 +2085,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       mark_as_null_row(join_tab->table);  
       /* Check all pushdown conditions attached to the inner table */
       join_tab->first_unmatched->found= 1;
-      if (join_tab->select && join_tab->select->skip_record())
+      if (join_tab->select && join_tab->select->skip_record(join->thd) < 1)
         continue;
       if (is_last_inner)
       { 
@@ -2079,7 +2095,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
           set_match_flag_if_none(first_upper, get_curr_rec());
           for (JOIN_TAB* tab= first_upper; tab <= join_tab; tab++)
           {
-            if (tab->select && tab->select->skip_record())
+            if (tab->select && tab->select->skip_record(join->thd) < 1)
               goto next;
           }
           first_upper= first_upper->first_upper;

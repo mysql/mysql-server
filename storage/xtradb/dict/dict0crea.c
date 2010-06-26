@@ -97,8 +97,8 @@ dict_create_sys_tables_tuple(
 	if (table->flags & ~DICT_TF_COMPACT) {
 		ut_a(table->flags & DICT_TF_COMPACT);
 		ut_a(dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
-		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
-		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
+		ut_a(((ulonglong) table->flags & DICT_TF_ZSSIZE_MASK)
+		     <= (ulonglong) (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
 		ut_a(!(table->flags & (~0 << DICT_TF_BITS)));
 		mach_write_to_4(ptr, table->flags);
 	} else {

@@ -521,6 +521,7 @@ struct dict_table_struct{
 				the AUTOINC lock on this table. */
 				/* @} */
 	/*----------------------*/
+	ibool		is_corrupt;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

@@ -7319,13 +7319,6 @@ static int ndbcluster_init(void *p)
   if (ndbcluster_inited)
     DBUG_RETURN(FALSE);
 
-  /*
-    Below we create new THD's. They'll need LOCK_plugin, but it's taken now by
-    plugin initialization code. Release it to avoid deadlocks.  It's safe, as
-    there're no threads that may concurrently access plugin control structures.
-  */
-  pthread_mutex_unlock(&LOCK_plugin);
-
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_util_thread, NULL);
@@ -7466,8 +7459,6 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
-  pthread_mutex_lock(&LOCK_plugin);
-
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
 
@@ -7479,8 +7470,6 @@ ndbcluster_init_error:
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
   ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
-
-  pthread_mutex_lock(&LOCK_plugin);
 
   DBUG_RETURN(TRUE);
 }
@@ -9188,7 +9177,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->main_security_ctx.master_access= ~0;
-  thd->main_security_ctx.priv_user = 0;
+  thd->main_security_ctx.priv_user[0] = 0;
 
   CHARSET_INFO *charset_connection;
   charset_connection= get_charset_by_csname("utf8",
@@ -10567,6 +10556,23 @@ mysql_declare_plugin(ndbcluster)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(ndbcluster)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbcluster_storage_engine,
+  ndbcluster_hton_name,
+  "MySQL AB",
+  "Clustered, fault-tolerant tables",
+  PLUGIN_LICENSE_GPL,
+  ndbcluster_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+}
+maria_declare_plugin_end;
 
 #else
 int Sun_ar_require_a_symbol_here= 0;

@@ -2276,4 +2276,117 @@ END|
 DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1,t2;
+#
+# Bug #49324: more valgrind errors in test_if_skip_sort_order
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb ;
+#should not cause valgrind warnings
+SELECT 1 FROM t1 JOIN t1 a USING(a) GROUP BY t1.a,t1.a;
+1
+DROP TABLE t1;
+#
+# Bug#50843: Filesort used instead of clustered index led to
+#            performance degradation.
+#
+create table t1(f1 int not null primary key, f2 int) engine=innodb;
+create table t2(f1 int not null, key (f1)) engine=innodb;
+insert into t1 values (1,1),(2,2),(3,3);
+insert into t2 values (1),(2),(3);
+explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	3	
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	1	Using index
+drop table t1,t2;
+#
+#
+# Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
+#   corrupt definition at engine
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b)) 
+ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
+SHOW INDEXES FROM t1;;
+Table	t1
+Non_unique	0
+Key_name	k
+Seq_in_index	1
+Column_name	a
+Collation	A
+Cardinality	0
+Sub_part	NULL
+Packed	NULL
+Null	
+Index_type	BTREE
+Comment	
+Table	t1
+Non_unique	0
+Key_name	k
+Seq_in_index	2
+Column_name	b
+Collation	A
+Cardinality	0
+Sub_part	NULL
+Packed	NULL
+Null	
+Index_type	BTREE
+Comment	
+DROP TABLE t1;
+#
+# Bug #53334: wrong result for outer join with impossible ON condition
+# (see the same test case for MyISAM in join.test)
+#
+create table t1 (id int primary key);
+create table t2 (id int);
+insert into t1 values (75);
+insert into t1 values (79);
+insert into t1 values (78);
+insert into t1 values (77);
+replace into t1 values (76);
+replace into t1 values (76);
+insert into t1 values (104);
+insert into t1 values (103);
+insert into t1 values (102);
+insert into t1 values (101);
+insert into t1 values (105);
+insert into t1 values (106);
+insert into t1 values (107);
+insert into t2 values (107),(75),(1000);
+select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+where t2.id=75 and t1.id is null;
+id	id
+NULL	75
+explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+where t2.id=75 and t1.id is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	NULL	NULL	NULL	1	Impossible ON condition
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1,t2;
+#
+# Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when 
+#  JOINed during an UPDATE
+#
+CREATE TABLE t1 (d INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, b INT, 
+c TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB;
+set up our data elements
+INSERT INTO t1 (d) VALUES (1);
+INSERT INTO t2 (a,b) VALUES (1,1);
+SELECT SECOND(c) INTO @bug47453 FROM t2;
+SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
+SECOND(c)-@bug47453
+0
+UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
+SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
+SECOND(c)-@bug47453
+0
+SELECT SLEEP(1);
+SLEEP(1)
+0
+UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
+#should be 0
+SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
+SECOND(c)-@bug47453
+0
+DROP TABLE t1, t2;
 End of 5.1 tests

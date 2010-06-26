@@ -74,13 +74,13 @@ libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
 # charset2html_DEPENDENCIES=	$(LIBRARIES)
-DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
+DEFS =			-DDEFAULT_BASEDIR='"$(prefix)"' \
+			-DMYSQL_DATADIR='"$(MYSQLDATAdir)"' \
+			-DDEFAULT_CHARSET_HOME='"$(MYSQLBASEdir)"' \
+			-DSHAREDIR'="$(MYSQLSHAREdir)"' \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
 			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
-			-DDEFAULT_SYSCONFDIR="\"$(sysconfdir)\"" \
+			-DDEFAULT_SYSCONFDIR='"$(sysconfdir)"' \
                         @DEFS@
 
 libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@

@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2003, 2010 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -155,7 +155,8 @@ public:
   /** @brief
     This method will never be called if you do not implement indexes.
   */
-  virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
+  virtual double read_time(uint, uint, ha_rows rows)
+  { return (double) rows /  20.0+1; }
 
   /*
     Everything below are methods that we implement in ha_example.cc.
@@ -242,9 +243,10 @@ public:
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key);
   int delete_table(const char *from);
-  int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info);                      ///< required
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     ///< required

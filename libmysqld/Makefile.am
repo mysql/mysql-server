@@ -25,10 +25,10 @@ pkgplugindir =		$(pkglibdir)/plugin
 
 EXTRA_DIST =		libmysqld.def CMakeLists.txt
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
-			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DPLUGINDIR="\"$(pkgplugindir)\""
+			-DDEFAULT_MYSQL_HOME='"$(MYSQLBASEdir)"' \
+			-DMYSQL_DATADIR='"$(MYSQLDATAdir)"' \
+			-DSHAREDIR='"$(MYSQLSHAREdir)"' \
+			-DPLUGINDIR='"$(pkgplugindir)"'
 INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_builddir)/sql -I$(top_srcdir)/sql \
 			-I$(top_srcdir)/sql/examples \
@@ -41,7 +41,7 @@ pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
-                        my_time.c
+                        my_time.c client_plugin.c
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
@@ -77,7 +77,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
 	rpl_filter.cc sql_partition.cc sql_builtin.cc sql_plugin.cc \
 	debug_sync.cc \
-	sql_tablespace.cc \
+	sql_tablespace.cc create_options.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc event_parse_data.cc opt_table_elimination.cc \
 	multi_range_read.cc opt_index_cond_pushdown.cc

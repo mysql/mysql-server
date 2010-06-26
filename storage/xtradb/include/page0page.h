@@ -517,7 +517,7 @@ UNIV_INLINE
 rec_t*
 page_rec_get_next(
 /*==============*/
-	rec_t*	rec);	/*!< in: pointer to record */
+	const rec_t*	rec);	/*!< in: pointer to record */
 /************************************************************//**
 Gets the pointer to the next record on the page.
 @return	pointer to next record */

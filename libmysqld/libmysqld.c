@@ -18,7 +18,6 @@
 #include <mysql_embed.h>
 #include <mysqld_error.h>
 #include <my_pthread.h>
-#include "embedded_priv.h"
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -28,6 +27,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
+#include "embedded_priv.h"
 #include "client_settings.h"
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
@@ -81,9 +81,9 @@ static my_bool is_NT(void)
 ** Shut down connection
 **************************************************************************/
 
-static void end_server(MYSQL *mysql)
+void embedded_end_server(MYSQL *mysql)
 {
-  DBUG_ENTER("end_server");
+  DBUG_ENTER("embedded_end_server");
   free_old_query(mysql);
   DBUG_VOID_RETURN;
 }
@@ -169,7 +169,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   client_flag|=CLIENT_CAPABILITIES;
   if (client_flag & CLIENT_MULTI_STATEMENTS)
     client_flag|= CLIENT_MULTI_RESULTS;
-  client_flag&= ~CLIENT_COMPRESS;
+  /*
+    no compression in embedded as we don't send any data,
+    and no pluggable auth, as we cannot do a client-server dialog
+  */
+  client_flag&= ~(CLIENT_COMPRESS | CLIENT_PLUGIN_AUTH);
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
@@ -216,7 +220,7 @@ error:
   {
     /* Free alloced memory */
     my_bool free_me=mysql->free_me;
-    end_server(mysql);
+    embedded_end_server(mysql);
     mysql->free_me=0;
     mysql_close(mysql);
     mysql->free_me=free_me;

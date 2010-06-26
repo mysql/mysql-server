@@ -79,7 +79,6 @@ class ha_myisam: public handler
   int index_read_idx_map(uchar *buf, uint index, const uchar *key,
                          key_part_map keypart_map,
                          enum ha_rkey_function find_flag);
-  int index_read_last_map(uchar *buf, const uchar *key, key_part_map keypart_map);
   int index_next(uchar * buf);
   int index_prev(uchar * buf);
   int index_first(uchar * buf);

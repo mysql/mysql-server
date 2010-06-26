@@ -145,7 +145,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
 #define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
 #define my_strndup(A,B,C) _my_strndup((A),(B),__FILE__,__LINE__,C)
-#define TRASH(A,B) bfill(A, B, 0x8F)
 #define QUICK_SAFEMALLOC sf_malloc_quick=1
 #define NORMAL_SAFEMALLOC sf_malloc_quick=0
 extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
@@ -173,7 +172,6 @@ extern char *my_strndup(const char *from, size_t length,
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */
-#define TRASH(A,B) /* nothing */
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -208,10 +206,14 @@ extern void my_large_free(uchar * ptr, myf my_flags);
 #define alloca __builtin_alloca
 #endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
-#define my_afree(PTR) {}
+#define my_afree(PTR) ((void)0)
+#define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(MY_FAE)))
+#define my_safe_afree(ptr, size, min_length) ((size <= min_length) ? (void)0 : my_free(ptr,MYF(MY_WME)))
 #else
-#define my_alloca(SZ) my_malloc(SZ,MYF(0))
+#define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
 #define my_afree(PTR) my_free(PTR,MYF(MY_WME))
+#define my_safe_alloca(size, min_length) my_alloca(size)
+#define my_safe_afree(ptr, size, min_length) my_afree(ptr)
 #endif /* HAVE_ALLOCA */
 
 #ifndef errno				/* did we already get it? */
@@ -870,6 +872,10 @@ extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
                                 size_t prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
+static inline char *safe_strdup_root(MEM_ROOT *root, const char *str)
+{
+  return str ? strdup_root(root, str) : 0;
+}
 extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,
@@ -999,7 +1005,7 @@ extern my_bool resolve_charset(const char *cs_name,
 extern my_bool resolve_collation(const char *cl_name,
                                  CHARSET_INFO *default_cl,
                                  CHARSET_INFO **cl);
-
+extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);

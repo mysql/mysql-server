@@ -1,0 +1,3 @@
+--slow-query-log
+--slow-query-log-file=slow.log
+--log-queries-not-using-indexes

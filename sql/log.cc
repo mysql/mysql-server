@@ -986,6 +986,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   uint user_host_len= 0;
   ulonglong query_utime, lock_utime;
 
+  DBUG_ASSERT(thd->enable_slow_log);
   /*
     Print the message to the buffer if we have slow log enabled
   */
@@ -1238,6 +1239,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
   MYSQL_LOG *file_log;
+  LINT_INIT(file_log);
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -1748,11 +1750,14 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   binlog_trans_log_savepos(thd, (my_off_t*) sv);
   /* Write it to the binary log */
 
+  String log_query;
+  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
+      log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+    DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-  int const error=
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query(), thd->query_length(), TRUE, FALSE, errcode);
-  DBUG_RETURN(error);
+  Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+                        TRUE, TRUE, errcode);
+  DBUG_RETURN(mysql_bin_log.write(&qinfo));
 }
 
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
@@ -1767,11 +1772,14 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(thd->transaction.all.modified_non_trans_table || 
                (thd->options & OPTION_KEEP_LOG)))
   {
+    String log_query;
+    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+      DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-    int error=
-      thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query(), thd->query_length(), TRUE, FALSE, errcode);
-    DBUG_RETURN(error);
+    Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+                          TRUE, TRUE, errcode);
+    DBUG_RETURN(mysql_bin_log.write(&qinfo));
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
   DBUG_RETURN(0);
@@ -4121,11 +4129,8 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
 
-  Table_map_log_event::flag_set const
-    flags= Table_map_log_event::TM_NO_FLAGS;
-
   Table_map_log_event
-    the_event(this, table, table->s->table_map_id, is_trans, flags);
+    the_event(this, table, table->s->table_map_id, is_trans);
 
   if (is_trans && binlog_table_maps == 0)
     binlog_start_trans_and_stmt();
@@ -4335,7 +4340,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     */
     const char *local_db= event_info->get_db();
     if ((!(thd->options & OPTION_BIN_LOG)) ||
-        (!binlog_filter->db_ok(local_db)))
+	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
+         thd->lex->sql_command != SQLCOM_SAVEPOINT &&
+         !binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_RETURN(0);
@@ -4745,7 +4752,7 @@ int query_error_code(THD *thd, bool not_killed)
 {
   int error;
   
-  if (not_killed)
+  if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
   {
     error= thd->is_error() ? thd->main_da.sql_errno() : 0;
 
@@ -5424,7 +5431,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->state=POOL;
     pthread_mutex_init(&pg->lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init (&pg->cond, 0);
-    pg->start=(my_xid *)(data + i*tc_log_page_size);
+    pg->ptr= pg->start=(my_xid *)(data + i*tc_log_page_size);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
     pg->end=pg->start + pg->size;
   }
@@ -5659,7 +5666,15 @@ int TC_LOG_MMAP::sync()
   /* marking 'syncing' slot free */
   pthread_mutex_lock(&LOCK_sync);
   syncing=0;
-  pthread_cond_signal(&active->cond);        // wake up a new syncer
+  /*
+    we check the "active" pointer without LOCK_active. Still, it's safe -
+    "active" can change from NULL to not NULL any time, but it
+    will take LOCK_sync before waiting on active->cond. That is, it can never
+    miss a signal.
+    And "active" can change to NULL only after LOCK_sync, so this is safe too.
+  */
+  if (active)
+    pthread_cond_signal(&active->cond);      // wake up a new syncer
   pthread_mutex_unlock(&LOCK_sync);
   return err;
 }
@@ -6028,3 +6043,20 @@ mysql_declare_plugin(binlog)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(binlog)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &binlog_storage_engine,
+  "binlog",
+  "MySQL AB",
+  "This is a pseudo storage engine to represent the binlog in a transaction",
+  PLUGIN_LICENSE_GPL,
+  binlog_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

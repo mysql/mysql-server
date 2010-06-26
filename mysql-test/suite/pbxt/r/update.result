@@ -271,7 +271,7 @@ a
 0
 show status like 'handler_read%';
 Variable_name	Value
-Handler_read_first	0
+Handler_read_first	1
 Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -289,8 +289,8 @@ Handler_read_first	0
 Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+Handler_read_rnd	2
+Handler_read_rnd_next	18
 flush status;
 delete from t1 order by a limit 1;
 show status like 'handler_read%';
@@ -299,8 +299,8 @@ Handler_read_first	0
 Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+Handler_read_rnd	1
+Handler_read_rnd_next	9
 flush status;
 delete from t1 order by a desc limit 1;
 show status like 'handler_read%';
@@ -309,8 +309,8 @@ Handler_read_first	0
 Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+Handler_read_rnd	1
+Handler_read_rnd_next	8
 alter table t1 disable keys;
 Warnings:
 Note	1031	Table storage engine for 't1' doesn't have this option
@@ -322,8 +322,8 @@ Handler_read_first	0
 Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
+Handler_read_rnd	1
+Handler_read_rnd_next	7
 select * from t1;
 a	b
 0	0
@@ -372,10 +372,10 @@ update t2 set a=3 where a=2;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	0
-Handler_read_next	0
+Handler_read_key	1
+Handler_read_next	1
 Handler_read_prev	0
-Handler_read_rnd	0
+Handler_read_rnd	1
 Handler_read_rnd_next	0
 drop table t1, t2;
 create table t1(f1 int, `*f2` int);

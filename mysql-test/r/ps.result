@@ -157,24 +157,24 @@ execute stmt1 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 execute stmt1 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 deallocate prepare stmt1;
@@ -1197,13 +1197,13 @@ SET @aux= "SELECT COUNT(*)
 prepare my_stmt from @aux;
 execute my_stmt;
 COUNT(*)
-39
+41
 execute my_stmt;
 COUNT(*)
-39
+41
 execute my_stmt;
 COUNT(*)
-39
+41
 deallocate prepare my_stmt;
 drop procedure if exists p1|
 drop table if exists t1|
@@ -1789,7 +1789,7 @@ prepare stmt from "create view v1 (c,d,e,f) as select a,b,a in (select a+2 from 
 execute stmt;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) AS `a+2` from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` AS `a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
 select * from v1;
 c	d	e	f
 drop view v1;
@@ -1797,7 +1797,7 @@ execute stmt;
 deallocate prepare stmt;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) AS `a+2` from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` AS `a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
 select * from v1;
 c	d	e	f
 drop view v1;
@@ -2991,4 +2991,17 @@ select @plaintext;
 bcd
 deallocate prepare encode;
 deallocate prepare decode;
+#
+# Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
+#
+CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
+INSERT INTO t1 VALUES (0, 0),(0, 0);
+PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
+ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > 1234))";
+EXECUTE stmt;
+1
+EXECUTE stmt;
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.1 tests.

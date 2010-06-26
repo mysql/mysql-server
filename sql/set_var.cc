@@ -322,15 +322,18 @@ static sys_var_thd_ulong	sys_join_buffer_size(&vars, "join_buffer_size",
 static sys_var_thd_ulong	sys_join_cache_level(&vars, "join_cache_level",
 					             &SV::join_cache_level);
 static sys_var_key_buffer_size	sys_key_buffer_size(&vars, "key_buffer_size");
-static sys_var_key_cache_long  sys_key_cache_block_size(&vars, "key_cache_block_size",
-						 offsetof(KEY_CACHE,
-							  param_block_size));
-static sys_var_key_cache_long	sys_key_cache_division_limit(&vars, "key_cache_division_limit",
-						     offsetof(KEY_CACHE,
-							      param_division_limit));
-static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars, "key_cache_age_threshold",
-						     offsetof(KEY_CACHE,
-							      param_age_threshold));
+static sys_var_key_cache_long  sys_key_cache_block_size(&vars,
+                                   "key_cache_block_size",
+                                   offsetof(KEY_CACHE,param_block_size));
+static sys_var_key_cache_long  sys_key_cache_division_limit(&vars,
+                                   "key_cache_division_limit",
+                                   offsetof(KEY_CACHE, param_division_limit));
+static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars,
+                                   "key_cache_age_threshold",
+                                   offsetof(KEY_CACHE, param_age_threshold));
+static sys_var_key_cache_long  sys_key_cache_partitions(&vars,
+                                   "key_cache_segments",
+                                   offsetof(KEY_CACHE, param_partitions));
 static sys_var_const    sys_language(&vars, "language",
                                      OPT_GLOBAL, SHOW_CHAR,
                                      (uchar*) language);
@@ -579,6 +582,10 @@ static sys_var_const    sys_skip_networking(&vars, "skip_networking",
 static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
+
+static sys_var_const    sys_skip_name_resolve(&vars, "skip_name_resolve",
+                                            OPT_GLOBAL, SHOW_BOOL,
+                                            (uchar*) &opt_skip_name_resolve);
 
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
@@ -1283,16 +1290,16 @@ uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
 
 void sys_var_set_slave_mode::set_default(THD *thd, enum_var_type type)
 {
-  slave_exec_mode_options= 0;
-  bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  slave_exec_mode_options= (ULL(1) << SLAVE_EXEC_MODE_STRICT);
 }
 
 bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
 {
   bool rc=  sys_var_set::check(thd, var);
   if (!rc &&
-      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_STRICT) == 1 &&
-      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+      test_all_bits(var->save_result.ulong_value,
+                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
+                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
   {
     rc= true;
     my_error(ER_SLAVE_AMBIGOUS_EXEC_MODE, MYF(0), "");
@@ -1314,15 +1321,16 @@ void fix_slave_exec_mode(enum_var_type type)
   DBUG_ENTER("fix_slave_exec_mode");
   compile_time_assert(sizeof(slave_exec_mode_options) * CHAR_BIT
                       > SLAVE_EXEC_MODE_LAST_BIT - 1);
-  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT) == 1 &&
-      bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+  if (test_all_bits(slave_exec_mode_options,
+                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
+                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
   {
     sql_print_error("Ambiguous slave modes combination."
                     " STRICT will be used");
-    bit_do_clear(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT);
+    slave_exec_mode_options&= ~(ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT);
   }
-  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
-    bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  if (!(slave_exec_mode_options & (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT)))
+    slave_exec_mode_options|= (ULL(1)<< SLAVE_EXEC_MODE_STRICT);
   DBUG_VOID_RETURN;
 }
 
@@ -2564,7 +2572,15 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
-  error= (bool) (ha_resize_key_cache(key_cache));
+  if (offset == offsetof(KEY_CACHE, param_block_size))
+    error= (bool) (ha_resize_key_cache(key_cache));
+  else
+  if (offset == offsetof(KEY_CACHE, param_division_limit) ||
+      offset == offsetof(KEY_CACHE, param_age_threshold))
+    error= (bool) (ha_change_key_cache_param(key_cache));
+  else
+  if (offset == offsetof(KEY_CACHE, param_partitions))
+    error= (bool) (ha_repartition_key_cache(key_cache));
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   key_cache->in_init= 0;  
@@ -2609,7 +2625,7 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
   char path[FN_REFLEN], buff[FN_REFLEN];
   MY_STAT f_stat;
   String str(buff, sizeof(buff), system_charset_info), *res;
-  const char *log_file_str;
+  const char *log_file_str= 0;
   size_t path_length;
 
   if (!(res= var->value->val_str(&str)))
@@ -2659,7 +2675,7 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
 
 err:
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, 
-           res ? log_file_str : "NULL");
+           log_file_str ? log_file_str : "NULL");
   return 1;
 }
 
@@ -2668,7 +2684,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
 			     set_var *var, const char *log_ext,
 			     bool log_state, uint log_type)
 {
-  MYSQL_QUERY_LOG *file_log;
+  MYSQL_QUERY_LOG *file_log= 0;
   char buff[FN_REFLEN];
   char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
   bool result= 0;
@@ -3198,6 +3214,13 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
+      if (thd->transaction.xid_state.xa_state != XA_NOTR)
+      {
+        thd->options= org_options;
+        my_error(ER_XAER_RMFAIL, MYF(0),
+                 xa_state_names[thd->transaction.xid_state.xa_state]);
+        return 1;
+      }
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
@@ -4172,6 +4195,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length)
       key_cache->param_block_size=     dflt_key_cache_var.param_block_size;
       key_cache->param_division_limit= dflt_key_cache_var.param_division_limit;
       key_cache->param_age_threshold=  dflt_key_cache_var.param_age_threshold;
+      key_cache->param_partitions=     dflt_key_cache_var.param_partitions;
     }
   }
   DBUG_RETURN(key_cache);

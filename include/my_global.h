@@ -566,16 +566,20 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
+#include <my_valgrind.h>
+
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_valgrind)
 #define VALGRIND_OR_LINT_INIT(var) var=0
 #else
 #define VALGRIND_OR_LINT_INIT(var)
 #endif
 
-#ifdef HAVE_valgrind
-#define IF_VALGRIND(A,B) (A)
+#ifdef _WIN32
+#define SO_EXT ".dll"
+#elif defined(__APPLE__)
+#define SO_EXT ".dylib"
 #else
-#define IF_VALGRIND(A,B) (B)
+#define SO_EXT ".so"
 #endif
 
 /* 
@@ -772,7 +776,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 #define MY_NFILE	64	/* This is only used to save filenames */
 #ifndef OS_FILE_LIMIT
-#define OS_FILE_LIMIT	65535
+#define OS_FILE_LIMIT	UINT_MAX
 #endif
 
 /* #define EXT_IN_LIBNAME     */
@@ -1514,6 +1518,9 @@ do { doubleget_union _tmp; \
 #elif defined(HAVE_DLFCN_H)
 #include <dlfcn.h>
 #endif
+#ifndef HAVE_DLERROR
+#define dlerror() ""
+#endif
 #endif
 
 /* FreeBSD 2.2.2 does not define RTLD_NOW) */
@@ -1521,10 +1528,12 @@ do { doubleget_union _tmp; \
 #define RTLD_NOW 1
 #endif
 
-#ifndef HAVE_DLERROR
-#define dlerror() ""
+#ifndef HAVE_DLOPEN
+#define dlerror() "No support for dynamic loading (static build?)"
+#define dlopen(A,B) 0
+#define dlsym(A,B) 0
+#define dlclose(A) 0
 #endif
-
 
 #ifndef __NETWARE__
 /*

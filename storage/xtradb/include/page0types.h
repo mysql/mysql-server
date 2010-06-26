@@ -56,8 +56,9 @@ page0*.h includes rem0rec.h and may include rem0rec.ic. */
 
 /** Number of supported compressed page sizes */
 #define PAGE_ZIP_NUM_SSIZE (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 2)
-#if PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)
-# error "PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)"
+#define PAGE_ZIP_NUM_SSIZE_MAX (UNIV_PAGE_SIZE_SHIFT_MAX - PAGE_ZIP_MIN_SIZE_SHIFT + 2)
+#if PAGE_ZIP_NUM_SSIZE_MAX > (1 << PAGE_ZIP_SSIZE_BITS)
+# error "PAGE_ZIP_NUM_SSIZE_MAX > (1 << PAGE_ZIP_SSIZE_BITS)"
 #endif
 
 /** Compressed page descriptor */
@@ -98,7 +99,7 @@ struct page_zip_stat_struct {
 typedef struct page_zip_stat_struct page_zip_stat_t;
 
 /** Statistics on compression, indexed by page_zip_des_struct::ssize - 1 */
-extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
+extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE_MAX - 1];
 
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must

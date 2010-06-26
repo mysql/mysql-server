@@ -224,6 +224,10 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
+/* The universal page size of the database */
+UNIV_INTERN ulint	srv_page_size_shift	= 0;
+UNIV_INTERN ulint	srv_page_size		= 0;
+
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -386,6 +390,7 @@ UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
+UNIV_INTERN ibool	srv_fast_checksum = FALSE;
 
 UNIV_INTERN ibool	srv_set_thread_priorities = TRUE;
 UNIV_INTERN int	srv_query_thread_priority = 0;
@@ -406,6 +411,7 @@ UNIV_INTERN ulong	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimat
 
 UNIV_INTERN ulong	srv_expand_import = 0; /* 0:disable 1:enable */
 UNIV_INTERN ulint	srv_relax_table_creation = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 
 UNIV_INTERN ulong	srv_extra_rsegments = 0; /* extra rseg for users */
 UNIV_INTERN ulong	srv_dict_size_limit = 0;
@@ -2558,6 +2564,7 @@ srv_master_thread(
 #endif
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
+
 
 	mutex_enter(&kernel_mutex);
 

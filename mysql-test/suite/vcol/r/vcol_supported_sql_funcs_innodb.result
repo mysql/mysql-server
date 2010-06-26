@@ -2194,6 +2194,7 @@ a	b
 drop table t1;
 set sql_warnings = 0;
 # FROM_UNIXTIME()
+set time_zone='UTC';
 set sql_warnings = 1;
 create table t1 (a long, b datetime as (from_unixtime(a)));
 show create table t1;
@@ -2205,7 +2206,7 @@ t1	CREATE TABLE `t1` (
 insert into t1 values (1196440219,default);
 select * from t1;
 a	b
-1196440219	2007-11-30 19:30:19
+1196440219	2007-11-30 16:30:19
 drop table t1;
 set sql_warnings = 0;
 # GET_FORMAT()

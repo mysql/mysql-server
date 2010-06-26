@@ -49,7 +49,8 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   my_init();
   if (key_cacheing)
-    init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,IO_SIZE*16,0,0);
+    init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,IO_SIZE*16,0,0,
+                   DEFAULT_KEY_CACHE_PARTITIONS);
   get_options(argc,argv);
 
   exit(run_test("test1"));

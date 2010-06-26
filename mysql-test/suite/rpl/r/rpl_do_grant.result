@@ -161,14 +161,13 @@ SELECT * FROM mysql.procs_priv;
 Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
 SELECT upgrade_alter_func();
 ERROR HY000: The user specified as a definer ('create_rout_db'@'localhost') does not exist
-USE bug42217_db;
-DROP FUNCTION upgrade_del_func;
-DROP FUNCTION upgrade_alter_func;
+USE test;
+DROP FUNCTION bug42217_db.upgrade_del_func;
+DROP FUNCTION bug42217_db.upgrade_alter_func;
 DROP DATABASE bug42217_db;
+call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+stop slave;
 DROP USER 'create_rout_db'@'localhost';
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
-USE mtr;
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
 ######## BUG#49119 #######
 ### i) test case from the 'how to repeat section'
 stop slave;
@@ -242,4 +241,18 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 DROP TABLE t1;
 DROP PROCEDURE p1;
 DROP USER 'user49119'@'localhost';
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+grant all on *.* to foo@"1.2.3.4";
+revoke all privileges, grant option from "foo";
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; grant all on *.* to foo@"1.2.3.4"
+master-bin.000001	#	Query	#	#	use `test`; revoke all privileges, grant option from "foo"
+DROP USER foo@"1.2.3.4";
 "End of test"

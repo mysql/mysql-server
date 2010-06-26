@@ -16,6 +16,9 @@
 
 /* Definitions for parameters to do with handler-routines */
 
+#ifndef SQL_HANDLER_INCLUDED
+#define SQL_HANDLER_INCLUDED
+
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
@@ -554,6 +557,103 @@ struct handler_log_file_data {
   enum log_status status;
 };
 
+/*
+  Definitions for engine-specific table/field/index options in the CREATE TABLE.
+
+  Options are declared with HA_*OPTION_* macros (HA_TOPTION_NUMBER,
+  HA_FOPTION_ENUM, HA_IOPTION_STRING, etc).
+
+  Every macros takes the option name, and the name of the underlying field of
+  the appropriate C structure. The "appropriate C structure" is
+  ha_table_option_struct for table level options,
+  ha_field_option_struct for field level options,
+  ha_index_option_struct for key level options. The engine either
+  defines a structure of this name, or uses #define's to map
+  these "appropriate" names to the actual structure type name.
+
+  ULL options use a ulonglong as the backing store.
+  HA_*OPTION_NUMBER() takes the option name, the structure field name,
+  the default value for the option, min, max, and blk_siz values.
+
+  STRING options use a char* as a backing store.
+  HA_*OPTION_STRING takes the option name and the structure field name.
+  The default value will be 0.
+
+  ENUM options use a uint as a backing store (not enum!!!).
+  HA_*OPTION_ENUM takes the option name, the structure field name,
+  the default value for the option as a number, and a string with the
+  permitted values for this enum - one string with comma separated values,
+  for example: "gzip,bzip2,lzma"
+
+  BOOL options use a bool as a backing store.
+  HA_*OPTION_BOOL takes the option name, the structure field name,
+  and the default value for the option.
+  From the SQL, BOOL options accept YES/NO, ON/OFF, and 1/0.
+
+  The name of the option is limited to 255 bytes,
+  the value (for string options) - to the 32767 bytes.
+
+  See ha_example.cc for an example.
+*/
+enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
+                      HA_OPTION_TYPE_STRING, /* char * */
+                      HA_OPTION_TYPE_ENUM,   /* uint */
+                      HA_OPTION_TYPE_BOOL};  /* bool */
+
+#define HA_xOPTION_NUMBER(name, struc, field, def, min, max, blk_siz)   \
+  { HA_OPTION_TYPE_ULL, name, sizeof(name)-1,                        \
+    offsetof(struc, field), def, min, max, blk_siz, 0 }
+#define HA_xOPTION_STRING(name, struc, field)                        \
+  { HA_OPTION_TYPE_STRING, name, sizeof(name)-1,                     \
+    offsetof(struc, field), 0, 0, 0, 0, 0 }
+#define HA_xOPTION_ENUM(name, struc, field, values, def)             \
+  { HA_OPTION_TYPE_ENUM, name, sizeof(name)-1,                       \
+    offsetof(struc, field), def, 0,                                  \
+    sizeof(values)-1, 0, values }
+#define HA_xOPTION_BOOL(name, struc, field, def)                     \
+  { HA_OPTION_TYPE_BOOL, name, sizeof(name)-1,                       \
+    offsetof(struc, field), def, 0, 1, 0, 0 }
+#define HA_xOPTION_END { HA_OPTION_TYPE_ULL, 0, 0, 0, 0, 0, 0, 0, 0 }
+
+#define HA_TOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_table_option_struct, field, def, min, max, blk_siz)
+#define HA_TOPTION_STRING(name, field)                               \
+  HA_xOPTION_STRING(name, ha_table_option_struct, field)
+#define HA_TOPTION_ENUM(name, field, values, def)                    \
+  HA_xOPTION_ENUM(name, ha_table_option_struct, field, values, def)
+#define HA_TOPTION_BOOL(name, field, def)                            \
+  HA_xOPTION_BOOL(name, ha_table_option_struct, field, def)
+#define HA_TOPTION_END HA_xOPTION_END
+
+#define HA_FOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_field_option_struct, field, def, min, max, blk_siz)
+#define HA_FOPTION_STRING(name, field)                               \
+  HA_xOPTION_STRING(name, ha_field_option_struct, field)
+#define HA_FOPTION_ENUM(name, field, values, def)                    \
+  HA_xOPTION_ENUM(name, ha_field_option_struct, field, values, def)
+#define HA_FOPTION_BOOL(name, field, def)                            \
+  HA_xOPTION_BOOL(name, ha_field_option_struct, field, def)
+#define HA_FOPTION_END HA_xOPTION_END
+
+#define HA_IOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_index_option_struct, field, def, min, max, blk_siz)
+#define HA_IOPTION_STRING(name, field)                               \
+  HA_xOPTION_STRING(name, ha_index_option_struct, field)
+#define HA_IOPTION_ENUM(name, field, values, def)                    \
+  HA_xOPTION_ENUM(name, ha_index_option_struct, field, values, def)
+#define HA_IOPTION_BOOL(name, field, values, def)                    \
+  HA_xOPTION_BOOL(name, ha_index_option_struct, field, values, def)
+#define HA_IOPTION_END HA_xOPTION_END
+
+typedef struct st_ha_create_table_option {
+  enum ha_option_type type;
+  const char *name;
+  size_t name_length;
+  ptrdiff_t offset;
+  ulonglong def_value;
+  ulonglong min_value, max_value, block_size;
+  const char *values;
+} ha_create_table_option;
 
 enum handler_iterator_type
 {
@@ -726,7 +826,13 @@ struct handlerton
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
    uint32 license; /* Flag for Engine License */
-   void *data; /* Location for engines to keep personal structures */
+   /*
+     Optional clauses in the CREATE/ALTER TABLE
+   */
+   ha_create_table_option *table_options; // table level options
+   ha_create_table_option *field_options; // these are specified per field
+   ha_create_table_option *index_options; // these are specified per index
+
 };
 
 
@@ -742,7 +848,6 @@ inline LEX_STRING *hton_name(const handlerton *hton)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
 #define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
 #define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
-#define HTON_FLUSH_AFTER_RENAME      (1 << 4)
 #define HTON_NOT_USER_SELECTABLE     (1 << 5)
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
@@ -950,11 +1055,16 @@ typedef struct st_ha_create_information
   uint extra_size;                      /* length of extra data segment */
   /** Transactional or not. Unused; reserved for future versions. */
   enum ha_choice transactional;
-  bool table_existed;			/* 1 in create if table existed */
-  bool frm_only;                        /* 1 if no ha_create_table() */
-  bool varchar;                         /* 1 if table has a VARCHAR */
-  enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
-  enum ha_choice page_checksum;         /* If we have page_checksums */
+  bool table_existed;			///< 1 in create if table existed
+  bool frm_only;                        ///< 1 if no ha_create_table()
+  bool varchar;                         ///< 1 if table has a VARCHAR
+  enum ha_storage_media storage_media;  ///< DEFAULT, DISK or MEMORY
+  enum ha_choice page_checksum;         ///< If we have page_checksums
+  engine_option_value *option_list;     ///< list of table create options
+  /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
+  void *option_struct;           ///< structure with parsed table options
+  void **fileds_option_struct;   ///< array of field option structures
+  void **indexes_option_struct;  ///< array of index option structures
 } HA_CREATE_INFO;
 
 
@@ -1337,6 +1447,7 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
+  bool mark_trx_done;
   const COND *pushed_cond;
   Item *pushed_idx_cond;
   uint pushed_idx_cond_keyno;  /* The index which the above condition is for */
@@ -1383,7 +1494,7 @@ public:
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0),
+    locked(FALSE), implicit_emptied(FALSE), mark_trx_done(FALSE), 
     pushed_cond(0), pushed_idx_cond(NULL),
     pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
@@ -1442,6 +1553,13 @@ public:
     DBUG_RETURN(rnd_end());
   }
   int ha_reset();
+  /* Tell handler (not storage engine) this is start of a new statement */
+  void ha_start_of_new_statement()
+  {
+    ft_handler= 0;
+    mark_trx_done= FALSE;
+  }
+
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
@@ -1530,7 +1648,7 @@ public:
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
-  virtual double index_only_read_time(uint keynr, double records);
+  virtual double keyread_read_time(uint index, uint ranges, ha_rows rows);
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
@@ -1664,17 +1782,6 @@ protected:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
-  /**
-     @brief
-     The following functions works like index_read, but it find the last
-     row with the current key value or prefix.
-  */
-  virtual int index_read_last_map(uchar * buf, const uchar * key,
-                                  key_part_map keypart_map)
-  {
-    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-    return index_read_last(buf, key, key_len);
-  }
   inline void update_index_statistics()
   {
     index_rows_read[active_index]++;
@@ -1685,68 +1792,15 @@ public:
   /* Similar functions like the above, but does statistics counting */
   inline int ha_index_read_map(uchar * buf, const uchar * key,
                                key_part_map keypart_map,
-                               enum ha_rkey_function find_flag)
-  {
-    int error= index_read_map(buf, key, keypart_map, find_flag);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
+                               enum ha_rkey_function find_flag);
   inline int ha_index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                    key_part_map keypart_map,
-                                   enum ha_rkey_function find_flag)
-  {
-    int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
-    if (!error)
-    {
-      rows_read++;
-      index_rows_read[index]++;
-    }
-    return error;
-  }
-  inline int ha_index_next(uchar * buf)
-  {
-    int error= index_next(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_prev(uchar * buf)
-  {
-    int error= index_prev(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_first(uchar * buf)
-  {
-    int error= index_first(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_last(uchar * buf)
-  {
-    int error= index_last(buf);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
-  {
-    int error= index_next_same(buf, key, keylen);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
-  inline int ha_index_read_last_map(uchar * buf, const uchar * key,
-                                    key_part_map keypart_map)
-  {
-    int error= index_read_last_map(buf, key, keypart_map);
-    if (!error)
-      update_index_statistics();
-    return error;
-  }
+                                   enum ha_rkey_function find_flag);
+  inline int ha_index_next(uchar * buf);
+  inline int ha_index_prev(uchar * buf);
+  inline int ha_index_first(uchar * buf);
+  inline int ha_index_last(uchar * buf);
+  inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
@@ -1786,41 +1840,11 @@ private:
 public:
 
   /* Same as above, but with statistics */
-  inline int ha_ft_read(uchar *buf)
-  {
-    int error= ft_read(buf);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_rnd_next(uchar *buf)
-  {
-    int error= rnd_next(buf);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_rnd_pos(uchar *buf, uchar *pos)
-  {
-    int error= rnd_pos(buf, pos);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_rnd_pos_by_record(uchar *buf)
-  {
-    int error= rnd_pos_by_record(buf);
-    if (!error)
-      rows_read++;
-    return error;
-  }
-  inline int ha_read_first_row(uchar *buf, uint primary_key)
-  {
-    int error= read_first_row(buf, primary_key);
-    if (!error)
-      rows_read++;
-    return error;
-  }
+  inline int ha_ft_read(uchar *buf);
+  inline int ha_rnd_next(uchar *buf);
+  inline int ha_rnd_pos(uchar *buf, uchar *pos);
+  inline int ha_rnd_pos_by_record(uchar *buf);
+  inline int ha_read_first_row(uchar *buf, uint primary_key);
 
   /**
     The following 3 function is only needed for tables that may be
@@ -2140,8 +2164,10 @@ public:
   virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
 
 protected:
+  /* deprecated, don't use in new engines */
+  inline void ha_statistic_increment(ulong SSV::*offset) const { }
+
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulong SSV::*offset) const;
   void **ha_data(THD *) const;
   THD *ha_thd(void) const;
 
@@ -2161,8 +2187,15 @@ protected:
 
 private:
   /* Private helpers */
-  inline void mark_trx_read_write();
-private:
+  void mark_trx_read_write_part2();
+  inline void mark_trx_read_write()
+  {
+    if (!mark_trx_done)
+      mark_trx_read_write_part2();
+  }
+  inline void increment_statistics(ulong SSV::*offset) const;
+  inline void decrement_statistics(ulong SSV::*offset) const;
+
   /*
     Low-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
@@ -2249,8 +2282,6 @@ private:
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
-   { return (my_errno= HA_ERR_WRONG_COMMAND); }
   /**
     This method is similar to update_row, however the handler doesn't need
     to execute the updates at this point in time. The handler can be certain
@@ -2325,6 +2356,10 @@ private:
   { return HA_ERR_WRONG_COMMAND; }
   friend class ha_partition;
   friend class DsMrr_impl;
+public:
+  /* XXX to be removed, see ha_partition::partition_ht() */
+  virtual handlerton *partition_ht() const
+  { return ht; }
 };
 
 #include "multi_range_read.h"
@@ -2347,7 +2382,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton);
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
                          handlerton *db_type);
@@ -2410,6 +2445,7 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
+int ha_repartition_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 int ha_end_key_cache(KEY_CACHE *key_cache);
 
@@ -2462,4 +2498,6 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
+#endif
+
 #endif

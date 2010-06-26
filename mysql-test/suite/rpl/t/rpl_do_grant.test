@@ -205,16 +205,22 @@ SELECT upgrade_alter_func();
 disconnect create_rout_db_master;
 disconnect create_rout_db_slave;
 connection master;
-USE bug42217_db;
-DROP FUNCTION upgrade_del_func;
-DROP FUNCTION upgrade_alter_func;
+USE test;
+DROP FUNCTION bug42217_db.upgrade_del_func;
+DROP FUNCTION bug42217_db.upgrade_alter_func;
 DROP DATABASE bug42217_db;
-DROP USER 'create_rout_db'@'localhost';
 
 call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+
+sync_slave_with_master;
+
+# Drop the user that was already dropped on the slave
 connection slave;
-USE mtr;
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+--disable_warnings
+stop slave;
+connection master;
+DROP USER 'create_rout_db'@'localhost';
+--enable_warnings
 
 # BUG#49119: Master crashes when executing 'REVOKE ... ON
 # {PROCEDURE|FUNCTION} FROM ...'
@@ -314,6 +320,35 @@ DROP TABLE t1;
 DROP PROCEDURE p1;
 DROP USER 'user49119'@'localhost';
 
+-- sync_slave_with_master
+
+#
+# Bug #51987  	revoke privileges logs wrong error code
+#
+
+-- connection master
+-- source include/master-slave-reset.inc
+-- connection master
+
+grant all on *.* to foo@"1.2.3.4";
+-- error ER_REVOKE_GRANTS
+revoke all privileges, grant option from "foo";
+
+## assertion: revoke is logged
+-- source include/show_binlog_events.inc
+
+-- sync_slave_with_master
+
+## assertion: slave replicates revoke and does not fail because master
+##            logged revoke with correct expected error code
+-- let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1)
+  if ($err)
+{
+    -- die UNEXPECTED ERROR AT SLAVE: $err
+}
+
+-- connection master
+DROP USER foo@"1.2.3.4";
 -- sync_slave_with_master
 
 --echo "End of test"

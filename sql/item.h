@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1062,6 +1062,8 @@ public:
     return FALSE;
   }
 
+  virtual bool check_inner_refs_processor(uchar *arg) { return FALSE; }
+
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
@@ -1167,7 +1169,8 @@ class Field_enumerator
 {
 public:
   virtual void visit_field(Item_field *field)= 0;
-  virtual ~Field_enumerator() {}; /* purecov: inspected */
+  virtual ~Field_enumerator() {};             /* purecov: inspected */
+  Field_enumerator() {}                       /* Remove gcc warning */
 };
 
 
@@ -1525,6 +1528,7 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
+  Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
@@ -2269,7 +2273,7 @@ public:
 class Item_hex_string: public Item_basic_constant
 {
 public:
-  Item_hex_string() {}
+  Item_hex_string();
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
@@ -2290,6 +2294,8 @@ public:
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *arg) { return FALSE;}
+private:
+  void hex_string_init(const char *str, uint str_length);
 };
 
 
@@ -2371,6 +2377,8 @@ public:
   Item_ref(Name_resolution_context *context_arg, Item **item,
            const char *table_name_arg, const char *field_name_arg,
            bool alias_name_used_arg= FALSE);
+  Item_ref(TABLE_LIST *view_arg, Item **item,
+           const char *field_name_arg, bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -2432,7 +2440,8 @@ public:
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { 
     if (ref && *ref)
-      return (*ref)->walk(processor, walk_subquery, arg); 
+      return (*ref)->walk(processor, walk_subquery, arg) ||
+             (this->*processor)(arg); 
     else
       return FALSE;
   }
@@ -2479,6 +2488,11 @@ public:
   {
     return trace_unsupported_by_check_vcol_func_processor("ref");
   }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(fixed);
+    return (*ref)->get_time(ltime);
+  }
 };
 
 
@@ -2498,6 +2512,12 @@ public:
   {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+  Item_direct_ref(TABLE_LIST *view_arg, Item **item,
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(view_arg, item, field_name_arg,
+              alias_name_used_arg)
+  {}
 
   double val_real();
   longlong val_int();
@@ -2523,6 +2543,10 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item) {}
+  Item_direct_view_ref(TABLE_LIST *view_arg, Item **item,
+                       const char *field_name_arg)
+    :Item_direct_ref(view_arg, item, field_name_arg)
+  {}
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -2558,12 +2582,13 @@ public:
     of the outer select.
   */
   bool found_in_select_list;
+  bool found_in_group_by;
   Item_outer_ref(Name_resolution_context *context_arg,
                  Item_field *outer_field_arg)
     :Item_direct_ref(context_arg, 0, outer_field_arg->table_name,
                      outer_field_arg->field_name),
     outer_ref(outer_field_arg), in_sum_func(0),
-    found_in_select_list(0)
+    found_in_select_list(0), found_in_group_by(0)
   {
     ref= &outer_ref;
     set_properties();
@@ -2574,7 +2599,7 @@ public:
                  bool alias_name_used_arg)
     :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg,
                      alias_name_used_arg),
-    outer_ref(0), in_sum_func(0), found_in_select_list(1)
+    outer_ref(0), in_sum_func(0), found_in_select_list(1), found_in_group_by(0)
   {}
   void save_in_result_field(bool no_conversions)
   {
@@ -2587,6 +2612,7 @@ public:
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
   }
   virtual Ref_Type ref_type() { return OUTER_REF; }
+  bool check_inner_refs_processor(uchar * arg); 
 };
 
 
@@ -3206,7 +3232,8 @@ public:
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
-  void store(Item *item, longlong val_arg);
+  virtual void store(Item *item){ Item_cache::store(item); }
+  void store_longlong(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
   String* val_str(String *str);

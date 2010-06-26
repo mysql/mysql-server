@@ -1585,7 +1585,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	UNION	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
 Warnings:
-Note	1003	select '0' AS `a` from `test`.`t1` union select '0' AS `a` from `test`.`t1` order by `a`
+Note	1003	select NULL AS `a` from `test`.`t1` union select NULL AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
 End of 5.0 tests
 # 
@@ -1636,7 +1636,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` union select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (select `test`.`t1`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` union select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (select `test`.`t1`.`a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);

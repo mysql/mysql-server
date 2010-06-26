@@ -46,7 +46,8 @@ libnet_a_LIBADD= $(top_builddir)/sql/password.$(OBJEXT) \
 	$(top_builddir)/sql/pack.$(OBJEXT) \
 	$(top_builddir)/sql/sql_state.$(OBJEXT) \
 	$(top_builddir)/sql/mini_client_errors.$(OBJEXT)\
-	$(top_builddir)/sql/client.$(OBJEXT)
+	$(top_builddir)/sql/client.$(OBJEXT) \
+	$(top_builddir)/sql/client_plugin.$(OBJEXT)
 
 CLEANFILES= net_serv.cc client_settings.h
 
@@ -91,7 +92,7 @@ mysqlmanager_LDADD=	@CLIENT_EXTRA_LDFLAGS@ \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/strings/libmystrings.a \
 			$(top_builddir)/dbug/libdbug.a \
-			@openssl_libs@ @yassl_libs@ @ZLIB_LIBS@
+			@openssl_libs@ @yassl_libs@ @ZLIB_LIBS@ @LIBDL@
 
 EXTRA_DIST =		WindowsService.cpp WindowsService.h IMService.cpp \
 			IMService.h CMakeLists.txt

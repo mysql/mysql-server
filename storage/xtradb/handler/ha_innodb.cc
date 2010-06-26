@@ -125,9 +125,6 @@ extern ib_int64_t	trx_sys_mysql_relay_log_pos;
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
-/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
-is defined the same in both builds: the MySQL server and the InnoDB plugin. */
-extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 
 #if MYSQL_VERSION_ID < 50124
 /* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
@@ -176,6 +173,8 @@ static ulong innobase_commit_concurrency = 0;
 static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
 
+static ulong innobase_page_size;
+
 static my_bool innobase_thread_concurrency_timer_based;
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -209,6 +208,7 @@ static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
+static my_bool	innobase_fast_checksum			= FALSE;
 static my_bool	innobase_extra_undoslots		= FALSE;
 static my_bool	innobase_fast_recovery			= FALSE;
 static my_bool	innobase_recovery_stats			= TRUE;
@@ -923,36 +923,6 @@ convert_error_code_to_mysql(
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	}
-}
-
-/*************************************************************//**
-If you want to print a thd that is not associated with the current thread,
-you must call this function before reserving the InnoDB kernel_mutex, to
-protect MySQL from setting thd->query NULL. If you print a thd of the current
-thread, we know that MySQL cannot modify thd->query, and it is not necessary
-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex. */
-extern "C" UNIV_INTERN
-void
-innobase_mysql_prepare_print_arbitrary_thd(void)
-/*============================================*/
-{
-	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
-}
-
-/*************************************************************//**
-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-In the InnoDB latching order, the mutex sits right above the
-kernel_mutex.  In debug builds, we assert that the kernel_mutex is
-released before this function is invoked. */
-extern "C" UNIV_INTERN
-void
-innobase_mysql_end_print_arbitrary_thd(void)
-/*========================================*/
-{
-	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 }
 
 /*************************************************************//**
@@ -2069,6 +2039,36 @@ innobase_init(
 	}
 #endif /* UNIV_DEBUG */
 
+	srv_page_size = 0;
+	srv_page_size_shift = 0;
+
+	if (innobase_page_size != (1 << 14)) {
+		int n_shift;
+
+		fprintf(stderr,
+			"InnoDB: Warning: innodb_page_size has been changed from default value 16384. (###EXPERIMENTAL### operation)\n");
+		for (n_shift = 12; n_shift <= UNIV_PAGE_SIZE_SHIFT_MAX; n_shift++) {
+			if (innobase_page_size == (1u << n_shift)) {
+				srv_page_size_shift = n_shift;
+				srv_page_size = (1 << srv_page_size_shift);
+				fprintf(stderr,
+					"InnoDB: The universal page size of the database is set to %lu.\n",
+					srv_page_size);
+				break;
+			}
+		}
+	} else {
+		srv_page_size_shift = 14;
+		srv_page_size = (1 << srv_page_size_shift);
+	}
+
+	if (!srv_page_size_shift) {
+		fprintf(stderr,
+			"InnoDB: Error: %lu is not valid value for innodb_page_size.\n",
+			innobase_page_size);
+		goto error;
+	}
+
 #ifndef MYSQL_SERVER
 	innodb_overwrite_relay_log_info = FALSE;
 #endif
@@ -2377,6 +2377,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
+	srv_fast_checksum = (ibool) innobase_fast_checksum;
 
 #ifdef HAVE_LARGE_PAGES
         if ((os_use_large_pages = (ibool) my_use_large_pages))
@@ -3387,6 +3388,12 @@ ha_innobase::open(
 		DBUG_RETURN(1);
 	}
 
+	if (share->ib_table && share->ib_table->is_corrupt) {
+		free_share(share);
+
+		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+	}
+
 	/* Create buffers for packing the fields of a record. Why
 	table->stored_rec_length did not work here? Obviously, because char
 	fields when packed actually became 1 byte longer, when we also
@@ -3414,6 +3421,19 @@ retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
 	
+	if (ib_table && ib_table->is_corrupt) {
+		free_share(share);
+		my_free(upd_buff, MYF(0));
+
+		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+	}
+
+	if (share->ib_table) {
+		ut_a(share->ib_table == ib_table);
+	} else {
+		share->ib_table = ib_table;
+	}
+
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
 			++retries;
@@ -4622,6 +4642,10 @@ ha_innobase::write_row(
 
 	ha_statistic_increment(&SSV::ha_write_count);
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
 		table->timestamp_field->set_time();
 
@@ -4734,6 +4758,10 @@ no_commit:
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
+#ifdef EXTENDED_FOR_USERSTAT
+	if (error == DB_SUCCESS) rows_changed++;
+#endif
+
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
 		ulint		err;
@@ -4828,6 +4856,10 @@ report_error:
 
 func_exit:
 	innobase_active_small();
+
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
 
 	DBUG_RETURN(error_result);
 }
@@ -5009,6 +5041,10 @@ ha_innobase::update_row(
 
 	ha_statistic_increment(&SSV::ha_update_count);
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
 
@@ -5074,6 +5110,10 @@ ha_innobase::update_row(
 		}
 	}
 
+#ifdef EXTENDED_FOR_USERSTAT
+	if (error == DB_SUCCESS) rows_changed++;
+#endif
+
 	innodb_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(error,
@@ -5093,6 +5133,10 @@ ha_innobase::update_row(
 	utility threads: */
 
 	innobase_active_small();
+
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
 
 	DBUG_RETURN(error);
 }
@@ -5115,6 +5159,10 @@ ha_innobase::delete_row(
 
 	ha_statistic_increment(&SSV::ha_delete_count);
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	if (!prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(prebuilt);
 	}
@@ -5127,6 +5175,10 @@ ha_innobase::delete_row(
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
 
+#ifdef EXTENDED_FOR_USERSTAT
+	if (error == DB_SUCCESS) rows_changed++;
+#endif
+
 	innodb_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(
@@ -5136,6 +5188,10 @@ ha_innobase::delete_row(
 	utility threads: */
 
 	innobase_active_small();
+
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
 
 	DBUG_RETURN(error);
 }
@@ -5378,6 +5434,10 @@ ha_innobase::index_read(
 
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	index = prebuilt->index;
 
 	if (UNIV_UNLIKELY(index == NULL)) {
@@ -5439,6 +5499,10 @@ ha_innobase::index_read(
 	} else {
 
 		ret = DB_UNSUPPORTED;
+	}
+
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
 	switch (ret) {
@@ -5535,6 +5599,10 @@ ha_innobase::change_active_index(
 {
 	DBUG_ENTER("change_active_index");
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	ut_ad(user_thd == ha_thd());
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
@@ -5626,6 +5694,10 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
@@ -5635,10 +5707,19 @@ ha_innobase::general_fetch(
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+#ifdef EXTENDED_FOR_USERSTAT
+		rows_read++;
+		if (active_index >= 0 && active_index < MAX_KEY)
+			index_rows_read[active_index]++;
+#endif
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -6596,9 +6677,9 @@ ha_innobase::create(
 					| DICT_TF_COMPACT
 					| DICT_TF_FORMAT_ZIP
 					<< DICT_TF_FORMAT_SHIFT;
-#if DICT_TF_ZSSIZE_MAX < 1
-# error "DICT_TF_ZSSIZE_MAX < 1"
-#endif
+//#if DICT_TF_ZSSIZE_MAX < 1
+//# error "DICT_TF_ZSSIZE_MAX < 1"
+//#endif
 			}
 		}
 
@@ -6858,12 +6939,20 @@ ha_innobase::delete_all_rows(void)
 		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
 	}
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 	if (error == DB_ERROR) {
 		/* Cannot truncate; resort to ha_innobase::delete_row() */
 		goto fallback;
+	}
+
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
 	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
@@ -7369,6 +7458,16 @@ ha_innobase::read_time(
 	return(ranges + (double) rows / (double) total_rows * time_for_scan);
 }
 
+UNIV_INTERN
+bool
+ha_innobase::is_corrupt() const
+{
+	if (share->ib_table)
+		return ((bool)share->ib_table->is_corrupt);
+	else
+		return (FALSE);
+}
+
 /*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
@@ -7419,9 +7518,9 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (innobase_stats_on_metadata
-		    && (thd_sql_command(user_thd) == SQLCOM_ANALYZE
-			|| srv_stats_auto_update)) {
+		if ((innobase_stats_on_metadata
+		     || thd_sql_command(user_thd) == SQLCOM_ANALYZE)
+		    && !share->ib_table->is_corrupt) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -7648,6 +7747,10 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
+	if (share->ib_table->is_corrupt) {
+		return(HA_ADMIN_CORRUPT);
+	}
+
 	/* Serialize ANALYZE TABLE inside InnoDB, see
 	Bug#38996 Race condition in ANALYZE TABLE */
 	pthread_mutex_lock(&analyze_mutex);
@@ -7656,6 +7759,10 @@ ha_innobase::analyze(
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
 
 	pthread_mutex_unlock(&analyze_mutex);
+
+	if (share->ib_table->is_corrupt) {
+		return(HA_ADMIN_CORRUPT);
+	}
 
 	return(0);
 }
@@ -7701,6 +7808,10 @@ ha_innobase::check(
 	}
 
 	ret = row_check_table_for_mysql(prebuilt);
+
+	if (ret != DB_INTERRUPTED && share->ib_table->is_corrupt) {
+		return(HA_ADMIN_CORRUPT);
+	}
 
 	switch (ret) {
 	case DB_SUCCESS:
@@ -8445,6 +8556,10 @@ ha_innobase::transactional_table_lock(
 
 	update_thd(thd);
 
+	if (share->ib_table->is_corrupt) {
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
 	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -9143,6 +9258,11 @@ ha_innobase::get_auto_increment(
 	invoking this method. So we are not sure if it's guaranteed to
 	be 0 or not. */
 
+	/* We need the upper limit of the col type to check for
+	whether we update the table autoinc counter or not. */
+	ulonglong	col_max_value = innobase_get_int_col_max_value(
+		table->next_number_field);
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -9159,6 +9279,11 @@ ha_innobase::get_auto_increment(
 	/* Not in the middle of a mult-row INSERT. */
 	} else if (prebuilt->autoinc_last_value == 0) {
 		set_if_bigger(*first_value, autoinc);
+	/* Check for -ve values. */
+	} else if (*first_value > col_max_value && trx->n_autoinc_rows > 0) {
+		/* Set to next logical value. */
+		ut_a(autoinc > trx->n_autoinc_rows);
+		*first_value = (autoinc - trx->n_autoinc_rows) - 1;
 	}
 
 	*nb_reserved_values = trx->n_autoinc_rows;
@@ -9169,12 +9294,6 @@ ha_innobase::get_auto_increment(
 		ulonglong	need;
 		ulonglong	current;
 		ulonglong	next_value;
-		ulonglong	col_max_value;
-
-		/* We need the upper limit of the col type to check for
-		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
 		need = *nb_reserved_values * increment;
@@ -10305,6 +10424,20 @@ static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
   "Disable with --skip-innodb-checksums.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(fast_checksum, innobase_fast_checksum,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Change the algorithm of checksum for the whole of datapage to 4-bytes word based. "
+  "The original checksum is checked after the new one. It may be slow for reading page"
+  " which has orginal checksum. Overwrite the page or recreate the InnoDB database, "
+  "if you want the entire benefit for performance at once. "
+  "#### Attention: The checksum is not compatible for normal or disabled version! ####",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONG(page_size, innobase_page_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "###EXPERIMENTAL###: The universal page size of the database. Changing for created database is not supported. Use on your own risk!",
+  NULL, NULL, (1 << 14), (1 << 12), (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
+
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
   "The common part for InnoDB table spaces.",
@@ -10761,11 +10894,21 @@ static MYSQL_SYSVAR_ULONG(relax_table_creation, srv_relax_table_creation,
   "Relax limitation of column size at table creation as builtin InnoDB.",
   NULL, NULL, 0, 0, 1, 0);
 
+static	MYSQL_SYSVAR_ULONG(pass_corrupt_table, srv_pass_corrupt_table,
+  PLUGIN_VAR_RQCMDARG,
+  "Pass corruptions of user tables as 'corrupt table' instead of not crashing itself, "
+  "when used with file_per_table. "
+  "All file io for the datafile after detected as corrupt are disabled, "
+  "except for the deletion.",
+  NULL, NULL, 0, 0, 1, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
+  MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(checksums),
+  MYSQL_SYSVAR(fast_checksum),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
   MYSQL_SYSVAR(data_file_path),
@@ -10840,6 +10983,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(relax_table_creation),
+  MYSQL_SYSVAR(pass_corrupt_table),
   NULL
 };
 
@@ -10872,8 +11016,45 @@ i_s_innodb_cmpmem_reset,
 i_s_innodb_table_stats,
 i_s_innodb_index_stats,
 i_s_innodb_admin_command,
+i_s_innodb_sys_tables,
+i_s_innodb_sys_indexes,
 i_s_innodb_patches
 mysql_declare_plugin_end;
+maria_declare_plugin(innobase)
+{ /* InnoDB */
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &innobase_storage_engine,
+  innobase_hton_name,
+  "Innobase Oy",
+  "Supports transactions, row-level locking, and foreign keys",
+  PLUGIN_LICENSE_GPL,
+  innobase_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  INNODB_VERSION_SHORT,
+  innodb_status_variables_export,/* status variables             */
+  innobase_system_variables, /* system variables */
+  INNODB_VERSION_STR,         /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+i_s_innodb_rseg_maria,
+i_s_innodb_buffer_pool_pages_maria,
+i_s_innodb_buffer_pool_pages_index_maria,
+i_s_innodb_buffer_pool_pages_blob_maria,
+i_s_innodb_trx_maria,
+i_s_innodb_locks_maria,
+i_s_innodb_lock_waits_maria,
+i_s_innodb_cmp_maria,
+i_s_innodb_cmp_reset_maria,
+i_s_innodb_cmpmem_maria,
+i_s_innodb_cmpmem_reset_maria,
+i_s_innodb_table_stats_maria,
+i_s_innodb_index_stats_maria,
+i_s_innodb_admin_command_maria,
+i_s_innodb_sys_tables_maria,
+i_s_innodb_sys_indexes_maria,
+i_s_innodb_patches_maria
+maria_declare_plugin_end;
+
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 

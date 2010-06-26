@@ -23,6 +23,7 @@
 MYSQLDATAdir =			$(localstatedir)
 MYSQLSHAREdir =			$(pkgdatadir)
 MYSQLBASEdir=			$(prefix)
+pkgplugindir =			$(pkglibdir)/plugin
 ## We'll use CLIENT_EXTRA_LDFLAGS for threaded and non-threaded
 ## until someone complains that they need separate options.
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(target)
@@ -71,26 +72,27 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_getopt.lo my_gethostbyname.lo my_port.lo \
                         my_rename.lo my_chsize.lo my_sync.lo my_getsystime.lo
 sqlobjects =		net.lo
-sql_cmn_objects =	pack.lo client.lo my_time.lo
+sql_cmn_objects =	pack.lo client.lo my_time.lo client_plugin.lo
 
 # Not needed in the minimum library
 mysysobjects2 =		my_lib.lo mf_qsort.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
 target_libadd =		$(mysysobjects) $(mystringsobjects) $(dbugobjects) \
  $(sql_cmn_objects) $(vio_objects) $(sqlobjects)
-target_ldflags = -version-info @SHARED_LIB_VERSION@ @LD_VERSION_SCRIPT@ 
+target_ldflags = -version-info @SHARED_LIB_VERSION@ @LD_VERSION_SCRIPT@ @LIBDL@
 vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 
 BUILT_SOURCES		= link_sources
 
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
 			$(target) $(BUILT_SOURCES)
-DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
+DEFS =			-DDEFAULT_CHARSET_HOME='"$(MYSQLBASEdir)"' \
+			-DMYSQL_DATADIR='"$(MYSQLDATAdir)"' \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
+ 			-DPLUGINDIR='"$(pkgplugindir)"' \
 			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
-			-DDEFAULT_SYSCONFDIR="\"$(sysconfdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" $(target_defs)
+			-DDEFAULT_SYSCONFDIR='"$(sysconfdir)"' \
+			-DSHAREDIR='"$(MYSQLSHAREdir)"' $(target_defs)
 
 if HAVE_YASSL
 yassl_las = $(top_builddir)/extra/yassl/src/libyassl.la \

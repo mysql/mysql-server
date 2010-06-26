@@ -333,7 +333,7 @@ static int examine_log(char * file_name, char **table_names)
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
   VOID(init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
-                      0, 0));
+                      0, 0, 0));
 
   files_open=0; access_time=0;
   while (access_time++ != number_of_commands &&

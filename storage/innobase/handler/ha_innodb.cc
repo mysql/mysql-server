@@ -238,7 +238,7 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
   /* default */ TRUE);
 
 static handler *innobase_create_handler(handlerton *hton,
-                                        TABLE_SHARE *table, 
+                                        TABLE_SHARE *table,
                                         MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_innobase(hton, table);
@@ -350,7 +350,7 @@ int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
 			/* out: 0 */
-	handlerton* hton, /* in: Innodb handlerton */ 
+	handlerton* hton, /* in: Innodb handlerton */
 	THD*	thd);	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 /********************************************************************
@@ -1714,9 +1714,6 @@ innobase_init(
 	int		err;
 	bool		ret;
 	char		*default_path;
-#ifdef SAFE_MUTEX
-	my_bool         old_safe_mutex_deadlock_detector;
-#endif
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
@@ -1971,15 +1968,8 @@ innobase_init(
 
 	srv_sizeof_trx_t_in_ha_innodb_cc = sizeof(trx_t);
 
-#ifdef SAFE_MUTEX
-	/* Disable deadlock detection as it's very slow for the buffer pool */
-	old_safe_mutex_deadlock_detector= safe_mutex_deadlock_detector;
-	safe_mutex_deadlock_detector= 0;
-#endif
 	err = innobase_start_or_create_for_mysql();
-#ifdef SAFE_MUTEX
-	safe_mutex_deadlock_detector= old_safe_mutex_deadlock_detector;
-#endif
+
 	if (err != DB_SUCCESS) {
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
@@ -2662,9 +2652,9 @@ ha_innobase::innobase_initialize_autoinc()
 		auto_inc = innobase_get_int_col_max_value(field);
 	} else {
 		/* We have no idea what's been passed in to us as the
-		autoinc column. We set it to the MAX_INT of our table
-		autoinc type. */
-		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
+		autoinc column. We set it to the 0, effectively disabling
+		updates to the table. */
+		auto_inc = 0;
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Unable to determine the AUTOINC "
@@ -2673,7 +2663,7 @@ ha_innobase::innobase_initialize_autoinc()
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 		/* If the recovery level is set so high that writes
-		are disabled we force the AUTOINC counter to the MAX
+		are disabled we force the AUTOINC counter to 0
 		value effectively disabling writes to the table.
 		Secondly, we avoid reading the table in case the read
 		results in failure due to a corrupted table/index.
@@ -2682,7 +2672,10 @@ ha_innobase::innobase_initialize_autoinc()
 		tables can be dumped with minimal hassle.  If an error
 		were returned in this case, the first attempt to read
 		the table would fail and subsequent SELECTs would succeed. */
+		auto_inc = 0;
 	} else if (field == NULL) {
+		/* This is a far more serious error, best to avoid
+		opening the table and return failure. */
 		my_error(ER_AUTOINC_READ_FAILED, MYF(0));
 	} else {
 		dict_index_t*	index;
@@ -2711,7 +2704,7 @@ ha_innobase::innobase_initialize_autoinc()
 				"InnoDB: Unable to find the AUTOINC column "
 				"%s in the InnoDB table %s.\n"
 				"InnoDB: We set the next AUTOINC column "
-				"value to the maximum possible value,\n"
+				"value to 0,\n"
 				"InnoDB: in effect disabling the AUTOINC "
 				"next value generation.\n"
 				"InnoDB: You can either set the next "
@@ -2720,7 +2713,13 @@ ha_innobase::innobase_initialize_autoinc()
 				"recreating the table.\n",
 				col_name, index->table->name);
 
-			my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+			/* This will disable the AUTOINC generation. */
+			auto_inc = 0;
+
+			/* We want the open to succeed, so that the user can
+			take corrective action. ie. reads should succeed but
+			updates should fail. */
+			err = DB_SUCCESS;
 			break;
 		default:
 			/* row_search_max_autoinc() should only return
@@ -2774,12 +2773,12 @@ ha_innobase::open(
 	}
 
 	/* Create buffers for packing the fields of a record. Why
-	table->stored_rec_length did not work here? Obviously, because char
+	table->reclength did not work here? Obviously, because char
 	fields when packed actually became 1 byte longer, when we also
 	stored the string length as the first byte. */
 
 	upd_and_key_val_buff_len =
-				table->s->stored_rec_length + table->s->max_key_length
+				table->s->reclength + table->s->max_key_length
 							+ MAX_REF_PARTS * 3;
 	if (!(uchar*) my_multi_malloc(MYF(MY_WME),
 			&upd_buff, upd_and_key_val_buff_len,
@@ -2854,7 +2853,7 @@ retry:
 
 	prebuilt = row_create_prebuilt(ib_table);
 
-	prebuilt->mysql_row_len = table->s->stored_rec_length;;
+	prebuilt->mysql_row_len = table->s->reclength;
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
 
@@ -3556,11 +3555,11 @@ build_template(
 	dict_index_t*	clust_index;
 	mysql_row_templ_t* templ;
 	Field*		field;
-	ulint		n_fields, n_stored_fields;
+	ulint		n_fields;
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
-	ulint		i, sql_idx, innodb_idx=0;
+	ulint		i;
 	/* byte offset of the end of last requested column */
 	ulint		mysql_prefix_len	= 0;
 
@@ -3621,12 +3620,11 @@ build_template(
 	}
 
 	n_fields = (ulint)table->s->fields; /* number of columns */
-	n_stored_fields= (ulint)table->s->stored_fields; /* number of stored columns */
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
 						mem_alloc_noninline(
-					n_stored_fields * sizeof(mysql_row_templ_t));
+					n_fields * sizeof(mysql_row_templ_t));
 	}
 
 	prebuilt->template_type = templ_type;
@@ -3636,17 +3634,15 @@ build_template(
 
 	/* Note that in InnoDB, i is the column number. MySQL calls columns
 	'fields'. */
-	for (sql_idx = 0; sql_idx < n_fields; sql_idx++) {
+	for (i = 0; i < n_fields; i++) {
 		templ = prebuilt->mysql_template + n_requested_fields;
-		field = table->field[sql_idx];
-		if (!field->stored_in_db)
-		  goto skip_field;
+		field = table->field[i];
 
 		if (UNIV_LIKELY(templ_type == ROW_MYSQL_REC_FIELDS)) {
 			/* Decide which columns we should fetch
 			and which we can skip. */
 			register const ibool	index_contains_field =
-				dict_index_contains_col_or_prefix(index, innodb_idx);
+				dict_index_contains_col_or_prefix(index, i);
 
 			if (!index_contains_field && prebuilt->read_just_key) {
 				/* If this is a 'key read', we do not need
@@ -3661,8 +3657,8 @@ build_template(
 				goto include_field;
 			}
 
-			if (bitmap_is_set(table->read_set, sql_idx) ||
-			    bitmap_is_set(table->write_set, sql_idx)) {
+			if (bitmap_is_set(table->read_set, i) ||
+			    bitmap_is_set(table->write_set, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3670,7 +3666,7 @@ build_template(
 
 			if (fetch_primary_key_cols
 				&& dict_table_col_in_clustered_key(
-					index->table, innodb_idx)) {
+					index->table, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -3683,14 +3679,14 @@ build_template(
 include_field:
 		n_requested_fields++;
 
-		templ->col_no = innodb_idx;
+		templ->col_no = i;
 
 		if (index == clust_index) {
 			templ->rec_field_no = dict_col_get_clust_pos_noninline(
-				&index->table->cols[innodb_idx], index);
+				&index->table->cols[i], index);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
-								index, innodb_idx);
+								index, i);
 		}
 
 		if (templ->rec_field_no == ULINT_UNDEFINED) {
@@ -3716,7 +3712,7 @@ include_field:
 			mysql_prefix_len = templ->mysql_col_offset
 				+ templ->mysql_col_len;
 		}
-		templ->type = index->table->cols[innodb_idx].mtype;
+		templ->type = index->table->cols[i].mtype;
 		templ->mysql_type = (ulint)field->type();
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -3725,18 +3721,16 @@ include_field:
 		}
 
 		templ->charset = dtype_get_charset_coll_noninline(
-				index->table->cols[innodb_idx].prtype);
-		templ->mbminlen = index->table->cols[innodb_idx].mbminlen;
-		templ->mbmaxlen = index->table->cols[innodb_idx].mbmaxlen;
-		templ->is_unsigned = index->table->cols[innodb_idx].prtype
+				index->table->cols[i].prtype);
+		templ->mbminlen = index->table->cols[i].mbminlen;
+		templ->mbmaxlen = index->table->cols[i].mbmaxlen;
+		templ->is_unsigned = index->table->cols[i].prtype
 							& DATA_UNSIGNED;
 		if (templ->type == DATA_BLOB) {
 			prebuilt->templ_contains_blob = TRUE;
 		}
 skip_field:
-                if (field->stored_in_db) {
-                    innodb_idx++;
-                }
+		;
 	}
 
 	prebuilt->n_template = n_requested_fields;
@@ -3983,11 +3977,17 @@ no_commit:
 		prebuilt->autoinc_error = DB_SUCCESS;
 
 		if ((error = update_auto_increment())) {
-
 			/* We don't want to mask autoinc overflow errors. */
-			if (prebuilt->autoinc_error != DB_SUCCESS) {
-				error = (int) prebuilt->autoinc_error;
 
+			/* Handle the case where the AUTOINC sub-system
+			failed during initialization. */
+			if (prebuilt->autoinc_error == DB_UNSUPPORTED) {
+				error_result = ER_AUTOINC_READ_FAILED;
+				/* Set the error message to report too. */
+				my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+				goto func_exit;
+			} else if (prebuilt->autoinc_error != DB_SUCCESS) {
+				error = (int) prebuilt->autoinc_error;
 				goto report_error;
 			}
 
@@ -4143,7 +4143,7 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
-	uint		sql_idx, innodb_idx= 0;
+	uint		i;
 
 	n_fields = table->s->fields;
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
@@ -4151,10 +4151,8 @@ calc_row_difference(
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
 
-	for (sql_idx = 0; sql_idx < n_fields; sql_idx++) {
-		field = table->field[sql_idx];
-		if (!field->stored_in_db)
-		  continue;
+	for (i = 0; i < n_fields; i++) {
+		field = table->field[i];
 
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
@@ -4172,7 +4170,7 @@ calc_row_difference(
 
 		field_mysql_type = field->type();
 
-		col_type = prebuilt->table->cols[innodb_idx].mtype;
+		col_type = prebuilt->table->cols[i].mtype;
 
 		switch (col_type) {
 
@@ -4227,7 +4225,7 @@ calc_row_difference(
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dict_col_copy_type_noninline(prebuilt->table->cols + innodb_idx,
+			dict_col_copy_type_noninline(prebuilt->table->cols + i,
 						     &dfield.type);
 
 			if (n_len != UNIV_SQL_NULL) {
@@ -4248,11 +4246,9 @@ calc_row_difference(
 
 			ufield->exp = NULL;
 			ufield->field_no = dict_col_get_clust_pos_noninline(
-				&prebuilt->table->cols[innodb_idx], clust_index);
+				&prebuilt->table->cols[i], clust_index);
 			n_changed++;
 		}
-                if (field->stored_in_db)
-                  innodb_idx++;
 	}
 
 	uvect->n_fields = n_changed;
@@ -4439,7 +4435,7 @@ ha_innobase::unlock_row(void)
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
 		    && prebuilt->trx->isolation_level
-		    != TRX_ISO_READ_COMMITTED) {
+		    > TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -4476,7 +4472,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 
 	if (yes
 	    && (srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
+		|| prebuilt->trx->isolation_level <= TRX_ISO_READ_COMMITTED)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 	} else {
 		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
@@ -5237,7 +5233,7 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create(table_name, 0, form->s->stored_fields, flags);
+	table = dict_mem_table_create(table_name, 0, n_cols, flags);
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -5246,8 +5242,6 @@ create_table_def(
 
 	for (i = 0; i < n_cols; i++) {
 		field = form->field[i];
-		if (!field->stored_in_db)
-		  continue;
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
 									field);
@@ -5564,7 +5558,7 @@ ha_innobase::create(
 	}
 #endif
 
-	if (form->s->stored_fields > 1000) {
+	if (form->s->fields > 1000) {
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
@@ -6104,10 +6098,10 @@ ha_innobase::records_in_range(
 	KEY*		key;
 	dict_index_t*	index;
 	uchar*		key_val_buff2	= (uchar*) my_malloc(
-						  table->s->stored_rec_length
+						  table->s->reclength
 					+ table->s->max_key_length + 100,
 								MYF(MY_FAE));
-	ulint		buff2_len = table->s->stored_rec_length
+	ulint		buff2_len = table->s->reclength
 					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
@@ -7774,7 +7768,7 @@ ha_innobase::store_lock(
 		isolation_level = trx->isolation_level;
 
 		if ((srv_locks_unsafe_for_binlog
-		     || isolation_level == TRX_ISO_READ_COMMITTED)
+		     || isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && isolation_level != TRX_ISO_SERIALIZABLE
 		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
 		    && (sql_command == SQLCOM_INSERT_SELECT
@@ -7904,7 +7898,10 @@ ha_innobase::innobase_get_autoinc(
 		*value = dict_table_autoinc_read(prebuilt->table);
 
 		/* It should have been initialized during open. */
-		ut_a(*value != 0);
+		if (*value == 0) {
+			prebuilt->autoinc_error = DB_UNSUPPORTED;
+			dict_table_autoinc_unlock(prebuilt->table);
+		}
 	}
   
 	return(ulong(prebuilt->autoinc_error));
@@ -7984,6 +7981,11 @@ ha_innobase::get_auto_increment(
 	invoking this method. So we are not sure if it's guaranteed to
 	be 0 or not. */
 
+	/* We need the upper limit of the col type to check for
+	whether we update the table autoinc counter or not. */
+	ulonglong	col_max_value = innobase_get_int_col_max_value(
+		table->next_number_field);
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -8000,6 +8002,11 @@ ha_innobase::get_auto_increment(
 	/* Not in the middle of a mult-row INSERT. */
 	} else if (prebuilt->autoinc_last_value == 0) {
 		set_if_bigger(*first_value, autoinc);
+	/* Check for -ve values. */
+	} else if (*first_value > col_max_value && trx->n_autoinc_rows > 0) {
+		/* Set to next logical value. */
+		ut_a(autoinc > trx->n_autoinc_rows);
+		*first_value = (autoinc - trx->n_autoinc_rows) - 1;
 	}
 
 	*nb_reserved_values = trx->n_autoinc_rows;
@@ -8010,12 +8017,6 @@ ha_innobase::get_auto_increment(
 		ulonglong	need;
 		ulonglong	current;
 		ulonglong	next_value;
-		ulonglong	col_max_value;
-
-		/* We need the upper limit of the col type to check for
-		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
 		need = *nb_reserved_values * increment;
@@ -8488,6 +8489,44 @@ innobase_set_cursor_view(
 				  (cursor_view_t*) curview);
 }
 
+/***********************************************************************
+If col_name is not NULL, check whether the named column is being
+renamed in the table. If col_name is not provided, check
+whether any one of columns in the table is being renamed. */
+static
+bool
+check_column_being_renamed(
+/*=======================*/
+					/* out: true if find the column
+					being renamed */
+	const TABLE*	table,		/* in: MySQL table */
+	const char*	col_name)	/* in: name of the column */
+{
+	uint		k;
+	Field*		field;
+
+	for (k = 0; k < table->s->fields; k++) {
+		field = table->field[k];
+
+		if (field->flags & FIELD_IS_RENAMED) {
+
+			/* If col_name is not provided, return
+			if the field is marked as being renamed. */
+			if (!col_name) {
+				return(true);
+			}
+
+			/* If col_name is provided, return only
+			if names match */
+			if (innobase_strcasecmp(field->field_name,
+						col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
 
 /***********************************************************************
 Check whether any of the given columns is being renamed in the table. */
@@ -8502,19 +8541,10 @@ column_is_being_renamed(
 	const char**	col_names)	/* in: names of the columns */
 {
 	uint		j;
-	uint		k;
-	Field*		field;
-	const char*	col_name;
 
 	for (j = 0; j < n_cols; j++) {
-		col_name = col_names[j];
-		for (k = 0; k < table->s->fields; k++) {
-			field = table->field[k];
-			if ((field->flags & FIELD_IS_RENAMED)
-			    && innobase_strcasecmp(field->field_name,
-						   col_name) == 0) {
-				return(true);
-			}
+		if (check_column_being_renamed(table, col_names[j])) {
+			return(true);
 		}
 	}
 
@@ -8593,6 +8623,15 @@ bool ha_innobase::check_if_incompatible_data(
 	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
 		info->auto_increment_value != 0) {
 
+		return COMPATIBLE_DATA_NO;
+	}
+
+	/* For column rename operation, MySQL does not supply enough
+	information (new column name etc.) for InnoDB to make appropriate
+	system metadata change. To avoid system metadata inconsistency,
+	currently we can just request a table rebuild/copy by returning
+	COMPATIBLE_DATA_NO */
+	if (check_column_being_renamed(table, NULL)) {
 		return COMPATIBLE_DATA_NO;
 	}
 

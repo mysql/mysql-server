@@ -13,6 +13,7 @@ FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
 INDEX_STATISTICS
+KEY_CACHES
 KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
@@ -41,12 +42,14 @@ XTRADB_ENHANCEMENTS
 INNODB_BUFFER_POOL_PAGES_INDEX
 XTRADB_ADMIN_COMMAND
 INNODB_TRX
-INNODB_CMP_RESET
+INNODB_SYS_TABLES
 INNODB_LOCK_WAITS
 INNODB_CMPMEM_RESET
 INNODB_LOCKS
 INNODB_CMPMEM
 INNODB_TABLE_STATS
+INNODB_SYS_INDEXES
+INNODB_CMP_RESET
 INNODB_BUFFER_POOL_PAGES_BLOB
 INNODB_INDEX_STATS
 SELECT t.table_name, c1.column_name
@@ -76,6 +79,7 @@ FILES	TABLE_SCHEMA
 GLOBAL_STATUS	VARIABLE_NAME
 GLOBAL_VARIABLES	VARIABLE_NAME
 INDEX_STATISTICS	TABLE_SCHEMA
+KEY_CACHES	KEY_CACHE_NAME
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARTITIONS	TABLE_SCHEMA
 PLUGINS	PLUGIN_NAME
@@ -104,14 +108,16 @@ XTRADB_ENHANCEMENTS	name
 INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
 XTRADB_ADMIN_COMMAND	result_message
 INNODB_TRX	trx_id
-INNODB_CMP_RESET	page_size
+INNODB_SYS_TABLES	NAME
 INNODB_LOCK_WAITS	requesting_trx_id
 INNODB_CMPMEM_RESET	page_size
 INNODB_LOCKS	lock_id
 INNODB_CMPMEM	page_size
-INNODB_TABLE_STATS	table_name
+INNODB_TABLE_STATS	table_schema
+INNODB_SYS_INDEXES	TABLE_ID
+INNODB_CMP_RESET	page_size
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
-INNODB_INDEX_STATS	table_name
+INNODB_INDEX_STATS	table_schema
 SELECT t.table_name, c1.column_name
 FROM information_schema.tables t
 INNER JOIN
@@ -139,6 +145,7 @@ FILES	TABLE_SCHEMA
 GLOBAL_STATUS	VARIABLE_NAME
 GLOBAL_VARIABLES	VARIABLE_NAME
 INDEX_STATISTICS	TABLE_SCHEMA
+KEY_CACHES	KEY_CACHE_NAME
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 PARTITIONS	TABLE_SCHEMA
 PLUGINS	PLUGIN_NAME
@@ -167,14 +174,16 @@ XTRADB_ENHANCEMENTS	name
 INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
 XTRADB_ADMIN_COMMAND	result_message
 INNODB_TRX	trx_id
-INNODB_CMP_RESET	page_size
+INNODB_SYS_TABLES	NAME
 INNODB_LOCK_WAITS	requesting_trx_id
 INNODB_CMPMEM_RESET	page_size
 INNODB_LOCKS	lock_id
 INNODB_CMPMEM	page_size
-INNODB_TABLE_STATS	table_name
+INNODB_TABLE_STATS	table_schema
+INNODB_SYS_INDEXES	TABLE_ID
+INNODB_CMP_RESET	page_size
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
-INNODB_INDEX_STATS	table_name
+INNODB_INDEX_STATS	table_schema
 select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
 (select cast(table_name as char)  from information_schema.tables
 order by table_name limit 1) limit 1;
@@ -219,8 +228,11 @@ INNODB_INDEX_STATS	information_schema.INNODB_INDEX_STATS	1
 INNODB_LOCKS	information_schema.INNODB_LOCKS	1
 INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
 INNODB_RSEG	information_schema.INNODB_RSEG	1
+INNODB_SYS_INDEXES	information_schema.INNODB_SYS_INDEXES	1
+INNODB_SYS_TABLES	information_schema.INNODB_SYS_TABLES	1
 INNODB_TABLE_STATS	information_schema.INNODB_TABLE_STATS	1
 INNODB_TRX	information_schema.INNODB_TRX	1
+KEY_CACHES	information_schema.KEY_CACHES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 PARTITIONS	information_schema.PARTITIONS	1
 PBXT_STATISTICS	information_schema.PBXT_STATISTICS	1
@@ -259,6 +271,7 @@ Database: information_schema
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
+| KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -287,12 +300,14 @@ Database: information_schema
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_TRX                            |
-| INNODB_CMP_RESET                      |
+| INNODB_SYS_TABLES                     |
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCKS                          |
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
+| INNODB_SYS_INDEXES                    |
+| INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_INDEX_STATS                    |
 +---------------------------------------+
@@ -312,6 +327,7 @@ Database: INFORMATION_SCHEMA
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
+| KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -340,12 +356,14 @@ Database: INFORMATION_SCHEMA
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_TRX                            |
-| INNODB_CMP_RESET                      |
+| INNODB_SYS_TABLES                     |
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCKS                          |
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
+| INNODB_SYS_INDEXES                    |
+| INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_INDEX_STATS                    |
 +---------------------------------------+
@@ -357,5 +375,5 @@ Wildcard: inf_rmation_schema
 +--------------------+
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	48
+information_schema	51
 mysql	22

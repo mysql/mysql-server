@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "create_options.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include "myisam.h"
@@ -159,7 +160,7 @@ redo:
 }
 
 
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 {
   if (hton)
   {
@@ -601,9 +602,13 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
     there's no need to rollback here as all transactions must
     be rolled back already
   */
-  if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
-      thd_get_ha_data(thd, hton))
-    hton->close_connection(hton, thd);
+  if (hton->state == SHOW_OPTION_YES && thd_get_ha_data(thd, hton))
+  {
+    if (hton->close_connection)
+      hton->close_connection(hton, thd);
+    /* make sure ha_data is reset and ha_data_lock is released */
+    thd_set_ha_data(thd, hton, NULL);
+  }
   return FALSE;
 }
 
@@ -2039,12 +2044,6 @@ handler *handler::clone(MEM_ROOT *mem_root)
 }
 
 
-
-void handler::ha_statistic_increment(ulong SSV::*offset) const
-{
-  status_var_increment(table->in_use->status_var.*offset);
-}
-
 void **handler::ha_data(THD *thd) const
 {
   return thd_ha_data(thd, ht);
@@ -2126,8 +2125,6 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   register int error;
   DBUG_ENTER("handler::read_first_row");
 
-  ha_statistic_increment(&SSV::ha_read_first_count);
-
   /*
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
@@ -2137,14 +2134,14 @@ int handler::read_first_row(uchar * buf, uint primary_key)
       !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
     (void) ha_rnd_init(1);
-    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
+    while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
     (void) ha_rnd_end();
   }
   else
   {
     /* Find the first row through the primary key */
     if (!(error = ha_index_init(primary_key, 0)))
-      error= index_first(buf);
+      error= ha_index_first(buf);
     (void) ha_index_end();
   }
   DBUG_RETURN(error);
@@ -2515,10 +2512,10 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
-  index_init(table->s->next_number_index, 1);
+  ha_index_init(table->s->next_number_index, 1);
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
-    error=index_last(table->record[1]);
+    error=ha_index_last(table->record[1]);
     /*
       MySQL implicitely assumes such method does locking (as MySQL decides to
       use nr+increment without checking again with the handler, in
@@ -2550,7 +2547,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   else
     nr= ((ulonglong) table->next_number_field->
          val_int_offset(table->s->rec_buff_length)+1);
-  index_end();
+  ha_index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   *first_value= nr;
 }
@@ -3105,16 +3102,46 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   return update_frm_version(table);
 }
 
+/*
+  Calculate cost of 'index only' scan for given index and number of records.
+
+  SYNOPSIS
+  handler->keyread_read_time()
+      index    key to read
+      ranges   number of ranges
+      rows     #of records to read
+
+  NOTES
+    It is assumed that we will read trough all key ranges and that all
+    key blocks are half full (normally things are much better). It is also
+    assumed that each time we read the next key from the index, the handler
+    performs a random seek, thus the cost is proportional to the number of
+    blocks read.
+*/
+
+double handler::keyread_read_time(uint index, uint ranges, ha_rows rows)
+{
+  double read_time;
+  uint keys_per_block= (stats.block_size/2/
+			(table->key_info[index].key_length + ref_length) + 1);
+  read_time=((double) (rows+keys_per_block-1)/ (double) keys_per_block);
+  return read_time;
+}
+
+
 /**
   A helper function to mark a transaction read-write,
   if it is started.
 */
 
-inline
 void
-handler::mark_trx_read_write()
+handler::mark_trx_read_write_part2()
 {
   Ha_trx_info *ha_info= &ha_thd()->ha_data[ht->slot].ha_info[0];
+
+  /* Don't call this function again for this statement */
+  mark_trx_done= TRUE;
+
   /*
     When a storage engine method is called, the transaction must
     have been started, unless it's a DDL call, for which the
@@ -3495,7 +3522,7 @@ int ha_enable_transaction(THD *thd, bool on)
 int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int error;
-  DBUG_ENTER("index_next_same");
+  DBUG_ENTER("handler::index_next_same");
   if (!(error=index_next(buf)))
   {
     my_ptrdiff_t ptrdiff= buf - table->record[0];
@@ -3540,6 +3567,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
         key_part->field->move_field_offset(-ptrdiff);
     }
   }
+  DBUG_PRINT("return",("%i", error));
   DBUG_RETURN(error);
 }
 
@@ -3717,6 +3745,7 @@ int ha_create_table(THD *thd, const char *path,
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
   error= table.file->ha_create(name, &table, create_info);
+
   VOID(closefrm(&table, 0));
   if (error)
   {
@@ -3823,11 +3852,13 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
     uint tmp_block_size= (uint) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
+    uint partitions= key_cache->param_partitions;
     pthread_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
 				tmp_buff_size,
-				division_limit, age_threshold));
+				division_limit, age_threshold,
+                                partitions));
   }
   DBUG_RETURN(0);
 }
@@ -3857,10 +3888,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
 
 
 /**
-  Change parameters for key cache (like size)
+  Change parameters for key cache (like division_limit)
 */
 int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
+  DBUG_ENTER("ha_change_key_cache_param");
+
   if (key_cache->key_cache_inited)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);
@@ -3869,8 +3902,34 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
     pthread_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
+
+
+/**
+  Repartition key cache 
+*/
+int ha_repartition_key_cache(KEY_CACHE *key_cache)
+{
+  DBUG_ENTER("ha_repartition_key_cache");
+
+  if (key_cache->key_cache_inited)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
+    long tmp_block_size= (long) key_cache->param_block_size;
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
+    uint partitions= key_cache->param_partitions;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    DBUG_RETURN(!repartition_key_cache(key_cache, tmp_block_size,
+				       tmp_buff_size,
+				       division_limit, age_threshold,
+                                       partitions));
+  }
+  DBUG_RETURN(0);
+}
+
 
 /**
   Free memory allocated by a key cache.
@@ -4175,38 +4234,6 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
 
 
 /**
-  Calculate cost of 'index only' scan for given index and number of records
-
-  @param keynr    Index number
-  @param records  Estimated number of records to be retrieved
-
-  @note
-    It is assumed that we will read trough the whole key range and that all
-    key blocks are half full (normally things are much better). It is also
-    assumed that each time we read the next key from the index, the handler
-    performs a random seek, thus the cost is proportional to the number of
-    blocks read.
-
-  @todo
-    Consider joining this function and handler::read_time() into one
-    handler::read_time(keynr, records, ranges, bool index_only) function.
-
-  @return
-    Estimated cost of 'index only' scan
-*/
-
-double handler::index_only_read_time(uint keynr, double records)
-{
-  double read_time;
-  uint keys_per_block= (stats.block_size/2/
-			(table->key_info[keynr].key_length + ref_length) + 1);
-  read_time=((double) (records + keys_per_block-1) /
-             (double) keys_per_block);
-  return read_time;
-}
-
-
-/**
   Read first row between two ranges.
   Store ranges for future calls to read_range_next.
 
@@ -4339,6 +4366,8 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 enum ha_rkey_function find_flag)
 {
   int error, error1;
+  LINT_INIT(error1);
+
   error= index_init(index, 0);
   if (!error)
   {
@@ -4479,6 +4508,8 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
 
   if (!result)
     my_eof(thd);
+  else if (!thd->is_error())
+    my_error(ER_GET_ERRNO, MYF(0), 0);
   return result;
 }
 
@@ -4679,6 +4710,7 @@ int handler::ha_write_row(uchar *buf)
   DBUG_ENTER("handler::ha_write_row");
 
   mark_trx_read_write();
+  increment_statistics(&SSV::ha_write_count);
 
   if (unlikely(error= write_row(buf)))
     DBUG_RETURN(error);
@@ -4701,6 +4733,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
 
   mark_trx_read_write();
+  increment_statistics(&SSV::ha_update_count);
 
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
@@ -4716,6 +4749,7 @@ int handler::ha_delete_row(const uchar *buf)
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
 
   mark_trx_read_write();
+  increment_statistics(&SSV::ha_delete_count);
 
   if (unlikely(error= delete_row(buf)))
     return error;

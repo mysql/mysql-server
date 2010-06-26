@@ -63,6 +63,7 @@ public:
   bool report_error(THD *thd);
   bool is_invalidated() const { return m_invalidated; }
   void reset_reprepare_observer() { m_invalidated= FALSE; }
+  Reprepare_observer() {}                     /* Remove gcc warning */
 private:
   bool m_invalidated;
 };
@@ -204,13 +205,15 @@ public:
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
   const char *name;
+  engine_option_value *option_list;
   bool generated;
 
   Key(enum Keytype type_par, const char *name_arg,
       KEY_CREATE_INFO *key_info_arg,
-      bool generated_arg, List<Key_part_spec> &cols)
+      bool generated_arg, List<Key_part_spec> &cols,
+      engine_option_value *create_opt)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    name(name_arg), generated(generated_arg)
+    name(name_arg), option_list(create_opt), generated(generated_arg)
   {}
   Key(const Key &rhs, MEM_ROOT *mem_root);
   virtual ~Key() {}
@@ -239,7 +242,7 @@ public:
   Foreign_key(const char *name_arg, List<Key_part_spec> &cols,
 	      Table_ident *table,   List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
+    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols, NULL),
     ref_table(table), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
@@ -823,7 +826,8 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *priv_user, *ip;
+  char   *host, *user, *ip;
+  char   priv_user[USERNAME_LENGTH];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
   /* points to host if host is available, otherwise points to ip */
@@ -1033,6 +1037,7 @@ public:
   bool enable_slow_log;
   bool last_insert_id_used;
   SAVEPOINT *savepoints;
+  enum enum_check_fields count_cuted_fields;
 };
 
 
@@ -1134,6 +1139,7 @@ public:
     /* Ignore error */
     return TRUE;
   }
+  Dummy_error_handler() {}                    /* Remove gcc warning */
 };
 
 
@@ -1301,7 +1307,11 @@ struct Ha_data
     @sa trans_register_ha()
   */
   Ha_trx_info ha_info[2];
-
+  /**
+    NULL: engine is not bound to this thread
+    non-NULL: engine is bound to this thread, engine shutdown forbidden
+  */
+  plugin_ref lock;
   Ha_data() :ha_ptr(NULL) {}
 };
 
@@ -2386,7 +2396,7 @@ public:
   /**
     Remove the error handler last pushed.
   */
-  void pop_internal_handler();
+  Internal_error_handler *pop_internal_handler();
 
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
@@ -3285,5 +3295,151 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
+
+/*
+  inline handler methods that need to know TABLE and THD structures
+*/
+inline void handler::increment_statistics(ulong SSV::*offset) const
+{
+  status_var_increment(table->in_use->status_var.*offset);
+}
+
+inline void handler::decrement_statistics(ulong SSV::*offset) const
+{
+  status_var_decrement(table->in_use->status_var.*offset);
+}
+
+inline int handler::ha_index_read_map(uchar * buf, const uchar * key,
+                                      key_part_map keypart_map,
+                                      enum ha_rkey_function find_flag)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_key_count);
+  int error= index_read_map(buf, key, keypart_map, find_flag);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_read_idx_map(uchar * buf, uint index,
+                                          const uchar * key,
+                                          key_part_map keypart_map,
+                                          enum ha_rkey_function find_flag)
+{
+  increment_statistics(&SSV::ha_read_key_count);
+  int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  if (!error)
+  {
+    rows_read++;
+    index_rows_read[index]++;
+  }
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_next(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_next_count);
+  int error= index_next(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_prev(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_prev_count);
+  int error= index_prev(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_first(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_first_count);
+  int error= index_first(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_last(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_last_count);
+  int error= index_last(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_next_same(uchar *buf, const uchar *key,
+                                       uint keylen)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_next_count);
+  int error= index_next_same(buf, key, keylen);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_ft_read(uchar *buf)
+{
+  int error= ft_read(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_next(uchar *buf)
+{
+  increment_statistics(&SSV::ha_read_rnd_next_count);
+  int error= rnd_next(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_pos(uchar *buf, uchar *pos)
+{
+  increment_statistics(&SSV::ha_read_rnd_count);
+  int error= rnd_pos(buf, pos);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_pos_by_record(uchar *buf)
+{
+  int error= rnd_pos_by_record(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_read_first_row(uchar *buf, uint primary_key)
+{
+  int error= read_first_row(buf, primary_key);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
 
 #endif /* MYSQL_SERVER */

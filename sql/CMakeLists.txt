@@ -50,11 +50,11 @@ SET (SQL_SOURCE
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
-               key.cc log.cc lock.cc message.rc 
+               key.cc log.cc lock.cc  
                log_event.cc rpl_record.cc rpl_reporting.cc
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
-               mysqld.cc net_serv.cc 
+               mysqld.cc net_serv.cc ../sql-common/client_plugin.c 
                nt_servc.cc nt_servc.h opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -78,7 +78,8 @@ SET (SQL_SOURCE
                rpl_rli.cc rpl_mi.cc sql_servers.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc opt_table_elimination.cc
-               ds_mrr.cc
+               multi_range_read.cc
+               create_options.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
                ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
@@ -92,7 +93,7 @@ ADD_LIBRARY(sql ${SQL_SOURCE})
 IF (NOT EXISTS cmake_dummy.cc)
   FILE (WRITE cmake_dummy.cc "")
 ENDIF (NOT EXISTS cmake_dummy.cc)
-ADD_EXECUTABLE(mysqld cmake_dummy.cc)
+ADD_EXECUTABLE(mysqld cmake_dummy.cc message.rc)
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)

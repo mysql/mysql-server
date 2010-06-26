@@ -390,7 +390,7 @@ flush status;
 update t1 set a=100 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	0
+Handler_read_rnd_next	10
 flush status;
 delete from t1 where a=5;
 show status like 'Handler_read_rnd_next';
@@ -400,7 +400,7 @@ flush status;
 delete from t1 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	0
+Handler_read_rnd_next	10
 create table t2 like t1;
 insert into t2 select * from t2;
 flush status;
@@ -468,7 +468,7 @@ flush status;
 update t2 set b = 100 where b = 6;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	0
+Handler_read_rnd_next	1015
 flush status;
 update t2 set a = 1002 where a = 1001;
 show status like 'Handler_read_rnd_next';
@@ -478,17 +478,17 @@ flush status;
 update t2 set b = 6 where a = 600;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	0
+Handler_read_rnd_next	201
 flush status;
 update t2 set b = 6 where a > 600 and a < 800;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	0
+Handler_read_rnd_next	201
 flush status;
 delete from t2 where a > 600;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	0
+Handler_read_rnd_next	402
 drop table t2;
 CREATE TABLE `t2` (
 `a` int(11) default NULL,
@@ -605,7 +605,7 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
-Handler_read_key	0
+Handler_read_key	5
 flush status;
 update t2 set a = 111 where b in (5,6);
 show status like 'Handler_read_rnd_next';
@@ -613,7 +613,7 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
-Handler_read_key	0
+Handler_read_key	10
 flush status;
 update t2 set a = 222 where b = 7;
 show status like 'Handler_read_rnd_next';
@@ -621,7 +621,7 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
-Handler_read_key	0
+Handler_read_key	5
 flush status;
 delete from t2 where b = 7;
 show status like 'Handler_read_rnd_next';
@@ -629,7 +629,7 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
-Handler_read_key	0
+Handler_read_key	5
 flush status;
 delete from t2 where b > 5;
 show status like 'Handler_read_rnd_next';
@@ -637,13 +637,13 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
-Handler_read_key	0
+Handler_read_key	5
 show status like 'Handler_read_prev';
 Variable_name	Value
 Handler_read_prev	0
 show status like 'Handler_read_next';
 Variable_name	Value
-Handler_read_next	0
+Handler_read_next	300
 flush status;
 delete from t2 where b < 5 or b > 3;
 show status like 'Handler_read_rnd_next';
@@ -651,13 +651,13 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_read_key';
 Variable_name	Value
-Handler_read_key	0
+Handler_read_key	10
 show status like 'Handler_read_prev';
 Variable_name	Value
 Handler_read_prev	0
 show status like 'Handler_read_next';
 Variable_name	Value
-Handler_read_next	0
+Handler_read_next	510
 drop table t1, t2;
 create table t1 ( f_int1 mediumint, f_int2 integer) 
 partition by list(mod(f_int1,4)) (

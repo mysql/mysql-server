@@ -731,7 +731,7 @@ UNIV_INLINE
 rec_t*
 page_rec_get_next(
 /*==============*/
-	rec_t*	rec)	/*!< in: pointer to record */
+	const rec_t*	rec)	/*!< in: pointer to record */
 {
 	return((rec_t*) page_rec_get_next_low(rec, page_rec_is_comp(rec)));
 }

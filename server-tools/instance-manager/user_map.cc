@@ -368,7 +368,7 @@ int User_map::authenticate(const LEX_STRING *user_name,
                            const char *scramble) const
 {
   const User *user= find_user(user_name);
-  return user ? check_scramble(scrambled_password, scramble, user->salt) : 2;
+  return user ? check_scramble((uchar*)scrambled_password, scramble, user->salt) : 2;
 }
 
 

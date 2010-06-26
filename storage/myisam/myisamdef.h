@@ -174,6 +174,8 @@ typedef struct st_mi_isam_share
    *index_file_name;
   uchar *file_map;                       /* mem-map of file if possible */
   KEY_CACHE *key_cache;                 /* ref to the current key cache */
+  /* To mark the key cache partitions containing dirty pages for this file */ 
+  ulonglong dirty_part_map;   
   MI_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
   /* Function to use for a row checksum. */
@@ -725,6 +727,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *orn_name,
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
+int mi_munmap_file(MI_INFO *info);
 void mi_remap_file(MI_INFO *info, my_off_t size);
 
 int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
@@ -738,7 +741,8 @@ pthread_handler_t thr_find_all_keys(void *arg);
 #endif
 extern void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
                                    void *func_arg);
-int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file);
+int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file,
+                 ulonglong *dirty_part_map);
 #ifdef __cplusplus
 }
 #endif

@@ -18,6 +18,7 @@
 
 #include "mysql_priv.h"
 #include "sql_trigger.h"
+#include "create_options.h"
 #include <m_ctype.h>
 #include "my_md5.h"
 
@@ -500,6 +501,27 @@ inline bool is_system_table_name(const char *name, uint length)
 }
 
 
+/**
+  Check if a string contains path elements
+*/  
+
+static bool has_disabled_path_chars(const char *str)
+{
+  for (; *str; str++)
+  {
+    switch (*str) {
+      case FN_EXTCHAR:
+      case '/':
+      case '\\':
+      case '~':
+      case '@':
+        return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   Read table definition from a binary / text based .frm file
   
@@ -554,7 +576,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         This kind of tables must have been opened only by the
         my_open() above.
     */
-    if (strchr(share->table_name.str, '@') ||
+    if (has_disabled_path_chars(share->table_name.str) ||
+        has_disabled_path_chars(share->db.str) ||
         !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
                  MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
         !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
@@ -667,12 +690,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint db_create_options, keys, key_parts, n_length;
   uint key_info_length, com_length, null_bit_pos;
   uint vcol_screen_length;
-  uint extra_rec_buf_length;
+  uint extra_rec_buf_length, options_len;
   uint i,j;
   bool use_hash;
   char *keynames, *names, *comment_pos, *vcol_screen_pos;
   uchar *record;
-  uchar *disk_buff, *strpos, *null_flags, *null_pos;
+  uchar *disk_buff, *strpos, *null_flags, *null_pos, *options;
+  uchar *buff= 0;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
   handler *handler_file= 0;
   KEY	*keyinfo;
@@ -788,7 +812,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    keyinfo->table= 0;                           // Updated in open_frm
     if (new_frm_ver >= 3)
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
@@ -858,15 +881,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
-    uchar *buff, *next_chunk, *buff_end;
+    uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
     if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
       goto err;
     if (my_pread(file, buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
     {
-      my_free(buff, MYF(0));
-      goto err;
+      goto free_and_err;
     }
     share->connect_string.length= uint2korr(buff);
     if (!(share->connect_string.str= strmake_root(&share->mem_root,
@@ -874,8 +896,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                   share->connect_string.
                                                   length)))
     {
-      my_free(buff, MYF(0));
-      goto err;
+      goto free_and_err;
     }
     next_chunk+= share->connect_string.length + 2;
     buff_end= buff + n_length;
@@ -895,8 +916,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
         /*
           tmp_plugin is locked with a local lock.
@@ -925,8 +945,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                    "--skip-partition");
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
         plugin_unlock(NULL, share->db_plugin);
         share->db_plugin= ha_lock_engine(NULL, partition_hton);
@@ -940,8 +959,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         /* purecov: begin inspected */
         error= 8;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        my_free(buff, MYF(0));
-        goto err;
+        goto free_and_err;
         /* purecov: end */
       }
       next_chunk+= str_db_type_length + 2;
@@ -957,40 +975,26 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_len + 1)))
         {
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
       }
 #else
       if (partition_info_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff, MYF(0));
-        goto err;
+        goto free_and_err;
       }
 #endif
       next_chunk+= 5 + partition_info_len;
     }
-#if MYSQL_VERSION_ID < 50200
-    if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
-    {
-      /*
-         Partition state array was here in version 5.1.6 to 5.1.9, this code
-         makes it possible to load a 5.1.6 table in later versions. Can most
-         likely be removed at some point in time. Will only be used for
-         upgrades within 5.1 series of versions. Upgrade to 5.2 can only be
-         done from newer 5.1 versions.
-      */
-      next_chunk+= 4;
-    }
-    else if (share->mysql_version >= 50110)
-#endif
+    if (share->mysql_version >= 50110)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       share->auto_partitioned= *next_chunk;
 #endif
       next_chunk++;
+      DBUG_ASSERT(next_chunk <= buff_end);
     }
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
@@ -1002,8 +1006,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
         parser_name.str= (char*) next_chunk;
         parser_name.length= strlen((char*) next_chunk);
@@ -1013,12 +1016,22 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
       }
     }
-    my_free(buff, MYF(0));
+    DBUG_ASSERT(next_chunk <= buff_end);
+    if (share->db_create_options & HA_OPTION_TEXT_CREATE_OPTIONS)
+    {
+      /*
+        store options position, but skip till the time we will
+        know number of fields
+      */
+      options_len= uint4korr(next_chunk);
+      options= next_chunk + 4;
+      next_chunk+= options_len + 4;
+    }
+    DBUG_ASSERT(next_chunk <= buff_end);
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -1028,21 +1041,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->rec_buff_length= rec_buff_length;
   if (!(record= (uchar *) alloc_root(&share->mem_root,
                                      rec_buff_length)))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                          /* purecov: inspected */
   share->default_values= record;
   if (my_pread(file, record, (size_t) share->reclength,
                record_offset, MYF(MY_NABP)))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                          /* purecov: inspected */
 
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file, head,288,MYF(MY_NABP)))
-    goto err;
+    goto free_and_err;
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) head+256,288-256);
     if (sint2korr(head+284) != 0)		// Should be 0
-      goto err;                                 // Wrong password
+      goto free_and_err;                        // Wrong password
   }
 #endif
 
@@ -1062,6 +1075,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                    share->comment.length);
 
   DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  vcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, vcol_screen_length));
+
+
   if (!(field_ptr = (Field **)
 	alloc_root(&share->mem_root,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
@@ -1070,14 +1085,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 			    keys+3)*sizeof(char *)+
 			   (n_length+int_length+com_length+
 			       vcol_screen_length)))))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                           /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length+
 		                   vcol_screen_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                           /* purecov: inspected */
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
@@ -1104,7 +1119,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
   if (share->fieldnames.count != share->fields)
-    goto err;
+    goto free_and_err;
   fix_type_pointers(&interval_array, share->intervals, interval_count,
 		    &names);
 
@@ -1118,7 +1133,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       uint count= (uint) (interval->count + 1) * sizeof(uint);
       if (!(interval->type_lengths= (uint *) alloc_root(&share->mem_root,
                                                         count)))
-        goto err;
+        goto free_and_err;
       for (count= 0; count < interval->count; count++)
       {
         char *val= (char*) interval->type_names[count];
@@ -1134,7 +1149,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
  /* Allocate handler */
   if (!(handler_file= get_new_handler(share, thd->mem_root,
                                       share->db_type())))
-    goto err;
+    goto free_and_err;
 
   record= share->default_values-1;              /* Fieldstart = 1 */
   if (share->null_field_first)
@@ -1196,7 +1211,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	charset= &my_charset_bin;
 #else
 	error= 4;  // unsupported field type
-	goto err;
+	goto free_and_err;
 #endif
       }
       else
@@ -1207,7 +1222,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           error= 5; // Unknown or unavailable charset
           errarg= (int) strpos[14];
-          goto err;
+          goto free_and_err;
         }
       }
 
@@ -1247,7 +1262,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if ((uint)vcol_screen_pos[0] != 1)
         {
           error= 4;
-          goto err;
+          goto free_and_err;
         }
         field_type= (enum_field_types) (uchar) vcol_screen_pos[1];
         fld_stored_in_db= (bool) (uint) vcol_screen_pos[2];
@@ -1256,7 +1271,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               (char *)memdup_root(&share->mem_root,
                                   vcol_screen_pos+(uint)FRM_VCOL_HEADER_SIZE,
                                   vcol_expr_length)))
-          goto err;        
+          goto free_and_err;
         vcol_info->expr_str.length= vcol_expr_length;
         vcol_screen_pos+= vcol_info_length;
         share->vfields++;
@@ -1346,7 +1361,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (!reg_field)				// Not supported field type
     {
       error= 4;
-      goto err;			/* purecov: inspected */
+      goto free_and_err;			/* purecov: inspected */
     }
 
     reg_field->field_index= i;
@@ -1385,7 +1400,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           sent (OOM).
         */
         error= 8; 
-        goto err;
+        goto free_and_err;
       }
     }
     if (!reg_field->stored_in_db)
@@ -1462,7 +1477,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	if (!key_part->fieldnr)
         {
           error= 4;                             // Wrong file
-          goto err;
+          goto free_and_err;
         }
         field= key_part->field= share->field[key_part->fieldnr-1];
         key_part->type= field->key_type();
@@ -1569,6 +1584,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
+        /*
+          Sometimes we can compare key parts for equality with memcmp.
+          But not always.
+        */
+        if (!(key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
+                                         HA_BIT_PART)) &&
+            key_part->type != HA_KEYTYPE_FLOAT &&
+            key_part->type == HA_KEYTYPE_DOUBLE)
+          key_part->key_part_flag|= HA_CAN_MEMCMP;
       }
       keyinfo->usable_key_parts= usable_parts; // Filesort
 
@@ -1616,6 +1640,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     bfill(share->default_values + (null_flags - (uchar*) record),
           null_length, 255);
   }
+
+  if (share->db_create_options & HA_OPTION_TEXT_CREATE_OPTIONS)
+  {
+    DBUG_ASSERT(options_len);
+    if (engine_table_options_frm_read(options, options_len, share))
+      goto free_and_err;
+  }
+  if (parse_engine_table_options(thd, handler_file->partition_ht(), share))
+    goto free_and_err;
+  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
 
   if (share->found_next_number_field)
   {
@@ -1675,6 +1709,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
   DBUG_RETURN (0);
 
+ free_and_err:
+  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
  err:
   share->error= error;
   share->open_errno= my_errno;
@@ -2873,6 +2909,7 @@ File create_frm(THD *thd, const char *name, const char *db,
   ulong length;
   uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
+  DBUG_ENTER("create_frm");
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
@@ -2954,7 +2991,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       {
 	VOID(my_close(file,MYF(0)));
 	VOID(my_delete(name,MYF(0)));
-	return(-1);
+	DBUG_RETURN(-1);
       }
     }
   }
@@ -2965,7 +3002,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     else
       my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno);
   }
-  return (file);
+  DBUG_RETURN(file);
 } /* create_frm */
 
 
@@ -2984,6 +3021,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->comment= share->comment;
   create_info->transactional= share->transactional;
   create_info->page_checksum= share->page_checksum;
+  create_info->option_list= share->option_list;
 
   DBUG_VOID_RETURN;
 }
@@ -3134,7 +3172,6 @@ bool check_db_name(LEX_STRING *org_name)
             (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
 }
 
-
 /*
   Allow anything as a table name, as long as it doesn't contain an
   ' ' at the end
@@ -3142,7 +3179,7 @@ bool check_db_name(LEX_STRING *org_name)
 */
 
 
-bool check_table_name(const char *name, uint length)
+bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
   uint name_length= 0;  // name length in symbols
   const char *end= name+length;
@@ -3164,11 +3201,14 @@ bool check_table_name(const char *name, uint length)
       int len=my_ismbchar(system_charset_info, name, end);
       if (len)
       {
-        name += len;
+        name+= len;
         name_length++;
         continue;
       }
     }
+    if (check_for_path_chars &&
+        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
+      return 1;
 #endif
     name++;
     name_length++;
@@ -3788,7 +3828,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
-  if (thd->get_internal_handler())
+  if (thd->killed || thd->get_internal_handler())
     return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
@@ -4153,11 +4193,8 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot_no_password(view_sctx,
-                                definer.user.str,
-                                definer.host.str,
-                                definer.host.str,
-                                thd->db))
+    if (acl_getroot(view_sctx, definer.user.str, definer.host.str,
+                                definer.host.str, thd->db))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
@@ -4446,9 +4483,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->alias,
-                                       name);
+  Item *item= new Item_direct_view_ref(view, field_ref, name);
   DBUG_RETURN(item);
 }
 
@@ -4798,7 +4833,7 @@ void st_table::mark_columns_used_by_index(uint index)
   MY_BITMAP *bitmap= &tmp_set;
   DBUG_ENTER("st_table::mark_columns_used_by_index");
 
-  (void) file->extra(HA_EXTRA_KEYREAD);
+  enable_keyread();
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
@@ -4821,8 +4856,7 @@ void st_table::restore_column_maps_after_mark_index()
 {
   DBUG_ENTER("st_table::restore_column_maps_after_mark_index");
 
-  key_read= 0;
-  (void) file->extra(HA_EXTRA_NO_KEYREAD);
+  disable_keyread();
   default_column_bitmaps();
   file->column_bitmaps_signal();
   DBUG_VOID_RETURN;

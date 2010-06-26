@@ -746,6 +746,7 @@ public:
   {
     return master_unit()->return_after_parsing();
   }
+  inline bool is_subquery_function() { return master_unit()->item != 0; }
 
   bool mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency);
 
@@ -954,6 +955,8 @@ extern sys_var *trg_new_row_fake_var;
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
+extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
 
 /*
   Class representing list of all tables used by statement.
@@ -1740,6 +1743,7 @@ typedef struct st_lex : public Query_tables_list
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+      - CREATE EVENT (points to "EVENT")
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
@@ -1747,6 +1751,11 @@ typedef struct st_lex : public Query_tables_list
   const char *stmt_definition_begin;
 
   const char *stmt_definition_end;
+
+  /**
+    Collects create options for Field and KEY
+  */
+  engine_option_value *option_list, *option_list_last;
 
   /**
     During name resolution search only in the table list given by 

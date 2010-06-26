@@ -32,8 +32,7 @@
 # .so files at runtime (either system stuff like NSS, or server
 # plugins).
 #
-# We link libgcc statically (and avoid linking libstdc++ at all by
-# CXX=gcc), to avoid reduce nasty library version dependencies.
+# We link libgcc statically to avoid reduce nasty library version dependencies.
 
 test -f Makefile && make distclean
 
@@ -52,13 +51,12 @@ get_cpuopt
 get_make_parallel_flag
 
 # Use gcc rather than g++ to avoid linking libstdc++.so (which we don't need).
-COMP="gcc -static-libgcc"
 FLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall $CPUOPT"
 
 # Don't press on in case of error.
 set -e
 
-CC="$COMP" CXX="$COMP" CFLAGS="$FLAGS" CXXFLAGS="$FLAGS" \
+CC="gcc -static-libgcc" CXX="g++ -static-libgcc" CFLAGS="$FLAGS" CXXFLAGS="$FLAGS" \
 	./configure \
 	--prefix=/usr/local/mysql \
 	--exec-prefix=/usr/local/mysql \

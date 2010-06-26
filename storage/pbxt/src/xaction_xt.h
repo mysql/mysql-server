@@ -153,14 +153,14 @@ typedef struct XTXactData {
 #define XT_XACT_INIT_LOCK(s, i)			xt_spinxslock_init_with_autoname(s, i)
 #define XT_XACT_FREE_LOCK(s, i)			xt_spinxslock_free(s, i)	
 #define XT_XACT_READ_LOCK(i, s)			xt_spinxslock_slock(i)
-#define XT_XACT_WRITE_LOCK(i, s)		xt_spinxslock_xlock(i, (s)->t_id)
+#define XT_XACT_WRITE_LOCK(i, s)		xt_spinxslock_xlock(i, FALSE, (s)->t_id)
 #define XT_XACT_UNLOCK(i, s, b)			xt_spinxslock_unlock(i, b)
 #else
 #define XT_XACT_LOCK_TYPE				XTSkewRWLockRec
 #define XT_XACT_INIT_LOCK(s, i)			xt_skewrwlock_init_with_autoname(s, i)
 #define XT_XACT_FREE_LOCK(s, i)			xt_skewrwlock_free(s, i)	
 #define XT_XACT_READ_LOCK(i, s)			xt_skewrwlock_slock(i)
-#define XT_XACT_WRITE_LOCK(i, s)		xt_skewrwlock_xlock(i, (s)->t_id)
+#define XT_XACT_WRITE_LOCK(i, s)		xt_skewrwlock_xlock(i, FALSE, (s)->t_id)
 #define XT_XACT_UNLOCK(i, s, b)			xt_skewrwlock_unlock(i, b)
 #endif
 

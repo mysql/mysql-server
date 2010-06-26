@@ -36,27 +36,14 @@ insert into t1 values ('2007-01-01',default);
 insert into t1 values ('2005-01-01',default);
 select * from t1;
 
-# Specifically for MyISAM, check that data is written into correct 
-# $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*p?.MYD files
-let $myisam_engine = `select @@session.storage_engine='myisam'`;
-if ($myisam_engine)
-{
- --echo # Check how data is physically partitioned.
- --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
- --exec du -b $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*p?.MYD
-}
+select partition_name,table_rows,data_length from information_schema.partitions where table_name = 't1';
 
 --echo # Modify the expression of virtual column b
 ALTER TABLE t1 modify b int as (year(a)-1);
 
 select * from t1;
 
-if ($myisam_engine)
-{
- --echo # Check how data is physically partitioned.
- --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
- --exec du -b $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*p?.MYD
-}
+select partition_name,table_rows,data_length from information_schema.partitions where table_name = 't1';
 
 drop table t1;
 
@@ -67,12 +54,7 @@ PARTITION BY LIST (a+1)
 (PARTITION p1 VALUES IN (1), PARTITION p2 VALUES IN (2));
 
 insert into t1 values (1,default);
-if ($myisam_engine)
-{
- --echo # Check how data is physically partitioned.
- --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
- --exec du -b $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*p?.MYD
-}
+select partition_name,table_rows,data_length from information_schema.partitions where table_name = 't1';
 select * from t1;
 
 #
@@ -115,12 +97,7 @@ select * from t1;
 #alter table t1 change b b int as ((a % 3)+1) persistent;
 #--error ER_NO_PARTITION_FOR_GIVEN_VALUE
 #alter table t1 change b b int as (a % 2) persistent;
-#if ($myisam_engine)
-#{
-# --echo # Check how data is physically partitioned.
-# --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-# --exec du -b $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*p?.MYD
-#}
+#select partition_name,table_rows,data_length from information_schema.partitions where table_name = 't1';
 
 select * from t1;
 
@@ -138,23 +115,13 @@ insert into t1 values ('2005-01-01',default);
 insert into t1 values ('2006-01-01',default);
 select * from t1;
 
-if ($myisam_engine)
-{
- --echo # Check how data is physically partitioned.
- --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
- --exec du -b $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*p?.MYD
-}
+select partition_name,table_rows,data_length from information_schema.partitions where table_name = 't1';
 
 --echo # Modify the expression of virtual column b
 ALTER TABLE t1 modify b int as (year(a)-1);
 
 select * from t1;
 
-if ($myisam_engine)
-{
- --echo # Check how data is physically partitioned.
- --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
- --exec du -b $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*p?.MYD
-}
+select partition_name,table_rows,data_length from information_schema.partitions where table_name = 't1';
 
 drop table t1;

@@ -75,7 +75,8 @@ int mi_assign_to_key_cache(MI_INFO *info,
     in the old key cache.
   */
 
-  if (flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE))
+  if (flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
+                       FLUSH_RELEASE))
   {
     error= my_errno;
     mi_print_error(info->s, HA_ERR_CRASHED);
@@ -90,7 +91,8 @@ int mi_assign_to_key_cache(MI_INFO *info,
     (This can never fail as there is never any not written data in the
     new key cache)
   */
-  (void) flush_key_blocks(key_cache, share->kfile, FLUSH_RELEASE);
+  (void) flush_key_blocks(key_cache, share->kfile, &share->dirty_part_map,
+                          FLUSH_RELEASE);
 
   /*
     ensure that setting the key cache and changing the multi_key_cache
@@ -102,6 +104,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     This should be seen at the lastes for the next call to an myisam function.
   */
   share->key_cache= key_cache;
+  share->dirty_part_map= 0;
 
   /* store the key cache in the global hash structure for future opens */
   if (multi_key_cache_set((uchar*) share->unique_file_name,

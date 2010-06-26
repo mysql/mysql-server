@@ -1274,7 +1274,10 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
   for (file= from_file; file <= to_file; file++)
   {
     LOGHANDLER_FILE_INFO info;
-    File fd= open_logfile_by_number_no_cache(file);
+    File fd;
+    LINT_INIT(info.max_lsn);
+
+    fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
         ((translog_read_file_header(&info, fd) ||
           (cmp_translog_addr(lsn, info.max_lsn) > 0 &&
@@ -1457,8 +1460,9 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
 
   {
     LOGHANDLER_FILE_INFO info;
+    File fd;
     LINT_INIT_STRUCT(info);
-    File fd= open_logfile_by_number_no_cache(file);
+    fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
         (translog_read_file_header(&info, fd) | my_close(fd, MYF(MY_WME))))
     {
@@ -3966,6 +3970,8 @@ my_bool translog_init_with_table(const char *directory,
     if (!old_log_was_recovered && old_flags == flags)
     {
       LOGHANDLER_FILE_INFO info;
+      LINT_INIT_STRUCT(info);
+
       /*
         Accessing &log_descriptor.open_files without mutex is safe
         because it is initialization
@@ -7934,6 +7940,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
   LINT_INIT(sent_to_disk);
+  LINT_INIT(flush_interval);
 
   pthread_mutex_lock(&log_descriptor.log_flush_lock);
   DBUG_PRINT("info", ("Everything is flushed up to (%lu,0x%lx)",
@@ -8060,18 +8067,14 @@ retest:
     /* keep values for soft sync() and forced sync() actual */
     {
       uint32 fileno= LSN_FILE_NO(lsn);
-      my_atomic_rwlock_wrlock(&soft_sync_rwl);
-      my_atomic_store32(&soft_sync_min, fileno);
-      my_atomic_store32(&soft_sync_max, fileno);
-      my_atomic_rwlock_wrunlock(&soft_sync_rwl);
+      soft_sync_min= fileno;
+      soft_sync_max= fileno;
     }
   }
   else
   {
-    my_atomic_rwlock_wrlock(&soft_sync_rwl);
-    my_atomic_store32(&soft_sync_max, LSN_FILE_NO(lsn));
-    my_atomic_store32(&soft_need_sync, 1);
-    my_atomic_rwlock_wrunlock(&soft_sync_rwl);
+    soft_sync_max= lsn;
+    soft_need_sync= 1;
   }
 
   DBUG_ASSERT(flush_horizon <= log_descriptor.horizon);
@@ -8464,9 +8467,7 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
               translog_status == TRANSLOG_READONLY);
 
   soft= soft_sync;
-  my_atomic_rwlock_wrlock(&soft_sync_rwl);
-  min_unsync= my_atomic_load32(&soft_sync_min);
-  my_atomic_rwlock_wrunlock(&soft_sync_rwl);
+  min_unsync= soft_sync_min;
   DBUG_PRINT("info", ("min_unsync: %lu", (ulong) min_unsync));
   if (soft && min_unsync < last_need_file)
   {
@@ -8748,9 +8749,7 @@ void translog_sync()
   uint32 min;
   DBUG_ENTER("ma_translog_sync");
 
-  my_atomic_rwlock_rdlock(&soft_sync_rwl);
-  min= my_atomic_load32(&soft_sync_min);
-  my_atomic_rwlock_rdunlock(&soft_sync_rwl);
+  min= soft_sync_min;
   if (!min)
     min= max;
 
@@ -8796,13 +8795,11 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
       ulonglong prev_loop= my_micro_time();
       ulonglong time, sleep;
       uint32 min, max, sync_request;
-      my_atomic_rwlock_rdlock(&soft_sync_rwl);
-      min= my_atomic_load32(&soft_sync_min);
-      max= my_atomic_load32(&soft_sync_max);
-      sync_request= my_atomic_load32(&soft_need_sync);
-      my_atomic_store32(&soft_sync_min, max);
-      my_atomic_store32(&soft_need_sync, 0);
-      my_atomic_rwlock_rdunlock(&soft_sync_rwl);
+      min= soft_sync_min;
+      max= soft_sync_max;
+      sync_request= soft_need_sync;
+      soft_sync_min= max;
+      soft_need_sync= 0;
 
       sleep= group_commit_wait;
       if (sync_request)
@@ -8834,15 +8831,13 @@ int translog_soft_sync_start(void)
   DBUG_ENTER("translog_soft_sync_start");
 
   /* check and init variables */
-  my_atomic_rwlock_rdlock(&soft_sync_rwl);
-  min= my_atomic_load32(&soft_sync_min);
-  max= my_atomic_load32(&soft_sync_max);
+  min= soft_sync_min;
+  max= soft_sync_max;
   if (!max)
-    my_atomic_store32(&soft_sync_max, (max= get_current_logfile()->number));
+    soft_sync_max= max= get_current_logfile()->number;
   if (!min)
-    my_atomic_store32(&soft_sync_min, max);
-  my_atomic_store32(&soft_need_sync, 1);
-  my_atomic_rwlock_rdunlock(&soft_sync_rwl);
+    soft_sync_min= max;
+  soft_need_sync= 1;
 
   if (!(res= ma_service_thread_control_init(&soft_sync_control)))
     if (!(res= pthread_create(&th, NULL, ma_soft_sync_background, NULL)))
@@ -8985,6 +8980,7 @@ static void dump_header_page(uchar *buff)
 {
   LOGHANDLER_FILE_INFO desc;
   char strbuff[21];
+  LINT_INIT_STRUCT(desc);
   translog_interpret_file_header(&desc, buff);
   printf("  This can be header page:\n"
          "    Timestamp: %s\n"

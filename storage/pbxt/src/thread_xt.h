@@ -132,6 +132,7 @@ struct XTSortedList;
 struct XTXactLog;
 struct XTXactData;
 struct XTDatabase;
+struct XTOpenTable;
 
 typedef void (*XTThreadFreeFunc)(struct XTThread *self, void *data);
 
@@ -307,8 +308,7 @@ typedef struct XTThread {
 	xtThreadID				*st_thread_list;
 
 	/* Used to prevent a record from being updated twice in one statement. */
-	xtBool					st_is_update;					/* TRUE if this is an UPDATE statement. */
-	u_int					st_update_id;					/* The update statement ID. */
+	struct XTOpenTable		*st_is_update;					/* TRUE if this is an UPDATE statement.  {UPDATE-STACK} */
 
 	XTRowLockListRec		st_lock_list;					/* The thread row lock list (drop locks on transaction end). */
 	XTStatisticsRec			st_statistics;					/* Accumulated statistics for this thread. */
@@ -536,7 +536,10 @@ extern struct XTThread	**xt_thr_array;
  * Function prototypes
  */
 
-extern "C" void *thr_main_pbxt(void *data);
+/* OpenSolaris has thr_main in /usr/include/thread.h (name conflict)
+ * Thanks for the tip Monty!
+ */
+extern "C" void *xt_thread_main(void *data);
 
 void			xt_get_now(char *buffer, size_t len);
 xtBool			xt_init_logging(void);

@@ -361,7 +361,9 @@ create_query_string(THD *thd, String *buf)
   /* Append definer */
   append_definer(thd, buf, &(thd->lex->definer->user), &(thd->lex->definer->host));
   /* Append the left part of thd->query after "DEFINER" part */
-  if (buf->append(thd->lex->stmt_definition_begin))
+  if (buf->append(thd->lex->stmt_definition_begin,
+                  thd->lex->stmt_definition_end -
+                  thd->lex->stmt_definition_begin))
     return 1;
  
   return 0;
@@ -1263,8 +1265,9 @@ Events::load_events_from_db(THD *thd)
       }
     }
   }
-  sql_print_information("Event Scheduler: Loaded %d event%s",
-                        count, (count == 1) ? "" : "s");
+  if (global_system_variables.log_warnings)
+    sql_print_information("Event Scheduler: Loaded %d event%s",
+                          count, (count == 1) ? "" : "s");
   ret= FALSE;
 
 end:

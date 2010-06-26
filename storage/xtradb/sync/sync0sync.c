@@ -423,8 +423,11 @@ mutex_set_waiters(
 	mutex_t*	mutex,	/*!< in: mutex */
 	ulint		n)	/*!< in: value to set */
 {
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
 	volatile ulint*	ptr;		/* declared volatile to ensure that
 					the value is stored to memory */
+#endif
+
 	ut_ad(mutex);
 
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS

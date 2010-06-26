@@ -36,6 +36,7 @@ typedef struct st_innobase_share {
 					incremented in get_share()
 					and decremented in free_share() */
 	void*		table_name_hash;/*!< hash table chain node */
+	dict_table_t*	ib_table;
 } INNOBASE_SHARE;
 
 
@@ -119,6 +120,7 @@ class ha_innobase: public handler
 	int close(void);
 	double scan_time();
 	double read_time(uint index, uint ranges, ha_rows rows);
+	bool is_corrupt() const;
 
 	int write_row(uchar * buf);
 	int update_row(const uchar * old_data, uchar * new_data);

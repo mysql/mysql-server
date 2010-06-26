@@ -487,9 +487,9 @@ in size */
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
-#if UNIV_PAGE_SIZE < 4096
-# error "UNIV_PAGE_SIZE < 4096"
-#endif
+//#if UNIV_PAGE_SIZE < 4096
+//# error "UNIV_PAGE_SIZE < 4096"
+//#endif
 /** The offset of the MySQL replication info in the trx system header;
 this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)

@@ -357,11 +357,14 @@ sub post_check_client_group {
   
   if (IS_WINDOWS)
   {
-    # Shared memory base may or may not be defined (e.g not defined in embedded)
-    my $shm = $group_to_copy_from->option("shared-memory-base-name");
-    if (defined $shm)
+    if (! $self->{ARGS}->{embedded})
     {
-      $config->insert($client_group_name,"shared-memory-base-name", $shm->value());
+      # Shared memory base may or may not be defined (e.g not defined in embedded)
+      my $shm = $group_to_copy_from->option("shared-memory-base-name");
+      if (defined $shm)
+      {
+        $config->insert($client_group_name,"shared-memory-base-name", $shm->value());
+      }
     }
   }
 }

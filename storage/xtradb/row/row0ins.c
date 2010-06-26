@@ -1340,6 +1340,12 @@ run_again:
 		const rec_t*		rec = btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block = btr_pcur_get_block(&pcur);
 
+		if (srv_pass_corrupt_table && !block) {
+			err = DB_CORRUPTION;
+			break;
+		}
+		ut_a(block);
+
 		if (page_rec_is_infimum(rec)) {
 
 			goto next_rec;

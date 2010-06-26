@@ -679,9 +679,21 @@ int ha_tina::find_current_row(uchar *buf)
 
     if (read_all || bitmap_is_set(table->read_set, (*field)->field_index))
     {
+      bool is_enum= ((*field)->real_type() ==  MYSQL_TYPE_ENUM);
+      /*
+        Here CHECK_FIELD_WARN checks that all values in the csv file are valid
+        which is normally the case, if they were written  by
+        INSERT -> ha_tina::write_row. '0' values on ENUM fields are considered
+        invalid by Field_enum::store() but it can store them on INSERT anyway.
+        Thus, for enums we silence the warning, as it doesn't really mean
+        an invalid value.
+      */
       if ((*field)->store(buffer.ptr(), buffer.length(), buffer.charset(),
-                          CHECK_FIELD_WARN))
-        goto err;
+                          is_enum ? CHECK_FIELD_IGNORE : CHECK_FIELD_WARN))
+      {
+        if (!is_enum)
+          goto err;
+      }
       if ((*field)->flags & BLOB_FLAG)
       {
         Field_blob *blob= *(Field_blob**) field;
@@ -1636,4 +1648,20 @@ mysql_declare_plugin(csv)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
-
+maria_declare_plugin(csv)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &csv_storage_engine,
+  "CSV",
+  "Brian Aker, MySQL AB",
+  "CSV storage engine",
+  PLUGIN_LICENSE_GPL,
+  tina_init_func, /* Plugin Init */
+  tina_done_func, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

@@ -233,8 +233,12 @@ static void check_unused(void)
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
-                                  table_list->table_name)-key)+1;
+  char *db_end= strnmov(key, table_list->db, MAX_DBKEY_LENGTH - 2);
+  *db_end++= '\0';
+  char *table_end= strnmov(db_end, table_list->table_name,
+                           key + MAX_DBKEY_LENGTH - 1 - db_end);
+  *table_end++= '\0';
+  uint key_length= (uint) (table_end-key);
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
@@ -1521,6 +1525,7 @@ void close_temporary_tables(THD *thd)
   {
     if (is_user_table(table))
     {
+      bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
@@ -1550,6 +1555,7 @@ void close_temporary_tables(THD *thd)
       thd->clear_error();
       CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
+      thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
@@ -1562,6 +1568,7 @@ void close_temporary_tables(THD *thd)
                      "Failed to write the DROP statement for temporary tables to binary log");
       }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
+      thd->thread_specific_used= save_thread_specific_used;
     }
     else
     {
@@ -2185,6 +2192,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   proc_info=thd->proc_info;
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
+  DEBUG_SYNC(thd, "waiting_for_table");
   if (!thd->killed)
     (void) pthread_cond_wait(cond, mutex);
 
@@ -2996,7 +3004,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->status=STATUS_NO_RECORD;
   table->insert_values= 0;
   table->fulltext_searched= 0;
-  table->file->ft_handler= 0;
+  table->file->ha_start_of_new_statement();
   table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
@@ -4622,7 +4630,20 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         safe_to_ignore_table= prelock_handler.safely_trapped_errors();
       }
       else
+      {
         tables->table= open_table(thd, tables, &new_frm_mem, &refresh, flags);
+
+        /*
+          Skip further processing if there has been a fatal error while
+          trying to open a table. For example, this might happen due to
+          stack shortage, unknown definer in views, etc.
+        */
+        if (!tables->table && thd->is_error())
+        {
+          result= -1;
+          goto err;
+        }
+      }
     }
     else
       DBUG_PRINT("tcache", ("referenced table: '%s'.'%s' 0x%lx",

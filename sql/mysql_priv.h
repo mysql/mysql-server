@@ -133,13 +133,15 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
   do {                                                                               \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
-    if (((uchar*)Thd) != NULL)                                                         \
+    if (((uchar*)Thd) != NULL)                                                       \
       push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,                \
-                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER), \
-                        (Old), (Ver), (New));                                        \
+                        ER_WARN_DEPRECATED_SYNTAX,                                   \
+                        ER(ER_WARN_DEPRECATED_SYNTAX),                               \
+                        (Old), (New));                                               \
     else                                                                             \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in a future release. Please use %s instead.", (Old), (New)); \
+      sql_print_warning("'%s' is deprecated and will be removed "                    \
+                        "in a future release. Please use '%s' instead.",             \
+                        (Old), (New));                                               \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -526,7 +528,7 @@ protected:
 #define MODE_PIPES_AS_CONCAT            2
 #define MODE_ANSI_QUOTES                4
 #define MODE_IGNORE_SPACE		8
-#define MODE_NOT_USED			16
+#define MODE_IGNORE_BAD_TABLE_OPTIONS   16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
 #define MODE_NO_DIR_IN_CREATE		128
@@ -634,20 +636,6 @@ protected:
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
-#ifdef EXTRA_DEBUG
-/**
-  Sync points allow us to force the server to reach a certain line of code
-  and block there until the client tells the server it is ok to go on.
-  The client tells the server to block with SELECT GET_LOCK()
-  and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
-  concurrency problems
-*/
-#define DBUG_SYNC_POINT(lock_name,lock_timeout) \
- debug_sync_point(lock_name,lock_timeout)
-void debug_sync_point(const char* lock_name, uint lock_timeout);
-#else
-#define DBUG_SYNC_POINT(lock_name,lock_timeout)
-#endif /* EXTRA_DEBUG */
 
 /* BINLOG_DUMP options */
 
@@ -694,7 +682,8 @@ enum enum_parsing_place
   IN_HAVING,
   SELECT_LIST,
   IN_WHERE,
-  IN_ON
+  IN_ON,
+  IN_GROUP_BY
 };
 
 struct st_table;
@@ -1095,9 +1084,6 @@ int write_bin_log(THD *thd, bool clear_error,
                   char const *query, ulong query_length);
 
 /* sql_connect.cc */
-int check_user(THD *thd, enum enum_server_command command, 
-	       const char *passwd, uint passwd_len, const char *db,
-	       bool check_count);
 pthread_handler_t handle_one_connection(void *arg);
 bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
@@ -1110,6 +1096,9 @@ bool login_connection(THD *thd);
 void end_connection(THD *thd);
 void prepare_new_connection_state(THD* thd);
 void update_global_user_stats(THD* thd, bool create_user, time_t now);
+int get_or_create_user_conn(THD *thd, const char *user,
+                            const char *host, USER_RESOURCES *mqh);
+int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 
 int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
@@ -1536,7 +1525,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       char *change, List<String> *interval_list,
 		       CHARSET_INFO *cs,
 		       uint uint_geom_type,
-                       Virtual_column_info *vcol_info);
+                       Virtual_column_info *vcol_info,
+                       engine_option_value *create_options);
 Create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
 				char *length, char *decimals,
 				uint type_modifier, 
@@ -1919,6 +1909,12 @@ void sql_perror(const char *message);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+*/
+bool is_secure_file_path(char *path);
+
 #ifdef MYSQL_SERVER
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
@@ -2079,6 +2075,7 @@ extern my_bool opt_log, opt_slow_log;
 extern ulong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
+extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
@@ -2368,7 +2365,7 @@ void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
-bool check_table_name(const char *name, uint length);
+bool check_table_name(const char *name, uint length, bool check_for_path_chars);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);

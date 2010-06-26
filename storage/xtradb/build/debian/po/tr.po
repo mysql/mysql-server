@@ -1,0 +1,342 @@
+# Turkish translation of mysql-server.
+# This file is distributed under the same license as the mysql-server package.
+# Gürkan Aslan <gurkan@iaslan.com>, 2004
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-4.1\n"
+"Report-Msgid-Bugs-To: percona-xtradb-dfsg-5.1@packages.debian.org\n"
+"POT-Creation-Date: 2010-02-15 17:10-0500\n"
+"PO-Revision-Date: 2004-06-05 08:53+0300\n"
+"Last-Translator: Gürkan Aslan <gurkan@iaslan.com>\n"
+"Language-Team: Turkish <debian-l10n-turkish@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms:  nplurals=1; plural=0;\n"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid ""
+"Such file is an indication that a mysql-server package with a higher version "
+"has been installed earlier."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+#, fuzzy
+#| msgid "Important note for NIS/YP users!"
+msgid "Important note for NIS/YP users"
+msgstr "NIS/YP kullanıcıları için önemli not!"
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"To use MySQL, the following entries for users and groups should be added to "
+"the system:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"You should also check the permissions and the owner of the /var/lib/mysql "
+"directory:"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+msgid "Remove all Percona SQL databases?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the Percona SQL databases is "
+"about to be removed."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+msgid ""
+"If you're removing the Percona SQL package in order to later install a more "
+"recent version or if a different mysql-server package is already using it, "
+"the data should be kept."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+#| msgid "Should MySQL start on boot?"
+msgid "Start the Percona SQL server on boot?"
+msgstr "MySQL açılış sırasında başlatılsın mı?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+msgid ""
+"The Percona SQL server can be launched automatically at boot time or "
+"manually with the '/etc/init.d/mysql start' command."
+msgstr ""
+"MySQL açılış sırasında veya '/etc/init.d/mysql start' komutunu vermeniz "
+"halinde elle başlatılabilir. Eğer açılışta otomatik olarak başlatılmasını "
+"istiyorsanız burada 'evet'i seçin."
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+msgid "New password for the Percona SQL \"root\" user:"
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the Percona SQL administrative \"root\" user."
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+msgid "If that field is left blank, the password will not be changed."
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:7001
+msgid "Repeat password for the Percona SQL \"root\" user:"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid "Unable to set password for the Percona SQL \"root\" user"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid ""
+"An error occurred while setting the password for the Percona SQL "
+"administrative user. This may have happened because the account already has "
+"a password, or because of a communication problem with the Percona SQL "
+"server."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid "You should check the account's password after the package installation."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid ""
+"Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for more "
+"information."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid ""
+"Percona-SQL-5.1 has orphaned NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "To use mysql you must install an equivalent user and group to the "
+#~ "following and ensure yourself that /var/lib/mysql has the right "
+#~ "permissions (the uid/gid may be different)."
+#~ msgstr ""
+#~ "Mysql'i kullanmak için aşağıdakiyle eşdeğer bir kullanıcı ve grup "
+#~ "tanımlamalı, ve /var/lib/mysql izinlerinin uygun şekilde ayarlandığından "
+#~ "emin olmalısınız (uid/gid farklı olabilir)."
+
+#~ msgid ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+#~ msgstr ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#~ msgid "/etc/group:       mysql:x:101:"
+#~ msgstr "/etc/group:       mysql:x:101:"
+
+#~ msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+#~ msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#, fuzzy
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr "Lütfen http://www.mysql.com/doc/en/Upgrade.html belgesini okuyun"
+
+#, fuzzy
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "MySQL sadece /etc/hosts dosyası yoluyla çözülebilir NUMERİK OLMAYAN bir "
+#~ "makine adına sahipseniz kurulacaktır. Örneğin, eğer \"hostname\" komutu "
+#~ "\"makinem\" ismini döndürüyorsa, bu dosya içinde \"10.0.0.1 makinem\" "
+#~ "gibi bir satır olmalıdır."
+
+#, fuzzy
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "Yeni mysql kullanıcısı \"debian-sys-maint\" yaratılacak. Bu hesap, "
+#~ "başlangıç betiklerinde ve cron içinde kullanılıyor. Bu hesabı silmeyin."
+
+#, fuzzy
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "Lütfen MySQL root kullanıcısı için bir PAROLA girmeyi unutmayın! Eğer /"
+#~ "root/.my.cnf kullanıyorsanız, \"user\" ve \"password\" satırlarını her "
+#~ "zaman buraya ekleyin, sadece parolayı değil! Daha fazla bilgi için /usr/"
+#~ "share/doc/mysql-server/README.Debian dosyasını okuyun."
+
+#, fuzzy
+#~ msgid ""
+#~ "Should I remove all databases below /var/lib/mysql as you are purging the "
+#~ "mysql-server package?"
+#~ msgstr ""
+#~ "mysql-server paketi kaldırıldıktan sonra bütün veritabanları silinsin mi?"
+
+#~ msgid ""
+#~ "Networking is disabled by default for security reasons. You can enable it "
+#~ "by commenting out the skip-networking option in /etc/mysql/my.cnf."
+#~ msgstr ""
+#~ "Ağ, öntanımlı olarak güvenlik gerekçeleriyle devre dışı bırakıldı. Bu "
+#~ "özelliği /etc/mysql/my.cnf dosyası içindeki \"skip-networking\" "
+#~ "seçeneğini kaldırarak etkinleştirebilirsiniz."
+
+#~ msgid "security and update notice"
+#~ msgstr "güvenlik ve güncelleme duyurusu"
+
+#~ msgid ""
+#~ "Should I remove everything below /var/lib/mysql when you purge the mysql-"
+#~ "server package with the \"dpkg --purge mysql-server\" command (i.e. "
+#~ "remove everything including the configuration) somewhen? (default is not)"
+#~ msgstr ""
+#~ "mysql-server paketini temizlemek için \"dpkg --purge mysql-server\" "
+#~ "komutunu kullandığınızda (yani yapılandırma dahil herşeyi silmek) /var/"
+#~ "lib/mysql altındaki herşeyi sileyim mi? (öntanımlı cevap hayır'dır)."
+
+#~ msgid "Please run mysql_fix_privilege_tables !"
+#~ msgstr "Lütfen mysql_fix_privilege_tables komutunu çalıştırın!"
+
+#~ msgid ""
+#~ "I will ensure secure permissions of /var/lib/mysql by replacing GIDs "
+#~ "other than root and mysql with mysql."
+#~ msgstr ""
+#~ "/var/lib/mysql'in izinlerinin güvenli olmasını sağlamak amacıyla, buna "
+#~ "ait GID'leri root ve mysql'den farklı olacak şekilde değiştireceğim."
+
+#~ msgid ""
+#~ "Instructions how to enable SSL support are in /usr/share/doc/mysql-server/"
+#~ msgstr ""
+#~ "SSL desteğini nasıl etkinleştirebileceğinize ilişkin talimatlar /usr/"
+#~ "share/doc/mysql-server/ içinde."
+
+#~ msgid "mysql_fix_privileges_tables will be executed"
+#~ msgstr "mysql_fix_privileges_tables çalıştırılacak"
+
+#~ msgid ""
+#~ "The latest MySQL versions have an enhanced, more fine grained, privilege "
+#~ "system. To make use of it, some new fields must be added to the tables "
+#~ "in  the \"mysql\" database. This is done by the "
+#~ "mysql_fix_privilege_tables script during this upgrade regardless of if "
+#~ "the server is currently running or not!"
+#~ msgstr ""
+#~ "En son MySQL sürümleri zenginleştirilmiş, daha ayrıntılandırılmış bir "
+#~ "ayrıcalık (privilege) sistemine sahiptir. Yeni sistemi kullanmak için, "
+#~ "\"mysql\" veritabanındaki tablolara bazı yeni alanlar eklenmelidir. Bu "
+#~ "işlem, sunucunun çalışıp çalışmamasına bağlı olmaksızın "
+#~ "mysql_fix_privilege_tables betiği tarafından bu yükseltme sırasında "
+#~ "yapılır."
+
+#~ msgid ""
+#~ "This script is not supposed to give any user more rights that he had "
+#~ "before, if you encounter such a case, please contact me."
+#~ msgstr ""
+#~ "Bu betiğin hiç bir kullanıcıya öncekinden daha fazla hak kazandırmadığı "
+#~ "varsayılıyor. Eğer bunun aksinde bir durumla karşılaşırsanız, lütfen "
+#~ "benimle bağlantıya geçin."
+
+#~ msgid "Make MySQL reachable via network?"
+#~ msgstr "MySQL network üzerinden ulaşılabilir olsun mu?"
+
+#~ msgid ""
+#~ "Should MySQL listen on a network reachable TCP port? This is not "
+#~ "necessary for use on a single computer and could be a security problem."
+#~ msgstr ""
+#~ "MySQL ağ üzerinde ulaşılabilen bir TCP portunu dinlesin mi? Tek olan bir "
+#~ "bilgisayar için bu ayar gerekli değildir ve bir güvenlik sorunu "
+#~ "oluşturabilir."
+
+#~ msgid "Enable chroot mode?"
+#~ msgstr "chroot kipi etkinleştirilsin mi?"
+
+#~ msgid ""
+#~ "MySQL is able to jail itself into the /var/lib/mysql_jail directory so "
+#~ "that users cannot modify any files outside this directory. This improves "
+#~ "resistence against crackers, too, as they are not able to modify system "
+#~ "files."
+#~ msgstr ""
+#~ "MySQL kendini /var/lib/mysql_jail dizinine hapsederek kullanıcıların bu "
+#~ "dizin dışındaki hiç bir dosyayı değiştirmemesini sağlayabilir. Bu "
+#~ "düzenleme, sistem dosyalarını değiştirmelerini engelleyeceğinden, "
+#~ "cracker'lara karşı dayanıklılığı arttırır."

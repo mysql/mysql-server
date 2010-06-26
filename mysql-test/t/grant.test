@@ -1525,5 +1525,30 @@ DROP USER 'user1'@'localhost';
 DROP USER 'user2';
 DROP DATABASE db1;
 
+
+#
+# Bug #53371: COM_FIELD_LIST can be abused to bypass table level grants.
+#
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+GRANT SELECT ON db1.* to 'testbug'@localhost;
+USE db2;
+CREATE TABLE t1 (a INT);
+USE test;
+connect (con1,localhost,testbug,,db1);
+--error ER_NO_SUCH_TABLE
+SELECT * FROM `../db2/tb2`;
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM `../db2`.tb2;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM `#mysql50#/../db2/tb2`;
+connection default;
+disconnect con1;
+DROP USER 'testbug'@localhost;
+DROP TABLE db2.t1;
+DROP DATABASE db1;
+DROP DATABASE db2;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
