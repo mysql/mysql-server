@@ -852,6 +852,7 @@ AC_CHECK_HEADERS([xfs/xfs.h])
 #--------------------------------------------------------------------
 
 AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
+AC_CHECK_FUNCS(log2)
 
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))

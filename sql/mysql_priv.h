@@ -2567,6 +2567,19 @@ inline bool is_user_table(TABLE * table)
   return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
 }
 
+
+#ifndef HAVE_LOG2
+/*
+  This will be slightly slower and perhaps a tiny bit less accurate than
+  doing it the IEEE754 way but log2() should be available on C99 systems.
+*/
+inline double log2(double x)
+{
+  return (log(x) / M_LN2);
+}
+#endif
+
+
 /*
   Some functions that are different in the embedded library and the normal
   server
