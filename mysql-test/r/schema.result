@@ -11,3 +11,22 @@ mtr
 mysql
 test
 drop schema foo;
+#
+# Bug#54360 Deadlock DROP/ALTER/CREATE DATABASE with open HANDLER
+#
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+INSERT INTO db1.t1 VALUES (1), (2);
+# Connection con1
+HANDLER db1.t1 OPEN;
+# Connection default
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+# Waiting for 'DROP DATABASE db1' to sync in.
+# Connection con1
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+# Connection default
+# Reaping: DROP DATABASE db1
