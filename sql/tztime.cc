@@ -1892,7 +1892,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong) tzid, TRUE);
-  table->field[0]->get_key_image(keybuff, sizeof(keybuff), Field::itRAW);
+  table->field[0]->get_key_image(keybuff, table->field[0]->pack_length(), Field::itRAW);
   (void)table->file->ha_index_init(0, 1);
 
   if (table->file->ha_index_read_map(table->record[0], keybuff,
