@@ -878,6 +878,19 @@ protected:
 
 
 #ifdef HAVE_SPATIAL
+class Create_func_mbr_equals : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_equals s_singleton;
+
+protected:
+  Create_func_mbr_equals() {}
+  virtual ~Create_func_mbr_equals() {}
+};
+
+
 class Create_func_equals : public Create_func_arg2
 {
 public:
@@ -3427,13 +3440,23 @@ Create_func_envelope::create(THD *thd, Item *arg1)
 
 
 #ifdef HAVE_SPATIAL
+Create_func_mbr_equals Create_func_mbr_equals::s_singleton;
+
+Item*
+Create_func_mbr_equals::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_spatial_mbr_rel(arg1, arg2,
+                               Item_func::SP_EQUALS_FUNC);
+}
+
+
 Create_func_equals Create_func_equals::s_singleton;
 
 Item*
 Create_func_equals::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
-                                                   Item_func::SP_EQUALS_FUNC);
+                               Item_func::SP_EQUALS_FUNC);
 }
 #endif
 
@@ -5133,7 +5156,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ENCRYPT") }, BUILDER(Create_func_encrypt)},
   { { C_STRING_WITH_LEN("ENDPOINT") }, GEOM_BUILDER(Create_func_endpoint)},
   { { C_STRING_WITH_LEN("ENVELOPE") }, GEOM_BUILDER(Create_func_envelope)},
-  { { C_STRING_WITH_LEN("EQUALS") }, GEOM_BUILDER(Create_func_equals)},
+  { { C_STRING_WITH_LEN("EQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("EXP") }, BUILDER(Create_func_exp)},
   { { C_STRING_WITH_LEN("EXPORT_SET") }, BUILDER(Create_func_export_set)},
   { { C_STRING_WITH_LEN("EXTERIORRING") }, GEOM_BUILDER(Create_func_exteriorring)},
@@ -5195,7 +5218,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("MASTER_POS_WAIT") }, BUILDER(Create_func_master_pos_wait)},
   { { C_STRING_WITH_LEN("MBRCONTAINS") }, GEOM_BUILDER(Create_func_mbr_contains)},
   { { C_STRING_WITH_LEN("MBRDISJOINT") }, GEOM_BUILDER(Create_func_mbr_disjoint)},
-  { { C_STRING_WITH_LEN("MBREQUAL") }, GEOM_BUILDER(Create_func_equals)},
+  { { C_STRING_WITH_LEN("MBREQUAL") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("MBRINTERSECTS") }, GEOM_BUILDER(Create_func_mbr_intersects)},
   { { C_STRING_WITH_LEN("MBROVERLAPS") }, GEOM_BUILDER(Create_func_mbr_overlaps)},
   { { C_STRING_WITH_LEN("MBRTOUCHES") }, GEOM_BUILDER(Create_func_touches)},
@@ -5263,7 +5286,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_DIFFERENCE") }, GEOM_BUILDER(Create_func_difference)},
   { { C_STRING_WITH_LEN("ST_DISJOINT") }, GEOM_BUILDER(Create_func_disjoint)},
   { { C_STRING_WITH_LEN("ST_DISTANCE") }, GEOM_BUILDER(Create_func_distance)},
-  { { C_STRING_WITH_LEN("ST_EQUAL") }, GEOM_BUILDER(Create_func_equals)},
+  { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_equals)},
   { { C_STRING_WITH_LEN("ST_INTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},
   { { C_STRING_WITH_LEN("ST_INTERSECTION") }, GEOM_BUILDER(Create_func_intersection)},
   { { C_STRING_WITH_LEN("ST_OVERLAPS") }, GEOM_BUILDER(Create_func_overlaps)},

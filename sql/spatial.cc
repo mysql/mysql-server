@@ -42,7 +42,7 @@
   17
 */
 
-#define MAX_DIGITS_IN_DOUBLE 22
+#define MAX_DIGITS_IN_DOUBLE 30
 
 /***************************** Gis_class_info *******************************/
 
