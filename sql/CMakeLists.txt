@@ -79,6 +79,7 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc opt_table_elimination.cc
                multi_range_read.cc
+               opt_subselect.cc
                create_options.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
