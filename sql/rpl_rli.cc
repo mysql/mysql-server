@@ -889,7 +889,7 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
   else
   {
     inc_group_relay_log_pos(event_master_log_pos);
-    flush_info();
+    flush_info(is_transactional() ? TRUE : FALSE);
   }
 }
 

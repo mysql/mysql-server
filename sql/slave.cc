@@ -2449,6 +2449,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
       Positions are not updated when an XID is processed, i.e. not skipped.
       To make the slave crash-safe positions are updated while processing
       the XID event and as such do not need to be updated again.
+      See sql/rpl_rli.h for further details.
     */
     int error= 0;
     if (ev->get_type_code() != XID_EVENT || skip_event ||

@@ -24,32 +24,78 @@
 struct RPL_TABLE_LIST;
 class Master_info;
 
-/****************************************************************************
+/*******************************************************************************
+Replication SQL Thread
 
-  Replication SQL Thread
+Relay_log_info contains:
+  - the current relay log
+  - the current relay log offset
+  - master log name
+  - master log sequence corresponding to the last update
+  - misc information specific to the SQL thread
 
-  Relay_log_info contains:
-    - the current relay log
-    - the current relay log offset
-    - master log name
-    - master log sequence corresponding to the last update
-    - misc information specific to the SQL thread
+Relay_log_info is initialized from a repository, i.e. table or file, if there is
+one. Otherwise, data members are intialized with defaults by calling
+init_relay_log_info().
 
-  Relay_log_info is initialized from the slave.info file if such
-  exists.  Otherwise, data members are intialized with defaults. The
-  initialization is done with init_relay_log_info() call.
+The relay.info table/file shall be updated whenever: (i) the relay log file
+is rotated, (ii) SQL Thread is stopped, (iii) while processing a Xid_log_event,
+(iv) after a Query_log_event (i.e. commit or rollback) and (v) after processing
+any statement written to the binary log without a transaction context.
 
-  The format of slave.info file:
+The Xid_log_event is a commit for transactional engines and must be handled
+differently to provide reliability/data integrity. While committing updates to
+transactional engines the following behavior shall be implemented:
 
-  relay_log_name
-  relay_log_pos
-  master_log_name
-  master_log_pos
+  . If the relay.info is stored in a transactional repository, for instance, a
+  system table created using Innodb, the positions are updated in the context
+  of the transaction that updated data. Therefore, should the server crash 
+  before successfully committing the transaction the changes to the position 
+  table will be rolled back too.
 
-  To clean up, call end_relay_log_info()
+  . If the relay.info is stored in a non-transactional repository, for instance,
+  a file or a system table created using MyIsam, the positions are update after
+  processing the commit as in (iv) and (v).
 
-*****************************************************************************/
+In particular, when there are mixed transactions, i.e a transaction that updates
+both transaction and non-transactional engines, the Xid_log_event is still used
+but reliability/data integrity cannot be achieved as we shall explain in what
+follows.
 
+Changes to non-transactional engines, such as MyIsam, cannot be rolled back if a
+failure happens. For that reason, there is no point in updating the positions
+within the boundaries of any on-going transaction. This is true for both commit
+and rollback. If a failure happens after processing the pseudo-transaction but
+before updating the positions, the transaction will be re-executed when the
+slave is up most likely causing an error that needs to be manually circumvented.
+This is a well-known issue when non-transactional statements are executed.
+
+Specifically, if rolling back any transaction, positions are updated outside the
+transaction boundaries. However, there may be a problem in this scenario even
+when only transactional engines are updated. This happens because if there is a
+rollback and such transaction is written to the binary log, a non-transactional
+engine was updated or a temporary table was created or dropped within its
+boundaries.
+
+In particular, in both STATEMENT and MIXED logging formats, this happens because
+any temporary table is automatically dropped after a shutdown/startup.
+See BUG#26945 for further details.
+
+Statements written to the binary log outside the boundaries of a transaction are
+DDLs or maintenance commands which are not transactional. These means that they
+cannot be rolled back if a failure happens. In such cases, the positions are
+updated after processing the events. If a failure happens after processing the
+statement but before updating the positions, the statement will be
+re-executed when the slave is up most likely causing an error that needs to be
+manually circumvented. This is a well-known issue when non-transactional
+statements are executed.
+
+The --sync-relay-log-info does not have effect when a system table, either
+transactional or non-transactional is used.
+
+To correctly recovery from failures, one should combine transactional system
+tables along with the --relay-log-recovery.
+*******************************************************************************/
 class Relay_log_info : public Rpl_info
 {
 public:

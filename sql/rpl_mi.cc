@@ -163,7 +163,7 @@ void Master_info::end_info()
 int Master_info::flush_info(bool force)
 {
   DBUG_ENTER("Master_info::flush_info");
-  DBUG_PRINT("enter",("master_pos: %ld", (long) master_log_pos));
+  DBUG_PRINT("enter",("master_pos: %lu", (ulong) master_log_pos));
 
   /*
     We update the sync_period at this point because only here we

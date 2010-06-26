@@ -42,15 +42,25 @@ bool Rpl_info_factory::create(uint mi_option, Master_info **mi,
 
   DBUG_ENTER("Rpl_info_factory::Rpl_info_factory");
 
-  if (!(error= (Rpl_info_factory::create_mi(mi_option, mi) ||
-       Rpl_info_factory::create_rli(rli_option, relay_log_recovery, rli))))
+  if ((error= Rpl_info_factory::create_mi(mi_option, mi)))
   {
-    /*
-      Setting the cross dependency used all over the code.
-    */
-    (*mi)->set_relay_log_info(*rli);
-    (*rli)->set_master_info(*mi);
+    *mi= NULL;
+    DBUG_RETURN(error);
   }
+    
+  if ((error= Rpl_info_factory::create_rli(rli_option, relay_log_recovery,
+                                           rli)))
+  {
+    delete *mi;
+    *mi= NULL;
+    DBUG_RETURN(error);
+  }
+
+  /*
+    Setting the cross dependency used all over the code.
+  */
+  (*mi)->set_relay_log_info(*rli);
+  (*rli)->set_master_info(*mi);
 
   DBUG_RETURN(error); 
 }
@@ -209,56 +219,66 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, Rpl_info_handler *table
 
   DBUG_ENTER("Rpl_info_factory::decide_repository");
  
-  bool error= FALSE;
+  bool error= TRUE;
   bool is_t= !(table->check_info());
   bool is_f= !(file->check_info());
 
   if (is_t && is_f)
   {
-    error= TRUE;
-    *msg= "It is not possible to decide what repository should be used "
-          "because both are valid";
+    *msg= "Multiple replication metadata repository instances "
+          "found with data in them. Unable to decide which is "
+          " the correct one to choose.";
+    DBUG_RETURN(error);
   }
-  else if (is_table)
+
+  if (is_table)
   {
     if (!is_t && is_f)
     {
-      *msg= "Error transfering information from a file to a table";
+      if (table->init_info() || file->init_info())
+      {
+        *msg= "Error transfering information from a file to a table.";
+        goto err;
+      }
       /*
         Transfer the information from the file to the table and delete the
         file, i.e. Update the table (T) and delete the file (F).
       */
       if (info->copy_info(file, table) || file->reset_info())
-        error= TRUE;
+      {
+        *msg= "Error transfering information from a file to a table.";
+        goto err;
+      }
     }
-    else if ((!is_t && !is_f) || (is_t && !is_f))
-      delete file;
-
+    delete file;
     info->set_rpl_info_handler(table);
+    error= FALSE;
   }
-  else if (!is_table)
+  else
   {
     if (is_t && !is_f)
     {
-      *msg= "Error transfering information from a table to a file";
+      if (table->init_info() || file->init_info())
+      {
+        *msg= "Error transfering information from a file to a table.";
+        goto err;
+      }
       /*
         Transfer the information from the table to the file and delete 
         entries in the table, i.e. Update the file (F) and delete the
         table (T).
       */
       if (info->copy_info(table, file) || table->reset_info())
-        error= TRUE;
+      {
+        *msg= "Error transfering information from a table to a file.";
+        goto err;
+      } 
     }
-    else if ((!is_t && !is_f) || (!is_t && is_f))
-      delete table;
-
+    delete table;
     info->set_rpl_info_handler(file);
-  }
-  else
-  {
-    DBUG_ASSERT(0);
-    error= TRUE;
+    error= FALSE;
   }
 
+err:
   DBUG_RETURN(error); 
 }

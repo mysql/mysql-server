@@ -66,6 +66,16 @@ bool Rpl_info_table_access::open_table(THD* thd, const char *dbstr, const char *
   TABLE_LIST tables;
   DBUG_ENTER("Master_info_table::open_table");
 
+  /*
+    This is equivalent to a new "statement". For that reason, we call both
+    lex_start() and mysql_reset_thd_for_next_command. Note that the calls
+    may reset the value of current_stmt_binlog_format. So we need  to save
+    the value outside the function and restore it after executing the new
+    "statement".
+  */
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
   thd->reset_n_backup_open_tables_state(backup);
 
   tables.init_one_table(dbstr, tbstr, lock_type);
@@ -128,29 +138,37 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
 
   In case search succeeded, the table cursor points to the found row.
 
-  @param[in]      idx        Index field
-  @param[in]      id         Server id
-  @param[in,out]  table      Table
+  @param[in]      server_id    Server id
+  @param[in]      idx          Index field
+  @param[in,out]  field_values The sequence of values
+  @param[in,out]  table        Table
 
   @return
     @retval FOUND     The row was found.
     @retval NOT_FOUND The row was not found.
     @retval ERROR     There was a failure.
 */
-enum enum_return_id Rpl_info_table_access::find_info_id(uint idx, LEX_STRING id, TABLE *table)
+enum enum_return_id Rpl_info_table_access::find_info_id(ulong server_id,
+                                                        uint idx,
+                                                        Rpl_info_fields *field_values,
+                                                        TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];
-  DBUG_ENTER("Relay_log_info_table::find_info_id");
-  DBUG_PRINT("enter", ("name: %.*s", (int) id.length, id.str));
+  DBUG_ENTER("Rpl_info_table_access::find_info_id");
 
-  if (id.length > table->field[idx]->field_length)
+  longlong2str(server_id, field_values->field[idx].use.str, 10);
+  field_values->field[idx].use.length= strlen(field_values->field[idx].use.str);
+
+  if (field_values->field[idx].use.length > table->field[idx]->field_length)
     DBUG_RETURN(ERROR_ID);
 
-  table->field[idx]->store(id.str, id.length, &my_charset_bin);
+  table->field[idx]->store(field_values->field[idx].use.str,
+                           field_values->field[idx].use.length,
+                           &my_charset_bin);
 
   if (!(table->field[idx]->flags & PRI_KEY_FLAG))
     DBUG_RETURN(ERROR_ID);
-  
+
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
   if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,

@@ -49,11 +49,7 @@ int Rpl_info_table::do_init_info()
   DBUG_ENTER("Rlp_info_table::do_init_info");
 
   saved_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode= 0;
   tmp_disable_binlog(thd);
-
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -66,10 +62,8 @@ int Rpl_info_table::do_init_info()
     Points the cursor at the row to be read where the master_id equals to
     the server_id.
   */
-  longlong2str(server_id, field_values->field[field_idx].use.str, 10);
-  field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if ((res= access->find_info_id(field_idx,
-       field_values->field[field_idx].use, table)) == FOUND_ID)
+  if ((res= access->find_info_id(server_id, field_idx,
+                                 field_values, table)) == FOUND_ID)
   {
     /*
       Reads the information stored in the rpl_info table into a
@@ -115,9 +109,6 @@ int Rpl_info_table::do_flush_info(const bool force)
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
 
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
-
   /*
     Opens and locks the rpl_info table before accessing it.
   */
@@ -130,10 +121,8 @@ int Rpl_info_table::do_flush_info(const bool force)
     equals to the server_id. If the row is not found an error is
     reported.
   */
-  longlong2str(server_id, field_values->field[field_idx].use.str, 10);
-  field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if ((res= access->find_info_id(field_idx,
-       field_values->field[field_idx].use, table)) == NOT_FOUND_ID)
+  if ((res= access->find_info_id(server_id, field_idx,
+                                 field_values, table)) == NOT_FOUND_ID)
   {
     /*
       Prepares the information to be stored before calling ha_write_row.
@@ -202,9 +191,6 @@ int Rpl_info_table::do_reset_info()
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
 
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
-
   /*
     Opens and locks the rpl_info table before accessing it.
   */
@@ -217,10 +203,8 @@ int Rpl_info_table::do_reset_info()
     equals to the server_id. If the row is not found, the execution
     proceeds normally.
   */
-  longlong2str(server_id, field_values->field[field_idx].use.str, 10);
-  field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if ((res= access->find_info_id(field_idx,
-       field_values->field[field_idx].use, table)) == FOUND_ID)
+  if ((res= access->find_info_id(server_id, field_idx,
+                                 field_values, table)) == FOUND_ID)
   {
     /*
       Deletes a row in the rpl_info table.
@@ -247,14 +231,14 @@ int Rpl_info_table::do_check_info()
 {
   int error= 1;
   TABLE *table= NULL;
+  ulong saved_mode;
   Open_tables_state backup;
 
   THD *thd= access->create_fake_thd();
 
   DBUG_ENTER("Rpl_info_table::do_check_info");
 
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
+  saved_mode= thd->variables.sql_mode;
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -268,10 +252,8 @@ int Rpl_info_table::do_check_info()
     equals to the server_id. If the row is not found, an error is
     reported.
   */
-  longlong2str(server_id, field_values->field[field_idx].use.str, 10);
-  field_values->field[field_idx].use.length= strlen(field_values->field[field_idx].use.str);
-  if (access->find_info_id(field_idx,
-      field_values->field[field_idx].use, table) != FOUND_ID)
+  if (access->find_info_id(server_id, field_idx,
+                           field_values, table) != FOUND_ID)
   {
     /* 
        We cannot simply call my_error here because it does not
@@ -287,6 +269,7 @@ end:
     Unlocks and closes the rpl_info table.
   */
   access->close_table(thd, table, &backup);
+  thd->variables.sql_mode= saved_mode;
   access->drop_fake_thd(thd, error);
   DBUG_RETURN(test(error));
 }
@@ -484,6 +467,7 @@ char* Rpl_info_table::do_get_description_info()
 
 bool Rpl_info_table::do_is_transactional()
 {
+  ulong saved_mode;
   TABLE *table= NULL;
   Open_tables_state backup;
   bool is_trans= FALSE;
@@ -492,8 +476,7 @@ bool Rpl_info_table::do_is_transactional()
 
   DBUG_ENTER("Rpl_info_table::do_is_transactional");
 
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
+  saved_mode= thd->variables.sql_mode;
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -503,6 +486,7 @@ bool Rpl_info_table::do_is_transactional()
     is_trans= table->file->has_transactions();
 
   access->close_table(thd, table, &backup);
+  thd->variables.sql_mode= saved_mode;
   access->drop_fake_thd(thd, 0);
 
   DBUG_RETURN(is_trans);
