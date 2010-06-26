@@ -63,7 +63,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc discover.cc sql_locale.cc \
-	sql_profile.cc \
+	sql_profile.cc sql_truncate.cc datadict.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
 	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
@@ -97,9 +97,9 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/mysys/libmysys.a \
-		$(top_builddir)/strings/libmystrings.a \
-		$(top_builddir)/dbug/libdbug.a \
+		$(top_builddir)/mysys/.libs/libmysys.a \
+		$(top_builddir)/strings/.libs/libmystrings.a \
+		$(top_builddir)/dbug/.libs/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
                 @NDB_SCI_LIBS@ \
 		@mysql_plugin_libs@ \

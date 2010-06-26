@@ -2014,24 +2014,38 @@ static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
   return FALSE;
 }
 
-/*
-  If one doesn't use the SESSION modifier, the isolation level
-  is only active for the next command.
-*/
-static bool fix_tx_isolation(sys_var *self, THD *thd, enum_var_type type)
+
+bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
-  if (type == OPT_SESSION)
-    thd->session_tx_isolation= (enum_tx_isolation)thd->variables.tx_isolation;
-  return false;
+  if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
+    return TRUE;
+  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  {
+    /*
+      Update the isolation level of the next transaction.
+      I.e. if one did:
+      COMMIT;
+      SET SESSION ISOLATION LEVEL ...
+      BEGIN; <-- this transaction has the new isolation
+      Note, that in case of:
+      COMMIT;
+      SET TRANSACTION ISOLATION LEVEL ...
+      SET SESSION ISOLATION LEVEL ...
+      BEGIN; <-- the session isolation level is used, not the
+      result of SET TRANSACTION statement.
+     */
+    thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
+  }
+  return FALSE;
 }
 
+
 // NO_CMD_LINE - different name of the option
-static Sys_var_enum Sys_tx_isolation(
+static Sys_var_tx_isolation Sys_tx_isolation(
        "tx_isolation", "Default transaction isolation level",
        SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation),
-       ON_UPDATE(fix_tx_isolation));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
@@ -2364,12 +2378,33 @@ static ulonglong read_timestamp(THD *thd)
 {
   return (ulonglong) thd->start_time;
 }
+
+
+static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
+{
+  time_t val;
+
+  if (!var->value)
+    return FALSE;
+
+  val= (time_t) var->save_result.ulonglong_value;
+  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  {
+    my_message(ER_UNKNOWN_ERROR, 
+               "This version of MySQL doesn't support dates later than 2038",
+               MYF(0));
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 static Sys_var_session_special Sys_timestamp(
        "timestamp", "Set the time for this client",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
        VALID_RANGE(0, ~(time_t)0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_timestamp),
-       ON_READ(read_timestamp));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_timestamp), 
+       ON_UPDATE(update_timestamp), ON_READ(read_timestamp));
 
 static bool update_last_insert_id(THD *thd, set_var *var)
 {

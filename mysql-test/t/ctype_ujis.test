@@ -1213,6 +1213,7 @@ set names default;
 set character_set_database=default;
 set character_set_server=default;
 
+--echo End of 5.1 tests
 
 --echo #
 --echo # Start of 5.5 tests
@@ -1313,4 +1314,31 @@ DROP TABLE t1;
 
 --echo #
 --echo # End of 5.5 tests
+--echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set names ujis;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+--source include/weight_string_8EA1.inc
+--source include/weight_string_8FA2C3.inc
+
+set collation_connection=ujis_bin;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+--source include/weight_string_8EA1.inc
+--source include/weight_string_8FA2C3.inc
+
+--echo #
+--echo # End of 5.6 tests
 --echo #

@@ -19,10 +19,24 @@ MYSQLBASEdir=		$(prefix)
 INCLUDES =		@ZLIB_INCLUDES@ @RDTSC_SPARC_ASSEMBLY@ \
 			-I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(srcdir)
-pkglib_LIBRARIES =	libmysys.a
-LDADD =			libmysys.a $(top_builddir)/strings/libmystrings.a $(top_builddir)/dbug/libdbug.a
+LDADD =			libmysyslt.la \
+			$(top_builddir)/strings/libmystringslt.la
+			$(top_builddir)/dbug/libdbuglt.la
+
+pkglib_LTLIBRARIES =	libmysys.la
+libmysys_la_LDFLAGS =	-static
+libmysys_la_SOURCES =
+libmysys_la_LIBADD =	libmysyslt.la libmysyswrap.la
+# Force C++ linking with non existing EXTRA file
+nodist_EXTRA_libmysys_la_SOURCES = dummy.cxx
+
+# Split out my_wrap because it's only used by mysqld and otherwise
+# creates an unneccesary linking dependency on -lwrap
+noinst_LTLIBRARIES =	libmysyslt.la libmysyswrap.la
+libmysyswrap_la_SOURCES = my_libwrap.c
+
 noinst_HEADERS =	mysys_priv.h my_static.h my_handler_errors.h
-libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
+libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
 			my_pread.c my_write.c my_getpagesize.c \
@@ -54,27 +68,23 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c stacktrace.c \
-			my_windac.c my_access.c base64.c my_libwrap.c \
+			my_windac.c my_access.c base64.c \
 			my_rdtsc.c
 
 if NEED_THREAD
 # mf_keycache is used only in the server, so it is safe to leave the file
 # out of the non-threaded library.
 # In fact, it will currently not compile without thread support.
-libmysys_a_SOURCES +=   mf_keycache.c waiting_threads.c
+libmysyslt_la_SOURCES += mf_keycache.c waiting_threads.c \
+			thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
+			thr_mutex.c thr_rwlock.c
 endif
 
-EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
-			thr_mutex.c thr_rwlock.c \
-			CMakeLists.txt mf_soundex.c \
+EXTRA_DIST =		CMakeLists.txt mf_soundex.c \
 			my_conio.c my_wincond.c my_winthread.c my_winerr.c \
 			my_winfile.c \
 			my_timer_cycles.il
-libmysys_a_LIBADD =	@THREAD_LOBJECTS@
-# test_dir_DEPENDENCIES=	$(LIBRARIES)
-# testhash_DEPENDENCIES=	$(LIBRARIES)
-# test_charset_DEPENDENCIES=	$(LIBRARIES)
-# charset2html_DEPENDENCIES=	$(LIBRARIES)
+
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
@@ -83,8 +93,6 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
 			-DDEFAULT_SYSCONFDIR="\"$(sysconfdir)\"" \
                         @DEFS@
-
-libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@
 
 # I hope this always does the right thing. Otherwise this is only test programs
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
@@ -140,10 +148,10 @@ test_base64$(EXEEXT): base64.c $(LIBRARIES)
 	$(RM) -f ./test_base64.c
 
 if HAVE_DTRACE_DASH_G
-libmysys_a_LIBADD += probes_mysql.o
-libmysys_a_DEPENDENCIES += probes_mysql.o dtrace_files dtrace_providers
+libmysyslt_la_LIBADD = probes_mysql.o
+libmysyslt_la_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
-DTRACEFILES = mf_keycache.o
+DTRACEFILES = .libs/mf_keycache.o
 DTRACEPROVIDER = probes_mysql.d
 CLEANFILES += $(DTRACEPROVIDER) dtrace_sources
 
