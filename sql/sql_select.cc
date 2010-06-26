@@ -1778,7 +1778,10 @@ JOIN::exec()
     DBUG_PRINT("info", ("%s", thd->proc_info));
     if (!curr_join->sort_and_group &&
         curr_join->const_tables != curr_join->tables)
-      curr_join->join_tab[curr_join->const_tables].sorted= 0;
+    {
+      JOIN_TAB *first_tab= curr_join->join_tab + curr_join->const_tables;
+      first_tab->sorted= test(first_tab->loosescan_match_tab);
+    }
     if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
     {
       error= tmp_error;
@@ -1946,7 +1949,10 @@ JOIN::exec()
       curr_join->group_list= 0;
       if (!curr_join->sort_and_group &&
           curr_join->const_tables != curr_join->tables)
-        curr_join->join_tab[curr_join->const_tables].sorted= 0;
+      {
+        JOIN_TAB *first_tab= curr_join->join_tab + curr_join->const_tables;
+        first_tab->sorted= test(first_tab->loosescan_match_tab);
+      }
       if (setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
@@ -7447,6 +7453,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
                                                          loosescan_key_len)))
         return TRUE; /* purecov: inspected */
+      tab->sorted= TRUE;
     }
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
@@ -12863,6 +12870,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       join_tab->last_inner->first_unmatched= join_tab;
     }
     join->thd->row_count= 0;
+    
+    if (join_tab->loosescan_match_tab)
+      join_tab->loosescan_match_tab->found_match= FALSE;
 
     error= (*join_tab->read_first_record)(join_tab);
 
@@ -12890,11 +12900,19 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
     error= info->read_record(info);
 
-    if (skip_over && !error && 
-        !key_cmp(join_tab->table->key_info[join_tab->index].key_part,
-                 join_tab->loosescan_buf, join_tab->loosescan_key_len))
+    if (skip_over && !error) 
     {
-      continue;
+      if(!key_cmp(join_tab->table->key_info[join_tab->index].key_part,
+                  join_tab->loosescan_buf, join_tab->loosescan_key_len))
+      {
+        /* 
+          This is the LooseScan action: skip over records with the same key
+          value if we already had a match for them.
+        */
+        continue;
+      }
+      join_tab->loosescan_match_tab->found_match= FALSE;
+      skip_over= FALSE;
     }
 
     if (join_tab->keep_current_rowid)
