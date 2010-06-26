@@ -150,6 +150,10 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
+/*Move UUID_LENGTH from item_strfunc.h*/
+#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+extern char server_uuid[UUID_LENGTH+1];
+extern const char *server_uuid_ptr;
 extern const double log_10[309];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
