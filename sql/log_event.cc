@@ -5106,7 +5106,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
     pthread_mutex_unlock(&rli->data_lock);
-    rli->flush_info();
+    rli->flush_info(TRUE);
     
     /*
       Reset thd->options and sql_mode etc, because this could be the signal of
@@ -5472,6 +5472,12 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
+  /*
+    If the repository is transactional, i.e., created over a
+    transactional table, we need to update the positions within
+    the context of the current transaction in order to provide
+    data integrity. See sql/rpl_rli.h for further details.
+  */
   bool is_trans_repo= rli_ptr->is_transactional();
 
   /* For a slave Xid_log_event is COMMIT */
@@ -6178,7 +6184,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
   else
   {
     rli->inc_group_relay_log_pos(0);
-    rli->flush_info();
+    rli->flush_info(TRUE);
   }
   return 0;
 }

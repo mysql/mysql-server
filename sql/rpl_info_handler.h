@@ -70,7 +70,7 @@ public:
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int flush_info(const bool force=FALSE)
+  int flush_info(const bool force)
   {
     return do_flush_info(force);
   }

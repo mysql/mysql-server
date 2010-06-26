@@ -34,7 +34,8 @@ public:
                   uint max_num_field, enum thr_lock_type lock_type,
                   TABLE** table, Open_tables_state* backup);
   bool close_table(THD* thd, TABLE* table, Open_tables_state* backup);
-  enum enum_return_id find_info_id(uint idx, LEX_STRING, TABLE*);
+  enum enum_return_id find_info_id(ulong server_id, uint idx, Rpl_info_fields *,
+                                   TABLE *table);
   bool load_info_fields(uint max_num_field, Field **fields, ...);
   bool load_info_fields(uint max_num_field, Field **fields,
                         Rpl_info_fields *field_values);
