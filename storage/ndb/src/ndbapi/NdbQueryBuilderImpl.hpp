@@ -283,6 +283,9 @@ public:
   const char* getName() const
   { return m_ident; }
 
+  enum NdbQueryOperationDef::JoinType getJoinType() const
+  { return m_joinType; }
+
   Uint32 assignQueryOperationId(Uint32& nodeId)
   { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
     m_id = nodeId++;
@@ -348,6 +351,7 @@ public:
 
 protected:
   explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
+                                     NdbQueryOperationDef::JoinType type,
                                      const char* ident,
                                      Uint32 ix);
 public:
@@ -392,6 +396,9 @@ private:
   Uint32       m_id;         // Operation id when materialized into queryTree.
                              // If op has index, index id is 'm_id-1'.
 
+  const NdbQueryOperationDef::JoinType
+               m_joinType;   // Type of join operation
+
   // parent / child vectors contains dependencies as defined
   // with linkedValues
   Vector<NdbQueryOperationDefImpl*> m_parents;
@@ -412,9 +419,10 @@ public:
   virtual ~NdbQueryScanOperationDefImpl()=0;
   explicit NdbQueryScanOperationDefImpl (
                            const NdbTableImpl& table,
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryOperationDefImpl(table,ident,ix)
+  : NdbQueryOperationDefImpl(table,type,ident,ix)
   {}
 
   virtual bool isScanOperation() const
@@ -470,6 +478,7 @@ private:
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
                            const NdbQueryIndexBound* bound,
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix);
 

@@ -119,6 +119,19 @@ public:
     OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
   };
 
+  /**
+   * Different join type variants may be specified for an operation.
+   * The operations are not required to completely follow these specs.
+   * Additional rows should be expected which the receiver should
+   * filter away.
+   */
+  enum JoinType {
+    OuterJoin,       // Append NULL rows when there are no match (default)
+    InnerJoin,       // Allows non matching rows to be eliminated        
+    SemiJoin,        // Allow duplicate matches to be eliminated from result
+    Default = OuterJoin
+  };
+
   static const char* getTypeName(Type type);
 
   Uint32 getNoOfParentOperations() const;
@@ -326,22 +339,30 @@ public:
   NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,          // Primary key lookup
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                                NdbQueryOperationDef::JoinType joinType =
+                                  NdbQueryOperationDef::OuterJoin,
                                 const char* ident = 0);
 
   NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Index*,          // Unique key lookup w/ index
 			        const NdbDictionary::Table*,
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                                NdbQueryOperationDef::JoinType joinType = 
+                                  NdbQueryOperationDef::OuterJoin,
                                 const char* ident = 0);
 
   NdbQueryTableScanOperationDef* scanTable(
                                 const NdbDictionary::Table*,
+                                NdbQueryOperationDef::JoinType joinType = 
+                                  NdbQueryOperationDef::OuterJoin,
                                 const char* ident = 0);
 
   NdbQueryIndexScanOperationDef* scanIndex(
                                 const NdbDictionary::Index*, 
 	                        const NdbDictionary::Table*,
                                 const NdbQueryIndexBound* bound = 0,
+                                NdbQueryOperationDef::JoinType joinType = 
+                                  NdbQueryOperationDef::OuterJoin,
                                 const char* ident = 0);
 
 
