@@ -1298,74 +1298,78 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
     return NdbQuery::NextResult_error;
   }
 
-  if (m_state == EndOfData) {
-    return NdbQuery::NextResult_scanComplete;
-  }
-
-  /* To minimize lock contention, each query has two separate root fragment 
-   * conatiners (m_fullFrags and m_applFrags). m_applFrags is only
-   * accessed by the application thread, so it is safe to use it without 
-   * locks.
-   */
-
-  if (unlikely(m_applFrags.getCurrent()==NULL))
+  while (m_state != EndOfData) // Or until return when 'gotRow'
   {
-    /* m_applFrags is empty, so we cannot get more results without 
-     * possibly blocking.
+    /* To minimize lock contention, each query has two separate root fragment 
+     * conatiners (m_fullFrags and m_applFrags). m_applFrags is only
+     * accessed by the application thread, so it is safe to use it without 
+     * locks.
      */
-    if (fetchAllowed)
+
+    if (unlikely(m_applFrags.getCurrent()==NULL))
     {
-      /* fetchMoreResults() will either copy fragments that are already
-       * complete (under mutex protection), or block until more data arrives.
+      /* m_applFrags is empty, so we cannot get more results without 
+       * possibly blocking.
        */
-      const FetchResult fetchResult = fetchMoreResults(forceSend);
-      switch (fetchResult) {
-      case FetchResult_otherError:
-        assert (m_error.code != 0);
-        setErrorCode(m_error.code);
-        return NdbQuery::NextResult_error;
-      case FetchResult_sendFail:
-        // FIXME: copy semantics from NdbScanOperation.
-        setErrorCode(Err_NodeFailCausedAbort); // Node fail
-        return NdbQuery::NextResult_error;
-      case FetchResult_nodeFail:
-        setErrorCode(Err_NodeFailCausedAbort); // Node fail
-        return NdbQuery::NextResult_error;
-      case FetchResult_timeOut:
-        setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
-        return NdbQuery::NextResult_error;
-      case FetchResult_ok:
-        break;
-      case FetchResult_scanComplete:
-        getRoot().nullifyResult();
-        return NdbQuery::NextResult_scanComplete;
-      default:
-        assert(false);
+      if (fetchAllowed)
+      {
+        /* fetchMoreResults() will either copy fragments that are already
+         * complete (under mutex protection), or block until more data arrives.
+         */
+        const FetchResult fetchResult = fetchMoreResults(forceSend);
+        switch (fetchResult) {
+        case FetchResult_otherError:
+          assert (m_error.code != 0);
+          setErrorCode(m_error.code);
+          return NdbQuery::NextResult_error;
+        case FetchResult_sendFail:
+          // FIXME: copy semantics from NdbScanOperation.
+          setErrorCode(Err_NodeFailCausedAbort); // Node fail
+          return NdbQuery::NextResult_error;
+        case FetchResult_nodeFail:
+          setErrorCode(Err_NodeFailCausedAbort); // Node fail
+          return NdbQuery::NextResult_error;
+        case FetchResult_timeOut:
+          setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
+          return NdbQuery::NextResult_error;
+        case FetchResult_ok:
+          break;
+        case FetchResult_scanComplete:
+          getRoot().nullifyResult();
+          return NdbQuery::NextResult_scanComplete;
+        default:
+          assert(false);
+        }
+      } else { 
+        // There are no more cached records in NdbApi
+        return NdbQuery::NextResult_bufferEmpty; 
       }
-    } else { 
-      // There are no more cached records in NdbApi
-      return NdbQuery::NextResult_bufferEmpty; 
     }
+
+    NdbQueryOperationImpl& root = getRoot();
+    NdbResultStream& rootStream = m_applFrags.getCurrent()->getResultStream(0);
+    bool gotRow = false;
+
+    /* Make results from root operation available to the user.*/
+    if (m_queryDef.isScanQuery()) {
+      gotRow = root.fetchScanResults(rootStream.getRootFragNo(), tupleNotFound);
+
+      /* In case we are doing an ordered index scan, reorder the root fragments
+       * such that we get the next record from the right fragment.
+       */
+      m_applFrags.reorder();
+    }
+    else // Lookup query
+    {
+      gotRow = root.fetchLookupResults();
+    }
+
+    if (likely(gotRow))  // Row might have been eliminated by apply of inner join
+      return NdbQuery::NextResult_gotRow;
   }
 
-  NdbQueryOperationImpl& root = getRoot();
-  NdbResultStream& rootStream = m_applFrags.getCurrent()->getResultStream(0);
-
-  /* Make results from root operation available to the user.*/
-  if (m_queryDef.isScanQuery()) {
-    root.fetchScanResults(rootStream.getRootFragNo(), tupleNotFound);
-
-    /* In case we are doing an ordered index scan, reorder the root fragments
-     * such that we get the next record from the right fragment.
-     */
-    m_applFrags.reorder();
-  }
-  else // Lookup query
-  {
-    root.fetchLookupResults();
-  }
-
-  return NdbQuery::NextResult_gotRow;
+  assert (m_state == EndOfData);
+  return NdbQuery::NextResult_scanComplete;
 } //NdbQueryImpl::nextResult
 
 
@@ -3040,7 +3044,7 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
   }
 } // NdbQueryOperationImpl::fetchRow
 
-void 
+bool 
 NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
 {
   NdbResultStream& resultStream = *m_resultStreams[fragNo];
@@ -3067,9 +3071,9 @@ NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
     rowNo = resultStream.findTupleWithParentId(parentId);
     if (rowNo == tupleNotFound)
     {
-      /* This operation gave no result for the current parent tuple.*/
+      /* This operation retrieved no result for the current parent tuple.*/
       nullifyResult();
-      return;
+      return false;
     }
     resultStream.getReceiver().setCurrentRow(rowNo);
   }
@@ -3078,12 +3082,21 @@ NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
   for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
   {
     NdbQueryOperationImpl& child = getChildOperation(i);
-    child.fetchScanResults(fragNo, resultStream.getTupleId(rowNo));
+    bool nullRow = !child.fetchScanResults(fragNo, resultStream.getTupleId(rowNo));
+    if (nullRow && child.m_operationDef.getJoinType() != NdbQueryOperationDef::OuterJoin)
+    {
+      // If a NULL row is returned from a child which is not outer joined, 
+      // parent row may be eliminate also.
+      (void)resultStream.getReceiver().get_row();  // Get and throw 
+      nullifyResult();
+      return false;
+    }
   }
   fetchRow(resultStream);
+  return true;
 } //NdbQueryOperationImpl::fetchScanResults
 
-void 
+bool 
 NdbQueryOperationImpl::fetchLookupResults()
 {
   NdbResultStream& resultStream = *m_resultStreams[0];
@@ -3092,15 +3105,26 @@ NdbQueryOperationImpl::fetchLookupResults()
   {
     /* This operation gave no result for the current parent tuple.*/
     nullifyResult();
+    return false;
   }
   else
   {
     /* Call recursively for the children of this operation.*/
     for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
     {
-      getChildOperation(i).fetchLookupResults();
+      NdbQueryOperationImpl& child = getChildOperation(i);
+      bool nullRow = !child.fetchLookupResults();
+      if (nullRow && child.m_operationDef.getJoinType() != NdbQueryOperationDef::OuterJoin)
+      {
+        // If a NULL row is returned from a child which is not outer joined, 
+        // parent row may be eliminate also.
+        (void)resultStream.getReceiver().get_row();  // Get and throw 
+        nullifyResult();
+        return false;
+      }
     }
     fetchRow(resultStream);
+    return true;
   }
 } //NdbQueryOperationImpl::fetchLookupResults
 
