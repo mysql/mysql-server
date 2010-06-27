@@ -472,6 +472,8 @@ typedef struct system_variables
   my_bool sysdate_is_now;
 
   double long_query_time_double;
+
+  LEX_USER current_user;
 } SV;
 
 
@@ -2715,6 +2717,10 @@ public:
   }
   void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
+  void set_current_user_used() { current_user_used= TRUE; }
+  bool is_current_user_used() { return current_user_used; }
+  void clean_current_user_used() { current_user_used= FALSE; }
+  void get_definer(LEX_USER *definer);
 private:
 
   /** The current internal error handler for this thread, or NULL. */
@@ -2737,6 +2743,8 @@ private:
   MEM_ROOT main_mem_root;
   Warning_info main_warning_info;
   Diagnostics_area main_da;
+
+  bool current_user_used;
 };
 
 
