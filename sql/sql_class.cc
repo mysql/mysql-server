@@ -1341,6 +1341,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
+  clean_current_user_used();
 }
 
 
@@ -4124,6 +4125,17 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
     DBUG_RETURN(ev);               /* This is the new pending event */
   }
   DBUG_RETURN(pending);        /* This is the current pending event */
+}
+
+void THD::get_definer(LEX_USER *definer)
+{
+  set_current_user_used();
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  if (slave_thread && variables.current_user.user.length)
+    *definer= variables.current_user;
+  else
+#endif
+    get_default_definer(this, definer);
 }
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
