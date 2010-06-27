@@ -145,6 +145,14 @@ namespace AQP
   }
 
 
+  enum_join_type Table_access::get_join_type() const
+  {
+    if (get_join_tab()->last_inner)
+      return JT_OUTER_JOIN;
+    else
+      return JT_INNER_JOIN;
+  }
+
   /**
     Get the number of key values for this operation. It is an error
     to call this method on an operation that is not an index lookup
