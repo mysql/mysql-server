@@ -176,6 +176,7 @@ protected:
   explicit NdbQueryLookupOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix);
 
@@ -207,9 +208,10 @@ private:
   explicit NdbQueryPKLookupOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryLookupOperationDefImpl(table,keys,ident,ix)
+  : NdbQueryLookupOperationDefImpl(table,keys,type,ident,ix)
   {}
 
   virtual NdbQueryOperationDef::Type getType() const
@@ -234,9 +236,10 @@ private:
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryLookupOperationDefImpl(table,keys,ident,ix),
+  : NdbQueryLookupOperationDefImpl(table,keys,type,ident,ix),
     m_index(index)
   {}
 
@@ -266,9 +269,10 @@ private:
   virtual ~NdbQueryTableScanOperationDefImpl() {}
   explicit NdbQueryTableScanOperationDefImpl (
                            const NdbTableImpl& table,
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix)
-    : NdbQueryScanOperationDefImpl(table,ident,ix),
+    : NdbQueryScanOperationDefImpl(table,type,ident,ix),
       m_interface(*this) 
   {}
 
@@ -655,6 +659,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
 NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                           NdbQueryOperationDef::JoinType joinType,
                            const char* ident)
 {
   int i;
@@ -680,7 +685,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
 
   NdbQueryPKLookupOperationDefImpl* op =
     new NdbQueryPKLookupOperationDefImpl(tableImpl,
-                                       keys,ident,
+                                       keys, joinType, ident,
                                        m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -713,6 +718,7 @@ NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key lookup w/ index
                            const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                           NdbQueryOperationDef::JoinType joinType,
                            const char* ident)
 {
   int i;
@@ -747,7 +753,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 
   NdbQueryIndexOperationDefImpl* op = 
     new NdbQueryIndexOperationDefImpl(indexImpl, tableImpl,
-                                       keys,ident,
+                                       keys, joinType, ident,
                                        m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -772,6 +778,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 
 NdbQueryTableScanOperationDef*
 NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
+                           NdbQueryOperationDef::JoinType joinType,
                            const char* ident)
 {
   if (m_pimpl->hasError())
@@ -779,7 +786,8 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
 
   NdbQueryTableScanOperationDefImpl* op =
-    new NdbQueryTableScanOperationDefImpl(NdbTableImpl::getImpl(*table),ident,
+    new NdbQueryTableScanOperationDefImpl(NdbTableImpl::getImpl(*table),
+                                          joinType, ident,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -792,6 +800,7 @@ NdbQueryIndexScanOperationDef*
 NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index, 
 	                   const NdbDictionary::Table* table,
                            const NdbQueryIndexBound* bound,
+                           NdbQueryOperationDef::JoinType joinType,
                            const char* ident)
 {
   if (m_pimpl->hasError())
@@ -815,7 +824,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(indexImpl, tableImpl,
-                                          bound, ident,
+                                          bound, joinType, ident,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -1292,9 +1301,10 @@ NdbParamOperandImpl::bindOperand(
 NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix)
- : NdbQueryOperationDefImpl(table,ident,ix),
+ : NdbQueryOperationDefImpl(table,type,ident,ix),
    m_interface(*this)
 {
   int i;
@@ -1312,9 +1322,10 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
                            const NdbQueryIndexBound* bound,
+                           NdbQueryOperationDef::JoinType type,
                            const char* ident,
                            Uint32      ix)
-: NdbQueryScanOperationDefImpl(table,ident,ix),
+: NdbQueryScanOperationDefImpl(table,type,ident,ix),
   m_interface(*this), 
   m_index(index), 
   m_hasBound(bound != NULL),
@@ -1565,13 +1576,15 @@ NdbQueryIndexScanOperationDefImpl::setOrdering(NdbScanOrdering ordering)
 
 NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      const NdbTableImpl& table,
+                                     NdbQueryOperationDef::JoinType type,
                                      const char* ident,
                                      Uint32      ix)
   :m_isPrepared(false), 
    m_diskInChildProjection(false), 
    m_table(table), 
    m_ident(ident), 
-   m_ix(ix), m_id(ix), 
+   m_ix(ix), m_id(ix),
+   m_joinType(type),
    m_parents(), 
    m_children(), 
    m_params(),
