@@ -17,7 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "my_global.h"                  /* uint */
-#include "slave.h" // for tables_ok(), rpl_filter
+#include "rpl_slave.h" // for tables_ok(), rpl_filter
 
 class THD;
 typedef struct st_lex_server_options LEX_SERVER_OPTIONS;

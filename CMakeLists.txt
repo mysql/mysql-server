@@ -36,6 +36,18 @@ SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 OPTION(WITH_DEBUG_FULL "Use dbug and safemalloc/safemutex. Slow" OFF)
 
+# Distinguish between community and non-community builds, with the
+# default being a community build. This does not impact the feature
+# set that will be compiled in; it's merely provided as a hint to
+# custom packaging steps.
+OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON) 
+
+# Use a default manufacturer if no manufacturer was identified.
+SET(MANUFACTURER_DOCSTRING
+  "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
+IF(NOT DEFINED MANUFACTURER) 
+  SET(MANUFACTURER "Built from Source" CACHE BOOL ${MANUFACTURER_DOCSTRING})
+ENDIF()
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 
@@ -215,6 +227,9 @@ MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
 
+IF(WITH_UNIT_TESTS)
+ ENABLE_TESTING()
+ENDIF()
 IF(NOT WITHOUT_SERVER)
 SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
  # Add storage engines and plugins.
@@ -229,10 +244,6 @@ ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
 
-
-IF(WITH_UNIT_TESTS)
- ENABLE_TESTING()
-ENDIF()
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
@@ -278,6 +289,7 @@ IF(WIN32)
 ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
+ADD_SUBDIRECTORY(packaging/WiX)
 INCLUDE(CPack)
 IF(UNIX)
   INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL)
