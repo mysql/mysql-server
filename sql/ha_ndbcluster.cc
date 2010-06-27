@@ -546,13 +546,16 @@ public:
   {
     DBUG_ASSERT(query_def != NULL);
     DBUG_ASSERT(field_refs <= MAX_REFERRED_FIELDS);
-    for (uint i= 0; i < plan.get_access_count(); i++)
+    ndb_table_access_map done;
+    for (uint i= 0; !(done==pushed_operations); i++)
     {
       const AQP::Table_access* const join_tab= plan.get_table_access(i);
-      if (pushed_operations.contain_table(join_tab))
+      ndb_table_access_map table_map(join_tab);
+      if (pushed_operations.contain(table_map))
       {
         DBUG_ASSERT(m_operation_count < MAX_PUSHED_OPERATIONS);
         m_tables[m_operation_count++] = join_tab->get_table();
+        done.add(table_map);
       }
     }
     for (uint i= 0; i < field_refs; i++)
@@ -678,12 +681,16 @@ ndb_pushed_builder_ctx::add_pushed(
 const AQP::Table_access*
 ndb_pushed_builder_ctx::get_referred_table_access(const ndb_table_access_map& find_table) const
 {
-  for (uint i= join_root()->get_access_no(); i < m_plan.get_access_count(); i++)
+  ndb_table_access_map done;
+  for (uint i= join_root()->get_access_no(); !(done==m_join_scope); i++)
   {
     const AQP::Table_access* const table= m_plan.get_table_access(i);
     ndb_table_access_map table_map(table);
-    if (m_join_scope.contain(table_map) && find_table==table_map)
-      return table;
+    if (m_join_scope.contain(table_map))
+    { if (find_table==table_map)
+        return table;
+      done.add(table_map);
+    }
   }
   return NULL;
 }
@@ -887,16 +894,21 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     if (!field_possible_parents.is_clear_all())
     {
       old_parents.subtract(parents);
-      if (!old_parents.is_clear_all())
+      ndb_table_access_map inspected;
+
+      // Add all 'old_parents[parent_no]' with some of 'field_possible_parents' as grandparents
+      for (uint parent_no= join_root()->get_access_no();
+           !(inspected==old_parents);
+           parent_no++)
       {
-        // Add all 'old_parents[parent_no]' with some of 'field_possible_parents' as grandparents
-        for (uint parent_no= join_root()->get_access_no(); parent_no < tab_no; parent_no++)
+        DBUG_ASSERT(parent_no < tab_no);
+        const AQP::Table_access* const table = m_plan.get_table_access(parent_no);
+        ndb_table_access_map table_map(table);
+        if (old_parents.contain(table_map))
         {
-          const AQP::Table_access* const table = m_plan.get_table_access(parent_no);
-          if (old_parents.contain_table(table) && is_child_of(table,field_possible_parents))
-          {
-            parents.add(table);
-          }
+          inspected.add(table_map);
+          if (is_child_of(table,field_possible_parents))
+            parents.add(table_map);
         }
       }
       if (parents.is_clear_all())
