@@ -1336,10 +1336,15 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
 
     const NdbDictionary::Table* const table= handler->m_table;
  
+     NdbQueryOperationDef::JoinType join_type= 
+       (join_tab->get_join_type() == AQP::JT_INNER_JOIN) 
+         ? NdbQueryOperationDef::InnerJoin
+         : NdbQueryOperationDef::OuterJoin;
+
     // Link on primary key or an unique index
     if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
     {
-      query_op= builder.readTuple(table, linked_key);
+      query_op= builder.readTuple(table, linked_key, join_type);
     }
     else
     {
@@ -1347,7 +1352,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       const NdbDictionary::Index* index
         = handler->m_index[join_tab->get_index_no()].unique_index;
       DBUG_ASSERT(index != NULL);
-      query_op= builder.readTuple(index, table, linked_key);
+      query_op= builder.readTuple(index, table, linked_key, join_type);
     }
 
 //  DBUG_ASSERT(query_op);
