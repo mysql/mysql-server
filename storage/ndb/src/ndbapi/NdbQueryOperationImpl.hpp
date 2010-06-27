@@ -635,10 +635,12 @@ private:
 
   /** Fetch results for scan or lookup operation.
    *  Recursively fetchRow() for 'this' operation and all its
-   *  descendant child operations. 
+   *  descendant child operations.
+   *  Return true if a row was fetched, or false if a NULL row was
+   *  produced.
    */
-  void fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
-  void fetchLookupResults();
+  bool fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
+  bool fetchLookupResults();
 
   /** Set result for this operation and all its descendand child 
    *  operations to NULL.
