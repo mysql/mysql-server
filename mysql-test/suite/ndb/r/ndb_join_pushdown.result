@@ -2156,7 +2156,125 @@ JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3
 JOIN t3 as X2 on X2.b3 = Y1.b3
 JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
 a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+execute stmt1;
+a3	b3	c3	d3	a3	b3	c3	d3
+47	63	2	47	47	63	2	47
+execute stmt1;
+a3	b3	c3	d3	a3	b3	c3	d3
+47	63	2	47	47	63	2	47
+drop prepare stmt1;
+execute stmt1;
+ERROR HY000: Unknown prepared statement handler (stmt1) given to EXECUTE
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+drop prepare stmt1;
+prepare stmt1 from
+'explain select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+execute stmt1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Child of pushed join@1; Using where with pushed condition
+execute stmt1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Child of pushed join@1; Using where with pushed condition
+commit;
+execute stmt1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Child of pushed join@1; Using where with pushed condition
+drop index b3 on t3;
+execute stmt1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	NULL	NULL	NULL	NULL	7	
+1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	7	Using where with pushed condition; Using join buffer
+create unique index b3 on t3(b3,d3);
+execute stmt1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Child of pushed join@1; Using where with pushed condition
+drop prepare stmt1;
+prepare stmt1 from
+'explain select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = ?';
+set @a=47;
+execute stmt1 using @a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Child of pushed join@1; Using where with pushed condition
+set @a=0;
+execute stmt1 using @a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Child of pushed join@1; Using where with pushed condition
+set @a=NULL;
+execute stmt1 using @a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,const	1	Using where
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = ?';
+set @a=47;
+execute stmt1 using @a;
+a3	b3	c3	d3	a3	b3	c3	d3
+47	63	2	47	47	63	2	47
+set @a=0;
+execute stmt1 using @a;
+a3	b3	c3	d3	a3	b3	c3	d3
+set @a=NULL;
+execute stmt1 using @a;
+a3	b3	c3	d3	a3	b3	c3	d3
+prepare stmt1 from
+'explain select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3 and X.d3 = Y.d3
+  where X.a3 = ?';
+set @a=47;
+execute stmt1 using @a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	const	PRIMARY,b3	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,test.X.d3	1	Child of pushed join@1; Using where
+set @a=0;
+execute stmt1 using @a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	const	PRIMARY,b3	PRIMARY	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	9	test.X.b3,test.X.d3	1	Child of pushed join@1; Using where
+set @a=NULL;
+execute stmt1 using @a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3 and X.d3 = Y.d3
+  where X.a3 = ?';
+set @a=47;
+execute stmt1 using @a;
+a3	b3	c3	d3	a3	b3	c3	d3
+47	63	2	47	47	63	2	47
+set @a=0;
+execute stmt1 using @a;
+a3	b3	c3	d3	a3	b3	c3	d3
+set @a=NULL;
+execute stmt1 using @a;
+a3	b3	c3	d3	a3	b3	c3	d3
 drop table t3;
+set @a=47;
+execute stmt1 using @a;
+ERROR 42S02: Table 'test.t3' doesn't exist
 create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
 insert into t1 values (1,null, 2);
 insert into t1 values (2,1, null);

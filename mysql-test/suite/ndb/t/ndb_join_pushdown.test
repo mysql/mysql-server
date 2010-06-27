@@ -1241,7 +1241,113 @@ select straight_join * from
   JOIN t3 as X2 on X2.b3 = Y1.b3
   JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
 
+
+###########################
+### Prepared statments ####
+###########################
+
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+
+#execute multiple times
+execute stmt1;
+execute stmt1;
+
+# Execute after drop expected to fail
+drop prepare stmt1;
+--error 1243
+execute stmt1;
+
+# Multiple prepare of same stmt should silently discard prev prepared stmt
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+drop prepare stmt1;
+
+#Prepare explain'ed statement and execute it
+prepare stmt1 from
+'explain select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = 0x2f';
+execute stmt1;
+execute stmt1;
+
+#survives commit;
+commit;
+execute stmt1;
+
+# Drop index used by query -> Query plan should change to unpushed join
+drop index b3 on t3;
+execute stmt1;
+
+# Then recreate it -> original query plan
+create unique index b3 on t3(b3,d3);
+execute stmt1;
+drop prepare stmt1;
+
+
+### Prepared stmt with dynamic parameters ('?') ###
+prepare stmt1 from
+'explain select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = ?';
+
+set @a=47;
+execute stmt1 using @a;
+set @a=0;
+execute stmt1 using @a;
+set @a=NULL;
+execute stmt1 using @a;
+
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
+  where Y.d3 = ?';
+
+set @a=47;
+execute stmt1 using @a;
+set @a=0;
+execute stmt1 using @a;
+set @a=NULL;
+execute stmt1 using @a;
+
+prepare stmt1 from
+'explain select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3 and X.d3 = Y.d3
+  where X.a3 = ?';
+
+set @a=47;
+execute stmt1 using @a;
+set @a=0;
+execute stmt1 using @a;
+set @a=NULL;
+execute stmt1 using @a;
+
+prepare stmt1 from
+'select straight_join * 
+  from t3 as X JOIN t3 as Y on X.b3 = Y.b3 and X.d3 = Y.d3
+  where X.a3 = ?';
+
+set @a=47;
+execute stmt1 using @a;
+set @a=0;
+execute stmt1 using @a;
+set @a=NULL;
+execute stmt1 using @a;
+
 drop table t3;
+
+# Execute after table dropped should fail
+set @a=47;
+--error 1146
+execute stmt1 using @a;
 
 ####################
 
