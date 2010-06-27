@@ -20,6 +20,11 @@ class Relay_log_info;
 
 class Format_description_log_event;
 
+bool ending_trans(const THD* thd, const bool all);
+bool trans_has_updated_non_trans_table(const THD* thd);
+bool trans_has_no_stmt_committed(const THD* thd, const bool all);
+bool stmt_has_updated_non_trans_table(const THD* thd);
+
 /*
   Transaction Coordinator log - a base abstract class
   for two different implementations
