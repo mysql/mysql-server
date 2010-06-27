@@ -70,7 +70,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_binlog.cc ../sql/sql_manager.cc ../sql/sql_map.cc 
            ../sql/sql_parse.cc ../sql/sql_partition.cc ../sql/sql_plugin.cc 
            ../sql/debug_sync.cc
-           ../sql/sql_prepare.cc ../sql/sql_rename.cc ../sql/sql_repl.cc 
+           ../sql/sql_prepare.cc ../sql/sql_rename.cc
            ../sql/sql_select.cc ../sql/sql_servers.cc
            ../sql/sql_show.cc ../sql/sql_state.c ../sql/sql_string.cc
            ../sql/sql_tablespace.cc ../sql/sql_table.cc ../sql/sql_test.cc
@@ -82,7 +82,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/scheduler.cc ../sql/sql_audit.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
-           ../sql/rpl_utility.cc ../sql/sys_vars.cc
+           ../sql/rpl_utility.cc ../sql/binlog.cc ../sql/sys_vars.cc
            ../sql/gcalc_slicescan.cc ../sql/gcalc_tools.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
            ../sql/mdl.cc ../sql/transaction.cc
@@ -125,7 +125,7 @@ FOREACH(LIB ${LIBS})
 ENDFOREACH()
 
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
-  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME})
+  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Embedded)
 
 # Visual Studio users need debug  static library 
 IF(MSVC)
@@ -138,5 +138,6 @@ IF(UNIX)
 ENDIF()
 
 IF(MSVC AND NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
+  MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS}
+  COMPONENT Embedded)
 ENDIF()

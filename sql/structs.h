@@ -358,8 +358,33 @@ public:
     return tmp;
   }
   ~Discrete_intervals_list() { empty(); };
-  bool append(ulonglong start, ulonglong val, ulonglong incr);
-  bool append(Discrete_interval *interval);
+  bool append(ulonglong start, ulonglong val, ulonglong incr)
+  {
+    DBUG_ENTER("Discrete_intervals_list::append");
+    /* first, see if this can be merged with previous */
+    if ((head == NULL) || tail->merge_if_contiguous(start, val, incr))
+    {
+      /* it cannot, so need to add a new interval */
+      Discrete_interval *new_interval= new Discrete_interval(start, val, incr);
+      DBUG_RETURN(append(new_interval));
+    }
+    DBUG_RETURN(0);
+  }
+  
+  bool append(Discrete_interval *new_interval)
+  {
+    DBUG_ENTER("Discrete_intervals_list::append");
+    if (unlikely(new_interval == NULL))
+      DBUG_RETURN(1);
+    DBUG_PRINT("info",("adding new auto_increment interval"));
+    if (head == NULL)
+      head= current= new_interval;
+    else
+      tail->next= new_interval;
+    tail= new_interval;
+    elements++;
+    DBUG_RETURN(0);
+  }
   ulonglong minimum()     const { return (head ? head->minimum() : 0); };
   ulonglong maximum()     const { return (head ? tail->maximum() : 0); };
   uint      nb_elements() const { return elements; }

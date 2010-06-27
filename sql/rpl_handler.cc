@@ -17,7 +17,6 @@
 #include "unireg.h"
 
 #include "rpl_mi.h"
-#include "sql_repl.h"
 #include "log_event.h"
 #include "rpl_filter.h"
 #include <my_dir.h>
