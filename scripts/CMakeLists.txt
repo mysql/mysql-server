@@ -144,16 +144,54 @@ SET(HOSTNAME "hostname")
 # and expand default cmake variables
 SET(CC ${CMAKE_C_COMPILER})
 SET(CXX ${CMAKE_CXX_COMPILER})
-#XXX don't set CFLAGS, has already been done earlier
-#XXX don't set CXXFLAGS, has already been done earlier
+# Override CFLAGS for mysqlbug then reset
+SET(BACKUP_CFLAGS ${CFLAGS})
+SET(BACKUP_CXXFLAGS ${CXXFLAGS})
+SET(CFLAGS ${CMAKE_C_FLAGS_RELWITHDEBINFO})
+SET(CXXFLAGS ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+#
 SET(SAVE_CC ${CMAKE_C_COMPILER})
 SET(SAVE_CXX ${CMAKE_CXX_COMPILER})
-SET(SAVE_CFLAGS ${CFLAGS})
-SET(SAVE_CXXFLAGS ${CXXFLAGS})
+SET(SAVE_CFLAGS ${CMAKE_C_FLAGS_RELWITHDEBINFO})
+SET(SAVE_CXXFLAGS ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
 # XXX no cmake equivalent for this, just make one up
 SET(CONFIGURE_LINE "Built using CMake")
 
+# Also required for mysqlbug, autoconf only supports --version so for now we
+# just explicitly require GNU
+IF(CMAKE_COMPILER_IS_GNUCC)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} --version
+    COMMAND grep -i version
+    OUTPUT_VARIABLE CC_VERSION)
+ELSE()
+  SET(CC_VERSION "")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} --version
+    COMMAND grep -i version
+    OUTPUT_VARIABLE CXX_VERSION)
+ELSE()
+  SET(CXX_VERSION "")
+ENDIF()
 ENDIF(UNIX)
+
+IF(UNIX)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
+  ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
+  SET(DEST ${INSTALL_SCRIPTDIR})
+ENDIF()
+
+INSTALL_SCRIPT(
+ "${CMAKE_CURRENT_BINARY_DIR}/mysqlbug"
+  DESTINATION ${DEST}
+  COMPONENT Server
+  )
+
+# Reset CFLAGS/CXXFLAGS back
+SET(CFLAGS ${BACKUP_CFLAGS})
+SET(CXXFLAGS ${BACKUP_CXXFLAGS})
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
 # i.e. makes access relative the current directory. This matches
@@ -305,7 +343,6 @@ ELSE()
     mysql_zap
     mysqlaccess
     mysqlaccess.conf
-    mysqlbug
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy
