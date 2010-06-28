@@ -2323,53 +2323,6 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 4;
   }
 
-  if (thd && thd->is_current_user_used())
-  {
-    LEX_STRING user;
-    LEX_STRING host;
-    bzero(&user, sizeof(user));
-    bzero(&host, sizeof(host));
-
-    if (thd->slave_thread)
-    {
-      /* user will be null, if master is older than this patch */
-      user= thd->variables.current_user.user;
-      host= thd->variables.current_user.host;
-    }
-    else if (thd->security_ctx->priv_user)
-    {
-      Security_context *ctx= thd->security_ctx;
-
-      user.length= strlen(ctx->priv_user);
-      user.str= ctx->priv_user;
-      if (ctx->priv_host[0] != '\0')
-      {
-        host.str= ctx->priv_host;
-        host.length= strlen(ctx->priv_host);
-      }
-    }
-
-    if (user.length > 0)
-    {
-      *start++= Q_INVOKER;
-
-      /*
-        Store user length and user. The max length of use is 16, so 1 byte is
-        enough to store the user's length.
-       */
-      *start++= (uchar)user.length;
-      memcpy(start, user.str, user.length);
-      start+= user.length;
-
-      /*
-        Store host length and host. The max length of host is 60, so 1 byte is
-        enough to store the host's length.
-       */
-      *start++= (uchar)host.length;
-      memcpy(start, host.str, host.length);
-      start+= host.length;
-    }
-  }
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -2699,8 +2652,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
-  bzero(&user, sizeof(user));
-  bzero(&host, sizeof(host));
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
@@ -2855,20 +2806,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       data_written= master_data_written= uint4korr(pos);
       pos+= 4;
       break;
-    case Q_INVOKER:
-    {
-      CHECK_SPACE(pos, end, 1);
-      user.length= *pos++;
-      CHECK_SPACE(pos, end, user.length);
-      user.str= my_strndup((const char *)pos, user.length, MYF(0));
-      pos+= user.length;
-
-      CHECK_SPACE(pos, end, 1);
-      host.length= *pos++;
-      CHECK_SPACE(pos, end, host.length);
-      host.str= my_strndup((const char *)pos, host.length, MYF(0));
-      pos+= host.length;
-    }
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
@@ -3315,9 +3252,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->variables.collation_database= thd->db_charset;
       
       thd->table_map_for_update= (table_map)table_map_for_update;
-      thd->variables.current_user.user= user;
-      thd->variables.current_user.host= host;
-      thd->variables.current_user.password= {0, 0};
+      
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))

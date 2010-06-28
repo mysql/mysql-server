@@ -7658,7 +7658,7 @@ LEX_USER *create_default_definer(THD *thd)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  thd->get_definer(definer);
+  get_default_definer(thd, definer);
 
   return definer;
 }
