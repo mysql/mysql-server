@@ -458,11 +458,12 @@ int my_load_defaults(const char *conf_file, const char **groups,
   MEM_ROOT alloc;
   char *ptr,**res;
   struct handle_option_ctx ctx;
-  const char **dirs;
+  const char **dirs= NULL;
   DBUG_ENTER("load_defaults");
 
   init_alloc_root(&alloc,512,0);
-  if ((dirs= init_default_directories(&alloc)) == NULL)
+  if (default_directories != NULL &&
+      (dirs= init_default_directories(&alloc)) == NULL)
     goto err;
   /*
     Check if the user doesn't want any default option processing
