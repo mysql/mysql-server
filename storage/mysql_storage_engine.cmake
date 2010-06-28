@@ -38,6 +38,8 @@ IF(NOT SOURCE_SUBLIBS)
     IF(${engine}_LIBS)
       TARGET_LINK_LIBRARIES(${dyn_libname} ${${engine}_LIBS})
     ENDIF(${engine}_LIBS)
+    # Install the plugin
+    INSTALL(TARGETS ${dyn_libname} DESTINATION lib/plugin COMPONENT runtime)
     MESSAGE("build ${engine} as DLL")
   ENDIF(${ENGINE_BUILD_TYPE} STREQUAL "STATIC")
 ENDIF(NOT SOURCE_SUBLIBS)
