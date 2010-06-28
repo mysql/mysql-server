@@ -750,7 +750,7 @@ test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	latin1	lat
 USE test_rpl;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test_rpl	e2	@	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
