@@ -355,11 +355,11 @@ SET(CPACK_COMPONENT_HEADERS_DESCRIPTION "Header files for development on MariaDB
 SET(CPACK_COMPONENT_HEADERS_DEPENDS runtime)
 SET(CPACK_COMPONENT_HEADERS_GROUP "Development")
 SET(CPACK_COMPONENT_HEADERS_INSTALL_TYPES Development)
-SET(CPACK_COMPONENT_PERLSCRIPTS_DISPLAY_NAME "Server perl scripts")
-SET(CPACK_COMPONENT_PERLSCRIPTS_DESCRIPTION "Scripts to controll and modify the server. You need a perl installation for these to work.")
-SET(CPACK_COMPONENT_PERLSCRIPTS_DEPENDS runtime)
-SET(CPACK_COMPONENT_PERLSCRIPTS_GROUP "Server")
-SET(CPACK_COMPONENT_PERLSCRIPTS_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_SCRIPTS_DISPLAY_NAME "Server scripts")
+SET(CPACK_COMPONENT_SCRIPTS_DESCRIPTION "SQL and Perl scripts to control and modify the server. You need a perl installation for some of these to work.")
+SET(CPACK_COMPONENT_SCRIPTS_DEPENDS runtime)
+SET(CPACK_COMPONENT_SCRIPTS_GROUP "Server")
+SET(CPACK_COMPONENT_SCRIPTS_INSTALL_TYPES Normal Development)
 # TODO: Add debug files
 # TODO: Add embedded server files
 # TODO: Add test files
@@ -402,7 +402,7 @@ FOREACH(ERRMSGFILE ${share_dirs})
   FILE(RELATIVE_PATH DIRNAME ${PROJECT_SOURCE_DIR}/sql/share ${ERRMSGFILE})
   STRING(REPLACE "/errmsg.sys" "" DIRNAME ${DIRNAME})
   INSTALL(FILES ${ERRMSGFILE} DESTINATION share/${DIRNAME} COMPONENT runtime)
-ENDFOREACH(SUBDIR ${share_dirs})
+ENDFOREACH(ERRMSGFILE ${share_dirs})
 
 INCLUDE(InstallRequiredSystemLibraries)
 
