@@ -142,7 +142,8 @@ public:
       STARTED = 2,
       ALTER_TABLE = 3,
       ALTER_TABLE_ABORT = 4, // "local" abort
-      ALTER_TABLE_REVERT = 5
+      ALTER_TABLE_REVERT = 5,
+      GET_TABINFO = 6
     };
     union {
       Uint32 nodes[MAX_REPLICAS];
@@ -155,6 +156,9 @@ public:
       struct {
         Uint32 m_map_ptr_i;
       } m_create;
+      struct {
+        Uint32 m_requestInfo;
+      } m_get_tabinfo;
     };
     ConnectState connectState;
     Uint32 nextPool;
@@ -456,6 +460,7 @@ public:
       CS_INVALIDATE_NODE_LCP,
       CS_ALTER_TABLE,
       CS_COPY_TO_SAVE
+      ,CS_GET_TABINFO
     };
     /**
      * State for copying pages to disk
@@ -704,6 +709,8 @@ private:
   void execCOPY_TABCONF(Signal *);
   void execTCGETOPSIZECONF(Signal *);
   void execTC_CLOPSIZECONF(Signal *);
+
+  void execDIH_GET_TABINFO_REQ(Signal*);
 
   int handle_invalid_lcp_no(const struct LcpFragRep*, ReplicaRecordPtr);
   void execLCP_FRAG_REP(Signal *);
@@ -1236,6 +1243,12 @@ private:
   void nr_start_fragment(Signal*, TakeOverRecordPtr, ReplicaRecordPtr);
   void nr_run_redo(Signal*, TakeOverRecordPtr);
   void nr_start_logging(Signal*, TakeOverRecordPtr);
+
+  void getTabInfo(Signal*);
+  void getTabInfo_send(Signal*, TabRecordPtr);
+  void getTabInfo_sendComplete(Signal*, Uint32, Uint32);
+  int getTabInfo_copyTableToSection(SegmentedSectionPtr & ptr, CopyTableNode);
+  int getTabInfo_copySectionToPages(TabRecordPtr, SegmentedSectionPtr);
 
   // Initialisation
   void initData();
