@@ -1777,8 +1777,7 @@ public:        /* !!! Public in this patch to allow old usage */
   @class Slave_log_event
 
   Note that this class is currently not used at all; no code writes a
-  @c Slave_log_event (though some code in @c repl_failsafe.cc reads @c
-  Slave_log_event).  So it's not a problem if this code is not
+  @c Slave_log_event.  So it's not a problem if this code is not
   maintained.
 
   @section Slave_log_event_binary_format Binary Format
@@ -4079,6 +4078,7 @@ private:
 
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
+bool sqlcom_can_generate_row_events(const THD *thd);
 
 /**
   @} (end of group Replication)
