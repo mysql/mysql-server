@@ -1236,7 +1236,6 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
-  clean_current_user_used();
 }
 
 

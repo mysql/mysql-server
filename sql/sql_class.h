@@ -401,7 +401,6 @@ struct system_variables
   DATE_TIME_FORMAT *datetime_format;
   DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
-  LEX_USER current_user;
 };
 
 
@@ -2341,19 +2340,6 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
-  void set_current_user_used() { current_user_used= TRUE; }
-  bool is_current_user_used() { return current_user_used; }
-  void clean_current_user_used() { current_user_used= FALSE; }
-  void get_definer(LEX_USER *definer)
-  {
-    set_current_user_used();
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    if (slave_thread && variables.current_user.user.length)
-      *definer= variables.current_user;
-    else
-#endif
-      get_default_definer(this, definer);
-  }
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
@@ -2373,8 +2359,6 @@ private:
     tree itself is reused between executions and thus is stored elsewhere.
   */
   MEM_ROOT main_mem_root;
-
-  bool current_user_used;
 };
 
 
