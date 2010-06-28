@@ -175,13 +175,10 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 ELSE()
   SET(CXX_VERSION "")
 ENDIF()
-ENDIF(UNIX)
 
-IF(UNIX)
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
   ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
   SET(DEST ${INSTALL_SCRIPTDIR})
-ENDIF()
 
 INSTALL_SCRIPT(
  "${CMAKE_CURRENT_BINARY_DIR}/mysqlbug"
@@ -192,6 +189,8 @@ INSTALL_SCRIPT(
 # Reset CFLAGS/CXXFLAGS back
 SET(CFLAGS ${BACKUP_CFLAGS})
 SET(CXXFLAGS ${BACKUP_CXXFLAGS})
+
+ENDIF(UNIX)
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
 # i.e. makes access relative the current directory. This matches
