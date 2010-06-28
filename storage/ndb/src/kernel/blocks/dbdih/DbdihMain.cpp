@@ -13275,10 +13275,12 @@ Dbdih::findBestLogNode(CreateReplicaRecord* createReplica,
   while (fblReplicaPtr.i != RNIL) {
     jam();
     ptrCheckGuard(fblReplicaPtr, creplicaFileSize, replicaRecord);
-    if (checkNodeAlive(fblReplicaPtr.p->procNode)) {
+    if (m_sr_nodes.get(fblReplicaPtr.p->procNode))
+    {
       jam();
       Uint32 fliStopGci = findLogInterval(fblReplicaPtr, startGci);
-      if (fliStopGci > fblStopGci) {
+      if (fliStopGci > fblStopGci)
+      {
         jam();
         fblStopGci = fliStopGci;
         fblFoundReplicaPtr = fblReplicaPtr;
@@ -13290,10 +13292,12 @@ Dbdih::findBestLogNode(CreateReplicaRecord* createReplica,
   while (fblReplicaPtr.i != RNIL) {
     jam();
     ptrCheckGuard(fblReplicaPtr, creplicaFileSize, replicaRecord);
-    if (checkNodeAlive(fblReplicaPtr.p->procNode)) {
+    if (m_sr_nodes.get(fblReplicaPtr.p->procNode))
+    {
       jam();
       Uint32 fliStopGci = findLogInterval(fblReplicaPtr, startGci);
-      if (fliStopGci > fblStopGci) {
+      if (fliStopGci > fblStopGci)
+      {
         jam();
         fblStopGci = fliStopGci;
         fblFoundReplicaPtr = fblReplicaPtr;
