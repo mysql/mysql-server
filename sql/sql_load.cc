@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -397,16 +397,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         DBUG_ASSERT(FALSE); 
 #endif
       }
-      else if (opt_secure_file_priv)
+      else if (!is_secure_file_path(name))
       {
-        char secure_file_real_path[FN_REFLEN];
-        (void) my_realpath(secure_file_real_path, opt_secure_file_priv, 0);
-        if (strncmp(secure_file_real_path, name, strlen(secure_file_real_path)))
-        {
-          /* Read only allowed from within dir specified by secure_file_priv */
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-          DBUG_RETURN(TRUE);
-        }
+        /* Read only allowed from within dir specified by secure_file_priv */
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        DBUG_RETURN(TRUE);
       }
 
     }
@@ -572,7 +567,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
-            d.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
 	    (void) mysql_bin_log.write(&d);
 	  }
 	}
@@ -748,16 +742,13 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   strcpy(end, p);
   end += pl;
 
-  thd->set_query_inner(load_data_query, end - load_data_query);
-
   Execute_load_query_log_event
-    e(thd, thd->query(), thd->query_length(),
-      (uint) ((char*) fname_start - (char*) thd->query() - 1),
-      (uint) ((char*) fname_end - (char*) thd->query()),
+    e(thd, load_data_query, end-load_data_query,
+      (uint) ((char*) fname_start - load_data_query - 1),
+      (uint) ((char*) fname_end - load_data_query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
-  e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }
 
@@ -1004,6 +995,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         DBUG_RETURN(1);
       }
     }
+
+    if (thd->is_error())
+      read_info.error= 1;
+
     if (read_info.error)
       break;
     if (skip_lines)
@@ -1717,7 +1712,7 @@ bool READ_INFO::find_start_of_fields()
 /*
   Clear taglist from tags with a specified level
 */
-int READ_INFO::clear_level(int level)
+int READ_INFO::clear_level(int level_arg)
 {
   DBUG_ENTER("READ_INFO::read_xml clear_level");
   List_iterator<XML_TAG> xmlit(taglist);
@@ -1726,7 +1721,7 @@ int READ_INFO::clear_level(int level)
   
   while ((tag= xmlit++))
   {
-     if(tag->level >= level)
+     if(tag->level >= level_arg)
      {
        xmlit.remove();
        delete tag;

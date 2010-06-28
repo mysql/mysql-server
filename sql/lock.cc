@@ -533,20 +533,6 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
   }
 }
 
-/* Downgrade all locks on a table to new WRITE level from WRITE_ONLY */
-
-void mysql_lock_downgrade_write(THD *thd, TABLE *table,
-                                thr_lock_type new_lock_type)
-{
-  MYSQL_LOCK *locked;
-  if ((locked = get_lock_data(thd, &table, 1, GET_LOCK_UNLOCK)))
-  {
-    for (uint i=0; i < locked->lock_count; i++)
-      thr_downgrade_write_lock(locked->locks[i], new_lock_type);
-    my_free((uchar*) locked,MYF(0));
-  }
-}
-
 
 /** Abort all other threads waiting to get lock in table. */
 

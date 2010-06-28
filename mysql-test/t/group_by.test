@@ -1206,6 +1206,21 @@ SELECT (SELECT t2.a FROM t2 WHERE t2.a = t1.a) aa, b, COUNT(         b)
 
 DROP TABLE t1, t2;
 
+
+--echo #
+--echo # Bug#52051: Aggregate functions incorrectly returns NULL from outer
+--echo # join query
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+DROP TABLE t1, t2;
+
+
 --echo #
 
 --echo # End of 5.1 tests

@@ -400,15 +400,14 @@ The following options may be given as the first argument:
  a query. Values smaller than the number of tables in a
  relation result in faster optimization, but may produce
  very bad query plans. If set to 0, the system will
- automatically pick a reasonable value; if set to 63, the
- optimizer will switch to the original find_best search.
- NOTE: The value 63 and its associated behaviour is
- deprecated
+ automatically pick a reasonable value
  --optimizer-switch=name 
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown} and val is one of {on, off,
+ engine_condition_pushdown, materialization, semijoin,
+ loosescan, firstmatch, mrr, mrr_cost_based,
+ index_condition_pushdown} and val is one of {on, off,
  default}
  --performance-schema 
  Enable the performance schema.
@@ -855,7 +854,7 @@ old-style-user-limits FALSE
 optimizer-join-cache-level 1
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
@@ -906,6 +905,7 @@ secure-file-priv (No default value)
 server-id 0
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
+skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE

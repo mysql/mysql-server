@@ -512,7 +512,7 @@ String *Item_func_concat::val_str(String *str)
       }
       else if (str->alloced_length() >= res->length()+res2->length())
       {
-	if (str == res2)
+	if (str->ptr() == res2->ptr())
 	  str->replace(0,0,*res);
 	else
 	{
@@ -3076,6 +3076,61 @@ String *Item_func_collation::val_str(String *str)
 }
 
 
+void Item_func_weight_string::fix_length_and_dec()
+{
+  CHARSET_INFO *cs= args[0]->collation.collation;
+  collation.set(&my_charset_bin, args[0]->collation.derivation);
+  flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
+  /* 
+    Use result_length if it was given explicitly in constructor,
+    otherwise calculate max_length using argument's max_length
+    and "nweights".
+  */
+  max_length= result_length ? result_length :
+              cs->mbmaxlen * max(args[0]->max_length, nweights);
+  maybe_null= 1;
+}
+
+
+/* Return a weight_string according to collation */
+String *Item_func_weight_string::val_str(String *str)
+{
+  String *res;
+  CHARSET_INFO *cs= args[0]->collation.collation;
+  uint tmp_length, frm_length;
+  DBUG_ASSERT(fixed == 1);
+
+  if (args[0]->result_type() != STRING_RESULT ||
+      !(res= args[0]->val_str(str)))
+    goto nl;
+  
+  /*
+    Use result_length if it was given in constructor
+    explicitly, otherwise calculate result length
+    from argument and "nweights".
+  */
+  tmp_length= result_length ? result_length :
+              cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
+                                    max(res->length(), nweights));
+
+  if (tmp_value.alloc(tmp_length))
+    goto nl;
+
+  frm_length= cs->coll->strnxfrm(cs,
+                                 (uchar*) tmp_value.ptr(), tmp_length,
+                                 nweights ? nweights : tmp_length,
+                                 (const uchar*) res->ptr(), res->length(),
+                                 flags);
+  tmp_value.length(frm_length);
+  null_value= 0;
+  return &tmp_value;
+
+nl:
+  null_value= 1;
+  return 0;
+}
+
+
 String *Item_func_hex::val_str(String *str)
 {
   String *res;
@@ -3192,8 +3247,7 @@ String *Item_load_file::val_str(String *str)
 		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 
   /* Read only allowed from within dir specified by secure_file_priv */
-  if (opt_secure_file_priv &&
-      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  if (!is_secure_file_path(path))
     goto err;
 
   if (!mysql_file_stat(key_file_loadfile, path, &stat_info, MYF(0)))

@@ -18,3 +18,35 @@ SELECT MAX(a) FROM t1 GROUP BY a,b;
 ERROR 23000: Can't write; duplicate key in table 'tmp_table'
 set tmp_table_size=default;
 DROP TABLE t1;
+#
+# Bug #50946: fast index creation still seems to copy the table
+#
+CREATE TABLE t1 (a INT(100) NOT NULL);
+INSERT INTO t1 VALUES (1), (0), (2);
+SET SESSION debug='+d,alter_table_only_index_change';
+ALTER TABLE t1 ADD INDEX a(a);
+SET SESSION debug=DEFAULT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(100) NOT NULL,
+  KEY `a` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a
+0
+1
+2
+DROP TABLE t1;
+#
+# Bug#42064: low memory crash when importing hex strings, in Item_hex_string::Item_hex_string
+#
+CREATE TABLE t1(a BLOB);
+SET SESSION debug="+d,bug42064_simulate_oom";
+INSERT INTO t1 VALUES("");
+Got one of the listed errors
+SET SESSION debug=DEFAULT;
+DROP TABLE t1;
+#
+# End of 5.1 tests
+#

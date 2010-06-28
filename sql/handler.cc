@@ -186,7 +186,7 @@ redo:
 }
 
 
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 {
   if (hton)
   {
@@ -311,13 +311,14 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
-const char **handler_errmsgs;
+static const char **handler_errmsgs;
 
-
-const char **get_handler_errmsgs()
+C_MODE_START
+static const char **get_handler_errmsgs()
 {
   return handler_errmsgs;
 }
+C_MODE_END
 
 
 /**
@@ -654,9 +655,13 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
     there's no need to rollback here as all transactions must
     be rolled back already
   */
-  if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
-      thd_get_ha_data(thd, hton))
-    hton->close_connection(hton, thd);
+  if (hton->state == SHOW_OPTION_YES && thd_get_ha_data(thd, hton))
+  {
+    if (hton->close_connection)
+      hton->close_connection(hton, thd);
+    /* make sure ha_data is reset and ha_data_lock is released */
+    thd_set_ha_data(thd, hton, NULL);
+  }
   return FALSE;
 }
 
@@ -4426,6 +4431,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   uint elem_size;
   Item *pushed_cond= NULL;
   handler *new_h2= 0;
+  int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
 
   /*
@@ -4436,9 +4442,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
   {
     use_default_impl= TRUE;
-    const int retval=
-      h->handler::multi_range_read_init(seq_funcs, seq_init_param,
-                                        n_ranges, mode, buf);
+    retval= h->handler::multi_range_read_init(seq_funcs, seq_init_param,
+                                              n_ranges, mode, buf);
     DBUG_RETURN(retval);
   }
   rowids_buf= buf->buffer;
@@ -4490,7 +4495,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       Caution: this call will invoke this->dsmrr_close(). Do not put the
       created secondary table handler into this->h2 or it will delete it.
     */
-    if (h->ha_index_end())
+    if ((retval= h->ha_index_end()))
     {
       h2=new_h2;
       goto error;
@@ -4500,7 +4505,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     table->prepare_for_position();
     h2->extra(HA_EXTRA_KEYREAD);
 
-    if (h2->ha_index_init(mrr_keyno, FALSE))
+    if ((retval= h2->ha_index_init(mrr_keyno, FALSE)))
       goto error;
 
     use_default_impl= FALSE;
@@ -4519,16 +4524,18 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     */
     handler *save_h2= h2;
     h2= NULL;
-    int res= (h->inited == handler::INDEX && h->ha_index_end());
+    int res= (h->inited == handler::INDEX && (retval= h->ha_index_end()));
     h2= save_h2;
     use_default_impl= FALSE;
     if (res)
       goto error;
   }
 
-  if (h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                          mode, buf) ||
-      dsmrr_fill_buffer())
+  if ((retval= h2->handler::multi_range_read_init(seq_funcs, seq_init_param, 
+                                                  n_ranges, mode, buf)))
+    goto error;
+
+  if ((retval= dsmrr_fill_buffer()))
     goto error;
 
   /*
@@ -4545,7 +4552,10 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if ((h->inited != handler::RND) && 
       ((h->inited==handler::INDEX? h->ha_index_end(): FALSE) || 
        (h->ha_rnd_init(FALSE))))
-      goto error;
+  {
+    retval= 1;
+    goto error;
+  }
 
   use_default_impl= FALSE;
   h->mrr_funcs= *seq_funcs;
@@ -4557,7 +4567,8 @@ error:
   h2->close();
   delete h2;
   h2= NULL;
-  DBUG_RETURN(1);
+  DBUG_ASSERT(retval != 0);
+  DBUG_RETURN(retval);
 }
 
 

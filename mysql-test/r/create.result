@@ -104,7 +104,7 @@ insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	B	B	21	const	1	Using where
+1	SIMPLE	t2	ref	B	B	21	const	1	Using index condition
 select * from t2 where b="world";
 a	B
 3	world

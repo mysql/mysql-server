@@ -526,8 +526,7 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
     Let us add this item to list of all Item_trigger_field
     objects in trigger.
   */
-  lex->trg_table_fields.link_in_list((uchar *) trg_fld,
-                                     (uchar **) &trg_fld->next_trg_field);
+  lex->trg_table_fields.link_in_list(trg_fld, &trg_fld->next_trg_field);
 
   return lex->sphead->add_instr(sp_fld);
 }
@@ -1225,6 +1224,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RESUME_SYM
 %token  RETURNS_SYM                   /* SQL-2003-R */
 %token  RETURN_SYM                    /* SQL-2003-R */
+%token  REVERSE_SYM
 %token  REVOKE                        /* SQL-2003-R */
 %token  RIGHT                         /* SQL-2003-R */
 %token  ROLLBACK_SYM                  /* SQL-2003-R */
@@ -1370,6 +1370,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
+%token  WEIGHT_STRING_SYM
 %token  WHEN_SYM                      /* SQL-2003-R */
 %token  WHERE                         /* SQL-2003-R */
 %token  WHILE_SYM
@@ -1444,6 +1445,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
+        ws_nweights
+        ws_level_flag_desc ws_level_flag_reverse ws_level_flags
+        opt_ws_levels ws_level_list ws_level_list_item ws_level_number
+        ws_level_range ws_level_list_or_range  
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
@@ -5117,7 +5122,7 @@ create_table_option:
             */
             TABLE_LIST *last_non_sel_table= lex->create_last_non_select_table;
             DBUG_ASSERT(last_non_sel_table->next_global ==
-                        (TABLE_LIST *)lex->create_info.merge_list.first);
+                        lex->create_info.merge_list.first);
             last_non_sel_table->next_global= 0;
             Lex->query_tables_last= &last_non_sel_table->next_global;
 
@@ -5870,6 +5875,73 @@ opt_bin_mod:
         | BINARY { Lex->type|= BINCMP_FLAG; }
         ;
 
+ws_nweights:
+        '(' real_ulong_num
+        {
+          if ($2 == 0)
+          {
+            my_parse_error(ER(ER_SYNTAX_ERROR));
+            MYSQL_YYABORT;
+          }
+        }
+        ')'
+        { $$= $2; }
+        ;
+
+ws_level_flag_desc:
+        ASC { $$= 0; }
+        | DESC { $$= 1 << MY_STRXFRM_DESC_SHIFT; }
+        ;
+
+ws_level_flag_reverse:
+        REVERSE_SYM { $$= 1 << MY_STRXFRM_REVERSE_SHIFT; } ;
+
+ws_level_flags:
+        /* empty */ { $$= 0; }
+        | ws_level_flag_desc { $$= $1; }
+        | ws_level_flag_desc ws_level_flag_reverse { $$= $1 | $2; }
+        | ws_level_flag_reverse { $$= $1 ; }
+        ;
+
+ws_level_number:
+        real_ulong_num
+        {
+          $$= $1 < 1 ? 1 : ($1 > MY_STRXFRM_NLEVELS ? MY_STRXFRM_NLEVELS : $1);
+          $$--;
+        }
+        ;
+
+ws_level_list_item:
+        ws_level_number ws_level_flags
+        {
+          $$= (1 | $2) << $1;
+        }
+        ;
+
+ws_level_list:
+        ws_level_list_item { $$= $1; }
+        | ws_level_list ',' ws_level_list_item { $$|= $3; }
+        ;
+
+ws_level_range:
+        ws_level_number '-' ws_level_number
+        {
+          uint start= $1;
+          uint end= $3;
+          for ($$= 0; start <= end; start++)
+            $$|= (1 << start);
+        }
+        ;
+
+ws_level_list_or_range:
+        ws_level_list { $$= $1; }
+        | ws_level_range { $$= $1; }
+        ;
+
+opt_ws_levels:
+        /* empty*/ { $$= 0; }
+        | LEVEL_SYM ws_level_list_or_range { $$= $2; }
+        ;
 
 opt_primary:
           /* empty */
@@ -6158,8 +6230,7 @@ alter:
               MYSQL_YYABORT;
             lex->col_list.empty();
             lex->select_lex.init_order();
-            lex->select_lex.db=
-              ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
+            lex->select_lex.db= (lex->select_lex.table_list.first)->db;
             bzero((char*) &lex->create_info,sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
@@ -6670,7 +6741,7 @@ alter_list_item:
             {
               MYSQL_YYABORT;
             }
-            if (check_table_name($3->table.str,$3->table.length) ||
+            if (check_table_name($3->table.str,$3->table.length, FALSE) ||
                 ($3->db.str && check_and_convert_db_name(&$3->db, FALSE)))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
@@ -7209,8 +7280,8 @@ select_from:
           opt_order_clause opt_limit_clause procedure_clause
           {
             Select->context.table_list=
-              Select->context.first_name_resolution_table= 
-                (TABLE_LIST *) Select->table_list.first;
+              Select->context.first_name_resolution_table=
+                Select->table_list.first;
           }
         | FROM DUAL_SYM where_clause opt_limit_clause
           /* oracle compatibility: oracle always requires FROM clause,
@@ -8426,6 +8497,12 @@ function_call_conflict:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
+        | REVERSE_SYM '(' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_reverse($3);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
         | TRUNCATE_SYM '(' expr ',' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_round($3,$5,1);
@@ -8447,6 +8524,36 @@ function_call_conflict:
         | WEEK_SYM '(' expr ',' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_week($3,$5);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr opt_ws_levels ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_weight_string($3, 0, 0, $4);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_nweights opt_ws_levels ')'
+          {
+            $$= new (YYTHD->mem_root)
+                Item_func_weight_string($3, 0, $6,
+                                        $7 | MY_STRXFRM_PAD_WITH_SPACE);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr AS BINARY ws_nweights ')'
+          {
+            Item *item= new (YYTHD->mem_root) Item_char_typecast($3, $6, &my_charset_bin);
+            if (item == NULL)
+              MYSQL_YYABORT;
+            $$= new (YYTHD->mem_root)
+                Item_func_weight_string(item, 0, $6, MY_STRXFRM_PAD_WITH_SPACE);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr ',' ulong_num ',' ulong_num ',' ulong_num ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_weight_string($3, $5, $7, $9);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -8902,9 +9009,8 @@ opt_gorder_clause:
         | order_clause
           {
             SELECT_LEX *select= Select;
-            select->gorder_list=
-              (SQL_LIST*) sql_memdup((char*) &select->order_list,
-                                     sizeof(st_sql_list));
+            select->gorder_list= new (YYTHD->mem_root)
+                                   SQL_I_List<ORDER>(select->order_list);
             if (select->gorder_list == NULL)
               MYSQL_YYABORT;
             select->order_list.empty();
@@ -9961,7 +10067,7 @@ procedure_clause:
             }
             lex->proc_list.elements=0;
             lex->proc_list.first=0;
-            lex->proc_list.next= (uchar**) &lex->proc_list.first;
+            lex->proc_list.next= &lex->proc_list.first;
             Item_field *item= new (YYTHD->mem_root)
                                 Item_field(&lex->current_select->context,
                                            NULL, NULL, $2.str);
@@ -11908,8 +12014,8 @@ simple_ident_q:
                 Let us add this item to list of all Item_trigger_field objects
                 in trigger.
               */
-              lex->trg_table_fields.link_in_list((uchar*) trg_fld,
-                                                 (uchar**) &trg_fld->next_trg_field);
+              lex->trg_table_fields.link_in_list(trg_fld,
+                                                 &trg_fld->next_trg_field);
 
               $$= trg_fld;
             }
@@ -11995,7 +12101,7 @@ field_ident:
           ident { $$=$1;}
         | ident '.' ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->db))
             {
               my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
@@ -12011,7 +12117,7 @@ field_ident:
           }
         | ident '.' ident
           {
-            TABLE_LIST *table= (TABLE_LIST*) Select->table_list.first;
+            TABLE_LIST *table= Select->table_list.first;
             if (my_strcasecmp(table_alias_charset, $1.str, table->alias))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $1.str);
@@ -12468,6 +12574,7 @@ keyword_sp:
         | RESOURCES                {}
         | RESUME_SYM               {}
         | RETURNS_SYM              {}
+        | REVERSE_SYM              {}
         | ROLLUP_SYM               {}
         | ROUTINE_SYM              {}
         | ROWS_SYM                 {}
@@ -12536,6 +12643,7 @@ keyword_sp:
         | WAIT_SYM                 {}
         | WEEK_SYM                 {}
         | WORK_SYM                 {}
+        | WEIGHT_STRING_SYM        {}
         | X509_SYM                 {}
         | XML_SYM                  {}
         | YEAR_SYM                 {}

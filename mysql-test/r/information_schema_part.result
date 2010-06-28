@@ -37,9 +37,9 @@ partitions 3;
 select * from information_schema.partitions where table_schema="test"
 and table_name="t4";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t4	p0	NULL	1	NULL	KEY	NULL	f1,f2	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t4	p1	NULL	2	NULL	KEY	NULL	f1,f2	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
-def	test	t4	p2	NULL	3	NULL	KEY	NULL	f1,f2	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
+def	test	t4	p0	NULL	1	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
+def	test	t4	p1	NULL	2	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
+def	test	t4	p2	NULL	3	NULL	KEY	NULL	`f1`,`f2`	NULL	NULL	0	0	0	#	1024	0	#	#	NULL	NULL		default	NULL
 drop table t1,t2,t3,t4;
 create table t1 (a int not null,b int not null,c int not null,primary key (a,b))
 partition by range (a)
@@ -67,10 +67,10 @@ def	test	t1	x1	x11	1	1	RANGE	HASH	a	a+b	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	
 def	test	t1	x1	x12	1	2	RANGE	HASH	a	a+b	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
 def	test	t1	x2	x21	2	1	RANGE	HASH	a	a+b	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
 def	test	t1	x2	x22	2	2	RANGE	HASH	a	a+b	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
-def	test	t2	x1	x11	1	1	RANGE	KEY	a	a	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
-def	test	t2	x1	x12	1	2	RANGE	KEY	a	a	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
-def	test	t2	x2	x21	2	1	RANGE	KEY	a	a	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
-def	test	t2	x2	x22	2	2	RANGE	KEY	a	a	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
+def	test	t2	x1	x11	1	1	RANGE	KEY	a	`a`	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
+def	test	t2	x1	x12	1	2	RANGE	KEY	a	`a`	1	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
+def	test	t2	x2	x21	2	1	RANGE	KEY	a	`a`	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t1
+def	test	t2	x2	x22	2	2	RANGE	KEY	a	`a`	5	0	0	0	#	1024	0	#	#	NULL	NULL		default	t2
 drop table t1,t2;
 create table t1 (
 a int not null,

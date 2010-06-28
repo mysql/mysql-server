@@ -5568,7 +5568,21 @@ void Item_equal::update_const()
   Item *item;
   while ((item= it++))
   {
-    if (item->const_item())
+    if (item->const_item() &&
+        /*
+          Don't propagate constant status of outer-joined column.
+          Such a constant status here is a result of:
+            a) empty outer-joined table: in this case such a column has a
+               value of NULL; but at the same time other arguments of
+               Item_equal don't have to be NULLs and the value of the whole
+               multiple equivalence expression doesn't have to be NULL or FALSE
+               because of the outer join nature;
+          or
+            b) outer-joined table contains only 1 row: the result of
+               this column is equal to a row field value *or* NULL.
+          Both values are inacceptable as Item_equal constants.
+        */
+        !item->is_outer_field())
     {
       it.remove();
       add(item);
@@ -5607,7 +5621,8 @@ void Item_equal::update_used_tables()
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
-    const_item_cache&= item->const_item();
+    /* see commentary at Item_equal::update_const() */
+    const_item_cache&= item->const_item() && !item->is_outer_field();
   }
 }
 

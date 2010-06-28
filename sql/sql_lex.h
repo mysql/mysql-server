@@ -568,8 +568,8 @@ public:
   LEX *parent_lex;
   enum olap_type olap;
   /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
-  SQL_LIST	      table_list;
-  SQL_LIST	      group_list; /* GROUP BY clause. */
+  SQL_I_List<TABLE_LIST>  table_list;
+  SQL_I_List<ORDER>       group_list; /* GROUP BY clause. */
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list;
   bool	              is_item_list_lookup;
@@ -593,8 +593,8 @@ public:
   TABLE_LIST *leaf_tables;
   const char *type;               /* type of select for EXPLAIN          */
 
-  SQL_LIST order_list;                /* ORDER clause */
-  SQL_LIST *gorder_list;
+  SQL_I_List<ORDER> order_list;   /* ORDER clause */
+  SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
@@ -737,7 +737,7 @@ public:
   {
     order_list.elements= 0;
     order_list.first= 0;
-    order_list.next= (uchar**) &order_list.first;
+    order_list.next= &order_list.first;
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
@@ -919,6 +919,8 @@ extern const LEX_STRING null_lex_str;
 extern const LEX_STRING empty_lex_str;
 
 
+struct Sroutine_hash_entry;
+
 /*
   Class representing list of all tables used by statement and other
   information which is necessary for opening and locking its tables,
@@ -969,9 +971,9 @@ public:
     We use these two members for restoring of 'sroutines_list' to the state
     in which it was right after query parsing.
   */
-  SQL_LIST sroutines_list;
-  uchar    **sroutines_list_own_last;
-  uint     sroutines_list_own_elements;
+  SQL_I_List<Sroutine_hash_entry> sroutines_list;
+  Sroutine_hash_entry **sroutines_list_own_last;
+  uint sroutines_list_own_elements;
 
   /*
     These constructor and destructor serve for creation/destruction
@@ -1299,8 +1301,21 @@ enum enum_comment_state
 class Lex_input_stream
 {
 public:
-  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
-  ~Lex_input_stream();
+  Lex_input_stream()
+  {
+  }
+
+  ~Lex_input_stream()
+  {
+  }
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length);
 
   void reset(const char *buff, unsigned int length);
 
@@ -1767,7 +1782,8 @@ struct LEX: public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_LIST	      proc_list, auxiliary_table_list, save_list;
+  SQL_I_List<ORDER> proc_list;
+  SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
@@ -1898,7 +1914,7 @@ struct LEX: public Query_tables_list
     fields to TABLE object at table open (altough for latter pointer to table
     being opened is probably enough).
   */
-  SQL_LIST trg_table_fields;
+  SQL_I_List<Item_trigger_field> trg_table_fields;
 
   /*
     stmt_definition_begin is intended to point to the next word after
@@ -1906,6 +1922,7 @@ struct LEX: public Query_tables_list
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+      - CREATE EVENT (points to "EVENT")
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
@@ -2179,9 +2196,20 @@ public:
 class Parser_state
 {
 public:
-  Parser_state(THD *thd, const char* buff, unsigned int length)
-    : m_lip(thd, buff, length), m_yacc()
+  Parser_state()
+    : m_yacc()
   {}
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length)
+  {
+    return m_lip.init(thd, buff, length);
+  }
 
   ~Parser_state()
   {}
