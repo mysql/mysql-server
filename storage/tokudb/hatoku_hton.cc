@@ -685,6 +685,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
     DBC* tmp_table_cursor = NULL;
     DBT curr_key;
     DBT curr_val;
+    DB_TXN* tmp_txn = NULL;
     char data_amount_msg[50] = {0};
     memset(&curr_key, 0, sizeof curr_key); 
     memset(&curr_val, 0, sizeof curr_val);
@@ -699,7 +700,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
         goto cleanup;
     }
     while (error == 0) {
-        DB_TXN* tmp_txn = NULL;
+        tmp_txn = NULL;
         //
         // here, and in other places, check if process has been killed
         // if so, get out of function so user is not stalled
@@ -838,6 +839,9 @@ cleanup:
     if (curr_db) {
         int r = curr_db->close(curr_db, 0);
         assert(r==0);
+    }
+    if (tmp_txn) {
+        commit_txn(tmp_txn, 0);
     }
     if (txn) {
         commit_txn(txn, 0);
