@@ -19,7 +19,7 @@ public:
   {
     op_shape= 0,
     op_not= 0x80000000,
-    op_union=0x10000000,
+    op_union= 0x10000000,
     op_intersection= 0x20000000,
     op_symdifference= 0x30000000,
     op_difference= 0x40000000,
@@ -102,7 +102,8 @@ class gcalc_result_receiver
   uint32 shape_pos;
   double first_x, first_y, prev_x, prev_y;
 public:
-  gcalc_result_receiver();
+  gcalc_result_receiver() : collection_result(FALSE), n_shapes(0), n_holes(0)
+    {}
   int start_shape(gcalc_function::shape_type shape);
   int add_point(double x, double y);
   int complete_shape();

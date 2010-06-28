@@ -203,18 +203,6 @@ void gcalc_dyn_list::reset()
 }
 
 
-/* should be removed
-void gcalc_heap::free_point_info(gcalc_heap::info **pi_hook)
-{
-  DBUG_ASSERT(m_n_points);
-  gcalc_heap::info *pi= *pi_hook;
-  *pi_hook= pi->next;
-  free_item(pi);
-  --m_n_points;
-}
-*/
-
-
 static inline void trim_node(gcalc_heap::info *node, gcalc_heap::info *prev_node)
 {
   if (!node)

@@ -36,7 +36,6 @@
 #ifdef HAVE_SPATIAL
 #include <m_ctype.h>
 
-const double EPSILON= 1e-8;
 
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 {
@@ -55,26 +54,13 @@ void Item_geometry_func::fix_length_and_dec()
   maybe_null= 1;
 }
 
-bool Item_geometry_func::send(Protocol *protocol, String *str)
-{
-  return Item_str_func::send(protocol, str);
-/*
-  String *res;
-  if ((res=val_str(str)) == NULL)
-    return protocol->store_null();
-
-    result= protocol->store(res->ptr(),res->length(),res->charset());
-  return result;
-*/
-}
-
 
 String *Item_func_geometry_from_text::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   Geometry_buffer buffer;
   String arg_val;
-  String *wkt= args[0]->val_str(&arg_val);
+  String *wkt= args[0]->val_str_ascii(&arg_val);
 
   if ((null_value= args[0]->null_value))
     return 0;
@@ -132,7 +118,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 }
 
 
-String *Item_func_as_wkt::val_str(String *str)
+String *Item_func_as_wkt::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String arg_val;
@@ -156,6 +142,7 @@ String *Item_func_as_wkt::val_str(String *str)
 
 void Item_func_as_wkt::fix_length_and_dec()
 {
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   max_length=MAX_BLOB_WIDTH;
   maybe_null= 1;
 }
@@ -179,7 +166,7 @@ String *Item_func_as_wkb::val_str(String *str)
 }
 
 
-String *Item_func_geometry_type::val_str(String *str)
+String *Item_func_geometry_type::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(str);
@@ -382,8 +369,8 @@ String *Item_func_point::val_str(String *str)
   uint32 srid= 0;
 
   if ((null_value= (args[0]->null_value ||
-		    args[1]->null_value ||
-                    str->realloc(4/*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE*2))))
+                    args[1]->null_value ||
+                    str->realloc(4/*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2))))
     return 0;
 
   str->set_charset(&my_charset_bin);
@@ -650,15 +637,15 @@ static double count_edge_t(const gcalc_heap::info *ea,
   ey= eb->y - ea->y;
   vx= v->x - ea->x;
   vy= v->y - ea->y;
-  e_sqrlen= ex*ex + ey*ey;
-  return (ex*vx + ey*vy) / e_sqrlen;
+  e_sqrlen= ex * ex + ey * ey;
+  return (ex * vx + ey * vy) / e_sqrlen;
 }
 
 
 static double distance_to_line(double ex, double ey, double vx, double vy,
                                double e_sqrlen)
 {
-  return fabs(vx*ey - vy*ex) / sqrt(e_sqrlen);
+  return fabs(vx * ey - vy * ex) / sqrt(e_sqrlen);
 }
 
 
@@ -667,7 +654,7 @@ static double distance_points(const gcalc_heap::info *a,
 {
   double x= a->x - b->x;
   double y= a->y - b->y;
-  return sqrt(x*x + y*y);
+  return sqrt(x * x + y * y);
 }
 
 
@@ -675,7 +662,7 @@ static double distance_points(const gcalc_heap::info *a,
   Calculates the distance between objects.
 */
 
-static int calc_distance(double *result, gcalc_heap *collector, int obj2_si,
+static int calc_distance(double *result, gcalc_heap *collector, uint obj2_si,
                          gcalc_function *func, gcalc_scan_iterator *scan_it)
 {
   bool above_cur_point, cur_point_edge;
@@ -761,7 +748,7 @@ calculate_distance:
       {
         t= count_edge_t(dist_point, dist_point->left, cur_point,
                         ex, ey, vx, vy, e_sqrlen);
-        if ((t>0.0) && (t<1.0))
+        if ((t > 0.0) && (t < 1.0))
         {
           cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
           if (distance > cur_distance)
@@ -772,7 +759,7 @@ calculate_distance:
       {
         t= count_edge_t(cur_point, cur_point->left, dist_point,
                         ex, ey, vx, vy, e_sqrlen);
-        if ((t>0.0) && (t<1.0))
+        if ((t > 0.0) && (t < 1.0))
         {
           cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
           if (distance > cur_distance)
@@ -794,9 +781,11 @@ mem_error:
 }
 
 
+#define GIS_ZERO 0.00000000001
+
 int Item_func_spatial_rel::func_touches()
 {
-  bool above_cur_point, cur_point_edge;
+  bool above_cur_point;
   double x1, x2, y1, y2, ex, ey;
   double distance, area;
   int result= 0;
@@ -821,12 +810,12 @@ int Item_func_spatial_rel::func_touches()
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
   {
-    if (((Gis_point *)g1)->get_xy(&x1, &y1) ||
-        ((Gis_point *)g2)->get_xy(&x2, &y2))
+    if (((Gis_point *) g1)->get_xy(&x1, &y1) ||
+        ((Gis_point *) g2)->get_xy(&x2, &y2))
       goto mem_error;
     ex= x2 - x1;
     ey= y2 - y1;
-    DBUG_RETURN((ex * ex + ey * ey) < EPSILON);
+    DBUG_RETURN((ex * ex + ey * ey) < GIS_ZERO);
   }
 
   if (func.reserve_op_buffer(1))
@@ -845,7 +834,7 @@ int Item_func_spatial_rel::func_touches()
 
   if (calc_distance(&distance, &collector, obj2_si, &func, &scan_it))
    goto mem_error;
-  if (distance > EPSILON)
+  if (distance > GIS_ZERO)
     goto exit;
 
   scan_it.reset();
@@ -872,7 +861,7 @@ int Item_func_spatial_rel::func_touches()
       {
         area= scan_it.get_h() *
               ((ti.rb()->x - ti.lb()->x) + (ti.rt()->x - ti.lt()->x));
-        if (area > EPSILON)
+        if (area > GIS_ZERO)
         {
           result= 0;
           goto exit;
@@ -933,7 +922,8 @@ longlong Item_func_spatial_rel::val_int()
       func.add_operation(gcalc_function::op_intersection, 2);
       break;
     case SP_OVERLAPS_FUNC:
-      func.add_operation(gcalc_function::op_intersection, 2);
+      mask= 1;
+      func.add_operation(gcalc_function::op_backdifference, 2);
       break;
     case SP_CROSSES_FUNC:
       func.add_operation(gcalc_function::op_intersection, 2);
@@ -963,13 +953,6 @@ exit:
   func.reset();
   scan_it.reset();
   DBUG_RETURN(result);
-}
-
-
-Item_func_spatial_operation::
-  Item_func_spatial_operation(Item *a,Item *b, gcalc_function::op_type sp_op) :
-    Item_geometry_func(a, b), spatial_op(sp_op)
-{
 }
 
 
@@ -1038,13 +1021,13 @@ const char *Item_func_spatial_operation::func_name() const
 { 
   switch (spatial_op) {
     case gcalc_function::op_intersection:
-      return "ST_Intersection";
+      return "st_intersection";
     case gcalc_function::op_difference:
-      return "ST_Difference";
+      return "st_difference";
     case gcalc_function::op_union:
-      return "ST_Union";
+      return "st_union";
     case gcalc_function::op_symdifference:
-      return "ST_Symdifference";
+      return "st_symdifference";
     default:
       DBUG_ASSERT(0);  // Should never happen
       return "sp_unknown"; 
@@ -1052,7 +1035,8 @@ const char *Item_func_spatial_operation::func_name() const
 }
 
 
-static double n_sinus[33]=
+static const int SINUSES_CALCULATED= 32;
+static double n_sinus[SINUSES_CALCULATED+1]=
 {
   0,
   0.04906767432741802,
@@ -1092,15 +1076,16 @@ static double n_sinus[33]=
 
 static void get_n_sincos(int n, double *sinus, double *cosinus)
 {
-  if (n < 33)
+  DBUG_ASSERT(n > 0 && n < SINUSES_CALCULATED*2+1);
+  if (n < (SINUSES_CALCULATED + 1))
   {
     *sinus= n_sinus[n];
-    *cosinus= n_sinus[32-n];
+    *cosinus= n_sinus[SINUSES_CALCULATED - n];
   }
   else
   {
-    n-= 32;
-    *sinus= n_sinus[32-n];
+    n-= SINUSES_CALCULATED;
+    *sinus= n_sinus[SINUSES_CALCULATED - n];
     *cosinus= -n_sinus[n];
   }
 }
@@ -1111,7 +1096,7 @@ static int fill_half_circle(gcalc_shape_transporter *trn, double x, double y,
 {
   double n_sin, n_cos;
   double x_n, y_n;
-  for (int n=1; n<63; n++)
+  for (int n = 1; n < (SINUSES_CALCULATED * 2 - 1); n++)
   {
     get_n_sincos(n, &n_sin, &n_cos);
     x_n= ax * n_cos - ay * n_sin;
@@ -1123,15 +1108,13 @@ static int fill_half_circle(gcalc_shape_transporter *trn, double x, double y,
 }
 
 
-#define GIS_ZERO 0.00000000001
-
 static int fill_gap(gcalc_shape_transporter *trn,
                     double x, double y,
                     double ax, double ay, double bx, double by, double d,
                     bool *empty_gap)
 {
-  double ab= ax*bx + ay*by;
-  double cosab= ab / (d*d) + GIS_ZERO;
+  double ab= ax * bx + ay * by;
+  double cosab= ab / (d * d) + GIS_ZERO;
   double n_sin, n_cos;
   double x_n, y_n;
   int n=1;
@@ -1157,20 +1140,6 @@ static int fill_gap(gcalc_shape_transporter *trn,
   negatively orthogonal to it with the length of d.
   The result is (ex,ey) - the vector, (px,py) - the orthogonal.
 */
-
-static void calculate_perpendicular(const gcalc_heap::info *p1,
-                                    const gcalc_heap::info *p2, double d,
-                                    double *ex, double *ey,
-                                    double *px, double *py)
-{
-  double q;
-  *ex= p1->x - p2->x;
-  *ey= p1->y - p2->y;
-  q= d / sqrt((*ex) * (*ex) + (*ey) * (*ey));
-  *px= (*ey) * q;
-  *py= -(*ex) * q;
-}
-
 
 static void calculate_perpendicular(
     double x1, double y1, double x2, double y2, double d,
@@ -1678,8 +1647,8 @@ double Item_func_distance::val_real()
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
   {
-    if (((Gis_point *)g1)->get_xy(&x1, &y1) ||
-        ((Gis_point *)g2)->get_xy(&x2, &y2))
+    if (((Gis_point *) g1)->get_xy(&x1, &y1) ||
+        ((Gis_point *) g2)->get_xy(&x2, &y2))
       goto mem_error;
     ex= x2 - x1;
     ey= y2 - y1;

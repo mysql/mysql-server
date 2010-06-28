@@ -292,7 +292,8 @@ bool Geometry::envelope(String *result) const
   MBR mbr;
   const char *end;
 
-  if (get_mbr(&mbr, &end) || result->reserve(1+4*3+SIZEOF_STORED_DOUBLE*10))
+  if (get_mbr(&mbr, &end) ||
+      result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -329,7 +330,8 @@ bool Geometry::envelope(String *result) const
 
 bool Geometry::create_point(String *result, const char *data) const
 {
-  if (no_data(data, POINT_DATA_SIZE) || result->reserve(1+4+POINT_DATA_SIZE))
+  if (no_data(data, POINT_DATA_SIZE) ||
+      result->reserve(1 + 4 + POINT_DATA_SIZE))
     return 1;
   result->q_append((char) wkb_ndr);
   result->q_append((uint32) wkb_point);
@@ -818,14 +820,14 @@ uint Gis_polygon::priv_init_from_opresult(String *bin,
     if (*poly_shapes && st != gcalc_function::shape_hole)
       break;
     (*poly_shapes)++;
-    n_points= uint4korr(opres+4) + 1; /* skip shape type id */
+    n_points= uint4korr(opres + 4) + 1; /* skip shape type id */
     proper_length= 4 + n_points * POINT_DATA_SIZE;
 
     if (bin->reserve(proper_length, 512))
       return 0;
 
     bin->q_append(n_points);
-    op_end= opres + 8 + (n_points-1) * 8*2;
+    op_end= opres + 8 + (n_points-1) * 8 * 2;
     p1_position= (opres+= 8);
     for (; opres<op_end; opres+= POINT_DATA_SIZE)
     {
@@ -987,7 +989,7 @@ int Gis_polygon::exterior_ring(String *result) const
   n_points= uint4korr(data);
   data+= 4;
   length= n_points * POINT_DATA_SIZE;
-  if (no_data(data, length) || result->reserve(1+4+4+ length))
+  if (no_data(data, length) || result->reserve(1 + 4 + 4 + length))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -1033,7 +1035,7 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
   n_points= uint4korr(data);
   points_size= n_points * POINT_DATA_SIZE;
   data+= 4;
-  if (no_data(data, points_size) || result->reserve(1+4+4+ points_size))
+  if (no_data(data, points_size) || result->reserve(1 + 4 + 4 + points_size))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -1192,7 +1194,7 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
   for (;;)
   {
-    if (wkb->reserve(1+4, 512))
+    if (wkb->reserve(1 + 4, 512))
       return 1;
     wkb->q_append((char) wkb_ndr);
     wkb->q_append((uint32) wkb_point);
@@ -1383,7 +1385,7 @@ bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   {
     Gis_line_string ls;
 
-    if (wkb->reserve(1+4, 512))
+    if (wkb->reserve(1 + 4, 512))
       return 1;
     wkb->q_append((char) wkb_ndr); wkb->q_append((uint32) wkb_linestring);
 
@@ -1694,7 +1696,7 @@ bool Gis_multi_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
   for (;;)  
   {
-    if (wkb->reserve(1+4, 512))
+    if (wkb->reserve(1 + 4, 512))
       return 1;
     wkb->q_append((char) wkb_ndr);
     wkb->q_append((uint32) wkb_polygon);
@@ -1765,7 +1767,7 @@ uint Gis_multi_polygon::init_from_opresult(String *bin,
   bin->q_append(n_shapes);
   while (n_shapes)
   {
-    if (bin->reserve(1+4, 512))
+    if (bin->reserve(1 + 4, 512))
       return 0;
     bin->q_append((char)wkb_ndr);
     bin->q_append((uint32)wkb_polygon);
@@ -2255,7 +2257,7 @@ int Gis_geometry_collection::geometry_n(uint32 num, String *result) const
   } while (--num);
 
   /* Copy found object to result */
-  if (result->reserve(1+4+length))
+  if (result->reserve(1 + 4 + length))
     return 1;
   result->q_append((char) wkb_ndr);
   result->q_append((uint32) wkb_type);

@@ -35,7 +35,6 @@ public:
   void fix_length_and_dec();
   enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
   Field *tmp_table_field(TABLE *t_arg);
-  bool send(Protocol *protocol, String *str);
   bool is_null() { (void) val_int(); return null_value; }
 };
 
@@ -57,12 +56,12 @@ public:
   String *val_str(String *);
 };
 
-class Item_func_as_wkt: public Item_str_func
+class Item_func_as_wkt: public Item_str_ascii_func
 {
 public:
-  Item_func_as_wkt(Item *a): Item_str_func(a) {}
+  Item_func_as_wkt(Item *a): Item_str_ascii_func(a) {}
   const char *func_name() const { return "astext"; }
-  String *val_str(String *);
+  String *val_str_ascii(String *);
   void fix_length_and_dec();
 };
 
@@ -75,11 +74,11 @@ public:
   enum_field_types field_type() const  { return MYSQL_TYPE_BLOB; }
 };
 
-class Item_func_geometry_type: public Item_str_func
+class Item_func_geometry_type: public Item_str_ascii_func
 {
 public:
-  Item_func_geometry_type(Item *a): Item_str_func(a) {}
-  String *val_str(String *);
+  Item_func_geometry_type(Item *a): Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *);
   const char *func_name() const { return "geometrytype"; }
   void fix_length_and_dec() 
   {
@@ -267,7 +266,9 @@ public:
   gcalc_operation_reducer operation;
   String tmp_value1,tmp_value2;
 public:
-  Item_func_spatial_operation(Item *a,Item *b, gcalc_function::op_type sp_op);
+  Item_func_spatial_operation(Item *a,Item *b, gcalc_function::op_type sp_op) :
+    Item_geometry_func(a, b), spatial_op(sp_op)
+  {}
   virtual ~Item_func_spatial_operation();
   String *val_str(String *);
   const char *func_name() const;

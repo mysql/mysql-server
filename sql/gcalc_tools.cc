@@ -223,11 +223,6 @@ int gcalc_operation_transporter::start_collection(int n_objects)
 }
 
 
-gcalc_result_receiver::gcalc_result_receiver() :
-  collection_result(FALSE), n_shapes(0), n_holes(0)
-{}
-
-
 int gcalc_result_receiver::start_shape(gcalc_function::shape_type shape)
 {
   if (buffer.reserve(4*2, 512))
