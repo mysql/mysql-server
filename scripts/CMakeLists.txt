@@ -140,6 +140,19 @@ ENDIF()
 
 SET(HOSTNAME "hostname")
 
+# Required for mysqlbug until autotools are deprecated, once done remove these
+# and expand default cmake variables
+SET(CC ${CMAKE_C_COMPILER})
+SET(CXX ${CMAKE_CXX_COMPILER})
+#XXX don't set CFLAGS, has already been done earlier
+#XXX don't set CXXFLAGS, has already been done earlier
+SET(SAVE_CC ${CMAKE_C_COMPILER})
+SET(SAVE_CXX ${CMAKE_CXX_COMPILER})
+SET(SAVE_CFLAGS ${CFLAGS})
+SET(SAVE_CXXFLAGS ${CXXFLAGS})
+# XXX no cmake equivalent for this, just make one up
+SET(CONFIGURE_LINE "Built using CMake")
+
 ENDIF(UNIX)
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
