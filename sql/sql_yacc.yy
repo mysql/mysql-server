@@ -962,6 +962,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
+%token  MASTER_DELAY_SYM
 %token  MASTER_HOST_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
@@ -1726,11 +1727,13 @@ change:
           {
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
-            bzero((char*) &lex->mi, sizeof(lex->mi));
             /*
-              resetting flags that can left from the previous CHANGE MASTER
+              Clear LEX_MASTER_INFO struct and allocate memory for
+              repl_ignore_server_ids. repl_ignore_server_ids is freed
+              at the end of change_master. So it is guaranteed to be
+              uninitialized before here.
             */
-            lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+            lex->mi.set_unspecified();
             my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
                                   sizeof(::server_id), 16, 16);
           }
@@ -1767,6 +1770,16 @@ master_def:
         | MASTER_RETRY_COUNT_SYM EQ ulong_num
           {
             Lex->mi.retry_count = $3;
+          }
+        | MASTER_DELAY_SYM EQ ulong_num
+          {
+            if ($3 > MASTER_DELAY_MAX)
+            {
+              my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
+                       $3, MASTER_DELAY_MAX);
+            }
+            else
+              Lex->mi.sql_delay = $3;
           }
         | MASTER_SSL_SYM EQ ulong_num
           {
@@ -6285,7 +6298,7 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
             /* If you change this code don't forget to update SLAVE START too */
           }
           slave_until
@@ -6303,7 +6316,8 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
+            /* If you change this code don't forget to update START SLAVE too */
           }
           slave_until
           {}
@@ -6312,6 +6326,7 @@ slave:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
             lex->type = 0;
+            /* If you change this code don't forget to update STOP SLAVE too */
           }
         ;
 
@@ -11732,6 +11747,7 @@ keyword_sp:
         | MASTER_SERVER_ID_SYM     {}
         | MASTER_CONNECT_RETRY_SYM {}
         | MASTER_RETRY_COUNT_SYM   {}
+        | MASTER_DELAY_SYM         {}
         | MASTER_SSL_SYM           {}
         | MASTER_SSL_CA_SYM        {}
         | MASTER_SSL_CAPATH_SYM    {}

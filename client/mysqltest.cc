@@ -7778,6 +7778,10 @@ int main(int argc, char **argv)
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
 
+  {
+    char path_separator[]= { FN_LIBCHAR, 0 };
+    var_set_string("SYSTEM_PATH_SEPARATOR", path_separator);
+  }
   var_set_string("MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
   var_set_string("MYSQL_SYSTEM_TYPE", SYSTEM_TYPE);
   var_set_string("MYSQL_MACHINE_TYPE", MACHINE_TYPE);

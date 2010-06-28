@@ -17,6 +17,88 @@
 #include "rpl_rli.h"
 #include "base64.h"
 
+
+/**
+  Check if the event type is allowed in a BINLOG statement.
+
+  @retval 0 if the event type is ok.
+  @retval 1 if the event type is not ok.
+*/
+static int check_event_type(int type, Relay_log_info *rli)
+{
+  Format_description_log_event *fd_event=
+    rli->relay_log.description_event_for_exec;
+
+  /*
+    Convert event type id of certain old versions (see comment in
+    Format_description_log_event::Format_description_log_event(char*,...)).
+  */
+  if (fd_event && fd_event->event_type_permutation)
+  {
+    IF_DBUG({
+        int new_type= fd_event->event_type_permutation[type];
+        DBUG_PRINT("info",
+                   ("converting event type %d to %d (%s)",
+                    type, new_type,
+                    Log_event::get_type_str((Log_event_type)new_type)));
+      });
+    type= fd_event->event_type_permutation[type];
+  }
+
+  switch (type)
+  {
+  case START_EVENT_V3:
+  case FORMAT_DESCRIPTION_EVENT:
+    /*
+      We need a preliminary FD event in order to parse the FD event,
+      if we don't already have one.
+    */
+    if (!fd_event)
+      if (!(rli->relay_log.description_event_for_exec=
+            new Format_description_log_event(4)))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(0), 1);
+        return 1;
+      }
+
+    /* It is always allowed to execute FD events. */
+    return 0;
+    
+  case TABLE_MAP_EVENT:
+  case WRITE_ROWS_EVENT:
+  case UPDATE_ROWS_EVENT:
+  case DELETE_ROWS_EVENT:
+  case PRE_GA_WRITE_ROWS_EVENT:
+  case PRE_GA_UPDATE_ROWS_EVENT:
+  case PRE_GA_DELETE_ROWS_EVENT:
+    /*
+      Row events are only allowed if a Format_description_event has
+      already been seen.
+    */
+    if (fd_event)
+      return 0;
+    else
+    {
+      my_error(ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT,
+               MYF(0), Log_event::get_type_str((Log_event_type)type));
+      return 1;
+    }
+    break;
+
+  default:
+    /*
+      It is not meaningful to execute other events than row-events and
+      FD events. It would even be dangerous to execute Stop_log_event
+      and Rotate_log_event since they call flush_relay_log_info, which
+      is not allowed to call by other threads than the slave SQL
+      thread when the slave SQL thread is running.
+    */
+    my_error(ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT,
+             MYF(0), Log_event::get_type_str((Log_event_type)type));
+    return 1;
+  }
+}
+
 /**
   Execute a BINLOG statement.
 
@@ -50,29 +132,11 @@ void mysql_client_binlog_statement(THD* thd)
     Allocation
   */
 
-  /*
-    If we do not have a Format_description_event, we create a dummy
-    one here.  In this case, the first event we read must be a
-    Format_description_event.
-  */
-  my_bool have_fd_event= TRUE;
   int err;
   Relay_log_info *rli;
   rli= thd->rli_fake;
-  if (!rli)
-  {
-    rli= thd->rli_fake= new Relay_log_info(FALSE);
-#ifdef HAVE_purify
-    rli->is_fake= TRUE;
-#endif
-    have_fd_event= FALSE;
-  }
-  if (rli && !rli->relay_log.description_event_for_exec)
-  {
-    rli->relay_log.description_event_for_exec=
-      new Format_description_log_event(4);
-    have_fd_event= FALSE;
-  }
+  if (!rli && (rli= thd->rli_fake= new Relay_log_info(FALSE)))
+    rli->sql_thd= thd;
 
   const char *error= 0;
   char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
@@ -81,16 +145,13 @@ void mysql_client_binlog_statement(THD* thd)
   /*
     Out of memory check
   */
-  if (!(rli &&
-        rli->relay_log.description_event_for_exec &&
-        buf))
+  if (!(rli && buf))
   {
     my_error(ER_OUTOFMEMORY, MYF(0), 1);  /* needed 1 bytes */
     goto end;
   }
 
-  rli->sql_thd= thd;
-  rli->no_storage= TRUE;
+  DBUG_ASSERT(rli->belongs_to_client());
 
   for (char const *strptr= thd->lex->comment.str ;
        strptr < thd->lex->comment.str + thd->lex->comment.length ; )
@@ -154,23 +215,8 @@ void mysql_client_binlog_statement(THD* thd)
         goto end;
       }
 
-      /*
-        If we have not seen any Format_description_event, then we must
-        see one; it is the only statement that can be read in base64
-        without a prior Format_description_event.
-      */
-      if (!have_fd_event)
-      {
-        int type = bufptr[EVENT_TYPE_OFFSET];
-        if (type == FORMAT_DESCRIPTION_EVENT || type == START_EVENT_V3)
-          have_fd_event= TRUE;
-        else
-        {
-          my_error(ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT,
-                   MYF(0), Log_event::get_type_str((Log_event_type)type));
-          goto end;
-        }
-      }
+      if (check_event_type(bufptr[EVENT_TYPE_OFFSET], rli))
+        goto end;
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
                                     rli->relay_log.description_event_for_exec);
@@ -180,7 +226,7 @@ void mysql_client_binlog_statement(THD* thd)
       {
         /*
           This could actually be an out-of-memory, but it is more likely
-          causes by a bad statement
+          caused by a bad statement
         */
         my_error(ER_SYNTAX_ERROR, MYF(0));
         goto end;
