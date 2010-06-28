@@ -11001,7 +11001,7 @@ Dbdih::execDIH_GET_TABINFO_REQ(Signal* signal)
     return;
   } while (0);
 
-  DihGetTabInfoRef * ref;
+  DihGetTabInfoRef * ref = (DihGetTabInfoRef*)signal->getDataPtrSend();
   ref->senderData = req.senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
