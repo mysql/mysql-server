@@ -4,7 +4,7 @@ IF(ESSENTIALS)
  SET(CPACK_COMPONENTS_USED "Server;Client;DataFiles")
  SET(CPACK_WIX_UI "WixUI_InstallDir")
  MATH(EXPR bits ${CMAKE_SIZEOF_VOID_P}*8)
- SET(CPACK_PACKAGE_FILE_NAME  "mysql-essentials-${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH}-win${bits}")
+ SET(CPACK_PACKAGE_FILE_NAME  "mysql-essential-${VERSION}-win${bits}")
 ELSE()
   SET(CPACK_COMPONENTS_USED 
     "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts")
