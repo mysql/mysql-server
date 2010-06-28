@@ -166,3 +166,8 @@ ENDFOREACH(ENGINE_LIB)
 ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
+
+INSTALL(TARGETS mysqlserver DESTINATION Embedded/static COMPONENT embedded)
+
+INSTALL(TARGETS libmysqld DESTINATION Embedded/DLL COMPONENT embedded)
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/Release/libmysqld.exp DESTINATION Embedded/DLL COMPONENT embedded)
