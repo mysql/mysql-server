@@ -20,23 +20,18 @@
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
 #include "rpl_utility.h"
+#include "slave.h"
 
 static int count_relay_log_space(Relay_log_info* rli);
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
+const char *const Relay_log_info::state_delaying_string = "Waiting until MASTER_DELAY seconds after master executed event";
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery)
   :Slave_reporting_capability("SQL"),
-   no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
+   replicate_same_server_id(::replicate_same_server_id),
    info_fd(-1), cur_log_fd(-1), relay_log(&sync_relaylog_period),
    sync_counter(0), is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
-#if HAVE_purify
-   is_fake(FALSE),
-#endif
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
    last_master_timestamp(0), slave_skip_counter(0),
@@ -44,7 +39,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   last_event_start_time(0), m_flags(0)
+   last_event_start_time(0),
+   sql_delay(0), sql_delay_end(0),
+   m_flags(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -82,15 +79,49 @@ Relay_log_info::~Relay_log_info()
 }
 
 
+/**
+  Wrapper around Relay_log_info::init(const char *).
+
+  @todo Remove this and replace all calls to it by calls to
+  Relay_log_info::init(const char *). /SVEN
+*/
 int init_relay_log_info(Relay_log_info* rli,
 			const char* info_fname)
+{
+  return rli->init(info_fname);
+}
+
+
+/**
+  Read the relay_log.info file.
+
+  @param info_fname The name of the file to read from.
+  @retval 0 success
+  @retval 1 failure
+*/
+int Relay_log_info::init(const char* info_fname)
 {
   char fname[FN_REFLEN+128];
   int info_fd;
   const char* msg = 0;
   int error = 0;
   DBUG_ENTER("init_relay_log_info");
-  DBUG_ASSERT(!rli->no_storage);         // Don't init if there is no storage
+  Relay_log_info *rli= this; // todo: remove useless local copy of 'this' pointer
+
+  /*
+    Should not read RLI from file in client threads. Client threads
+    only use RLI to execute BINLOG statements.
+
+    @todo Uncomment the following assertion. Currently,
+    Relay_log_info::init() is called from init_master_info() before
+    the THD object Relay_log_info::sql_thd is created. That means we
+    cannot call belongs_to_client() since belongs_to_client()
+    dereferences Relay_log_info::sql_thd. So we need to refactor
+    slightly: the THD object should be created by Relay_log_info
+    constructor (or passed to it), so that we are guaranteed that it
+    exists at this point. /Sven
+  */
+  // DBUG_ASSERT(!rli->belongs_to_client());
 
   if (rli->inited)                       // Set if this function called
     DBUG_RETURN(0);
@@ -264,20 +295,72 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     }
 
     rli->info_fd = info_fd;
-    int relay_log_pos, master_log_pos;
+    int relay_log_pos, master_log_pos, lines;
+    char *first_non_digit;
+
+    /*
+      Starting from 5.1.x, relay-log.info has a new format. Now, its
+      first line contains the number of lines in the file. By reading
+      this number we can determine which version our master.info comes
+      from. We can't simply count the lines in the file, since
+      versions before 5.1.x could generate files with more lines than
+      needed. If first line doesn't contain a number, or if it
+      contains a number less than LINES_IN_RELAY_LOG_INFO_WITH_DELAY,
+      then the file is treated like a file from pre-5.1.x version.
+      There is no ambiguity when reading an old master.info: before
+      5.1.x, the first line contained the binlog's name, which is
+      either empty or has an extension (contains a '.'), so can't be
+      confused with an integer.
+
+      So we're just reading first line and trying to figure which
+      version is this.
+    */
+
+    /*
+      The first row is temporarily stored in mi->master_log_name, if
+      it is line count and not binlog name (new format) it will be
+      overwritten by the second row later.
+    */
     if (init_strvar_from_file(rli->group_relay_log_name,
                               sizeof(rli->group_relay_log_name),
-                              &rli->info_file, "") ||
-       init_intvar_from_file(&relay_log_pos,
-                             &rli->info_file, BIN_LOG_HEADER_SIZE) ||
-       init_strvar_from_file(rli->group_master_log_name,
-                             sizeof(rli->group_master_log_name),
-                             &rli->info_file, "") ||
-       init_intvar_from_file(&master_log_pos, &rli->info_file, 0))
+                              &rli->info_file, ""))
     {
       msg="Error reading slave log configuration";
       goto err;
     }
+
+    lines= strtoul(rli->group_relay_log_name, &first_non_digit, 10);
+
+    if (rli->group_relay_log_name[0] != '\0' &&
+        *first_non_digit == '\0' &&
+        lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
+    {
+      DBUG_PRINT("info", ("relay_log_info file is in new format."));
+      /* Seems to be new format => read relay log name from next line */
+      if (init_strvar_from_file(rli->group_relay_log_name,
+                                sizeof(rli->group_relay_log_name),
+                                &rli->info_file, ""))
+      {
+        msg="Error reading slave log configuration";
+        goto err;
+      }
+    }
+    else
+      DBUG_PRINT("info", ("relay_log_info file is in old format."));
+
+    if (init_intvar_from_file(&relay_log_pos,
+                              &rli->info_file, BIN_LOG_HEADER_SIZE) ||
+        init_strvar_from_file(rli->group_master_log_name,
+                              sizeof(rli->group_master_log_name),
+                              &rli->info_file, "") ||
+        init_intvar_from_file(&master_log_pos, &rli->info_file, 0) ||
+        (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY &&
+         init_intvar_from_file(&rli->sql_delay, &rli->info_file, 0)))
+    {
+      msg="Error reading slave log configuration";
+      goto err;
+    }
+
     strmake(rli->event_relay_log_name,rli->group_relay_log_name,
             sizeof(rli->event_relay_log_name)-1);
     rli->group_relay_log_pos= rli->event_relay_log_pos= relay_log_pos;
@@ -618,6 +701,8 @@ err:
   if (!rli->relay_log.description_event_for_exec->is_valid() && !*errmsg)
     *errmsg= "Invalid Format_description log event; could be out of memory";
 
+  DBUG_PRINT("info", ("Returning %d from init_relay_log_pos", (*errmsg)?1:0));
+
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
 
@@ -832,7 +917,9 @@ void Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 {
   DBUG_ENTER("Relay_log_info::inc_group_relay_log_pos");
 
-  if (!skip_lock)
+  if (skip_lock)
+    safe_mutex_assert_owner(&data_lock);
+  else
     pthread_mutex_lock(&data_lock);
   inc_event_relay_log_pos();
   group_relay_log_pos= event_relay_log_pos;
@@ -1140,6 +1227,7 @@ bool Relay_log_info::cached_charset_compare(char *charset) const
 void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
 {
   clear_flag(IN_STMT);
+  DBUG_ASSERT(!belongs_to_client());
 
   /*
     If in a transaction, and if the slave supports transactions, just
