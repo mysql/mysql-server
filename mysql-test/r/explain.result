@@ -13,7 +13,7 @@ id	str
 3	foo
 explain select * from t1 where str is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	str	str	11	const	1	Using where
+1	SIMPLE	t1	ref	str	str	11	const	1	Using index condition
 explain select * from t1 where str="foo";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	str	str	11	const	1	
@@ -247,6 +247,31 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select '1' AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` = 1)
 drop table t1,t2;
+#
+# Bug #48419: another explain crash..
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b BLOB, KEY b(b(100)));
+INSERT INTO t2 VALUES ('1'), ('2'), ('3');
+FLUSH TABLES;
+EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT 1 FROM t1 t JOIN t2 WHERE b <= 1 AND t.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+DROP TABLE t1, t2;
+#
+# Bug #48573: difference of index selection between rpm binary and
+#             .tar.gz, windows vs linux..
+#
+CREATE TABLE t1(c1 INT, c2 INT, c4 INT, c5 INT, KEY(c2, c5), KEY(c2, c4, c5));
+INSERT INTO t1 VALUES(4, 1, 1, 1);
+INSERT INTO t1 VALUES(3, 1, 1, 1);
+INSERT INTO t1 VALUES(2, 1, 1, 1);
+INSERT INTO t1 VALUES(1, 1, 1, 1);
+EXPLAIN SELECT c1 FROM t1 WHERE c2 = 1 AND c4 = 1 AND c5 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c2,c2_2	c2	10	const,const	3	Using where
+DROP TABLE t1;
 End of 5.1 tests.
 #
 # Bug#46860: 

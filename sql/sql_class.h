@@ -433,6 +433,7 @@ typedef struct system_variables
 
   uint binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   my_bool binlog_direct_non_trans_update;
+  my_bool sql_log_bin;
   uint completion_type;
   uint query_cache_type;
   uint tx_isolation;
@@ -1105,6 +1106,7 @@ public:
   bool enable_slow_log;
   bool last_insert_id_used;
   SAVEPOINT *savepoints;
+  enum enum_check_fields count_cuted_fields;
 };
 
 
@@ -1480,7 +1482,11 @@ struct Ha_data
     @sa trans_register_ha()
   */
   Ha_trx_info ha_info[2];
-
+  /**
+    NULL: engine is not bound to this thread
+    non-NULL: engine is bound to this thread, engine shutdown forbidden
+  */
+  plugin_ref lock;
   Ha_data() :ha_ptr(NULL) {}
 };
 
@@ -1678,8 +1684,6 @@ public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
-  /* TRUE when the current top has SQL_LOG_BIN ON */
-  bool sql_log_bin_toplevel;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
@@ -2070,8 +2074,15 @@ public:
   */
   ha_rows    sent_row_count;
 
-  /*
-    number of rows we read, sent or not, including in create_sort_index()
+  /**
+    Number of rows read and/or evaluated for a statement. Used for
+    slow log reporting.
+
+    An examined row is defined as a row that is read and/or evaluated
+    according to a statement condition, including in
+    create_sort_index(). Rows may be counted more than once, e.g., a
+    statement including ORDER BY could possibly evaluate the row in
+    filesort() before reading it for e.g. update.
   */
   ha_rows    examined_row_count;
 
@@ -2131,8 +2142,6 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread, one_shot_set;
-  bool	     locked, some_tables_deleted;
-  bool       last_cuted_field;
   bool	     no_errors, password;
   /**
     Set to TRUE if execution of the current compound statement
@@ -2369,6 +2378,11 @@ public:
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
+  }
+  /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
+  inline bool	is_valid_time() 
+  { 
+    return (start_time < (time_t) MY_TIME_T_MAX); 
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }
@@ -3702,6 +3716,12 @@ public:
  */
 #define CF_PROTECT_AGAINST_GRL  (1U << 10)
 
+/**
+  Identifies statements that may generate row events
+  and that may end up in the binary log.
+*/
+#define CF_CAN_GENERATE_ROW_EVENTS (1U << 11)
+
 /* Bits in server_command_flags */
 
 /**
@@ -3762,7 +3782,7 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
   three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info,
+const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_func,
                               const char *calling_file,
                               const unsigned int calling_line);

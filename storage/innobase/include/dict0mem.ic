@@ -23,4 +23,82 @@ Data dictionary memory object creation
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
+#include "data0type.h"
+#include "dict0mem.h"
+#include "fil0fil.h"
 
+/**********************************************************************//**
+This function poplulates a dict_index_t index memory structure with
+supplied information. */
+UNIV_INLINE
+void
+dict_mem_fill_index_struct(
+/*=======================*/
+	dict_index_t*	index,		/*!< out: index to be filled */
+	mem_heap_t*	heap,		/*!< in: memory heap */
+	const char*	table_name,	/*!< in: table name */
+	const char*	index_name,	/*!< in: index name */
+	ulint		space,		/*!< in: space where the index tree is
+					placed, ignored if the index is of
+					the clustered type */
+	ulint		type,		/*!< in: DICT_UNIQUE,
+					DICT_CLUSTERED, ... ORed */
+	ulint		n_fields)	/*!< in: number of fields */
+{
+
+	if (heap) {
+		index->heap = heap;
+		index->name = mem_heap_strdup(heap, index_name);
+		index->fields = (dict_field_t*) mem_heap_alloc(
+			heap, 1 + n_fields * sizeof(dict_field_t));
+	} else {
+		index->name = index_name;
+		index->heap = NULL;
+		index->fields = NULL;
+	}
+
+        index->type = type;
+#ifndef UNIV_HOTBACKUP
+        index->space = (unsigned int) space;
+        index->page = FIL_NULL;
+#endif /* !UNIV_HOTBACKUP */
+        index->table_name = table_name;
+        index->n_fields = (unsigned int) n_fields;
+        /* The '1 +' above prevents allocation
+        of an empty mem block */
+#ifdef UNIV_DEBUG
+        index->magic_n = DICT_INDEX_MAGIC_N;
+#endif /* UNIV_DEBUG */
+}
+
+/**********************************************************************//**
+This function poplulates a dict_col_t memory structure with
+supplied information. */
+UNIV_INLINE
+void
+dict_mem_fill_column_struct(
+/*========================*/
+	dict_col_t*	column,		/*!< out: column struct to be
+					filled */
+	ulint		col_pos,	/*!< in: column position */
+	ulint		mtype,		/*!< in: main data type */
+	ulint		prtype,		/*!< in: precise type */
+	ulint		col_len)	/*!< in: column lenght */
+{
+#ifndef UNIV_HOTBACKUP
+	ulint	mbminlen;
+	ulint	mbmaxlen;
+#endif /* !UNIV_HOTBACKUP */
+
+	column->ind = (unsigned int) col_pos;
+	column->ord_part = 0;
+	column->mtype = (unsigned int) mtype;
+	column->prtype = (unsigned int) prtype;
+	column->len = (unsigned int) col_len;
+#ifndef UNIV_HOTBACKUP
+        dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
+
+        column->mbminlen = (unsigned int) mbminlen;
+        column->mbmaxlen = (unsigned int) mbmaxlen;
+#endif /* !UNIV_HOTBACKUP */
+}

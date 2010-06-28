@@ -4199,7 +4199,9 @@ bool mysql_unpack_partition(THD *thd,
 
   thd->variables.character_set_client= system_charset_info;
 
-  Parser_state parser_state(thd, part_buf, part_info_len);
+  Parser_state parser_state;
+  if (parser_state.init(thd, part_buf, part_info_len))
+    goto end;
 
   if (init_lex_with_single_table(thd, table, &lex))
     goto end;
@@ -4584,7 +4586,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     partition_info *tab_part_info= table->part_info;
     partition_info *alt_part_info= thd->work_part_info;
     uint flags= 0;
-    bool is_last_partition_reorged;
+    bool is_last_partition_reorged= FALSE;
     part_elem_value *tab_max_elem_val= NULL;
     part_elem_value *alt_max_elem_val= NULL;
     longlong tab_max_range= 0, alt_max_range= 0;
@@ -6280,54 +6282,6 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
     sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
 }
 
-/*
-  Unlock and close table before renaming and dropping partitions
-  SYNOPSIS
-    alter_close_tables()
-    lpt                        Struct carrying parameters
-  RETURN VALUES
-    0
-*/
-
-static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  TABLE_SHARE *share= lpt->table->s;
-  THD *thd= lpt->thd;
-  TABLE *table;
-  DBUG_ENTER("alter_close_tables");
-  /*
-    We must keep LOCK_open while manipulating with thd->open_tables.
-    Another thread may be working on it.
-  */
-  mysql_mutex_lock(&LOCK_open);
-  /*
-    We can safely remove locks for all tables with the same name:
-    later they will all be closed anyway in
-    alter_partition_lock_handling().
-  */
-  for (table= thd->open_tables; table ; table= table->next)
-  {
-    if (!strcmp(table->s->table_name.str, share->table_name.str) &&
-	!strcmp(table->s->db.str, share->db.str))
-    {
-      mysql_lock_remove(thd, thd->lock, table);
-      table->file->close();
-      table->db_stat= 0;                        // Mark file closed
-      /*
-        Ensure that we won't end up with a crippled table instance
-        in the table cache if an error occurs before we reach
-        alter_partition_lock_handling() and the table is closed
-        by close_thread_tables() instead.
-      */
-      tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
-                       table->s->db.str,
-                       table->s->table_name.str);
-    }
-  }
-  mysql_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(0);
-}
-
 
 /*
   Handle errors for ALTER TABLE for partitioning
@@ -6626,9 +6580,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_4") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -6694,9 +6646,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        abort_and_upgrade_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_add_partition_4") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -6779,9 +6729,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_5") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,

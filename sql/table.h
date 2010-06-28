@@ -630,7 +630,6 @@ struct TABLE_SHARE
   bool crashed;
   bool is_view;
   ulong table_map_id;                   /* for row-based replication */
-  ulonglong table_map_version;
 
   /*
     Cache for row-based replication table share checks that does not
@@ -1071,6 +1070,7 @@ public:
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
+  void add_read_columns_used_by_index(uint index);
   void restore_column_maps_after_mark_index();
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(void);
@@ -1370,7 +1370,7 @@ struct TABLE_LIST
   }
 
   /*
-    List of tables local to a subquery (used by SQL_LIST). Considers
+    List of tables local to a subquery (used by SQL_I_List). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
     in st_select_lex::add_table_to_list() -> table_list.link_in_list().
   */
@@ -1958,7 +1958,11 @@ typedef struct st_nested_join
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
   table_map         used_tables;     /* bitmap of tables in the nested join */
   table_map         not_null_tables; /* tables that rejects nulls           */
-  struct st_join_table *first_nested;/* the first nested table in the plan  */
+  /**
+    Used for pointing out the first table in the plan being covered by this
+    join nest. It is used exclusively within make_outerjoin_info().
+   */
+  struct st_join_table *first_nested;
   /* 
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
@@ -1976,6 +1980,15 @@ typedef struct st_nested_join
   /* Outer non-trivially correlated tables */
   table_map         sj_corr_tables;
   List<Item>        sj_outer_expr_list;
+  /**
+     True if this join nest node is completely covered by the query execution
+     plan. This means two things.
+
+     1. All tables on its @c join_list are covered by the plan.
+
+     2. All child join nest nodes are fully covered.
+   */
+  bool is_fully_covered() const { return join_list.elements == counter_; }
 } NESTED_JOIN;
 
 
@@ -2079,7 +2092,7 @@ void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 bool check_and_convert_db_name(LEX_STRING *db, bool preserve_lettercase);
 bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
-bool check_table_name(const char *name, uint length);
+bool check_table_name(const char *name, uint length, bool check_for_path_chars);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);

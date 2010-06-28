@@ -1788,30 +1788,6 @@ static int my_strnncollsp_cp932(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-
-static size_t my_strnxfrm_cp932(CHARSET_INFO *cs __attribute__((unused)),
-                                uchar *dest, size_t len,
-                                const uchar *src, size_t srclen)
-{
-  uchar *d_end = dest + len;
-  uchar *s_end = (uchar*) src + srclen;
-  while (dest < d_end && src < s_end)
-  {
-    if (ismbchar_cp932(cs,(char*) src, (char*) s_end))
-    {
-      *dest++ = *src++;
-      if (dest < d_end && src < s_end)
-	*dest++ = *src++;
-    }
-    else
-      *dest++ = sort_order_cp932[(uchar)*src++];
-  }
-  if (len > srclen)
-    bfill(dest, len - srclen, ' ');
-  return len;
-}
-
-
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
 ** Arguments:
@@ -34850,7 +34826,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   NULL,			/* init */
   my_strnncoll_cp932,
   my_strnncollsp_cp932,
-  my_strnxfrm_cp932,
+  my_strnxfrm_mb,
   my_strnxfrmlen_simple,
   my_like_range_cp932,
   my_wildcmp_mb,	/* wildcmp  */
@@ -34921,6 +34897,8 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -34953,6 +34931,8 @@ CHARSET_INFO my_charset_cp932_bin=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

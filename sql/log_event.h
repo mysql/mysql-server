@@ -469,10 +469,10 @@ struct sql_ex_info
 #define LOG_EVENT_SUPPRESS_USE_F    0x8
 
 /*
-  The table map version internal to the log should be increased after
-  the event has been written to the binary log.
+  Note: this is a place holder for the flag
+  LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F (0x10), which is not used any
+  more, please do not reused this value for other flags.
  */
-#define LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F 0x10
 
 /**
    @def LOG_EVENT_ARTIFICIAL_F
@@ -1746,6 +1746,28 @@ public:        /* !!! Public in this patch to allow old usage */
                        const char *query_arg,
                        uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
+  /*
+    If true, the event always be applied by slave SQL thread or be printed by
+    mysqlbinlog
+   */
+  bool is_trans_keyword()
+  {
+    /*
+      Before the patch for bug#50407, The 'SAVEPOINT and ROLLBACK TO'
+      queries input by user was written into log events directly.
+      So the keywords can be written in both upper case and lower case
+      together, strncasecmp is used to check both cases. they also could be
+      binlogged with comments in the front of these keywords. for examples:
+        / * bla bla * / SAVEPOINT a;
+        / * bla bla * / ROLLBACK TO a;
+      but we don't handle these cases and after the patch, both quiries are
+      binlogged in upper case with no comments.
+     */
+    return !strncmp(query, "BEGIN", q_len) ||
+      !strncmp(query, "COMMIT", q_len) ||
+      !strncasecmp(query, "SAVEPOINT", 9) ||
+      !strncasecmp(query, "ROLLBACK", 8);
+  }
 };
 
 

@@ -991,7 +991,7 @@ typedef struct st_ha_create_information
   ulong avg_row_length;
   ulong used_fields;
   ulong key_block_size;
-  SQL_LIST merge_list;
+  SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**
     Row type of the table definition.
@@ -2409,7 +2409,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton);
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
                          handlerton *db_type);

@@ -1639,7 +1639,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   JOIN_TAB *tab;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
-
+  DBUG_ENTER("JOIN_CACHE::join_records");
   if (outer_join_first_inner && !join_tab->first_unmatched)
     join_tab->not_null_compl= TRUE;   
 
@@ -1720,7 +1720,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 finish:
   restore_last_record();
   reset(TRUE);
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -2067,11 +2067,11 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   uint cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
-  bool is_last_inner= join_tab == join_tab->first_unmatched->last_inner;
- 
+  DBUG_ENTER("JOIN_CACHE::join_null_complements");
+
   /* Return at once if there are no records in the join buffer */
   if (!records)
-    return NESTED_LOOP_OK;
+    DBUG_RETURN(NESTED_LOOP_OK);
   
   cnt= records - (is_key_access() ? 0 : test(skip_last));
 
@@ -2094,38 +2094,14 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       /* The outer row is complemented by nulls for each inner table */
       restore_record(join_tab->table, s->default_values);
       mark_as_null_row(join_tab->table);  
-      /* Check all pushdown conditions attached to the inner table */
-      join_tab->first_unmatched->found= 1;
-      if (join_tab->select && join_tab->select->skip_record())
-        continue;
-      if (is_last_inner)
-      { 
-        JOIN_TAB *first_upper= join_tab->first_unmatched->first_upper;
-        while (first_upper && first_upper->last_inner == join_tab)
-        {
-          set_match_flag_if_none(first_upper, get_curr_rec());
-          for (JOIN_TAB* tab= first_upper; tab <= join_tab; tab++)
-          {
-            if (tab->select && tab->select->skip_record())
-              goto next;
-          }
-          first_upper= first_upper->first_upper;
-        }
-      }
-      /* Find all matches for the remaining join tables */
-      rc= (*join_tab->next_select)(join, join_tab+1, 0);
+      rc= generate_full_extensions(get_curr_rec());
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-      {
-        reset(TRUE);
         goto finish;
-      }
     }
-  next:
-    ;
   }
 
 finish:
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 

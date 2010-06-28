@@ -113,8 +113,6 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock);
 TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 
-bool get_key_map_from_key_list(key_map *map, TABLE *table,
-                               List<String> *index_list);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
@@ -217,7 +215,7 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
-int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
+int abort_and_upgrade_lock_and_close_table(ALTER_PARTITION_PARAM_TYPE *lpt);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);

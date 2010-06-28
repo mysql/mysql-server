@@ -166,7 +166,7 @@ extern char err_shared_dir[];
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
    optimizer features (semijoin, MRR, ICP) will be available.
  */
-#undef OPTIMIZER_SWITCH_ALL
+#define OPTIMIZER_SWITCH_ALL 1
 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 #ifdef OPTIMIZER_SWITCH_ALL
@@ -218,10 +218,6 @@ extern char err_shared_dir[];
 /* BINLOG_DUMP options */
 
 #define BINLOG_DUMP_NON_BLOCK   1
-
-/* sql_show.cc:show_log_files() */
-#define SHOW_LOG_STATUS_FREE "FREE"
-#define SHOW_LOG_STATUS_INUSE "IN USE"
 
 /*
   Some defines for exit codes for ::is_equal class functions.

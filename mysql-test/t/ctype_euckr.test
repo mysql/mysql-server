@@ -172,3 +172,26 @@ DROP TABLE t1;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+set names euckr;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+
+set collation_connection=euckr_bin;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
+

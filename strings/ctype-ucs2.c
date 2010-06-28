@@ -1775,6 +1775,8 @@ CHARSET_INFO my_charset_utf16_general_ci=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
   &my_collation_utf16_general_ci_handler
 };
@@ -1808,6 +1810,8 @@ CHARSET_INFO my_charset_utf16_bin=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
   &my_collation_utf16_bin_handler
 };
@@ -1961,12 +1965,10 @@ my_strnncoll_utf32(CHARSET_INFO *cs,
                    const uchar *t, size_t tlen,
                    my_bool t_is_prefix)
 {
-  my_wc_t s_wc,t_wc;
+  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while (s < se && t < te)
   {
@@ -2028,11 +2030,9 @@ my_strnncollsp_utf32(CHARSET_INFO *cs,
                      my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen, *te= t + tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   DBUG_ASSERT((slen % 4) == 0);
   DBUG_ASSERT((tlen % 4) == 0);
@@ -2498,11 +2498,9 @@ my_strnncoll_utf32_bin(CHARSET_INFO *cs,
                        const uchar *t, size_t tlen,
                        my_bool t_is_prefix)
 {
-  my_wc_t s_wc, t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while (s < se && t < te)
   {
@@ -2624,7 +2622,7 @@ my_like_range_utf32(CHARSET_INFO *cs,
   {
     my_wc_t wc;
     int res;
-    if ((res= my_utf32_uni(cs, &wc, ptr, end)) < 0)
+    if ((res= my_utf32_uni(cs, &wc, (uchar*) ptr, (uchar*) end)) < 0)
     {
       my_fill_utf32(cs, min_str, min_end - min_str, cs->min_sort_char);
       my_fill_utf32(cs, max_str, min_end - min_str, cs->max_sort_char);
@@ -2635,15 +2633,15 @@ my_like_range_utf32(CHARSET_INFO *cs,
     if (wc == (my_wc_t) escape)
     {
       ptr+= 4;                                  /* Skip escape */
-      if ((res= my_utf32_uni(cs, &wc, ptr, end)) < 0)
+      if ((res= my_utf32_uni(cs, &wc, (uchar*) ptr, (uchar*) end)) < 0)
       {
         my_fill_utf32(cs, min_str, min_end - min_str, cs->min_sort_char);
         my_fill_utf32(cs, max_str, max_end - min_str, cs->max_sort_char);
         /* min_length and max_length are not important */
         return TRUE;
       }
-      if (my_uni_utf32(cs, wc, min_str, min_end) != 4 ||
-          my_uni_utf32(cs, wc, max_str, max_end) != 4)
+      if (my_uni_utf32(cs, wc, (uchar*) min_str, (uchar*) min_end) != 4 ||
+          my_uni_utf32(cs, wc, (uchar*) max_str, (uchar*) max_end) != 4)
         goto pad_set_lengths;
       *min_str++= 4;
       *max_str++= 4;
@@ -2652,8 +2650,8 @@ my_like_range_utf32(CHARSET_INFO *cs,
     
     if (wc == (my_wc_t) w_one)
     {
-      if (my_uni_utf32(cs, cs->min_sort_char, min_str, min_end) != 4 ||
-          my_uni_utf32(cs, cs->max_sort_char, max_str, max_end) != 4)
+      if (my_uni_utf32(cs, cs->min_sort_char, (uchar*) min_str, (uchar*) min_end) != 4 ||
+          my_uni_utf32(cs, cs->max_sort_char, (uchar*) max_str, (uchar*) max_end) != 4)
         goto pad_set_lengths;
       min_str+= 4;
       max_str+= 4;
@@ -2675,8 +2673,8 @@ my_like_range_utf32(CHARSET_INFO *cs,
     }
     
     /* Normal character */
-    if (my_uni_utf32(cs, wc, min_str, min_end) != 4 ||
-        my_uni_utf32(cs, wc, max_str, max_end) != 4)
+    if (my_uni_utf32(cs, wc, (uchar*) min_str, (uchar*) min_end) != 4 ||
+        my_uni_utf32(cs, wc, (uchar*) max_str, (uchar*) max_end) != 4)
       goto pad_set_lengths;
     min_str+= 4;
     max_str+= 4;
@@ -2704,7 +2702,7 @@ my_scan_utf32(CHARSET_INFO *cs,
     for ( ; str < end; )
     {
       my_wc_t wc;
-      int res= my_utf32_uni(cs, &wc, str, end);
+      int res= my_utf32_uni(cs, &wc, (uchar*) str, (uchar*) end);
       if (res < 0 || wc != ' ')
         break;
       str+= res;
@@ -2808,6 +2806,8 @@ CHARSET_INFO my_charset_utf32_general_ci=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
   &my_collation_utf32_general_ci_handler
 };
@@ -2841,6 +2841,8 @@ CHARSET_INFO my_charset_utf32_bin=
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
+  1,                   /* levels_for_compare */
+  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
   &my_collation_utf32_bin_handler
 };
@@ -3008,7 +3010,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
@@ -3195,7 +3197,7 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
                           my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
 
@@ -3493,6 +3495,8 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
 };
@@ -3525,6 +3529,8 @@ CHARSET_INFO my_charset_ucs2_bin=
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler
 };

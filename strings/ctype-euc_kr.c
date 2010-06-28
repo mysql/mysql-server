@@ -9962,7 +9962,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   NULL,			/* init */
   my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
-  my_strnxfrm_simple,	/* strnxfrm   */
+  my_strnxfrm_mb,	/* strnxfrm   */
   my_strnxfrmlen_simple,
   my_like_range_mb,     /* like_range */
   my_wildcmp_mb,	/* wildcmp    */
@@ -10032,6 +10032,8 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -10065,6 +10067,8 @@ CHARSET_INFO my_charset_euckr_bin=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

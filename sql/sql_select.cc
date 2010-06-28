@@ -44,7 +44,7 @@
 #include "sql_partition.h"       // make_used_partitions_str
 #include "sql_acl.h"             // *_ACL
 #include "sql_test.h"            // print_where, print_keyuse_array,
-                                 // print_sjm, print_plan
+                                 // print_sjm, print_plan, TEST_join
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
@@ -91,15 +91,11 @@ static bool best_extension_by_limited_search(JOIN *join,
                                              double read_time, uint depth,
                                              uint prune_level);
 static uint determine_search_depth(JOIN* join);
+C_MODE_START
 static int join_tab_cmp(const void *dummy, const void* ptr1, const void* ptr2);
 static int join_tab_cmp_straight(const void *dummy, const void* ptr1, const void* ptr2);
 static int join_tab_cmp_embedded_first(const void *emb, const void* ptr1, const void *ptr2);
-/*
-  TODO: 'find_best' is here only temporarily until 'greedy_search' is
-  tested and approved.
-*/
-static bool find_best(JOIN *join,table_map rest_tables,uint index,
-		      double record_count,double read_time);
+C_MODE_END
 static uint cache_record_length(JOIN *join,uint index);
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static bool get_best_combination(JOIN *join);
@@ -299,15 +295,15 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
       setup_tables_done_option changed for next rexecution
     */
     res= mysql_select(thd, &select_lex->ref_pointer_array,
-		      (TABLE_LIST*) select_lex->table_list.first,
+		      select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
 		      select_lex->where,
 		      select_lex->order_list.elements +
 		      select_lex->group_list.elements,
-		      (ORDER*) select_lex->order_list.first,
-		      (ORDER*) select_lex->group_list.first,
+		      select_lex->order_list.first,
+		      select_lex->group_list.first,
 		      select_lex->having,
-		      (ORDER*) lex->proc_list.first,
+		      lex->proc_list.first,
 		      select_lex->options | thd->variables.option_bits |
                       setup_tables_done_option,
 		      result, unit, select_lex);
@@ -1807,9 +1803,8 @@ JOIN::optimize()
     }
   }
 
-  if (conds &&!outer_join && const_table_map != found_const_table_map && 
-      (select_options & SELECT_DESCRIBE) &&
-      select_lex->master_unit() == &thd->lex->unit) // upper level SELECT
+  if (conds && const_table_map != found_const_table_map &&
+      (select_options & SELECT_DESCRIBE))
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
@@ -2080,13 +2075,13 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having && !having->with_sum_func)
+  if (having && const_table_map)
   {
-    COND *const_cond= make_cond_for_table(having, const_table_map, 0, 0);
-    DBUG_EXECUTE("where", print_where(const_cond, "const_having_cond",
-                                      QT_ORDINARY););
-    if (const_cond && !const_cond->val_int())
+    having->update_used_tables();
+    having= remove_eq_conds(thd, having, &having_value);
+    if (having_value == Item::COND_FALSE)
     {
+      having= new Item_int((longlong) 0,1);
       zero_result_cause= "Impossible HAVING noticed after reading const tables";
       error= 0;
       DBUG_RETURN(0);
@@ -4331,31 +4326,53 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     /* 
        Build transitive closure for relation 'to be dependent on'.
        This will speed up the plan search for many cases with outer joins,
-       as well as allow us to catch illegal cross references/
+       as well as allow us to catch illegal cross references.
        Warshall's algorithm is used to build the transitive closure.
-       As we use bitmaps to represent the relation the complexity
-       of the algorithm is O((number of tables)^2). 
+       As we may restart the outer loop upto 'table_count' times, the
+       complexity of the algorithm is O((number of tables)^3).
+       However, most of the iterations will be shortcircuited when
+       there are no pedendencies to propogate.
     */
-    for (i= 0, s= stat ; i < table_count ; i++, s++)
+    for (i= 0 ; i < table_count ; i++)
     {
-      for (uint j= 0 ; j < table_count ; j++)
+      uint j;
+      table= stat[i].table;
+
+      if (!table->reginfo.join_tab->dependent)
+        continue;
+
+      /* Add my dependencies to other tables depending on me */
+      for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
-        table= stat[j].table;
         if (s->dependent & table->map)
+        {
+          table_map was_dependent= s->dependent;
           s->dependent |= table->reginfo.join_tab->dependent;
+          /*
+            If we change dependencies for a table we already have
+            processed: Redo dependency propagation from this table.
+          */
+          if (i > j && s->dependent != was_dependent)
+          {
+            i = j-1;
+            break;
+          }
+        }
       }
-      if (outer_join & s->table->map)
-        s->table->maybe_null= 1;
     }
-    /* Catch illegal cross references for outer joins */
+
     for (i= 0, s= stat ; i < table_count ; i++, s++)
     {
+      /* Catch illegal cross references for outer joins */
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         goto error;
       }
+
+      if (outer_join & s->table->map)
+        s->table->maybe_null= 1;
       s->key_dependent= s->dependent;
     }
   }
@@ -4603,8 +4620,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range &&
-          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+      if (records == 0 && s->table->reginfo.impossible_range)
       {
 	/*
 	  Impossible WHERE or ON expression
@@ -6993,13 +7009,6 @@ best_access_path(JOIN      *join,
                       the query
   @param join_tables  set of the tables in the query
 
-  @param sj_nest      If not NULL, optimize a subjoin of tables within the
-                      given semi-join nest.
-
-  @todo
-    'MAX_TABLES+2' denotes the old implementation of find_best before
-    the greedy version. Will be removed when greedy_search is approved.
-
   @retval
     FALSE       ok
   @retval
@@ -7048,23 +7057,11 @@ choose_plan(JOIN *join, table_map join_tables)
   }
   else
   {
-    if (search_depth == MAX_TABLES+2)
-    { /*
-        TODO: 'MAX_TABLES+2' denotes the old implementation of find_best before
-        the greedy version. Will be removed when greedy_search is approved.
-      */
-      join->best_read= DBL_MAX;
-      if (find_best(join, join_tables, join->const_tables, 1.0, 0.0))
-        DBUG_RETURN(TRUE);
-    } 
-    else
-    {
-      if (search_depth == 0)
-        /* Automatically determine a reasonable value for 'search_depth' */
-        search_depth= determine_search_depth(join);
-      if (greedy_search(join, join_tables, search_depth, prune_level))
-        DBUG_RETURN(TRUE);
-    }
+    if (search_depth == 0)
+      /* Automatically determine a reasonable value for 'search_depth' */
+      search_depth= determine_search_depth(join);
+    if (greedy_search(join, join_tables, search_depth, prune_level))
+      DBUG_RETURN(TRUE);
   }
 
   /* 
@@ -7471,6 +7468,11 @@ greedy_search(JOIN      *join,
     if (best_extension_by_limited_search(join, remaining_tables, idx, record_count,
                                          read_time, search_depth, prune_level))
       DBUG_RETURN(TRUE);
+    /*
+      'best_read < DBL_MAX' means that optimizer managed to find
+      some plan and updated 'best_positions' array accordingly.
+    */
+    DBUG_ASSERT(join->best_read < DBL_MAX); 
 
     if (size_remain <= search_depth)
     {
@@ -7842,93 +7844,6 @@ best_extension_by_limited_search(JOIN      *join,
                                        "full_plan"););
       }
       backout_nj_sj_state(remaining_tables, s);
-    }
-  }
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-  @todo
-  - TODO: this function is here only temporarily until 'greedy_search' is
-  tested and accepted.
-
-  RETURN VALUES
-    FALSE       ok
-    TRUE        Fatal error
-*/
-static bool
-find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
-	  double read_time)
-{
-  DBUG_ENTER("find_best");
-  THD *thd= join->thd;
-  if (thd->killed)
-    DBUG_RETURN(TRUE);
-  if (!rest_tables)
-  {
-    DBUG_PRINT("best",("read_time: %g  record_count: %g",read_time,
-		       record_count));
-
-    read_time+=record_count/(double) TIME_FOR_COMPARE;
-    if (join->sort_by_table &&
-	join->sort_by_table !=
-	join->positions[join->const_tables].table->table)
-      read_time+=record_count;			// We have to make a temp table
-    if (read_time < join->best_read)
-    {
-      memcpy((uchar*) join->best_positions,(uchar*) join->positions,
-	     sizeof(POSITION)*idx);
-      join->best_read= read_time - 0.001;
-    }
-    DBUG_RETURN(FALSE);
-  }
-  if (read_time+record_count/(double) TIME_FOR_COMPARE >= join->best_read)
-    DBUG_RETURN(FALSE);					/* Found better before */
-
-  JOIN_TAB *s;
-  double best_record_count=DBL_MAX,best_read_time=DBL_MAX;
-  for (JOIN_TAB **pos=join->best_ref+idx ; (s=*pos) ; pos++)
-  {
-    table_map real_table_bit=s->table->map;
-    if ((rest_tables & real_table_bit) && !(rest_tables & s->dependent) &&
-        (!idx|| !check_interleaving_with_nj(s)))
-    {
-      double records, best;
-      POSITION loose_scan_pos;
-      best_access_path(join, s, rest_tables, idx, FALSE, record_count, 
-                       join->positions + idx, &loose_scan_pos);
-      records= join->positions[idx].records_read;
-      best= join->positions[idx].read_time;
-      /*
-	Go to the next level only if there hasn't been a better key on
-	this level! This will cut down the search for a lot simple cases!
-      */
-      double current_record_count=record_count*records;
-      double current_read_time=read_time+best;
-      advance_sj_state(join, rest_tables, s, idx, &current_record_count, 
-                       &current_read_time, &loose_scan_pos);
-
-      if (best_record_count > current_record_count ||
-	  best_read_time > current_read_time ||
-	  (idx == join->const_tables && s->table == join->sort_by_table))
-      {
-	if (best_record_count >= current_record_count &&
-	    best_read_time >= current_read_time &&
-	    (!(s->key_dependent & rest_tables) || records < 2.0))
-	{
-	  best_record_count=current_record_count;
-	  best_read_time=current_read_time;
-	}
-	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
-	if (find_best(join,rest_tables & ~real_table_bit,idx+1,
-                      current_record_count,current_read_time))
-          DBUG_RETURN(TRUE);
-	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
-      }
-      backout_nj_sj_state(rest_tables, s);
-      if (join->select_options & SELECT_STRAIGHT_JOIN)
-	break;				// Don't test all combinations
     }
   }
   DBUG_RETURN(FALSE);
@@ -8402,7 +8317,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   KEY *keyinfo;
   DBUG_ENTER("create_ref_for_key");
 
-  /*  Use best key from find_best */
+  /*  Use best key found during dependency analysis */
   table=j->table;
   key=keyuse->key;
   keyinfo=table->key_info+key;
@@ -12766,6 +12681,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
+  bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   DBUG_ENTER("simplify_joins");
 
   /* 
@@ -12877,7 +12793,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
     if (prev_table)
     {
       /* The order of tables is reverse: prev_table follows table */
-      if (prev_table->straight)
+      if (prev_table->straight || straight_join)
         prev_table->dep_tables|= used_tables;
       if (prev_table->on_expr)
       {
@@ -12890,8 +12806,14 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
           we still make the inner tables dependent on the outer tables.
           It would be enough to set dependency only on one outer table
           for them. Yet this is really a rare case.
+          Note:
+          RAND_TABLE_BIT mask should not be counted as it
+          prevents update of inner table dependences.
+          For example it might happen if RAND() function
+          is used in JOIN ON clause.
 	*/  
-        if (!(prev_table->on_expr->used_tables() & ~prev_used_tables))
+        if (!((prev_table->on_expr->used_tables() & ~RAND_TABLE_BIT) &
+              ~prev_used_tables))
           prev_table->dep_tables|= used_tables;
       }
     }
@@ -13752,15 +13674,62 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
 
 
 /**
-  This function rolls back changes done by:
-  - check_interleaving_with_nj(): removes the last table from the partial join
-  order and update the nested joins counters and join->cur_embedding_map. It
-  is ok to call this for the first table in join order (for which
-  check_interleaving_with_nj() has not been called).
-  - advance_sj_state(): removes the last table from join->cur_sj_inner_tables
-  bitmap.
+  Nested joins perspective: Remove the last table from the join order.
 
-  @param remaining_tables remaining tables to optimize, assumed to not contain
+  The algorithm is the reciprocal of check_interleaving_with_nj(), hence
+  parent join nest nodes are updated only when the last table in its child
+  node is removed. The ASCII graphic below will clarify.
+
+  %A table nesting such as <tt> t1 x [ ( t2 x t3 ) x ( t4 x t5 ) ] </tt>is
+  represented by the below join nest tree.
+
+  @verbatim
+                     NJ1
+                  _/ /  \
+                _/  /    NJ2
+              _/   /     / \ 
+             /    /     /   \
+   t1 x [ (t2 x t3) x (t4 x t5) ]
+  @endverbatim
+
+  At the point in time when check_interleaving_with_nj() adds the table t5 to
+  the query execution plan, QEP, it also directs the node named NJ2 to mark
+  the table as covered. NJ2 does so by incrementing its @c counter
+  member. Since all of NJ2's tables are now covered by the QEP, the algorithm
+  proceeds up the tree to NJ1, incrementing its counter as well. All join
+  nests are now completely covered by the QEP.
+
+  restore_prev_nj_state() does the above in reverse. As seen above, the node
+  NJ1 contains the nodes t2, t3, and NJ2. Its counter being equal to 3 means
+  that the plan covers t2, t3, and NJ2, @e and that the sub-plan (t4 x t5)
+  completely covers NJ2. The removal of t5 from the partial plan will first
+  decrement NJ2's counter to 1. It will then detect that NJ2 went from being
+  completely to partially covered, and hence the algorithm must continue
+  upwards to NJ1 and decrement its counter to 2. %A subsequent removal of t4
+  will however not influence NJ1 since it did not un-cover the last table in
+  NJ2.
+
+  SYNOPSIS
+    restore_prev_nj_state()
+      last  join table to remove, it is assumed to be the last in current 
+            partial join order.
+     
+  DESCRIPTION
+
+    Remove the last table from the partial join order and update the nested
+    joins counters and join->cur_embedding_map. It is ok to call this 
+    function for the first table in join order (for which 
+    check_interleaving_with_nj has not been called)
+
+     This function rolls back changes done by:
+    - check_interleaving_with_nj(): removes the last table from the partial join
+    order and update the nested joins counters and join->cur_embedding_map. It
+    is ok to call this for the first table in join order (for which
+    check_interleaving_with_nj() has not been called).
+    - advance_sj_state(): removes the last table from join->cur_sj_inner_tables
+    bitmap.
+
+ @param remaining_tables remaining tables to optimize, assumed to not contain
                           tab (@todo but this assumption is violated in practice)
   @param tab              join table to remove, assumed to be the last in
                           current partial join order.
@@ -13772,22 +13741,23 @@ static void backout_nj_sj_state(const table_map remaining_tables,
   /* Restore the nested join state */
   TABLE_LIST *last_emb= tab->table->pos_in_table_list->embedding;
   JOIN *join= tab->join;
-  while (last_emb)
+  for (;last_emb != NULL; last_emb= last_emb->embedding)
   {
     if (last_emb->on_expr)
     {
-      if (!(--last_emb->nested_join->counter_))
-        join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
-      else if ((last_emb->nested_join->join_list.elements - 1) ==
-               last_emb->nested_join->counter_)
-      {
-        join->cur_embedding_map|= last_emb->nested_join->nj_map;
+      NESTED_JOIN *nest= last_emb->nested_join;
+      DBUG_ASSERT(nest->counter_ > 0);
+
+      bool was_fully_covered= nest->is_fully_covered();
+
+      if (--nest->counter_ == 0)
+        join->cur_embedding_map&= ~nest->nj_map;
+
+      if (!was_fully_covered)
         break;
-      }
-      else
-        break;
+
+      join->cur_embedding_map|= nest->nj_map;
     }
-    last_emb= last_emb->embedding;
   }
 
   /* Restore the semijoin state */
@@ -17665,8 +17635,13 @@ bool test_if_use_dynamic_range_scan(JOIN_TAB *join_tab)
 
 int join_init_read_record(JOIN_TAB *tab)
 {
-  if (tab->select && tab->select->quick && tab->select->quick->reset())
+  int error; 
+  if (tab->select && tab->select->quick && (error= tab->select->quick->reset()))
+  {
+    /* Ensures error status is propageted back to client */
+    report_error(tab->table, error);
     return 1;
+  }
   init_read_record(&tab->read_record, tab->join->thd, tab->table,
 		   tab->select,1,1, FALSE);
   return (*tab->read_record.read_record)(&tab->read_record);
@@ -22555,15 +22530,15 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     thd->lex->current_select= first;
     unit->set_limit(unit->global_parameters);
     res= mysql_select(thd, &first->ref_pointer_array,
-			(TABLE_LIST*) first->table_list.first,
+			first->table_list.first,
 			first->with_wild, first->item_list,
 			first->where,
 			first->order_list.elements +
 			first->group_list.elements,
-			(ORDER*) first->order_list.first,
-			(ORDER*) first->group_list.first,
+			first->order_list.first,
+			first->group_list.first,
 			first->having,
-			(ORDER*) thd->lex->proc_list.first,
+			thd->lex->proc_list.first,
 			first->options | thd->variables.option_bits | SELECT_DESCRIBE,
 			result, unit, first);
   }
@@ -22892,7 +22867,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (group_list.elements)
   {
     str->append(STRING_WITH_LEN(" group by "));
-    print_order(str, (ORDER *) group_list.first, query_type);
+    print_order(str, group_list.first, query_type);
     switch (olap)
     {
       case CUBE_TYPE:
@@ -22923,7 +22898,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (order_list.elements)
   {
     str->append(STRING_WITH_LEN(" order by "));
-    print_order(str, (ORDER *) order_list.first, query_type);
+    print_order(str, order_list.first, query_type);
   }
 
   // limit

@@ -31,6 +31,35 @@ Created 4/24/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
+#include "btr0types.h"
+
+/** enum that defines all 6 system table IDs */
+enum dict_system_table_id {
+	SYS_TABLES = 0,
+	SYS_INDEXES,
+	SYS_COLUMNS,
+	SYS_FIELDS,
+	SYS_FOREIGN,
+	SYS_FOREIGN_COLS,
+
+	/* This must be last item. Defines the number of system tables. */
+	SYS_NUM_SYSTEM_TABLES
+};
+
+typedef enum dict_system_table_id	dict_system_id_t;
+
+/** Status bit for dict_process_sys_tables_rec() */
+enum dict_table_info {
+	DICT_TABLE_LOAD_FROM_RECORD = 0,/*!< Directly populate a dict_table_t
+					structure with information from
+					a SYS_TABLES record */
+	DICT_TABLE_LOAD_FROM_CACHE = 1,	/*!< Check first whether dict_table_t
+					is in the cache, if so, return it */
+	DICT_TABLE_UPDATE_STATS = 2	/*!< whether to update statistics
+					when loading SYS_TABLES information. */
+};
+
+typedef enum dict_table_info	dict_table_info_t;
 
 /********************************************************************//**
 In a crash recovery we already have all the tablespace objects created.
@@ -54,6 +83,74 @@ char*
 dict_get_first_table_name_in_db(
 /*============================*/
 	const char*	name);	/*!< in: database name which ends to '/' */
+
+/********************************************************************//**
+Loads a table definition from a SYS_TABLES record to dict_table_t.
+Does not load any columns or indexes.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_load_table_low(
+/*================*/
+	const char*	name,		/*!< in: table name */
+	const rec_t*	rec,		/*!< in: SYS_TABLES record */
+	dict_table_t**	table);		/*!< out,own: table, or NULL */
+/********************************************************************//**
+Loads a table column definition from a SYS_COLUMNS record to
+dict_table_t.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_load_column_low(
+/*=================*/
+	dict_table_t*	table,		/*!< in/out: table, could be NULL
+					if we just populate a dict_column_t
+					struct with information from
+					a SYS_COLUMNS record */
+	mem_heap_t*	heap,		/*!< in/out: memory heap
+					for temporary storage */
+	dict_col_t*	column,		/*!< out: dict_column_t to fill */
+	dulint*		table_id,	/*!< out: table id */
+	const char**	col_name,	/*!< out: column name */
+	const rec_t*	rec);		/*!< in: SYS_COLUMNS record */
+/********************************************************************//**
+Loads an index definition from a SYS_INDEXES record to dict_index_t.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_load_index_low(
+/*================*/
+	byte*		table_id,	/*!< in/out: table id (8 bytes_,
+					an "in" value if cached=TRUE
+					and "out" when cached=FALSE */
+	const char*	table_name,	/*!< in: table name */
+	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
+	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
+	ibool		cached,		/*!< in: TRUE = add to cache
+					FALSE = do not */
+	dict_index_t**	index);		/*!< out,own: index, or NULL */
+/********************************************************************//**
+Loads an index field definition from a SYS_FIELDS record to
+dict_index_t.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_load_field_low(
+/*================*/
+	byte*		index_id,	/*!< in/out: index id (8 bytes)
+					an "in" value if index != NULL
+					and "out" if index == NULL */
+	dict_index_t*	index,		/*!< in/out: index, could be NULL
+					if we just populate a dict_field_t
+					struct with information from
+					a SYS_FIELDS record */
+	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
+					filled */
+	ulint*		pos,		/*!< out: Field position */
+	byte*		last_index_id,	/*!< in: last index id */
+	mem_heap_t*	heap,		/*!< in/out: memory heap
+					for temporary storage */
+	const rec_t*	rec);		/*!< in: SYS_FIELDS record */
 /********************************************************************//**
 Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
@@ -66,8 +163,9 @@ UNIV_INTERN
 dict_table_t*
 dict_load_table(
 /*============*/
-	const char*	name);	/*!< in: table name in the
+	const char*	name,	/*!< in: table name in the
 				databasename/tablename format */
+	ibool		cached);/*!< in: TRUE=add to cache, FALSE=do not */
 /***********************************************************************//**
 Loads a table object based on the table id.
 @return	table; NULL if table does not exist */
@@ -107,7 +205,113 @@ void
 dict_print(void);
 /*============*/
 
-
+/********************************************************************//**
+This function opens a system table, and return the first record.
+@return	first record of the system table */
+UNIV_INTERN
+const rec_t*
+dict_startscan_system(
+/*==================*/
+	btr_pcur_t*	pcur,		/*!< out: persistent cursor to
+					the record */
+	mtr_t*		mtr,		/*!< in: the mini-transaction */
+	dict_system_id_t system_id);	/*!< in: which system table to open */
+/********************************************************************//**
+This function get the next system table record as we scan the table.
+@return	the record if found, NULL if end of scan. */
+UNIV_INTERN
+const rec_t*
+dict_getnext_system(
+/*================*/
+	btr_pcur_t*	pcur,		/*!< in/out: persistent cursor
+					to the record */
+	mtr_t*		mtr);		/*!< in: the mini-transaction */
+/********************************************************************//**
+This function processes one SYS_TABLES record and populate the dict_table_t
+struct for the table. Extracted out of dict_print() to be used by
+both monitor table output and information schema innodb_sys_tables output.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_tables_rec(
+/*========================*/
+	mem_heap_t*	heap,		/*!< in: temporary memory heap */
+	const rec_t*	rec,		/*!< in: SYS_TABLES record */
+	dict_table_t**	table,		/*!< out: dict_table_t to fill */
+	dict_table_info_t status);	/*!< in: status bit controls
+					options such as whether we shall
+					look for dict_table_t from cache
+					first */
+/********************************************************************//**
+This function parses a SYS_INDEXES record and populate a dict_index_t
+structure with the information from the record. For detail information
+about SYS_INDEXES fields, please refer to dict_boot() function.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_indexes_rec(
+/*=========================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_INDEXES rec */
+	dict_index_t*	index,		/*!< out: dict_index_t to be
+					filled */
+	dulint*		table_id);	/*!< out: table id */
+/********************************************************************//**
+This function parses a SYS_COLUMNS record and populate a dict_column_t
+structure with the information from the record.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_columns_rec(
+/*=========================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
+	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
+	dulint*		table_id,	/*!< out: table id */
+	const char**	col_name);	/*!< out: column name */
+/********************************************************************//**
+This function parses a SYS_FIELDS record and populate a dict_field_t
+structure with the information from the record.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_fields_rec(
+/*========================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_FIELDS rec */
+	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
+					filled */
+	ulint*		pos,		/*!< out: Field position */
+	dulint*		index_id,	/*!< out: current index id */
+	dulint		last_id);	/*!< in: previous index id */
+/********************************************************************//**
+This function parses a SYS_FOREIGN record and populate a dict_foreign_t
+structure with the information from the record. For detail information
+about SYS_FOREIGN fields, please refer to dict_load_foreign() function
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_foreign_rec(
+/*=========================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_FOREIGN rec */
+	dict_foreign_t*	foreign);	/*!< out: dict_foreign_t to be
+					filled */
+/********************************************************************//**
+This function parses a SYS_FOREIGN_COLS record and extract necessary
+information from the record and return to caller.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_foreign_col_rec(
+/*=============================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_FOREIGN_COLS rec */
+	const char**	name,		/*!< out: foreign key constraint name */
+	const char**	for_col_name,	/*!< out: referencing column name */
+	const char**	ref_col_name,	/*!< out: referenced column name
+					in referenced table */
+	ulint*		pos);		/*!< out: column position */
 #ifndef UNIV_NONINL
 #include "dict0load.ic"
 #endif

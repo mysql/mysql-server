@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2009, MySQL AB & Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2010, MySQL AB & Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,15 +27,31 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #pragma interface			/* gcc class implementation */
 #endif
 
+/* Structure defines translation table between mysql index and innodb
+index structures */
+typedef struct innodb_idx_translate_struct {
+	ulint		index_count;	/*!< number of valid index entries
+					in the index_mapping array */
+	ulint		array_size;	/*!< array size of index_mapping */
+	dict_index_t**	index_mapping;	/*!< index pointer array directly
+					maps to index in Innodb from MySQL
+					array index */
+} innodb_idx_translate_t;
+
+
 /** InnoDB table share */
 typedef struct st_innobase_share {
-	THR_LOCK	lock;		/*!< MySQL lock protecting
-					this structure */
-	const char*	table_name;	/*!< InnoDB table name */
-	uint		use_count;	/*!< reference count,
-					incremented in get_share()
-					and decremented in free_share() */
-	void*		table_name_hash;/*!< hash table chain node */
+	THR_LOCK		lock;		/*!< MySQL lock protecting
+						this structure */
+	const char*		table_name;	/*!< InnoDB table name */
+	uint			use_count;	/*!< reference count,
+						incremented in get_share()
+						and decremented in
+						free_share() */
+	void*			table_name_hash;/*!< hash table chain node */
+	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
+						table between MySQL and
+						Innodb */
 } INNOBASE_SHARE;
 
 
@@ -91,9 +107,8 @@ class ha_innobase: public handler
 	ulint innobase_reset_autoinc(ulonglong auto_inc);
 	ulint innobase_get_autoinc(ulonglong* value);
 	ulint innobase_update_autoinc(ulonglong	auto_inc);
-	ulint innobase_initialize_autoinc();
+	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
- 	ulonglong innobase_get_int_col_max_value(const Field* field);
 
 	/* Init values for the class: */
  public:
@@ -235,7 +250,7 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 
 extern "C" {
 struct charset_info_st *thd_charset(MYSQL_THD thd);
-char **thd_query(MYSQL_THD thd);
+LEX_STRING *thd_query_string(MYSQL_THD thd);
 
 /** Get the file name of the MySQL binlog.
  * @return the name of the binlog file
@@ -285,6 +300,13 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
 #endif /* MYSQL_VERSION_ID > 50140 */
+/**
+  Check if the query may generate row changes which
+  may end up in the binary.
+  @param  thd   Thread handle
+  @return 1 the query may generate row changes, 0 otherwise.
+*/
+bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 }
 
 typedef struct trx_struct trx_t;

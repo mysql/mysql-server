@@ -1056,7 +1056,8 @@ FROM t0
 WHERE varchar_nokey  IN (  
   SELECT t1 .varchar_key  from t1
 );
-
+# the two queries below show wrong results with loosescan,
+# this is tracked as BUG#54641
 SELECT t0.int_key  
 FROM t0
 WHERE t0.varchar_nokey  IN (  

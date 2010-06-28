@@ -735,8 +735,9 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 + 2;
+    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
     collation.set(args[0]->collation);
-    max_length= args[0]->max_length * 2 + 2;
   }
 };
 
@@ -828,6 +829,26 @@ public:
      maybe_null= 0;
   };
   table_map not_null_tables() const { return 0; }
+};
+
+class Item_func_weight_string :public Item_str_func
+{
+  String tmp_value;
+  uint flags;
+  uint nweights;
+  uint result_length;
+public:
+  Item_func_weight_string(Item *a, uint result_length_arg,
+                          uint nweights_arg, uint flags_arg)
+  :Item_str_func(a)
+  {
+    nweights= nweights_arg;
+    flags= flags_arg;
+    result_length= result_length_arg;
+  }
+  const char *func_name() const { return "weight_string"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
 };
 
 class Item_func_crc32 :public Item_int_func

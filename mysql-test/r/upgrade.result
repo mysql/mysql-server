@@ -112,3 +112,31 @@ select * from `a-b-c`.v1;
 f1
 drop database `a-b-c`;
 use test;
+# End of 5.0 tests
+#
+# Bug #53804: serious flaws in the alter database .. upgrade data
+#             directory name command
+#
+ALTER DATABASE `#mysql50#:` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Unknown database '#mysql50#:'
+ALTER DATABASE `#mysql50#.` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#.'
+ALTER DATABASE `#mysql50#../` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#../'
+ALTER DATABASE `#mysql50#../..` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#../..'
+ALTER DATABASE `#mysql50#../../` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#../../'
+ALTER DATABASE `#mysql50#./blablabla` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#./blablabla'
+ALTER DATABASE `#mysql50#../blablabla` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#../blablabla'
+ALTER DATABASE `#mysql50#/` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#/'
+ALTER DATABASE `#mysql50#/.` UPGRADE DATA DIRECTORY NAME;
+ERROR 42000: Incorrect database name '#mysql50#/.'
+USE `#mysql50#.`;
+ERROR 42000: Incorrect database name '#mysql50#.'
+USE `#mysql50#../blablabla`;
+ERROR 42000: Incorrect database name '#mysql50#../blablabla'
+# End of 5.1 tests
