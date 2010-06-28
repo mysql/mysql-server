@@ -396,12 +396,12 @@ SET(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
 INSTALL(FILES sql/share/errmsg.txt DESTINATION share COMPONENT runtime)
 FILE(GLOB charsets sql/share/charsets/*)
 INSTALL(FILES ${charsets} DESTINATION share/charsets COMPONENT runtime)
-FILE(GLOB share_dirs sql/share/*)
-FOREACH(SUBDIR ${share_dirs})
-  FILE(RELATIVE_PATH DIRNAME ${PROJECT_SOURCE_DIR}/sql/share ${SUBDIR})
-  IF (EXISTS ${SUBDIR}/errmsg.sys)
-    INSTALL(FILES ${SUBDIR}/errmsg.sys DESTINATION share/${DIRNAME} COMPONENT runtime)
-  ENDIF(EXISTS ${SUBDIR}/errmsg.sys)
+FILE(GLOB share_dirs sql/share/*/errmsg.sys)
+FOREACH(ERRMSGFILE ${share_dirs})
+  STRING(REPLACE "//" "/" ERRMSGFILE ${ERRMSGFILE}) # Work around a cmake bug
+  FILE(RELATIVE_PATH DIRNAME ${PROJECT_SOURCE_DIR}/sql/share ${ERRMSGFILE})
+  STRING(REPLACE "/errmsg.sys" "" DIRNAME ${DIRNAME})
+  INSTALL(FILES ${ERRMSGFILE} DESTINATION share/${DIRNAME} COMPONENT runtime)
 ENDFOREACH(SUBDIR ${share_dirs})
 
 INCLUDE(InstallRequiredSystemLibraries)
