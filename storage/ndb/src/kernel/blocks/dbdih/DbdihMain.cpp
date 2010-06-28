@@ -77,6 +77,8 @@
 #include <signaldata/CreateNodegroupImpl.hpp>
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/DropNodegroupImpl.hpp>
+#include <signaldata/DihGetTabInfo.hpp>
+#include <SectionReader.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -661,6 +663,22 @@ void Dbdih::execCONTINUEB(Signal* signal)
     TakeOverRecordPtr takeOverPtr;
     c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
     nr_start_logging(signal, takeOverPtr);
+    return;
+  }
+  case DihContinueB::ZGET_TABINFO:
+  {
+    jam();
+    getTabInfo(signal);
+    return;
+  }
+  case DihContinueB::ZGET_TABINFO_SEND:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    jam();
+    tabPtr.i = signal->theData[1];
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+    getTabInfo_send(signal, tabPtr);
     return;
   }
   }
@@ -10911,6 +10929,238 @@ void Dbdih::closingTableSrLab(Signal* signal, FileRecordPtr filePtr)
 }//Dbdih::closingTableSrLab()
 
 void
+Dbdih::execDIH_GET_TABINFO_REQ(Signal* signal)
+{
+  jamEntry();
+
+  DihGetTabInfoReq req = * (DihGetTabInfoReq*)signal->getDataPtr();
+
+  Uint32 err = 0;
+  do
+  {
+    TabRecordPtr tabPtr;
+    tabPtr.i = req.tableId;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+    {
+      jam();
+      err = DihGetTabInfoRef::TableNotDefined;
+      break;
+    }
+
+    if (cfirstconnect == RNIL)
+    {
+      jam();
+      err = DihGetTabInfoRef::OutOfConnectionRecords;
+      break;
+    }
+
+    if (tabPtr.p->connectrec != RNIL)
+    {
+      jam();
+
+      ConnectRecordPtr connectPtr;
+      connectPtr.i = tabPtr.p->connectrec;
+      ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+      if (connectPtr.p->connectState != ConnectRecord::GET_TABINFO)
+      {
+        jam();
+        err = DihGetTabInfoRef::TableBusy;
+        break;
+      }
+    }
+
+    ConnectRecordPtr connectPtr;
+    connectPtr.i = cfirstconnect;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    cfirstconnect = connectPtr.p->nextPool;
+
+    connectPtr.p->nextPool = tabPtr.p->connectrec;
+    tabPtr.p->connectrec = connectPtr.i;
+
+    connectPtr.p->m_get_tabinfo.m_requestInfo = req.requestInfo;
+    connectPtr.p->userpointer = req.senderData;
+    connectPtr.p->userblockref = req.senderRef;
+    connectPtr.p->connectState = ConnectRecord::GET_TABINFO;
+    connectPtr.p->table = tabPtr.i;
+
+    if (connectPtr.p->nextPool == RNIL)
+    {
+      jam();
+
+      /**
+       * we're the first...start packing...
+       */
+      signal->theData[0] = DihContinueB::ZGET_TABINFO;
+      signal->theData[1] = tabPtr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    }
+
+    return;
+  } while (0);
+
+  DihGetTabInfoRef * ref;
+  ref->senderData = req.senderData;
+  ref->senderRef = reference();
+  ref->errorCode = err;
+  sendSignal(req.senderRef, GSN_DIH_GET_TABINFO_REF, signal,
+             DihGetTabInfoRef::SignalLength, JBB);
+}
+
+void
+Dbdih::getTabInfo(Signal* signal)
+{
+  TabRecordPtr tabPtr;
+  tabPtr.i = signal->theData[1];
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  if (tabPtr.p->tabCopyStatus != TabRecord::CS_IDLE)
+  {
+    jam();
+    signal->theData[0] = DihContinueB::ZGET_TABINFO;
+    signal->theData[1] = tabPtr.i;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB,
+                        signal, 100, signal->length());
+    return;
+  }
+
+  tabPtr.p->tabCopyStatus  = TabRecord::CS_GET_TABINFO;
+
+  signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
+  signal->theData[1] = tabPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+}
+
+int
+Dbdih::getTabInfo_copyTableToSection(SegmentedSectionPtr & ptr,
+                                     CopyTableNode ctn)
+{
+  PageRecordPtr pagePtr;
+  pagePtr.i = ctn.ctnTabPtr.p->pageRef[0];
+  ptrCheckGuard(pagePtr, cpageFileSize, pageRecord);
+
+  while (ctn.noOfWords > 2048)
+  {
+    jam();
+    ndbrequire(import(ptr, pagePtr.p->word, 2048));
+    ctn.noOfWords -= 2048;
+
+    ctn.pageIndex++;
+    pagePtr.i = ctn.ctnTabPtr.p->pageRef[ctn.pageIndex];
+    ptrCheckGuard(pagePtr, cpageFileSize, pageRecord);
+  }
+
+  ndbrequire(import(ptr, pagePtr.p->word, ctn.noOfWords));
+  return 0;
+}
+
+int
+Dbdih::getTabInfo_copySectionToPages(TabRecordPtr tabPtr,
+                                     SegmentedSectionPtr ptr)
+{
+  jam();
+  Uint32 sz = ptr.sz;
+  SectionReader reader(ptr, getSectionSegmentPool());
+
+  while (sz)
+  {
+    jam();
+    PageRecordPtr pagePtr;
+    allocpage(pagePtr);
+    tabPtr.p->pageRef[tabPtr.p->noPages] = pagePtr.i;
+    tabPtr.p->noPages++;
+
+    Uint32 len = sz > 2048 ? 2048 : sz;
+    ndbrequire(reader.getWords(pagePtr.p->word, len));
+    sz -= len;
+  }
+  return 0;
+}
+
+void
+Dbdih::getTabInfo_send(Signal* signal,
+                       TabRecordPtr tabPtr)
+{
+  ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_GET_TABINFO);
+
+  ConnectRecordPtr connectPtr;
+  connectPtr.i = tabPtr.p->connectrec;
+
+  /**
+   * Done
+   */
+  if (connectPtr.i == RNIL)
+  {
+    jam();
+    tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
+    return;
+  }
+
+  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+  ndbrequire(connectPtr.p->connectState == ConnectRecord::GET_TABINFO);
+  ndbrequire(connectPtr.p->table == tabPtr.i);
+
+  /**
+   * Copy into segmented sections here...
+   * NOTE: A GenericSectionIterator would be nice inside kernel too
+   *  or having a pack-method that writes directly into SegmentedSection
+   */
+  PageRecordPtr pagePtr;
+  pagePtr.i = tabPtr.p->pageRef[0];
+  ptrCheckGuard(pagePtr, cpageFileSize, pageRecord);
+  Uint32 words = pagePtr.p->word[34];
+
+  CopyTableNode ctn;
+  ctn.ctnTabPtr = tabPtr;
+  ctn.pageIndex = 0;
+  ctn.wordIndex = 0;
+  ctn.noOfWords = words;
+
+  SegmentedSectionPtr ptr;
+  ndbrequire(getTabInfo_copyTableToSection(ptr, ctn) == 0);
+
+  Callback cb = { safe_cast(&Dbdih::getTabInfo_sendComplete), connectPtr.i };
+
+  SectionHandle handle(this, signal);
+  handle.m_ptr[0] = ptr;
+  handle.m_cnt = 1;
+
+  DihGetTabInfoConf* conf = (DihGetTabInfoConf*)signal->getDataPtrSend();
+  conf->senderData = connectPtr.p->userpointer;
+  conf->senderRef = reference();
+  sendFragmentedSignal(connectPtr.p->userblockref, GSN_DIH_GET_TABINFO_CONF, signal,
+                       DihGetTabInfoConf::SignalLength, JBB, &handle, cb);
+}
+
+void
+Dbdih::getTabInfo_sendComplete(Signal * signal,
+                               Uint32 senderData,
+                               Uint32 retVal)
+{
+  ndbrequire(retVal == 0);
+
+  ConnectRecordPtr connectPtr;
+  connectPtr.i = senderData;
+  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+  ndbrequire(connectPtr.p->connectState == ConnectRecord::GET_TABINFO);
+
+  TabRecordPtr tabPtr;
+  tabPtr.i = connectPtr.p->table;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  tabPtr.p->connectrec = connectPtr.p->nextPool;
+
+  signal->theData[0] = DihContinueB::ZGET_TABINFO_SEND;
+  signal->theData[1] = tabPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+
+  release_connect(connectPtr);
+}
+
+void
 Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 
   const Uint32 newestRestorableGCI = SYSFILE->newestRestorableGCI;
@@ -11438,6 +11688,12 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
       return;
     case TabRecord::CS_COPY_TO_SAVE:
       signal->theData[0] = DihContinueB::ZTABLE_UPDATE;
+      signal->theData[1] = wf->rwfTabPtr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      return;
+    case TabRecord::CS_GET_TABINFO:
+      jam();
+      signal->theData[0] = DihContinueB::ZGET_TABINFO_SEND;
       signal->theData[1] = wf->rwfTabPtr.i;
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
