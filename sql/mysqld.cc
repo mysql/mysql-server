@@ -6928,7 +6928,7 @@ thread is in the relay logs.",
    "It will be removed in MySQL " VER_CELOSIA,
    &global_system_variables.myisam_max_extra_sort_file_size,
    &max_system_variables.myisam_max_extra_sort_file_size,
-   0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
+   0, GET_ULL, REQUIRED_ARG, (ulonglong) INT_MAX32,
    0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary "
