@@ -156,7 +156,7 @@ row_build_index_entry(
 		}
 
 		len = dtype_get_at_most_n_mbchars(
-			col->prtype, col->mbminlen, col->mbmaxlen,
+			col->prtype, col->mbminmaxlen,
 			ind_field->prefix_len, len, dfield_get_data(dfield));
 		dfield_set_len(dfield, len);
 	}
@@ -514,8 +514,7 @@ row_build_row_ref(
 				dfield_set_len(dfield,
 					       dtype_get_at_most_n_mbchars(
 						       dtype->prtype,
-						       dtype->mbminlen,
-						       dtype->mbmaxlen,
+						       dtype->mbminmaxlen,
 						       clust_col_prefix_len,
 						       len, (char*) field));
 			}
@@ -629,8 +628,7 @@ notfound:
 				dfield_set_len(dfield,
 					       dtype_get_at_most_n_mbchars(
 						       dtype->prtype,
-						       dtype->mbminlen,
-						       dtype->mbmaxlen,
+						       dtype->mbminmaxlen,
 						       clust_col_prefix_len,
 						       len, (char*) field));
 			}
