@@ -2718,4 +2718,106 @@ m2	CREATE TABLE `m2` (
   `i` int(11) DEFAULT NULL
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`)
 drop tables m1, m2, t1;
+#
+# Test case for Bug#54811 "Assert in mysql_lock_have_duplicate()"
+# Check that unique_table() works correctly for merge tables.
+#
+drop table if exists t1, t2, t3, m1, m2;
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (b int);
+create view v1 as select * from t3,t1;
+create table m1 (a int) engine=merge union (t1, t2) insert_method=last;
+create table m2 (a int) engine=merge union (t1, t2) insert_method=first;
+create temporary table tmp (b int);
+insert into tmp (b) values (1);
+insert into t1 (a) values (1);
+insert into t3 (b) values (1);
+insert into m1 (a) values ((select max(a) from m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from v1));
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 'm1'.
+insert into m1 (a) values ((select max(a) from tmp, v1));
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 'm1'.
+update m1 set a = ((select max(a) from m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from v1));
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'm1'.
+update m1 set a = ((select max(a) from tmp, v1));
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'm1'.
+delete from m1 where a = (select max(a) from m1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from m2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, m1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, m2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, t1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, t2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, m1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, m2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, t1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, t2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from v1);
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'm1'.
+delete from m1 where a = (select max(a) from tmp, v1);
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'm1'.
+drop view v1;
+drop temporary table tmp;
+drop table t1, t2, t3, m1, m2;
 End of 6.0 tests

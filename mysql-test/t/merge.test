@@ -2201,6 +2201,125 @@ show create table m1;
 show create table m2;
 drop tables m1, m2, t1;
 
+--echo #
+--echo # Test case for Bug#54811 "Assert in mysql_lock_have_duplicate()"
+--echo # Check that unique_table() works correctly for merge tables.
+--echo #
+--disable_warnings
+drop table if exists t1, t2, t3, m1, m2;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (b int);
+create view v1 as select * from t3,t1;
+create table m1 (a int) engine=merge union (t1, t2) insert_method=last;
+create table m2 (a int) engine=merge union (t1, t2) insert_method=first;
+create temporary table tmp (b int);
+insert into tmp (b) values (1);
+
+insert into t1 (a) values (1);
+insert into t3 (b) values (1);
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from m1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from m2));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t2));
+
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, m1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, m2));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, t1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, t2));
+
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, m1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, m2));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, t1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, t2));
+ 
+--error ER_VIEW_PREVENT_UPDATE
+insert into m1 (a) values ((select max(a) from v1));
+--error ER_VIEW_PREVENT_UPDATE
+insert into m1 (a) values ((select max(a) from tmp, v1));
+
+
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from m1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from m2));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t2));
+
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, m1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, m2));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, t1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, t2));
+
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, m1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, m2));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, t1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, t2));
+ 
+--error ER_VIEW_PREVENT_UPDATE
+update m1 set a = ((select max(a) from v1));
+--error ER_VIEW_PREVENT_UPDATE
+update m1 set a = ((select max(a) from tmp, v1));
+
+
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from m1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from m2);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t2);
+
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, m1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, m2);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, t1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, t2);
+
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, m1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, m2);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, t1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, t2);
+ 
+--error ER_VIEW_PREVENT_UPDATE
+delete from m1 where a = (select max(a) from v1);
+--error ER_VIEW_PREVENT_UPDATE
+delete from m1 where a = (select max(a) from tmp, v1);
+
+drop view v1;
+drop temporary table tmp;
+drop table t1, t2, t3, m1, m2;
 
 --echo End of 6.0 tests
 
