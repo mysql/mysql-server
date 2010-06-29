@@ -151,9 +151,9 @@ dict_mem_table_add_col(
 	ulint		prtype,	/*!< in: precise type */
 	ulint		len);	/*!< in: precision */
 /**********************************************************************//**
-This function poplulates a dict_col_t memory structure with
+This function populates a dict_col_t memory structure with
 supplied information. */
-UNIV_INLINE
+UNIV_INTERN
 void
 dict_mem_fill_column_struct(
 /*========================*/
@@ -162,7 +162,7 @@ dict_mem_fill_column_struct(
 	ulint		col_pos,	/*!< in: column position */
 	ulint		mtype,		/*!< in: main data type */
 	ulint		prtype,		/*!< in: precise type */
-	ulint		col_len);	/*!< in: column lenght */
+	ulint		col_len);	/*!< in: column length */
 /**********************************************************************//**
 This function poplulates a dict_index_t index memory structure with
 supplied information. */
@@ -249,10 +249,11 @@ struct dict_col_struct{
 					the string, MySQL uses 1 or 2
 					bytes to store the string length) */
 
-	unsigned	mbminlen:2;	/*!< minimum length of a
-					character, in bytes */
-	unsigned	mbmaxlen:3;	/*!< maximum length of a
-					character, in bytes */
+	unsigned	mbminmaxlen:5;	/*!< minimum and maximum length of a
+					character, in bytes;
+					DATA_MBMINMAXLEN(mbminlen,mbmaxlen);
+					mbminlen=DATA_MBMINLEN(mbminmaxlen);
+					mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
 	/*----------------------*/
 	/* End of definitions copied from dtype_t */
 	/* @} */
