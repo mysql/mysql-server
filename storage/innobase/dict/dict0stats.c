@@ -176,11 +176,15 @@ dict_stats_table_check(
 
 	if (table == NULL || table->ibd_file_missing) {
 		/* no such table or missing tablespace */
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: table %s does not exist.\n",
-			req_schema->table_name);
 
-		goto err_exit;
+		/* We return silently here because this code is
+		executed during open table. By design we check if
+		persistent storage is present and whether there
+		are stats for the table being opened and if so, then
+		we use them, otherwise we silenly switch back to using
+		the transient stats. */
+
+		return(FALSE);
 	}
 
 	if (table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
