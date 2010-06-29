@@ -209,6 +209,9 @@ dict_stats_table_check(
 	for (i = 0; i < req_schema->n_cols; i++) {
 		ulint	j;
 
+		char	req_type[64];
+		char	actual_type[64];
+
 		/* check if i'th column is the same in both arrays */
 		if (innobase_strcasecmp(req_schema->columns[i].name,
 			       dict_table_get_col_name(table, i)) == 0) {
@@ -249,17 +252,26 @@ dict_stats_table_check(
 		/* we found a column with the same name on j'th position,
 		compare column types and flags */
 
+		dtype_sql_name(req_schema->columns[i].mtype,
+			       req_schema->columns[i].prtype_mask,
+			       req_schema->columns[i].len,
+			       req_type, sizeof(req_type));
+
+		dtype_sql_name(table->cols[j].mtype,
+			       table->cols[j].prtype,
+			       table->cols[j].len,
+			       actual_type, sizeof(actual_type));
+
 		/* check length for exact match */
 		if (req_schema->columns[i].len != table->cols[j].len) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				" InnoDB: Column %s.%s has length %d "
-				"but should have length %lu.\n",
+				" InnoDB: Column %s.%s is %s "
+				"but should be %s (length mismatch).\n",
 				req_schema->table_name,
 				req_schema->columns[i].name,
-				table->cols[j].len,
-				req_schema->columns[i].len);
+				actual_type, req_type);
 
 			goto err_exit;
 		}
@@ -269,12 +281,11 @@ dict_stats_table_check(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				" InnoDB: Column %s.%s is of type %d "
-				"but should be of type %lu.\n",
+				" InnoDB: Column %s.%s is %s "
+				"but should be %s (type mismatch).\n",
 				req_schema->table_name,
 				req_schema->columns[i].name,
-				table->cols[j].mtype,
-				req_schema->columns[i].mtype);
+				actual_type, req_type);
 
 			goto err_exit;
 		}
@@ -285,14 +296,26 @@ dict_stats_table_check(
 			& req_schema->columns[i].prtype_mask)
 		       != req_schema->columns[i].prtype_mask) {
 
+			char	req_type[64];
+			char	actual_type[64];
+
+			dtype_sql_name(req_schema->columns[i].mtype,
+				       req_schema->columns[i].prtype_mask,
+				       req_schema->columns[i].len,
+				       req_type, sizeof(req_type));
+
+			dtype_sql_name(table->cols[j].mtype,
+				       table->cols[j].prtype,
+				       table->cols[j].len,
+				       actual_type, sizeof(actual_type));
+
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				" InnoDB: Column %s.%s flag %#lx "
-				"is not set in column's flags %#x.\n",
+				" InnoDB: Column %s.%s is %s "
+				"but should be %s (flags mismatch).\n",
 				req_schema->table_name,
 				req_schema->columns[i].name,
-				req_schema->columns[i].prtype_mask,
-				table->cols[j].prtype);
+				actual_type, req_type);
 
 			goto err_exit;
 		}
