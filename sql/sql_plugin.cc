@@ -261,11 +261,6 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin
 static void intern_plugin_unlock(LEX *lex, plugin_ref plugin);
 static void reap_plugins(void);
 
-#ifdef EMBEDDED_LIBRARY
-/* declared in sql_base.cc */
-extern bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
-#endif /* EMBEDDED_LIBRARY */
-
 static void report_error(int where_to, uint error, ...)
 {
   va_list args;
@@ -1475,10 +1470,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     When building an embedded library, if the mysql.plugin table
     does not exist, we silently ignore the missing table
   */
-  mysql_mutex_lock(&LOCK_open);
   if (check_if_table_exists(new_thd, &tables, &table_exists))
     table_exists= FALSE;
-  mysql_mutex_unlock(&LOCK_open);
   if (!table_exists)
     goto end;
 #endif /* EMBEDDED_LIBRARY */
@@ -1519,7 +1512,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   if (error > 0)
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
-  new_thd->version--; // Force close to free memory
+  table->m_needs_reopen= TRUE;                  // Force close to free memory
 end:
   close_thread_tables(new_thd);
   /* Remember that we don't have a THD */

@@ -1085,7 +1085,6 @@ static void prepare_new_connection_state(THD* thd)
     embedded server library.
     TODO: refactor this to avoid code duplication there
   */
-  thd->version= refresh_version;
   thd->proc_info= 0;
   thd->command= COM_SLEEP;
   thd->set_time();
