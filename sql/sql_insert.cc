@@ -70,7 +70,7 @@
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
-#include "slave.h"
+#include "rpl_slave.h"
 #include "sql_parse.h"                          // end_active_trans
 #include "rpl_mi.h"
 #include "transaction.h"
