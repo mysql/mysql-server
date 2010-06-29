@@ -113,6 +113,7 @@ class Master_info : public Slave_reporting_capability
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
   ulong retry_count;
+  char master_uuid[UUID_LENGTH+1];
 };
 void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,

@@ -146,6 +146,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
                       void* thread_killed_arg);
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
+static int get_master_uuid(MYSQL *mysql, Master_info *mi);
+int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
@@ -1151,6 +1153,139 @@ bool is_network_error(uint errorno)
   return FALSE;   
 }
 
+/**
+  An auxiliary function extracts slave UUID.
+
+  @param[in]    thd  THD to access a user variable
+  @param[out]   value String to return UUID value.
+
+  @return       if success value is returned else NULL is returned.
+*/
+String *get_slave_uuid(THD *thd, String *value)
+{
+  uchar name[]= "slave_uuid";
+
+  if (value == NULL)
+    return NULL;
+  user_var_entry *entry=
+    (user_var_entry*) hash_search(&thd->user_vars, name, sizeof(name)-1);
+  if (entry && entry->length > 0)
+  {
+    value->copy(entry->value, entry->length, NULL);
+    return value;
+  }
+  else
+    return NULL;
+}
+
+int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
+{
+  char query[256];
+  int ret= 0;
+
+  my_sprintf(query, (query, "SET @slave_uuid= '%s'", server_uuid));
+  if (mysql_real_query(mysql, query, strlen(query))
+      && !check_io_slave_killed(mi->io_thd, mi, NULL))
+    goto err;
+
+  mysql_free_result(mysql_store_result(mysql));
+  return ret;
+
+err:
+  if (mysql_errno(mysql) && is_network_error(mysql_errno(mysql)))
+  {
+    mi->report(WARNING_LEVEL, mysql_errno(mysql),
+               "init-command:'%s' failed with error: %s", mysql_error(mysql));
+    ret= 2;
+  }
+  else
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+               query);
+    ret= 1;
+  }
+  mysql_free_result(mysql_store_result(mysql));
+  return ret;
+}
+
+/**
+  Get master's uuid on connecting.
+
+  @param  mysql MYSQL to request uuid from master.
+  @param  mi    Master_info to set master_uuid
+
+  @return 0: Success, 1: Fatal error, 2: Network error.
+*/
+static int get_master_uuid(MYSQL *mysql, Master_info *mi)
+{
+  const char *errmsg;
+  MYSQL_RES *master_res= NULL;
+  MYSQL_ROW master_row= NULL;
+  int ret= 0;
+
+  DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
+                  {
+                    const char act[]= "now wait_for signal.get_master_uuid";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  if (!mysql_real_query(mysql,
+                        STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_UUID'")) &&
+      (master_res= mysql_store_result(mysql)) &&
+      (master_row= mysql_fetch_row(master_res)))
+  {
+    if (!strcmp(::server_uuid, master_row[1]) &&
+        !mi->rli.replicate_same_server_id)
+    {
+      errmsg= "The slave I/O thread stops because master and slave have equal "
+              "MySQL server UUIDs; these UUIDs must be different for "
+              "replication to work.";
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+                 errmsg);
+      // Fatal error
+      ret= 1;
+    }
+    else
+    {
+      if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[1]))
+        sql_print_warning("Master's UUID has changed, its old UUID is %s, "
+                          "the new one is %s", mi->master_uuid, master_row[1]);
+      strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
+      mi->master_uuid[UUID_LENGTH]= 0;
+    }
+  }
+  else if (mysql_errno(mysql))
+  {
+    if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master SERVER_UUID failed with error: %s",
+                 mysql_error(mysql));
+      ret= 2;
+    }
+    else
+    {
+      /* Fatal error */
+      errmsg= "The slave I/O thread stops because a fatal error is encountered "
+        "when it try to get the value of SERVER_UUID variable from master.";
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+                 errmsg);
+      ret= 1;
+    }
+  }
+  else if (!master_row && master_res)
+  {
+    mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+               "Unknown system variable 'SERVER_UUID' on master, "
+               "maybe it is a *VERY OLD MASTER*.");
+  }
+
+  if (master_res)
+    mysql_free_result(master_res);
+  return ret;
+}
 
 /*
   Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
@@ -1764,6 +1899,7 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              FN_REFLEN));
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Master_UUID", UUID_LENGTH));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
@@ -1936,6 +2072,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     }
     // Master_Server_id
     protocol->store((uint32) mi->master_id);
+    protocol->store(mi->master_uuid, &my_charset_bin);
     // Master_Retry_Count
     protocol->store((ulonglong) mi->retry_count);
     // SQL_Delay
@@ -2911,6 +3048,11 @@ connected:
   thd->slave_net = &mysql->net;
   thd_proc_info(thd, "Checking master version");
   ret= get_master_version_and_clock(mysql, mi);
+  if (!ret)
+    ret= get_master_uuid(mysql, mi);
+  if (!ret)
+    io_thread_init_commands(mysql, mi);
+
   if (ret == 1)
     /* Fatal error */
     goto err;
