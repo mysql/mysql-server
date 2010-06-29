@@ -135,22 +135,22 @@ dict_stats_update_transient(
 /* @} */
 
 /* auxiliary structs for checking a table definition @{ */
-struct column_data_struct {
+struct dict_stats_chk_column_struct {
 	const char*	name;
 	ulint		mtype;
 	ulint		prtype_mask;
 	ulint		len;
 };
 
-typedef struct column_data_struct	column_data_t;
+typedef struct dict_stats_chk_column_struct	dict_stats_chk_column_t;
 
-struct table_schema_struct {
-	const char*	table_name;
-	ulint		n_cols;
-	column_data_t*	columns;
+struct dict_stats_chk_table_struct {
+	const char*			table_name;
+	ulint				n_cols;
+	dict_stats_chk_column_t*	columns;
 };
 
-typedef struct table_schema_struct	table_schema_t;
+typedef struct dict_stats_chk_table_struct	dict_stats_chk_table_t;
 /* @} */
 
 /*********************************************************************//**
@@ -162,7 +162,8 @@ static
 ibool
 dict_stats_table_check(
 /*===================*/
-	table_schema_t*	req_schema)	/*!< in/out: required table schema */
+	dict_stats_chk_table_t*	req_schema)/*!< in/out: required table
+					   schema */
 {
 	dict_table_t*	table;
 	ulint		i;
@@ -313,7 +314,7 @@ dict_stats_persistent_storage_check()
 /*=================================*/
 {
 	/* definition for the table TABLE_STATS_NAME */
-	column_data_t	table_stats_columns[] = {
+	dict_stats_chk_column_t	table_stats_columns[] = {
 		{"database_name", DATA_VARCHAR,
 			DATA_NOT_NULL, 512},
 
@@ -332,14 +333,14 @@ dict_stats_persistent_storage_check()
 		{"sum_of_other_index_sizes", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 8}
 	};
-	table_schema_t	table_stats_schema = {
+	dict_stats_chk_table_t	table_stats_schema = {
 		TABLE_STATS_NAME,
 		UT_ARR_SIZE(table_stats_columns),
 		table_stats_columns
 	};
 
 	/* definition for the table INDEX_STATS_NAME */
-	column_data_t	index_stats_columns[] = {
+	dict_stats_chk_column_t	index_stats_columns[] = {
 		{"database_name", DATA_VARCHAR,
 			DATA_NOT_NULL, 512},
 
@@ -364,7 +365,7 @@ dict_stats_persistent_storage_check()
 		{"stat_description", DATA_VARCHAR,
 			DATA_NOT_NULL, 1024}
 	};
-	table_schema_t	index_stats_schema = {
+	dict_stats_chk_table_t	index_stats_schema = {
 		INDEX_STATS_NAME,
 		UT_ARR_SIZE(index_stats_columns),
 		index_stats_columns
@@ -2582,7 +2583,7 @@ test_dict_stats_table_check()
 	) ENGINE=INNODB;
 	*/
 	/* definition for the table 'test/tcheck' */
-	column_data_t	columns[] = {
+	dict_stats_chk_column_t	columns[] = {
 		{"c01", DATA_VARCHAR, 0, 123},
 		{"c02", DATA_INT, 0, 4},
 		{"c03", DATA_INT, DATA_NOT_NULL, 4},
@@ -2592,7 +2593,7 @@ test_dict_stats_table_check()
 		{"c07", DATA_INT, 0, 4},
 		{"c_extra", DATA_INT, 0, 4}
 	};
-	table_schema_t	schema = {
+	dict_stats_chk_table_t	schema = {
 		"test/tcheck",
 		0 /* will be set individually for each test below */,
 		columns
