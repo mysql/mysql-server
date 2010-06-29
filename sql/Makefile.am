@@ -93,6 +93,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h sql_plugin_services.h \
 			item_create.h item_subselect.h item_row.h \
+			thr_malloc.h \
 			sql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_map.h sql_string.h unireg.h \
@@ -136,6 +137,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
+			sql_alloc_error_handler.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
 			item_row.cc item_geofunc.cc item_xmlfunc.cc \
 			field.cc strfunc.cc key.cc sql_class.cc sql_list.cc \
