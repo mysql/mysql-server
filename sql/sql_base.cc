@@ -1931,7 +1931,6 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 }
 
 
-
 /**
   Test that table is unique (It's only exists once in the table list)
 
@@ -2053,6 +2052,11 @@ next:
   Test that the subject table of INSERT/UPDATE/DELETE/CREATE
   or (in case of MyISAMMRG) one of its children are not used later
   in the query.
+
+  For MyISAMMRG tables, it is assumed that all the underlying
+  tables of @c table (if any) are listed right after it and that
+  their @c parent_l field points at the main table.
+
 
   @retval non-NULL The table list element for the table that
                    represents the duplicate. 
