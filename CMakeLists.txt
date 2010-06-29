@@ -245,9 +245,12 @@ ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
 
 IF(WITH_UNIT_TESTS)
+  ADD_SUBDIRECTORY(unittest)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
+  ADD_SUBDIRECTORY(unittest/mytap/t)
   ADD_SUBDIRECTORY(unittest/mysys)
+  ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)
