@@ -66,6 +66,8 @@ DTRACEFILES_DEPEND =    filesort.o \
                         sql_select.o \
                         sql_update.o
 
+RPL_LIBS = 		libbinlog.la librpl.la libmaster.la libslave.la
+pkglib_LTLIBRARIES=	$(RPL_LIBS)
 
 noinst_LTLIBRARIES=	libndb.la \
 			udf_example.la
@@ -76,9 +78,11 @@ SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/dbug/libdbuglt.la \
 			$(top_builddir)/regex/libregex.a \
 			$(top_builddir)/strings/libmystringslt.la
-mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
+mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la \
+			$(RPL_LIBS)
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
 mysqld_LDADD =		libndb.la \
+			$(RPL_LIBS) \
 			@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
 			@mysql_plugin_libs@ \
@@ -110,7 +114,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_derived.h sql_load.h sql_handler.h init.h \
 			derror.h sql_union.h des_key_file.h sql_binlog.h \
 			discover.h sql_manager.h sql_do.h \
-			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
+			rpl_slave.h rpl_master.h  rpl_filter.h rpl_injector.h \
 			log_event.h rpl_record.h sql_const.h \
 			log_event_old.h rpl_record_old.h \
 			sql_sort.h sql_cache.h set_var.h sys_vars_shared.h \
@@ -148,8 +152,6 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			procedure.cc sql_test.cc sql_truncate.cc \
 			log.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
-			log_event.cc rpl_record.cc \
-			log_event_old.cc rpl_record_old.cc \
 			discover.cc sql_time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_partition.cc \
@@ -157,9 +159,6 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
-			slave.cc sql_repl.cc rpl_filter.cc rpl_tblmap.cc \
-			rpl_utility.cc rpl_injector.cc rpl_rli.cc rpl_mi.cc \
-			rpl_reporting.cc \
                         sql_union.cc sql_derived.cc \
 			sql_client.cc sql_bootstrap.cc \
 			repl_failsafe.h repl_failsafe.cc \
@@ -170,13 +169,20 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
                         event_scheduler.cc event_data_objects.cc \
                         event_queue.cc event_db_repository.cc events.cc \
-			sql_plugin.cc sql_binlog.cc \
+			sql_plugin.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc event_parse_data.cc sql_signal.cc \
-			rpl_handler.cc mdl.cc transaction.cc sql_audit.cc  \
+			mdl.cc transaction.cc sql_audit.cc  \
 			sha2.cc
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
+
+libbinlog_la_SOURCES =	log_event.cc log_event_old.cc binlog.cc \
+			rpl_filter.cc rpl_record.cc rpl_record_old.cc \
+			rpl_utility.cc sql_binlog.cc rpl_injector.cc
+librpl_la_SOURCES    =  rpl_handler.cc rpl_tblmap.cc
+libmaster_la_SOURCES =	rpl_master.cc
+libslave_la_SOURCES = 	rpl_slave.cc rpl_reporting.cc rpl_rli.cc rpl_mi.cc
 
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
