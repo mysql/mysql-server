@@ -1398,6 +1398,7 @@ row_upd_store_row(
 	dict_index_t*	clust_index;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
+	row_ext_t**	ext;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
 	rec_offs_init(offsets_);
@@ -1414,8 +1415,22 @@ row_upd_store_row(
 
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
+
+	if (dict_table_get_format(node->table) >= DICT_TF_FORMAT_ZIP) {
+		/* In DYNAMIC or COMPRESSED format, there is no prefix
+		of externally stored columns in the clustered index
+		record. Build a cache of column prefixes. */
+		ext = &node->ext;
+	} else {
+		/* REDUNDANT and COMPACT formats store a local
+		768-byte prefix of each externally stored column.
+		No cache is needed. */
+		ext = NULL;
+		node->ext = NULL;
+	}
+
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
-			      NULL, &node->ext, node->heap);
+			      NULL, ext, node->heap);
 	if (node->is_delete) {
 		node->upd_row = NULL;
 		node->upd_ext = NULL;
