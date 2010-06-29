@@ -31,7 +31,5 @@ CREATE TABLE innodb.index_stats (
 	  REFERENCES table_stats (database_name, table_name)
 ) ENGINE=INNODB;
 
-SET SESSION innodb_analyze_is_persistent=1;
-
 -- enable_warnings
 -- enable_query_log

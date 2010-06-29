@@ -8,6 +8,8 @@
 -- disable_warnings
 -- disable_query_log
 
+SET SESSION innodb_analyze_is_persistent=1;
+
 DROP TABLE IF EXISTS test_innodb_stats;
 
 CREATE TABLE test_innodb_stats (
