@@ -189,7 +189,7 @@ dict_stats_table_check(
 		fprintf(stderr,
 			" InnoDB: %s has %d columns but should have %lu.\n",
 			req_schema->table_name,
-			table->n_def,
+			table->n_def - DATA_N_SYS_COLS,
 			req_schema->n_cols);
 
 		goto err_exit;
