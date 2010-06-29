@@ -345,8 +345,8 @@ dict_process_sys_tables_rec(
 	if ((status & DICT_TABLE_UPDATE_STATS)
 	    && dict_table_get_first_index(*table)) {
 
-		/* Update statistics if DICT_TABLE_UPDATE_STATS
-		is set */
+		/* Update statistics member fields in *table if
+		DICT_TABLE_UPDATE_STATS is set */
 		dict_stats_update(*table, DICT_STATS_UPD_FETCH);
 	}
 
