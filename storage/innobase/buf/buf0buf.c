@@ -522,7 +522,9 @@ buf_page_is_corrupted(
 		ib_uint64_t	current_lsn;
 
 		if (log_peek_lsn(&current_lsn)
-		    && current_lsn < mach_read_ull(read_buf + FIL_PAGE_LSN)) {
+		    && UNIV_UNLIKELY
+		    (current_lsn
+		     < mach_read_from_8(read_buf + FIL_PAGE_LSN))) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
@@ -538,7 +540,7 @@ buf_page_is_corrupted(
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
-				mach_read_ull(read_buf + FIL_PAGE_LSN),
+				mach_read_from_8(read_buf + FIL_PAGE_LSN),
 				current_lsn);
 		}
 	}
@@ -735,17 +737,15 @@ buf_page_print(
 #endif /* !UNIV_HOTBACKUP */
 
 	switch (fil_page_get_type(read_buf)) {
+		index_id_t	index_id;
 	case FIL_PAGE_INDEX:
+		index_id = btr_page_get_index_id(read_buf);
 		fprintf(stderr,
 			"InnoDB: Page may be an index page where"
-			" index id is %lu %lu\n",
-			(ulong) ut_dulint_get_high(
-				btr_page_get_index_id(read_buf)),
-			(ulong) ut_dulint_get_low(
-				btr_page_get_index_id(read_buf)));
+			" index id is %llu\n",
+			(ullint) index_id);
 #ifndef UNIV_HOTBACKUP
-		index = dict_index_find_on_id_low(
-			btr_page_get_index_id(read_buf));
+		index = dict_index_find_on_id_low(index_id);
 		if (index) {
 			fputs("InnoDB: (", stderr);
 			dict_index_name_print(stderr, NULL, index);
@@ -4461,12 +4461,12 @@ buf_print_instance(
 /*===============*/
 	buf_pool_t*	buf_pool)
 {
-	dulint*		index_ids;
+	index_id_t*	index_ids;
 	ulint*		counts;
 	ulint		size;
 	ulint		i;
 	ulint		j;
-	dulint		id;
+	index_id_t	id;
 	ulint		n_found;
 	buf_chunk_t*	chunk;
 	dict_index_t*	index;
@@ -4475,7 +4475,7 @@ buf_print_instance(
 
 	size = buf_pool->curr_size;
 
-	index_ids = mem_alloc(sizeof(dulint) * size);
+	index_ids = mem_alloc(size * sizeof *index_ids);
 	counts = mem_alloc(sizeof(ulint) * size);
 
 	buf_pool_mutex_enter(buf_pool);
@@ -4530,8 +4530,7 @@ buf_print_instance(
 
 				while (j < n_found) {
 
-					if (ut_dulint_cmp(index_ids[j],
-							  id) == 0) {
+					if (index_ids[j] == id) {
 						counts[j]++;
 
 						break;
@@ -4554,8 +4553,8 @@ buf_print_instance(
 		index = dict_index_get_if_in_cache(index_ids[i]);
 
 		fprintf(stderr,
-			"Block count for index %lu in buffer is about %lu",
-			(ulong) ut_dulint_get_low(index_ids[i]),
+			"Block count for index %llu in buffer is about %lu",
+			(ullint) index_ids[i],
 			(ulong) counts[i]);
 
 		if (index) {

@@ -2031,29 +2031,6 @@ pars_info_add_int4_literal(
 Equivalent to:
 
 char buf[8];
-mach_write_ull(buf, val);
-pars_info_add_literal(info, name, buf, 8, DATA_INT, 0);
-
-except that the buffer is dynamically allocated from the info struct's
-heap. */
-UNIV_INTERN
-void
-pars_info_add_uint64_literal(
-/*=========================*/
-	pars_info_t*	info,		/*!< in: info struct */
-	const char*	name,		/*!< in: name */
-	ib_uint64_t	val)		/*!< in: value */
-{
-	byte*	buf = mem_heap_alloc(info->heap, 8);
-
-	mach_write_ull(buf, val);
-	pars_info_add_literal(info, name, buf, 8, DATA_INT, 0);
-}
-
-/****************************************************************//**
-Equivalent to:
-
-char buf[8];
 mach_write_to_8(buf, val);
 pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
 
@@ -2061,11 +2038,11 @@ except that the buffer is dynamically allocated from the info struct's
 heap. */
 UNIV_INTERN
 void
-pars_info_add_dulint_literal(
-/*=========================*/
+pars_info_add_ull_literal(
+/*======================*/
 	pars_info_t*	info,		/*!< in: info struct */
 	const char*	name,		/*!< in: name */
-	dulint		val)		/*!< in: value */
+	ib_uint64_t	val)		/*!< in: value */
 {
 	byte*	buf = mem_heap_alloc(info->heap, 8);
 

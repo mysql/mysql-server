@@ -660,7 +660,7 @@ retry_page_get:
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 	}
 
-	ut_ad(0 == ut_dulint_cmp(index->id, btr_page_get_index_id(page)));
+	ut_ad(index->id == btr_page_get_index_id(page));
 
 	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
 		/* We are in the root node */
@@ -854,8 +854,7 @@ btr_cur_open_at_index_side_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
-		ut_ad(0 == ut_dulint_cmp(index->id,
-					 btr_page_get_index_id(page)));
+		ut_ad(index->id == btr_page_get_index_id(page));
 
 		block->check_index_page_at_flush = TRUE;
 
@@ -975,8 +974,7 @@ btr_cur_open_at_rnd_pos_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
-		ut_ad(0 == ut_dulint_cmp(index->id,
-					 btr_page_get_index_id(page)));
+		ut_ad(index->id == btr_page_get_index_id(page));
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
@@ -1135,7 +1133,7 @@ btr_cur_trx_report(
 	const char*		op)	/*!< in: operation */
 {
 	fprintf(stderr, "Trx with id " TRX_ID_FMT " going to ",
-		TRX_ID_PREP_PRINTF(trx->id));
+		(ullint) trx->id);
 	fputs(op, stderr);
 	dict_index_name_print(stderr, trx, index);
 	putc('\n', stderr);
@@ -1826,7 +1824,7 @@ btr_cur_update_in_place(
 	page_zip_des_t*	page_zip;
 	ulint		err;
 	rec_t*		rec;
-	roll_ptr_t	roll_ptr	= ut_dulint_zero;
+	roll_ptr_t	roll_ptr	= 0;
 	trx_t*		trx;
 	ulint		was_delete_marked;
 	mem_heap_t*	heap		= NULL;
