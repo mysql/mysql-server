@@ -377,7 +377,7 @@ row_upd_index_entry_sys_field(
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint		type,	/*!< in: DATA_TRX_ID or DATA_ROLL_PTR */
-	dulint		val)	/*!< in: value to write */
+	ib_uint64_t	val)	/*!< in: value to write */
 {
 	dfield_t*	dfield;
 	byte*		field;
@@ -536,7 +536,7 @@ row_upd_write_sys_vals_to_log(
 	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;
 
-	log_ptr += mach_dulint_write_compressed(log_ptr, trx->id);
+	log_ptr += mach_ull_write_compressed(log_ptr, trx->id);
 
 	return(log_ptr);
 }
@@ -570,7 +570,7 @@ row_upd_parse_sys_vals(
 	*roll_ptr = trx_read_roll_ptr(ptr);
 	ptr += DATA_ROLL_PTR_LEN;
 
-	ptr = mach_dulint_parse_compressed(ptr, end_ptr, trx_id);
+	ptr = mach_ull_parse_compressed(ptr, end_ptr, trx_id);
 
 	return(ptr);
 }
@@ -1912,8 +1912,7 @@ row_upd_clust_step(
 	then we have to free the file segments of the index tree associated
 	with the index */
 
-	if (node->is_delete
-	    && ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+	if (node->is_delete && node->table->id == DICT_INDEXES_ID) {
 
 		dict_drop_index_tree(btr_pcur_get_rec(pcur), mtr);
 

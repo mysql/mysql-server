@@ -293,7 +293,7 @@ struct dict_field_struct{
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_struct{
-	dulint		id;	/*!< id of the index */
+	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
 	const char*	name;	/*!< index name */
 	const char*	table_name;/*!< table name */
@@ -349,7 +349,7 @@ struct dict_index_struct{
 	/* @} */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
-	ib_uint64_t	trx_id; /*!< id of the transaction that created this
+	trx_id_t	trx_id; /*!< id of the transaction that created this
 				index, or 0 if the index existed
 				when InnoDB was started up */
 #endif /* !UNIV_HOTBACKUP */
@@ -414,7 +414,7 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_struct{
-	dulint		id;	/*!< id of the table */
+	table_id_t	id;	/*!< id of the table */
 	mem_heap_t*	heap;	/*!< memory heap */
 	char*		name;	/*!< table name */
 	const char*	dir_path_of_temp_table;/*!< NULL or the directory path
