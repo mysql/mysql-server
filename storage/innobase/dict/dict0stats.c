@@ -48,6 +48,8 @@ Created Jan 06, 2010 Vasil Dimov
 #include "usr0types.h" /* sess_t */
 #include "ut0rnd.h" /* ut_rnd_interval() */
 
+#include "ha_prototypes.h" /* innobase_strcasecmp() */
+
 /* names of the tables from the persistent storage */
 #define TABLE_STATS_NAME	"innodb/table_stats"
 #define TABLE_STATS_NAME_PRINT	"innodb.table_stats"
@@ -204,7 +206,7 @@ dict_stats_table_check(
 		ulint	j;
 
 		/* check if i'th column is the same in both arrays */
-		if (strcasecmp(req_schema->columns[i].name,
+		if (innobase_strcasecmp(req_schema->columns[i].name,
 			       dict_table_get_col_name(table, i)) == 0) {
 
 			/* we found the column in table->cols[] quickly */
@@ -218,8 +220,8 @@ dict_stats_table_check(
 
 				name = dict_table_get_col_name(table, j);
 
-				if (strcasecmp(req_schema->columns[i].name,
-					       name) == 0) {
+				if (innobase_strcasecmp(name,
+					req_schema->columns[i].name) == 0) {
 
 					/* found the column on j'th
 					position */
