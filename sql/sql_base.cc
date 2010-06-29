@@ -1931,15 +1931,14 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 }
 
 
-/*
+
+/**
   Test that table is unique (It's only exists once in the table list)
 
-  SYNOPSIS
-    unique_table()
-    thd                   thread handle
-    table                 table which should be checked
-    table_list            list of tables
-    check_alias           whether to check tables' aliases
+  @param  thd                   thread handle
+  @param  table                 table which should be checked
+  @param  table_list            list of tables
+  @param  check_alias           whether to check tables' aliases
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
@@ -1950,7 +1949,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
        processing loop, because multi-update call fix_fields() for some its
        items (which mean JOIN::prepare for subqueries) before unique_table
        call to detect which tables should be locked for write).
-    c) unique_table skip all tables which belong to SELECT with
+    c) find_dup_table skip all tables which belong to SELECT with
        SELECT::exclude_from_table_unique_test set.
     Also SELECT::exclude_from_table_unique_test used to exclude from check
     tables of main SELECT of multi-delete and multi-update
@@ -1962,17 +1961,17 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     TODO: when we will have table/view change detection we can do this check
           only once for PS/SP
 
-  RETURN
-    found duplicate
-    0 if table is unique
+  @retval !=0  found duplicate
+  @retval 0 if table is unique
 */
 
-TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
-                         bool check_alias)
+static
+TABLE_LIST* find_dup_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+                           bool check_alias)
 {
   TABLE_LIST *res;
   const char *d_name, *t_name, *t_alias;
-  DBUG_ENTER("unique_table");
+  DBUG_ENTER("find_dup_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
 
   /*
@@ -1987,6 +1986,9 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
   */
   if (table->table)
   {
+    /* All MyISAMMRG children are plain MyISAM tables. */
+    DBUG_ASSERT(table->table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
+
     /* temporary table is always unique */
     if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
       DBUG_RETURN(0);
@@ -2008,8 +2010,7 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
       Table is unique if it is present only once in the global list
       of tables and once in the list of table locks.
     */
-    if (! (res= find_table_in_global_list(table_list, d_name, t_name)) &&
-        ! (res= mysql_lock_have_duplicate(thd, table, table_list)))
+    if (! (res= find_table_in_global_list(table_list, d_name, t_name)))
       break;
 
     /* Skip if same underlying table. */
@@ -2048,6 +2049,37 @@ next:
 }
 
 
+/**
+  Test that the subject table of INSERT/UPDATE/DELETE/CREATE
+  or (in case of MyISAMMRG) one of its children are not used later
+  in the query.
+
+  @retval non-NULL The table list element for the table that
+                   represents the duplicate. 
+  @retval NULL     No duplicates found.
+*/
+
+TABLE_LIST*
+unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
+             bool check_alias)
+{
+  TABLE_LIST *dup;
+  if (table->table && table->table->file->ht->db_type == DB_TYPE_MRG_MYISAM)
+  {
+    TABLE_LIST *child;
+    dup= NULL;
+    /* Check duplicates of all merge children. */
+    for (child= table->next_global; child && child->parent_l == table;
+         child= child->next_global)
+    {
+      if ((dup= find_dup_table(thd, child, child->next_global, check_alias)))
+        break;
+    }
+  }
+  else
+    dup= find_dup_table(thd, table, table_list, check_alias);
+  return dup;
+}
 /*
   Issue correct error message in case we found 2 duplicate tables which
   prevent some update operation
@@ -3204,8 +3236,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table_list->table= table;
   DBUG_ASSERT(table->key_read == 0);
   /* Tables may be reused in a sub statement. */
-  if (table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN))
-    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+  DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   DBUG_RETURN(FALSE);
 
 err_lock:
@@ -5563,11 +5594,25 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
     or schema tables) as free for reuse.
 */
 
-static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
+static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table_list)
 {
-  for (; table; table= table->next_global)
+  TABLE_LIST *table;
+  for (table= table_list; table; table= table->next_global)
     if (!table->placeholder())
+    {
       table->table->query_id= 0;
+    }
+  for (table= table_list; table; table= table->next_global)
+    if (!table->placeholder())
+    {
+      /*
+        Detach children of MyISAMMRG tables used in
+        sub-statements, they will be reattached at open.
+        This has to be done in a separate loop to make sure
+        that children have had their query_id cleared.
+      */
+      table->table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+    }
 }
 
 
