@@ -181,7 +181,7 @@ dict_stats_table_check(
 		executed during open table. By design we check if
 		persistent storage is present and whether there
 		are stats for the table being opened and if so, then
-		we use them, otherwise we silenly switch back to using
+		we use them, otherwise we silently switch back to using
 		the transient stats. */
 
 		return(FALSE);
