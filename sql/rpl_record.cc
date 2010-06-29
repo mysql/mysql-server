@@ -17,7 +17,7 @@
 #include "unireg.h"
 #include "rpl_rli.h"
 #include "rpl_record.h"
-#include "slave.h"                  // Need to pull in slave_print_msg
+#include "rpl_slave.h"                  // Need to pull in slave_print_msg
 #include "rpl_utility.h"
 #include "rpl_rli.h"
 
