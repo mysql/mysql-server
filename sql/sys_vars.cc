@@ -34,7 +34,7 @@
 
 #include "events.h"
 #include <thr_alarm.h>
-#include "slave.h"
+#include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "mysqld.h"
@@ -593,6 +593,9 @@ static Sys_var_dbug Sys_dbug(
        ON_CHECK(check_has_super));
 #endif
 
+static Sys_var_charptr Sys_server_uuid("server_uuid", "UUID of the server",
+       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
+       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 /**
   @todo
     When updating myisam_delay_key_write, we should do a 'flush tables'

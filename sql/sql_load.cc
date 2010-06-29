@@ -34,7 +34,7 @@
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <m_ctype.h>
 #include "rpl_mi.h"
-#include "sql_repl.h"
+#include "rpl_slave.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 
