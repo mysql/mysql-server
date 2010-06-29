@@ -1636,6 +1636,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 void close_temporary_tables(THD *thd)
 {
+  DBUG_ENTER("close_temporary_tables");
   TABLE *table;
   TABLE *next= NULL;
   TABLE *prev_table;
@@ -1643,10 +1644,9 @@ void close_temporary_tables(THD *thd)
   bool was_quote_show= TRUE;
 
   if (!thd->temporary_tables)
-    return;
+    DBUG_VOID_RETURN;
 
-  if (!mysql_bin_log.is_open() || 
-      (thd->is_current_stmt_binlog_format_row() && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+  if (!mysql_bin_log.is_open())
   {
     TABLE *tmp_next;
     for (table= thd->temporary_tables; table; table= tmp_next)
@@ -1655,7 +1655,7 @@ void close_temporary_tables(THD *thd)
       close_temporary(table, 1, 1);
     }
     thd->temporary_tables= 0;
-    return;
+    DBUG_VOID_RETURN;
   }
 
   /* Better add "if exists", in case a RESET MASTER has been done */
@@ -1771,6 +1771,7 @@ void close_temporary_tables(THD *thd)
   if (!was_quote_show)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
+  DBUG_VOID_RETURN;
 }
 
 /*
