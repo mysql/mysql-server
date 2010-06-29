@@ -266,6 +266,49 @@ row_mysql_read_blob_ref(
 }
 
 /**************************************************************//**
+Pad a column with spaces. */
+UNIV_INTERN
+void
+row_mysql_pad_col(
+/*==============*/
+	ulint	mbminlen,	/*!< in: minimum size of a character,
+				in bytes */
+	byte*	pad,		/*!< out: padded buffer */
+	ulint	len)		/*!< in: number of bytes to pad */
+{
+	const byte*	pad_end;
+
+	switch (UNIV_EXPECT(mbminlen, 1)) {
+	default:
+		ut_error;
+	case 1:
+		/* space=0x20 */
+		memset(pad, 0x20, len);
+		break;
+	case 2:
+		/* space=0x0020 */
+		pad_end = pad + len;
+		ut_a(!(len % 2));
+		do {
+			*pad++ = 0x00;
+			*pad++ = 0x20;
+		} while (pad < pad_end);
+		break;
+	case 4:
+		/* space=0x00000020 */
+		pad_end = pad + len;
+		ut_a(!(len % 4));
+		do {
+			*pad++ = 0x00;
+			*pad++ = 0x00;
+			*pad++ = 0x00;
+			*pad++ = 0x20;
+		} while (pad < pad_end);
+		break;
+	}
+}
+
+/**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.c.
@@ -357,12 +400,28 @@ row_mysql_store_col_in_innobase_format(
 			/* Remove trailing spaces from old style VARCHAR
 			columns. */
 
-			/* Handle UCS2 strings differently. */
+			/* Handle Unicode strings differently. */
 			ulint	mbminlen	= dtype_get_mbminlen(dtype);
 
 			ptr = mysql_data;
 
-			if (mbminlen == 2) {
+			switch (mbminlen) {
+			default:
+				ut_error;
+			case 4:
+				/* space=0x00000020 */
+				/* Trim "half-chars", just in case. */
+				col_len &= ~3;
+
+				while (col_len >= 4
+				       && ptr[col_len - 4] == 0x00
+				       && ptr[col_len - 3] == 0x00
+				       && ptr[col_len - 2] == 0x00
+				       && ptr[col_len - 1] == 0x20) {
+					col_len -= 4;
+				}
+				break;
+			case 2:
 				/* space=0x0020 */
 				/* Trim "half-chars", just in case. */
 				col_len &= ~1;
@@ -371,8 +430,8 @@ row_mysql_store_col_in_innobase_format(
 				       && ptr[col_len - 1] == 0x20) {
 					col_len -= 2;
 				}
-			} else {
-				ut_a(mbminlen == 1);
+				break;
+			case 1:
 				/* space=0x20 */
 				while (col_len > 0
 				       && ptr[col_len - 1] == 0x20) {

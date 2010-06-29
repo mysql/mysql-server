@@ -338,7 +338,7 @@ row_merge_buf_add(
 		if (ifield->prefix_len) {
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype,
-				col->mbminlen, col->mbmaxlen,
+				col->mbminmaxlen,
 				ifield->prefix_len,
 				len, dfield_get_data(field));
 			dfield_set_len(field, len);

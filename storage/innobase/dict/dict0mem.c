@@ -206,6 +206,37 @@ dict_mem_table_add_col(
 	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
 }
 
+
+/**********************************************************************//**
+This function populates a dict_col_t memory structure with
+supplied information. */
+UNIV_INTERN
+void
+dict_mem_fill_column_struct(
+/*========================*/
+	dict_col_t*	column,		/*!< out: column struct to be
+					filled */
+	ulint		col_pos,	/*!< in: column position */
+	ulint		mtype,		/*!< in: main data type */
+	ulint		prtype,		/*!< in: precise type */
+	ulint		col_len)	/*!< in: column length */
+{
+#ifndef UNIV_HOTBACKUP
+	ulint	mbminlen;
+	ulint	mbmaxlen;
+#endif /* !UNIV_HOTBACKUP */
+
+	column->ind = (unsigned int) col_pos;
+	column->ord_part = 0;
+	column->mtype = (unsigned int) mtype;
+	column->prtype = (unsigned int) prtype;
+	column->len = (unsigned int) col_len;
+#ifndef UNIV_HOTBACKUP
+        dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
+	dict_col_set_mbminmaxlen(column, mbminlen, mbmaxlen);
+#endif /* !UNIV_HOTBACKUP */
+}
+
 /**********************************************************************//**
 Creates an index memory object.
 @return	own: index object */
