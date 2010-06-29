@@ -1,5 +1,5 @@
-# Copyright (C) 2006 MySQL AB
-#
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -11,15 +11,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
-SUBDIRS      = mytap . mysys examples gunit
-
-EXTRA_DIST = unit.pl
-CLEANFILES = unit
-
-test:
-	perl unit.pl run .
-
-test-verbose:
-	HARNESS_VERBOSE=1 perl unit.pl run .
+ADD_CUSTOM_TARGET(
+  test-unit
+  COMMAND perl ${CMAKE_CURRENT_SOURCE_DIR}/unit.pl run .
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
