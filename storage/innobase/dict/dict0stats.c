@@ -174,8 +174,11 @@ dict_stats_table_check(
 
 	if (table == NULL || table->ibd_file_missing) {
 		/* no such table or missing tablespace */
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: table %s does not exist.\n",
+			req_schema->table_name);
 
-		return(FALSE);
+		goto err_exit;
 	}
 
 	if (table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
