@@ -414,7 +414,7 @@ row_sel_fetch_columns(
 							      field_no))) {
 
 				/* Copy an externally stored field to the
-				temporary heap */
+				temporary heap, if possible. */
 
 				heap = mem_heap_create(1);
 
@@ -423,6 +423,21 @@ row_sel_fetch_columns(
 					dict_table_zip_size(index->table),
 					field_no, &len, heap);
 
+				/* data == NULL means that the
+				externally stored field was not
+				written yet. This is only a valid
+				condition when the server crashed
+				after the time a record stub was
+				freshly inserted but before all its
+				columns were written. This record
+				should only be seen by
+				recv_recovery_rollback_active() or any
+				TRX_ISO_READ_UNCOMMITTED
+				transactions. The InnoDB SQL parser
+				(the sole caller of this function)
+				does not implement READ UNCOMMITTED,
+				and it is not involved during rollback. */
+				ut_a(data);
 				ut_a(len != UNIV_SQL_NULL);
 
 				needs_copy = TRUE;
@@ -924,6 +939,7 @@ row_sel_get_clust_rec(
 	when plan->clust_pcur was positioned.  The latch will not be
 	released until mtr_commit(mtr). */
 
+	ut_ad(!rec_get_deleted_flag(clust_rec, rec_offs_comp(offsets)));
 	row_sel_fetch_columns(index, clust_rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 	*out_rec = clust_rec;
@@ -1626,6 +1642,13 @@ skip_lock:
 				}
 
 				if (old_vers == NULL) {
+					/* The record does not exist
+					in our read view. Skip it, but
+					first attempt to determine
+					whether the index segment we
+					are searching through has been
+					exhausted. */
+
 					offsets = rec_get_offsets(
 						rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
@@ -2639,9 +2662,8 @@ Convert a row in the Innobase format to a row in the MySQL format.
 Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
-@return TRUE if success, FALSE if could not allocate memory for a BLOB
-(though we may also assert in that case) */
-static
+@return TRUE on success, FALSE if not all columns could be retrieved */
+static __attribute__((warn_unused_result))
 ibool
 row_sel_store_mysql_rec(
 /*====================*/
@@ -2664,6 +2686,7 @@ row_sel_store_mysql_rec(
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
 		mem_heap_free(prebuilt->blob_heap);
@@ -2710,6 +2733,26 @@ row_sel_store_mysql_rec(
 				rec, offsets,
 				dict_table_zip_size(prebuilt->table),
 				templ->rec_field_no, &len, heap);
+
+			if (UNIV_UNLIKELY(!data)) {
+				/* The externally stored field
+				was not written yet. This is
+				only a valid condition when
+				the server crashed after the
+				time a record stub was freshly
+				inserted but before all its
+				columns were written. This
+				record should only be seen by
+				recv_recovery_rollback_active()
+				or any TRX_ISO_READ_UNCOMMITTED
+				transactions. */
+
+				if (extern_field_heap) {
+					mem_heap_free(extern_field_heap);
+				}
+
+				return(FALSE);
+			}
 
 			ut_a(len != UNIV_SQL_NULL);
 		} else {
@@ -3128,9 +3171,10 @@ row_sel_pop_cached_row_for_mysql(
 }
 
 /********************************************************************//**
-Pushes a row for MySQL to the fetch cache. */
-UNIV_INLINE
-void
+Pushes a row for MySQL to the fetch cache.
+@return TRUE on success, FALSE if the record contains incomplete BLOBs */
+UNIV_INLINE __attribute__((warn_unused_result))
+ibool
 row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
@@ -3172,10 +3216,11 @@ row_sel_push_cache_row_for_mysql(
 				  prebuilt->fetch_cache[
 					  prebuilt->n_fetch_cached],
 				  prebuilt, rec, offsets))) {
-		ut_error;
+		return(FALSE);
 	}
 
 	prebuilt->n_fetch_cached++;
+	return(TRUE);
 }
 
 /*********************************************************************//**
@@ -3570,6 +3615,24 @@ row_search_for_mysql(
 
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
 							     rec, offsets)) {
+					/* Only fresh inserts at
+					server crash time may contain
+					incomplete externally stored
+					columns. Pretend that such
+					records do not exist. Such
+					records may only be accessed
+					at the READ UNCOMMITTED
+					isolation level or when
+					rolling back a recovered
+					transaction. Rollback happens
+					at a lower level, not here. */
+					ut_a(trx->isolation_level
+					     == TRX_ISO_READ_UNCOMMITTED);
+					/* TODO: assert that there is
+					an owner_trx with
+					owner_trx->id == DB_TRX_ID and
+					owner_trx->is_recovered */
+
 					err = DB_TOO_BIG_RECORD;
 
 					/* We let the main loop to do the
@@ -4349,9 +4412,20 @@ requires_clust_rec:
 		not cache rows because there the cursor is a scrollable
 		cursor. */
 
-		row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
-						 offsets);
-		if (prebuilt->n_fetch_cached == MYSQL_FETCH_CACHE_SIZE) {
+		if (!row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
+						      offsets)) {
+			/* Only fresh inserts at server crash time may contain
+			incomplete externally stored columns. Pretend that
+			such records do not exist. Such records may only be
+			accessed at the READ UNCOMMITTED isolation level or
+			when rolling back a recovered transaction. Rollback
+			happens at a lower level, not here. */
+			ut_a(trx->isolation_level == TRX_ISO_READ_UNCOMMITTED);
+			/* TODO: assert that there is an owner_trx
+			with owner_trx->id == DB_TRX_ID and
+			owner_trx->is_recovered */
+		} else if (prebuilt->n_fetch_cached
+			   == MYSQL_FETCH_CACHE_SIZE) {
 
 			goto got_row;
 		}
@@ -4367,9 +4441,20 @@ requires_clust_rec:
 		} else {
 			if (!row_sel_store_mysql_rec(buf, prebuilt,
 						     result_rec, offsets)) {
-				err = DB_TOO_BIG_RECORD;
-
-				goto lock_wait_or_error;
+				/* Only fresh inserts at server crash
+				time may contain incomplete externally
+				stored columns. Pretend that such
+				records do not exist. Such records may
+				only be accessed at the READ UNCOMMITTED
+				isolation level or when rolling back a
+				recovered transaction. Rollback happens
+				at a lower level, not here. */
+				ut_a(trx->isolation_level
+				     == TRX_ISO_READ_UNCOMMITTED);
+				/* TODO: assert that there is an owner_trx
+				with owner_trx->id == DB_TRX_ID and
+				owner_trx->is_recovered */
+				goto next_rec;
 			}
 		}
 
