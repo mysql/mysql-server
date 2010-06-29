@@ -1,4 +1,9 @@
 2010-06-29	The InnoDB Team
+	* row/row0row.c, row/row0undo.c, row/row0upd.c:
+	Fix Bug#54408 txn rollback after recovery: row0umod.c:673
+	dict_table_get_format(index->table)
+
+2010-06-29	The InnoDB Team
 
 	* btr/btr0cur.c, include/btr0cur.h,
 	include/row0mysql.h, row/row0merge.c, row/row0sel.c:
