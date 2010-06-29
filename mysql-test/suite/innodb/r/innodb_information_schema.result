@@ -63,4 +63,4 @@ RUNNING	4	0	0	7	1	0	REPEATABLE READ	1	1
 trx_isolation_level	trx_unique_checks	trx_foreign_key_checks
 SERIALIZABLE	0	0
 trx_state	trx_isolation_level	trx_last_foreign_key_error
-RUNNING	SERIALIZABLE	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`)
+RUNNING	REPEATABLE READ	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`)

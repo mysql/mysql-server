@@ -48,14 +48,12 @@ SET (SQL_SOURCE
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
                key.cc log.cc lock.cc
-               log_event.cc rpl_record.cc rpl_reporting.cc
-               log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
-               protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
-               slave.cc sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
+               protocol.cc records.cc repl_failsafe.cc set_var.cc 
+               sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
                sp_rcontext.cc spatial.cc sql_acl.cc sql_analyse.cc sql_base.cc 
                sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
@@ -63,19 +61,20 @@ SET (SQL_SOURCE
                sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc 
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
                debug_sync.cc debug_sync.h
-               sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 
+               sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
                sql_time.cc tztime.cc uniques.cc unireg.cc item_xmlfunc.cc 
-               rpl_tblmap.cc sql_binlog.cc event_scheduler.cc event_data_objects.cc
+               event_scheduler.cc event_data_objects.cc
                event_queue.cc event_db_repository.cc 
                sql_tablespace.cc events.cc ../sql-common/my_user.c 
-               partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
-               rpl_rli.cc rpl_mi.cc sql_servers.cc sql_audit.cc
+               partition_info.cc sql_locale.cc
+               sql_servers.cc sql_audit.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
-               sql_signal.cc rpl_handler.cc mdl.cc
-               transaction.cc sys_vars.cc
+               sql_signal.cc mdl.cc
+               sql_alloc_error_handler.cc
+               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -89,7 +88,21 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
- 
+SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
+		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
+		   sql_binlog.cc rpl_injector.cc)
+ADD_LIBRARY(binlog ${BINLOG_SOURCE})
+SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
+ADD_DEPENDENCIES(binlog GenError)
+ADD_LIBRARY(rpl ${RPL_SOURCE})
+SET (MASTER_SOURCE rpl_master.cc)
+ADD_DEPENDENCIES(rpl GenError)
+ADD_LIBRARY(master ${MASTER_SOURCE})
+ADD_DEPENDENCIES(master GenError)
+SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc)
+ADD_LIBRARY(slave ${SLAVE_SOURCE})
+ADD_DEPENDENCIES(slave GenError)
+
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
@@ -97,7 +110,7 @@ ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR})
+MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -131,7 +144,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql)
+TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
@@ -252,7 +265,7 @@ IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 # Avoid completely empty directories and install dummy file instead.
 SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
 FILE(WRITE ${DUMMY_FILE} "")
-INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test)
+INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)
@@ -280,7 +293,7 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     ALL
     DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . COMPONENT DataFiles
     PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
