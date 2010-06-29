@@ -162,8 +162,13 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Unknown column 'c7' in 't15' Error_code: 1054"),
  ("Slave: Can't DROP 'c7'.* 1091"),
  ("Slave: Key column 'c6'.* 1072"),
+ ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_UUID variable from master."),
+ ("init-command:'.*' failed with error:.*"),
  ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
  (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
+
+ /*It will print a warning if a new UUID of server is generated.*/
+ ("It might be a maiden lunch of the server, for there is no UUID existing.*"),
 
  /* Test case for Bug#31590 in order_by.test produces the following error */
  ("Out of sort memory; increase server sort buffer size"),
@@ -194,6 +199,7 @@ INSERT INTO global_suppressions VALUES
    Transient network failures that cause warnings on reconnect.
    BUG#47743 and BUG#47983.
  */
+ ("Slave I/O: Get master SERVER_UUID failed with error:.*"),
  ("Slave I/O: Get master SERVER_ID failed with error:.*"),
  ("Slave I/O: Get master clock failed with error:.*"),
  ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
