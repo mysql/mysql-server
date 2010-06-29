@@ -4730,7 +4730,7 @@ create_sp_error:
         my_error(ER_XAER_NOTA, MYF(0));
         break;
       }
-      thd->transaction.xid_state.xa_state=XA_ACTIVE;
+      thd->transaction.xid_state.xa_state= XA_ACTIVE;
       my_ok(thd);
       break;
     }
@@ -4750,16 +4750,16 @@ create_sp_error:
       my_error(ER_XAER_OUTSIDE, MYF(0));
       break;
     }
-    if (xid_cache_search(thd->lex->xid))
-    {
-      my_error(ER_XAER_DUPID, MYF(0));
-      break;
-    }
     DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
-    thd->transaction.xid_state.xa_state=XA_ACTIVE;
+    thd->transaction.xid_state.xa_state= XA_ACTIVE;
     thd->transaction.xid_state.rm_error= 0;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
-    xid_cache_insert(&thd->transaction.xid_state);
+    if (xid_cache_insert(&thd->transaction.xid_state))
+    {
+      thd->transaction.xid_state.xa_state= XA_NOTR;
+      thd->transaction.xid_state.xid.null();
+      break;
+    }
     thd->transaction.all.modified_non_trans_table= FALSE;
     thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -4813,6 +4813,16 @@ create_sp_error:
   case SQLCOM_XA_COMMIT:
     if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
     {
+      /*
+        xid_state.in_thd is always true beside of xa recovery
+        procedure. Note, that there is no race condition here
+        between xid_cache_search and xid_cache_delete, since we're always
+        deleting our own XID (thd->lex->xid == thd->transaction.xid_state.xid).
+        The only case when thd->lex->xid != thd->transaction.xid_state.xid
+        and xid_state->in_thd == 0 is in ha_recover() functionality,
+        which is called before starting client connections, and thus is
+        always single-threaded.
+      */
       XID_STATE *xs=xid_cache_search(thd->lex->xid);
       if (!xs || xs->in_thd)
         my_error(ER_XAER_NOTA, MYF(0));
