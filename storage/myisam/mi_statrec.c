@@ -273,7 +273,12 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
     DBUG_RETURN(error);
   }
 
-	/* Read record with cacheing */
+  /*
+    Read record with caching. If my_b_read() returns TRUE, less than the
+    requested bytes have been read. In this case rec_cache.error is
+    either -1 for a read error, or contains the number of bytes copied
+    into the buffer.
+  */
   error=my_b_read(&info->rec_cache,(uchar*) buf,share->base.reclength);
   if (info->s->base.pack_reclength != info->s->base.reclength && !error)
   {
