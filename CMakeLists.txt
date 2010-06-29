@@ -365,8 +365,16 @@ SET(CPACK_COMPONENT_SCRIPTS_DESCRIPTION "SQL and Perl scripts to control and mod
 SET(CPACK_COMPONENT_SCRIPTS_DEPENDS runtime)
 SET(CPACK_COMPONENT_SCRIPTS_GROUP "Server")
 SET(CPACK_COMPONENT_SCRIPTS_INSTALL_TYPES Normal Development)
-# TODO: Add test files
-# TODO: Add sql-bench
+SET(CPACK_COMPONENT_MYSQLTEST_DISPLAY_NAME "MariaDB test suite")
+SET(CPACK_COMPONENT_MYSQLTEST_DESCRIPTION "The MariaDB regression test suite.")
+SET(CPACK_COMPONENT_MYSQLTEST_DEPENDS runtime)
+SET(CPACK_COMPONENT_MYSQLTEST_GROUP "Testing")
+SET(CPACK_COMPONENT_MYSQLTEST_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_SQLBENCH_DISPLAY_NAME "SQL Bench")
+SET(CPACK_COMPONENT_SQLBENCH_DESCRIPTION "The MariaDB benchmark suite.")
+SET(CPACK_COMPONENT_SQLBENCH_DEPENDS runtime)
+SET(CPACK_COMPONENT_SQLBENCH_GROUP "Testing")
+SET(CPACK_COMPONENT_SQLBENCH_INSTALL_TYPES Normal Development)
 
 # Add files to the installer
 INSTALL(FILES COPYING EXCEPTIONS-CLIENT DESTINATION .)
@@ -406,6 +414,40 @@ FOREACH(ERRMSGFILE ${share_dirs})
   STRING(REPLACE "/errmsg.sys" "" DIRNAME ${DIRNAME})
   INSTALL(FILES ${ERRMSGFILE} DESTINATION share/${DIRNAME} COMPONENT runtime)
 ENDFOREACH(ERRMSGFILE ${share_dirs})
+
+# MTR files
+FILE(GLOB_RECURSE testfiles mysql-test/*)
+FOREACH(testfile ${testfiles})
+    FILE(RELATIVE_PATH dirname ${PROJECT_SOURCE_DIR} ${testfile})
+    GET_FILENAME_COMPONENT(dirname ${dirname} PATH)
+	GET_FILENAME_COMPONENT(filename ${testfile} NAME)
+	GET_FILENAME_COMPONENT(ext ${testfile} EXT)
+	SET(ok "yes")
+	IF (NOT "x_${ext}" STREQUAL "x_")
+		# Test if this is one of the extensions we don't want to install
+		STRING(TOLOWER ${ext} ext)
+		IF(${ext} STREQUAL ".dir" OR ${ext} STREQUAL ".vcproj" OR ${ext} STREQUAL ".user" OR ${ext} STREQUAL ".ilk"
+				OR ${ext} STREQUAL ".idb" OR ${ext} STREQUAL ".map" OR ${ext} STREQUAL ".gcov"
+				OR ${ext} STREQUAL ".supp" OR ${ext} STREQUAL ".am" OR ${ext} STREQUAL ".stress")
+			SET(ok "no")
+		ENDIF()
+	ENDIF(NOT "x_${ext}" STREQUAL "x_")
+	IF (${ok} STREQUAL "yes")
+		# Message("Dir: ${dirname}. File: ${filename}. Ext: ${ext}")
+		INSTALL(FILES ${testfile} DESTINATION ${dirname} COMPONENT mysqltest)
+	ENDIF(${ok} STREQUAL "yes")
+ENDFOREACH(testfile ${testfiles})
+
+# SQL Bench
+FILE(GLOB_RECURSE benchfiles sql-bench/*)
+FOREACH(testfile ${testfiles})
+    FILE(RELATIVE_PATH dirname ${PROJECT_SOURCE_DIR} ${testfile})
+    GET_FILENAME_COMPONENT(dirname ${dirname} PATH)
+	GET_FILENAME_COMPONENT(filename ${testfile} NAME)
+	IF(NOT ${dirname} STREQUAL "sql-bench" OR ${filename} STREQUAL "README")
+		INSTALL(FILES ${testfile} DESTINATION ${dirname} COMPONENT sqlbench)
+	ENDIF()
+ENDFOREACH(testfile ${testfiles})
 
 INCLUDE(InstallRequiredSystemLibraries)
 
