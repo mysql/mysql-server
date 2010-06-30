@@ -3619,11 +3619,8 @@ row_search_for_mysql(
 					ut_a(trx->isolation_level
 					     == TRX_ISO_READ_UNCOMMITTED);
 
-					err = DB_TOO_BIG_RECORD;
-
-					/* We let the main loop to do the
-					error handling */
-					goto shortcut_fails_too_big_rec;
+					/* Proceed as in case SEL_RETRY. */
+					break;
 				}
 
 				mtr_commit(&mtr);
@@ -3663,7 +3660,7 @@ release_search_latch_if_needed:
 			default:
 				ut_ad(0);
 			}
-shortcut_fails_too_big_rec:
+
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
 		}
