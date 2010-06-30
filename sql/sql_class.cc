@@ -493,7 +493,9 @@ THD::THD()
    rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   binlog_unsafe_warning_flags(0), binlog_table_maps(0),
+   binlog_unsafe_warning_flags(0),
+   stmt_accessed_table_flag(0),
+   binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -537,7 +539,7 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  is_slave_error= thread_specific_used= thread_temporary_used= FALSE;
+  is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
