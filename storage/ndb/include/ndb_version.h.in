@@ -428,4 +428,44 @@ ndb_check_hb_order_version(Uint32 x)
   }
 }
 
+#define NDBD_SYNCH_SP_70 NDB_MAKE_VERSION(7,0,17)
+#define NDBD_SYNCH_SP_71 NDB_MAKE_VERSION(7,1,6)
+
+static
+inline
+int
+ndb_wait_sp(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_SYNCH_SP_70;
+    }
+    return x >= NDBD_SYNCH_SP_71;
+  }
+}
+
+#define NDBD_DIH_GET_TABINFO_70 NDB_MAKE_VERSION(7,0,17)
+#define NDBD_DIH_GET_TABINFO_71 NDB_MAKE_VERSION(7,1,6)
+
+static
+inline
+int
+ndb_dih_get_tabinfo(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_DIH_GET_TABINFO_70;
+    }
+    return x >= NDBD_DIH_GET_TABINFO_71;
+  }
+}
+
 #endif

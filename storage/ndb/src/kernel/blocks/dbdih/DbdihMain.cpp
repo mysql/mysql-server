@@ -77,6 +77,8 @@
 #include <signaldata/CreateNodegroupImpl.hpp>
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/DropNodegroupImpl.hpp>
+#include <signaldata/DihGetTabInfo.hpp>
+#include <SectionReader.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -661,6 +663,22 @@ void Dbdih::execCONTINUEB(Signal* signal)
     TakeOverRecordPtr takeOverPtr;
     c_takeOverPool.getPtr(takeOverPtr, signal->theData[1]);
     nr_start_logging(signal, takeOverPtr);
+    return;
+  }
+  case DihContinueB::ZGET_TABINFO:
+  {
+    jam();
+    getTabInfo(signal);
+    return;
+  }
+  case DihContinueB::ZGET_TABINFO_SEND:
+  {
+    jam();
+    TabRecordPtr tabPtr;
+    jam();
+    tabPtr.i = signal->theData[1];
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+    getTabInfo_send(signal, tabPtr);
     return;
   }
   }
@@ -1495,14 +1513,37 @@ void Dbdih::execSTTOR(Signal* signal)
 {
   jamEntry();
 
+  Callback c = { safe_cast(&Dbdih::sendSTTORRY), 0 };
+  m_sendSTTORRY = c;
+
+  switch(signal->theData[1]){
+  case 1:
+    createMutexes(signal, 0);
+    return;
+  case 2:
+    break;
+  case 3:
+    signal->theData[0] = reference();
+    sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
+    return;
+  }
+
+  sendSTTORRY(signal);
+}//Dbdih::execSTTOR()
+
+void
+Dbdih::sendSTTORRY(Signal* signal, Uint32 senderData, Uint32 retVal)
+{
   signal->theData[0] = 0;
   signal->theData[1] = 0;
   signal->theData[2] = 0;
   signal->theData[3] = 1;   // Next start phase
-  signal->theData[4] = 255; // Next start phase
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  signal->theData[4] = 2;   // Next start phase
+  signal->theData[5] = 3;
+  signal->theData[6] = 255; // Next start phase
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
   return;
-}//Dbdih::execSTTOR()
+}
 
 void Dbdih::initialStartCompletedLab(Signal* signal) 
 {
@@ -1577,14 +1618,29 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     // to continue the system restart.
     // The permission is given by the master node in the alive set.  
     /*-----------------------------------------------------------------------*/
-    createMutexes(signal, 0);
     if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
     {
       jam();
       c_set_initial_start_flag = TRUE; // In sysfile...
     }
-    break;
-    
+
+    if (cstarttype == NodeState::ST_INITIAL_START) {
+      jam();
+      // setInitialActiveStatus is moved into makeNodeGroups
+    } else if (cstarttype == NodeState::ST_SYSTEM_RESTART) {
+      jam();
+      /*empty*/;
+    } else if ((cstarttype == NodeState::ST_NODE_RESTART) ||
+               (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)) {
+      jam();
+      nodeRestartPh2Lab(signal);
+      return;
+    } else {
+      ndbrequire(false);
+    }//if
+    ndbsttorry10Lab(signal, __LINE__);
+    return;
+
   case ZNDB_SPH3:
     jam();
     /*-----------------------------------------------------------------------*/
@@ -1770,9 +1826,8 @@ Dbdih::createMutexes(Signal * signal, Uint32 count){
     return;
   }
   }
-  
-  signal->theData[0] = reference();
-  sendSignal(cntrlblockref, GSN_READ_NODESREQ, signal, 1, JBB);
+
+  execute(signal, m_sendSTTORRY, 0);
 }
 
 void
@@ -1874,26 +1929,6 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
 
   ndbrequire(isMaster());
   copyGciLab(signal, CopyGCIReq::RESTART); // We have already read the file!
-
-  /**
-   * Keep bitmap of nodes that can be restored...
-   *   and nodes that need take-over
-   *   
-   */
-  m_sr_nodes.clear();
-  m_to_nodes.clear();
-
-  // Start with assumption that all can restore
-  {
-    NodeRecordPtr specNodePtr;
-    specNodePtr.i = cfirstAliveNode;
-    do {
-      jam();
-      m_sr_nodes.set(specNodePtr.i);
-      ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);            
-      specNodePtr.i = specNodePtr.p->nextNode;
-    } while (specNodePtr.i != RNIL);
-  }
 }//Dbdih::ndbStartReqLab()
 
 void Dbdih::execREAD_NODESCONF(Signal* signal) 
@@ -1984,25 +2019,28 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     makeNodeGroups(nodeArray);
   }//if
   ndbrequire(checkNodeAlive(cmasterNodeId));
-  if (cstarttype == NodeState::ST_INITIAL_START) {
-    jam();
-    // setInitialActiveStatus is moved into makeNodeGroups
-  } else if (cstarttype == NodeState::ST_SYSTEM_RESTART) {
-    jam();
-    /*empty*/;
-  } else if ((cstarttype == NodeState::ST_NODE_RESTART) || 
-             (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)) {
-    jam();
-    nodeRestartPh2Lab(signal);
-    return;
-  } else {
-    ndbrequire(false);
-  }//if
-  /**------------------------------------------------------------------------
-   * ESTABLISH CONNECTIONS WITH THE OTHER DIH BLOCKS AND INITIALISE THIS 
-   * NODE-LIST THAT HANDLES CONNECTION WITH OTHER DIH BLOCKS. 
-   *-------------------------------------------------------------------------*/
-  ndbsttorry10Lab(signal, __LINE__);
+
+  /**
+   * Keep bitmap of nodes that can be restored...
+   *   and nodes that need take-over
+   *
+   */
+  m_sr_nodes.clear();
+  m_to_nodes.clear();
+
+  // Start with assumption that all can restore
+  {
+    NodeRecordPtr specNodePtr;
+    specNodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      m_sr_nodes.set(specNodePtr.i);
+      ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
+      specNodePtr.i = specNodePtr.p->nextNode;
+    } while (specNodePtr.i != RNIL);
+  }
+
+  execute(signal, m_sendSTTORRY, 0);
 }//Dbdih::execREAD_NODESCONF()
 
 /*---------------------------------------------------------------------------*/
@@ -6121,19 +6159,17 @@ void Dbdih::removeNodeFromTable(Signal* signal,
         }
       }
     }
-    if (!found)
-    {
-      jam();
-      /**
-       * Run updateNodeInfo to remove any dead nodes from list of activeNodes
-       *  see bug#15587
-       */
-      updateNodeInfo(fragPtr);
-    }
+
+    /**
+     * Run updateNodeInfo to remove any dead nodes from list of activeNodes
+     *  see bug#15587
+     */
+    updateNodeInfo(fragPtr);
     noOfRemainingLcpReplicas += fragPtr.p->noLcpReplicas;
   }
   
-  if(noOfRemovedReplicas == 0){
+  if (noOfRemovedReplicas == 0)
+  {
     jam();
     /**
      * The table had no replica on the failed node
@@ -10891,6 +10927,238 @@ void Dbdih::closingTableSrLab(Signal* signal, FileRecordPtr filePtr)
 }//Dbdih::closingTableSrLab()
 
 void
+Dbdih::execDIH_GET_TABINFO_REQ(Signal* signal)
+{
+  jamEntry();
+
+  DihGetTabInfoReq req = * (DihGetTabInfoReq*)signal->getDataPtr();
+
+  Uint32 err = 0;
+  do
+  {
+    TabRecordPtr tabPtr;
+    tabPtr.i = req.tableId;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+    {
+      jam();
+      err = DihGetTabInfoRef::TableNotDefined;
+      break;
+    }
+
+    if (cfirstconnect == RNIL)
+    {
+      jam();
+      err = DihGetTabInfoRef::OutOfConnectionRecords;
+      break;
+    }
+
+    if (tabPtr.p->connectrec != RNIL)
+    {
+      jam();
+
+      ConnectRecordPtr connectPtr;
+      connectPtr.i = tabPtr.p->connectrec;
+      ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+      if (connectPtr.p->connectState != ConnectRecord::GET_TABINFO)
+      {
+        jam();
+        err = DihGetTabInfoRef::TableBusy;
+        break;
+      }
+    }
+
+    ConnectRecordPtr connectPtr;
+    connectPtr.i = cfirstconnect;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    cfirstconnect = connectPtr.p->nextPool;
+
+    connectPtr.p->nextPool = tabPtr.p->connectrec;
+    tabPtr.p->connectrec = connectPtr.i;
+
+    connectPtr.p->m_get_tabinfo.m_requestInfo = req.requestInfo;
+    connectPtr.p->userpointer = req.senderData;
+    connectPtr.p->userblockref = req.senderRef;
+    connectPtr.p->connectState = ConnectRecord::GET_TABINFO;
+    connectPtr.p->table = tabPtr.i;
+
+    if (connectPtr.p->nextPool == RNIL)
+    {
+      jam();
+
+      /**
+       * we're the first...start packing...
+       */
+      signal->theData[0] = DihContinueB::ZGET_TABINFO;
+      signal->theData[1] = tabPtr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    }
+
+    return;
+  } while (0);
+
+  DihGetTabInfoRef * ref = (DihGetTabInfoRef*)signal->getDataPtrSend();
+  ref->senderData = req.senderData;
+  ref->senderRef = reference();
+  ref->errorCode = err;
+  sendSignal(req.senderRef, GSN_DIH_GET_TABINFO_REF, signal,
+             DihGetTabInfoRef::SignalLength, JBB);
+}
+
+void
+Dbdih::getTabInfo(Signal* signal)
+{
+  TabRecordPtr tabPtr;
+  tabPtr.i = signal->theData[1];
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  if (tabPtr.p->tabCopyStatus != TabRecord::CS_IDLE)
+  {
+    jam();
+    signal->theData[0] = DihContinueB::ZGET_TABINFO;
+    signal->theData[1] = tabPtr.i;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB,
+                        signal, 100, signal->length());
+    return;
+  }
+
+  tabPtr.p->tabCopyStatus  = TabRecord::CS_GET_TABINFO;
+
+  signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
+  signal->theData[1] = tabPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+}
+
+int
+Dbdih::getTabInfo_copyTableToSection(SegmentedSectionPtr & ptr,
+                                     CopyTableNode ctn)
+{
+  PageRecordPtr pagePtr;
+  pagePtr.i = ctn.ctnTabPtr.p->pageRef[0];
+  ptrCheckGuard(pagePtr, cpageFileSize, pageRecord);
+
+  while (ctn.noOfWords > 2048)
+  {
+    jam();
+    ndbrequire(import(ptr, pagePtr.p->word, 2048));
+    ctn.noOfWords -= 2048;
+
+    ctn.pageIndex++;
+    pagePtr.i = ctn.ctnTabPtr.p->pageRef[ctn.pageIndex];
+    ptrCheckGuard(pagePtr, cpageFileSize, pageRecord);
+  }
+
+  ndbrequire(import(ptr, pagePtr.p->word, ctn.noOfWords));
+  return 0;
+}
+
+int
+Dbdih::getTabInfo_copySectionToPages(TabRecordPtr tabPtr,
+                                     SegmentedSectionPtr ptr)
+{
+  jam();
+  Uint32 sz = ptr.sz;
+  SectionReader reader(ptr, getSectionSegmentPool());
+
+  while (sz)
+  {
+    jam();
+    PageRecordPtr pagePtr;
+    allocpage(pagePtr);
+    tabPtr.p->pageRef[tabPtr.p->noPages] = pagePtr.i;
+    tabPtr.p->noPages++;
+
+    Uint32 len = sz > 2048 ? 2048 : sz;
+    ndbrequire(reader.getWords(pagePtr.p->word, len));
+    sz -= len;
+  }
+  return 0;
+}
+
+void
+Dbdih::getTabInfo_send(Signal* signal,
+                       TabRecordPtr tabPtr)
+{
+  ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_GET_TABINFO);
+
+  ConnectRecordPtr connectPtr;
+  connectPtr.i = tabPtr.p->connectrec;
+
+  /**
+   * Done
+   */
+  if (connectPtr.i == RNIL)
+  {
+    jam();
+    tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
+    return;
+  }
+
+  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+  ndbrequire(connectPtr.p->connectState == ConnectRecord::GET_TABINFO);
+  ndbrequire(connectPtr.p->table == tabPtr.i);
+
+  /**
+   * Copy into segmented sections here...
+   * NOTE: A GenericSectionIterator would be nice inside kernel too
+   *  or having a pack-method that writes directly into SegmentedSection
+   */
+  PageRecordPtr pagePtr;
+  pagePtr.i = tabPtr.p->pageRef[0];
+  ptrCheckGuard(pagePtr, cpageFileSize, pageRecord);
+  Uint32 words = pagePtr.p->word[34];
+
+  CopyTableNode ctn;
+  ctn.ctnTabPtr = tabPtr;
+  ctn.pageIndex = 0;
+  ctn.wordIndex = 0;
+  ctn.noOfWords = words;
+
+  SegmentedSectionPtr ptr;
+  ndbrequire(getTabInfo_copyTableToSection(ptr, ctn) == 0);
+
+  Callback cb = { safe_cast(&Dbdih::getTabInfo_sendComplete), connectPtr.i };
+
+  SectionHandle handle(this, signal);
+  handle.m_ptr[0] = ptr;
+  handle.m_cnt = 1;
+
+  DihGetTabInfoConf* conf = (DihGetTabInfoConf*)signal->getDataPtrSend();
+  conf->senderData = connectPtr.p->userpointer;
+  conf->senderRef = reference();
+  sendFragmentedSignal(connectPtr.p->userblockref, GSN_DIH_GET_TABINFO_CONF, signal,
+                       DihGetTabInfoConf::SignalLength, JBB, &handle, cb);
+}
+
+void
+Dbdih::getTabInfo_sendComplete(Signal * signal,
+                               Uint32 senderData,
+                               Uint32 retVal)
+{
+  ndbrequire(retVal == 0);
+
+  ConnectRecordPtr connectPtr;
+  connectPtr.i = senderData;
+  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+  ndbrequire(connectPtr.p->connectState == ConnectRecord::GET_TABINFO);
+
+  TabRecordPtr tabPtr;
+  tabPtr.i = connectPtr.p->table;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  tabPtr.p->connectrec = connectPtr.p->nextPool;
+
+  signal->theData[0] = DihContinueB::ZGET_TABINFO_SEND;
+  signal->theData[1] = tabPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+
+  release_connect(connectPtr);
+}
+
+void
 Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 
   const Uint32 newestRestorableGCI = SYSFILE->newestRestorableGCI;
@@ -11421,6 +11689,12 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
       signal->theData[1] = wf->rwfTabPtr.i;
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
+    case TabRecord::CS_GET_TABINFO:
+      jam();
+      signal->theData[0] = DihContinueB::ZGET_TABINFO_SEND;
+      signal->theData[1] = wf->rwfTabPtr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      return;
     default:
       ndbrequire(false);
       return;
@@ -11765,7 +12039,8 @@ void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId)
   tabPtr.i = tableId;
   while (tabPtr.i < ctabFileSize) {
     ptrAss(tabPtr, tabRecord);
-    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) {
+    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
+    {
       /* -------------------------------------------------------------------- */
       // The table is defined. We will start by packing the table into pages.
       // The tabCopyStatus indicates to the CONTINUEB(ZPACK_TABLE_INTO_PAGES)
@@ -11774,6 +12049,14 @@ void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId)
       // starting node we will return to this subroutine and continue 
       // with the next table.
       /* -------------------------------------------------------------------- */
+      if (! (tabPtr.p->tabCopyStatus == TabRecord::CS_IDLE))
+      {
+        jam();
+        signal->theData[0] = DihContinueB::ZCOPY_NODE;
+        signal->theData[1] = tabPtr.i;
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+        return;
+      }
       ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_IDLE);
       tabPtr.p->tabCopyStatus = TabRecord::CS_COPY_NODE_STATE;
       signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
@@ -13598,12 +13881,6 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
   case TabRecord::US_REMOVE_NODE:
     jam();
     releaseTabPages(tabPtr.i);
-    for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
-      jam();
-      FragmentstorePtr fragPtr;
-      getFragstore(tabPtr.p, fragId, fragPtr);
-      updateNodeInfo(fragPtr);
-    }//for
     tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
     tabPtr.p->tabUpdateState = TabRecord::US_IDLE;
     if (tabPtr.p->tabLcpStatus == TabRecord::TLS_WRITING_TO_FILE) {
@@ -14304,10 +14581,12 @@ Dbdih::findBestLogNode(CreateReplicaRecord* createReplica,
   while (fblReplicaPtr.i != RNIL) {
     jam();
     ptrCheckGuard(fblReplicaPtr, creplicaFileSize, replicaRecord);
-    if (checkNodeAlive(fblReplicaPtr.p->procNode)) {
+    if (m_sr_nodes.get(fblReplicaPtr.p->procNode))
+    {
       jam();
       Uint32 fliStopGci = findLogInterval(fblReplicaPtr, startGci);
-      if (fliStopGci > fblStopGci) {
+      if (fliStopGci > fblStopGci)
+      {
         jam();
         fblStopGci = fliStopGci;
         fblFoundReplicaPtr = fblReplicaPtr;
@@ -14319,10 +14598,12 @@ Dbdih::findBestLogNode(CreateReplicaRecord* createReplica,
   while (fblReplicaPtr.i != RNIL) {
     jam();
     ptrCheckGuard(fblReplicaPtr, creplicaFileSize, replicaRecord);
-    if (checkNodeAlive(fblReplicaPtr.p->procNode)) {
+    if (m_sr_nodes.get(fblReplicaPtr.p->procNode))
+    {
       jam();
       Uint32 fliStopGci = findLogInterval(fblReplicaPtr, startGci);
-      if (fliStopGci > fblStopGci) {
+      if (fliStopGci > fblStopGci)
+      {
         jam();
         fblStopGci = fliStopGci;
         fblFoundReplicaPtr = fblReplicaPtr;
