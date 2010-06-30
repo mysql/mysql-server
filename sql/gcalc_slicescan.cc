@@ -1,3 +1,19 @@
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+
 #include "sql_string.h"
 
 #ifdef HAVE_SPATIAL
@@ -5,7 +21,7 @@
 #include "gcalc_slicescan.h"
 
 #ifdef GCALC_DBUG
-void gcalc_dbug_env_struct::start_line()
+void Gcalc_dbug_env_struct::start_line()
 {
   if (recfile)
   {
@@ -15,7 +31,7 @@ void gcalc_dbug_env_struct::start_line()
 }
 
 
-void gcalc_dbug_env_struct::start_ring()
+void Gcalc_dbug_env_struct::start_ring()
 {
   if (recfile)
   {
@@ -25,7 +41,7 @@ void gcalc_dbug_env_struct::start_ring()
 }
 
 
-void gcalc_dbug_env_struct::complete()
+void Gcalc_dbug_env_struct::complete()
 {
   if (recfile)
   {
@@ -35,7 +51,7 @@ void gcalc_dbug_env_struct::complete()
 }
 
 
-void gcalc_dbug_env_struct::add_point(double x, double y)
+void Gcalc_dbug_env_struct::add_point(double x, double y)
 {
   if (recfile)
   {
@@ -48,53 +64,53 @@ void gcalc_dbug_env_struct::add_point(double x, double y)
 }
 
 
-void gcalc_dbug_env_struct::start_newfile(const char *filename)
+void Gcalc_dbug_env_struct::start_newfile(const char *filename)
 {
   recfile= fopen(filename, "w");
 }
 
 
-void gcalc_dbug_env_struct::start_append(const char *filename)
+void Gcalc_dbug_env_struct::start_append(const char *filename)
 {
   recfile= fopen(filename, "a");
 }
 
 
-void gcalc_dbug_env_struct::stop_recording()
+void Gcalc_dbug_env_struct::stop_recording()
 {
   fclose(recfile);
   recfile= NULL;
 }
 
 
-void gcalc_dbug_env_struct::print(const char *ln)
+void Gcalc_dbug_env_struct::print(const char *ln)
 {
   if (recfile)
     fprintf(recfile, "%s", ln);
 }
 
 
-gcalc_dbug_env_struct::~gcalc_dbug_env_struct()
+Gcalc_dbug_env_struct::~Gcalc_dbug_env_struct()
 {
   if (recfile)
     fclose(recfile);
 }
 
 
-void gcalc_dbug_do_print(const char* fmt, ...)
+void Gcalc_dbug_do_print(const char* fmt, ...)
 {
   va_list args;
   char buff[1000];
   va_start(args, fmt);
   vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
-  gcalc_dbug_cur_env->print(buff);
+  Gcalc_dbug_cur_env->print(buff);
 }
 
 
-void gcalc_scan_iterator::point::dbug_print()
+void Gcalc_scan_iterator::point::dbug_print()
 {
-  const gcalc_scan_iterator::point *slice= this;
+  const Gcalc_scan_iterator::point *slice= this;
   for (; slice; slice= slice->get_next())
   {
     gcalc_dbug_do_print("(%d %.15g ", slice->thread, slice->x);
@@ -105,8 +121,8 @@ void gcalc_scan_iterator::point::dbug_print()
 }
 
 
-static gcalc_dbug_env_struct gcalc_dbug_usual_env;
-gcalc_dbug_env_struct *gcalc_dbug_cur_env= &gcalc_dbug_usual_env;
+static Gcalc_dbug_env_struct gcalc_dbug_usual_env;
+Gcalc_dbug_env_struct *gcalc_dbug_cur_env= &gcalc_dbug_usual_env;
 
 #endif /*GCLAC_DBUG*/
 
@@ -115,7 +131,7 @@ gcalc_dbug_env_struct *gcalc_dbug_cur_env= &gcalc_dbug_usual_env;
 
 typedef int (*sc_compare_func)(const void*, const void*);
 
-#define LS_LIST_ITEM gcalc_dyn_list::item
+#define LS_LIST_ITEM Gcalc_dyn_list::Item
 #define LS_COMPARE_FUNC_DECL sc_compare_func compare,
 #define LS_COMPARE_FUNC_CALL(list_el1, list_el2) (*compare)(list_el1, list_el2)
 #define LS_NEXT(A) (A)->next
@@ -127,7 +143,7 @@ typedef int (*sc_compare_func)(const void*, const void*);
 #include "plistsort.c"
 
 
-gcalc_dyn_list::gcalc_dyn_list(size_t blk_size, size_t sizeof_item):
+Gcalc_dyn_list::Gcalc_dyn_list(size_t blk_size, size_t sizeof_item):
   m_blk_size(blk_size - ALLOC_ROOT_MIN_BLOCK_SIZE),
   m_sizeof_item(ALIGN_SIZE(sizeof_item)),
   m_points_per_blk((m_blk_size - PH_DATA_OFFSET) / m_sizeof_item),
@@ -137,16 +153,16 @@ gcalc_dyn_list::gcalc_dyn_list(size_t blk_size, size_t sizeof_item):
 {}
 
 
-gcalc_dyn_list::item *gcalc_dyn_list::alloc_new_blk()
+Gcalc_dyn_list::Item *Gcalc_dyn_list::alloc_new_blk()
 {
   void *new_block= my_malloc(m_blk_size, MYF(MY_WME));
-  item *result, *pi_end, *cur_pi;
+  Item *result, *pi_end, *cur_pi;
 
   if (!new_block)
     return NULL;
   *m_blk_hook= new_block;
   m_blk_hook= (void**)new_block;
-  result= (item *)(((char *)new_block) + PH_DATA_OFFSET);
+  result= (Item *)(((char *)new_block) + PH_DATA_OFFSET);
   pi_end= ptr_add(result, m_points_per_blk - 1);
   cur_pi= ptr_add(result, 1);
   m_free= cur_pi;
@@ -169,7 +185,7 @@ static void free_blk_list(void *list)
 }
 
 
-void gcalc_dyn_list::cleanup()
+void Gcalc_dyn_list::cleanup()
 {
   *m_blk_hook= NULL;
   free_blk_list(m_first_blk);
@@ -179,21 +195,21 @@ void gcalc_dyn_list::cleanup()
 }
 
 
-gcalc_dyn_list::~gcalc_dyn_list()
+Gcalc_dyn_list::~Gcalc_dyn_list()
 {
   cleanup();
 }
 
 
-void gcalc_dyn_list::reset()
+void Gcalc_dyn_list::reset()
 {
-  item *pi_end, *cur_pi;
+  Item *pi_end, *cur_pi;
   *m_blk_hook= NULL;
   if (m_first_blk)
   {
     free_blk_list(*((void **)m_first_blk));
     m_blk_hook= (void**)m_first_blk;
-    cur_pi= (item *)(((char *)m_first_blk) + PH_DATA_OFFSET);
+    cur_pi= (Item *)(((char *)m_first_blk) + PH_DATA_OFFSET);
     pi_end= ptr_add(cur_pi, m_points_per_blk);
     m_free= cur_pi;
     while (cur_pi<pi_end)
@@ -203,7 +219,7 @@ void gcalc_dyn_list::reset()
 }
 
 
-static inline void trim_node(gcalc_heap::info *node, gcalc_heap::info *prev_node)
+static inline void trim_node(Gcalc_heap::Info *node, Gcalc_heap::Info *prev_node)
 {
   if (!node)
     return;
@@ -214,7 +230,7 @@ static inline void trim_node(gcalc_heap::info *node, gcalc_heap::info *prev_node
 }
 
 
-static double find_first_different(const gcalc_heap::info *p)
+static double find_first_different(const Gcalc_heap::Info *p)
 {
   if (p->left && (p->left->y != p->y))
     return p->left->y;
@@ -231,15 +247,15 @@ static double find_first_different(const gcalc_heap::info *p)
 
 static int compare_point_info(const void *e0, const void *e1)
 {
-  const gcalc_heap::info *i0= (const gcalc_heap::info *)e0;
-  const gcalc_heap::info *i1= (const gcalc_heap::info *)e1;
+  const Gcalc_heap::Info *i0= (const Gcalc_heap::Info *)e0;
+  const Gcalc_heap::Info *i1= (const Gcalc_heap::Info *)e1;
   if (i0->y != i1->y)
     return i0->y > i1->y;
   return find_first_different(i0) > find_first_different(i1);
 }
 
 
-void gcalc_heap::prepare_operation()
+void Gcalc_heap::prepare_operation()
 {
   DBUG_ASSERT(m_hook);
   *m_hook= NULL;
@@ -247,14 +263,14 @@ void gcalc_heap::prepare_operation()
   m_hook= NULL; /* just to check it's not called twice */
 
   /* TODO - move this to the 'normal_scan' loop */
-  for (info *cur= get_first(); cur; cur= cur->get_next())
+  for (Info *cur= get_first(); cur; cur= cur->get_next())
   {
     trim_node(cur->left, cur);
     trim_node(cur->right, cur);
   }
 #ifdef GCALC_DBUG
   {
-    info *cur= get_first();
+    Info *cur= get_first();
     GCALC_DBUG_PRINT(("shape\t  x\t  y\tleft\tright\tthis\n"));
     for (; cur; cur= cur->get_next())
     {
@@ -267,7 +283,7 @@ void gcalc_heap::prepare_operation()
 }
 
 
-void gcalc_heap::reset()
+void Gcalc_heap::reset()
 {
   if (!m_hook)
   {
@@ -281,10 +297,10 @@ void gcalc_heap::reset()
   m_n_points= 0;
 }
 
-int gcalc_shape_transporter::int_single_point(gcalc_shape_info info,
+int Gcalc_shape_transporter::int_single_point(gcalc_shape_info Info,
                                               double x, double y)
 {
-  gcalc_heap::info *point= m_heap->new_point_info(x, y, info);
+  Gcalc_heap::Info *point= m_heap->new_point_info(x, y, Info);
   if (!point)
     return 1;
   point->left= point->right= 0;
@@ -292,12 +308,12 @@ int gcalc_shape_transporter::int_single_point(gcalc_shape_info info,
 }
 
 
-int gcalc_shape_transporter::int_add_point(gcalc_shape_info info,
+int Gcalc_shape_transporter::int_add_point(gcalc_shape_info Info,
                                            double x, double y)
 {
-  gcalc_heap::info *point;
+  Gcalc_heap::Info *point;
   GCALC_DBUG_ADD_POINT(x, y);
-  if (!(point= m_heap->new_point_info(x, y, info)))
+  if (!(point= m_heap->new_point_info(x, y, Info)))
     return 1;
   if (m_first)
   {
@@ -311,7 +327,7 @@ int gcalc_shape_transporter::int_add_point(gcalc_shape_info info,
 }
 
 
-void gcalc_shape_transporter::int_complete()
+void Gcalc_shape_transporter::int_complete()
 {
   DBUG_ASSERT(m_shape_started == 1 || m_shape_started == 3);
   GCALC_DBUG_COMPLETE;
@@ -342,7 +358,7 @@ void gcalc_shape_transporter::int_complete()
 
 
 inline int GET_DX_DY(double *dxdy,
-                     const gcalc_heap::info *p0, const gcalc_heap::info *p1)
+                     const Gcalc_heap::Info *p0, const Gcalc_heap::Info *p1)
 {
   double dy= p1->y - p0->y;
   *dxdy= p1->x - p0->x;
@@ -351,18 +367,18 @@ inline int GET_DX_DY(double *dxdy,
          (*dxdy)<-DBL_MAX;
 }
 
-gcalc_scan_iterator::gcalc_scan_iterator(size_t blk_size) :
-  gcalc_dyn_list(blk_size,
+Gcalc_scan_iterator::Gcalc_scan_iterator(size_t blk_size) :
+  Gcalc_dyn_list(blk_size,
 	         (sizeof(point) > sizeof(intersection)) ?
 	          sizeof(point) : sizeof(intersection)),
   m_slice0(NULL), m_slice1(NULL)
 {}
 		  
-gcalc_scan_iterator::point
-  *gcalc_scan_iterator::new_slice(gcalc_scan_iterator::point *example)
+Gcalc_scan_iterator::point
+  *Gcalc_scan_iterator::new_slice(Gcalc_scan_iterator::point *example)
 {
   point *result= NULL;
-  gcalc_dyn_list::item **result_hook= (gcalc_dyn_list::item **)&result;
+  Gcalc_dyn_list::Item **result_hook= (Gcalc_dyn_list::Item **)&result;
   while (example)
   {
     *result_hook= new_slice_point();
@@ -374,7 +390,7 @@ gcalc_scan_iterator::point
 }
 
 
-void gcalc_scan_iterator::init(gcalc_heap *points)
+void Gcalc_scan_iterator::init(Gcalc_heap *points)
 {
   DBUG_ASSERT(points->ready());
   DBUG_ASSERT(!m_slice0 && !m_slice1);
@@ -390,18 +406,18 @@ void gcalc_scan_iterator::init(gcalc_heap *points)
   m_bottom_points_count= 0;
 }
 
-void gcalc_scan_iterator::reset()
+void Gcalc_scan_iterator::reset()
 {
   if (m_slice0)
     free_list(m_slice0);
   if (m_slice1)
     free_list(m_slice1);
   m_slice0= m_slice1= NULL;
-  gcalc_dyn_list::reset();
+  Gcalc_dyn_list::reset();
 }
 
-static bool slice_first_equal_x(const gcalc_scan_iterator::point *p0,
-				const gcalc_scan_iterator::point *p1)
+static bool slice_first_equal_x(const Gcalc_scan_iterator::point *p0,
+				const Gcalc_scan_iterator::point *p1)
 {
   if (p0->horiz_dir == p1->horiz_dir)
     return p0->dx_dy <= p1->dx_dy;
@@ -411,8 +427,8 @@ static bool slice_first_equal_x(const gcalc_scan_iterator::point *p0,
 }
 
 
-static inline bool slice_first(const gcalc_scan_iterator::point *p0,
-			       const gcalc_scan_iterator::point *p1)
+static inline bool slice_first(const Gcalc_scan_iterator::point *p0,
+			       const Gcalc_scan_iterator::point *p1)
 {
   if (p0->x != p1->x)
     return p0->x < p1->x;
@@ -420,10 +436,10 @@ static inline bool slice_first(const gcalc_scan_iterator::point *p0,
 }
 
 
-int gcalc_scan_iterator::insert_top_point()
+int Gcalc_scan_iterator::insert_top_point()
 {
   point *sp= m_slice1;
-  gcalc_dyn_list::item **prev_hook= (gcalc_dyn_list::item **)&m_slice1;
+  Gcalc_dyn_list::Item **prev_hook= (Gcalc_dyn_list::Item **)&m_slice1;
   point *sp1;
   point *sp0= new_slice_point();
 
@@ -497,8 +513,8 @@ enum
 };
 
 
-static int intersection_found(const gcalc_scan_iterator::point *sp0,
-			      const gcalc_scan_iterator::point *sp1,
+static int intersection_found(const Gcalc_scan_iterator::point *sp0,
+			      const Gcalc_scan_iterator::point *sp1,
 			      unsigned int bottom_points_count)
 {
   if (sp1->x < sp0->x)
@@ -510,7 +526,7 @@ static int intersection_found(const gcalc_scan_iterator::point *sp0,
 }
 
 
-int gcalc_scan_iterator::normal_scan()
+int Gcalc_scan_iterator::normal_scan()
 {
   if (m_next_is_top_point)
     if (insert_top_point())
@@ -530,7 +546,7 @@ int gcalc_scan_iterator::normal_scan()
     return 0;
   }
   
-  gcalc_heap::info *cur_pi= m_cur_pi;
+  Gcalc_heap::Info *cur_pi= m_cur_pi;
   m_y1= coord_to_float(cur_pi->y);
   m_h= m_y1 - m_y0;
 
@@ -612,8 +628,8 @@ int gcalc_scan_iterator::normal_scan()
 }
 
 
-int gcalc_scan_iterator::add_intersection(const point *a, const point *b,
-				   int isc_kind, gcalc_dyn_list::item ***p_hook)
+int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
+				   int isc_kind, Gcalc_dyn_list::Item ***p_hook)
 {
   intersection *isc= new_intersection();
 
@@ -648,10 +664,10 @@ int gcalc_scan_iterator::add_intersection(const point *a, const point *b,
 }
 
 
-int gcalc_scan_iterator::find_intersections()
+int Gcalc_scan_iterator::find_intersections()
 {
   point *sp1= m_slice1;
-  gcalc_dyn_list::item **hook;
+  Gcalc_dyn_list::Item **hook;
 
   m_n_intersections= 0;
   {
@@ -666,7 +682,7 @@ int gcalc_scan_iterator::find_intersections()
     }
   }
 
-  hook= (gcalc_dyn_list::item **)&m_intersections;
+  hook= (Gcalc_dyn_list::Item **)&m_intersections;
   bool intersections_found;
 
   point *last_possible_isc= NULL;
@@ -707,20 +723,20 @@ int gcalc_scan_iterator::find_intersections()
 
 static int compare_intersections(const void *e0, const void *e1)
 {
-  gcalc_scan_iterator::intersection *i0= (gcalc_scan_iterator::intersection *)e0;
-  gcalc_scan_iterator::intersection *i1= (gcalc_scan_iterator::intersection *)e1;
+  Gcalc_scan_iterator::intersection *i0= (Gcalc_scan_iterator::intersection *)e0;
+  Gcalc_scan_iterator::intersection *i1= (Gcalc_scan_iterator::intersection *)e1;
   return i0->y > i1->y;
 }
 
 
-inline void gcalc_scan_iterator::sort_intersections()
+inline void Gcalc_scan_iterator::sort_intersections()
 {
   m_intersections= (intersection *)sort_list(compare_intersections,
                                              m_intersections,m_n_intersections);
 }
 
 
-int gcalc_scan_iterator::handle_intersections()
+int Gcalc_scan_iterator::handle_intersections()
 {
   DBUG_ASSERT(m_slice1->next);
 
@@ -738,7 +754,7 @@ int gcalc_scan_iterator::handle_intersections()
 }
 
 
-void gcalc_scan_iterator::pop_suitable_intersection()
+void Gcalc_scan_iterator::pop_suitable_intersection()
 {
   intersection *prev_i= m_cur_intersection;
   intersection *cur_i= prev_i->get_next();
@@ -760,7 +776,7 @@ void gcalc_scan_iterator::pop_suitable_intersection()
 	}
 	else
 	{
-          gcalc_dyn_list::item *tmp= m_cur_intersection->next;
+          Gcalc_dyn_list::Item *tmp= m_cur_intersection->next;
 	  m_cur_intersection->next= cur_i->next;
 	  prev_i->next= m_cur_intersection;
 	  m_cur_intersection= cur_i;
@@ -774,7 +790,7 @@ void gcalc_scan_iterator::pop_suitable_intersection()
 }
 
 
-int gcalc_scan_iterator::intersection_scan()
+int Gcalc_scan_iterator::intersection_scan()
 {
   if (m_pre_intersection_hook) /*Skip the first point*/
   {

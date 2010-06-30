@@ -1,3 +1,19 @@
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+
 #include "my_global.h"
 
 #ifdef HAVE_SPATIAL
@@ -10,7 +26,7 @@
 #define float_to_coord(d) ((double) d)
 
 
-gcalc_shape_info gcalc_function::add_new_shape(uint32 shape_id,
+gcalc_shape_info Gcalc_function::add_new_shape(uint32 shape_id,
                                                shape_type shape_kind)
 {
   shapes_buffer.q_append((uint32) shape_kind);
@@ -18,28 +34,28 @@ gcalc_shape_info gcalc_function::add_new_shape(uint32 shape_id,
 }
 
 
-void gcalc_function::add_operation(op_type operation, uint32 n_operands)
+void Gcalc_function::add_operation(op_type operation, uint32 n_operands)
 {
   uint32 op_code= (uint32 ) operation + n_operands;
   function_buffer.q_append(op_code);
 }
 
 
-void gcalc_function::add_operands_to_op(uint32 operation_pos, uint32 n_operands)
+void Gcalc_function::add_operands_to_op(uint32 operation_pos, uint32 n_operands)
 {
   uint32 op_code= uint4korr(function_buffer.ptr() + operation_pos) + n_operands;
   function_buffer.write_at_position(operation_pos, op_code);
 }
 
 
-void gcalc_function::add_not_operation(op_type operation, uint32 n_operands)
+void Gcalc_function::add_not_operation(op_type operation, uint32 n_operands)
 {
   uint32 op_code= ((uint32) op_not | (uint32 ) operation) + n_operands;
   function_buffer.q_append(op_code);
 }
 
 
-int gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
+int Gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
 {
   if (reserve_shape_buffer(1) || reserve_op_buffer(1))
     return 1;
@@ -49,19 +65,19 @@ int gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
 }
 
 
-int gcalc_function::reserve_shape_buffer(uint n_shapes)
+int Gcalc_function::reserve_shape_buffer(uint n_shapes)
 {
   return shapes_buffer.reserve(n_shapes * 4, 512);
 }
 
 
-int gcalc_function::reserve_op_buffer(uint n_ops)
+int Gcalc_function::reserve_op_buffer(uint n_ops)
 {
   return function_buffer.reserve(n_ops * 4, 512);
 }
 
 
-int gcalc_function::alloc_states()
+int Gcalc_function::alloc_states()
 {
   if (function_buffer.reserve((n_shapes+1) * sizeof(int)))
     return 1;
@@ -70,7 +86,7 @@ int gcalc_function::alloc_states()
 }
 
 
-int gcalc_function::count_internal()
+int Gcalc_function::count_internal()
 {
   int c_op= uint4korr(cur_func);
   op_type next_func= (op_type) (c_op & op_any);
@@ -113,7 +129,7 @@ int gcalc_function::count_internal()
 }
 
 
-void gcalc_function::reset()
+void Gcalc_function::reset()
 {
   n_shapes= 0;
   shapes_buffer.length(0);
@@ -121,33 +137,33 @@ void gcalc_function::reset()
 }
 
 
-int gcalc_function::find_function(gcalc_scan_iterator &scan_it)
+int Gcalc_function::find_function(Gcalc_scan_iterator &scan_it)
 {
   while (scan_it.more_points())
   {
     if (scan_it.step())
       return -1;
-    gcalc_scan_events ev= scan_it.get_event();
-    const gcalc_scan_iterator::point *evpos= scan_it.get_event_position();
+    Gcalc_scan_events ev= scan_it.get_event();
+    const Gcalc_scan_iterator::point *evpos= scan_it.get_event_position();
     if (ev & (scev_point | scev_end | scev_two_ends))
       continue;
 
     clear_state();
-    for (gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
+    for (Gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
     {
       gcalc_shape_info si= pit.point()->get_shape();
-      if ((get_shape_kind(si) == gcalc_function::shape_polygon))
+      if ((get_shape_kind(si) == Gcalc_function::shape_polygon))
         invert_state(si);
     }
     invert_state(evpos->get_shape());
 
     if (ev == scev_intersection)
     {
-      const gcalc_scan_iterator::point *evnext= evpos->c_get_next();
+      const Gcalc_scan_iterator::point *evnext= evpos->c_get_next();
       if ((get_shape_kind(evpos->get_shape()) !=
-             gcalc_function::shape_polygon)             ||
+             Gcalc_function::shape_polygon)             ||
           (get_shape_kind(evnext->get_shape()) !=
-             gcalc_function::shape_polygon))
+             Gcalc_function::shape_polygon))
         invert_state(evnext->get_shape());
     }
 
@@ -158,85 +174,85 @@ int gcalc_function::find_function(gcalc_scan_iterator &scan_it)
 }
 
 
-int gcalc_operation_transporter::single_point(double x, double y)
+int Gcalc_operation_transporter::single_point(double x, double y)
 {
   gcalc_shape_info si;
-  return m_fn->single_shape_op(gcalc_function::shape_point, &si) ||
+  return m_fn->single_shape_op(Gcalc_function::shape_point, &si) ||
          int_single_point(si, x, y);
 }
 
 
-int gcalc_operation_transporter::start_line()
+int Gcalc_operation_transporter::start_line()
 {
   int_start_line();
-  return m_fn->single_shape_op(gcalc_function::shape_line, &m_si);
+  return m_fn->single_shape_op(Gcalc_function::shape_line, &m_si);
 }
 
 
-int gcalc_operation_transporter::complete_line()
+int Gcalc_operation_transporter::complete_line()
 {
   int_complete_line();
   return 0;
 }
 
 
-int gcalc_operation_transporter::start_poly()
+int Gcalc_operation_transporter::start_poly()
 {
   int_start_poly();
-  return m_fn->single_shape_op(gcalc_function::shape_polygon, &m_si);
+  return m_fn->single_shape_op(Gcalc_function::shape_polygon, &m_si);
 }
 
 
-int gcalc_operation_transporter::complete_poly()
+int Gcalc_operation_transporter::complete_poly()
 {
   int_complete_poly();
   return 0;
 }
 
 
-int gcalc_operation_transporter::start_ring()
+int Gcalc_operation_transporter::start_ring()
 {
   int_start_ring();
   return 0;
 }
 
 
-int gcalc_operation_transporter::complete_ring()
+int Gcalc_operation_transporter::complete_ring()
 {
   int_complete_ring();
   return 0;
 }
 
 
-int gcalc_operation_transporter::add_point(double x, double y)
+int Gcalc_operation_transporter::add_point(double x, double y)
 {
   return int_add_point(m_si, x, y);
 }
 
 
-int gcalc_operation_transporter::start_collection(int n_objects)
+int Gcalc_operation_transporter::start_collection(int n_objects)
 {
   if (m_fn->reserve_shape_buffer(n_objects) || m_fn->reserve_op_buffer(1))
         return 1;
-  m_fn->add_operation(gcalc_function::op_union, n_objects);
+  m_fn->add_operation(Gcalc_function::op_union, n_objects);
   return 0;
 }
 
 
-int gcalc_result_receiver::start_shape(gcalc_function::shape_type shape)
+int Gcalc_result_receiver::start_shape(Gcalc_function::shape_type shape)
 {
   if (buffer.reserve(4*2, 512))
     return 1;
   cur_shape= shape;
   shape_pos= buffer.length();
-  buffer.length(shape_pos + ((shape == gcalc_function::shape_point) ? 4:8));
+  buffer.length(shape_pos + ((shape == Gcalc_function::shape_point) ? 4:8));
   n_points= 0;
 
   return 0;
 }
 
 
-int gcalc_result_receiver::add_point(double x, double y)
+int Gcalc_result_receiver::add_point(double x, double y)
 {
   if (n_points && x == prev_x && y == prev_y)
   {
@@ -262,7 +278,7 @@ int gcalc_result_receiver::add_point(double x, double y)
 }
 
 
-int gcalc_result_receiver::complete_shape()
+int Gcalc_result_receiver::complete_shape()
 {
   if (n_points == 0)
   {
@@ -271,17 +287,17 @@ int gcalc_result_receiver::complete_shape()
   }
   if (n_points == 1)
   {
-    if (cur_shape != gcalc_function::shape_point)
+    if (cur_shape != Gcalc_function::shape_point)
     {
-      cur_shape= gcalc_function::shape_point;
+      cur_shape= Gcalc_function::shape_point;
       buffer.length(buffer.length()-4);
     }
   }
   else
   {
-    DBUG_ASSERT(cur_shape != gcalc_function::shape_point);
-    if ((cur_shape == gcalc_function::shape_polygon ||
-          cur_shape == gcalc_function::shape_hole) &&
+    DBUG_ASSERT(cur_shape != Gcalc_function::shape_point);
+    if ((cur_shape == Gcalc_function::shape_polygon ||
+          cur_shape == Gcalc_function::shape_hole) &&
         prev_x == first_x && prev_y == first_y)
     {
       n_points--;
@@ -303,10 +319,10 @@ do_complete:
 
   if (!n_shapes++)
   {
-    DBUG_ASSERT(cur_shape != gcalc_function::shape_hole);
+    DBUG_ASSERT(cur_shape != Gcalc_function::shape_hole);
     common_shapetype= cur_shape;
   }
-  else if (cur_shape == gcalc_function::shape_hole)
+  else if (cur_shape == Gcalc_function::shape_hole)
   {
     ++n_holes;
   }
@@ -318,21 +334,21 @@ do_complete:
 }
 
 
-int gcalc_result_receiver::single_point(double x, double y)
+int Gcalc_result_receiver::single_point(double x, double y)
 {
-  return start_shape(gcalc_function::shape_point) ||
+  return start_shape(Gcalc_function::shape_point) ||
          add_point(x, y) ||
          complete_shape();
 }
 
 
-int gcalc_result_receiver::done()
+int Gcalc_result_receiver::done()
 {
   return 0;
 }
 
 
-void gcalc_result_receiver::reset()
+void Gcalc_result_receiver::reset()
 {
   buffer.length(0);
   collection_result= FALSE;
@@ -340,7 +356,7 @@ void gcalc_result_receiver::reset()
 }
 
 
-int gcalc_result_receiver::get_result_typeid()
+int Gcalc_result_receiver::get_result_typeid()
 {
   if (!n_shapes)
     return 0;
@@ -349,12 +365,12 @@ int gcalc_result_receiver::get_result_typeid()
     return Geometry::wkb_geometrycollection;
   switch (common_shapetype)
   {
-    case gcalc_function::shape_polygon:
+    case Gcalc_function::shape_polygon:
       return (n_shapes - n_holes == 1) ?
               Geometry::wkb_polygon : Geometry::wkb_multipolygon;
-    case gcalc_function::shape_point:
+    case Gcalc_function::shape_point:
       return (n_shapes == 1) ? Geometry::wkb_point : Geometry::wkb_multipoint;
-    case gcalc_function::shape_line:
+    case Gcalc_function::shape_line:
       return (n_shapes == 1) ? Geometry::wkb_linestring :
                                Geometry::wkb_multilinestring;
     default:
@@ -364,7 +380,7 @@ int gcalc_result_receiver::get_result_typeid()
 }
 
 
-int gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_position,
+int Gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_position,
                                      uint32 *new_dest_position)
 {
   char *ptr;
@@ -388,14 +404,14 @@ int gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_positio
 }
 
 
-gcalc_operation_reducer::gcalc_operation_reducer(size_t blk_size) :
-  gcalc_dyn_list(blk_size, sizeof(res_point)),
-  m_res_hook((gcalc_dyn_list::item **)&m_result),
+Gcalc_operation_reducer::Gcalc_operation_reducer(size_t blk_size) :
+  Gcalc_dyn_list(blk_size, sizeof(res_point)),
+  m_res_hook((Gcalc_dyn_list::Item **)&m_result),
   m_first_active_thread(NULL)
 {}
 
 
-void gcalc_operation_reducer::init(gcalc_function *fn, modes mode)
+void Gcalc_operation_reducer::init(Gcalc_function *fn, modes mode)
 {
   m_fn= fn;
   m_mode= mode;
@@ -403,17 +419,17 @@ void gcalc_operation_reducer::init(gcalc_function *fn, modes mode)
 }
 
 
-gcalc_operation_reducer::
-gcalc_operation_reducer(gcalc_function *fn, modes mode, size_t blk_size) :
-  gcalc_dyn_list(blk_size, sizeof(res_point)),
-  m_res_hook((gcalc_dyn_list::item **)&m_result)
+Gcalc_operation_reducer::
+Gcalc_operation_reducer(Gcalc_function *fn, modes mode, size_t blk_size) :
+  Gcalc_dyn_list(blk_size, sizeof(res_point)),
+  m_res_hook((Gcalc_dyn_list::Item **)&m_result)
 {
   init(fn, mode);
 }
 
 
-inline int gcalc_operation_reducer::continue_range(active_thread *t,
-						const gcalc_heap::info *p)
+inline int Gcalc_operation_reducer::continue_range(active_thread *t,
+						const Gcalc_heap::Info *p)
 {
   DBUG_ASSERT(t->result_range);
   res_point *rp= add_res_point();
@@ -431,8 +447,8 @@ inline int gcalc_operation_reducer::continue_range(active_thread *t,
 }
 
 
-inline int gcalc_operation_reducer::continue_i_range(active_thread *t,
-						  const gcalc_heap::info *p,
+inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
+						  const Gcalc_heap::Info *p,
 						  double x, double y)
 {
   DBUG_ASSERT(t->result_range);
@@ -452,8 +468,8 @@ inline int gcalc_operation_reducer::continue_i_range(active_thread *t,
   return 0;
 }
 
-inline int gcalc_operation_reducer::start_range(active_thread *t,
-					     const gcalc_heap::info *p)
+inline int Gcalc_operation_reducer::start_range(active_thread *t,
+					     const Gcalc_heap::Info *p)
 {
   res_point *rp= add_res_point();
   if (!rp)
@@ -468,8 +484,8 @@ inline int gcalc_operation_reducer::start_range(active_thread *t,
   return 0;
 }
 
-inline int gcalc_operation_reducer::start_i_range(active_thread *t,
-					       const gcalc_heap::info *p,
+inline int Gcalc_operation_reducer::start_i_range(active_thread *t,
+					       const Gcalc_heap::Info *p,
 					       double x, double y)
 {
   res_point *rp= add_res_point();
@@ -487,8 +503,8 @@ inline int gcalc_operation_reducer::start_i_range(active_thread *t,
   return 0;
 }
 
-inline int gcalc_operation_reducer::end_range(active_thread *t,
-					   const gcalc_heap::info *p)
+inline int Gcalc_operation_reducer::end_range(active_thread *t,
+					   const Gcalc_heap::Info *p)
 {
   res_point *rp= add_res_point();
   if (!rp)
@@ -504,8 +520,8 @@ inline int gcalc_operation_reducer::end_range(active_thread *t,
   return 0;
 }
 
-inline int gcalc_operation_reducer::end_i_range(active_thread *t,
-					     const gcalc_heap::info *p,
+inline int Gcalc_operation_reducer::end_i_range(active_thread *t,
+					     const Gcalc_heap::Info *p,
 					     double x, double y)
 {
   res_point *rp= add_res_point();
@@ -524,8 +540,8 @@ inline int gcalc_operation_reducer::end_i_range(active_thread *t,
   return 0;
 }
 
-int gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
-				       const gcalc_heap::info *p,
+int Gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
+				       const Gcalc_heap::Info *p,
                                        const active_thread *prev_range)
 {
   res_point *rp0, *rp1;
@@ -554,9 +570,9 @@ int gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
   return 0;
 }
 
-int gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1,
-					 const gcalc_heap::info *p0,
-					 const gcalc_heap::info *p1,
+int Gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1,
+					 const Gcalc_heap::Info *p0,
+					 const Gcalc_heap::Info *p1,
 					 double x, double y,
                                          const active_thread *prev_range)
 {
@@ -590,8 +606,8 @@ int gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1
   return 0;
 }
 
-int gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
-				     const gcalc_heap::info *p)
+int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
+				     const Gcalc_heap::Info *p)
 {
   res_point *rp0, *rp1;
   DBUG_ASSERT(t1->result_range);
@@ -612,9 +628,9 @@ int gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
   return 0;
 }
 
-int gcalc_operation_reducer::end_i_couple(active_thread *t0, active_thread *t1,
-				       const gcalc_heap::info *p0,
-				       const gcalc_heap::info *p1,
+int Gcalc_operation_reducer::end_i_couple(active_thread *t0, active_thread *t1,
+				       const Gcalc_heap::Info *p0,
+				       const Gcalc_heap::Info *p1,
 				       double x, double y)
 {
   res_point *rp0, *rp1;
@@ -638,7 +654,7 @@ int gcalc_operation_reducer::end_i_couple(active_thread *t0, active_thread *t1,
   return 0;
 }
 
-int gcalc_operation_reducer::add_single_point(const gcalc_heap::info *p)
+int Gcalc_operation_reducer::add_single_point(const Gcalc_heap::Info *p)
 {
   res_point *rp= add_res_point();
   if (!rp)
@@ -653,7 +669,7 @@ int gcalc_operation_reducer::add_single_point(const gcalc_heap::info *p)
   return 0;
 }
 
-int gcalc_operation_reducer::add_i_single_point(const gcalc_heap::info *p,
+int Gcalc_operation_reducer::add_i_single_point(const Gcalc_heap::Info *p,
 					     double x, double y)
 {
   res_point *rp= add_res_point();
@@ -669,9 +685,9 @@ int gcalc_operation_reducer::add_i_single_point(const gcalc_heap::info *p,
   return 0;
 }
 
-int gcalc_operation_reducer::
+int Gcalc_operation_reducer::
 handle_lines_intersection(active_thread *t0, active_thread *t1,
-			  const gcalc_heap::info *p0, const gcalc_heap::info *p1,
+			  const Gcalc_heap::Info *p0, const Gcalc_heap::Info *p1,
 			  double x, double y)
 {
   m_fn->invert_state(p0->shape);
@@ -695,8 +711,8 @@ handle_lines_intersection(active_thread *t0, active_thread *t1,
   return 0;
 }
 
-inline int gcalc_operation_reducer::
-handle_line_polygon_intersection(active_thread *l, const gcalc_heap::info *pl,
+inline int Gcalc_operation_reducer::
+handle_line_polygon_intersection(active_thread *l, const Gcalc_heap::Info *pl,
 				 int line_state, int poly_state,
 				 double x, double y)
 {
@@ -706,20 +722,20 @@ handle_line_polygon_intersection(active_thread *l, const gcalc_heap::info *pl,
   return range_after ? start_i_range(l, pl, x, y) : end_i_range(l, pl, x, y);
 }
 
-static inline void switch_athreads(gcalc_operation_reducer::active_thread *t0,
-				   gcalc_operation_reducer::active_thread *t1,
-				   gcalc_dyn_list::item **hook)
+static inline void switch_athreads(Gcalc_operation_reducer::active_thread *t0,
+				   Gcalc_operation_reducer::active_thread *t1,
+				   Gcalc_dyn_list::Item **hook)
 {
   *hook= t1;
   t0->next= t1->next;
   t1->next= t0;
 }
 
-inline int gcalc_operation_reducer::
+inline int Gcalc_operation_reducer::
 handle_polygons_intersection(active_thread *t0, active_thread *t1,
-			     gcalc_dyn_list::item **t_hook,
-			     const gcalc_heap::info *p0,
-			     const gcalc_heap::info *p1,
+			     Gcalc_dyn_list::Item **t_hook,
+			     const Gcalc_heap::Info *p0,
+			     const Gcalc_heap::Info *p1,
 			     int prev_state, double x, double y,
                              const active_thread *prev_range)
 {
@@ -761,7 +777,7 @@ handle_polygons_intersection(active_thread *t0, active_thread *t1,
   }
 
   active_thread *thread_to_continue;
-  const gcalc_heap::info *way_to_go;
+  const Gcalc_heap::Info *way_to_go;
   if (prev_state == state_01)
   {
     thread_to_continue= t1;
@@ -775,11 +791,11 @@ handle_polygons_intersection(active_thread *t0, active_thread *t1,
   return continue_i_range(thread_to_continue, way_to_go, x, y);
 }
 
-int gcalc_operation_reducer::count_slice(gcalc_scan_iterator *si)
+int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
 {
-  gcalc_point_iterator pi(si);
+  Gcalc_point_iterator pi(si);
   active_thread *cur_t= m_first_active_thread;
-  gcalc_dyn_list::item **at_hook= (gcalc_dyn_list::item **)&m_first_active_thread;
+  Gcalc_dyn_list::Item **at_hook= (Gcalc_dyn_list::Item **)&m_first_active_thread;
   const active_thread *prev_range;
   int prev_state;
 
@@ -829,7 +845,7 @@ int gcalc_operation_reducer::count_slice(gcalc_scan_iterator *si)
   m_fn->clear_state();
   for (; pi.point() != si->get_event_position(); ++pi, cur_t= cur_t->get_next())
   {
-    if (m_fn->get_shape_kind(pi.get_shape()) == gcalc_function::shape_polygon)
+    if (m_fn->get_shape_kind(pi.get_shape()) == Gcalc_function::shape_polygon)
     {
       m_fn->invert_state(pi.get_shape());
       prev_state^= cur_t->result_range;
@@ -876,12 +892,12 @@ int gcalc_operation_reducer::count_slice(gcalc_scan_iterator *si)
   case scev_intersection:
   {
     active_thread *cur_t1= cur_t->get_next();
-    const gcalc_heap::info *p0, *p1;
+    const Gcalc_heap::Info *p0, *p1;
     p0= pi.get_pi();
     ++pi;
     p1= pi.get_pi();
-    bool line0= m_fn->get_shape_kind(p0->shape) == gcalc_function::shape_line;
-    bool line1= m_fn->get_shape_kind(p1->shape) == gcalc_function::shape_line;
+    bool line0= m_fn->get_shape_kind(p0->shape) == Gcalc_function::shape_line;
+    bool line1= m_fn->get_shape_kind(p1->shape) == Gcalc_function::shape_line;
 
     if (!line0 && !line1) /* two polygons*/
     {
@@ -902,7 +918,7 @@ int gcalc_operation_reducer::count_slice(gcalc_scan_iterator *si)
     {
       int poly_state;
       int line_state;
-      const gcalc_heap::info *line;
+      const Gcalc_heap::Info *line;
       active_thread *line_t;
       m_fn->invert_state(p0->shape);
       if (line0)
@@ -943,9 +959,9 @@ int gcalc_operation_reducer::count_slice(gcalc_scan_iterator *si)
   return 0;
 }
 
-int gcalc_operation_reducer::count_all(gcalc_heap *hp)
+int Gcalc_operation_reducer::count_all(Gcalc_heap *hp)
 {
-  gcalc_scan_iterator si;
+  Gcalc_scan_iterator si;
   si.init(hp);
   while (si.more_points())
   {
@@ -957,7 +973,7 @@ int gcalc_operation_reducer::count_all(gcalc_heap *hp)
   return 0;
 }
 
-inline void gcalc_operation_reducer::free_result(res_point *res)
+inline void Gcalc_operation_reducer::free_result(res_point *res)
 {
   if ((*res->prev_hook= res->next))
   {
@@ -967,8 +983,8 @@ inline void gcalc_operation_reducer::free_result(res_point *res)
 }
 
 
-inline int gcalc_operation_reducer::get_single_result(res_point *res,
-						   gcalc_result_receiver *storage)
+inline int Gcalc_operation_reducer::get_single_result(res_point *res,
+						   Gcalc_result_receiver *storage)
 {
   if (res->intersection_point)
   {
@@ -984,8 +1000,8 @@ inline int gcalc_operation_reducer::get_single_result(res_point *res,
 }
 
 
-int gcalc_operation_reducer::get_result_thread(res_point *cur,
-                                               gcalc_result_receiver *storage,
+int Gcalc_operation_reducer::get_result_thread(res_point *cur,
+                                               Gcalc_result_receiver *storage,
                                                int move_upward)
 {
   res_point *next;
@@ -1031,8 +1047,8 @@ int gcalc_operation_reducer::get_result_thread(res_point *cur,
 }
 
 
-int gcalc_operation_reducer::get_polygon_result(res_point *cur,
-                                                gcalc_result_receiver *storage)
+int Gcalc_operation_reducer::get_polygon_result(res_point *cur,
+                                                Gcalc_result_receiver *storage)
 {
   res_point *glue= cur->glue;
   glue->up->down= NULL;
@@ -1042,8 +1058,8 @@ int gcalc_operation_reducer::get_polygon_result(res_point *cur,
 }
 
 
-int gcalc_operation_reducer::get_line_result(res_point *cur,
-                                             gcalc_result_receiver *storage)
+int Gcalc_operation_reducer::get_line_result(res_point *cur,
+                                             Gcalc_result_receiver *storage)
 {
   res_point *next;
   int move_upward= 1;
@@ -1069,7 +1085,7 @@ int gcalc_operation_reducer::get_line_result(res_point *cur,
 }
 
 
-int gcalc_operation_reducer::get_result(gcalc_result_receiver *storage)
+int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 {
   GCALC_DBUG_PRINT(("get_result\n"));
   *m_res_hook= NULL;
@@ -1082,8 +1098,8 @@ int gcalc_operation_reducer::get_result(gcalc_result_receiver *storage)
 	return 1;
       continue;
     }
-    gcalc_function::shape_type shape= m_fn->get_shape_kind(m_result->pi->shape);
-    if (shape == gcalc_function::shape_polygon)
+    Gcalc_function::shape_type shape= m_fn->get_shape_kind(m_result->pi->shape);
+    if (shape == Gcalc_function::shape_polygon)
     {
       GCALC_DBUG_PRINT(("Polygon result \n"));
       if (m_result->outer_poly)
@@ -1093,7 +1109,7 @@ int gcalc_operation_reducer::get_result(gcalc_result_receiver *storage)
         insert_position= &m_result->outer_poly->first_poly_node->poly_position;
         DBUG_ASSERT(*insert_position);
         hole_position= storage->position();
-        storage->start_shape(gcalc_function::shape_hole);
+        storage->start_shape(Gcalc_function::shape_hole);
         if (get_polygon_result(m_result, storage) ||
             storage->move_hole(*insert_position, hole_position,
                                insert_position))
@@ -1103,7 +1119,7 @@ int gcalc_operation_reducer::get_result(gcalc_result_receiver *storage)
       {
         uint32 *poly_position= &m_result->poly_position;
         GCALC_DBUG_PRINT(("\tNo outer poly \n"));
-        storage->start_shape(gcalc_function::shape_polygon);
+        storage->start_shape(Gcalc_function::shape_polygon);
         if (get_polygon_result(m_result, storage))
           return 1;
         *poly_position= storage->position();
@@ -1118,16 +1134,16 @@ int gcalc_operation_reducer::get_result(gcalc_result_receiver *storage)
     }
   }
   
-  m_res_hook= (gcalc_dyn_list::item **)&m_result;
+  m_res_hook= (Gcalc_dyn_list::Item **)&m_result;
   storage->done();
   return 0;
 }
 
 
-void gcalc_operation_reducer::reset()
+void Gcalc_operation_reducer::reset()
 {
   free_list(m_result, m_res_hook);
-  m_res_hook= (gcalc_dyn_list::item **)&m_result;
+  m_res_hook= (Gcalc_dyn_list::Item **)&m_result;
   free_list(m_first_active_thread);
 }
 

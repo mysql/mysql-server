@@ -627,9 +627,9 @@ const char *Item_func_spatial_rel::func_name() const
 }
 
 
-static double count_edge_t(const gcalc_heap::info *ea,
-                           const gcalc_heap::info *eb,
-                           const gcalc_heap::info *v,
+static double count_edge_t(const Gcalc_heap::Info *ea,
+                           const Gcalc_heap::Info *eb,
+                           const Gcalc_heap::Info *v,
                            double &ex, double &ey, double &vx, double &vy,
                            double &e_sqrlen)
 {
@@ -649,8 +649,8 @@ static double distance_to_line(double ex, double ey, double vx, double vy,
 }
 
 
-static double distance_points(const gcalc_heap::info *a,
-                              const gcalc_heap::info *b)
+static double distance_points(const Gcalc_heap::Info *a,
+                              const Gcalc_heap::Info *b)
 {
   double x= a->x - b->x;
   double y= a->y - b->y;
@@ -662,13 +662,13 @@ static double distance_points(const gcalc_heap::info *a,
   Calculates the distance between objects.
 */
 
-static int calc_distance(double *result, gcalc_heap *collector, uint obj2_si,
-                         gcalc_function *func, gcalc_scan_iterator *scan_it)
+static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
+                         Gcalc_function *func, Gcalc_scan_iterator *scan_it)
 {
   bool above_cur_point, cur_point_edge;
-  const gcalc_scan_iterator::point *evpos;
-  const gcalc_heap::info *cur_point, *dist_point;
-  gcalc_scan_events ev;
+  const Gcalc_scan_iterator::point *evpos;
+  const Gcalc_heap::Info *cur_point, *dist_point;
+  Gcalc_scan_events ev;
   double t, distance, cur_distance;
   double ex, ey, vx, vy, e_sqrlen;
 
@@ -717,10 +717,10 @@ static int calc_distance(double *result, gcalc_heap *collector, uint obj2_si,
     DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
 
     func->clear_state();
-    for (gcalc_point_iterator pit(scan_it); pit.point() != evpos; ++pit)
+    for (Gcalc_point_iterator pit(scan_it); pit.point() != evpos; ++pit)
     {
       gcalc_shape_info si= pit.point()->get_shape();
-      if ((func->get_shape_kind(si) == gcalc_function::shape_polygon))
+      if ((func->get_shape_kind(si) == Gcalc_function::shape_polygon))
         func->invert_state(si);
     }
     func->invert_state(evpos->get_shape());
@@ -791,7 +791,7 @@ int Item_func_spatial_rel::func_touches()
   int result= 0;
   int cur_func= 0;
 
-  gcalc_operation_transporter trn(&func, &collector);
+  Gcalc_operation_transporter trn(&func, &collector);
 
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
@@ -820,7 +820,7 @@ int Item_func_spatial_rel::func_touches()
 
   if (func.reserve_op_buffer(1))
     goto mem_error;
-  func.add_operation(gcalc_function::op_intersection, 2);
+  func.add_operation(Gcalc_function::op_intersection, 2);
 
   if (g1->store_shapes(&trn))
     goto mem_error;
@@ -843,16 +843,16 @@ int Item_func_spatial_rel::func_touches()
   above_cur_point= false;
   distance= DBL_MAX;
 
-  while (scan_it.more_trapeziums())
+  while (scan_it.more_trapezoids())
   {
     if (scan_it.step())
       goto mem_error;
 
     func.clear_state();
-    for (gcalc_trapezium_iterator ti(&scan_it); ti.more(); ++ti)
+    for (Gcalc_trapezoid_iterator ti(&scan_it); ti.more(); ++ti)
     {
       gcalc_shape_info si= ti.lb()->get_shape();
-      if ((func.get_shape_kind(si) == gcalc_function::shape_polygon))
+      if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
       {
         func.invert_state(si);
         cur_func= func.count();
@@ -881,6 +881,33 @@ mem_error:
   DBUG_RETURN(0);
 }
 
+int Item_func_spatial_rel::func_equals()
+{
+  Gcalc_heap::Info *pi_s1, *pi_s2;
+  Gcalc_heap::Info *cur_pi= collector.get_first();
+  double d;
+
+  if (!cur_pi)
+    return 1;
+
+  do {
+    pi_s1= cur_pi;
+    pi_s2= 0;
+    while ((cur_pi= cur_pi->get_next()))
+    {
+      d= fabs(pi_s1->x - cur_pi->x) + fabs(pi_s1->y - cur_pi->y);
+      if (d > GIS_ZERO)
+        break;
+      if (!pi_s2 && pi_s1->shape != cur_pi->shape)
+        pi_s2= cur_pi;
+    }
+
+    if (!pi_s2)
+      return 0;
+  } while (cur_pi);
+
+  return 1;
+}
 
 longlong Item_func_spatial_rel::val_int()
 {
@@ -898,7 +925,7 @@ longlong Item_func_spatial_rel::val_int()
 
   res1= args[0]->val_str(&tmp_value1);
   res2= args[1]->val_str(&tmp_value2);
-  gcalc_operation_transporter trn(&func, &collector);
+  Gcalc_operation_transporter trn(&func, &collector);
 
   if (func.reserve_op_buffer(1))
     DBUG_RETURN(0);
@@ -906,27 +933,27 @@ longlong Item_func_spatial_rel::val_int()
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
       mask= 1;
-      func.add_operation(gcalc_function::op_backdifference, 2);
+      func.add_operation(Gcalc_function::op_backdifference, 2);
       break;
     case SP_WITHIN_FUNC:
       mask= 1;
-      func.add_operation(gcalc_function::op_difference, 2);
+      func.add_operation(Gcalc_function::op_difference, 2);
       break;
     case SP_EQUALS_FUNC:
-      goto exit;
+      break;
     case SP_DISJOINT_FUNC:
       mask= 1;
-      func.add_operation(gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::op_intersection, 2);
       break;
     case SP_INTERSECTS_FUNC:
-      func.add_operation(gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::op_intersection, 2);
       break;
     case SP_OVERLAPS_FUNC:
       mask= 1;
-      func.add_operation(gcalc_function::op_backdifference, 2);
+      func.add_operation(Gcalc_function::op_backdifference, 2);
       break;
     case SP_CROSSES_FUNC:
-      func.add_operation(gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::op_intersection, 2);
       break;
     default:
       DBUG_ASSERT(FALSE);
@@ -943,6 +970,13 @@ longlong Item_func_spatial_rel::val_int()
 
   collector.prepare_operation();
   scan_it.init(&collector);
+  if (spatial_rel == SP_EQUALS_FUNC)
+  {
+    result= (g1->get_class_info()->m_type_id == g1->get_class_info()->m_type_id) &&
+            func_equals();
+    goto exit;
+  }
+
   if (func.alloc_states())
     goto exit;
 
@@ -970,7 +1004,7 @@ String *Item_func_spatial_operation::val_str(String *str_value)
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
   uint32 srid= 0;
-  gcalc_operation_transporter trn(&func, &collector);
+  Gcalc_operation_transporter trn(&func, &collector);
 
   if (func.reserve_op_buffer(1))
     DBUG_RETURN(0);
@@ -984,7 +1018,7 @@ String *Item_func_spatial_operation::val_str(String *str_value)
     goto exit;
 
   
-  GCALC_DBUG_STARTFILE("/home/hf/gcalc_log");
+  GCALC_DBUG_STARTFILE("/home/hf/Gcalc_log");
 
   collector.prepare_operation();
   scan_it.init(&collector);
@@ -1020,13 +1054,13 @@ exit:
 const char *Item_func_spatial_operation::func_name() const
 { 
   switch (spatial_op) {
-    case gcalc_function::op_intersection:
+    case Gcalc_function::op_intersection:
       return "st_intersection";
-    case gcalc_function::op_difference:
+    case Gcalc_function::op_difference:
       return "st_difference";
-    case gcalc_function::op_union:
+    case Gcalc_function::op_union:
       return "st_union";
-    case gcalc_function::op_symdifference:
+    case Gcalc_function::op_symdifference:
       return "st_symdifference";
     default:
       DBUG_ASSERT(0);  // Should never happen
@@ -1091,7 +1125,7 @@ static void get_n_sincos(int n, double *sinus, double *cosinus)
 }
 
 
-static int fill_half_circle(gcalc_shape_transporter *trn, double x, double y,
+static int fill_half_circle(Gcalc_shape_transporter *trn, double x, double y,
                             double ax, double ay)
 {
   double n_sin, n_cos;
@@ -1108,7 +1142,7 @@ static int fill_half_circle(gcalc_shape_transporter *trn, double x, double y,
 }
 
 
-static int fill_gap(gcalc_shape_transporter *trn,
+static int fill_gap(Gcalc_shape_transporter *trn,
                     double x, double y,
                     double ax, double ay, double bx, double by, double d,
                     bool *empty_gap)
@@ -1155,16 +1189,16 @@ static void calculate_perpendicular(
 }
 
 
-int Item_func_buffer::transporter::single_point(double x, double y)
+int Item_func_buffer::Transporter::single_point(double x, double y)
 {
   return add_point_buffer(x, y);
 }
 
 
-int Item_func_buffer::transporter::add_edge_buffer(
+int Item_func_buffer::Transporter::add_edge_buffer(
   double x3, double y3, bool round_p1, bool round_p2)
 {
-  gcalc_operation_transporter trn(m_fn, m_heap);
+  Gcalc_operation_transporter trn(m_fn, m_heap);
   double e1_x, e1_y, e2_x, e2_y, p1_x, p1_y, p2_x, p2_y;
   double e1e2;
   double sin1, cos1;
@@ -1215,9 +1249,9 @@ int Item_func_buffer::transporter::add_edge_buffer(
 }
 
 
-int Item_func_buffer::transporter::add_last_edge_buffer()
+int Item_func_buffer::Transporter::add_last_edge_buffer()
 {
-  gcalc_operation_transporter trn(m_fn, m_heap);
+  Gcalc_operation_transporter trn(m_fn, m_heap);
   double e1_x, e1_y, p1_x, p1_y;
 
   ++m_nshapes;
@@ -1236,9 +1270,9 @@ int Item_func_buffer::transporter::add_last_edge_buffer()
 }
 
 
-int Item_func_buffer::transporter::add_point_buffer(double x, double y)
+int Item_func_buffer::Transporter::add_point_buffer(double x, double y)
 {
-  gcalc_operation_transporter trn(m_fn, m_heap);
+  Gcalc_operation_transporter trn(m_fn, m_heap);
 
   m_nshapes++;
   if (trn.start_simple_poly())
@@ -1252,7 +1286,7 @@ int Item_func_buffer::transporter::add_point_buffer(double x, double y)
 }
 
 
-int Item_func_buffer::transporter::start_line()
+int Item_func_buffer::Transporter::start_line()
 {
   m_npoints= 0;
   int_start_line();
@@ -1260,21 +1294,21 @@ int Item_func_buffer::transporter::start_line()
 }
 
 
-int Item_func_buffer::transporter::start_poly()
+int Item_func_buffer::Transporter::start_poly()
 {
   ++m_nshapes;
-  return gcalc_operation_transporter::start_poly();
+  return Gcalc_operation_transporter::start_poly();
 }
 
 
-int Item_func_buffer::transporter::start_ring()
+int Item_func_buffer::Transporter::start_ring()
 {
   m_npoints= 0;
-  return gcalc_operation_transporter::start_ring();
+  return Gcalc_operation_transporter::start_ring();
 }
 
 
-int Item_func_buffer::transporter::add_point(double x, double y)
+int Item_func_buffer::Transporter::add_point(double x, double y)
 {
   if (m_npoints && x == x2 && y == y2)
     return 0;
@@ -1299,11 +1333,11 @@ int Item_func_buffer::transporter::add_point(double x, double y)
   x2= x;
   y2= y;
 
-  return line_started() ? 0 : gcalc_operation_transporter::add_point(x, y);
+  return line_started() ? 0 : Gcalc_operation_transporter::add_point(x, y);
 }
 
 
-int Item_func_buffer::transporter::complete()
+int Item_func_buffer::Transporter::complete()
 {
   if (m_npoints)
   {
@@ -1342,7 +1376,7 @@ int Item_func_buffer::transporter::complete()
 }
 
 
-int Item_func_buffer::transporter::complete_line()
+int Item_func_buffer::Transporter::complete_line()
 {
   if (complete())
     return 1;
@@ -1351,10 +1385,10 @@ int Item_func_buffer::transporter::complete_line()
 }
 
 
-int Item_func_buffer::transporter::complete_ring()
+int Item_func_buffer::Transporter::complete_ring()
 {
   return complete() ||
-         gcalc_operation_transporter::complete_ring();
+         Gcalc_operation_transporter::complete_ring();
 }
 
 
@@ -1369,7 +1403,7 @@ String *Item_func_buffer::val_str(String *str_value)
   uint32 union_pos;
   uint32 srid= 0;
   String *str_result= NULL;
-  transporter trn(&func, &collector, dist);
+  Transporter trn(&func, &collector, dist);
 
   null_value= 1;
   if (args[0]->null_value || args[1]->null_value ||
@@ -1380,8 +1414,8 @@ String *Item_func_buffer::val_str(String *str_value)
     goto mem_error;
   /* will specify operands later */
   union_pos= func.get_next_operation_pos();
-  func.add_operation((dist > 0.0) ? gcalc_function::op_union :
-                                    gcalc_function::op_difference, 0);
+  func.add_operation((dist > 0.0) ? Gcalc_function::op_union :
+                                    Gcalc_function::op_difference, 0);
 
   GCALC_DBUG_STARTFILE("/home/hf/linebuffer");
   if (g->store_shapes(&trn))
@@ -1622,14 +1656,14 @@ longlong Item_func_srid::val_int()
 double Item_func_distance::val_real()
 {
   bool above_cur_point, cur_point_edge;
-  const gcalc_scan_iterator::point *evpos;
-  const gcalc_heap::info *cur_point, *dist_point;
-  gcalc_scan_events ev;
+  const Gcalc_scan_iterator::point *evpos;
+  const Gcalc_heap::Info *cur_point, *dist_point;
+  Gcalc_scan_events ev;
   double t, distance, cur_distance;
   double x1, x2, y1, y2;
   double ex, ey, vx, vy, e_sqrlen;
   uint obj2_si;
-  gcalc_operation_transporter trn(&func, &collector);
+  Gcalc_operation_transporter trn(&func, &collector);
 
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
@@ -1657,7 +1691,7 @@ double Item_func_distance::val_real()
 
   if (func.reserve_op_buffer(1))
     goto mem_error;
-  func.add_operation(gcalc_function::op_intersection, 2);
+  func.add_operation(Gcalc_function::op_intersection, 2);
 
   if (g1->store_shapes(&trn))
     goto mem_error;
@@ -1709,10 +1743,10 @@ double Item_func_distance::val_real()
     DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
 
     func.clear_state();
-    for (gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
+    for (Gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
     {
       gcalc_shape_info si= pit.point()->get_shape();
-      if ((func.get_shape_kind(si) == gcalc_function::shape_polygon))
+      if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
         func.invert_state(si);
     }
     func.invert_state(evpos->get_shape());
