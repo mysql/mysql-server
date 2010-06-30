@@ -273,7 +273,7 @@ Geometry *Geometry::create_from_wkb(Geometry_buffer *buffer,
 
 
 int Geometry::create_from_opresult(Geometry_buffer *g_buf,
-                                   String *res, gcalc_result_receiver &rr)
+                                   String *res, Gcalc_result_receiver &rr)
 {
   uint32 geom_type= rr.get_result_typeid();
   Geometry *obj= create_by_typeid(g_buf, geom_type);
@@ -497,7 +497,7 @@ bool Gis_point::get_mbr(MBR *mbr, const char **end) const
 }
 
 
-int Gis_point::store_shapes(gcalc_shape_transporter *trn) const
+int Gis_point::store_shapes(Gcalc_shape_transporter *trn) const
 {
   double x, y;
 
@@ -709,7 +709,7 @@ int Gis_line_string::point_n(uint32 num, String *result) const
 }
 
 
-int Gis_line_string::store_shapes(gcalc_shape_transporter *trn) const
+int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_points;
   double x, y;
@@ -814,10 +814,10 @@ uint Gis_polygon::priv_init_from_opresult(String *bin,
     uint32 n_points, proper_length;
     const char *op_end, *p1_position;
     Gis_point p;
-    gcalc_function::shape_type st;
+    Gcalc_function::shape_type st;
 
-    st= (gcalc_function::shape_type) uint4korr(opres);
-    if (*poly_shapes && st != gcalc_function::shape_hole)
+    st= (Gcalc_function::shape_type) uint4korr(opres);
+    if (*poly_shapes && st != Gcalc_function::shape_hole)
       break;
     (*poly_shapes)++;
     n_points= uint4korr(opres + 4) + 1; /* skip shape type id */
@@ -1124,7 +1124,7 @@ int Gis_polygon::centroid(String *result) const
 }
 
 
-int Gis_polygon::store_shapes(gcalc_shape_transporter *trn) const
+int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_linear_rings;
   const char *data= m_data;
@@ -1315,7 +1315,7 @@ int Gis_multi_point::geometry_n(uint32 num, String *result) const
 }
 
 
-int Gis_multi_point::store_shapes(gcalc_shape_transporter *trn) const
+int Gis_multi_point::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_points;
   Gis_point pt;
@@ -1618,7 +1618,7 @@ int Gis_multi_line_string::is_closed(int *closed) const
 }
 
 
-int Gis_multi_line_string::store_shapes(gcalc_shape_transporter *trn) const
+int Gis_multi_line_string::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_lines;
   Gis_line_string ls;
@@ -1970,7 +1970,7 @@ int Gis_multi_polygon::centroid(String *result) const
 }
 
 
-int Gis_multi_polygon::store_shapes(gcalc_shape_transporter *trn) const
+int Gis_multi_polygon::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_polygons;
   Gis_polygon p;
@@ -2085,11 +2085,11 @@ uint Gis_geometry_collection::init_from_opresult(String *bin,
   
   while (n_shapes--)
   {
-    switch ((gcalc_function::shape_type) uint4korr(opres))
+    switch ((Gcalc_function::shape_type) uint4korr(opres))
     {
-      case gcalc_function::shape_point:   wkb_type= wkb_point; break;
-      case gcalc_function::shape_line:    wkb_type= wkb_linestring; break;
-      case gcalc_function::shape_polygon: wkb_type= wkb_polygon; break;
+      case Gcalc_function::shape_point:   wkb_type= wkb_point; break;
+      case Gcalc_function::shape_line:    wkb_type= wkb_linestring; break;
+      case Gcalc_function::shape_polygon: wkb_type= wkb_polygon; break;
       default: wkb_type= 0; DBUG_ASSERT(FALSE);
     };
 
@@ -2319,7 +2319,7 @@ bool Gis_geometry_collection::dimension(uint32 *res_dim, const char **end) const
 }
 
 
-int Gis_geometry_collection::store_shapes(gcalc_shape_transporter *trn) const
+int Gis_geometry_collection::store_shapes(Gcalc_shape_transporter *trn) const
 {
   uint32 n_objects;
   const char *data= m_data;

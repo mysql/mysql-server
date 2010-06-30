@@ -266,7 +266,7 @@ public:
   virtual int point_n(uint32 num, String *result) const { return -1; }
   virtual int interior_ring_n(uint32 num, String *result) const { return -1; }
   virtual int geometry_n(uint32 num, String *result) const { return -1; }
-  virtual int store_shapes(gcalc_shape_transporter *trn) const=0;
+  virtual int store_shapes(Gcalc_shape_transporter *trn) const=0;
 
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
@@ -279,7 +279,7 @@ public:
   static Geometry *create_from_wkb(Geometry_buffer *buffer,
                                    const char *wkb, uint32 len, String *res);
   static int create_from_opresult(Geometry_buffer *g_buf,
-                                  String *res, gcalc_result_receiver &rr);
+                                  String *res, Gcalc_result_receiver &rr);
   int as_wkt(String *wkt, const char **end)
   {
     uint32 len= (uint) get_class_info()->m_name.length;
@@ -375,7 +375,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
-  int store_shapes(gcalc_shape_transporter *trn) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -404,7 +404,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
-  int store_shapes(gcalc_shape_transporter *trn) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -440,7 +440,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
-  int store_shapes(gcalc_shape_transporter *trn) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -466,7 +466,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
-  int store_shapes(gcalc_shape_transporter *trn) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -494,7 +494,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
-  int store_shapes(gcalc_shape_transporter *trn) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -521,7 +521,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
-  int store_shapes(gcalc_shape_transporter *trn) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
   uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
 };
@@ -543,7 +543,7 @@ public:
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
   bool dimension(uint32 *dim, const char **end) const;
-  int store_shapes(gcalc_shape_transporter *trn) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 

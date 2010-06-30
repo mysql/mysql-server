@@ -1,10 +1,26 @@
-#ifndef gcalc_tools_h
-#define gcalc_tools_h
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+
+#ifndef GCALC_TOOLS_INCLUDED
+#define GCALC_TOOLS_INCLUDED
 
 #include "gcalc_slicescan.h"
 
 
-class gcalc_function
+class Gcalc_function
 {
 private:
   String shapes_buffer;
@@ -33,7 +49,7 @@ public:
     shape_polygon= 2,
     shape_hole= 3
   };
-  gcalc_function() : n_shapes(0) {}
+  Gcalc_function() : n_shapes(0) {}
   gcalc_shape_info add_new_shape(uint32 shape_id, shape_type shape_kind);
   int single_shape_op(shape_type shape_kind, gcalc_shape_info *si);
   void add_operation(op_type operation, uint32 n_operands);
@@ -61,18 +77,18 @@ public:
   void clear_state() { bzero(i_states, n_shapes * sizeof(int)); }
   void reset();
 
-  int find_function(gcalc_scan_iterator &scan_it);
+  int find_function(Gcalc_scan_iterator &scan_it);
 };
 
 
-class gcalc_operation_transporter : public gcalc_shape_transporter
+class Gcalc_operation_transporter : public Gcalc_shape_transporter
 {
 protected:
-  gcalc_function *m_fn;
+  Gcalc_function *m_fn;
   gcalc_shape_info m_si;
 public:
-  gcalc_operation_transporter(gcalc_function *fn, gcalc_heap *heap) :
-    gcalc_shape_transporter(heap), m_fn(fn) {}
+  Gcalc_operation_transporter(Gcalc_function *fn, Gcalc_heap *heap) :
+    Gcalc_shape_transporter(heap), m_fn(fn) {}
 
   int single_point(double x, double y);
   int start_line();
@@ -89,22 +105,22 @@ public:
 /* class to receive the result of the geometry operation */
 /* to store it in appropriate format                     */
 
-class gcalc_result_receiver
+class Gcalc_result_receiver
 {
   String buffer;
   uint32 n_points;
-  gcalc_function::shape_type common_shapetype;
+  Gcalc_function::shape_type common_shapetype;
   bool collection_result;
   uint32 n_shapes;
   uint32 n_holes;
 
-  gcalc_function::shape_type cur_shape;
+  Gcalc_function::shape_type cur_shape;
   uint32 shape_pos;
   double first_x, first_y, prev_x, prev_y;
 public:
-  gcalc_result_receiver() : collection_result(FALSE), n_shapes(0), n_holes(0)
+  Gcalc_result_receiver() : collection_result(FALSE), n_shapes(0), n_holes(0)
     {}
-  int start_shape(gcalc_function::shape_type shape);
+  int start_shape(Gcalc_function::shape_type shape);
   int add_point(double x, double y);
   int complete_shape();
   int single_point(double x, double y);
@@ -122,7 +138,7 @@ public:
 };
 
 
-class gcalc_operation_reducer : public gcalc_dyn_list
+class Gcalc_operation_reducer : public Gcalc_dyn_list
 {
 public:
   enum modes
@@ -134,16 +150,16 @@ public:
     line_selfintersections_allowed= 4      /* allowed in the result */
   };
 
-  gcalc_operation_reducer(size_t blk_size=8192);
-  void init(gcalc_function *fn, modes mode= default_mode);
-  gcalc_operation_reducer(gcalc_function *fn, modes mode= default_mode,
+  Gcalc_operation_reducer(size_t blk_size=8192);
+  void init(Gcalc_function *fn, modes mode= default_mode);
+  Gcalc_operation_reducer(Gcalc_function *fn, modes mode= default_mode,
 		       size_t blk_size=8192);
-  int count_slice(gcalc_scan_iterator *si);
-  int count_all(gcalc_heap *hp);
-  int get_result(gcalc_result_receiver *storage);
+  int count_slice(Gcalc_scan_iterator *si);
+  int count_all(Gcalc_heap *hp);
+  int get_result(Gcalc_result_receiver *storage);
   void reset();
 
-  class res_point : public gcalc_dyn_list::item
+  class res_point : public Gcalc_dyn_list::Item
   {
   public:
     bool intersection_point;
@@ -153,7 +169,7 @@ public:
     res_point *glue;
     union
     {
-      const gcalc_heap::info *pi;
+      const Gcalc_heap::Info *pi;
       res_point *first_poly_node;
     };
     union
@@ -161,11 +177,11 @@ public:
       res_point *outer_poly;
       uint32 poly_position;
     };
-    gcalc_dyn_list::item **prev_hook;
+    Gcalc_dyn_list::Item **prev_hook;
     res_point *get_next() { return (res_point *)next; }
   };
 
-  class active_thread : public gcalc_dyn_list::item
+  class active_thread : public Gcalc_dyn_list::Item
   {
   public:
     res_point *rp;
@@ -175,8 +191,8 @@ public:
   };
 
 protected:
-  gcalc_function *m_fn;
-  gcalc_dyn_list::item **m_res_hook;
+  Gcalc_function *m_fn;
+  Gcalc_dyn_list::Item **m_res_hook;
   res_point *m_result;
   int m_mode;
 
@@ -195,53 +211,53 @@ protected:
   active_thread *new_active_thread() { return (active_thread *)new_item(); }
 
 private:
-  int continue_range(active_thread *t, const gcalc_heap::info *p);
-  int continue_i_range(active_thread *t, const gcalc_heap::info *p,
+  int continue_range(active_thread *t, const Gcalc_heap::Info *p);
+  int continue_i_range(active_thread *t, const Gcalc_heap::Info *p,
 		       double x, double y);
-  int start_range(active_thread *t, const gcalc_heap::info *p);
-  int start_i_range(active_thread *t, const gcalc_heap::info *p,
+  int start_range(active_thread *t, const Gcalc_heap::Info *p);
+  int start_i_range(active_thread *t, const Gcalc_heap::Info *p,
 		    double x, double y);
-  int end_range(active_thread *t, const gcalc_heap::info *p);
-  int end_i_range(active_thread *t, const gcalc_heap::info *p,
+  int end_range(active_thread *t, const Gcalc_heap::Info *p);
+  int end_i_range(active_thread *t, const Gcalc_heap::Info *p,
 		  double x, double y);
-  int start_couple(active_thread *t0, active_thread *t1,const gcalc_heap::info *p,
+  int start_couple(active_thread *t0, active_thread *t1,const Gcalc_heap::Info *p,
                      const active_thread *prev_range);
   int start_i_couple(active_thread *t0, active_thread *t1,
-		     const gcalc_heap::info *p0,
-		     const gcalc_heap::info *p1,
+		     const Gcalc_heap::Info *p0,
+		     const Gcalc_heap::Info *p1,
 		     double x, double y,
                      const active_thread *prev_range);
-  int end_couple(active_thread *t0, active_thread *t1, const gcalc_heap::info *p);
+  int end_couple(active_thread *t0, active_thread *t1, const Gcalc_heap::Info *p);
   int end_i_couple(active_thread *t0, active_thread *t1,
-		   const gcalc_heap::info *p0,
-		   const gcalc_heap::info *p1,
+		   const Gcalc_heap::Info *p0,
+		   const Gcalc_heap::Info *p1,
 		   double x, double y);
-  int add_single_point(const gcalc_heap::info *p);
-  int add_i_single_point(const gcalc_heap::info *p, double x, double y);
+  int add_single_point(const Gcalc_heap::Info *p);
+  int add_i_single_point(const Gcalc_heap::Info *p, double x, double y);
 
   int handle_lines_intersection(active_thread *t0, active_thread *t1,
-				const gcalc_heap::info *p0,
-				const gcalc_heap::info *p1,
+				const Gcalc_heap::Info *p0,
+				const Gcalc_heap::Info *p1,
 				double x, double y);
   int handle_polygons_intersection(active_thread *t0, active_thread *t1,
-				   gcalc_dyn_list::item **t_hook,
-				   const gcalc_heap::info *p0,
-				   const gcalc_heap::info *p1,
+				   Gcalc_dyn_list::Item **t_hook,
+				   const Gcalc_heap::Info *p0,
+				   const Gcalc_heap::Info *p1,
 				   int prev_state, double x, double y,
                                    const active_thread *prev_range);
   int handle_line_polygon_intersection(active_thread *l,
-				       const gcalc_heap::info *pl,
+				       const Gcalc_heap::Info *pl,
 				       int line_state, int poly_state,
 				       double x, double y);
 
-  int get_single_result(res_point *res, gcalc_result_receiver *storage);
-  int get_result_thread(res_point *cur, gcalc_result_receiver *storage,
+  int get_single_result(res_point *res, Gcalc_result_receiver *storage);
+  int get_result_thread(res_point *cur, Gcalc_result_receiver *storage,
 			int move_upward);
-  int get_polygon_result(res_point *cur, gcalc_result_receiver *storage);
-  int get_line_result(res_point *cur, gcalc_result_receiver *storage);
+  int get_polygon_result(res_point *cur, Gcalc_result_receiver *storage);
+  int get_line_result(res_point *cur, Gcalc_result_receiver *storage);
 
   void free_result(res_point *res);
 };
 
-#endif /*gcalc_tools_h*/
+#endif /*GCALC_TOOLS_INCLUDED*/
 

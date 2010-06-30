@@ -217,9 +217,9 @@ public:
 class Item_func_spatial_rel: public Item_bool_func2
 {
   enum Functype spatial_rel;
-  gcalc_heap collector;
-  gcalc_scan_iterator scan_it;
-  gcalc_function func;
+  Gcalc_heap collector;
+  Gcalc_scan_iterator scan_it;
+  Gcalc_function func;
   String tmp_value1,tmp_value2;
 public:
   Item_func_spatial_rel(Item *a,Item *b, enum Functype sp_rel);
@@ -247,6 +247,7 @@ public:
   bool is_null() { (void) val_int(); return null_value; }
 protected:
   int func_touches();
+  int func_equals();
 };
 
 
@@ -257,16 +258,16 @@ protected:
 class Item_func_spatial_operation: public Item_geometry_func
 {
 public:
-  gcalc_function::op_type spatial_op;
-  gcalc_heap collector;
-  gcalc_function func;
-  gcalc_scan_iterator scan_it;
+  Gcalc_function::op_type spatial_op;
+  Gcalc_heap collector;
+  Gcalc_function func;
+  Gcalc_scan_iterator scan_it;
 
-  gcalc_result_receiver res_receiver;
-  gcalc_operation_reducer operation;
+  Gcalc_result_receiver res_receiver;
+  Gcalc_operation_reducer operation;
   String tmp_value1,tmp_value2;
 public:
-  Item_func_spatial_operation(Item *a,Item *b, gcalc_function::op_type sp_op) :
+  Item_func_spatial_operation(Item *a,Item *b, Gcalc_function::op_type sp_op) :
     Item_geometry_func(a, b), spatial_op(sp_op)
   {}
   virtual ~Item_func_spatial_operation();
@@ -282,7 +283,7 @@ public:
 class Item_func_buffer: public Item_geometry_func
 {
 protected:
-  class transporter : public gcalc_operation_transporter
+  class Transporter : public Gcalc_operation_transporter
   {
     int m_npoints;
     double m_d;
@@ -294,8 +295,8 @@ protected:
     int complete();
   public:
     int m_nshapes;
-    transporter(gcalc_function *fn, gcalc_heap *heap, double d) :
-      gcalc_operation_transporter(fn, heap), m_npoints(0), m_d(d), m_nshapes(0)
+    Transporter(Gcalc_function *fn, Gcalc_heap *heap, double d) :
+      Gcalc_operation_transporter(fn, heap), m_npoints(0), m_d(d), m_nshapes(0)
     {}
     int single_point(double x, double y);
     int start_line();
@@ -305,12 +306,12 @@ protected:
     int complete_ring();
     int add_point(double x, double y);
   };
-  gcalc_heap collector;
-  gcalc_function func;
-  gcalc_scan_iterator scan_it;
+  Gcalc_heap collector;
+  Gcalc_function func;
+  Gcalc_scan_iterator scan_it;
 
-  gcalc_result_receiver res_receiver;
-  gcalc_operation_reducer operation;
+  Gcalc_result_receiver res_receiver;
+  Gcalc_operation_reducer operation;
   String tmp_value;
 
 public:
@@ -469,9 +470,9 @@ class Item_func_distance: public Item_real_func
 {
   String tmp_value1;
   String tmp_value2;
-  gcalc_heap collector;
-  gcalc_function func;
-  gcalc_scan_iterator scan_it;
+  Gcalc_heap collector;
+  Gcalc_function func;
+  Gcalc_scan_iterator scan_it;
 public:
   Item_func_distance(Item *a, Item *b): Item_real_func(a, b) {}
   double val_real();
