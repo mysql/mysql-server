@@ -147,7 +147,7 @@ namespace AQP
 
   enum_join_type Table_access::get_join_type() const
   {
-    if (get_join_tab()->last_inner)
+    if (get_join_tab()->table->maybe_null)
       return JT_OUTER_JOIN;
     else
       return JT_INNER_JOIN;
