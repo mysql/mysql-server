@@ -1492,14 +1492,16 @@ sync_print_wait_info(
 
 	fprintf(file,
 		"Mutex spin waits %llu, rounds %llu, OS waits %llu\n"
-		"RW-shared spins %llu, OS waits %llu;"
-		" RW-excl spins %llu, OS waits %llu\n",
+		"RW-shared spins %llu, rounds %llu, OS waits %llu\n"
+		"RW-excl spins %llu, rounds %llu, OS waits %llu\n",
 		mutex_spin_wait_count,
 		mutex_spin_round_count,
 		mutex_os_wait_count,
 		rw_s_spin_wait_count,
+		rw_s_spin_round_count,
 		rw_s_os_wait_count,
 		rw_x_spin_wait_count,
+		rw_x_spin_round_count,
 		rw_x_os_wait_count);
 
 	fprintf(file,
