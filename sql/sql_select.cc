@@ -137,7 +137,6 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
-static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *,TMP_TABLE_PARAM *, ulonglong, my_bool);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
@@ -190,6 +189,13 @@ static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+static bool test_if_cheaper_ordering(const JOIN_TAB *tab,
+                                     ORDER *order, TABLE *table,
+                                     key_map usable_keys, int key,
+                                     ha_rows select_limit,
+                                     int *new_key, int *new_key_direction,
+                                     ha_rows *new_select_limit,
+                                     uint *new_used_key_parts= NULL);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes,
                                     key_map *map);
@@ -7361,8 +7367,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
 	*simple_order=0;
       else
       {
-	Item *comp_item=0;
-	if (cond && const_expression_in_where(cond,order->item[0], &comp_item))
+	if (cond && const_expression_in_where(cond,order->item[0]))
 	{
 	  DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
 	  continue;
@@ -7389,6 +7394,46 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
     *simple_order=1;
   DBUG_PRINT("exit",("simple_order: %d",(int) *simple_order));
   DBUG_RETURN(first_order);
+}
+
+
+/**
+  Filter out ORDER items those are equal to constants in WHERE
+
+  This function is a limited version of remove_const() for use
+  with non-JOIN statements (i.e. single-table UPDATE and DELETE).
+
+
+  @param order            Linked list of ORDER BY arguments
+  @param cond             WHERE expression
+
+  @return pointer to new filtered ORDER list or NULL if whole list eliminated
+
+  @note
+    This function overwrites input order list.
+*/
+
+ORDER *simple_remove_const(ORDER *order, COND *where)
+{
+  if (!order || !where)
+    return order;
+
+  ORDER *first= NULL, *prev= NULL;
+  for (; order; order= order->next)
+  {
+    DBUG_ASSERT(!order->item[0]->with_sum_func); // should never happen
+    if (!const_expression_in_where(where, order->item[0]))
+    {
+      if (!first)
+        first= order;
+      if (prev)
+        prev->next= order;
+      prev= order;
+    }
+  }
+  if (prev)
+    prev->next= NULL;
+  return first;
 }
 
 
@@ -8584,10 +8629,9 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
        left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->clone_item();
-    tmp->collation.set(right_item->collation);
-    
     if (tmp)
     {
+      tmp->collation.set(right_item->collation);
       thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
@@ -8608,10 +8652,9 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
             right_item->collation.collation == value->collation.collation))
   {
     Item *tmp= value->clone_item();
-    tmp->collation.set(left_item->collation);
-    
     if (tmp)
     {
+      tmp->collation.set(left_item->collation);
       thd->change_item_tree(args, tmp);
       value= tmp;
       func->update_used_tables();
@@ -9593,13 +9636,50 @@ test_if_equality_guarantees_uniqueness(Item *l, Item *r)
         l->collation.collation == r->collation.collation)));
 }
 
-/**
-  Return TRUE if the item is a const value in all the WHERE clause.
+
+/*
+  Return TRUE if i1 and i2 (if any) are equal items,
+  or if i1 is a wrapper item around the f2 field.
 */
 
-static bool
-const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
+static bool equal(Item *i1, Item *i2, Field *f2)
 {
+  DBUG_ASSERT((i2 == NULL) ^ (f2 == NULL));
+
+  if (i2 != NULL)
+    return i1->eq(i2, 1);
+  else if (i1->type() == Item::FIELD_ITEM)
+    return f2->eq(((Item_field *) i1)->field);
+  else
+    return FALSE;
+}
+
+
+/**
+  Test if a field or an item is equal to a constant value in WHERE
+
+  @param        cond            WHERE clause expression
+  @param        comp_item       Item to find in WHERE expression
+                                (if comp_field != NULL)
+  @param        comp_field      Field to find in WHERE expression
+                                (if comp_item != NULL)
+  @param[out]   const_item      intermediate arg, set to Item pointer to NULL 
+
+  @return TRUE if the field is a constant value in WHERE
+
+  @note
+    comp_item and comp_field parameters are mutually exclusive.
+*/
+bool
+const_expression_in_where(COND *cond, Item *comp_item, Field *comp_field,
+                          Item **const_item)
+{
+  DBUG_ASSERT((comp_item == NULL) ^ (comp_field == NULL));
+
+  Item *intermediate= NULL;
+  if (const_item == NULL)
+    const_item= &intermediate;
+
   if (cond->type() == Item::COND_ITEM)
   {
     bool and_level= (((Item_cond*) cond)->functype()
@@ -9608,7 +9688,8 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     Item *item;
     while ((item=li++))
     {
-      bool res=const_expression_in_where(item, comp_item, const_item);
+      bool res=const_expression_in_where(item, comp_item, comp_field,
+                                         const_item);
       if (res)					// Is a const value
       {
 	if (and_level)
@@ -9620,14 +9701,14 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     return and_level ? 0 : 1;
   }
   else if (cond->eq_cmp_result() != Item::COND_OK)
-  {						// boolan compare function
+  {						// boolean compare function
     Item_func* func= (Item_func*) cond;
     if (func->functype() != Item_func::EQUAL_FUNC &&
 	func->functype() != Item_func::EQ_FUNC)
       return 0;
     Item *left_item=	((Item_func*) cond)->arguments()[0];
     Item *right_item= ((Item_func*) cond)->arguments()[1];
-    if (left_item->eq(comp_item,1))
+    if (equal(left_item, comp_item, comp_field))
     {
       if (test_if_equality_guarantees_uniqueness (left_item, right_item))
       {
@@ -9637,7 +9718,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 	return 1;
       }
     }
-    else if (right_item->eq(comp_item,1))
+    else if (equal(right_item, comp_item, comp_field))
     {
       if (test_if_equality_guarantees_uniqueness (right_item, left_item))
       {
@@ -9650,6 +9731,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
   }
   return 0;
 }
+
 
 /****************************************************************************
   Create internal temporary table
@@ -13104,7 +13186,8 @@ part_of_refkey(TABLE *table,Field *field)
   @param order                 Sort order
   @param table                 Table to sort
   @param idx                   Index to check
-  @param used_key_parts        Return value for used key parts.
+  @param used_key_parts [out]  NULL by default, otherwise return value for
+                               used key parts.
 
 
   @note
@@ -13123,13 +13206,14 @@ part_of_refkey(TABLE *table,Field *field)
 */
 
 static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-				uint *used_key_parts)
+				uint *used_key_parts= NULL)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
   key_part_end=key_part+table->key_info[idx].key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
+  uint key_parts;
   my_bool on_pk_suffix= FALSE;
   DBUG_ENTER("test_if_order_by_key");
 
@@ -13170,8 +13254,9 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
         */
         if (key_part == key_part_end && reverse == 0)
         {
-          *used_key_parts= 0;
-          DBUG_RETURN(1);
+          key_parts= 0;
+          reverse= 1;
+          goto ok;
         }
       }
       else
@@ -13194,7 +13279,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     uint used_key_parts_secondary= table->key_info[idx].key_parts;
     uint used_key_parts_pk=
       (uint) (key_part - table->key_info[table->s->primary_key].key_part);
-    *used_key_parts= used_key_parts_pk + used_key_parts_secondary;
+    key_parts= used_key_parts_pk + used_key_parts_secondary;
 
     if (reverse == -1 &&
         (!(table->file->index_flags(idx, used_key_parts_secondary - 1, 1) &
@@ -13205,11 +13290,14 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   }
   else
   {
-    *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
+    key_parts= (uint) (key_part - table->key_info[idx].key_part);
     if (reverse == -1 && 
-        !(table->file->index_flags(idx, *used_key_parts-1, 1) & HA_READ_PREV))
+        !(table->file->index_flags(idx, key_parts-1, 1) & HA_READ_PREV))
       reverse= 0;                               // Index can't be used
   }
+ok:
+  if (used_key_parts != NULL)
+    *used_key_parts= key_parts;
   DBUG_RETURN(reverse);
 }
 
@@ -13303,7 +13391,6 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
   uint nr;
   uint min_length= (uint) ~0;
   uint best= MAX_KEY;
-  uint not_used;
   KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
   KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
 
@@ -13314,7 +13401,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 	table->key_info[nr].key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
 		  ref_key_part_end) &&
-	test_if_order_by_key(order, table, nr, &not_used))
+	test_if_order_by_key(order, table, nr))
     {
       min_length= table->key_info[nr].key_length;
       best= nr;
@@ -13606,183 +13693,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       goto check_reverse_order;
   }
   {
-    /*
-      Check whether there is an index compatible with the given order
-      usage of which is cheaper than usage of the ref_key index (ref_key>=0)
-      or a table scan.
-      It may be the case if ORDER/GROUP BY is used with LIMIT.
-    */
-    uint nr;
-    key_map keys;
     uint best_key_parts= 0;
     int best_key_direction= 0;
-    ha_rows best_records= 0;
-    double read_time;
     int best_key= -1;
-    bool is_best_covering= FALSE;
-    double fanout= 1;
     JOIN *join= tab->join;
-    uint tablenr= tab - join->join_tab;
     ha_rows table_records= table->file->stats.records;
-    bool group= join->group && order == join->group_list;
-    ha_rows ref_key_quick_rows= HA_POS_ERROR;
 
-    /*
-      If not used with LIMIT, only use keys if the whole query can be
-      resolved with a key;  This is because filesort() is usually faster than
-      retrieving all rows through an index.
-    */
-    if (select_limit >= table_records)
-    {
-      keys= *table->file->keys_to_use_for_scanning();
-      keys.merge(table->covering_keys);
-
-      /*
-	We are adding here also the index specified in FORCE INDEX clause, 
-	if any.
-        This is to allow users to use index in ORDER BY.
-      */
-      if (table->force_index) 
-	keys.merge(group ? table->keys_in_use_for_group_by :
-                           table->keys_in_use_for_order_by);
-      keys.intersect(usable_keys);
-    }
-    else
-      keys= usable_keys;
-
-    if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
-      ref_key_quick_rows= table->quick_rows[ref_key];
-
-    read_time= join->best_positions[tablenr].read_time;
-    for (uint i= tablenr+1; i < join->tables; i++)
-      fanout*= join->best_positions[i].records_read; // fanout is always >= 1
-
-    for (nr=0; nr < table->s->keys ; nr++)
-    {
-      int direction;
-
-      if (keys.is_set(nr) &&
-          (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
-      {
-        /*
-          At this point we are sure that ref_key is a non-ordering
-          key (where "ordering key" is a key that will return rows
-          in the order required by ORDER BY).
-        */
-        DBUG_ASSERT (ref_key != (int) nr);
-
-        bool is_covering= table->covering_keys.is_set(nr) ||
-                          (nr == table->s->primary_key &&
-                          table->file->primary_key_is_clustered());
-	
-        /* 
-          Don't use an index scan with ORDER BY without limit.
-          For GROUP BY without limit always use index scan
-          if there is a suitable index. 
-          Why we hold to this asymmetry hardly can be explained
-          rationally. It's easy to demonstrate that using
-          temporary table + filesort could be cheaper for grouping
-          queries too.
-	*/ 
-        if (is_covering ||
-            select_limit != HA_POS_ERROR || 
-            (ref_key < 0 && (group || table->force_index)))
-        { 
-          double rec_per_key;
-          double index_scan_time;
-          KEY *keyinfo= tab->table->key_info+nr;
-          if (select_limit == HA_POS_ERROR)
-            select_limit= table_records;
-          if (group)
-          {
-            /* 
-              Used_key_parts can be larger than keyinfo->key_parts
-              when using a secondary index clustered with a primary 
-              key (e.g. as in Innodb). 
-              See Bug #28591 for details.
-            */  
-            rec_per_key= used_key_parts &&
-                         used_key_parts <= keyinfo->key_parts ?
-                         keyinfo->rec_per_key[used_key_parts-1] : 1;
-            set_if_bigger(rec_per_key, 1);
-            /*
-              With a grouping query each group containing on average
-              rec_per_key records produces only one row that will
-              be included into the result set.
-	    */  
-            if (select_limit > table_records/rec_per_key)
-                select_limit= table_records;
-            else
-              select_limit= (ha_rows) (select_limit*rec_per_key);
-          }
-          /* 
-            If tab=tk is not the last joined table tn then to get first
-            L records from the result set we can expect to retrieve
-            only L/fanout(tk,tn) where fanout(tk,tn) says how many
-            rows in the record set on average will match each row tk.
-            Usually our estimates for fanouts are too pessimistic.
-            So the estimate for L/fanout(tk,tn) will be too optimistic
-            and as result we'll choose an index scan when using ref/range
-            access + filesort will be cheaper.
-	  */
-          select_limit= (ha_rows) (select_limit < fanout ?
-                                   1 : select_limit/fanout);
-          /*
-            We assume that each of the tested indexes is not correlated
-            with ref_key. Thus, to select first N records we have to scan
-            N/selectivity(ref_key) index entries. 
-            selectivity(ref_key) = #scanned_records/#table_records =
-            table->quick_condition_rows/table_records.
-            In any case we can't select more than #table_records.
-            N/(table->quick_condition_rows/table_records) > table_records 
-            <=> N > table->quick_condition_rows.
-          */ 
-          if (select_limit > table->quick_condition_rows)
-            select_limit= table_records;
-          else
-            select_limit= (ha_rows) (select_limit *
-                                     (double) table_records /
-                                      table->quick_condition_rows);
-          rec_per_key= keyinfo->rec_per_key[keyinfo->key_parts-1];
-          set_if_bigger(rec_per_key, 1);
-          /*
-            Here we take into account the fact that rows are
-            accessed in sequences rec_per_key records in each.
-            Rows in such a sequence are supposed to be ordered
-            by rowid/primary key. When reading the data
-            in a sequence we'll touch not more pages than the
-            table file contains.
-            TODO. Use the formula for a disk sweep sequential access
-            to calculate the cost of accessing data rows for one 
-            index entry.
-	  */
-          index_scan_time= select_limit/rec_per_key *
-	                   min(rec_per_key, table->file->scan_time());
-          if ((ref_key < 0 && is_covering) || 
-              (ref_key < 0 && (group || table->force_index)) ||
-              index_scan_time < read_time)
-          {
-            ha_rows quick_records= table_records;
-            if ((is_best_covering && !is_covering) ||
-                (is_covering && ref_key_quick_rows < select_limit))
-              continue;
-            if (table->quick_keys.is_set(nr))
-              quick_records= table->quick_rows[nr];
-            if (best_key < 0 ||
-                (select_limit <= min(quick_records,best_records) ?
-                 keyinfo->key_parts < best_key_parts :
-                 quick_records < best_records))
-            {
-              best_key= nr;
-              best_key_parts= keyinfo->key_parts;
-              best_records= quick_records;
-              is_best_covering= is_covering;
-              best_key_direction= direction; 
-            }
-          }   
-	}      
-      }
-    }
+    test_if_cheaper_ordering(tab, order, table, usable_keys,
+                             ref_key, select_limit,
+                             &best_key, &best_key_direction,
+                             &select_limit, &best_key_parts);
 
     /*
       filesort() and join cache are usually faster than reading in 
@@ -13879,7 +13799,7 @@ check_reverse_order:
       */
       if (!select->quick->reverse_sorted())
       {
-        QUICK_SELECT_DESC *tmp;
+        QUICK_SELECT_I *tmp;
         int quick_type= select->quick->get_type();
         if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
@@ -13892,16 +13812,14 @@ check_reverse_order:
         }
             
         /* ORDER BY range_key DESC */
-	tmp= new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
-                                    used_key_parts);
-	if (!tmp || tmp->error)
+	tmp= select->quick->make_reverse(used_key_parts);
+	if (!tmp)
 	{
-	  delete tmp;
           select->quick= save_quick;
           tab->limit= 0;
 	  DBUG_RETURN(0);		// Reverse sort not supported
 	}
-	select->quick=tmp;
+	select->set_quick(tmp);
       }
     }
     else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
@@ -17435,6 +17353,353 @@ void JOIN::cache_const_exprs()
                                  (uchar *)&cache_flag);
     }
   }
+}
+
+
+/**
+  Find a cheaper access key than a given @a key
+
+  @param          tab                 NULL or JOIN_TAB of the accessed table
+  @param          order               Linked list of ORDER BY arguments
+  @param          table               Table if tab == NULL or tab->table
+  @param          usable_keys         Key map to find a cheaper key in
+  @param          ref_key             
+                * 0 <= key < MAX_KEY   - key number (hint) to start the search
+                * -1                   - no key number provided
+  @param          select_limit        LIMIT value
+  @param [out]    new_key             Key number if success, otherwise undefined
+  @param [out]    new_key_direction   Return -1 (reverse) or +1 if success,
+                                      otherwise undefined
+  @param [out]    new_select_limit    Return adjusted LIMIT
+  @param [out]    new_used_key_parts  NULL by default, otherwise return number
+                                      of new_key prefix columns if success
+                                      or undefined if the function fails
+
+  @note
+    This function takes into account table->quick_condition_rows statistic
+    (that is calculated by the make_join_statistics function).
+    However, single table procedures such as mysql_update() and mysql_delete()
+    never call make_join_statistics, so they have to update it manually
+    (@see get_index_for_order()).
+*/
+
+static bool
+test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
+                         key_map usable_keys,  int ref_key,
+                         ha_rows select_limit,
+                         int *new_key, int *new_key_direction,
+                         ha_rows *new_select_limit, uint *new_used_key_parts)
+{
+  DBUG_ENTER("test_if_cheaper_ordering");
+  /*
+    Check whether there is an index compatible with the given order
+    usage of which is cheaper than usage of the ref_key index (ref_key>=0)
+    or a table scan.
+    It may be the case if ORDER/GROUP BY is used with LIMIT.
+  */
+  ha_rows best_select_limit= HA_POS_ERROR;
+  JOIN *join= tab ? tab->join : NULL;
+  uint nr;
+  key_map keys;
+  uint best_key_parts= 0;
+  int best_key_direction= 0;
+  ha_rows best_records= 0;
+  double read_time;
+  int best_key= -1;
+  bool is_best_covering= FALSE;
+  double fanout= 1;
+  ha_rows table_records= table->file->stats.records;
+  bool group= join && join->group && order == join->group_list;
+  ha_rows ref_key_quick_rows= HA_POS_ERROR;
+
+  /*
+    If not used with LIMIT, only use keys if the whole query can be
+    resolved with a key;  This is because filesort() is usually faster than
+    retrieving all rows through an index.
+  */
+  if (select_limit >= table_records)
+  {
+    keys= *table->file->keys_to_use_for_scanning();
+    keys.merge(table->covering_keys);
+
+    /*
+      We are adding here also the index specified in FORCE INDEX clause, 
+      if any.
+      This is to allow users to use index in ORDER BY.
+    */
+    if (table->force_index) 
+      keys.merge(group ? table->keys_in_use_for_group_by :
+                         table->keys_in_use_for_order_by);
+    keys.intersect(usable_keys);
+  }
+  else
+    keys= usable_keys;
+
+  if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
+    ref_key_quick_rows= table->quick_rows[ref_key];
+
+  if (join)
+  {
+    uint tablenr= tab - join->join_tab;
+    read_time= join->best_positions[tablenr].read_time;
+    for (uint i= tablenr+1; i < join->tables; i++)
+      fanout*= join->best_positions[i].records_read; // fanout is always >= 1
+  }
+  else
+    read_time= table->file->scan_time();
+
+  for (nr=0; nr < table->s->keys ; nr++)
+  {
+    int direction;
+    uint used_key_parts;
+
+    if (keys.is_set(nr) &&
+        (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
+    {
+      /*
+        At this point we are sure that ref_key is a non-ordering
+        key (where "ordering key" is a key that will return rows
+        in the order required by ORDER BY).
+      */
+      DBUG_ASSERT (ref_key != (int) nr);
+
+      bool is_covering= table->covering_keys.is_set(nr) ||
+                        (nr == table->s->primary_key &&
+                        table->file->primary_key_is_clustered());
+      
+      /* 
+        Don't use an index scan with ORDER BY without limit.
+        For GROUP BY without limit always use index scan
+        if there is a suitable index. 
+        Why we hold to this asymmetry hardly can be explained
+        rationally. It's easy to demonstrate that using
+        temporary table + filesort could be cheaper for grouping
+        queries too.
+      */ 
+      if (is_covering ||
+          select_limit != HA_POS_ERROR || 
+          (ref_key < 0 && (group || table->force_index)))
+      { 
+        double rec_per_key;
+        double index_scan_time;
+        KEY *keyinfo= table->key_info+nr;
+        if (select_limit == HA_POS_ERROR)
+          select_limit= table_records;
+        if (group)
+        {
+          /* 
+            Used_key_parts can be larger than keyinfo->key_parts
+            when using a secondary index clustered with a primary 
+            key (e.g. as in Innodb). 
+            See Bug #28591 for details.
+          */  
+          rec_per_key= used_key_parts &&
+                       used_key_parts <= keyinfo->key_parts ?
+                       keyinfo->rec_per_key[used_key_parts-1] : 1;
+          set_if_bigger(rec_per_key, 1);
+          /*
+            With a grouping query each group containing on average
+            rec_per_key records produces only one row that will
+            be included into the result set.
+          */  
+          if (select_limit > table_records/rec_per_key)
+              select_limit= table_records;
+          else
+            select_limit= (ha_rows) (select_limit*rec_per_key);
+        }
+        /* 
+          If tab=tk is not the last joined table tn then to get first
+          L records from the result set we can expect to retrieve
+          only L/fanout(tk,tn) where fanout(tk,tn) says how many
+          rows in the record set on average will match each row tk.
+          Usually our estimates for fanouts are too pessimistic.
+          So the estimate for L/fanout(tk,tn) will be too optimistic
+          and as result we'll choose an index scan when using ref/range
+          access + filesort will be cheaper.
+        */
+        select_limit= (ha_rows) (select_limit < fanout ?
+                                 1 : select_limit/fanout);
+        /*
+          We assume that each of the tested indexes is not correlated
+          with ref_key. Thus, to select first N records we have to scan
+          N/selectivity(ref_key) index entries. 
+          selectivity(ref_key) = #scanned_records/#table_records =
+          table->quick_condition_rows/table_records.
+          In any case we can't select more than #table_records.
+          N/(table->quick_condition_rows/table_records) > table_records 
+          <=> N > table->quick_condition_rows.
+        */ 
+        if (select_limit > table->quick_condition_rows)
+          select_limit= table_records;
+        else
+          select_limit= (ha_rows) (select_limit *
+                                   (double) table_records /
+                                    table->quick_condition_rows);
+        rec_per_key= keyinfo->rec_per_key[keyinfo->key_parts-1];
+        set_if_bigger(rec_per_key, 1);
+        /*
+          Here we take into account the fact that rows are
+          accessed in sequences rec_per_key records in each.
+          Rows in such a sequence are supposed to be ordered
+          by rowid/primary key. When reading the data
+          in a sequence we'll touch not more pages than the
+          table file contains.
+          TODO. Use the formula for a disk sweep sequential access
+          to calculate the cost of accessing data rows for one 
+          index entry.
+        */
+        index_scan_time= select_limit/rec_per_key *
+                         min(rec_per_key, table->file->scan_time());
+        if ((ref_key < 0 && is_covering) || 
+            (ref_key < 0 && (group || table->force_index)) ||
+            index_scan_time < read_time)
+        {
+          ha_rows quick_records= table_records;
+          if ((is_best_covering && !is_covering) ||
+              (is_covering && ref_key_quick_rows < select_limit))
+            continue;
+          if (table->quick_keys.is_set(nr))
+            quick_records= table->quick_rows[nr];
+          if (best_key < 0 ||
+              (select_limit <= min(quick_records,best_records) ?
+               keyinfo->key_parts < best_key_parts :
+               quick_records < best_records))
+          {
+            best_key= nr;
+            best_key_parts= keyinfo->key_parts;
+            best_records= quick_records;
+            is_best_covering= is_covering;
+            best_key_direction= direction; 
+            best_select_limit= select_limit;
+          }
+        }   
+      }      
+    }
+  }
+
+  if (best_key < 0 || best_key == ref_key)
+    DBUG_RETURN(FALSE);
+  
+  *new_key= best_key;
+  *new_key_direction= best_key_direction;
+  *new_select_limit= best_select_limit;
+  if (new_used_key_parts != NULL)
+    *new_used_key_parts= best_key_parts;
+
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
+  Find a key to apply single table UPDATE/DELETE by a given ORDER
+
+  @param       order           Linked list of ORDER BY arguments
+  @param       table           Table to find a key
+  @param       select          Pointer to access/update select->quick (if any)
+  @param       limit           LIMIT clause parameter 
+  @param [out] need_sort       TRUE if filesort needed
+  @param [out] reverse
+    TRUE if the key is reversed again given ORDER (undefined if key == MAX_KEY)
+
+  @return
+    - MAX_KEY if no key found                        (need_sort == TRUE)
+    - MAX_KEY if quick select result order is OK     (need_sort == FALSE)
+    - key number (either index scan or quick select) (need_sort == FALSE)
+
+  @note
+    Side effects:
+    - may deallocate or deallocate and replace select->quick;
+    - may set table->quick_condition_rows and table->quick_rows[...]
+      to table->file->stats.records. 
+*/
+
+uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
+                         ha_rows limit, bool *need_sort, bool *reverse)
+{
+  if (select && select->quick && select->quick->unique_key_range())
+  { // Single row select (always "ordered"): Ok to use with key field UPDATE
+    *need_sort= FALSE;
+    /*
+      Returning of MAX_KEY here prevents updating of used_key_is_modified
+      in mysql_update(). Use quick select "as is".
+    */
+    return MAX_KEY;
+  }
+
+  if (!order)
+  {
+    *need_sort= FALSE;
+    if (select && select->quick)
+      return select->quick->index; // index or MAX_KEY, use quick select as is
+    else
+      return table->file->key_used_on_scan; // MAX_KEY or index for some engines
+  }
+
+  if (!is_simple_order(order)) // just to cut further expensive checks
+  {
+    *need_sort= TRUE;
+    return MAX_KEY;
+  }
+
+  if (select && select->quick)
+  {
+    if (select->quick->index == MAX_KEY)
+    {
+      *need_sort= TRUE;
+      return MAX_KEY;
+    }
+
+    uint used_key_parts;
+    switch (test_if_order_by_key(order, table, select->quick->index,
+                                 &used_key_parts)) {
+    case 1: // desired order
+      *need_sort= FALSE;
+      return select->quick->index;
+    case 0: // unacceptable order
+      *need_sort= TRUE;
+      return MAX_KEY;
+    case -1: // desired order, but opposite direction
+      {
+        QUICK_SELECT_I *reverse_quick;
+        if ((reverse_quick=
+               select->quick->make_reverse(used_key_parts)))
+        {
+          select->set_quick(reverse_quick);
+          *need_sort= FALSE;
+          return select->quick->index;
+        }
+        else
+        {
+          *need_sort= TRUE;
+          return MAX_KEY;
+        }
+      }
+    }
+    DBUG_ASSERT(0);
+  }
+  else if (limit != HA_POS_ERROR)
+  { // check if some index scan & LIMIT is more efficient than filesort
+    
+    /*
+      Update quick_condition_rows since single table UPDATE/DELETE procedures
+      don't call make_join_statistics() and leave this variable uninitialized.
+    */
+    table->quick_condition_rows= table->file->stats.records;
+    
+    int key, direction;
+    if (test_if_cheaper_ordering(NULL, order, table,
+                                 table->keys_in_use_for_order_by, -1,
+                                 limit,
+                                 &key, &direction, &limit) &&
+        !is_key_used(table, key, table->write_set))
+    {
+      *need_sort= FALSE;
+      *reverse= (direction < 0);
+      return key;
+    }
+  }
+  *need_sort= TRUE;
+  return MAX_KEY;
 }
 
 

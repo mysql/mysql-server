@@ -51,6 +51,7 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 #include "set_var.h"
+#include "debug_sync.h"
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -1941,6 +1942,8 @@ double Item_func_pow::val_real()
 double Item_func_acos::val_real()
 {
   DBUG_ASSERT(fixed == 1);
+  /* One can use this to defer SELECT processing. */
+  DEBUG_SYNC(current_thd, "before_acos_function");
   // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
   volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
