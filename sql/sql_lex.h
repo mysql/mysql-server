@@ -161,18 +161,21 @@ typedef struct st_lex_master_info
   char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
   float heartbeat_period;
+  int sql_delay;
   ulonglong pos;
   ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+  enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+
+  void set_unspecified();
 } LEX_MASTER_INFO;
 
 
