@@ -538,6 +538,10 @@ static sys_var_thd_ulong	sys_query_alloc_block_size(&vars, "query_alloc_block_si
 static sys_var_thd_ulong	sys_query_prealloc_size(&vars, "query_prealloc_size",
 						&SV::query_prealloc_size,
 						0, fix_thd_mem_root);
+
+static sys_var_const            sys_server_uuid(&vars, "server_uuid",
+                                                OPT_GLOBAL, SHOW_CHAR,
+                                                (uchar *) server_uuid);
 #ifdef HAVE_SMEM
 /* purecov: begin tested */
 static sys_var_const    sys_shared_memory(&vars, "shared_memory",

@@ -97,6 +97,7 @@ class Master_info : public Rpl_info
   Server_ids *ignore_server_ids;
   ulong master_id;
   ulong retry_count;
+  char master_uuid[UUID_LENGTH+1];
 
   int init_info();
   void end_info();
