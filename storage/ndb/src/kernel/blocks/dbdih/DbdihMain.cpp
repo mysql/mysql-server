@@ -6159,19 +6159,17 @@ void Dbdih::removeNodeFromTable(Signal* signal,
         }
       }
     }
-    if (!found)
-    {
-      jam();
-      /**
-       * Run updateNodeInfo to remove any dead nodes from list of activeNodes
-       *  see bug#15587
-       */
-      updateNodeInfo(fragPtr);
-    }
+
+    /**
+     * Run updateNodeInfo to remove any dead nodes from list of activeNodes
+     *  see bug#15587
+     */
+    updateNodeInfo(fragPtr);
     noOfRemainingLcpReplicas += fragPtr.p->noLcpReplicas;
   }
   
-  if(noOfRemovedReplicas == 0){
+  if (noOfRemovedReplicas == 0)
+  {
     jam();
     /**
      * The table had no replica on the failed node
@@ -12041,7 +12039,8 @@ void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId)
   tabPtr.i = tableId;
   while (tabPtr.i < ctabFileSize) {
     ptrAss(tabPtr, tabRecord);
-    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) {
+    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
+    {
       /* -------------------------------------------------------------------- */
       // The table is defined. We will start by packing the table into pages.
       // The tabCopyStatus indicates to the CONTINUEB(ZPACK_TABLE_INTO_PAGES)
@@ -12050,6 +12049,14 @@ void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId)
       // starting node we will return to this subroutine and continue 
       // with the next table.
       /* -------------------------------------------------------------------- */
+      if (! (tabPtr.p->tabCopyStatus == TabRecord::CS_IDLE))
+      {
+        jam();
+        signal->theData[0] = DihContinueB::ZCOPY_NODE;
+        signal->theData[1] = tabPtr.i;
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+        return;
+      }
       ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_IDLE);
       tabPtr.p->tabCopyStatus = TabRecord::CS_COPY_NODE_STATE;
       signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
@@ -13874,12 +13881,6 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
   case TabRecord::US_REMOVE_NODE:
     jam();
     releaseTabPages(tabPtr.i);
-    for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
-      jam();
-      FragmentstorePtr fragPtr;
-      getFragstore(tabPtr.p, fragId, fragPtr);
-      updateNodeInfo(fragPtr);
-    }//for
     tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
     tabPtr.p->tabUpdateState = TabRecord::US_IDLE;
     if (tabPtr.p->tabLcpStatus == TabRecord::TLS_WRITING_TO_FILE) {
