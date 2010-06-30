@@ -625,20 +625,31 @@ dict_stats_analyze_index_level(
 			}
 		}
 
-		/* we need to copy the record instead of assigning like
-		prev_rec = rec; because when we traverse the records
-		on this level at some point we will jump from one page
-		to the next and then rec and prev_rec will be on different
-		pages and btr_pcur_move_to_next_user_rec() will release
-		the latch on the page that prev_rec is on */
-		prev_rec = rec_copy_prefix_to_buf(
-			rec, index, rec_offs_n_fields(offsets_rec),
-			&prev_rec_buf, &prev_rec_buf_size);
-
-		/* increment the pages counter at the end of each page */
 		if (page_rec_is_supremum(page_rec_get_next(rec))) {
+			/* end of a page has been reached */
 
+			/* increment the pages counter at the end of
+			each page */
 			(*total_pages)++;
+
+			/* we need to copy the record instead of assigning
+			like prev_rec = rec; because when we traverse the
+			records on this level at some point we will jump from
+			one page to the next and then rec and prev_rec will
+			be on different pages and
+			btr_pcur_move_to_next_user_rec() will release the
+			latch on the page that prev_rec is on */
+			prev_rec = rec_copy_prefix_to_buf(
+				rec, index, rec_offs_n_fields(offsets_rec),
+				&prev_rec_buf, &prev_rec_buf_size);
+
+		} else {
+			/* still on the same page, the next call to
+			btr_pcur_move_to_next_user_rec() will not jump
+			on the next page, we can simply assign pointers
+			instead of copying the records like above */
+
+			prev_rec = rec;
 		}
 	}
 
