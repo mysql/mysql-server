@@ -69,7 +69,7 @@
 #include <signaldata/SumaImpl.hpp> 
 
 #include <signaldata/LqhFrag.hpp>
-
+#include <signaldata/DictStart.hpp>
 #include <signaldata/DiAddTab.hpp>
 #include <signaldata/DihStartTab.hpp>
 
@@ -3016,8 +3016,9 @@ Dbdict::activateIndexes(Signal* signal, Uint32 i)
 #endif
 out:
   signal->theData[0] = reference();
+  signal->theData[1] = c_restartRecord.m_senderData;
   sendSignal(c_restartRecord.returnBlockRef, GSN_DICTSTARTCONF,
-	     signal, 1, JBB);
+	     signal, 2, JBB);
 }
 
 void
@@ -3309,6 +3310,12 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
   jamEntry();
   c_restartRecord.gciToRestart = signal->theData[0];
   c_restartRecord.returnBlockRef = signal->theData[1];
+  c_restartRecord.m_senderData = signal->theData[2];
+  if (signal->getLength() < DictStartReq::SignalLength)
+  {
+    jam();
+    c_restartRecord.m_senderData = 0;
+  }
   if (c_nodeRestart || c_initialNodeRestart) {
     jam();   
 
