@@ -1034,7 +1034,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
-    query_pos= query_data_start= strmov(query,"drop table ");
+    query_pos= query_data_start= strmov(query,"DROP TABLE IF EXISTS ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
     db_len= strlen(db);
 
