@@ -54,12 +54,6 @@ SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
 # database directory
 DROP DATABASE testing_1;
 ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	CREATE DATABASE testing_1
-master-bin.000001	#	Query	#	#	use `testing_1`; CREATE TABLE t1(c1 INT)
-master-bin.000001	#	Query	#	#	use `testing_1`; CREATE TABLE t2(c1 INT)
-master-bin.000001	#	Query	#	#	use `testing_1`; DROP TABLE IF EXISTS `t2`,`t1`
 
 # Remove the fake file.
 # Now we can drop the database.
@@ -120,12 +114,6 @@ SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
 # database directory
 DROP DATABASE testing_1;
 ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	CREATE DATABASE testing_1
-master-bin.000001	#	Query	#	#	use `testing_1`; CREATE TABLE t1(c1 INT)
-master-bin.000001	#	Query	#	#	use `testing_1`; CREATE TABLE t2(c1 INT)
-master-bin.000001	#	Query	#	#	use `testing_1`; DROP TABLE IF EXISTS `t2`,`t1`
 
 # Remove the fake file.
 # Now we can drop the database.
@@ -187,12 +175,6 @@ SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
 # database directory
 DROP DATABASE testing_1;
 ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	CREATE DATABASE testing_1
-master-bin.000001	#	Query	#	#	use `testing_1`; CREATE TABLE t1(c1 INT)
-master-bin.000001	#	Query	#	#	use `testing_1`; CREATE TABLE t2(c1 INT)
-master-bin.000001	#	Query	#	#	use `testing_1`; DROP TABLE IF EXISTS `t2`,`t1`
 
 # Remove the fake file.
 # Now we can drop the database.
