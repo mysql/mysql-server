@@ -28,28 +28,31 @@
 */
 const char* info_rli_fields[]=
 {
+  "number_of_lines",
   "group_relay_log_name",
   "group_relay_log_pos",
   "group_master_log_name",
-  "group_master_log_pos"
+  "group_master_log_pos",
+  "sql_delay"
 };
+
+const char *const Relay_log_info::state_delaying_string = "Waiting until MASTER_DELAY seconds after master executed event";
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery)
    :Rpl_info("SQL"),
-   no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
+   replicate_same_server_id(::replicate_same_server_id),
    cur_log_fd(-1), relay_log(&sync_relaylog_period),
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
-#if HAVE_purify
-   is_fake(FALSE),
-#endif
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   last_event_start_time(0), m_flags(0)
+   last_event_start_time(0),
+   sql_delay(0), sql_delay_end(0),
+   m_flags(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -860,6 +863,7 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
   extern uint debug_not_change_ts_if_art_event;
 #endif
   clear_flag(IN_STMT);
+  DBUG_ASSERT(!belongs_to_client());
 
   /*
     If in a transaction, and if the slave supports transactions, just
@@ -954,7 +958,6 @@ int Relay_log_info::init_info()
   const char *msg= NULL;
 
   DBUG_ENTER("Relay_log_info::init_info");
-  DBUG_ASSERT(!no_storage);
 
   if (inited)
   {
@@ -1222,12 +1225,43 @@ void Relay_log_info::set_master_info(Master_info* info)
   @retval  0   ok,
   @retval  1   write error, otherwise.
 */
+
+/**
+  Store the file and position where the slave's SQL thread are in the
+  relay log.
+
+  Notes:
+
+  - This function should be called either from the slave SQL thread,
+    or when the slave thread is not running.  (It reads the
+    group_{relay|master}_log_{pos|name} and delay fields in the rli
+    object.  These may only be modified by the slave SQL thread or by
+    a client thread when the slave SQL thread is not running.)
+
+  - If there is an active transaction, then we do not update the
+    position in the relay log.  This is to ensure that we re-execute
+    statements if we die in the middle of an transaction that was
+    rolled back.
+
+  - As a transaction never spans binary logs, we don't have to handle
+    the case where we do a relay-log-rotation in the middle of the
+    transaction.  If transactions could span several binlogs, we would
+    have to ensure that we do not delete the relay log file where the
+    transaction started before switching to a new relay log file.
+
+  - Error can happen if writing to file fails or if flushing the file
+    fails.
+
+  @param rli The object representing the Relay_log_info.
+
+  @todo Change the log file information to a binary format to avoid
+  calling longlong2str.
+
+  @return 0 on success, 1 on error.
+*/
 int Relay_log_info::flush_info(bool force)
 {
   DBUG_ENTER("Relay_log_info::flush_info");
-
-  if (unlikely(no_storage))
-    DBUG_RETURN(0);
 
   /* 
     We update the sync_period at this point because only here we
@@ -1254,15 +1288,60 @@ size_t Relay_log_info::get_number_info_rli_fields()
 
 bool Relay_log_info::read_info(Rpl_info_handler *from)
 {
+  int lines= 0;
+  char *first_non_digit= NULL;
   ulong temp_group_relay_log_pos= 0;
   ulong temp_group_master_log_pos= 0;
+  int temp_sql_delay= 0;
 
-  DBUG_ENTER("Relay_log_info::read");
+  DBUG_ENTER("Relay_log_info::read_info");
 
+  /*
+    @todo Uncomment the following assertion. See todo in
+    Relay_log_info::init() for details. /Sven
+  */
+  //DBUG_ASSERT(!belongs_to_client());
+
+  /*
+    Starting from 5.1.x, relay-log.info has a new format. Now, its
+    first line contains the number of lines in the file. By reading
+    this number we can determine which version our master.info comes
+    from. We can't simply count the lines in the file, since
+    versions before 5.1.x could generate files with more lines than
+    needed. If first line doesn't contain a number, or if it
+    contains a number less than LINES_IN_RELAY_LOG_INFO_WITH_DELAY,
+    then the file is treated like a file from pre-5.1.x version.
+    There is no ambiguity when reading an old master.info: before
+    5.1.x, the first line contained the binlog's name, which is
+    either empty or has an extension (contains a '.'), so can't be
+    confused with an integer.
+
+    So we're just reading first line and trying to figure which
+    version is this.
+  */
+
+  /*
+    The first row is temporarily stored in mi->master_log_name, if
+    it is line count and not binlog name (new format) it will be
+    overwritten by the second row later.
+  */
   if (from->prepare_info_for_read() ||
-      from->get_info(group_relay_log_name,
-                        sizeof(group_relay_log_name), "") ||
-      from->get_info((ulong *) &temp_group_relay_log_pos,
+      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
+    DBUG_RETURN(TRUE);
+
+  lines= strtoul(group_relay_log_name, &first_non_digit, 10);
+
+  if (group_relay_log_name[0]!='\0' &&
+      *first_non_digit=='\0' && lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
+  {
+    /* Seems to be new format => read group relay log name */
+    if (from->get_info(group_relay_log_name,  sizeof(group_relay_log_name), ""))
+      DBUG_RETURN(TRUE);
+  }
+  else
+     DBUG_PRINT("info", ("relay_log_info file is in old format."));
+
+  if (from->get_info((ulong *) &temp_group_relay_log_pos,
                         (ulong) BIN_LOG_HEADER_SIZE) ||
       from->get_info(group_master_log_name,
                         sizeof(group_relay_log_name), "") ||
@@ -1270,21 +1349,36 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
                         (ulong) 0))
     DBUG_RETURN(TRUE);
 
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
+  {
+    if (from->get_info((int *) &temp_sql_delay,(int) 0))
+      DBUG_RETURN(TRUE);
+  }
+
   group_relay_log_pos=  temp_group_relay_log_pos;
   group_master_log_pos= temp_group_master_log_pos;
+  sql_delay= (int32) temp_sql_delay;
 
   DBUG_RETURN(FALSE);
 }
 
 bool Relay_log_info::write_info(Rpl_info_handler *to, bool force)
 {
-  DBUG_ENTER("Relay_log_info::read");
+  DBUG_ENTER("Relay_log_info::write_info");
+
+  /*
+    @todo Uncomment the following assertion. See todo in
+    Relay_log_info::init() for details. /Sven
+  */
+  //DBUG_ASSERT(!belongs_to_client());
 
   if (to->prepare_info_for_write() ||
+      to->set_info((int) LINES_IN_RELAY_LOG_INFO_WITH_DELAY) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
       to->set_info(group_master_log_name) ||
-      to->set_info((ulong) group_master_log_pos))
+      to->set_info((ulong) group_master_log_pos) ||
+      to->set_info((int) sql_delay))
     DBUG_RETURN(TRUE);
 
   if (to->flush_info(force))

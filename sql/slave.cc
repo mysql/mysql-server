@@ -147,6 +147,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
                       void* thread_killed_arg);
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
+static int get_master_uuid(MYSQL *mysql, Master_info *mi);
+int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
@@ -420,6 +422,7 @@ int reset_info(Master_info* mi)
   mi->clear_error();
   mi->rli->clear_error();
   mi->rli->clear_until_condition();
+  mi->rli->clear_sql_delay();
 
   mi->end_info();
   mi->rli->end_info();
@@ -1166,7 +1169,6 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
   DBUG_RETURN(1);
 }
 
-
 /**
    A master info read method
 
@@ -1251,6 +1253,139 @@ bool is_network_error(uint errorno)
   return FALSE;   
 }
 
+/**
+  An auxiliary function extracts slave UUID.
+
+  @param[in]    thd  THD to access a user variable
+  @param[out]   value String to return UUID value.
+
+  @return       if success value is returned else NULL is returned.
+*/
+String *get_slave_uuid(THD *thd, String *value)
+{
+  uchar name[]= "slave_uuid";
+
+  if (value == NULL)
+    return NULL;
+  user_var_entry *entry=
+    (user_var_entry*) hash_search(&thd->user_vars, name, sizeof(name)-1);
+  if (entry && entry->length > 0)
+  {
+    value->copy(entry->value, entry->length, NULL);
+    return value;
+  }
+  else
+    return NULL;
+}
+
+int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
+{
+  char query[256];
+  int ret= 0;
+
+  my_sprintf(query, (query, "SET @slave_uuid= '%s'", server_uuid));
+  if (mysql_real_query(mysql, query, strlen(query))
+      && !check_io_slave_killed(mi->info_thd, mi, NULL))
+    goto err;
+
+  mysql_free_result(mysql_store_result(mysql));
+  return ret;
+
+err:
+  if (mysql_errno(mysql) && is_network_error(mysql_errno(mysql)))
+  {
+    mi->report(WARNING_LEVEL, mysql_errno(mysql),
+               "init-command:'%s' failed with error: %s", mysql_error(mysql));
+    ret= 2;
+  }
+  else
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+               query);
+    ret= 1;
+  }
+  mysql_free_result(mysql_store_result(mysql));
+  return ret;
+}
+
+/**
+  Get master's uuid on connecting.
+
+  @param  mysql MYSQL to request uuid from master.
+  @param  mi    Master_info to set master_uuid
+
+  @return 0: Success, 1: Fatal error, 2: Network error.
+*/
+static int get_master_uuid(MYSQL *mysql, Master_info *mi)
+{
+  const char *errmsg;
+  MYSQL_RES *master_res= NULL;
+  MYSQL_ROW master_row= NULL;
+  int ret= 0;
+
+  DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
+                  {
+                    const char act[]= "now wait_for signal.get_master_uuid";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  if (!mysql_real_query(mysql,
+                        STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_UUID'")) &&
+      (master_res= mysql_store_result(mysql)) &&
+      (master_row= mysql_fetch_row(master_res)))
+  {
+    if (!strcmp(::server_uuid, master_row[1]) &&
+        !mi->rli->replicate_same_server_id)
+    {
+      errmsg= "The slave I/O thread stops because master and slave have equal "
+              "MySQL server UUIDs; these UUIDs must be different for "
+              "replication to work.";
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+                 errmsg);
+      // Fatal error
+      ret= 1;
+    }
+    else
+    {
+      if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[1]))
+        sql_print_warning("Master's UUID has changed, its old UUID is %s, "
+                          "the new one is %s", mi->master_uuid, master_row[1]);
+      strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
+      mi->master_uuid[UUID_LENGTH]= 0;
+    }
+  }
+  else if (mysql_errno(mysql))
+  {
+    if (is_network_error(mysql_errno(mysql)))
+    {
+      mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                 "Get master SERVER_UUID failed with error: %s",
+                 mysql_error(mysql));
+      ret= 2;
+    }
+    else
+    {
+      /* Fatal error */
+      errmsg= "The slave I/O thread stops because a fatal error is encountered "
+        "when it try to get the value of SERVER_UUID variable from master.";
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+                 errmsg);
+      ret= 1;
+    }
+  }
+  else if (!master_row && master_res)
+  {
+    mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+               "Unknown system variable 'SERVER_UUID' on master, "
+               "maybe it is a *VERY OLD MASTER*.");
+  }
+
+  if (master_res)
+    mysql_free_result(master_res);
+  return ret;
+}
 
 /*
   Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
@@ -1365,8 +1500,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
+    pthread_mutex_lock(&mi->data_lock);
     mi->clock_diff_with_master=
       (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
+    pthread_mutex_unlock(&mi->data_lock);
   }
   else if (is_network_error(mysql_errno(mysql)))
   {
@@ -1376,7 +1513,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   }
   else 
   {
+    pthread_mutex_lock(&mi->data_lock);
     mi->clock_diff_with_master= 0; /* The "most sensible" value */
+    pthread_mutex_unlock(&mi->data_lock);
     sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, "
                       "do not trust column Seconds_Behind_Master of SHOW "
                       "SLAVE STATUS. Error: %s (%d)",
@@ -1860,8 +1999,12 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              FN_REFLEN));
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Master_UUID", UUID_LENGTH));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("SQL_Remaining_Delay", 8, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2030,9 +2173,24 @@ bool show_master_info(THD* thd, Master_info* mi)
     }
     // Master_Server_id
     protocol->store((uint32) mi->master_id);
-
+    protocol->store(mi->master_uuid, &my_charset_bin);
     // Master_Retry_Count
     protocol->store((ulonglong) mi->retry_count);
+    // SQL_Delay
+    protocol->store((uint32) mi->rli->get_sql_delay());
+    // SQL_Remaining_Delay
+    // THD::proc_info is not protected by any lock, so we read it once
+    // to ensure that we use the same value throughout this function.
+    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->proc_info : "";
+    if (slave_sql_running_state == Relay_log_info::state_delaying_string)
+    {
+      time_t t= my_time(0), sql_delay_end= mi->rli->get_sql_delay_end();
+      protocol->store((uint32)(t < sql_delay_end ? sql_delay_end - t : 0));
+    }
+    else
+      protocol->store_null();
+    // Slave_SQL_Running_State
+    protocol->store(slave_sql_running_state, &my_charset_bin);
 
     pthread_mutex_unlock(&mi->rli->err_lock);
     pthread_mutex_unlock(&mi->err_lock);
@@ -2340,23 +2498,104 @@ static int has_temporary_error(THD *thd)
 
 
 /**
+  If this is a lagging slave (specified with CHANGE MASTER TO MASTER_DELAY = X), delays accordingly. Also unlocks rli->data_lock.
+
+  Design note: this is the place to unlock rli->data_lock here since
+  it should be held when reading delay info from rli, but it should
+  not be held while sleeping.
+
+  @param ev Event that is about to be executed.
+
+  @param thd The sql thread's THD object.
+
+  @param rli The sql thread's Relay_log_info structure.
+*/
+static void sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
+{
+  long sql_delay= rli->get_sql_delay();
+
+  DBUG_ENTER("sql_delay_event");
+  safe_mutex_assert_owner(&rli->data_lock);
+  DBUG_ASSERT(!rli->belongs_to_client());
+
+  int type= ev->get_type_code();
+  if (sql_delay && type != ROTATE_EVENT &&
+      type != FORMAT_DESCRIPTION_EVENT && type != START_EVENT_V3)
+  {
+    // The time when we should execute the event.
+    time_t sql_delay_end=
+      ev->when + rli->mi->clock_diff_with_master + sql_delay;
+    // The current time.
+    time_t now= my_time(0);
+    // The time we will have to sleep before executing the event.
+    unsigned long nap_time= 0;
+    if (sql_delay_end > now)
+      nap_time= sql_delay_end - now;
+
+    DBUG_PRINT("info", ("sql_delay= %lu "
+                        "ev->when= %lu "
+                        "rli->mi->clock_diff_with_master= %lu "
+                        "now= %ld "
+                        "sql_delay_end= %lu "
+                        "nap_time= %ld",
+                        sql_delay, (long)ev->when,
+                        rli->mi->clock_diff_with_master,
+                        (long)now, sql_delay_end, (long)nap_time));
+
+    if (sql_delay_end > now)
+    {
+      DBUG_PRINT("info", ("delaying replication event %lu secs",
+                          nap_time));
+      rli->start_sql_delay(sql_delay_end);
+      pthread_mutex_unlock(&rli->data_lock);
+      safe_sleep(thd, nap_time, (CHECK_KILLED_FUNC)sql_slave_killed,
+                 (void*)rli);
+      DBUG_VOID_RETURN;
+    }
+  }
+
+  pthread_mutex_unlock(&rli->data_lock);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Applies the given event and advances the relay log position.
 
-  In essence, this function does:
+  This is needed by the sql thread to execute events from the binlog,
+  and by clients executing BINLOG statements.  Conceptually, this
+  function does:
 
   @code
     ev->apply_event(rli);
     ev->update_pos(rli);
   @endcode
 
-  But it also does some maintainance, such as skipping events if
-  needed and reporting errors.
+  It also does the following maintainance:
 
-  If the @c skip flag is set, then it is tested whether the event
-  should be skipped, by looking at the slave_skip_counter and the
-  server id.  The skip flag should be set when calling this from a
-  replication thread but not set when executing an explicit BINLOG
-  statement.
+   - Initializes the thread's server_id and time; and the event's
+     thread.
+
+   - If !rli->belongs_to_client() (i.e., if it belongs to the slave
+     sql thread instead of being used for executing BINLOG
+     statements), it does the following things: (1) skips events if it
+     is needed according to the server id or slave_skip_counter; (2)
+     unlocks rli->data_lock; (3) sleeps if required by 'CHANGE MASTER
+     TO MASTER_DELAY=X'; (4) maintains the running state of the sql
+     thread (rli->thread_state).
+
+   - Reports errors as needed.
+
+  @param ev The event to apply.
+
+  @param thd The client thread that executes the event (i.e., the
+  slave sql thread if called from a replication slave, or the client
+  thread if called to execute a BINLOG statement).
+
+  @param rli The relay log info (i.e., the slave's rli if called from
+  a replication slave, or the client's thd->rli_fake if called to
+  execute a BINLOG statement).
 
   @retval 0 OK.
 
@@ -2417,9 +2656,14 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     --rli->slave_skip_counter;
     skip_event= TRUE;
   }
-  pthread_mutex_unlock(&rli->data_lock);
   if (reason == Log_event::EVENT_SKIP_NOT)
+  {
+    // Sleeps if needed, and unlocks rli->data_lock.
+    sql_delay_event(ev, thd, rli);
     exec_res= ev->apply_event(rli);
+  }
+  else
+    pthread_mutex_unlock(&rli->data_lock);
 
 #ifndef DBUG_OFF
   /*
@@ -2455,14 +2699,11 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     if (ev->get_type_code() != XID_EVENT || skip_event ||
         !rli->is_transactional())
       error= ev->update_pos(rli);
-#ifdef HAVE_purify
-    if (!rli->is_fake)
-#endif
-    {
 #ifndef DBUG_OFF
+    DBUG_PRINT("info", ("update_pos error = %d", error));
+    if (!rli->belongs_to_client())
+    {
       char buf[22];
-#endif
-      DBUG_PRINT("info", ("update_pos error = %d", error));
       DBUG_PRINT("info", ("group %s %s",
                           llstr(rli->get_group_relay_log_pos(), buf),
                           rli->get_group_relay_log_name()));
@@ -2470,6 +2711,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
                           llstr(rli->get_event_relay_log_pos(), buf),
                           rli->get_event_relay_log_name()));
     }
+#endif
     /*
       The update should not fail, so print an error message and
       return an error code.
@@ -2496,7 +2738,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 
 
 /**
-  Top-level function for executing the next event from the relay log.
+  Top-level function for executing the next event in the relay log.
+  This is called from the SQL thread.
 
   This function reads the event from the relay log, executes it, and
   advances the relay log position.  It also handles errors, etc.
@@ -2914,12 +3157,18 @@ connected:
                       DBUG_ASSERT(!debug_sync_set_action(thd, 
                                                          STRING_WITH_LEN(act)));
                     };);
-
-  // TODO: the assignment below should be under mutex (5.0)
+  pthread_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
+  pthread_mutex_unlock(&mi->run_lock);
+
   thd->slave_net = &mysql->net;
   thd_proc_info(thd, "Checking master version");
   ret= get_master_version_and_clock(mysql, mi);
+  if (!ret)
+    ret= get_master_uuid(mysql, mi);
+  if (!ret)
+    io_thread_init_commands(mysql, mi);
+
   if (ret == 1)
     /* Fatal error */
     goto err;

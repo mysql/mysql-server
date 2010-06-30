@@ -111,11 +111,17 @@ public:
   };
 
   /*
-    If flag set, then rli does not store its state in any info file.
-    This is the case only when we execute BINLOG SQL commands inside
-    a client, non-replication thread.
+    The SQL thread owns one Relay_log_info, and each client that has
+    executed a BINLOG statement owns one Relay_log_info. This function
+    returns zero for the Relay_log_info object that belongs to the SQL
+    thread and nonzero for Relay_log_info objects that belong to
+    clients.
   */
-  bool no_storage;
+  inline bool belongs_to_client()
+  {
+    DBUG_ASSERT(info_thd);
+    return !info_thd->slave_thread;
+  }
 
   /*
     If true, events with the same server id should be replicated. This
@@ -194,6 +200,11 @@ protected:
      in the master's binlog. These concern the *group*, because in the master's
      binlog the log_pos that comes with each event is the position of the
      beginning of the group.
+
+    Note: group_master_log_name, group_master_log_pos must only be
+    written from the thread owning the Relay_log_info (SQL thread if
+    !belongs_to_client(); client thread executing BINLOG statement if
+    belongs_to_client()).
   */
   char group_master_log_name[FN_REFLEN];
   volatile my_off_t group_master_log_pos;
@@ -215,9 +226,6 @@ public:
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,
                          bool look_for_description_event);
-#ifdef HAVE_purify
-  bool is_fake; /* Mark that this is a fake relay log info structure */
-#endif
 
   /*
     Handling of the relay_log_space_limit optional constraint.
@@ -231,6 +239,15 @@ public:
   time_t last_master_timestamp;
 
   void clear_until_condition();
+
+  /**
+    Reset the delay.
+    This is used by RESET SLAVE to clear the delay.
+  */
+  void clear_sql_delay()
+  {
+    sql_delay= 0;
+  }
 
   /*
     Needed for problems when slave stops and we want to restart it
@@ -514,7 +531,64 @@ public:
 
   size_t get_number_info_rli_fields();
 
+  /**
+    Text used in THD::proc_info when the slave SQL thread is delaying.
+  */
+  static const char *const state_delaying_string;
+
+  /**
+    Indicate that a delay starts.
+
+    This does not actually sleep; it only sets the state of this
+    Relay_log_info object to delaying so that the correct state can be
+    reported by SHOW SLAVE STATUS and SHOW PROCESSLIST.
+
+    Requires rli->data_lock.
+
+    @param delay_end The time when the delay shall end.
+  */
+  void start_sql_delay(time_t delay_end)
+  {
+    safe_mutex_assert_owner(&data_lock);
+    sql_delay_end= delay_end;
+    thd_proc_info(info_thd, state_delaying_string);
+  }
+
+  int32 get_sql_delay() { return sql_delay; }
+  void set_sql_delay(time_t _sql_delay) { sql_delay= _sql_delay; }
+  time_t get_sql_delay_end() { return sql_delay_end; }
+
 private:
+
+  /**
+    Delay slave SQL thread by this amount, compared to master (in
+    seconds). This is set with CHANGE MASTER TO MASTER_DELAY=X.
+
+    Guarded by data_lock.  Initialized by the client thread executing
+    START SLAVE.  Written by client threads executing CHANGE MASTER TO
+    MASTER_DELAY=X.  Read by SQL thread and by client threads
+    executing SHOW SLAVE STATUS.  Note: must not be written while the
+    slave SQL thread is running, since the SQL thread reads it without
+    a lock when executing flush_info().
+  */
+  int sql_delay;
+
+  /**
+    During a delay, specifies the point in time when the delay ends.
+
+    This is used for the SQL_Remaining_Delay column in SHOW SLAVE STATUS.
+
+    Guarded by data_lock. Written by the sql thread.  Read by client
+    threads executing SHOW SLAVE STATUS.
+  */
+  time_t sql_delay_end;
+
+  /*
+    Before the MASTER_DELAY parameter was added (WL#344), relay_log.info
+    had 4 lines. Now it has 5 lines.
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_DELAY= 5;
+
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to, bool force);
 

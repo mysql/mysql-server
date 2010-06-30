@@ -15,10 +15,12 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Master_id` int(10) unsigned NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL,
   `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `Relay_log_pos` int(10) unsigned NOT NULL,
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `Master_log_pos` int(10) unsigned NOT NULL,
+  `Sql_delay` int(11) NOT NULL,
   PRIMARY KEY (`Master_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
@@ -26,10 +28,12 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Master_id` int(10) unsigned NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL,
   `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `Relay_log_pos` int(10) unsigned NOT NULL,
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `Master_log_pos` int(10) unsigned NOT NULL,
+  `Sql_delay` int(11) NOT NULL,
   PRIMARY KEY (`Master_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 SET SQL_LOG_BIN=0;

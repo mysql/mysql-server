@@ -35,8 +35,10 @@ enum {
   /* line for master_retry_count */
   LINE_FOR_MASTER_RETRY_COUNT= 18,
 
+  LINE_FOR_MASTER_UUID= 19,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_RETRY_COUNT
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_UUID
 };
 
 /*
@@ -63,7 +65,8 @@ const char *info_mi_fields []=
   "ssl_verify_server_cert",
   "heartbeat_period",
   "ignore_server_ids",
-  "retry_count"
+  "retry_count",
+  "uuid"
 };
 
 Master_info::Master_info()
@@ -77,6 +80,7 @@ Master_info::Master_info()
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
+  master_uuid[0]= 0;
   ignore_server_ids= new Server_ids();
 }
 
@@ -160,6 +164,35 @@ void Master_info::end_info()
   DBUG_VOID_RETURN;
 }
 
+/**
+  Store the file and position where the slave's SQL thread are in the
+   relay log.
+
+  - This function should be called either from the slave SQL thread,
+    or when the slave thread is not running.  (It reads the
+    group_{relay|master}_log_{pos|name} and delay fields in the rli
+    object.  These may only be modified by the slave SQL thread or by
+    a client thread when the slave SQL thread is not running.)
+
+  - If there is an active transaction, then we do not update the
+    position in the relay log.  This is to ensure that we re-execute
+    statements if we die in the middle of an transaction that was
+    rolled back.
+
+  - As a transaction never spans binary logs, we don't have to handle
+    the case where we do a relay-log-rotation in the middle of the
+    transaction.  If transactions could span several binlogs, we would
+    have to ensure that we do not delete the relay log file where the
+    transaction started before switching to a new relay log file.
+
+  - Error can happen if writing to file fails or if flushing the file
+    fails.
+
+  @param rli The object representing the Relay_log_info.
+
+  @todo Change the log file information to a binary format to avoid
+  calling longlong2str.
+*/
 int Master_info::flush_info(bool force)
 {
   DBUG_ENTER("Master_info::flush_info");
@@ -339,6 +372,13 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(TRUE);
   }
 
+  /* Starting from 5.5 the master_retry_count may be in the repository. */
+  if (lines >= LINE_FOR_MASTER_UUID)
+  {
+    if (from->get_info(master_uuid, sizeof(master_uuid), 0))
+      DBUG_RETURN(TRUE);
+  }
+
   ssl= (my_bool) temp_ssl;
   master_log_pos= (my_off_t) temp_master_log_pos;
 #ifndef HAVE_OPENSSL
@@ -380,7 +420,8 @@ bool Master_info::write_info(Rpl_info_handler *to, bool force)
       to->set_info(ssl_verify_server_cert) ||
       to->set_info(heartbeat_period) ||
       to->set_info(ignore_server_ids) ||
-      to->set_info(retry_count))
+      to->set_info(retry_count) ||
+      to->set_info(master_uuid))
     DBUG_RETURN(TRUE);
 
   if (to->flush_info(force))
