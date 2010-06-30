@@ -425,11 +425,7 @@ row_sel_fetch_columns(
 
 				/* data == NULL means that the
 				externally stored field was not
-				written yet. This is only a valid
-				condition when the server crashed
-				after the time a record stub was
-				freshly inserted but before all its
-				columns were written. This record
+				written yet. This record
 				should only be seen by
 				recv_recovery_rollback_active() or any
 				TRX_ISO_READ_UNCOMMITTED
@@ -2736,12 +2732,7 @@ row_sel_store_mysql_rec(
 
 			if (UNIV_UNLIKELY(!data)) {
 				/* The externally stored field
-				was not written yet. This is
-				only a valid condition when
-				the server crashed after the
-				time a record stub was freshly
-				inserted but before all its
-				columns were written. This
+				was not written yet. This
 				record should only be seen by
 				recv_recovery_rollback_active()
 				or any TRX_ISO_READ_UNCOMMITTED
@@ -3615,8 +3606,7 @@ row_search_for_mysql(
 
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
 							     rec, offsets)) {
-					/* Only fresh inserts at
-					server crash time may contain
+					/* Only fresh inserts may contain
 					incomplete externally stored
 					columns. Pretend that such
 					records do not exist. Such
@@ -3628,10 +3618,6 @@ row_search_for_mysql(
 					at a lower level, not here. */
 					ut_a(trx->isolation_level
 					     == TRX_ISO_READ_UNCOMMITTED);
-					/* TODO: assert that there is
-					an owner_trx with
-					owner_trx->id == DB_TRX_ID and
-					owner_trx->is_recovered */
 
 					err = DB_TOO_BIG_RECORD;
 
@@ -4414,16 +4400,14 @@ requires_clust_rec:
 
 		if (!row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
 						      offsets)) {
-			/* Only fresh inserts at server crash time may contain
-			incomplete externally stored columns. Pretend that
-			such records do not exist. Such records may only be
-			accessed at the READ UNCOMMITTED isolation level or
-			when rolling back a recovered transaction. Rollback
-			happens at a lower level, not here. */
+			/* Only fresh inserts may contain incomplete
+			externally stored columns. Pretend that such
+			records do not exist. Such records may only be
+			accessed at the READ UNCOMMITTED isolation
+			level or when rolling back a recovered
+			transaction. Rollback happens at a lower
+			level, not here. */
 			ut_a(trx->isolation_level == TRX_ISO_READ_UNCOMMITTED);
-			/* TODO: assert that there is an owner_trx
-			with owner_trx->id == DB_TRX_ID and
-			owner_trx->is_recovered */
 		} else if (prebuilt->n_fetch_cached
 			   == MYSQL_FETCH_CACHE_SIZE) {
 
@@ -4441,19 +4425,16 @@ requires_clust_rec:
 		} else {
 			if (!row_sel_store_mysql_rec(buf, prebuilt,
 						     result_rec, offsets)) {
-				/* Only fresh inserts at server crash
-				time may contain incomplete externally
-				stored columns. Pretend that such
-				records do not exist. Such records may
-				only be accessed at the READ UNCOMMITTED
+				/* Only fresh inserts may contain
+				incomplete externally stored
+				columns. Pretend that such records do
+				not exist. Such records may only be
+				accessed at the READ UNCOMMITTED
 				isolation level or when rolling back a
-				recovered transaction. Rollback happens
-				at a lower level, not here. */
+				recovered transaction. Rollback
+				happens at a lower level, not here. */
 				ut_a(trx->isolation_level
 				     == TRX_ISO_READ_UNCOMMITTED);
-				/* TODO: assert that there is an owner_trx
-				with owner_trx->id == DB_TRX_ID and
-				owner_trx->is_recovered */
 				goto next_rec;
 			}
 		}

@@ -4969,20 +4969,10 @@ btr_rec_copy_externally_stored_field(
 	if (UNIV_UNLIKELY
 	    (!memcmp(data + local_len - BTR_EXTERN_FIELD_REF_SIZE,
 		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
-		/* The externally stored field was not written
-		yet. This is only a valid condition when the server
-		crashed after the time a record stub was freshly
-		inserted but before all its columns were written. This
-		record should only be seen by
+		/* The externally stored field was not written yet.
+		This record should only be seen by
 		recv_recovery_rollback_active() or any
 		TRX_ISO_READ_UNCOMMITTED transactions. */
-
-		/* TODO: assert that there is an owner_trx with
-		owner_trx->id == DB_TRX_ID and owner_trx->is_recovered */
-
-		/* TODO: assert that for the current transaction trx,
-		either (trx == owner_trx && trx_is_recv(trx)) or
-		trx->isolation_level == TRX_ISO_READ_UNCOMMITTED. */
 		return(NULL);
 	}
 
