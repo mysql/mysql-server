@@ -209,7 +209,7 @@ class binlog_cache_data
 {
 public:
   binlog_cache_data(): m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF),
-  incident(FALSE)
+  incident(FALSE), changes_to_non_trans_temp_table_flag(FALSE)
   {
     cache_log.end_of_file= max_binlog_cache_size;
   }
@@ -245,9 +245,20 @@ public:
     return(incident);
   }
 
+  void set_changes_to_non_trans_temp_table()
+  {
+    changes_to_non_trans_temp_table_flag= TRUE;    
+  }
+
+  bool changes_to_non_trans_temp_table()
+  {
+    return (changes_to_non_trans_temp_table_flag);    
+  }
+
   void reset()
   {
     truncate(0);
+    changes_to_non_trans_temp_table_flag= FALSE;
     incident= FALSE;
     before_stmt_pos= MY_OFF_T_UNDEF;
     cache_log.end_of_file= max_binlog_cache_size;
@@ -303,6 +314,12 @@ private:
     it is corrupted.
   */ 
   bool incident;
+
+  /*
+    This flag indicates if the cache has changes to temporary tables.
+    @TODO This a temporary fix and should be removed after BUG#54562.
+  */
+  bool changes_to_non_trans_temp_table_flag;
 
   /*
     It truncates the cache to a certain position. This includes deleting the
@@ -1772,13 +1789,23 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     /*
       We flush the cache wrapped in a beging/rollback if:
         . aborting a single or multi-statement transaction and;
-        . the format is STMT and non-trans engines were updated or;
-        . the OPTION_KEEP_LOG is activate.
+        . the OPTION_KEEP_LOG is active or;
+        . the format is STMT and a non-trans table was updated or;
+        . the format is MIXED and a temporary non-trans table was
+          updated or;
+        . the format is MIXED, non-trans table was updated and
+          aborting a single statement transaction;
     */
+
     if (ending_trans(thd, all) &&
         ((thd->variables.option_bits & OPTION_KEEP_LOG) ||
          (trans_has_updated_non_trans_table(thd) &&
-          thd->variables.binlog_format == BINLOG_FORMAT_STMT)))
+          thd->variables.binlog_format == BINLOG_FORMAT_STMT) ||
+         (cache_mngr->trx_cache.changes_to_non_trans_temp_table() &&
+          thd->variables.binlog_format == BINLOG_FORMAT_MIXED) ||
+         (trans_has_updated_non_trans_table(thd) &&
+          ending_single_stmt_trans(thd,all) &&
+          thd->variables.binlog_format == BINLOG_FORMAT_MIXED)))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE, TRUE, 0);
       error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
@@ -1786,13 +1813,17 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     /*
       Truncate the cache if:
         . aborting a single or multi-statement transaction or;
-        . the OPTION_KEEP_LOG is not activate and;
-        . the format is not STMT or no non-trans were updated.
+        . the OPTION_KEEP_LOG is not active and;
+        . the format is not STMT or no non-trans was updated and;
+        . the format is not MIXED or no temporary non-trans was
+          updated.
     */
     else if (ending_trans(thd, all) ||
              (!(thd->variables.option_bits & OPTION_KEEP_LOG) &&
-              ((!stmt_has_updated_non_trans_table(thd) ||
-               thd->variables.binlog_format != BINLOG_FORMAT_STMT))))
+              (!stmt_has_updated_non_trans_table(thd) ||
+               thd->variables.binlog_format != BINLOG_FORMAT_STMT) &&
+              (!cache_mngr->trx_cache.changes_to_non_trans_temp_table() ||
+               thd->variables.binlog_format != BINLOG_FORMAT_MIXED)))
       error= binlog_truncate_trx_cache(thd, cache_mngr, all);
   }
 
@@ -4254,7 +4285,23 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
 */
 bool ending_trans(THD* thd, const bool all)
 {
-  return (all || (!all && !thd->in_multi_stmt_transaction_mode()));
+  return (all || ending_single_stmt_trans(thd, all));
+}
+
+/**
+  This function checks if a single statement transaction is about
+  to commit or not.
+
+  @param thd The client thread that executed the current statement.
+  @param all Committing a transaction (i.e. TRUE) or a statement
+             (i.e. FALSE).
+  @return
+    @c true if committing a single statement transaction, otherwise
+    @c false.
+*/
+bool ending_single_stmt_trans(THD* thd, const bool all)
+{
+  return (!all && !thd->in_multi_stmt_transaction_mode());
 }
 
 /**
@@ -4652,6 +4699,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       bool is_trans_cache= use_trans_cache(thd, event_info->use_trans_cache());
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);
       cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
+
+      if (thd->stmt_accessed_non_trans_temp_table())
+        cache_data->set_changes_to_non_trans_temp_table();
 
       thd->binlog_start_trans_and_stmt();
     }

@@ -23,8 +23,6 @@ CREATE TEMPORARY TABLE t_innodb_temp(id int) engine= Innodb;
 INSERT INTO t_innodb_temp VALUES(1);
 BEGIN;
 INSERT INTO t_myisam SELECT * FROM t_myisam_temp;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 INSERT INTO t_innodb SELECT * FROM t_myisam_temp;
 INSERT INTO t_innodb SELECT * FROM t_innodb_temp;
 ROLLBACK;
@@ -32,8 +30,6 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 BEGIN;
 INSERT INTO t_myisam SELECT * FROM t_innodb_temp;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 INSERT INTO t_innodb SELECT * FROM t_myisam_temp;
 INSERT INTO t_innodb SELECT * FROM t_innodb_temp;
 ROLLBACK;
@@ -61,11 +57,15 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_myisam SELECT * FROM t_myisam_temp
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb SELECT * FROM t_myisam_temp
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb SELECT * FROM t_innodb_temp
 master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_myisam SELECT * FROM t_innodb_temp
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb SELECT * FROM t_myisam_temp
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb SELECT * FROM t_innodb_temp
 master-bin.000001	#	Query	#	#	ROLLBACK
@@ -185,12 +185,8 @@ BEGIN;
 INSERT INTO t_myisam VALUES(CONNECTION_ID());
 INSERT INTO tmp1 VALUES(1);
 INSERT INTO t_myisam VALUES(1);
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 INSERT INTO t_innodb VALUES(1);
 INSERT INTO t_myisam VALUES(CONNECTION_ID());
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 INSERT INTO t_innodb VALUES(1);
 COMMIT;
 show binlog events from <binlog_start>;
@@ -202,13 +198,15 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_myisam VALUES(CONNECTION_ID())
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tmp1 VALUES(1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_myisam VALUES(1)
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_myisam VALUES(CONNECTION_ID())
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tmp1 VALUES(1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb VALUES(1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb VALUES(1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
