@@ -295,6 +295,16 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
                &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
 
+
+  addRecSignal(GSN_DIH_GET_TABINFO_REQ,
+               &Dbdih::execDIH_GET_TABINFO_REQ);
+#if 0
+  addRecSignal(GSN_DIH_GET_TABINFO_REF,
+               &Dbdih::execDIH_GET_TABINFO_REF);
+  addRecSignal(GSN_DIH_GET_TABINFO_CONF,
+               &Dbdih::execDIH_GET_TABINFO_CONF);
+#endif
+
   apiConnectRecord = 0;
   connectRecord = 0;
   fileRecord = 0;

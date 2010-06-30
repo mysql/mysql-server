@@ -16,26 +16,56 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef DICT_START_HPP
-#define DICT_START_HPP
+#ifndef DIH_GET_INFO_TAB_HPP
+#define DIH_GET_INFO_TAB_HPP
 
-class DictStartReq {
+#include "SignalData.hpp"
+
+/**
+ * DihGetTabInfo - Get table info from DIH
+ */
+struct DihGetTabInfoReq
+{
   /**
-   * Sender(s)
+   * Sender(s) / Reciver(s)
    */
   friend class Dbdih;
-  /**
-   * Receiver(s)
-   */
-  friend class Dbdict;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
-private:
-  
-  Uint32 restartGci;
-  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 5 );
+public:
   Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 requestInfo; // Bitmask of DihGetTabInfoReq::RequestType
+  Uint32 tableId;
+
+  enum RequestInfoBits
+  {
+  };
+};
+
+struct DihGetTabInfoRef
+{
+  STATIC_CONST( SignalLength = 3 );
+
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 errorCode;
+
+  enum ErrorCode
+  {
+    OutOfConnectionRecords = 350,
+    TableBusy = 351,
+    TableNotDefined = 352
+  };
+};
+
+struct DihGetTabInfoConf
+{
+  STATIC_CONST( SignalLength = 2 );
+
+  Uint32 senderData;
+  Uint32 senderRef;
 };
 
 #endif
