@@ -90,7 +90,7 @@ set max_heap_table_size= @save_max_heap_table_size;
 explain select * from t1 where a in (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	t2	index_subquery	b	b	5	func	2	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	b	b	5	func	1	Using index
 select * from t1;
 a	b
 1	1

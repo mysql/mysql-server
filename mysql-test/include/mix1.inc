@@ -1351,6 +1351,13 @@ connection con1;
 SELECT * FROM t1;
 ROLLBACK;
 
+--echo # Switch to connection con2
+connection con2;
+ROLLBACK;
+
+--echo # Switch to connection con1
+connection con1;
+
 --echo # 2. test for serialized update:
 
 CREATE TABLE t2 (a INT);
@@ -1435,6 +1442,7 @@ connection con2;
 --reap
 SELECT * FROM t1;
 
+--enable_abort_on_error
 connection default;
 disconnect con1;
 disconnect con2;
@@ -1580,3 +1588,35 @@ select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 drop table t1,t2;
 --echo # End of test case for the bug#43600
 
+--echo #
+--echo # Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
+--echo #
+--echo # Check that a TRUNCATE TABLE statement, needing an exclusive meta
+--echo # data lock, waits for a shared metadata lock owned by a concurrent
+--echo # transaction.
+--echo #
+
+eval CREATE TABLE t1 (a INT) ENGINE=$engine_type;
+INSERT INTO t1 VALUES (1),(2),(3);
+BEGIN;
+SELECT * FROM t1 ORDER BY a;
+--echo # Connection con1
+connect (con1, localhost, root,,);
+--send TRUNCATE TABLE t1;
+--echo # Connection default
+connection default;
+let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='TRUNCATE TABLE t1';
+--source include/wait_condition.inc
+SELECT * FROM t1 ORDER BY a;
+ROLLBACK;
+--echo # Connection con1
+connection con1;
+--echo # Reaping TRUNCATE TABLE
+--reap
+SELECT * FROM t1;
+--echo # Disconnect con1
+disconnect con1;
+--echo # Connection default
+connection default;
+DROP TABLE t1;

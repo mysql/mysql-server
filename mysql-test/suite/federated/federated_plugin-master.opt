@@ -1,2 +1,1 @@
---plugin_dir=../storage/federated/.libs
-
+--plugin_dir=$FEDERATED_PLUGIN_DIR

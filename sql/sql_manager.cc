@@ -108,7 +108,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 
     if (error == ETIMEDOUT || error == ETIME)
     {
-      flush_tables();
+      tdc_flush_unused_tables();
       error = 0;
       reset_flush_time = TRUE;
     }

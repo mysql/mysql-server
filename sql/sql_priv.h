@@ -243,6 +243,11 @@ enum enum_var_type
 
 class sys_var;
 
+enum enum_yes_no_unknown
+{
+  TVL_YES, TVL_NO, TVL_UNKNOWN
+};
+
 #ifdef MYSQL_SERVER
 
 #endif /* MYSQL_SERVER */

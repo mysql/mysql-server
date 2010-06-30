@@ -2680,9 +2680,22 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
-//	for (i = 0; i < prebuilt->n_template; i++) {
         for (i = start_field_no; i < end_field_no ; i++) {
+
 		templ = prebuilt->mysql_template + i;
+
+                if (templ->mysql_null_bit_mask) {
+                  /* init null bytes with default values as they might be
+                  left uninitialized in some cases and these uninited bytes
+                  might be copied into mysql record buffer that leads to
+                  valgrind warnings */
+
+                  ulint offs= templ->mysql_null_byte_offset;
+                  mysql_rec[offs] &= ~(byte) templ->mysql_null_bit_mask;
+                  mysql_rec[offs] |= (byte) prebuilt->default_rec[offs] &
+                                     templ->mysql_null_bit_mask;
+                }
+
 
 		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
 						      templ->rec_field_no))) {
