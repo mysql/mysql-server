@@ -50,7 +50,7 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
 
-/* names of the tables from the persistent storage */
+/* names of the tables from the persistent statistics storage */
 #define TABLE_STATS_NAME	"innodb/table_stats"
 #define TABLE_STATS_NAME_PRINT	"innodb.table_stats"
 #define INDEX_STATS_NAME	"innodb/index_stats"
@@ -178,8 +178,8 @@ dict_stats_table_check(
 		/* no such table or missing tablespace */
 
 		/* We return silently here because this code is
-		executed during open table. By design we check if
-		persistent storage is present and whether there
+		executed during open table. By design we check if the
+		persistent statistics storage is present and whether there
 		are stats for the table being opened and if so, then
 		we use them, otherwise we silently switch back to using
 		the transient stats. */
@@ -336,8 +336,8 @@ err_exit:
 /* @} */
 
 /*********************************************************************//**
-Checks whether the persistent storage exists and that all tables have the
-proper structure.
+Checks whether the persistent statistics storage exists and that all
+tables have the proper structure.
 dict_stats_persistent_storage_check() @{
 @return TRUE if exists and all tables are ok */
 static
@@ -1422,7 +1422,8 @@ dict_stats_update_persistent(
 /* @} */
 
 /*********************************************************************//**
-Save an individual index's statistic into the persistent storage.
+Save an individual index's statistic into the persistent statistics
+storage.
 dict_stats_save_index_stat() @{
 @return DB_SUCCESS or error code */
 static
@@ -1530,7 +1531,7 @@ dict_stats_save_index_stat(
 /* @} */
 
 /*********************************************************************//**
-Save the table's statistics into the persistent storage.
+Save the table's statistics into the persistent statistics storage.
 dict_stats_save() @{
 @return DB_SUCCESS or error code */
 static
@@ -2051,7 +2052,7 @@ dict_stats_fetch_index_stats_step(
 /* @} */
 
 /*********************************************************************//**
-Read table's statistics from the persistent storage.
+Read table's statistics from the persistent statistics storage.
 dict_stats_fetch_from_ps() @{
 @return DB_SUCCESS or error code */
 static
@@ -2186,7 +2187,8 @@ dict_stats_update(
 	dict_stats_upd_option_t	stats_upd_option)
 					/*!< in: whether to (re)calc
 					the stats or to fetch them from
-					the persistent storage */
+					the persistent statistics
+					storage */
 {
 	enum db_err	ret;
 
@@ -2216,8 +2218,8 @@ dict_stats_update(
 		/* Persistent recalculation requested, probably called from
 		ANALYZE TABLE */
 
-		/* check if the persistent storage exists before calling
-		the potentially slow function
+		/* check if the persistent statistics storage exists
+		before calling the potentially slow function
 		dict_stats_update_persistent(); that is a
 		prerequisite for dict_stats_save() succeeding */
 		if (dict_stats_persistent_storage_check()) {
@@ -2241,8 +2243,8 @@ dict_stats_update(
 				fprintf(stderr,
 					" InnoDB: Recalculation of persistent "
 					"statistics requested but the required "
-					"persistent storage is not present "
-					"or is corrupted. "
+					"persistent statistics storage is not "
+					"present or is corrupted. "
 					"Using quick transient stats "
 					"instead.\n");
 			}
@@ -2262,24 +2264,24 @@ dict_stats_update(
 		break;
 
 	case DICT_STATS_UPD_FETCH:
-		/* fetch requested, either fetch from persistent storage
-		or use the old method */
+		/* fetch requested, either fetch from persistent statistics
+		storage or use the old method */
 
 		if (dict_stats_persistent_storage_check()) {
 
 			ret = dict_stats_fetch_from_ps(table);
 		} else {
 
-			/* if persistent storage does not exist, then
-			force the following code to calculate the
+			/* if persistent statistics storage does not exist,
+			then force the following code to calculate the
 			transient stats */
 			ret = DB_STATS_DO_NOT_EXIST;
 		}
 
 		if (ret == DB_STATS_DO_NOT_EXIST) {
 
-			/* The persistent storage does not exist or stats
-			for this particular table do not exist, then
+			/* The persistent statistics storage does not exist
+			or stats for this particular table do not exist, then
 			calculate the quick transient statistics */
 			dict_stats_update_transient(table);
 			ret = DB_SUCCESS;
@@ -2356,9 +2358,9 @@ dict_stats_drop_index(
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	/* If the persistent storage does not exist or is corrupted,
-	then do not attempt to DELETE from its tables because the
-	internal parser will crash. */
+	/* If the persistent statistics storage does not exist or is
+	corrupted, then do not attempt to DELETE from its tables because
+	the internal parser will crash. */
 	if (!dict_stats_persistent_storage_check()) {
 
 		dict_table_decrement_handle_count(table_stats, FALSE);
@@ -2434,8 +2436,8 @@ dict_stats_drop_index(
 
 /*********************************************************************//**
 Removes the statistics for a table and all of its indexes from the
-persistent storage if it exists and if there is data stored for the table.
-This function creates its own transaction and commits it.
+persistent statistics storage if it exists and if there is data stored for
+the table.  This function creates its own transaction and commits it.
 dict_stats_drop_table() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
@@ -2504,9 +2506,9 @@ dict_stats_drop_table(
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	/* If the persistent storage does not exist or is corrupted,
-	then do not attempt to DELETE from its tables because the
-	internal SQL parser will crash. */
+	/* If the persistent statistics storage does not exist or is
+	corrupted, then do not attempt to DELETE from its tables because
+	the internal SQL parser will crash. */
 	if (!dict_stats_persistent_storage_check()) {
 
 		ret = DB_SUCCESS;
