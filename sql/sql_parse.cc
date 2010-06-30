@@ -5640,7 +5640,7 @@ void THD::reset_for_next_command()
     thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
-  thd->thread_specific_used= thd->thread_temporary_used= FALSE;
+  thd->thread_specific_used= FALSE;
 
   if (opt_bin_log)
   {
@@ -5655,6 +5655,7 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+  thd->stmt_accessed_table_flag= 0;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
