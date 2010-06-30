@@ -1104,6 +1104,8 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
+
+  bool update_const_key_parts(COND *conds);
 };
 
 
@@ -2087,6 +2089,8 @@ inline void mark_as_null_row(TABLE *table)
   table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->s->null_bytes,255);
 }
+
+bool is_simple_order(ORDER *order);
 
 #endif /* MYSQL_CLIENT */
 

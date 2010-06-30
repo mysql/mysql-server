@@ -1842,96 +1842,6 @@ SEL_ARG *SEL_ARG::clone_tree(RANGE_OPT_PARAM *param)
 
 
 /*
-  Find the best index to retrieve first N records in given order
-
-  SYNOPSIS
-    get_index_for_order()
-      table  Table to be accessed
-      order  Required ordering
-      limit  Number of records that will be retrieved
-
-  DESCRIPTION
-    Find the best index that allows to retrieve first #limit records in the 
-    given order cheaper then one would retrieve them using full table scan.
-
-  IMPLEMENTATION
-    Run through all table indexes and find the shortest index that allows
-    records to be retrieved in given order. We look for the shortest index
-    as we will have fewer index pages to read with it.
-
-    This function is used only by UPDATE/DELETE, so we take into account how
-    the UPDATE/DELETE code will work:
-     * index can only be scanned in forward direction
-     * HA_EXTRA_KEYREAD will not be used
-    Perhaps these assumptions could be relaxed.
-
-  RETURN
-    Number of the index that produces the required ordering in the cheapest way
-    MAX_KEY if no such index was found.
-*/
-
-uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
-{
-  uint idx;
-  uint match_key= MAX_KEY, match_key_len= MAX_KEY_LENGTH + 1;
-  ORDER *ord;
-  
-  for (ord= order; ord; ord= ord->next)
-    if (!ord->asc)
-      return MAX_KEY;
-
-  for (idx= 0; idx < table->s->keys; idx++)
-  {
-    if (!(table->keys_in_use_for_query.is_set(idx)))
-      continue;
-    KEY_PART_INFO *keyinfo= table->key_info[idx].key_part;
-    uint n_parts=  table->key_info[idx].key_parts;
-    uint partno= 0;
-    
-    /* 
-      The below check is sufficient considering we now have either BTREE 
-      indexes (records are returned in order for any index prefix) or HASH 
-      indexes (records are not returned in order for any index prefix).
-    */
-    if (!(table->file->index_flags(idx, 0, 1) & HA_READ_ORDER))
-      continue;
-    for (ord= order; ord && partno < n_parts; ord= ord->next, partno++)
-    {
-      Item *item= order->item[0];
-      if (!(item->type() == Item::FIELD_ITEM &&
-           ((Item_field*)item)->field->eq(keyinfo[partno].field)))
-        break;
-    }
-    
-    if (!ord && table->key_info[idx].key_length < match_key_len)
-    {
-      /* 
-        Ok, the ordering is compatible and this key is shorter then
-        previous match (we want shorter keys as we'll have to read fewer
-        index pages for the same number of records)
-      */
-      match_key= idx;
-      match_key_len= table->key_info[idx].key_length;
-    }
-  }
-
-  if (match_key != MAX_KEY)
-  {
-    /* 
-      Found an index that allows records to be retrieved in the requested 
-      order. Now we'll check if using the index is cheaper then doing a table
-      scan.
-    */
-    double full_scan_time= table->file->scan_time();
-    double index_scan_time= table->file->read_time(match_key, 1, limit);
-    if (index_scan_time > full_scan_time)
-      match_key= MAX_KEY;
-  }
-  return match_key;
-}
-
-
-/*
   Table rows retrieval plan. Range optimizer creates QUICK_SELECT_I-derived
   objects from table read plans.
 */
@@ -8977,7 +8887,6 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   }
   rev_it.rewind();
   q->dont_free=1;				// Don't free shared mem
-  delete q;
 }
 
 
@@ -9064,6 +8973,27 @@ int QUICK_SELECT_DESC::get_next()
     }
     last_range= 0;                              // To next range
   }
+}
+
+
+/**
+  Create a compatible quick select with the result ordered in an opposite way
+
+  @param used_key_parts_arg  Number of used key parts
+
+  @retval NULL in case of errors (OOM etc)
+  @retval pointer to a newly created QUICK_SELECT_DESC if success
+*/
+
+QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg)
+{
+  QUICK_SELECT_DESC *new_quick= new QUICK_SELECT_DESC(this, used_key_parts_arg);
+  if (new_quick == NULL || new_quick->error != 0)
+  {
+    delete new_quick;
+    return NULL;
+  }
+  return new_quick;
 }
 
 
@@ -11673,6 +11603,7 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
   /* purecov: end */    
 }
 
+
 void QUICK_INDEX_MERGE_SELECT::dbug_dump(int indent, bool verbose)
 {
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
@@ -11761,7 +11692,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 }
 
 
-#endif /* NOT_USED */
+#endif /* !DBUG_OFF */
 
 /*****************************************************************************
 ** Instantiate templates 
