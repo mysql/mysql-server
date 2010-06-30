@@ -30,27 +30,12 @@ class DictStartReq {
   friend class Dbdict;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 private:
   
   Uint32 restartGci;
   Uint32 senderRef;
+  Uint32 senderData;
 };
 
-class DictStartConf {
-  /**
-   * Sender(s)
-   */
-  friend class Dbdict;
-  /**
-   * Receiver(s)
-   */
-  friend class Dbdih;
-  
-public:
-private:
-  
-  Uint32 startingNodeId;
-  Uint32 startWord;
-};
 #endif

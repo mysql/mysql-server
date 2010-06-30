@@ -1040,7 +1040,8 @@ private:
 
     /**    The active table at restart process */
     BlockReference returnBlockRef;
-    
+    Uint32 m_senderData;
+
     Uint32 m_pass;     // 0 tablespaces/logfilegroups, 1 tables, 2 indexes
     Uint32 m_end_pass; //
     const char * m_start_banner;
