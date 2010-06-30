@@ -36,6 +36,7 @@
 #include <my_dir.h>
 #include <m_ctype.h>
 #include "log.h"
+#include "binlog.h"                             // mysql_bin_log
 #ifdef __WIN__
 #include <direct.h>
 #endif
