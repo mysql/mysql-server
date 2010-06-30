@@ -1203,6 +1203,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
+      table_list->mdl_request.init(MDL_key::TABLE, table_list->db,
+                                   table_list->table_name, MDL_EXCLUSIVE);
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next_local;
@@ -1918,9 +1920,11 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
       Table_ident *new_ident= new Table_ident(thd, new_db, table_str, 0);
       if (!old_ident || !new_ident ||
           !sl->add_table_to_list(thd, old_ident, NULL,
-                                 TL_OPTION_UPDATING, TL_IGNORE) ||
+                                 TL_OPTION_UPDATING, TL_IGNORE,
+                                 MDL_EXCLUSIVE) ||
           !sl->add_table_to_list(thd, new_ident, NULL,
-                                 TL_OPTION_UPDATING, TL_IGNORE))
+                                 TL_OPTION_UPDATING, TL_IGNORE,
+                                 MDL_EXCLUSIVE))
       {
         error= 1;
         my_dirend(dirp);

@@ -256,3 +256,20 @@ SHOW WARNINGS;
 --echo # --
 --echo # -- End of Bug#37431.
 --echo # --
+
+
+--echo #
+--echo # Bug#54282 Crash in MDL_context::upgrade_shared_lock_to_exclusive
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+--error ER_NONUNIQ_TABLE
+DROP TABLE t1, t1;
+
+UNLOCK TABLES;
+DROP TABLE t1;

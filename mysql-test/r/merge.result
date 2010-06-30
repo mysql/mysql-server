@@ -2699,4 +2699,23 @@ LOCK TABLE m1 WRITE;
 ALTER TABLE m1 ADD INDEX (c1);
 UNLOCK TABLES;
 DROP TABLE m1, t1;
+#
+# Test for bug #37371 "CREATE TABLE LIKE merge loses UNION parameter"
+#
+drop tables if exists t1, m1, m2;
+create table t1 (i int) engine=myisam;
+create table m1 (i int) engine=mrg_myisam union=(t1) insert_method=first;
+create table m2 like m1;
+# Table definitions should match
+show create table m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`)
+show create table m2;
+Table	Create Table
+m2	CREATE TABLE `m2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`)
+drop tables m1, m2, t1;
 End of 6.0 tests

@@ -64,7 +64,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_db.cc ../sql/sql_delete.cc ../sql/sql_derived.cc 
            ../sql/sql_do.cc ../sql/sql_error.cc ../sql/sql_handler.cc 
            ../sql/sql_help.cc ../sql/sql_insert.cc ../sql/sql_join_cache.cc
-           ../sql/sql_help.cc ../sql/sql_insert.cc
+           ../sql/datadict.cc ../sql/sql_truncate.cc
            ../sql/sql_lex.cc ../sql/keycaches.cc
            ../sql/sql_list.cc ../sql/sql_load.cc ../sql/sql_locale.cc 
            ../sql/sql_binlog.cc ../sql/sql_manager.cc ../sql/sql_map.cc 
@@ -125,7 +125,7 @@ FOREACH(LIB ${LIBS})
 ENDFOREACH()
 
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
-  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME})
+  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Embedded)
 
 # Visual Studio users need debug  static library 
 IF(MSVC)
@@ -138,5 +138,6 @@ IF(UNIX)
 ENDIF()
 
 IF(MSVC AND NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS})
+  MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS}
+  COMPONENT Embedded)
 ENDIF()

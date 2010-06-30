@@ -1590,6 +1590,9 @@ SELECT * FROM t1;
 a	b
 1	12
 ROLLBACK;
+# Switch to connection con2
+ROLLBACK;
+# Switch to connection con1
 # 2. test for serialized update:
 CREATE TABLE t2 (a INT);
 TRUNCATE t1;
@@ -1765,6 +1768,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE t1;
 End of 5.1 tests
 #
+<<<<<<< TREE
 # Bug#43600: Incorrect type conversion caused wrong result.
 #
 CREATE TABLE t1 (
@@ -1791,6 +1795,38 @@ a	a	b	filler
 4	4	1	filler
 drop table t1,t2;
 # End of test case for the bug#43600
+=======
+# Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
+#
+# Check that a TRUNCATE TABLE statement, needing an exclusive meta
+# data lock, waits for a shared metadata lock owned by a concurrent
+# transaction.
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3);
+BEGIN;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+# Connection con1
+TRUNCATE TABLE t1;;
+# Connection default
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+ROLLBACK;
+# Connection con1
+# Reaping TRUNCATE TABLE
+SELECT * FROM t1;
+a
+# Disconnect con1
+# Connection default
+DROP TABLE t1;
+>>>>>>> MERGE-SOURCE
 drop table if exists t1, t2, t3;
 create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -2439,6 +2475,18 @@ WHERE t2.id=75 AND t1.id IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	NULL	NULL	NULL	1	Impossible ON condition
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+DROP TABLE t1,t2;
+#
+# Bug#38999 valgrind warnings for update statement in function compare_record()
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 values (1),(2),(3),(4),(5);
+INSERT INTO t2 values (1);
+SELECT * FROM t1 WHERE a = 2;
+a
+2
+UPDATE t1,t2 SET t1.a = t1.a + 100 WHERE t1.a = 1;
 DROP TABLE t1,t2;
 #
 # Bug #53830: !table || (!table->read_set || bitmap_is_set(table->read_set, field_index))
