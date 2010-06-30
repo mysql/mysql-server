@@ -88,6 +88,8 @@ pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
 fix_path pkglibdir $pkglibdir_rel lib/mysql lib
 
 plugindir='@pkgplugindir@'
+plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
+fix_path plugindir $plugindir_rel lib/mysql/plugin lib/plugin
 
 pkgincludedir='@pkgincludedir@'
 fix_path pkgincludedir include/mysql include
