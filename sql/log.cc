@@ -5285,39 +5285,39 @@ void sql_print_information(const char *format, ...)
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
-  the log consists of a file, mmapped to a memory.
-  file is divided on pages of tc_log_page_size size.
-  (usable size of the first page is smaller because of log header)
-  there's PAGE control structure for each page
-  each page (or rather PAGE control structure) can be in one of three
-  states - active, syncing, pool.
-  there could be only one page in active or syncing states,
-  but many in pool - pool is fifo queue.
-  usual lifecycle of a page is pool->active->syncing->pool
-  "active" page - is a page where new xid's are logged.
-  the page stays active as long as syncing slot is taken.
-  "syncing" page is being synced to disk. no new xid can be added to it.
-  when the sync is done the page is moved to a pool and an active page
+  the log consists of a file, mapped to memory.
+  file is divided into pages of tc_log_page_size size.
+  (usable size of the first page is smaller because of the log header)
+  there is a PAGE control structure for each page
+  each page (or rather its PAGE control structure) can be in one of
+  the three states - active, syncing, pool.
+  there could be only one page in the active or syncing state,
+  but many in pool - pool is a fifo queue.
+  the usual lifecycle of a page is pool->active->syncing->pool.
+  the "active" page is a page where new xid's are logged.
+  the page stays active as long as the syncing slot is taken.
+  the "syncing" page is being synced to disk. no new xid can be added to it.
+  when the syncing is done the page is moved to a pool and an active page
   becomes "syncing".
 
   the result of such an architecture is a natural "commit grouping" -
   If commits are coming faster than the system can sync, they do not
-  stall. Instead, all commit that came since the last sync are
-  logged to the same page, and they all are synced with the next -
+  stall. Instead, all commits that came since the last sync are
+  logged to the same "active" page, and they all are synced with the next -
   one - sync. Thus, thought individual commits are delayed, throughput
   is not decreasing.
 
-  when a xid is added to an active page, the thread of this xid waits
+  when an xid is added to an active page, the thread of this xid waits
   for a page's condition until the page is synced. when syncing slot
   becomes vacant one of these waiters is awaken to take care of syncing.
   it syncs the page and signals all waiters that the page is synced.
   PAGE::waiters is used to count these waiters, and a page may never
   become active again until waiters==0 (that is all waiters from the
-  previous sync have noticed the sync was completed)
+  previous sync have noticed that the sync was completed)
 
   note, that the page becomes "dirty" and has to be synced only when a
   new xid is added into it. Removing a xid from a page does not make it
-  dirty - we don't sync removals to disk.
+  dirty - we don't sync xid removals to disk.
 */
 
 ulong tc_log_page_waits= 0;
@@ -5383,7 +5383,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   inited=2;
 
   npages=(uint)file_length/tc_log_page_size;
-  DBUG_ASSERT(npages >= 3);             // to guarantee non-empty pool
+  if (npages < 3)             // to guarantee non-empty pool
+    goto err;
   if (!(pages=(PAGE *)my_malloc(npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
     goto err;
   inited=3;
@@ -5440,7 +5441,7 @@ err:
     -# if there're waiters - take the one with the most free space.
 
   @todo
-    TODO page merging. try to allocate adjacent page first,
+    page merging. try to allocate adjacent page first,
     so that they can be flushed both in one sync
 */
 
@@ -5449,8 +5450,7 @@ void TC_LOG_MMAP::get_active_from_pool()
   PAGE **p, **best_p=0;
   int best_free;
 
-  if (syncing)
-    pthread_mutex_lock(&LOCK_pool);
+  pthread_mutex_lock(&LOCK_pool);
 
   do
   {
@@ -5470,20 +5470,21 @@ void TC_LOG_MMAP::get_active_from_pool()
   }
   while ((*best_p == 0 || best_free == 0) && overflow());
 
+  safe_mutex_assert_owner(&LOCK_active);
   active=*best_p;
-  if (active->free == active->size) // we've chosen an empty page
-  {
-    tc_log_cur_pages_used++;
-    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
-  }
 
   if ((*best_p)->next)              // unlink the page from the pool
     *best_p=(*best_p)->next;
   else
     pool_last=*best_p;
+  pthread_mutex_unlock(&LOCK_pool);
 
-  if (syncing)
-    pthread_mutex_unlock(&LOCK_pool);
+  pthread_mutex_lock(&active->lock);
+  if (active->free == active->size) // we've chosen an empty page
+  {
+    tc_log_cur_pages_used++;
+    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
+  }
 }
 
 /**
@@ -5538,7 +5539,7 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   pthread_mutex_lock(&LOCK_active);
 
   /*
-    if active page is full - just wait...
+    if the active page is full - just wait...
     frankly speaking, active->free here accessed outside of mutex
     protection, but it's safe, because it only means we may miss an
     unlog() for the active page, and we're not waiting for it here -
@@ -5550,9 +5551,17 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   /* no active page ? take one from the pool */
   if (active == 0)
     get_active_from_pool();
+  else
+    pthread_mutex_lock(&active->lock);
 
   p=active;
-  pthread_mutex_lock(&p->lock);
+
+  /*
+    p->free is always > 0 here because to decrease it one needs
+    to take p->lock and before it one needs to take LOCK_active.
+    But checked that active->free > 0 under LOCK_active and
+    haven't release it ever since
+  */
 
   /* searching for an empty slot */
   while (*p->ptr)
@@ -5566,38 +5575,51 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   *p->ptr++= xid;
   p->free--;
   p->state= DIRTY;
-
-  /* to sync or not to sync - this is the question */
-  pthread_mutex_unlock(&LOCK_active);
-  pthread_mutex_lock(&LOCK_sync);
   pthread_mutex_unlock(&p->lock);
 
+  pthread_mutex_lock(&LOCK_sync);
   if (syncing)
   {                                          // somebody's syncing. let's wait
+    pthread_mutex_unlock(&LOCK_active);
+    pthread_mutex_lock(&p->lock);
     p->waiters++;
-    /*
-      note - it must be while (), not do ... while () here
-      as p->state may be not DIRTY when we come here
-    */
-    while (p->state == DIRTY && syncing)
+    for (;;)
+    {
+      int not_dirty = p->state != DIRTY;
+      pthread_mutex_unlock(&p->lock);
+      if (not_dirty || !syncing)
+        break;
       pthread_cond_wait(&p->cond, &LOCK_sync);
+      pthread_mutex_lock(&p->lock);
+    }
     p->waiters--;
     err= p->state == ERROR;
     if (p->state != DIRTY)                   // page was synced
     {
+      pthread_mutex_unlock(&LOCK_sync);
       if (p->waiters == 0)
         pthread_cond_signal(&COND_pool);     // in case somebody's waiting
-      pthread_mutex_unlock(&LOCK_sync);
+      pthread_mutex_unlock(&p->lock);
       goto done;                             // we're done
     }
-  }                                          // page was not synced! do it now
-  DBUG_ASSERT(active == p && syncing == 0);
-  pthread_mutex_lock(&LOCK_active);
-  syncing=p;                                 // place is vacant - take it
-  active=0;                                  // page is not active anymore
-  pthread_cond_broadcast(&COND_active);      // in case somebody's waiting
-  pthread_mutex_unlock(&LOCK_active);
-  pthread_mutex_unlock(&LOCK_sync);
+    DBUG_ASSERT(!syncing);
+    pthread_mutex_unlock(&p->lock);
+    syncing = p;
+    pthread_mutex_unlock(&LOCK_sync);
+
+    pthread_mutex_lock(&LOCK_active);
+    active=0;                                  // page is not active anymore
+    pthread_cond_broadcast(&COND_active);
+    pthread_mutex_unlock(&LOCK_active);
+  }
+  else
+  {
+    syncing = p;                               // place is vacant - take it
+    pthread_mutex_unlock(&LOCK_sync);
+    active = 0;                                // page is not active anymore
+    pthread_cond_broadcast(&COND_active);
+    pthread_mutex_unlock(&LOCK_active);
+  }
   err= sync();
 
 done:
@@ -5614,7 +5636,7 @@ int TC_LOG_MMAP::sync()
     sit down and relax - this can take a while...
     note - no locks are held at this point
   */
-  err= my_msync(fd, syncing->start, 1, MS_SYNC);
+  err= my_msync(fd, syncing->start, syncing->size * sizeof(my_xid), MS_SYNC);
 
   /* page is synced. let's move it to the pool */
   pthread_mutex_lock(&LOCK_pool);
@@ -5622,19 +5644,20 @@ int TC_LOG_MMAP::sync()
   pool_last=syncing;
   syncing->next=0;
   syncing->state= err ? ERROR : POOL;
-  pthread_cond_broadcast(&syncing->cond);    // signal "sync done"
   pthread_cond_signal(&COND_pool);           // in case somebody's waiting
   pthread_mutex_unlock(&LOCK_pool);
 
   /* marking 'syncing' slot free */
   pthread_mutex_lock(&LOCK_sync);
+  pthread_cond_broadcast(&syncing->cond);    // signal "sync done"
   syncing=0;
   /*
     we check the "active" pointer without LOCK_active. Still, it's safe -
     "active" can change from NULL to not NULL any time, but it
     will take LOCK_sync before waiting on active->cond. That is, it can never
     miss a signal.
-    And "active" can change to NULL only after LOCK_sync, so this is safe too.
+    And "active" can change to NULL only by the syncing thread
+    (the thread that will send a signal below)
   */
   if (active)
     pthread_cond_signal(&active->cond);      // wake up a new syncer
@@ -5654,13 +5677,13 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 
   DBUG_ASSERT(*x == xid);
   DBUG_ASSERT(x >= p->start && x < p->end);
-  *x=0;
 
   pthread_mutex_lock(&p->lock);
+  *x=0;
   p->free++;
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);
-  if (p->free == p->size)               // the page is completely empty
+  if (p->free == p->size)              // the page is completely empty
     statistic_decrement(tc_log_cur_pages_used, &LOCK_status);
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     pthread_cond_signal(&COND_pool);   // ping ... for overflow()
