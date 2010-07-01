@@ -24,10 +24,9 @@
 #include "sql_table.h"                         // build_table_filename
 #include "sql_view.h"             // mysql_frm_type, mysql_rename_view
 #include "sql_trigger.h"
-#include "lock.h"       // wait_if_global_read_lock, lock_table_names,
-                        // unlock_table_names,
+#include "lock.h"       // wait_if_global_read_lock
                         // start_waiting_global_read_lock
-#include "sql_base.h"   // tdc_remove_table
+#include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
 
@@ -144,7 +143,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  if (lock_table_names(thd, table_list))
+  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY))
     goto err;
 
   mysql_mutex_lock(&LOCK_open);
@@ -197,7 +197,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (!error)
     query_cache_invalidate3(thd, table_list, 0);
 
-  unlock_table_names(thd);
+  thd->mdl_context.release_transactional_locks();
 
 err:
   thd->global_read_lock.start_waiting_global_read_lock(thd);

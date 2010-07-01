@@ -406,14 +406,15 @@ public:
 
 
 /**
-  An implementation of the global metadata lock. The only locking modes
-  which are supported at the moment are SHARED and INTENTION EXCLUSIVE.
+  An implementation of the scoped metadata lock. The only locking modes
+  which are supported at the moment are SHARED and INTENTION EXCLUSIVE
+  and EXCLUSIVE
 */
 
-class MDL_global_lock : public MDL_lock
+class MDL_scoped_lock : public MDL_lock
 {
 public:
-  MDL_global_lock(const MDL_key *key_arg)
+  MDL_scoped_lock(const MDL_key *key_arg)
     : MDL_lock(key_arg)
   { }
 
@@ -857,7 +858,8 @@ inline MDL_lock *MDL_lock::create(const MDL_key *mdl_key)
   switch (mdl_key->mdl_namespace())
   {
     case MDL_key::GLOBAL:
-      return new MDL_global_lock(mdl_key);
+    case MDL_key::SCHEMA:
+      return new MDL_scoped_lock(mdl_key);
     case MDL_key::TABLE:
       return new MDL_table_lock(mdl_key);
     default:
@@ -1217,61 +1219,66 @@ void MDL_lock::reschedule_waiters()
 
 
 /**
-  Compatibility (or rather "incompatibility") matrices for global metadata
+  Compatibility (or rather "incompatibility") matrices for scoped metadata
   lock. Arrays of bitmaps which elements specify which granted/waiting locks
   are incompatible with type of lock being requested.
 
-  Here is how types of individual locks are translated to type of global lock:
+  Here is how types of individual locks are translated to type of scoped lock:
 
     ----------------+-------------+
     Type of request | Correspond. |
-    for indiv. lock | global lock |
+    for indiv. lock | scoped lock |
     ----------------+-------------+
     S, SH, SR, SW   |   IS        |
     SNW, SNRW, X    |   IX        |
     SNW, SNRW -> X  |   IX (*)    |
 
   The first array specifies if particular type of request can be satisfied
-  if there is granted global lock of certain type.
+  if there is granted scoped lock of certain type.
 
-             | Type of active |
-     Request |   global lock  |
-      type   | IS(**) IX   S  |
-    ---------+----------------+
-    IS       |  +      +   +  |
-    IX       |  +      +   -  |
-    S        |  +      -   +  |
+             | Type of active   |
+     Request |   scoped lock    |
+      type   | IS(**) IX   S  X |
+    ---------+------------------+
+    IS       |  +      +   +  + |
+    IX       |  +      +   -  - |
+    S        |  +      -   +  - |
+    X        |  +      -   -  - |
 
   The second array specifies if particular type of request can be satisfied
-  if there is already waiting request for the global lock of certain type.
+  if there is already waiting request for the scoped lock of certain type.
   I.e. it specifies what is the priority of different lock types.
 
-             |    Pending   |
-     Request |  global lock |
-      type   | IS(**) IX  S |
-    ---------+--------------+
-    IS       |  +      +  + |
-    IX       |  +      +  - |
-    S        |  +      +  + |
+             |    Pending      |
+     Request |  scoped lock    |
+      type   | IS(**) IX  S  X |
+    ---------+-----------------+
+    IS       |  +      +  +  + |
+    IX       |  +      +  -  - |
+    S        |  +      +  +  - |
+    X        |  +      +  +  + |
 
   Here: "+" -- means that request can be satisfied
         "-" -- means that request can't be satisfied and should wait
 
-  (*)   Since for upgradable locks we always take intention exclusive global
+  (*)   Since for upgradable locks we always take intention exclusive scoped
         lock at the same time when obtaining the shared lock, there is no
         need to obtain such lock during the upgrade itself.
-  (**)  Since intention shared global locks are compatible with all other
+  (**)  Since intention shared scoped locks are compatible with all other
         type of locks we don't even have any accounting for them.
 */
 
-const MDL_lock::bitmap_t MDL_global_lock::m_granted_incompatible[MDL_TYPE_END] =
+const MDL_lock::bitmap_t MDL_scoped_lock::m_granted_incompatible[MDL_TYPE_END] =
 {
-  MDL_BIT(MDL_SHARED), MDL_BIT(MDL_INTENTION_EXCLUSIVE), 0, 0, 0, 0, 0, 0
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_INTENTION_EXCLUSIVE), 0, 0, 0, 0, 0,
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED) | MDL_BIT(MDL_INTENTION_EXCLUSIVE)
 };
 
-const MDL_lock::bitmap_t MDL_global_lock::m_waiting_incompatible[MDL_TYPE_END] =
+const MDL_lock::bitmap_t MDL_scoped_lock::m_waiting_incompatible[MDL_TYPE_END] =
 {
-  MDL_BIT(MDL_SHARED), 0, 0, 0, 0, 0, 0, 0
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
+  MDL_BIT(MDL_EXCLUSIVE), 0, 0, 0, 0, 0, 0
 };
 
 
@@ -1912,7 +1919,7 @@ extern "C" int mdl_request_ptr_cmp(const void* ptr1, const void* ptr2)
   @note The list of requests should not contain non-exclusive lock requests.
         There should not be any acquired locks in the context.
 
-  @note Assumes that one already owns global intention exclusive lock.
+  @note Assumes that one already owns scoped intention exclusive lock.
 
   @retval FALSE  Success
   @retval TRUE   Failure
@@ -1928,13 +1935,6 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
 
   if (req_count == 0)
     return FALSE;
-
-  /*
-    To reduce deadlocks, the server acquires all exclusive
-    locks at once. For shared locks, try_acquire_lock() is
-    used instead.
-  */
-  DBUG_ASSERT(m_tickets.is_empty() || m_tickets.front() == m_trans_sentinel);
 
   /* Sort requests according to MDL_key. */
   if (! (sort_buf= (MDL_request **)my_malloc(req_count *

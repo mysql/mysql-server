@@ -53,6 +53,7 @@
 #include "rpl_filter.h"
 #include "sql_table.h"                          // build_table_filename
 #include "datadict.h"   // dd_frm_type()
+#include "sql_hset.h"   // Hash_set
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -4029,7 +4030,6 @@ end_unlock:
 Open_table_context::Open_table_context(THD *thd, uint flags)
   :m_failed_table(NULL),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
-   m_global_mdl_request(NULL),
    m_timeout(flags & MYSQL_LOCK_IGNORE_TIMEOUT ?
              LONG_TIMEOUT : thd->variables.lock_wait_timeout),
    m_flags(flags),
@@ -4038,26 +4038,6 @@ Open_table_context::Open_table_context(THD *thd, uint flags)
                 thd->mdl_context.has_locks()) ||
                 thd->mdl_context.trans_sentinel())
 {}
-
-
-/**
-  Get MDL_request object for global intention exclusive lock which
-  is acquired during opening tables for statements which take
-  upgradable shared metadata locks.
-*/
-
-MDL_request *Open_table_context::get_global_mdl_request(THD *thd)
-{
-  if (! m_global_mdl_request)
-  {
-    if ((m_global_mdl_request= new (thd->mem_root) MDL_request()))
-    {
-      m_global_mdl_request->init(MDL_key::GLOBAL, "", "",
-                                 MDL_INTENTION_EXCLUSIVE);
-    }
-  }
-  return m_global_mdl_request;
-}
 
 
 /**
@@ -4108,13 +4088,23 @@ request_backoff_action(enum_open_table_action action_arg,
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     return TRUE;
   }
-  m_action= action_arg;
   /*
     If auto-repair or discovery are requested, a pointer to table
     list element must be provided.
   */
-  DBUG_ASSERT((m_action != OT_DISCOVER && m_action != OT_REPAIR) || table);
-  m_failed_table= table;
+  if (table)
+  {
+    DBUG_ASSERT(action_arg == OT_DISCOVER || action_arg == OT_REPAIR);
+    m_failed_table= (TABLE_LIST*) current_thd->alloc(sizeof(TABLE_LIST));
+    if (m_failed_table == NULL)
+      return TRUE;
+    m_failed_table->init_one_table(table->db, table->db_length,
+                                   table->table_name,
+                                   table->table_name_length,
+                                   table->alias, TL_WRITE);
+    m_failed_table->mdl_request.set_type(MDL_EXCLUSIVE);
+  }
+  m_action= action_arg;
   return FALSE;
 }
 
@@ -4136,11 +4126,6 @@ Open_table_context::
 recover_from_failed_open(THD *thd)
 {
   bool result= FALSE;
-  /*
-    Remove reference to released ticket from MDL_request.
-  */
-  if (m_global_mdl_request)
-    m_global_mdl_request->ticket= NULL;
   /* Execute the action. */
   switch (m_action)
   {
@@ -4152,19 +4137,9 @@ recover_from_failed_open(THD *thd)
       break;
     case OT_DISCOVER:
       {
-        MDL_request mdl_global_request;
-        MDL_request mdl_xlock_request(&m_failed_table->mdl_request);
-        MDL_request_list mdl_requests;
-
-        mdl_global_request.init(MDL_key::GLOBAL, "", "",
-                                MDL_INTENTION_EXCLUSIVE);
-        mdl_xlock_request.set_type(MDL_EXCLUSIVE);
-
-        mdl_requests.push_front(&mdl_xlock_request);
-        mdl_requests.push_front(&mdl_global_request);
-
-        if ((result=
-             thd->mdl_context.acquire_locks(&mdl_requests, get_timeout())))
+        if ((result= lock_table_names(thd, m_failed_table, NULL,
+                                      get_timeout(),
+                                      MYSQL_OPEN_SKIP_TEMPORARY)))
           break;
 
         mysql_mutex_lock(&LOCK_open);
@@ -4181,19 +4156,9 @@ recover_from_failed_open(THD *thd)
       }
     case OT_REPAIR:
       {
-        MDL_request mdl_global_request;
-        MDL_request mdl_xlock_request(&m_failed_table->mdl_request);
-        MDL_request_list mdl_requests;
-
-        mdl_global_request.init(MDL_key::GLOBAL, "", "",
-                                MDL_INTENTION_EXCLUSIVE);
-        mdl_xlock_request.set_type(MDL_EXCLUSIVE);
-
-        mdl_requests.push_front(&mdl_xlock_request);
-        mdl_requests.push_front(&mdl_global_request);
-
-        if ((result=
-             thd->mdl_context.acquire_locks(&mdl_requests, get_timeout())))
+        if ((result= lock_table_names(thd, m_failed_table, NULL,
+                                      get_timeout(),
+                                      MYSQL_OPEN_SKIP_TEMPORARY)))
           break;
 
         mysql_mutex_lock(&LOCK_open);
@@ -4688,32 +4653,40 @@ end:
   DBUG_RETURN(error);
 }
 
+extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
+                                     my_bool not_used __attribute__((unused)))
+{
+  TABLE_LIST *table=(TABLE_LIST*) record;
+  *length= table->db_length;
+  return (uchar*) table->db;
+}
 
 /**
-  Acquire upgradable (SNW, SNRW) metadata locks on tables to be opened
-  for LOCK TABLES or a DDL statement. Under LOCK TABLES, we can't take
+  Acquire upgradable (SNW, SNRW) metadata locks on tables used by
+  LOCK TABLES or by a DDL statement. Under LOCK TABLES, we can't take
   new locks, so use open_tables_check_upgradable_mdl() instead.
 
-  @param thd           Thread context.
-  @param tables_start  Start of list of tables on which upgradable locks
-                       should be acquired.
-  @param tables_end    End of list of tables.
-  @param ot_ctx        Context of open_tables() operation.
-  @param flags         Bitmap of flags to modify how the tables will be
-                       open, see open_table() description for details.
+  @param thd               Thread context.
+  @param tables_start      Start of list of tables on which upgradable locks
+                           should be acquired.
+  @param tables_end        End of list of tables.
+  @param lock_wait_timeout Seconds to wait before timeout.
+  @param flags             Bitmap of flags to modify how the tables will be
+                           open, see open_table() description for details.
 
   @retval FALSE  Success.
   @retval TRUE   Failure (e.g. connection was killed)
 */
 
-static bool
-open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
-                                   TABLE_LIST *tables_end,
-                                   Open_table_context *ot_ctx,
-                                   uint flags)
+bool
+lock_table_names(THD *thd,
+                 TABLE_LIST *tables_start, TABLE_LIST *tables_end,
+                 ulong lock_wait_timeout, uint flags)
 {
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
+  MDL_request global_request;
+  Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
@@ -4726,29 +4699,36 @@ open_tables_acquire_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
           (table->open_type != OT_BASE_ONLY &&
            ! (flags & MYSQL_OPEN_SKIP_TEMPORARY) &&
            find_temporary_table(thd, table))))
+    {
+      if (schema_set.insert(table))
+        return TRUE;
       mdl_requests.push_front(&table->mdl_request);
+    }
   }
 
   if (! mdl_requests.is_empty())
   {
-    DEBUG_SYNC(thd, "open_tables_acquire_upgradable_mdl");
-
-    MDL_request *global_request= ot_ctx->get_global_mdl_request(thd);
-
-    if (global_request == NULL)
-      return TRUE;
-    mdl_requests.push_front(global_request);
+    /*
+      Scoped locks: Take intention exclusive locks on all involved
+      schemas.
+    */
+    Hash_set<TABLE_LIST, schema_set_get_key>::Iterator it(schema_set);
+    while ((table= it++))
+    {
+      MDL_request *schema_request= new (thd->mem_root) MDL_request;
+      if (schema_request == NULL)
+        return TRUE;
+      schema_request->init(MDL_key::SCHEMA, table->db, "",
+                           MDL_INTENTION_EXCLUSIVE);
+      mdl_requests.push_front(schema_request);
+    }
+    /* Take the global intention exclusive lock. */
+    global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+    mdl_requests.push_front(&global_request);
   }
 
-  if (thd->mdl_context.acquire_locks(&mdl_requests, ot_ctx->get_timeout()))
+  if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
     return TRUE;
-
-  for (table= tables_start; table && table != tables_end;
-       table= table->next_global)
-  {
-    if (table->mdl_request.type >= MDL_SHARED_NO_WRITE)
-      table->mdl_request.ticket= NULL;
-  }
 
   return FALSE;
 }
@@ -4921,12 +4901,21 @@ restart:
         goto err;
       }
     }
-    else if (open_tables_acquire_upgradable_mdl(thd, *start,
-                                                thd->lex->first_not_own_table(),
-                                                &ot_ctx, flags))
+    else
     {
-      error= TRUE;
-      goto err;
+      TABLE_LIST *table;
+      if (lock_table_names(thd, *start, thd->lex->first_not_own_table(),
+                           ot_ctx.get_timeout(), flags))
+      {
+        error= TRUE;
+        goto err;
+      }
+      for (table= *start; table && table != thd->lex->first_not_own_table();
+           table= table->next_global)
+      {
+        if (table->mdl_request.type >= MDL_SHARED_NO_WRITE)
+          table->mdl_request.ticket= NULL;
+      }
     }
   }
 

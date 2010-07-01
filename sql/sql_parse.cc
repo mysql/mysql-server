@@ -270,10 +270,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
-  sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
@@ -1803,7 +1803,8 @@ static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
     current internal MDL asserts, fix after discussing with
     Dmitry.
   */
-  if (lock_table_names(thd, all_tables))
+  if (lock_table_names(thd, all_tables, 0, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY))
     goto error;
 
   for (table_list= all_tables; table_list;
@@ -3644,12 +3645,6 @@ end_with_restore_list:
 #endif
     if (check_access(thd, CREATE_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    if (thd->locked_tables_mode)
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
                               lex->name.str), &create_info, 0);
     break;
@@ -3679,12 +3674,6 @@ end_with_restore_list:
 #endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    if (thd->locked_tables_mode)
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
     res= mysql_rm_db(thd, lex->name.str, lex->drop_if_exists, 0);
     break;
   }
@@ -3713,14 +3702,6 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    if (thd->locked_tables_mode)
-    {
-      res= 1;
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
-
     res= mysql_upgrade_db(thd, db);
     if (!res)
       my_ok(thd);
@@ -3753,12 +3734,6 @@ end_with_restore_list:
 #endif
     if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0))
       break;
-    if (thd->locked_tables_mode)
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
     res= mysql_alter_db(thd, db->str, &create_info);
     break;
   }
