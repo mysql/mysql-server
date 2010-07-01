@@ -4925,8 +4925,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
     NdbQuery* const query= m_active_query;
     if (sorted && query->getQueryOperation(0U)
-                       ->setOrdering(descending ? NdbScanOrdering_descending
-                                                : NdbScanOrdering_ascending))
+                       ->setOrdering(descending ? NdbQueryOptions::ScanOrdering_descending
+                                                : NdbQueryOptions::ScanOrdering_ascending))
     {
       ERR_RETURN(query->getNdbError());
     }
@@ -13427,7 +13427,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             DBUG_RETURN(error);
 
           NdbQuery* const query= m_active_query;
-          if (sorted && query->getQueryOperation(0U)->setOrdering(NdbScanOrdering_ascending))
+          if (sorted &&
+              query->getQueryOperation(0U)->setOrdering(NdbQueryOptions::ScanOrdering_ascending))
             ERR_RETURN(query->getNdbError());
         }
       } // check_if_pushable()

@@ -252,11 +252,13 @@ class NdbQueryOptionsImpl
 
 public:
   explicit NdbQueryOptionsImpl()
-  : m_matchType(NdbQueryOptions::MatchAll)
+  : m_matchType(NdbQueryOptions::MatchAll),
+    m_scanOrder(NdbQueryOptions::ScanOrdering_void)
   {};
 
 private:
   NdbQueryOptions::MatchType     m_matchType;
+  NdbQueryOptions::ScanOrdering  m_scanOrder;
 };
 
 
@@ -300,6 +302,9 @@ public:
 
   enum NdbQueryOptions::MatchType getMatchType() const
   { return m_options.m_matchType; }
+
+  enum NdbQueryOptions::ScanOrdering getOrdering() const
+  { return m_options.m_scanOrder; }
 
   Uint32 assignQueryOperationId(Uint32& nodeId)
   { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
@@ -476,19 +481,6 @@ public:
   virtual const IndexBound* getBounds() const
   { return &m_bound; } 
 
-  /** Define result ordering. Alternatively, ordering may be set when the 
-   * query definition has been instantiated, using 
-   * NdbQueryOperation::setOrdering(). It is an error to call this method 
-   * after NdbQueryBuilder::prepare() has been called for the enclosing query.
-   * @param ordering The desired ordering of results.
-   * @return 0 if ok, -1 in case of error.
-   */
-  int setOrdering(NdbScanOrdering ordering);
-
-  /** Get the result ordering for this operation.*/
-  NdbScanOrdering getOrdering() const
-  { return m_ordering; }
-
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
   explicit NdbQueryIndexScanOperationDefImpl (
@@ -506,9 +498,6 @@ private:
   /** True if there is a set of bounds.*/
   const bool m_hasBound;
   IndexBound m_bound;
-
-  /** Ordering of scan results.*/
-  NdbScanOrdering m_ordering;
 }; // class NdbQueryIndexScanOperationDefImpl
 
 

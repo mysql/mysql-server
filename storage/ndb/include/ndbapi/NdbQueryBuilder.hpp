@@ -138,8 +138,26 @@ public:
     Default = MatchAll
   };
 
+  /** Ordering of scan results when scanning ordered indexes.*/
+  enum ScanOrdering
+  {
+    /** Undefined (not yet set). */
+    ScanOrdering_void, 
+    /** Results will not be ordered.*/
+    ScanOrdering_unordered, 
+    ScanOrdering_ascending,
+    ScanOrdering_descending
+  };
+
   explicit NdbQueryOptions();
   ~NdbQueryOptions();
+
+  /** Define result ordering. Alternatively, ordering may be set when the 
+   * query definition has been instantiated, using 
+   * NdbQueryOperation::setOrdering().
+   * @param ordering The desired ordering of results.
+   */
+  int setOrdering(ScanOrdering ordering);
 
   int setMatchType(MatchType matchType);
 
@@ -237,31 +255,9 @@ private:
   ~NdbQueryTableScanOperationDef();
 }; // class NdbQueryTableScanOperationDef
 
-/** Ordering of scan results when scanning ordered indexes.*/
-enum NdbScanOrdering
-{
-  /** Undefined (not yet set). */
-  NdbScanOrdering_void, 
-  /** Results will not be ordered.*/
-  NdbScanOrdering_unordered, 
-  NdbScanOrdering_ascending,
-  NdbScanOrdering_descending
-};
-
 class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
 {
 public:
-  /** Define result ordering. Alternatively, ordering may be set when the 
-   * query definition has been instantiated, using 
-   * NdbQueryOperation::setOrdering(). It is an error to call this method 
-   * after NdbQueryBuilder::prepare() has been called for the enclosing query.
-   * @param ordering The desired ordering of results.
-   * @return 0 if ok, -1 in case of error.
-   */
-  int setOrdering(NdbScanOrdering ordering);
-
-  /** Get the result ordering for this operation.*/
-  NdbScanOrdering getOrdering() const;
 
 private:
   // Enforce object creation through NdbQueryBuilder factory 

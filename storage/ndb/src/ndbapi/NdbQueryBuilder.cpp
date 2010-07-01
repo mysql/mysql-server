@@ -421,6 +421,17 @@ NdbQueryOptions::getImpl() const
 }
 
 int
+NdbQueryOptions::setOrdering(ScanOrdering ordering)
+{
+  if (m_pimpl==&defaultOptions)
+  {
+    m_pimpl = new NdbQueryOptionsImpl;
+  }
+  m_pimpl->m_scanOrder = ordering;
+  return 0;
+}
+
+int
 NdbQueryOptions::setMatchType(MatchType matchType)
 {
   if (m_pimpl==&defaultOptions)
@@ -550,18 +561,6 @@ const NdbDictionary::Index*
 NdbQueryOperationDef::getIndex() const
 {
   return ::getImpl(*this).getIndex();
-}
-
-int 
-NdbQueryIndexScanOperationDef::setOrdering(NdbScanOrdering ordering)
-{
-  return ::getImpl(*this).setOrdering(ordering);
-}
-
-NdbScanOrdering
-NdbQueryIndexScanOperationDef::getOrdering() const
-{
-  return ::getImpl(*this).getOrdering();
 }
 
 /*******************************************
@@ -1370,8 +1369,7 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
   m_interface(*this), 
   m_index(index), 
   m_hasBound(bound != NULL),
-  m_bound(),
-  m_ordering(NdbScanOrdering_void)
+  m_bound()
 {
   if (bound!=NULL) {
 
@@ -1603,17 +1601,6 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
   return 0;
 } // NdbQueryIndexScanOperationDefImpl::checkPrunable
 
-int
-NdbQueryIndexScanOperationDefImpl::setOrdering(NdbScanOrdering ordering)
-{
-  /* Check that query has not been prepared yet.*/
-  if(m_isPrepared)
-  {
-    return -1;
-  }
-  m_ordering = ordering;
-  return 0;
-}
 
 NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      const NdbTableImpl& table,

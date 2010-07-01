@@ -223,7 +223,7 @@ namespace SPJSanityTest{
                                 const char* indexName,
                                 int lowerBoundRowNo, 
                                 int upperBoundRowNo,
-                                NdbScanOrdering ordering);
+                                NdbQueryOptions::ScanOrdering ordering);
 
     virtual ~IndexScanOperation() {
       delete[] m_rowFound;
@@ -246,7 +246,7 @@ namespace SPJSanityTest{
     /** An entry per row. True if row has been seen in the result stream.*/
     bool* m_rowFound;
     /** Ordering of results.*/
-    NdbScanOrdering m_ordering;
+    NdbQueryOptions::ScanOrdering m_ordering;
     /** Previous row, for verifying ordering.*/
     Row m_previousRow;
     /** True from the second row and onwards.*/
@@ -609,7 +609,7 @@ namespace SPJSanityTest{
                        const char* indexName,
                        int lowerBoundRowNo, 
                        int upperBoundRowNo,
-                       NdbScanOrdering ordering):
+                       NdbQueryOptions::ScanOrdering ordering):
     Operation<Row>(query, NULL),
     m_indexName(indexName),
     m_lowerBoundRowNo(lowerBoundRowNo),
@@ -644,10 +644,11 @@ namespace SPJSanityTest{
     low[Key::size] = NULL;
     high[Key::size] = NULL;
 
+    NdbQueryOptions options;
+    options.setOrdering(m_ordering);
     const NdbQueryIndexBound bound(low, high);
-    NdbQueryIndexScanOperationDef* opDef 
-      = builder.scanIndex(index, &tab, &bound);
-    opDef->setOrdering(m_ordering);
+    const NdbQueryIndexScanOperationDef* opDef 
+      = builder.scanIndex(index, &tab, &bound, &options);
     Operation<Row>::m_operationDef = opDef;
     ASSERT_ALWAYS(Operation<Row>::m_operationDef!=NULL);
     m_rowFound = new bool[Operation<Row>::m_query.getTableSize()];
@@ -689,7 +690,7 @@ namespace SPJSanityTest{
     }else{
       if(m_hasPreviousRow){
         switch(m_ordering){
-        case NdbScanOrdering_ascending:
+        case NdbQueryOptions::ScanOrdering_ascending:
           if(!lessOrEqual(m_previousRow, *Operation<Row>::m_resultPtr)){
             ndbout << "Error in result ordering. Did not expect row "
                    <<  *Operation<Row>::m_resultPtr
@@ -697,7 +698,7 @@ namespace SPJSanityTest{
             ASSERT_ALWAYS(false);
           }
           break;
-        case NdbScanOrdering_descending:
+        case NdbQueryOptions::ScanOrdering_descending:
           if(lessOrEqual(m_previousRow, *Operation<Row>::m_resultPtr)){
             ndbout << "Error in result ordering. Did not expect row "
                    <<  *Operation<Row>::m_resultPtr
@@ -705,7 +706,7 @@ namespace SPJSanityTest{
             ASSERT_ALWAYS(false);
           }
           break;
-        case NdbScanOrdering_unordered:
+        case NdbQueryOptions::ScanOrdering_unordered:
           break;
         default:
           ASSERT_ALWAYS(false);
@@ -826,7 +827,7 @@ namespace SPJSanityTest{
       case 2:
         {
           IndexScanOperation<Row, Key> root(query, "PRIMARY", 2, 4,
-                                            NdbScanOrdering_unordered);
+                                   NdbQueryOptions::ScanOrdering_unordered);
           LookupOperation<Row, Key> child(query, &root);
           IndexLookupOperation<Row, Key> child2(query, "UIX", &child);
           LookupOperation<Row, Key> child3(query, &child);
@@ -854,7 +855,7 @@ namespace SPJSanityTest{
       case 5:
         {
           IndexScanOperation<Row, Key> root(query, "PRIMARY", 0, 10, 
-                                            NdbScanOrdering_descending);
+                                 NdbQueryOptions::ScanOrdering_descending);
           LookupOperation<Row, Key> child(query, &root);
           runCase<Row, Key>(mysql, ndb, query, tabName, 10, 10);
         }
@@ -871,7 +872,7 @@ namespace SPJSanityTest{
         //case 6:
         {
           IndexScanOperation<Row, Key> root(query, "PRIMARY", 0, 1000, 
-                                            NdbScanOrdering_descending);
+                                 NdbQueryOptions::ScanOrdering_descending);
           LookupOperation<Row, Key> child(query, &root);
           runCase<Row, Key>(mysql, ndb, query, tabName, 10*(caseNo-6), 10*(caseNo-6));
         }
