@@ -6442,6 +6442,8 @@ alter_commands:
             lex->sql_command= SQLCOM_TRUNCATE;
             lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->check_opt.init();
+            lex->query_tables->mdl_request.set_type(MDL_SHARED_NO_READ_WRITE);
+            lex->query_tables->lock_type= TL_WRITE;
           }
         | reorg_partition_rule
         ;
@@ -10695,7 +10697,7 @@ truncate:
             lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
             lex->select_lex.init_order();
             YYPS->m_lock_type= TL_WRITE;
-            YYPS->m_mdl_type= MDL_SHARED_WRITE;
+            YYPS->m_mdl_type= MDL_SHARED_NO_READ_WRITE;
           }
           table_name
           {}

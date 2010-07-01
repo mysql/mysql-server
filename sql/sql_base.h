@@ -205,6 +205,9 @@ int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, mysql_mutex_t *mutex,
                         mysql_cond_t *cond);
+bool lock_table_names(THD *thd, TABLE_LIST *table_list,
+                      TABLE_LIST *table_list_end, ulong lock_wait_timeout,
+                      uint flags);
 bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
 /* open_and_lock_tables with optional derived handling */
@@ -480,8 +483,6 @@ public:
     return m_start_of_statement_svp;
   }
 
-  MDL_request *get_global_mdl_request(THD *thd);
-
   inline ulong get_timeout() const
   {
     return m_timeout;
@@ -498,11 +499,6 @@ private:
   */
   TABLE_LIST *m_failed_table;
   MDL_ticket *m_start_of_statement_svp;
-  /**
-    Request object for global intention exclusive lock which is acquired during
-    opening tables for statements which take upgradable shared metadata locks.
-  */
-  MDL_request *m_global_mdl_request;
   /**
     Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
     tables or to the "lock_wait_timeout" system variable for regular tables.

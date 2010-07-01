@@ -40,15 +40,16 @@ class Deadlock_detection_visitor;
   Type of metadata lock request.
 
   @sa Comments for MDL_object_lock::can_grant_lock() and
-      MDL_global_lock::can_grant_lock() for details.
+      MDL_scoped_lock::can_grant_lock() for details.
 */
 
 enum enum_mdl_type {
   /*
-    An intention exclusive metadata lock. Used only for global locks.
+    An intention exclusive metadata lock. Used only for scoped locks.
     Owner of this type of lock can acquire upgradable exclusive locks on
     individual objects.
-    Compatible with other IX locks, but is incompatible with global S lock.
+    Compatible with other IX locks, but is incompatible with scoped S and
+    X locks.
   */
   MDL_INTENTION_EXCLUSIVE= 0,
   /*
@@ -179,6 +180,7 @@ public:
     MDL_key is also used outside of the MDL subsystem.
   */
   enum enum_mdl_namespace { GLOBAL=0,
+                            SCHEMA,
                             TABLE,
                             FUNCTION,
                             PROCEDURE,
@@ -646,6 +648,8 @@ private:
       closes all open HANDLERs.
       However, one can open a few HANDLERs after entering the
       read only mode.
+    * LOCK TABLES locks include intention exclusive locks on
+      involved schemas.
   */
   Ticket_list m_tickets;
   /**

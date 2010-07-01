@@ -3705,6 +3705,481 @@ DROP TABLE t1;
 disconnect con1;
 
 
+--echo #
+--echo # Tests for schema-scope locks
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
+--enable_warnings
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Test 1: 
+--echo # CREATE DATABASE blocks database DDL on the same database, but
+--echo # not database DDL on different databases. Tests X vs X lock.
+--echo #
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send CREATE DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send CREATE DATABASE db1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='CREATE DATABASE db1';
+--source include/wait_condition.inc
+# This should not block.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: CREATE DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: CREATE DATABASE db1
+--error ER_DB_CREATE_EXISTS
+--reap
+
+--echo # Test 2:
+--echo # ALTER DATABASE blocks database DDL on the same database, but
+--echo # not database DDL on different databases. Tests X vs X lock.
+--echo #
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table'
+  AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
+--source include/wait_condition.inc
+# This should not block.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should also block.
+--send DROP DATABASE db1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DROP DATABASE db1
+--reap
+# Recreate the database
+CREATE DATABASE db1;
+
+--echo # Test 3:
+--echo # Two ALTER..UPGRADE of the same database are mutually exclusive, but
+--echo # two ALTER..UPGRADE of different databases are not. Tests X vs X lock.
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+# Manually make a 5.0 database from the template
+--mkdir $MYSQLD_DATADIR/a-b-c
+--copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c/db.opt
+--mkdir $MYSQLD_DATADIR/a-b-c-d
+--copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c-d/db.opt
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table'
+  AND info='ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME';
+--source include/wait_condition.inc
+# This should not block.
+ALTER DATABASE `#mysql50#a-b-c-d` UPGRADE DATA DIRECTORY NAME;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
+--error ER_BAD_DB_ERROR
+--reap
+DROP DATABASE `a-b-c`;
+DROP DATABASE `a-b-c-d`;
+
+--echo # Test 4:
+--echo # DROP DATABASE blocks database DDL on the same database, but
+--echo # not database DDL on different databases. Tests X vs X lock.
+--echo #
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send DROP DATABASE db1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+# This should not block.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DROP DATABASE db1
+--error ER_DB_DROP_EXISTS
+--reap
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should also block.
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table'
+  AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--error 1 # Wrong error pending followup patch for bug#54360
+--reap
+
+
+--echo # Test 5:
+--echo # Locked database name prevents CREATE of tables in that database.
+--echo # Tests X vs IX lock.
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send CREATE TABLE db1.t1 (a INT)
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='CREATE TABLE db1.t1 (a INT)';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: CREATE TABLE db1.t1 (a INT)
+--error ER_BAD_DB_ERROR
+--reap
+
+--echo # Test 6:
+--echo # Locked database name prevents RENAME of tables to/from that database.
+--echo # Tests X vs IX lock.
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send RENAME TABLE db1.t1 TO test.t1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='RENAME TABLE db1.t1 TO test.t1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: RENAME TABLE db1.t1 TO test.t1
+--error ER_FILE_NOT_FOUND
+--reap
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE test.t2 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send RENAME TABLE test.t2 TO db1.t2
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='RENAME TABLE test.t2 TO db1.t2';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: RENAME TABLE test.t2 TO db1.t2
+--error 7 # Wrong error pending followup patch for bug#54360
+--reap
+DROP TABLE test.t2;
+
+
+--echo # Test 7:
+--echo # Locked database name prevents DROP of tables in that database.
+--echo # Tests X vs IX lock.
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send DROP TABLE db1.t1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='DROP TABLE db1.t1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DROP TABLE db1.t1
+--error ER_BAD_TABLE_ERROR
+--reap
+
+--echo # Connection default
+connection default;
+disconnect con2;
+disconnect con3;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #
+--echo # End of tests for schema-scope locks
+--echo #
+
+--echo #
+--echo # Tests of granted global S lock (FLUSH TABLE WITH READ LOCK)
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(a INT);
+connect(con2, localhost, root);
+connect(con3, localhost, root);
+
+--echo # Connection default
+connection default;
+FLUSH TABLE WITH READ LOCK;
+
+--echo # Connection con2
+connection con2;
+# IX global lock should block
+--send CREATE TABLE db1.t2(a INT)
+
+--echo # Connection default
+connection default;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for release of readlock'
+  AND info='CREATE TABLE db1.t2(a INT)';
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping CREATE TABLE db1.t2(a INT)
+--reap
+
+--echo # Connection default
+connection default;
+FLUSH TABLE WITH READ LOCK;
+
+--echo # Connection con2
+connection con2;
+# X global lock should block
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection default
+connection default;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for release of readlock'
+  AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection default
+connection default;
+FLUSH TABLE WITH READ LOCK;
+
+--echo # Connection con2
+connection con2;
+# S global lock should not block
+FLUSH TABLE WITH READ LOCK;
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+DROP DATABASE db1;
+disconnect con2;
+disconnect con3;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

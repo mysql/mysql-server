@@ -747,62 +747,48 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 }
 
 
-/*****************************************************************************
-  Lock table based on the name.
-  This is used when we need total access to a closed, not open table
-*****************************************************************************/
-
 /**
-   Obtain exclusive metadata locks on the list of tables.
+  Obtain an exclusive metadata lock on a schema name.
 
-   @param thd         Thread handle
-   @param table_list  List of tables to lock
+  @param thd         Thread handle.
+  @param db          The database name.
 
-   @note This function assumes that no metadata locks were acquired
-         before calling it. Also it cannot be called while holding
-         LOCK_open mutex. Both these invariants are enforced by asserts
-         in MDL_context::acquire_locks().
-   @note Initialization of MDL_request members of TABLE_LIST elements
-         is a responsibility of the caller.
+  This function cannot be called while holding LOCK_open mutex.
+  To avoid deadlocks, we do not try to obtain exclusive metadata
+  locks in LOCK TABLES mode, since in this mode there may be
+  other metadata locks already taken by the current connection,
+  and we must not wait for MDL locks while holding locks.
 
-   @retval FALSE  Success.
-   @retval TRUE   Failure (OOM or thread was killed).
+  @retval FALSE  Success.
+  @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
+                 or this connection was killed.
 */
 
-bool lock_table_names(THD *thd, TABLE_LIST *table_list)
+bool lock_schema_name(THD *thd, const char *db)
 {
   MDL_request_list mdl_requests;
   MDL_request global_request;
-  TABLE_LIST *lock_table;
+  MDL_request mdl_request;
+
+  if (thd->locked_tables_mode)
+  {
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    return TRUE;
+  }
 
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+  mdl_request.init(MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE);
 
-  for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
-    mdl_requests.push_front(&lock_table->mdl_request);
-
+  mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&global_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
-    return 1;
+    return TRUE;
 
-  return 0;
-}
-
-
-/**
-   Release all metadata locks previously obtained by lock_table_names().
-
-   @param thd  Thread handle.
-
-   @note Cannot be called while holding LOCK_open mutex.
-*/
-
-void unlock_table_names(THD *thd)
-{
-  DBUG_ENTER("unlock_table_names");
-  thd->mdl_context.release_transactional_locks();
-  DBUG_VOID_RETURN;
+  DEBUG_SYNC(thd, "after_wait_locked_schema_name");
+  return FALSE;
 }
 
 
@@ -837,6 +823,7 @@ bool lock_routine_name(THD *thd, bool is_function,
                                          MDL_key::PROCEDURE);
   MDL_request_list mdl_requests;
   MDL_request global_request;
+  MDL_request schema_request;
   MDL_request mdl_request;
 
   if (thd->locked_tables_mode)
@@ -850,9 +837,11 @@ bool lock_routine_name(THD *thd, bool is_function,
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+  schema_request.init(MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE);
   mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE);
 
   mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&global_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
