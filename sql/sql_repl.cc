@@ -1403,6 +1403,7 @@ int reset_slave(THD *thd, Master_info* mi)
   mi->clear_error();
   mi->rli.clear_error();
   mi->rli.clear_until_condition();
+  mi->rli.clear_sql_delay();
 
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
@@ -1444,24 +1445,32 @@ err:
 
   SYNOPSIS
     kill_zombie_dump_threads()
-    slave_server_id     the slave's server id
+    slave_uuid      the slave's UUID
 
 */
 
 
-void kill_zombie_dump_threads(uint32 slave_server_id)
+void kill_zombie_dump_threads(String *slave_uuid)
 {
+  if (slave_uuid->length() == 0)
+    return;
+  DBUG_ASSERT(slave_uuid->length() == UUID_LENGTH);
+
   pthread_mutex_lock(&LOCK_thread_count);
   I_List_iterator<THD> it(threads);
   THD *tmp;
 
   while ((tmp=it++))
   {
-    if (tmp->command == COM_BINLOG_DUMP &&
-       tmp->server_id == slave_server_id)
+    if (tmp != current_thd && tmp->command == COM_BINLOG_DUMP)
     {
-      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
-      break;
+      String tmp_uuid;
+      if (get_slave_uuid(tmp, &tmp_uuid) != NULL &&
+          !strncmp(slave_uuid->c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH))
+      {
+        pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
+        break;
+      }
     }
   }
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -1496,6 +1505,10 @@ bool change_master(THD* thd, Master_info* mi)
   const char* errmsg= 0;
   bool need_relay_log_purge= 1;
   bool ret= FALSE;
+  char saved_host[HOSTNAME_LENGTH + 1];
+  uint saved_port;
+  char saved_log_name[FN_REFLEN];
+  my_off_t saved_log_pos;
   DBUG_ENTER("change_master");
 
   lock_slave_threads(mi);
@@ -1538,9 +1551,27 @@ bool change_master(THD* thd, Master_info* mi)
   */
 
   /*
+    Before processing the command, save the previous state.
+  */
+  char *pos;
+  pos= strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  pos= '\0';
+  saved_port= mi->port;
+  pos= strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
+  pos= '\0';
+  saved_log_pos= mi->master_log_pos;
+
+  /*
     If the user specified host or port without binlog or position,
     reset binlog's name to FIRST and position to 4.
   */
+
+  if ((lex_mi->host && strcmp(lex_mi->host, mi->host)) ||
+      (lex_mi->port && lex_mi->port != mi->port))
+  {
+    mi->master_uuid[0]= 0;
+    mi->master_id= 0;
+  }
 
   if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
   {
@@ -1603,6 +1634,9 @@ bool change_master(THD* thd, Master_info* mi)
 
   if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
+
+  if (lex_mi->sql_delay != -1)
+    mi->rli.set_sql_delay(lex_mi->sql_delay);
 
   if (lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl_verify_server_cert=
@@ -1735,6 +1769,15 @@ bool change_master(THD* thd, Master_info* mi)
   /* Clear the errors, for a clean start */
   mi->rli.clear_error();
   mi->rli.clear_until_condition();
+
+  sql_print_information("'CHANGE MASTER TO executed'. "
+    "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'. "
+    "New state master_host='%s', master_port='%u', master_log_file='%s', "
+    "master_log_pos='%ld'.", saved_host, saved_port, saved_log_name,
+    (ulong) saved_log_pos, mi->host, mi->port, mi->master_log_name,
+    (ulong) mi->master_log_pos);
+
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
@@ -2150,7 +2193,6 @@ int log_loaded_block(IO_CACHE* file)
       if (mysql_bin_log.write(&b))
         DBUG_RETURN(1);
       lf_info->wrote_create_file= 1;
-      DBUG_SYNC_POINT("debug_lock.created_file_event",10);
     }
   }
   DBUG_RETURN(0);

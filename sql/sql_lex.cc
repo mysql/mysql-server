@@ -45,7 +45,8 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_UDF,
   ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
-  ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
+  ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
+  ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 };
 
 
@@ -2124,6 +2125,7 @@ void st_lex::cleanup_lex_after_parse_error(THD *thd)
   */
   if (thd->lex->sphead)
   {
+    thd->lex->sphead->restore_thd_mem_root(thd);
     delete thd->lex->sphead;
     thd->lex->sphead= NULL;
   }
@@ -3025,3 +3027,12 @@ bool st_lex::is_partition_management() const
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
 
+
+/**
+  Set all fields to their "unspecified" value.
+*/
+void st_lex_master_info::set_unspecified()
+{
+  bzero((char*) this, sizeof(*this));
+  sql_delay= -1;
+}

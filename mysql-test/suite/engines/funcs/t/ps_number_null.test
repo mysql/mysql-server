@@ -1,0 +1,412 @@
+--disable_warnings
+DROP TABLE IF EXISTS t6;
+--enable_warnings
+CREATE TABLE t6(c1 TINYINT UNSIGNED NULL);
+PREPARE stmt6 FROM 'INSERT INTO t6 (c1) VALUES(?)';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+--sorted_result
+PREPARE stmt6 FROM 'SELECT * FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'UPDATE t6 SET c1 = ? WHERE c1 = ?';
+SET @a=NULL;
+SET @b=0;
+EXECUTE stmt6 USING @a,@b;
+SET @a=0;
+SET @b=NULL;
+EXECUTE stmt6 USING @a,@b;
+SET @a=255;
+SET @a=201;
+EXECUTE stmt6 USING @a,@b;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'DELETE FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+DROP TABLE t6;
+CREATE TABLE t6(c1 SMALLINT UNSIGNED NULL);
+PREPARE stmt6 FROM 'INSERT INTO t6 (c1) VALUES(?)';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+--sorted_result
+PREPARE stmt6 FROM 'SELECT * FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'UPDATE t6 SET c1 = ? WHERE c1 = ?';
+SET @a=NULL;
+SET @b=0;
+EXECUTE stmt6 USING @a,@b;
+SET @a=0;
+SET @b=NULL;
+EXECUTE stmt6 USING @a,@b;
+SET @a=255;
+SET @a=201;
+EXECUTE stmt6 USING @a,@b;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'DELETE FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+DROP TABLE t6;
+CREATE TABLE t6(c1 MEDIUMINT UNSIGNED NULL);
+PREPARE stmt6 FROM 'INSERT INTO t6 (c1) VALUES(?)';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+--sorted_result
+PREPARE stmt6 FROM 'SELECT * FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'UPDATE t6 SET c1 = ? WHERE c1 = ?';
+SET @a=NULL;
+SET @b=0;
+EXECUTE stmt6 USING @a,@b;
+SET @a=0;
+SET @b=NULL;
+EXECUTE stmt6 USING @a,@b;
+SET @a=255;
+SET @a=201;
+EXECUTE stmt6 USING @a,@b;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'DELETE FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+DROP TABLE t6;
+CREATE TABLE t6(c1 INT UNSIGNED NULL);
+PREPARE stmt6 FROM 'INSERT INTO t6 (c1) VALUES(?)';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+--sorted_result
+PREPARE stmt6 FROM 'SELECT * FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'UPDATE t6 SET c1 = ? WHERE c1 = ?';
+SET @a=NULL;
+SET @b=0;
+EXECUTE stmt6 USING @a,@b;
+SET @a=0;
+SET @b=NULL;
+EXECUTE stmt6 USING @a,@b;
+SET @a=255;
+SET @a=201;
+EXECUTE stmt6 USING @a,@b;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'DELETE FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+DROP TABLE t6;
+CREATE TABLE t6(c1 INTEGER UNSIGNED NULL);
+PREPARE stmt6 FROM 'INSERT INTO t6 (c1) VALUES(?)';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+--sorted_result
+PREPARE stmt6 FROM 'SELECT * FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'UPDATE t6 SET c1 = ? WHERE c1 = ?';
+SET @a=NULL;
+SET @b=0;
+EXECUTE stmt6 USING @a,@b;
+SET @a=0;
+SET @b=NULL;
+EXECUTE stmt6 USING @a,@b;
+SET @a=255;
+SET @a=201;
+EXECUTE stmt6 USING @a,@b;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'DELETE FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+DROP TABLE t6;
+CREATE TABLE t6(c1 BIGINT UNSIGNED NULL);
+PREPARE stmt6 FROM 'INSERT INTO t6 (c1) VALUES(?)';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+--sorted_result
+PREPARE stmt6 FROM 'SELECT * FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'UPDATE t6 SET c1 = ? WHERE c1 = ?';
+SET @a=NULL;
+SET @b=0;
+EXECUTE stmt6 USING @a,@b;
+SET @a=0;
+SET @b=NULL;
+EXECUTE stmt6 USING @a,@b;
+SET @a=255;
+SET @a=201;
+EXECUTE stmt6 USING @a,@b;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+PREPARE stmt6 FROM 'DELETE FROM t6 WHERE c1 = ?';
+SET @a=NULL;
+EXECUTE stmt6 USING @a;
+SET @a=0;
+EXECUTE stmt6 USING @a;
+SET @a=255;
+EXECUTE stmt6 USING @a;
+--sorted_result
+SELECT * FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS total_rows FROM t6;
+--sorted_result
+SELECT COUNT(c1) AS positive_rows FROM t6 WHERE c1 > 0;
+--sorted_result
+SELECT COUNT(c1) AS null_rows FROM t6 WHERE c1 IS NULL;
+--sorted_result
+SELECT COUNT(c1) AS not_null_rows FROM t6 WHERE c1 IS NOT NULL;
+DEALLOCATE PREPARE stmt6;
+DROP TABLE t6;
+

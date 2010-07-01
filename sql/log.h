@@ -289,8 +289,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   bool no_auto_events;
 
-  ulonglong m_table_map_version;
-
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
      sync_relay_log_period
@@ -378,14 +376,6 @@ public:
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
-  bool is_table_mapped(TABLE *table) const
-  {
-    return table->s->table_map_version == table_map_version();
-  }
-
-  ulonglong table_map_version() const { return m_table_map_version; }
-  void update_table_map_version() { ++m_table_map_version; }
-
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
   int remove_pending_rows_event(THD *thd, bool is_transactional);

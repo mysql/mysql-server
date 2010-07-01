@@ -20,23 +20,18 @@
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
 #include "rpl_utility.h"
+#include "slave.h"
 
 static int count_relay_log_space(Relay_log_info* rli);
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
+const char *const Relay_log_info::state_delaying_string = "Waiting until MASTER_DELAY seconds after master executed event";
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery)
   :Slave_reporting_capability("SQL"),
-   no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
+   replicate_same_server_id(::replicate_same_server_id),
    info_fd(-1), cur_log_fd(-1), relay_log(&sync_relaylog_period),
    sync_counter(0), is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
-#if HAVE_purify
-   is_fake(FALSE),
-#endif
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
    last_master_timestamp(0), slave_skip_counter(0),
@@ -44,7 +39,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   last_event_start_time(0), m_flags(0)
+   last_event_start_time(0),
+   sql_delay(0), sql_delay_end(0),
+   m_flags(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -82,41 +79,72 @@ Relay_log_info::~Relay_log_info()
 }
 
 
+/**
+  Wrapper around Relay_log_info::init(const char *).
+
+  @todo Remove this and replace all calls to it by calls to
+  Relay_log_info::init(const char *). /SVEN
+*/
 int init_relay_log_info(Relay_log_info* rli,
 			const char* info_fname)
 {
+  return rli->init(info_fname);
+}
+
+
+/**
+  Read the relay_log.info file.
+
+  @param info_fname The name of the file to read from.
+  @retval 0 success
+  @retval 1 failure
+*/
+int Relay_log_info::init(const char* info_fname)
+{
   char fname[FN_REFLEN+128];
-  int info_fd;
   const char* msg = 0;
   int error = 0;
   DBUG_ENTER("init_relay_log_info");
-  DBUG_ASSERT(!rli->no_storage);         // Don't init if there is no storage
 
-  if (rli->inited)                       // Set if this function called
+  /*
+    Should not read RLI from file in client threads. Client threads
+    only use RLI to execute BINLOG statements.
+
+    @todo Uncomment the following assertion. Currently,
+    Relay_log_info::init() is called from init_master_info() before
+    the THD object Relay_log_info::sql_thd is created. That means we
+    cannot call belongs_to_client() since belongs_to_client()
+    dereferences Relay_log_info::sql_thd. So we need to refactor
+    slightly: the THD object should be created by Relay_log_info
+    constructor (or passed to it), so that we are guaranteed that it
+    exists at this point. /Sven
+  */
+  // DBUG_ASSERT(!belongs_to_client());
+
+  if (inited)                       // Set if this function called
     DBUG_RETURN(0);
   fn_format(fname, info_fname, mysql_data_home, "", 4+32);
-  pthread_mutex_lock(&rli->data_lock);
-  info_fd = rli->info_fd;
-  rli->cur_log_fd = -1;
-  rli->slave_skip_counter=0;
-  rli->abort_pos_wait=0;
-  rli->log_space_limit= relay_log_space_limit;
-  rli->log_space_total= 0;
-  rli->tables_to_lock= 0;
-  rli->tables_to_lock_count= 0;
+  pthread_mutex_lock(&data_lock);
+  cur_log_fd = -1;
+  slave_skip_counter=0;
+  abort_pos_wait=0;
+  log_space_limit= relay_log_space_limit;
+  log_space_total= 0;
+  tables_to_lock= 0;
+  tables_to_lock_count= 0;
 
   char pattern[FN_REFLEN];
   (void) my_realpath(pattern, slave_load_tmpdir, 0);
   if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
             MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS)
   {
-    pthread_mutex_unlock(&rli->data_lock);
+    pthread_mutex_unlock(&data_lock);
     sql_print_error("Unable to use slave's temporary directory %s",
                     slave_load_tmpdir);
     DBUG_RETURN(1);
   }
-  unpack_filename(rli->slave_patternload_file, pattern);
-  rli->slave_patternload_file_size= strlen(rli->slave_patternload_file);
+  unpack_filename(slave_patternload_file, pattern);
+  slave_patternload_file_size= strlen(slave_patternload_file);
 
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
@@ -131,7 +159,7 @@ int init_relay_log_info(Relay_log_info* rli,
     fix_max_relay_log_size will reconsider the choice (for example
     if the user changes max_relay_log_size to zero, we have to
     switch to using max_binlog_size for the relay log) and update
-    rli->relay_log.max_size (and mysql_bin_log.max_size).
+    relay_log.max_size (and mysql_bin_log.max_size).
   */
   {
     /* Reports an error and returns, if the --relay-log's path 
@@ -139,7 +167,7 @@ int init_relay_log_info(Relay_log_info* rli,
     if (opt_relay_logname && 
         opt_relay_logname[strlen(opt_relay_logname) - 1] == FN_LIBCHAR)
     {
-      pthread_mutex_unlock(&rli->data_lock);
+      pthread_mutex_unlock(&data_lock);
       sql_print_error("Path '%s' is a directory name, please specify \
 a file name for --relay-log option", opt_relay_logname);
       DBUG_RETURN(1);
@@ -151,7 +179,7 @@ a file name for --relay-log option", opt_relay_logname);
         opt_relaylog_index_name[strlen(opt_relaylog_index_name) - 1] 
         == FN_LIBCHAR)
     {
-      pthread_mutex_unlock(&rli->data_lock);
+      pthread_mutex_unlock(&data_lock);
       sql_print_error("Path '%s' is a directory name, please specify \
 a file name for --relay-log-index option", opt_relaylog_index_name);
       DBUG_RETURN(1);
@@ -160,7 +188,7 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
     char buf[FN_REFLEN];
     const char *ln;
     static bool name_warning_sent= 0;
-    ln= rli->relay_log.generate_name(opt_relay_logname, "-relay-bin",
+    ln= relay_log.generate_name(opt_relay_logname, "-relay-bin",
                                      1, buf);
     /* We send the warning only at startup, not after every RESET SLAVE */
     if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
@@ -179,17 +207,17 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         "use '--relay-log=%s' to avoid this problem.", ln);
       name_warning_sent= 1;
     }
-    rli->relay_log.is_relay_log= TRUE;
+    relay_log.is_relay_log= TRUE;
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
-        rli->relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
-                            (max_relay_log_size ? max_relay_log_size :
-                            max_binlog_size), 1, TRUE))
+    if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
+        relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
+                       (max_relay_log_size ? max_relay_log_size :
+                        max_binlog_size), 1, TRUE))
     {
-      pthread_mutex_unlock(&rli->data_lock);
+      pthread_mutex_unlock(&data_lock);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
       DBUG_RETURN(1);
     }
@@ -211,7 +239,7 @@ file '%s', errno %d)", fname, my_errno);
       msg= current_thd->main_da.message();
       goto err;
     }
-    if (init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
+    if (init_io_cache(&info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
                       MYF(MY_WME)))
     {
       sql_print_error("Failed to create a cache on relay log info file '%s'",
@@ -221,20 +249,19 @@ file '%s', errno %d)", fname, my_errno);
     }
 
     /* Init relay log with first entry in the relay index file */
-    if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
+    if (init_relay_log_pos(this,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
                            &msg, 0))
     {
       sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4)");
       goto err;
     }
-    rli->group_master_log_name[0]= 0;
-    rli->group_master_log_pos= 0;
-    rli->info_fd= info_fd;
+    group_master_log_name[0]= 0;
+    group_master_log_pos= 0;
   }
   else // file exists
   {
     if (info_fd >= 0)
-      reinit_io_cache(&rli->info_file, READ_CACHE, 0L,0,0);
+      reinit_io_cache(&info_file, READ_CACHE, 0L,0,0);
     else
     {
       int error=0;
@@ -245,7 +272,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
                         fname, my_errno);
         error= 1;
       }
-      else if (init_io_cache(&rli->info_file, info_fd,
+      else if (init_io_cache(&info_file, info_fd,
                              IO_SIZE*2, READ_CACHE, 0L, 0, MYF(MY_WME)))
       {
         sql_print_error("Failed to create a cache on relay log info file '%s'",
@@ -256,46 +283,97 @@ Failed to open the existing relay log info file '%s' (errno %d)",
       {
         if (info_fd >= 0)
           my_close(info_fd, MYF(0));
-        rli->info_fd= -1;
-        rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
-        pthread_mutex_unlock(&rli->data_lock);
+        info_fd= -1;
+        relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+        pthread_mutex_unlock(&data_lock);
         DBUG_RETURN(1);
       }
     }
 
-    rli->info_fd = info_fd;
-    int relay_log_pos, master_log_pos;
-    if (init_strvar_from_file(rli->group_relay_log_name,
-                              sizeof(rli->group_relay_log_name),
-                              &rli->info_file, "") ||
-       init_intvar_from_file(&relay_log_pos,
-                             &rli->info_file, BIN_LOG_HEADER_SIZE) ||
-       init_strvar_from_file(rli->group_master_log_name,
-                             sizeof(rli->group_master_log_name),
-                             &rli->info_file, "") ||
-       init_intvar_from_file(&master_log_pos, &rli->info_file, 0))
+    int relay_log_pos, master_log_pos, lines;
+    char *first_non_digit;
+
+    /*
+      Starting from 5.1.x, relay-log.info has a new format. Now, its
+      first line contains the number of lines in the file. By reading
+      this number we can determine which version our master.info comes
+      from. We can't simply count the lines in the file, since
+      versions before 5.1.x could generate files with more lines than
+      needed. If first line doesn't contain a number, or if it
+      contains a number less than LINES_IN_RELAY_LOG_INFO_WITH_DELAY,
+      then the file is treated like a file from pre-5.1.x version.
+      There is no ambiguity when reading an old master.info: before
+      5.1.x, the first line contained the binlog's name, which is
+      either empty or has an extension (contains a '.'), so can't be
+      confused with an integer.
+
+      So we're just reading first line and trying to figure which
+      version is this.
+    */
+
+    /*
+      The first row is temporarily stored in mi->master_log_name, if
+      it is line count and not binlog name (new format) it will be
+      overwritten by the second row later.
+    */
+    if (init_strvar_from_file(group_relay_log_name,
+                              sizeof(group_relay_log_name),
+                              &info_file, ""))
     {
       msg="Error reading slave log configuration";
       goto err;
     }
-    strmake(rli->event_relay_log_name,rli->group_relay_log_name,
-            sizeof(rli->event_relay_log_name)-1);
-    rli->group_relay_log_pos= rli->event_relay_log_pos= relay_log_pos;
-    rli->group_master_log_pos= master_log_pos;
 
-    if (rli->is_relay_log_recovery && init_recovery(rli->mi, &msg))
+    lines= strtoul(group_relay_log_name, &first_non_digit, 10);
+
+    if (group_relay_log_name[0] != '\0' &&
+        *first_non_digit == '\0' &&
+        lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
+    {
+      DBUG_PRINT("info", ("relay_log_info file is in new format."));
+      /* Seems to be new format => read relay log name from next line */
+      if (init_strvar_from_file(group_relay_log_name,
+                                sizeof(group_relay_log_name),
+                                &info_file, ""))
+      {
+        msg="Error reading slave log configuration";
+        goto err;
+      }
+    }
+    else
+      DBUG_PRINT("info", ("relay_log_info file is in old format."));
+
+    if (init_intvar_from_file(&relay_log_pos,
+                              &info_file, BIN_LOG_HEADER_SIZE) ||
+        init_strvar_from_file(group_master_log_name,
+                              sizeof(group_master_log_name),
+                              &info_file, "") ||
+        init_intvar_from_file(&master_log_pos, &info_file, 0) ||
+        (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY &&
+         init_intvar_from_file(&sql_delay, &info_file, 0)))
+    {
+      msg="Error reading slave log configuration";
+      goto err;
+    }
+
+    strmake(event_relay_log_name,group_relay_log_name,
+            sizeof(event_relay_log_name)-1);
+    group_relay_log_pos= event_relay_log_pos= relay_log_pos;
+    group_master_log_pos= master_log_pos;
+
+    if (is_relay_log_recovery && init_recovery(mi, &msg))
       goto err;
 
-    if (init_relay_log_pos(rli,
-                           rli->group_relay_log_name,
-                           rli->group_relay_log_pos,
+    if (init_relay_log_pos(this,
+                           group_relay_log_name,
+                           group_relay_log_pos,
                            0 /* no data lock*/,
                            &msg, 0))
     {
       char llbuf[22];
       sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s)",
-                      rli->group_relay_log_name,
-                      llstr(rli->group_relay_log_pos, llbuf));
+                      group_relay_log_name,
+                      llstr(group_relay_log_pos, llbuf));
       goto err;
     }
   }
@@ -303,11 +381,11 @@ Failed to open the existing relay log info file '%s' (errno %d)",
 #ifndef DBUG_OFF
   {
     char llbuf1[22], llbuf2[22];
-    DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
-                        llstr(my_b_tell(rli->cur_log),llbuf1),
-                        llstr(rli->event_relay_log_pos,llbuf2)));
-    DBUG_ASSERT(rli->event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
-    DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->event_relay_log_pos);
+    DBUG_PRINT("info", ("my_b_tell(cur_log)=%s event_relay_log_pos=%s",
+                        llstr(my_b_tell(cur_log),llbuf1),
+                        llstr(event_relay_log_pos,llbuf2)));
+    DBUG_ASSERT(event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
+    DBUG_ASSERT(my_b_tell(cur_log) == event_relay_log_pos);
   }
 #endif
 
@@ -315,29 +393,29 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     Now change the cache from READ to WRITE - must do this
     before flush_relay_log_info
   */
-  reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
-  if ((error= flush_relay_log_info(rli)))
+  reinit_io_cache(&info_file, WRITE_CACHE,0L,0,1);
+  if ((error= flush_relay_log_info(this)))
   {
     msg= "Failed to flush relay log info file";
     goto err;
   }
-  if (count_relay_log_space(rli))
+  if (count_relay_log_space(this))
   {
     msg="Error counting relay log space";
     goto err;
   }
-  rli->inited= 1;
-  pthread_mutex_unlock(&rli->data_lock);
+  inited= 1;
+  pthread_mutex_unlock(&data_lock);
   DBUG_RETURN(error);
 
 err:
   sql_print_error("%s", msg);
-  end_io_cache(&rli->info_file);
+  end_io_cache(&info_file);
   if (info_fd >= 0)
     my_close(info_fd, MYF(0));
-  rli->info_fd= -1;
-  rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
-  pthread_mutex_unlock(&rli->data_lock);
+  info_fd= -1;
+  relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  pthread_mutex_unlock(&data_lock);
   DBUG_RETURN(1);
 }
 
@@ -619,6 +697,8 @@ err:
   if (!rli->relay_log.description_event_for_exec->is_valid() && !*errmsg)
     *errmsg= "Invalid Format_description log event; could be out of memory";
 
+  DBUG_PRINT("info", ("Returning %d from init_relay_log_pos", (*errmsg)?1:0));
+
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
 
@@ -833,7 +913,9 @@ void Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 {
   DBUG_ENTER("Relay_log_info::inc_group_relay_log_pos");
 
-  if (!skip_lock)
+  if (skip_lock)
+    safe_mutex_assert_owner(&data_lock);
+  else
     pthread_mutex_lock(&data_lock);
   inc_event_relay_log_pos();
   group_relay_log_pos= event_relay_log_pos;
@@ -1138,13 +1220,10 @@ bool Relay_log_info::cached_charset_compare(char *charset) const
 }
 
 
-void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
-                                  time_t event_creation_time)
+void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
 {
-#ifndef DBUG_OFF
-  extern uint debug_not_change_ts_if_art_event;
-#endif
   clear_flag(IN_STMT);
+  DBUG_ASSERT(!belongs_to_client());
 
   /*
     If in a transaction, and if the slave supports transactions, just
@@ -1175,20 +1254,6 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
   {
     inc_group_relay_log_pos(event_master_log_pos);
     flush_relay_log_info(this);
-    /*
-      Note that Rotate_log_event::do_apply_event() does not call this
-      function, so there is no chance that a fake rotate event resets
-      last_master_timestamp.  Note that we update without mutex
-      (probably ok - except in some very rare cases, only consequence
-      is that value may take some time to display in
-      Seconds_Behind_Master - not critical).
-    */
-#ifndef DBUG_OFF
-    if (!(event_creation_time == 0 && debug_not_change_ts_if_art_event > 0))
-#else
-      if (event_creation_time != 0)
-#endif
-        last_master_timestamp= event_creation_time;
   }
 }
 

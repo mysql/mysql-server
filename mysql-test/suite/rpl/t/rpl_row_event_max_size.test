@@ -1,0 +1,75 @@
+#
+# Bug #49931 and Bug #49932
+# This test verifies if the slave I/O thread and slave SQL thread
+# will check the bigger one of the values of 'max_allowed_packet' 
+# and 'binlog-row-event-max-size' when reading log event from
+# binlog, and the added 'binlog-row-event-max-size' mysqlbinlog 
+# option works fine.
+# 
+
+source include/master-slave.inc;
+source include/have_binlog_format_row.inc;
+
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
+                 data2 LONGBLOB, PRIMARY KEY(a));
+
+let $start_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+INSERT INTO t1 (data1, data2) VALUES (repeat('a',1000000), repeat('a', 1000000));
+let $end_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+#FLUSH LOGS;
+DELETE FROM t1 WHERE a = 1;
+--echo # On master, test the inserted data is deleted
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
+
+let $old_max_allowed_packet= `SELECT @@global.max_allowed_packet`;
+SET @@global.max_allowed_packet=4194304;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo # On master, test the added 'binlog-row-event-max-size' mysqlbinlog option
+--echo # works fine and the data is inserted by executing the dumped ROW event
+--exec $MYSQL_BINLOG --binlog-row-event-max-size=2097152  --start-position=$start_pos --stop-position=$end_pos $MYSQLD_DATADIR/master-bin.000001 | $MYSQL test 2>&1
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
+eval set @@global.max_allowed_packet= $old_max_allowed_packet;
+
+INSERT INTO t1 (data1, data2) VALUES (repeat('a',1048576), repeat('a',1048576));
+
+--source include/show_binlog_events2.inc
+
+sync_slave_with_master;
+--echo # On slave, test the row event data is replicated when the value of
+--echo # the bigger one of max_allowed_packet and binlog_row_event_max_size
+--echo # is larger than the required size.
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
+
+--echo # On slave, test the row event data is replicated when the value of
+--echo # the bigger one of max_allowed_packet and binlog_row_event_max_size
+--echo # is equal to the required size.
+SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 2;
+
+connection master;
+DROP TABLE t1;
+
+sync_slave_with_master;
+
+--echo # Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
+--echo # of the bigger one of max_allowed_packet and binlog_row_event_max_size
+--echo # is lower than the the required size.
+connection master;
+
+CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
+                 data2 LONGBLOB, data3 LONGBLOB, PRIMARY KEY(a));
+
+INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a',1000000), repeat('a', 1000000), repeat('a', 1000000));
+
+SELECT LENGTH(data1), LENGTH(data2), LENGTH(data3) FROM t1 WHERE a = 1;
+
+drop table t1;
+
+connection slave;
+call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
+call mtr.add_suppression("Found invalid event in binary log");
+
+# Show slave last IO errno
+drop table t1;
+let slave_io_errno= 1236;
+source include/wait_for_slave_io_error.inc;

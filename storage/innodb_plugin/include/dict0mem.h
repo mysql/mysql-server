@@ -80,20 +80,38 @@ combination of types */
 /** File format */
 /* @{ */
 #define DICT_TF_FORMAT_SHIFT		5	/* file format */
-#define DICT_TF_FORMAT_MASK		(127 << DICT_TF_FORMAT_SHIFT)
+#define DICT_TF_FORMAT_MASK		\
+((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
 #define DICT_TF_FORMAT_51		0	/*!< InnoDB/MySQL up to 5.1 */
 #define DICT_TF_FORMAT_ZIP		1	/*!< InnoDB plugin for 5.1:
 						compressed tables,
 						new BLOB treatment */
 /** Maximum supported file format */
 #define DICT_TF_FORMAT_MAX		DICT_TF_FORMAT_ZIP
-
+/* @} */
 #define DICT_TF_BITS			6	/*!< number of flag bits */
 #if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= DICT_TF_FORMAT_MAX
 # error "DICT_TF_BITS is insufficient for DICT_TF_FORMAT_MAX"
 #endif
 /* @} */
+
+/** @brief Additional table flags.
+
+These flags will be stored in SYS_TABLES.MIX_LEN.  All unused flags
+will be written as 0.  The column may contain garbage for tables
+created with old versions of InnoDB that only implemented
+ROW_FORMAT=REDUNDANT. */
+/* @{ */
+#define DICT_TF2_SHIFT			DICT_TF_BITS
+						/*!< Shift value for
+						table->flags. */
+#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
+						CREATE TEMPORARY TABLE. */
+#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 1)
+						/*!< Total number of bits
+						in table->flags. */
 /* @} */
+
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -374,7 +392,7 @@ struct dict_table_struct{
 	unsigned	space:32;
 				/*!< space where the clustered index of the
 				table is placed */
-	unsigned	flags:DICT_TF_BITS;/*!< DICT_TF_COMPACT, ... */
+	unsigned	flags:DICT_TF2_BITS;/*!< DICT_TF_COMPACT, ... */
 	unsigned	ibd_file_missing:1;
 				/*!< TRUE if this is in a single-table
 				tablespace and the .ibd file is missing; then

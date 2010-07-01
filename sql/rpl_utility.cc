@@ -1051,4 +1051,3 @@ table_def::~table_def()
   m_size= 0;
 #endif
 }
-
