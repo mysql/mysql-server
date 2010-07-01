@@ -2412,51 +2412,6 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
 }
 
 
-/*
-   Wait for condition but allow the user to send a kill to mysqld
-
-   SYNOPSIS
-     wait_for_condition()
-     thd	Thread handler
-     mutex	mutex that is currently hold that is associated with condition
-	        Will be unlocked on return     
-     cond	Condition to wait for
-*/
-
-void wait_for_condition(THD *thd, mysql_mutex_t *mutex, mysql_cond_t *cond)
-{
-  /* Wait until the current table is up to date */
-  const char *proc_info;
-  thd->mysys_var->current_mutex= mutex;
-  thd->mysys_var->current_cond= cond;
-  proc_info=thd->proc_info;
-  thd_proc_info(thd, "Waiting for table");
-  DBUG_ENTER("wait_for_condition");
-  DEBUG_SYNC(thd, "waiting_for_table");
-  if (!thd->killed)
-    mysql_cond_wait(cond, mutex);
-
-  /*
-    We must unlock mutex first to avoid deadlock becasue conditions are
-    sent to this thread by doing locks in the following order:
-    lock(mysys_var->mutex)
-    lock(mysys_var->current_mutex)
-
-    One by effect of this that one can only use wait_for_condition with
-    condition variables that are guranteed to not disapper (freed) even if this
-    mutex is unlocked
-  */
-    
-  mysql_mutex_unlock(mutex);
-  mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond= 0;
-  thd_proc_info(thd, proc_info);
-  mysql_mutex_unlock(&thd->mysys_var->mutex);
-  DBUG_VOID_RETURN;
-}
-
-
 /**
     Check that table exists in table definition cache, on disk
     or in some storage engine.
