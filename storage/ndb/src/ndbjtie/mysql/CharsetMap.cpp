@@ -59,12 +59,9 @@ void CharsetMap::unload()
 */
 CharsetMap::CharsetMap() 
 {
-    if(_map->ready == 0)   // _map is an NdbLockable (it is synchronized)
-    {
-        _map->lock();
-        if(_map->ready == 0)  _map->build_map();
-        _map->unlock();
-    }
+    _map->lock();
+    if(_map->ready == 0)  _map->build_map();
+    _map->unlock();
 }
 
 
