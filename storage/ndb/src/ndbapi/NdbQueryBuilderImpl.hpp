@@ -245,6 +245,21 @@ private:
 };
 
 
+class NdbQueryOptionsImpl
+{
+  friend class NdbQueryOptions;
+  friend class NdbQueryOperationDefImpl;
+
+public:
+  explicit NdbQueryOptionsImpl()
+  : m_matchType(NdbQueryOptions::MatchAll)
+  {};
+
+private:
+  NdbQueryOptions::MatchType     m_matchType;
+};
+
+
 ////////////////////////////////////////////////
 // Implementation of NdbQueryOperation interface
 ////////////////////////////////////////////////
@@ -283,8 +298,8 @@ public:
   const char* getName() const
   { return m_ident; }
 
-  enum NdbQueryOperationDef::JoinType getJoinType() const
-  { return m_joinType; }
+  enum NdbQueryOptions::MatchType getMatchType() const
+  { return m_options.m_matchType; }
 
   Uint32 assignQueryOperationId(Uint32& nodeId)
   { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
@@ -351,7 +366,7 @@ public:
 
 protected:
   explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
-                                     NdbQueryOperationDef::JoinType type,
+                                     const NdbQueryOptionsImpl& options,
                                      const char* ident,
                                      Uint32 ix);
 public:
@@ -396,8 +411,10 @@ private:
   Uint32       m_id;         // Operation id when materialized into queryTree.
                              // If op has index, index id is 'm_id-1'.
 
-  const NdbQueryOperationDef::JoinType
-               m_joinType;   // Type of join operation
+  // Optional (or default) options specified when building query:
+  // - Scan order which may specify ascending or descending scan order
+  // - Match type used for hinting on optimal inner-, outer-, semijoin exec.
+  const NdbQueryOptionsImpl m_options;
 
   // parent / child vectors contains dependencies as defined
   // with linkedValues
@@ -419,10 +436,10 @@ public:
   virtual ~NdbQueryScanOperationDefImpl()=0;
   explicit NdbQueryScanOperationDefImpl (
                            const NdbTableImpl& table,
-                           NdbQueryOperationDef::JoinType type,
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryOperationDefImpl(table,type,ident,ix)
+  : NdbQueryOperationDefImpl(table,options,ident,ix)
   {}
 
   virtual bool isScanOperation() const
@@ -478,7 +495,7 @@ private:
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
                            const NdbQueryIndexBound* bound,
-                           NdbQueryOperationDef::JoinType type,
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix);
 
