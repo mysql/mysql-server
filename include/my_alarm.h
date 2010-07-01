@@ -36,14 +36,14 @@ extern ulong my_time_to_wait_for_lock;
 #define ALARM_END	VOID(signal(SIGALRM,alarm_signal)); \
 			VOID(alarm(alarm_old));
 #define ALARM_TEST	my_have_got_alarm
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
 #define ALARM_REINIT	VOID(alarm(MY_HOW_OFTEN_TO_ALARM)); \
 			VOID(signal(SIGALRM,my_set_alarm_variable));\
 			my_have_got_alarm=0;
 #else
 #define ALARM_REINIT	VOID(alarm((uint) MY_HOW_OFTEN_TO_ALARM)); \
 			my_have_got_alarm=0;
-#endif /* DONT_REMEMBER_SIGNAL */
+#endif /* SIGNAL_HANDLER_RESET_ON_DELIVERY */
 #else
 #define ALARM_VARIABLES long alarm_pos=0,alarm_end_pos=MY_HOW_OFTEN_TO_WRITE-1
 #define ALARM_INIT
