@@ -898,7 +898,7 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
-  conds= optimize_cond(this, conds, join_list, &cond_value);   
+  conds= optimize_cond(this, conds, join_list, &select_lex->cond_value);
   if (thd->is_error())
   {
     error= 1;
@@ -907,24 +907,20 @@ JOIN::optimize()
   }
 
   {
-    having= optimize_cond(this, having, join_list, &having_value);
+    having= optimize_cond(this, having, join_list, &select_lex->having_value);
     if (thd->is_error())
     {
       error= 1;
       DBUG_PRINT("error",("Error from optimize_cond"));
       DBUG_RETURN(1);
     }
-    if (select_lex->where)
-      select_lex->cond_value= cond_value;
-    if (select_lex->having)
-      select_lex->having_value= having_value;
-
-    if (cond_value == Item::COND_FALSE || having_value == Item::COND_FALSE || 
+    if (select_lex->cond_value == Item::COND_FALSE || 
+        select_lex->having_value == Item::COND_FALSE || 
         (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
     {						/* Impossible cond */
-      DBUG_PRINT("info", (having_value == Item::COND_FALSE ? 
+      DBUG_PRINT("info", (select_lex->having_value == Item::COND_FALSE ? 
                             "Impossible HAVING" : "Impossible WHERE"));
-      zero_result_cause=  having_value == Item::COND_FALSE ?
+      zero_result_cause=  select_lex->having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
       tables= 0;
       error= 0;
@@ -1149,10 +1145,9 @@ JOIN::optimize()
   if (having && const_table_map)
   {
     having->update_used_tables();
-    having= remove_eq_conds(thd, having, &having_value);
-    if (having_value == Item::COND_FALSE)
+    having= remove_eq_conds(thd, having, &select_lex->having_value);
+    if (select_lex->having_value == Item::COND_FALSE)
     {
-      having= new Item_int((longlong) 0,1);
       zero_result_cause= "Impossible HAVING noticed after reading const tables";
       error= 0;
       DBUG_RETURN(0);
@@ -1823,8 +1818,8 @@ JOIN::exec()
         In this case JOIN::exec must check for JOIN::having_value, in the
         same way it checks for JOIN::cond_value.
       */
-      if (cond_value != Item::COND_FALSE &&
-          having_value != Item::COND_FALSE &&
+      if (select_lex->cond_value != Item::COND_FALSE &&
+          select_lex->having_value != Item::COND_FALSE &&
           (!conds || conds->val_int()) &&
           (!having || having->val_int()))
       {
@@ -9278,6 +9273,28 @@ static void restore_prev_nj_state(JOIN_TAB *last)
 }
 
 
+/**
+  Optimize conditions by 
+
+     a) applying transitivity to build multiple equality predicates
+        (MEP): if x=y and y=z the MEP x=y=z is built. 
+     b) apply constants where possible. If the value of x is known to be
+        42, x is replaced with a constant of value 42. By transitivity, this
+        also applies to MEPs, so the MEP in a) will become 42=x=y=z.
+     c) remove conditions that are impossible or always true
+  
+  @param      join         pointer to the structure providing all context info
+                           for the query
+  @param      conds        conditions to optimize
+  @param      join_list    list of join tables to which the condition
+                           refers to
+  @param[out] cond_value   Not changed if conds was empty 
+                           COND_TRUE if conds is always true
+                           COND_FALSE if conds is impossible
+                           COND_OK otherwise
+
+  @return optimized conditions
+*/
 static COND *
 optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
               Item::cond_result *cond_value)
@@ -9285,9 +9302,7 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   THD *thd= join->thd;
   DBUG_ENTER("optimize_cond");
 
-  if (!conds)
-    *cond_value= Item::COND_TRUE;
-  else
+  if (conds)
   {
     /* 
       Build all multiple equality predicates and eliminate equality
