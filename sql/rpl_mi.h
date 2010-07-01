@@ -118,6 +118,7 @@ class Master_info : public Slave_reporting_capability
     @@global.binlog_checksum and deactivated once FD has been received.
   */
   uint8 checksum_alg_before_fd;
+  char master_uuid[UUID_LENGTH+1];
 };
 void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,

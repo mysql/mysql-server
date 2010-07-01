@@ -49,6 +49,7 @@ ulong server_id = 0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
 ulong open_files_limit;
+ulong opt_binlog_rows_event_max_size;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
 static FILE *result_file;
@@ -738,9 +739,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (strncmp(((Query_log_event*)ev)->query, "BEGIN", 5) && 
-          strncmp(((Query_log_event*)ev)->query, "COMMIT", 6) && 
-          strncmp(((Query_log_event*)ev)->query, "ROLLBACK", 8) &&  
+      if (!((Query_log_event*)ev)->is_trans_keyword() &&
           shall_skip_database(((Query_log_event*)ev)->db))
         goto end;
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
@@ -1164,6 +1163,16 @@ that may lead to an endless loop.",
   {"verify-binlog-checksum", 'c', "Verify checksum binlog events.",
    (uchar**) &opt_verify_binlog_checksum, (uchar**) &opt_verify_binlog_checksum,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+   "The maximum size of a row-based binary log event in bytes. Rows will be "
+   "grouped into events smaller than this size if possible. "
+   "This value must be a multiple of 256.",
+   (uchar**) &opt_binlog_rows_event_max_size,
+   (uchar**) &opt_binlog_rows_event_max_size, 0,
+   GET_ULONG, REQUIRED_ARG,
+   /* def_value 4GB */ 4*1024L*1024L*1024L - 1, /* min_value */ 256,
+   /* max_value */ ULONG_MAX, /* sub_size */ 0,
+   /* block_size */ 256, /* app_type */ 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2049,7 +2058,8 @@ int main(int argc, char** argv)
 
   my_init_time(); // for time functions
 
-  load_defaults("my", load_default_groups, &argc, &argv);
+  if (load_defaults("my", load_default_groups, &argc, &argv))
+    exit(1);
   defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
 

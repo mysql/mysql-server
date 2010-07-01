@@ -58,6 +58,8 @@
 
 #include <mysql/plugin.h>
 
+#include "debug_sync.h"
+
 static const char *ha_par_ext= ".par";
 #ifdef NOT_USED
 static int free_share(PARTITION_SHARE * share);
@@ -86,7 +88,9 @@ static int partition_initialize(void *p)
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
   partition_hton->alter_table_flags= alter_table_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  partition_hton->flags= HTON_NOT_USER_SELECTABLE |
+                         HTON_HIDDEN |
+                         HTON_TEMPORARY_NOT_SUPPORTED;
 
   return 0;
 }
@@ -690,6 +694,7 @@ int ha_partition::rename_partitions(const char *path)
   DBUG_ASSERT(!strcmp(path, get_canonical_filename(m_file[0], path,
                                                    norm_name_buff)));
 
+  DEBUG_SYNC(ha_thd(), "before_rename_partitions");
   if (temp_partitions)
   {
     /*
@@ -1834,6 +1839,13 @@ uint ha_partition::del_ren_cre_table(const char *from,
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
 
+  /* Not allowed to create temporary partitioned tables */
+  if (create_info && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);
   DBUG_ASSERT(m_file_buffer);
@@ -2607,6 +2619,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 
 err_handler:
+  DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
     (*file)->close();
   bitmap_free(&m_bulk_insert_started);
@@ -5090,6 +5103,7 @@ int ha_partition::info(uint flag)
 
     file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
+    stats.block_size= file->stats.block_size;
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
   }
@@ -6454,9 +6468,22 @@ void ha_partition::release_auto_increment()
     ulonglong next_auto_inc_val;
     lock_auto_increment();
     next_auto_inc_val= ha_data->next_auto_inc_val;
+    /*
+      If the current auto_increment values is lower than the reserved
+      value, and the reserved value was reserved by this thread,
+      we can lower the reserved value.
+    */
     if (next_insert_id < next_auto_inc_val &&
         auto_inc_interval_for_cur_row.maximum() >= next_auto_inc_val)
-      ha_data->next_auto_inc_val= next_insert_id;
+    {
+      THD *thd= ha_thd();
+      /*
+        Check that we do not lower the value because of a failed insert
+        with SET INSERT_ID, i.e. forced/non generated values.
+      */
+      if (thd->auto_inc_intervals_forced.maximum() < next_insert_id)
+        ha_data->next_auto_inc_val= next_insert_id;
+    }
     DBUG_PRINT("info", ("ha_data->next_auto_inc_val: %lu",
                         (ulong) ha_data->next_auto_inc_val));
 

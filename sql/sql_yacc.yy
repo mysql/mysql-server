@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -962,6 +962,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
+%token  MASTER_DELAY_SYM
 %token  MASTER_HOST_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
@@ -1725,11 +1726,13 @@ change:
           {
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
-            bzero((char*) &lex->mi, sizeof(lex->mi));
             /*
-              resetting flags that can left from the previous CHANGE MASTER
+              Clear LEX_MASTER_INFO struct and allocate memory for
+              repl_ignore_server_ids. repl_ignore_server_ids is freed
+              at the end of change_master. So it is guaranteed to be
+              uninitialized before here.
             */
-            lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+            lex->mi.set_unspecified();
             my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
                                   sizeof(::server_id), 16, 16);
           }
@@ -1762,6 +1765,16 @@ master_def:
         | MASTER_CONNECT_RETRY_SYM EQ ulong_num
           {
             Lex->mi.connect_retry = $3;
+          }
+        | MASTER_DELAY_SYM EQ ulong_num
+          {
+            if ($3 > MASTER_DELAY_MAX)
+            {
+              my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
+                       $3, MASTER_DELAY_MAX);
+            }
+            else
+              Lex->mi.sql_delay = $3;
           }
         | MASTER_SSL_SYM EQ ulong_num
           {
@@ -6194,7 +6207,7 @@ alter_list_item:
             {
               MYSQL_YYABORT;
             }
-            if (check_table_name($3->table.str,$3->table.length) ||
+            if (check_table_name($3->table.str,$3->table.length, FALSE) ||
                 ($3->db.str && check_db_name(&$3->db)))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
@@ -6280,7 +6293,7 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
             /* If you change this code don't forget to update SLAVE START too */
           }
           slave_until
@@ -6298,7 +6311,8 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
+            /* If you change this code don't forget to update START SLAVE too */
           }
           slave_until
           {}
@@ -6307,6 +6321,7 @@ slave:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
             lex->type = 0;
+            /* If you change this code don't forget to update STOP SLAVE too */
           }
         ;
 
@@ -8052,7 +8067,7 @@ function_call_generic:
             builder= find_native_function_builder(thd, $1);
             if (builder)
             {
-              item= builder->create(thd, $1, $4);
+              item= builder->create_func(thd, $1, $4);
             }
             else
             {
@@ -8074,7 +8089,7 @@ function_call_generic:
               {
                 builder= find_qualified_function_builder(thd);
                 DBUG_ASSERT(builder);
-                item= builder->create(thd, $1, $4);
+                item= builder->create_func(thd, $1, $4);
               }
             }
 
@@ -11726,6 +11741,7 @@ keyword_sp:
         | MASTER_PASSWORD_SYM      {}
         | MASTER_SERVER_ID_SYM     {}
         | MASTER_CONNECT_RETRY_SYM {}
+        | MASTER_DELAY_SYM         {}
         | MASTER_SSL_SYM           {}
         | MASTER_SSL_CA_SYM        {}
         | MASTER_SSL_CAPATH_SYM    {}

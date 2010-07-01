@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -285,40 +285,4 @@ trx_rseg_list_and_array_init(
 			trx_rseg_mem_create(i, space, zip_size, page_no, mtr);
 		}
 	}
-}
-
-/****************************************************************//**
-Creates a new rollback segment to the database.
-@return	the created segment object, NULL if fail */
-UNIV_INTERN
-trx_rseg_t*
-trx_rseg_create(
-/*============*/
-	ulint	space,		/*!< in: space id */
-	ulint	max_size,	/*!< in: max size in pages */
-	ulint*	id,		/*!< out: rseg id */
-	mtr_t*	mtr)		/*!< in: mtr */
-{
-	ulint		flags;
-	ulint		zip_size;
-	ulint		page_no;
-	trx_rseg_t*	rseg;
-
-	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
-	zip_size = dict_table_flags_to_zip_size(flags);
-	mutex_enter(&kernel_mutex);
-
-	page_no = trx_rseg_header_create(space, zip_size, max_size, id, mtr);
-
-	if (page_no == FIL_NULL) {
-
-		mutex_exit(&kernel_mutex);
-		return(NULL);
-	}
-
-	rseg = trx_rseg_mem_create(*id, space, zip_size, page_no, mtr);
-
-	mutex_exit(&kernel_mutex);
-
-	return(rseg);
 }

@@ -1243,6 +1243,12 @@ void close_thread_tables(THD *thd)
                           table->s->table_name.str, (long) table));
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* debug_sync may not be initialized for some slave threads */
+  if (thd->debug_sync_control)
+    DEBUG_SYNC(thd, "before_close_thread_tables");
+#endif
+
   /*
     We are assuming here that thd->derived_tables contains ONLY derived
     tables for this substatement. i.e. instead of approach which uses
@@ -1514,6 +1520,7 @@ void close_temporary_tables(THD *thd)
   {
     if (is_user_table(table))
     {
+      bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
@@ -1543,6 +1550,7 @@ void close_temporary_tables(THD *thd)
       thd->clear_error();
       CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
+      thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             FALSE, TRUE, FALSE, 0);
@@ -1555,6 +1563,7 @@ void close_temporary_tables(THD *thd)
                      "Failed to write the DROP statement for temporary tables to binary log");
       }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
+      thd->thread_specific_used= save_thread_specific_used;
     }
     else
     {
@@ -2498,7 +2507,7 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
                         put in the thread-open-list.
     flags               Bitmap of flags to modify how open works:
                           MYSQL_LOCK_IGNORE_FLUSH - Open table even if
-                          someone has done a flush or namelock on it.
+                          someone has done a flush on it.
                           No version number checking is done.
                           MYSQL_OPEN_TEMPORARY_ONLY - Open only temporary
                           table not the base table or view.
@@ -2788,8 +2797,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      if (flags & MYSQL_LOCK_IGNORE_FLUSH)
+      /* Ignore FLUSH, but not name locks! */
+      if (flags & MYSQL_LOCK_IGNORE_FLUSH && !table->open_placeholder)
       {
+        DBUG_ASSERT(table->db_stat);
         /* Force close at once after usage */
         thd->version= table->s->version;
         continue;
@@ -4444,7 +4455,7 @@ thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
     counter - number of opened tables will be return using this parameter
     flags   - bitmap of flags to modify how the tables will be open:
               MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-              done a flush or namelock on it.
+              done a flush on it.
 
   NOTE
     Unless we are already in prelocked mode, this function will also precache
@@ -5043,7 +5054,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
     tables	- list of tables for open
     flags       - bitmap of flags to modify how the tables will be open:
                   MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-                  done a flush or namelock on it.
+                  done a flush on it.
 
   RETURN
     FALSE - ok
@@ -8541,7 +8552,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
 
 /*
   SYNOPSIS
-    abort_and_upgrade_lock()
+    abort_and_upgrade_lock_and_close_table()
     lpt                           Parameter passing struct
     All parameters passed through the ALTER_PARTITION_PARAM_TYPE object
   RETURN VALUE
@@ -8550,7 +8561,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     Remember old lock level (for possible downgrade later on), abort all
     waiting threads and ensure that all keeping locks currently are
     completed such that we own the lock exclusively and no other interaction
-    is ongoing.
+    is ongoing. Close the table and hold the name lock.
 
     thd                           Thread object
     table                         Table object
@@ -8559,17 +8570,26 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     old_lock_level                Old lock level
 */
 
-int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+int abort_and_upgrade_lock_and_close_table(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
-  DBUG_ENTER("abort_and_upgrade_locks");
+  const char *db=         lpt->db;
+  const char *table_name= lpt->table_name;
+  THD *thd=               lpt->thd;
+  DBUG_ENTER("abort_and_upgrade_lock_and_close_table");
 
   lpt->old_lock_type= lpt->table->reginfo.lock_type;
+  safe_mutex_assert_not_owner(&LOCK_open);
   VOID(pthread_mutex_lock(&LOCK_open));
   /* If MERGE child, forward lock handling to parent. */
-  mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
-                   lpt->table, TRUE);
-  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
+  mysql_lock_abort(thd, lpt->table->parent ? lpt->table->parent : lpt->table,
+                   TRUE);
+  if (remove_table_from_cache(thd, db, table_name, flags))
+  {
+    VOID(pthread_mutex_unlock(&LOCK_open));
+    DBUG_RETURN(1);
+  }
+  close_data_files_and_morph_locks(thd, db, table_name);
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(0);
 }
