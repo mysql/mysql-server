@@ -3083,7 +3083,8 @@ NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
   {
     NdbQueryOperationImpl& child = getChildOperation(i);
     bool nullRow = !child.fetchScanResults(fragNo, resultStream.getTupleId(rowNo));
-    if (nullRow && child.m_operationDef.getJoinType() != NdbQueryOperationDef::OuterJoin)
+    if (nullRow &&
+        child.m_operationDef.getMatchType() != NdbQueryOptions::MatchAll)
     {
       // If a NULL row is returned from a child which is not outer joined, 
       // parent row may be eliminate also.
@@ -3114,7 +3115,8 @@ NdbQueryOperationImpl::fetchLookupResults()
     {
       NdbQueryOperationImpl& child = getChildOperation(i);
       bool nullRow = !child.fetchLookupResults();
-      if (nullRow && child.m_operationDef.getJoinType() != NdbQueryOperationDef::OuterJoin)
+      if (nullRow &&
+          child.m_operationDef.getMatchType() != NdbQueryOptions::MatchAll)
       {
         // If a NULL row is returned from a child which is not outer joined, 
         // parent row may be eliminate also.

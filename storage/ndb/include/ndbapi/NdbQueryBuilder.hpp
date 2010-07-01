@@ -28,6 +28,7 @@ class Ndb;
 class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
+class NdbQueryOptionsImpl;
 class NdbQueryOperandImpl;
 class NdbQueryOperationDefImpl;
 
@@ -101,6 +102,58 @@ private:
 };
 
 
+/**
+ *  NdbQueryOptions used to pass options when building a NdbQueryOperationDef.
+ *
+ *  It will normally be constructed on the stack, the required options specified
+ *  with the set'ers methods, and then supplied as an argument when creating the 
+ *  NdbQueryOperationDef.
+ */
+class NdbQueryOptions
+{
+public:
+
+  /**
+   * Different match criteria may be specified for an operation.
+   * These controls when rows are considdered equal, and a result row
+   * is produced (or accepted).
+   *
+   * These are hints only.
+   * The implementation is allowed to take a conservative approach
+   * and produce more rows than specified by the MatchType.
+   * However, not more rows than specified by 'MatchAll' should be produced.
+   * As additional rows should be expected, the receiver should be prepared to
+   * filter away unwanted rows if another MatchType than 'MatchAll' was specified.
+   */
+  enum MatchType
+  {
+    MatchAll,        // DEFAULT: Output all matches, including duplicats.
+                     // Append a single NULL complemented row for non-matching childs.
+    MatchNonNull,    // Output all matches, including duplicats. 
+                     // Parents without any matches are discarded.
+    MatchNullOnly,   // Output only parent rows without any child matches.
+                     // Append a single NULL complemented row for the non_matching child
+    MatchSingle,     // Output a single row when >=1 child matches.
+                     // One of the matching child row is included in the output.
+    Default = MatchAll
+  };
+
+  explicit NdbQueryOptions();
+  ~NdbQueryOptions();
+
+  int setMatchType(MatchType matchType);
+
+  const NdbQueryOptionsImpl& getImpl() const;
+
+private:
+  // Copying disallowed:
+  NdbQueryOptions(const NdbQueryOptions& other);
+  NdbQueryOptions& operator = (const NdbQueryOptions& other);
+
+  NdbQueryOptionsImpl* m_pimpl;
+
+}; // class NdbQueryOptions
+
 
 /**
  * NdbQueryOperationDef defines an operation on a single NDB table
@@ -117,19 +170,6 @@ public:
     UniqueIndexAccess,    ///< Read using unique index
     TableScan,            ///< Full table scan
     OrderedIndexScan      ///< Ordered index scan, optionaly w/ bounds
-  };
-
-  /**
-   * Different join type variants may be specified for an operation.
-   * The operations are not required to completely follow these specs.
-   * Additional rows should be expected which the receiver should
-   * filter away.
-   */
-  enum JoinType {
-    OuterJoin,       // Append NULL rows when there are no match (default)
-    InnerJoin,       // Allows non matching rows to be eliminated        
-    SemiJoin,        // Allow duplicate matches to be eliminated from result
-    Default = OuterJoin
   };
 
   static const char* getTypeName(Type type);
@@ -339,30 +379,26 @@ public:
   NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,          // Primary key lookup
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
-                                NdbQueryOperationDef::JoinType joinType =
-                                  NdbQueryOperationDef::OuterJoin,
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
   NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Index*,          // Unique key lookup w/ index
 			        const NdbDictionary::Table*,
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
-                                NdbQueryOperationDef::JoinType joinType = 
-                                  NdbQueryOperationDef::OuterJoin,
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
   NdbQueryTableScanOperationDef* scanTable(
                                 const NdbDictionary::Table*,
-                                NdbQueryOperationDef::JoinType joinType = 
-                                  NdbQueryOperationDef::OuterJoin,
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
   NdbQueryIndexScanOperationDef* scanIndex(
                                 const NdbDictionary::Index*, 
 	                        const NdbDictionary::Table*,
                                 const NdbQueryIndexBound* bound = 0,
-                                NdbQueryOperationDef::JoinType joinType = 
-                                  NdbQueryOperationDef::OuterJoin,
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
 
