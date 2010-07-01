@@ -170,5 +170,3 @@ TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
 INSTALL(TARGETS mysqlserver DESTINATION Embedded/static COMPONENT embedded)
 
 INSTALL(TARGETS libmysqld DESTINATION Embedded/DLL COMPONENT embedded)
-
-INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/RelWithDebInfo/libmysqld.exp DESTINATION Embedded/DLL COMPONENT embedded)
