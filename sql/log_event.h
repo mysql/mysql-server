@@ -528,8 +528,8 @@ enum enum_binlog_checksum_alg {
                                  // is checksum-capable New Master (NM).
   BINLOG_CHECKSUM_ALG_CRC32= 1,  // CRC32 of zlib algorithm.
   BINLOG_CHECKSUM_ALG_ENUM_END,  // the cut line: valid alg range is [1, 0x7f].
-  BINLOG_CHECKSUM_ALG_ILL= 255   // special value to tag undetermined yet checksum or
-                                 // Events from checksum-unaware servers
+  BINLOG_CHECKSUM_ALG_UNDEF= 255 // special value to tag undetermined yet checksum
+                                 // or events from checksum-unaware servers
 };
 
 #define CHECKSUM_CRC32_SIGNATURE_LEN 4
@@ -2295,7 +2295,7 @@ public:
   uchar server_version_split[3];
   const uint8 *event_type_permutation;
 
-  Format_description_log_event(uint8 binlog_ver, uint16 flags= 0, const char* server_ver=0);
+  Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_log_event
                                *description_event);
@@ -2324,7 +2324,8 @@ public:
   }
 
   void calc_server_version_split();
-
+  ulong get_version_product() const;
+  bool is_version_before_checksum() const;
 protected:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);

@@ -2647,8 +2647,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    need_start_event(TRUE), m_table_map_version(0),
    sync_period_ptr(sync_period),
    is_relay_log(0), signal_cnt(0),
-   checksum_alg_reset(BINLOG_CHECKSUM_ALG_ILL),
-   relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_ILL),
+   checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
+   relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
    description_event_for_exec(0), description_event_for_queue(0)
 {
   /*
@@ -2855,8 +2855,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         In 4.x we set need_start_event=0 here, but in 5.0 we want a Start event
         even if this is not the very first binlog.
       */
-      Format_description_log_event s(BINLOG_VERSION,
-                                     is_relay_log? LOG_EVENT_RELAY_LOG_F : 0);
+      Format_description_log_event s(BINLOG_VERSION);
       /*
         don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
         as we won't be able to reset it later
@@ -2867,14 +2866,14 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         /* relay-log */
         /* inherit master's A descriptor if one has been received */
         (relay_log_checksum_alg= 
-         (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_ILL) ?
+         (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
          relay_log_checksum_alg :
          /* otherwise use slave's local preference of RL events verification */
          (opt_slave_sql_verify_checksum == 0) ?
          (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
         /* binlog */
         binlog_checksum_options;
-      DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
+      DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       if (!s.is_valid())
         goto err;
       s.dont_set_created= null_created_arg;
@@ -4048,7 +4047,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
       */
       if (is_relay_log)
         r.checksum_alg= relay_log_checksum_alg;
-      DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
+      DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       r.write(&log_file);
       bytes_written += r.data_written;
     }
@@ -4062,7 +4061,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   old_name=name;
   name=0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
-  if (log_type == LOG_BIN && checksum_alg_reset != BINLOG_CHECKSUM_ALG_ILL)
+  if (log_type == LOG_BIN && checksum_alg_reset != BINLOG_CHECKSUM_ALG_UNDEF)
   {
     DBUG_ASSERT(!is_relay_log);
     DBUG_ASSERT(binlog_checksum_options != checksum_alg_reset);
@@ -4846,7 +4845,7 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
     check_purge= true;
 #endif
     if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
-      checksum_alg_reset= BINLOG_CHECKSUM_ALG_ILL; // done
+      checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
     pthread_mutex_unlock(&LOCK_log);
@@ -5393,11 +5392,11 @@ void MYSQL_BIN_LOG::close(uint exiting)
 	(exiting & LOG_CLOSE_STOP_EVENT))
     {
       Stop_log_event s;
-      if (is_relay_log)
-        // the checksumming rule is similar to Rotate relay log case
-        s.checksum_alg= relay_log_checksum_alg;
+      // the checksumming rule for relay-log case is similar to Rotate
+        s.checksum_alg= is_relay_log ?
+          relay_log_checksum_alg : binlog_checksum_options;
       DBUG_ASSERT(!is_relay_log ||
-                  relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
+                  relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
       bytes_written+= s.data_written;
       signal_update();
