@@ -2202,7 +2202,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (some_tables_deleted || tmp_table_deleted || !error)
   {
     query_cache_invalidate3(thd, tables, 0);
-    if (!dont_log_query)
+    if (!dont_log_query && mysql_bin_log.is_open())
     {
       if (!thd->is_current_stmt_binlog_format_row() ||
           (non_temp_tables_count > 0 && !tmp_table_deleted))
