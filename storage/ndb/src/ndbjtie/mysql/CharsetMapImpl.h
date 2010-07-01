@@ -41,7 +41,7 @@ class CharsetMapImpl : public NdbLockable
 public:    
     CharsetMapImpl() : NdbLockable() , ready(0) , collisions(0) {};
        
-    /** geName() returns a character set name that in most cases 
+    /** getName() returns a character set name that in most cases 
      will be a preferred name from 
      http://www.iana.org/assignments/character-sets and will be recognized 
      and usable by Java (e.g. java.nio, java.io, and java.lang).  
