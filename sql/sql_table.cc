@@ -22,17 +22,17 @@
 #include "sql_rename.h" // do_rename
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_cache.h"                          // query_cache_*
-#include "sql_base.h"                          // open_temporary_table
-#include "lock.h"       // wait_if_global_read_lock, lock_table_names,
+#include "sql_base.h"   // open_temporary_table, lock_table_names
+#include "lock.h"       // wait_if_global_read_lock
                         // start_waiting_global_read_lock,
-                        // unlock_table_names, mysql_unlock_tables
+                        // mysql_unlock_tables
 #include "strfunc.h"    // find_type2, find_set
 #include "sql_view.h" // view_checksum 
 #include "sql_truncate.h"                       // regenerate_locked_table 
 #include "sql_partition.h"                      // mem_alloc_error,
                                                 // generate_partition_syntax,
                                                 // partition_info
-#include "sql_db.h" // load_db_opt_by_name, lock_db_cache, creating_database
+#include "sql_db.h"                             // load_db_opt_by_name
 #include "sql_time.h"                  // make_truncated_value_warning
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
@@ -57,8 +57,6 @@
 #ifdef __WIN__
 #include <io.h>
 #endif
-
-int creating_table= 0;        // How many mysql_create_table are running
 
 const char *primary_key_name="PRIMARY";
 
@@ -1954,7 +1952,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   {
     if (!thd->locked_tables_mode)
     {
-      if (lock_table_names(thd, tables))
+      if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
+                           MYSQL_OPEN_SKIP_TEMPORARY))
         DBUG_RETURN(1);
       mysql_mutex_lock(&LOCK_open);
       for (table= tables; table; table= table->next_local)
@@ -2296,7 +2295,7 @@ err:
       leaving LOCK TABLES mode if we have dropped only temporary tables.
     */
     if (! thd->locked_tables_mode)
-      unlock_table_names(thd);
+      thd->mdl_context.release_transactional_locks();
     else
     {
       if (thd->lock && thd->lock->table_count == 0 && non_temp_tables_count > 0)
@@ -4226,24 +4225,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   bool result;
   DBUG_ENTER("mysql_create_table");
 
-  /* Wait for any database locks */
-  mysql_mutex_lock(&LOCK_lock_db);
-  while (!thd->killed &&
-         my_hash_search(&lock_db_cache, (uchar*)create_table->db,
-                        create_table->db_length))
-  {
-    wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
-    mysql_mutex_lock(&LOCK_lock_db);
-  }
-
-  if (thd->killed)
-  {
-    mysql_mutex_unlock(&LOCK_lock_db);
-    DBUG_RETURN(TRUE);
-  }
-  creating_table++;
-  mysql_mutex_unlock(&LOCK_lock_db);
-
   /*
     Open or obtain an exclusive metadata lock on table being created.
   */
@@ -4282,10 +4263,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   }
 
 unlock:
-  mysql_mutex_lock(&LOCK_lock_db);
-  if (!--creating_table && creating_database)
-    mysql_cond_signal(&COND_refresh);
-  mysql_mutex_unlock(&LOCK_lock_db);
   DBUG_RETURN(result);
 }
 
@@ -4458,8 +4435,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   {
     char key[MAX_DBKEY_LENGTH];
     uint key_length;
-    MDL_request mdl_global_request;
-    MDL_request_list mdl_requests;
     /*
       If the table didn't exist, we have a shared metadata lock
       on it that is left from mysql_admin_table()'s attempt to 
@@ -4479,12 +4454,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
                                  table_list->db, table_list->table_name,
                                  MDL_EXCLUSIVE);
 
-    mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
-    mdl_requests.push_front(&table_list->mdl_request);
-    mdl_requests.push_front(&mdl_global_request);
-
-    if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                       thd->variables.lock_wait_timeout))
+    if (lock_table_names(thd, table_list, table_list->next_global,
+                         thd->variables.lock_wait_timeout,
+                         MYSQL_OPEN_SKIP_TEMPORARY))
       DBUG_RETURN(0);
     has_mdl_lock= TRUE;
 
@@ -6577,6 +6549,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
 
+  DEBUG_SYNC(thd, "alter_table_before_open_tables");
   error= open_and_lock_tables(thd, table_list, FALSE, 0,
                               &alter_prelocking_strategy);
 

@@ -677,16 +677,15 @@ my_bool acl_reload(THD *thd)
     To avoid deadlocks we should obtain table locks before
     obtaining acl_cache->lock mutex.
   */
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "host";
-  tables[1].alias= tables[1].table_name= (char*) "user";
-  tables[2].alias= tables[2].table_name= (char*) "db";
-  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("host"), "host", TL_READ);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_READ);
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"), "db", TL_READ);
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-  init_mdl_requests(tables);
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -1925,9 +1924,8 @@ static bool test_if_create_new_users(THD *thd)
   {
     TABLE_LIST tl;
     ulong db_access;
-    bzero((char*) &tl,sizeof(tl));
-    tl.db=	   (char*) "mysql";
-    tl.table_name=  (char*) "user";
+    tl.init_one_table(C_STRING_WITH_LEN("mysql"),
+                      C_STRING_WITH_LEN("user"), "user", TL_WRITE);
     create_new_users= 1;
 
     db_access=acl_get(sctx->host, sctx->ip,
@@ -3107,20 +3105,18 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   /* open the mysql.tables_priv and mysql.columns_priv tables */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name= (char*) "user";
-  tables[1].alias=tables[1].table_name= (char*) "tables_priv";
-  tables[2].alias=tables[2].table_name= (char*) "columns_priv";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_WRITE);
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
   /* Don't open column table if we don't need it ! */
-  tables[1].next_local=
-    tables[1].next_global= ((column_priv ||
-			     (revoke_grant &&
-			      ((rights & COL_ACLS) || columns.elements)))
-			    ? tables+2 : 0);
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
-  init_mdl_requests(tables);
+  if (column_priv || (revoke_grant && ((rights & COL_ACLS) || columns.elements)))
+    tables[1].next_local= tables[1].next_global= tables+2;
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3354,13 +3350,11 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   /* open the mysql.user and mysql.procs_priv tables */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name= (char*) "user";
-  tables[1].alias=tables[1].table_name= (char*) "procs_priv";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("procs_priv"), "procs_priv", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=(char*) "mysql";
-  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3511,13 +3505,11 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   /* open the mysql.user and mysql.db tables */
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name=(char*) "user";
-  tables[1].alias=tables[1].table_name=(char*) "db";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"), "db", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=(char*) "mysql";
-  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3930,14 +3922,14 @@ my_bool grant_reload(THD *thd)
   if (!initialized)
     DBUG_RETURN(0);
 
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "tables_priv";
-  tables[1].alias= tables[1].table_name= (char*) "columns_priv";
-  tables[0].db= tables[1].db= (char *) "mysql";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_READ);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_READ);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type= tables[1].lock_type= TL_READ;
   tables[0].open_type= tables[1].open_type= OT_BASE_ONLY;
-  init_mdl_requests(tables);
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -5209,22 +5201,23 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     DBUG_RETURN(-1);
   }
 
-  bzero((char*) tables, GRANT_TABLES*sizeof(*tables));
-  tables->alias= tables->table_name= (char*) "user";
-  (tables+1)->alias= (tables+1)->table_name= (char*) "db";
-  (tables+2)->alias= (tables+2)->table_name= (char*) "tables_priv";
-  (tables+3)->alias= (tables+3)->table_name= (char*) "columns_priv";
-  (tables+4)->alias= (tables+4)->table_name= (char*) "procs_priv";
+  tables->init_one_table(C_STRING_WITH_LEN("mysql"),
+                         C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  (tables+1)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("db"), "db", TL_WRITE);
+  (tables+2)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("tables_priv"),
+                             "tables_priv", TL_WRITE);
+  (tables+3)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("columns_priv"),
+                             "columns_priv", TL_WRITE);
+  (tables+4)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("procs_priv"),
+                             "procs_priv", TL_WRITE);
   tables->next_local= tables->next_global= tables+1;
   (tables+1)->next_local= (tables+1)->next_global= tables+2;
   (tables+2)->next_local= (tables+2)->next_global= tables+3;
   (tables+3)->next_local= (tables+3)->next_global= tables+4;
-  tables->lock_type= (tables+1)->lock_type=
-    (tables+2)->lock_type= (tables+3)->lock_type= 
-    (tables+4)->lock_type= TL_WRITE;
-  tables->db= (tables+1)->db= (tables+2)->db= 
-    (tables+3)->db= (tables+4)->db= (char*) "mysql";
-  init_mdl_requests(tables);
 
 #ifdef HAVE_REPLICATION
   /*
