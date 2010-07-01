@@ -33,12 +33,18 @@ public:
     Constructs an empty hash. Does not allocate memory, it is done upon
     the first insert. Thus does not cause or return errors.
   */
-  Hash_set();
+  Hash_set()
+  {
+    my_hash_clear(&m_hash);
+  }
   /**
     Destroy the hash by freeing the buckets table. Does
     not call destructors for the elements.
   */
-  ~Hash_set();
+  ~Hash_set()
+  {
+    my_hash_free(&m_hash);
+  }
   /**
     Insert a single value into a hash. Does not tell whether
     the value was inserted -- if an identical value existed,
@@ -48,7 +54,15 @@ public:
     @retval FALSE OK. The value either was inserted or existed
                   in the hash.
   */
-  bool insert(T *value);
+  bool insert(T *value)
+  {
+    my_hash_init_opt(&m_hash, &my_charset_bin, START_SIZE, 0, 0, K, 0, MYF(0));
+    size_t key_len;
+    const uchar *key= K(reinterpret_cast<uchar*>(value), &key_len, FALSE);
+    if (my_hash_search(&m_hash, key, key_len) == NULL)
+      return my_hash_insert(&m_hash, reinterpret_cast<uchar *>(value));
+    return FALSE;
+  }
   /** Is this hash set empty? */
   bool is_empty() const { return m_hash.records == 0; }
   /** Returns the number of unique elements. */
@@ -57,12 +71,20 @@ public:
   class Iterator
   {
   public:
-    Iterator(Hash_set &hash_set);
+    Iterator(Hash_set &hash_set)
+      : m_hash(&hash_set.m_hash),
+        m_idx(0)
+    {}
     /**
       Return the current element and reposition the iterator to the next
       element.
     */
-    inline T *operator++(int);
+    inline T *operator++(int)
+    {
+      if (m_idx < m_hash->records)
+        return reinterpret_cast<T*>(my_hash_element(m_hash, m_idx++));
+      return NULL;
+    }
     void rewind() { m_idx= 0; }
   private:
     HASH *m_hash;
@@ -71,47 +93,5 @@ public:
 private:
   HASH m_hash;
 };
-
-
-template <typename T, my_hash_get_key K>
-Hash_set<T, K>::Hash_set()
-{
-  my_hash_clear(&m_hash);
-}
-
-
-template <typename T, my_hash_get_key K>
-Hash_set<T, K>::~Hash_set()
-{
-  my_hash_free(&m_hash);
-}
-
-
-template <typename T, my_hash_get_key K>
-bool Hash_set<T, K>::insert(T *value)
-{
-  my_hash_init_opt(&m_hash, &my_charset_bin, START_SIZE, 0, 0, K, 0, MYF(0));
-  size_t key_len;
-  const uchar *key= K(reinterpret_cast<uchar*>(value), &key_len, FALSE);
-  if (my_hash_search(&m_hash, key, key_len) == NULL)
-    return my_hash_insert(&m_hash, reinterpret_cast<uchar *>(value));
-  return FALSE;
-}
-
-
-template <typename T, my_hash_get_key K>
-Hash_set<T, K>::Iterator::Iterator(Hash_set<T, K> &set_arg)
-  :m_hash(&set_arg.m_hash),
-  m_idx(0)
-{}
-
-
-template <typename T, my_hash_get_key K>
-inline T *Hash_set<T, K>::Iterator::operator++(int)
-{
-  if (m_idx < m_hash->records)
-    return reinterpret_cast<T*>(my_hash_element(m_hash, m_idx++));
-  return NULL;
-}
 
 #endif // SQL_HSET_INCLUDED
