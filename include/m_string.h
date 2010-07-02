@@ -61,6 +61,10 @@
 # define bfill(A,B,C)           memset((A),(C),(B))
 #endif
 
+#if !defined(bzero) && !defined(HAVE_BZERO)
+# define bzero(A,B)             memset((A),0,(B))
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -102,10 +106,6 @@ extern char NEAR _dig_vec_lower[];
 
 #if !defined(bfill) && !defined(HAVE_BFILL)
 extern	void bfill(uchar *dst,size_t len,pchar fill);
-#endif
-
-#if !defined(bzero) && !defined(HAVE_BZERO)
-extern	void bzero(uchar * dst,size_t len);
 #endif
 
 #ifndef bmove512
