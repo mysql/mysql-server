@@ -306,7 +306,7 @@ found:
   return ret;
 }
 
-NdbQueryOperationDef*
+const NdbQueryOperationDef*
 HugoQueryBuilder::createOp(NdbQueryBuilder& builder)
 {
   struct Op op;
@@ -408,7 +408,7 @@ HugoQueryBuilder::createQuery(Ndb* pNdb, bool takeOwnership)
       clearOption(O_PK_INDEX);
       clearOption(O_UNIQUE_INDEX);
     }
-    NdbQueryOperationDef * rootOp = createOp(builder);
+    const NdbQueryOperationDef * rootOp = createOp(builder);
     assert(rootOp != 0);
     m_options = save;
   }

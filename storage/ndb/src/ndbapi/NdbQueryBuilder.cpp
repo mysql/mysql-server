@@ -689,7 +689,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   return &linkedOp->m_interface;
 }
 
-NdbQueryLookupOperationDef*
+const NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                            const NdbQueryOptions* options,
@@ -749,7 +749,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
 }
 
 
-NdbQueryLookupOperationDef*
+const NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key lookup w/ index
                            const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
@@ -813,7 +813,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 }
 
 
-NdbQueryTableScanOperationDef*
+const NdbQueryTableScanOperationDef*
 NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                            const NdbQueryOptions* options,
                            const char* ident)
@@ -834,7 +834,7 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
 }
 
 
-NdbQueryIndexScanOperationDef*
+const NdbQueryIndexScanOperationDef*
 NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index, 
 	                   const NdbDictionary::Table* table,
                            const NdbQueryIndexBound* bound,
