@@ -559,7 +559,7 @@ ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
-const char *slave_exec_mode_str= "STRICT";
+static const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
@@ -2464,7 +2464,6 @@ extern "C" sig_handler handle_segfault(int sig)
 {
   time_t curr_time;
   struct tm tm;
-  THD *thd=current_thd;
 
   /*
     Strictly speaking, one needs a mutex here
@@ -2523,13 +2522,15 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 #endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
+  THD *thd=current_thd;
+
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
-    fprintf(stderr,"\
-Attempting backtrace. You can use the following information to find out\n\
-where mysqld died. If you see no messages after this, something went\n\
-terribly wrong...\n");  
+    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Attempting backtrace. You can use the following "
+                    "information to find out\nwhere mysqld died. If "
+                    "you see no messages after this, something went\n"
+                    "terribly wrong...\n");
     my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
                         my_thread_stack_size);
   }
@@ -7879,10 +7880,11 @@ static int mysql_init_variables(void)
 
   /* Things with default values that are not zero */
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
-  slave_exec_mode_options= 0;
-  slave_exec_mode_options= (uint)
-    find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL,
-                          &error);
+  slave_exec_mode_options= find_bit_type_or_exit(slave_exec_mode_str,
+                                                 &slave_exec_mode_typelib,
+                                                 NULL, &error);
+  /* Default mode string must not yield a error. */
+  DBUG_ASSERT(!error);
   if (error)
     return 1;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -8118,8 +8120,9 @@ mysqld_get_one_option(int optid,
     init_slave_skip_errors(argument);
     break;
   case OPT_SLAVE_EXEC_MODE:
-    slave_exec_mode_options= (uint)
-      find_bit_type_or_exit(argument, &slave_exec_mode_typelib, "", &error);
+    slave_exec_mode_options= find_bit_type_or_exit(argument,
+                                                   &slave_exec_mode_typelib,
+                                                   "", &error);
     if (error)
       return 1;
     break;
@@ -8773,7 +8776,7 @@ static int get_options(int *argc,char **argv)
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write((THD*) 0, OPT_GLOBAL);
   /* Set global slave_exec_mode from its option */
-  fix_slave_exec_mode(OPT_GLOBAL);
+  fix_slave_exec_mode();
 
 #ifndef EMBEDDED_LIBRARY
   if (mysqld_chroot)

@@ -83,9 +83,10 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
-enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
-                            SLAVE_EXEC_MODE_IDEMPOTENT,
-                            SLAVE_EXEC_MODE_LAST_BIT};
+
+#define SLAVE_EXEC_MODE_STRICT      (1U << 0)
+#define SLAVE_EXEC_MODE_IDEMPOTENT  (1U << 1)
+
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
@@ -2418,7 +2419,7 @@ class select_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
-  uint nest_level;
+  int nest_level;
 public:
   select_result();
   virtual ~select_result() {};
@@ -2559,7 +2560,7 @@ public:
      Creates a select_export to represent INTO OUTFILE <filename> with a
      defined level of subquery nesting.
    */
-  select_export(sql_exchange *ex, uint nest_level_arg) :select_to_file(ex) 
+  select_export(sql_exchange *ex, int nest_level_arg) :select_to_file(ex) 
   {
     nest_level= nest_level_arg;
   }
@@ -2576,7 +2577,7 @@ public:
      Creates a select_export to represent INTO DUMPFILE <filename> with a
      defined level of subquery nesting.
    */  
-  select_dump(sql_exchange *ex, uint nest_level_arg) : 
+  select_dump(sql_exchange *ex, int nest_level_arg) : 
     select_to_file(ex) 
   {
     nest_level= nest_level_arg;
@@ -3046,7 +3047,7 @@ public:
      Creates a select_dumpvar to represent INTO <variable> with a defined 
      level of subquery nesting.
    */
-  select_dumpvar(uint nest_level_arg)
+  select_dumpvar(int nest_level_arg)
   {
     var_list.empty();
     row_count= 0;
