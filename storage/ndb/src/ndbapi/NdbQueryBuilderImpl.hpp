@@ -245,6 +245,23 @@ private:
 };
 
 
+class NdbQueryOptionsImpl
+{
+  friend class NdbQueryOptions;
+  friend class NdbQueryOperationDefImpl;
+
+public:
+  explicit NdbQueryOptionsImpl()
+  : m_matchType(NdbQueryOptions::MatchAll),
+    m_scanOrder(NdbQueryOptions::ScanOrdering_void)
+  {};
+
+private:
+  NdbQueryOptions::MatchType     m_matchType;
+  NdbQueryOptions::ScanOrdering  m_scanOrder;
+};
+
+
 ////////////////////////////////////////////////
 // Implementation of NdbQueryOperation interface
 ////////////////////////////////////////////////
@@ -282,6 +299,12 @@ public:
 
   const char* getName() const
   { return m_ident; }
+
+  enum NdbQueryOptions::MatchType getMatchType() const
+  { return m_options.m_matchType; }
+
+  enum NdbQueryOptions::ScanOrdering getOrdering() const
+  { return m_options.m_scanOrder; }
 
   Uint32 assignQueryOperationId(Uint32& nodeId)
   { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
@@ -348,6 +371,7 @@ public:
 
 protected:
   explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
+                                     const NdbQueryOptionsImpl& options,
                                      const char* ident,
                                      Uint32 ix);
 public:
@@ -392,6 +416,11 @@ private:
   Uint32       m_id;         // Operation id when materialized into queryTree.
                              // If op has index, index id is 'm_id-1'.
 
+  // Optional (or default) options specified when building query:
+  // - Scan order which may specify ascending or descending scan order
+  // - Match type used for hinting on optimal inner-, outer-, semijoin exec.
+  const NdbQueryOptionsImpl m_options;
+
   // parent / child vectors contains dependencies as defined
   // with linkedValues
   Vector<NdbQueryOperationDefImpl*> m_parents;
@@ -412,9 +441,10 @@ public:
   virtual ~NdbQueryScanOperationDefImpl()=0;
   explicit NdbQueryScanOperationDefImpl (
                            const NdbTableImpl& table,
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryOperationDefImpl(table,ident,ix)
+  : NdbQueryOperationDefImpl(table,options,ident,ix)
   {}
 
   virtual bool isScanOperation() const
@@ -451,25 +481,13 @@ public:
   virtual const IndexBound* getBounds() const
   { return &m_bound; } 
 
-  /** Define result ordering. Alternatively, ordering may be set when the 
-   * query definition has been instantiated, using 
-   * NdbQueryOperation::setOrdering(). It is an error to call this method 
-   * after NdbQueryBuilder::prepare() has been called for the enclosing query.
-   * @param ordering The desired ordering of results.
-   * @return 0 if ok, -1 in case of error.
-   */
-  int setOrdering(NdbScanOrdering ordering);
-
-  /** Get the result ordering for this operation.*/
-  NdbScanOrdering getOrdering() const
-  { return m_ordering; }
-
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
   explicit NdbQueryIndexScanOperationDefImpl (
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
                            const NdbQueryIndexBound* bound,
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix);
 
@@ -480,9 +498,6 @@ private:
   /** True if there is a set of bounds.*/
   const bool m_hasBound;
   IndexBound m_bound;
-
-  /** Ordering of scan results.*/
-  NdbScanOrdering m_ordering;
 }; // class NdbQueryIndexScanOperationDefImpl
 
 

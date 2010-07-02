@@ -28,6 +28,7 @@ class Ndb;
 class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
+class NdbQueryOptionsImpl;
 class NdbQueryOperandImpl;
 class NdbQueryOperationDefImpl;
 
@@ -100,6 +101,76 @@ private:
   ~NdbParamOperand();
 };
 
+
+/**
+ *  NdbQueryOptions used to pass options when building a NdbQueryOperationDef.
+ *
+ *  It will normally be constructed on the stack, the required options specified
+ *  with the set'ers methods, and then supplied as an argument when creating the 
+ *  NdbQueryOperationDef.
+ */
+class NdbQueryOptions
+{
+public:
+
+  /**
+   * Different match criteria may be specified for an operation.
+   * These controls when rows are considdered equal, and a result row
+   * is produced (or accepted).
+   *
+   * These are hints only.
+   * The implementation is allowed to take a conservative approach
+   * and produce more rows than specified by the MatchType.
+   * However, not more rows than specified by 'MatchAll' should be produced.
+   * As additional rows should be expected, the receiver should be prepared to
+   * filter away unwanted rows if another MatchType than 'MatchAll' was specified.
+   */
+  enum MatchType
+  {
+    MatchAll,        // DEFAULT: Output all matches, including duplicats.
+                     // Append a single NULL complemented row for non-matching childs.
+    MatchNonNull,    // Output all matches, including duplicats. 
+                     // Parents without any matches are discarded.
+    MatchNullOnly,   // Output only parent rows without any child matches.
+                     // Append a single NULL complemented row for the non_matching child
+    MatchSingle,     // Output a single row when >=1 child matches.
+                     // One of the matching child row is included in the output.
+    Default = MatchAll
+  };
+
+  /** Ordering of scan results when scanning ordered indexes.*/
+  enum ScanOrdering
+  {
+    /** Undefined (not yet set). */
+    ScanOrdering_void, 
+    /** Results will not be ordered.*/
+    ScanOrdering_unordered, 
+    ScanOrdering_ascending,
+    ScanOrdering_descending
+  };
+
+  explicit NdbQueryOptions();
+  ~NdbQueryOptions();
+
+  /** Define result ordering. Alternatively, ordering may be set when the 
+   * query definition has been instantiated, using 
+   * NdbQueryOperation::setOrdering().
+   * @param ordering The desired ordering of results.
+   */
+  int setOrdering(ScanOrdering ordering);
+
+  int setMatchType(MatchType matchType);
+
+  const NdbQueryOptionsImpl& getImpl() const;
+
+private:
+  // Copying disallowed:
+  NdbQueryOptions(const NdbQueryOptions& other);
+  NdbQueryOptions& operator = (const NdbQueryOptions& other);
+
+  NdbQueryOptionsImpl* m_pimpl;
+
+}; // class NdbQueryOptions
 
 
 /**
@@ -184,31 +255,9 @@ private:
   ~NdbQueryTableScanOperationDef();
 }; // class NdbQueryTableScanOperationDef
 
-/** Ordering of scan results when scanning ordered indexes.*/
-enum NdbScanOrdering
-{
-  /** Undefined (not yet set). */
-  NdbScanOrdering_void, 
-  /** Results will not be ordered.*/
-  NdbScanOrdering_unordered, 
-  NdbScanOrdering_ascending,
-  NdbScanOrdering_descending
-};
-
 class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
 {
 public:
-  /** Define result ordering. Alternatively, ordering may be set when the 
-   * query definition has been instantiated, using 
-   * NdbQueryOperation::setOrdering(). It is an error to call this method 
-   * after NdbQueryBuilder::prepare() has been called for the enclosing query.
-   * @param ordering The desired ordering of results.
-   * @return 0 if ok, -1 in case of error.
-   */
-  int setOrdering(NdbScanOrdering ordering);
-
-  /** Get the result ordering for this operation.*/
-  NdbScanOrdering getOrdering() const;
 
 private:
   // Enforce object creation through NdbQueryBuilder factory 
@@ -323,25 +372,29 @@ public:
   // Each NdbQueryOperationDef will also be assigned an numeric ident (starting from 0)
   // as an alternative way of locating the NdbQueryOperation.
   
-  NdbQueryLookupOperationDef* readTuple(
+  const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,          // Primary key lookup
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
-  NdbQueryLookupOperationDef* readTuple(
+  const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Index*,          // Unique key lookup w/ index
 			        const NdbDictionary::Table*,
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
-  NdbQueryTableScanOperationDef* scanTable(
+  const NdbQueryTableScanOperationDef* scanTable(
                                 const NdbDictionary::Table*,
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
-  NdbQueryIndexScanOperationDef* scanIndex(
+  const NdbQueryIndexScanOperationDef* scanIndex(
                                 const NdbDictionary::Index*, 
 	                        const NdbDictionary::Table*,
                                 const NdbQueryIndexBound* bound = 0,
+                                const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
 

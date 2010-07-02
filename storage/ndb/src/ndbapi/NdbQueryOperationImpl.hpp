@@ -265,7 +265,7 @@ private:
 
     // Prepare internal datastructures.
     // Return 0 if ok, else errorcode
-    int prepare(NdbScanOrdering ordering, 
+    int prepare(NdbQueryOptions::ScanOrdering ordering, 
                 int size, 
                 const NdbRecord* keyRecord,
                 const NdbRecord* resultRecord);
@@ -294,7 +294,7 @@ private:
      * and processed).*/
     int m_completedFrags;
     /** Ordering of index scan result.*/
-    NdbScanOrdering m_ordering;
+    NdbQueryOptions::ScanOrdering m_ordering;
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_keyRecord;
     /** Needed for comparing records when ordering results.*/
@@ -546,9 +546,9 @@ public:
   NdbQueryOperation& getInterface()
   { return m_interface; }
 
-  int setOrdering(NdbScanOrdering ordering);
+  int setOrdering(NdbQueryOptions::ScanOrdering ordering);
 
-  NdbScanOrdering getOrdering() const
+  NdbQueryOptions::ScanOrdering getOrdering() const
   { return m_ordering; }
 
   /**
@@ -617,7 +617,7 @@ private:
   NdbRecAttr* m_lastRecAttr;
 
   /** Ordering of scan results (only applies to ordered index scans.)*/
-  NdbScanOrdering m_ordering;
+  NdbQueryOptions::ScanOrdering m_ordering;
 
   /** A scan filter is mapped to an interpeter code program, which is stored
    * here. (This field is NULL if no scan filter has been defined.)*/
@@ -635,10 +635,12 @@ private:
 
   /** Fetch results for scan or lookup operation.
    *  Recursively fetchRow() for 'this' operation and all its
-   *  descendant child operations. 
+   *  descendant child operations.
+   *  Return true if a row was fetched, or false if a NULL row was
+   *  produced.
    */
-  void fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
-  void fetchLookupResults();
+  bool fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
+  bool fetchLookupResults();
 
   /** Set result for this operation and all its descendand child 
    *  operations to NULL.

@@ -176,6 +176,7 @@ protected:
   explicit NdbQueryLookupOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix);
 
@@ -207,9 +208,10 @@ private:
   explicit NdbQueryPKLookupOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryLookupOperationDefImpl(table,keys,ident,ix)
+  : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix)
   {}
 
   virtual NdbQueryOperationDef::Type getType() const
@@ -234,9 +236,10 @@ private:
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix)
-  : NdbQueryLookupOperationDefImpl(table,keys,ident,ix),
+  : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix),
     m_index(index)
   {}
 
@@ -266,9 +269,10 @@ private:
   virtual ~NdbQueryTableScanOperationDefImpl() {}
   explicit NdbQueryTableScanOperationDefImpl (
                            const NdbTableImpl& table,
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix)
-    : NdbQueryScanOperationDefImpl(table,ident,ix),
+    : NdbQueryScanOperationDefImpl(table,options,ident,ix),
       m_interface(*this) 
   {}
 
@@ -393,6 +397,52 @@ NdbParamOperand::getEnum() const
 }
 
 /****************************************************************************
+ * Implementation of NdbQueryOptions.
+ * Because of the simplicity of this class, the implementation has *not*
+ * been split into methods in the Impl class with a glue layer to the
+ * outside interface. 
+ ****************************************************************************/
+static NdbQueryOptionsImpl defaultOptions;
+
+NdbQueryOptions::NdbQueryOptions()
+: m_pimpl(&defaultOptions)
+{}
+
+NdbQueryOptions::~NdbQueryOptions()
+{
+  if (m_pimpl!=&defaultOptions)
+    delete m_pimpl;
+}
+
+const NdbQueryOptionsImpl& 
+NdbQueryOptions::getImpl() const
+{
+  return *m_pimpl;
+}
+
+int
+NdbQueryOptions::setOrdering(ScanOrdering ordering)
+{
+  if (m_pimpl==&defaultOptions)
+  {
+    m_pimpl = new NdbQueryOptionsImpl;
+  }
+  m_pimpl->m_scanOrder = ordering;
+  return 0;
+}
+
+int
+NdbQueryOptions::setMatchType(MatchType matchType)
+{
+  if (m_pimpl==&defaultOptions)
+  {
+    m_pimpl = new NdbQueryOptionsImpl;
+  }
+  m_pimpl->m_matchType = matchType;
+  return 0;
+}
+
+/****************************************************************************
  * Glue layer between NdbQueryOperationDef interface and its Impl'ementation.
  ****************************************************************************/
 NdbQueryOperationDef::NdbQueryOperationDef(NdbQueryOperationDefImpl& impl) : m_impl(impl)
@@ -511,18 +561,6 @@ const NdbDictionary::Index*
 NdbQueryOperationDef::getIndex() const
 {
   return ::getImpl(*this).getIndex();
-}
-
-int 
-NdbQueryIndexScanOperationDef::setOrdering(NdbScanOrdering ordering)
-{
-  return ::getImpl(*this).setOrdering(ordering);
-}
-
-NdbScanOrdering
-NdbQueryIndexScanOperationDef::getOrdering() const
-{
-  return ::getImpl(*this).getOrdering();
 }
 
 /*******************************************
@@ -651,10 +689,10 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   return &linkedOp->m_interface;
 }
 
-
-NdbQueryLookupOperationDef*
+const NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                           const NdbQueryOptions* options,
                            const char* ident)
 {
   int i;
@@ -680,7 +718,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
 
   NdbQueryPKLookupOperationDefImpl* op =
     new NdbQueryPKLookupOperationDefImpl(tableImpl,
-                                       keys,ident,
+                                       keys, 
+                                       options ? options->getImpl() : defaultOptions,
+                                       ident,
                                        m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -709,10 +749,11 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
 }
 
 
-NdbQueryLookupOperationDef*
+const NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key lookup w/ index
                            const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
+                           const NdbQueryOptions* options,
                            const char* ident)
 {
   int i;
@@ -747,7 +788,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 
   NdbQueryIndexOperationDefImpl* op = 
     new NdbQueryIndexOperationDefImpl(indexImpl, tableImpl,
-                                       keys,ident,
+                                       keys,
+                                       options ? options->getImpl() : defaultOptions,
+                                       ident,
                                        m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -770,8 +813,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 }
 
 
-NdbQueryTableScanOperationDef*
+const NdbQueryTableScanOperationDef*
 NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
+                           const NdbQueryOptions* options,
                            const char* ident)
 {
   if (m_pimpl->hasError())
@@ -779,7 +823,9 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
 
   NdbQueryTableScanOperationDefImpl* op =
-    new NdbQueryTableScanOperationDefImpl(NdbTableImpl::getImpl(*table),ident,
+    new NdbQueryTableScanOperationDefImpl(NdbTableImpl::getImpl(*table),
+                                          options ? options->getImpl() : defaultOptions,
+                                          ident,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -788,10 +834,11 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
 }
 
 
-NdbQueryIndexScanOperationDef*
+const NdbQueryIndexScanOperationDef*
 NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index, 
 	                   const NdbDictionary::Table* table,
                            const NdbQueryIndexBound* bound,
+                           const NdbQueryOptions* options,
                            const char* ident)
 {
   if (m_pimpl->hasError())
@@ -815,7 +862,9 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(indexImpl, tableImpl,
-                                          bound, ident,
+                                          bound,
+                                          options ? options->getImpl() : defaultOptions,
+                                          ident,
                                           m_pimpl->m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
@@ -1292,9 +1341,10 @@ NdbParamOperandImpl::bindOperand(
 NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOperand* const keys[],
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix)
- : NdbQueryOperationDefImpl(table,ident,ix),
+ : NdbQueryOperationDefImpl(table,options,ident,ix),
    m_interface(*this)
 {
   int i;
@@ -1312,14 +1362,14 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
                            const NdbQueryIndexBound* bound,
+                           const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix)
-: NdbQueryScanOperationDefImpl(table,ident,ix),
+: NdbQueryScanOperationDefImpl(table,options,ident,ix),
   m_interface(*this), 
   m_index(index), 
   m_hasBound(bound != NULL),
-  m_bound(),
-  m_ordering(NdbScanOrdering_void)
+  m_bound()
 {
   if (bound!=NULL) {
 
@@ -1551,27 +1601,18 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
   return 0;
 } // NdbQueryIndexScanOperationDefImpl::checkPrunable
 
-int
-NdbQueryIndexScanOperationDefImpl::setOrdering(NdbScanOrdering ordering)
-{
-  /* Check that query has not been prepared yet.*/
-  if(m_isPrepared)
-  {
-    return -1;
-  }
-  m_ordering = ordering;
-  return 0;
-}
 
 NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      const NdbTableImpl& table,
+                                     const NdbQueryOptionsImpl& options,
                                      const char* ident,
                                      Uint32      ix)
   :m_isPrepared(false), 
    m_diskInChildProjection(false), 
    m_table(table), 
    m_ident(ident), 
-   m_ix(ix), m_id(ix), 
+   m_ix(ix), m_id(ix),
+   m_options(options),
    m_parents(), 
    m_children(), 
    m_params(),

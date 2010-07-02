@@ -3146,7 +3146,7 @@ pushed_queries_dropped
 pushed_queries_executed
 3
 pushed_reads
-5
+4
 drop table T1;
 create table T1(
 d int not null,
