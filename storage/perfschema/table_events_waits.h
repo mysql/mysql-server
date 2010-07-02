@@ -141,7 +141,7 @@ protected:
 
   /** Current row. */
   row_events_waits m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
 };
 

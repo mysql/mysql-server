@@ -136,7 +136,7 @@ private:
 
   /** Current row. */
   row_events_waits_summary_by_thread_by_event_name m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
   /** Current position. */
   pos_events_waits_summary_by_thread_by_event_name m_pos;
@@ -253,7 +253,7 @@ private:
 
   /** Current row. */
   row_events_waits_summary_by_instance m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
 };
 
