@@ -4130,8 +4130,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                            context->first_name_resolution_table,
                            context->last_name_resolution_table,
                            reference, REPORT_ALL_ERRORS,
-                           !any_privileges &&
-                           TRUE, TRUE);
+                           !any_privileges, TRUE);
     }
     return -1;
   }

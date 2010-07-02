@@ -2905,7 +2905,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (likely(charset_inited) &&
       (unlikely(!print_event_info->charset_inited ||
-                bcmp((uchar*) print_event_info->charset, (uchar*) charset, 6))))
+                memcmp(print_event_info->charset, charset, 6))))
   {
     CHARSET_INFO *cs_info= get_charset(uint2korr(charset), MYF(MY_WME));
     if (cs_info)
@@ -2928,8 +2928,8 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   }
   if (time_zone_len)
   {
-    if (bcmp((uchar*) print_event_info->time_zone_str,
-             (uchar*) time_zone_str, time_zone_len+1))
+    if (memcmp(print_event_info->time_zone_str,
+               time_zone_str, time_zone_len+1))
     {
       my_b_printf(file,"SET @@session.time_zone='%s'%s\n",
                   time_zone_str, print_event_info->delimiter);
@@ -7503,8 +7503,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         int actual_error= convert_handler_error(error, thd, table);
         bool idempotent_error= (idempotent_error_code(error) &&
-                                ((bit_is_set(slave_exec_mode, 
-                                SLAVE_EXEC_MODE_IDEMPOTENT)) == 1));
+                               (slave_exec_mode & SLAVE_EXEC_MODE_IDEMPOTENT));
         bool ignored_error= (idempotent_error == 0 ?
                              ignored_error_code(actual_error) : 0);
 
@@ -8332,7 +8331,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
   */
-  if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
+  if ((slave_exec_mode & SLAVE_EXEC_MODE_IDEMPOTENT) ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
     /*
@@ -8411,7 +8410,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   int local_error= 0;
   m_table->next_number_field=0;
   m_table->auto_increment_field_not_null= FALSE;
-  if (bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1 ||
+  if ((slave_exec_mode & SLAVE_EXEC_MODE_IDEMPOTENT) ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
     m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -8514,7 +8513,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
   TABLE *table= m_table;  // pointer to event's table
   int error;
-  int keynum;
+  int UNINIT_VAR(keynum);
   auto_afree_ptr<char> key(NULL);
 
   /* fill table->record[0] with default values */
@@ -8712,10 +8711,8 @@ int
 Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
-  int error=
-    write_row(rli,        /* if 1 then overwrite */
-              bit_is_set(slave_exec_mode, SLAVE_EXEC_MODE_IDEMPOTENT) == 1);
-    
+  int error= write_row(rli, (slave_exec_mode & SLAVE_EXEC_MODE_IDEMPOTENT));
+
   if (error && !thd->is_error())
   {
     DBUG_ASSERT(0);

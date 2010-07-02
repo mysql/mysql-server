@@ -93,7 +93,6 @@ extern "C" {
 #endif
 #endif
 
-#undef bcmp				// Fix problem with new readline
 #if defined(__WIN__)
 #include <conio.h>
 #elif !defined(__NETWARE__)
