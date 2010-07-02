@@ -1162,15 +1162,20 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   }
   else
   {
-    flags &= ~LOG_EVENT_BINLOG_IN_USE_F;
-    int2store(header+ FLAGS_OFFSET, flags);
-    ret= (wrapper_my_b_safe_write(file, header, FLAGS_OFFSET) != 0)
-      || (wrapper_my_b_safe_write(file, header + FLAGS_OFFSET, sizeof(flags))
-          != 0)
-      || (wrapper_my_b_safe_write(file, header + FLAGS_OFFSET + sizeof(flags),
-                                  sizeof(header)
-                                  - (FLAGS_OFFSET + sizeof(flags)))) != 0;
-    flags |= LOG_EVENT_BINLOG_IN_USE_F;
+    ret= (wrapper_my_b_safe_write(file, header, FLAGS_OFFSET) != 0);
+    if (!ret)
+    {
+      flags &= ~LOG_EVENT_BINLOG_IN_USE_F;
+      int2store(header + FLAGS_OFFSET, flags);
+      crc= my_checksum(crc, header + FLAGS_OFFSET, sizeof(flags));
+      flags |= LOG_EVENT_BINLOG_IN_USE_F;    
+      int2store(header + FLAGS_OFFSET, flags);
+      ret= (my_b_safe_write(file, header + FLAGS_OFFSET, sizeof(flags)) != 0);
+    }
+    if (!ret)
+      ret= (wrapper_my_b_safe_write(file, header + FLAGS_OFFSET + sizeof(flags),
+                                    sizeof(header)
+                                    - (FLAGS_OFFSET + sizeof(flags))) != 0);
   }
   DBUG_RETURN( ret);
 }
