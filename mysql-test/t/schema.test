@@ -133,6 +133,7 @@ connection con1;
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
 DROP DATABASE db2;
+HANDLER t1 CLOSE;
 
 --echo # Connection default
 connection default;
