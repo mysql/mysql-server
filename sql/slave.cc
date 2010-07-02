@@ -1321,13 +1321,11 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
       break;
     case '3':
       mi->rli.relay_log.description_event_for_queue= new
-        Format_description_log_event(1, LOG_EVENT_RELAY_LOG_F,
-                                     mysql->server_version);
+        Format_description_log_event(1, mysql->server_version);
       break;
     case '4':
       mi->rli.relay_log.description_event_for_queue= new
-        Format_description_log_event(3, LOG_EVENT_RELAY_LOG_F,
-                                     mysql->server_version);
+        Format_description_log_event(3, mysql->server_version);
       break;
     default:
       /*
@@ -1339,8 +1337,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
         master is 3.23, 4.0, etc.
       */
       mi->rli.relay_log.description_event_for_queue= new
-        Format_description_log_event(4, LOG_EVENT_RELAY_LOG_F,
-                                     mysql->server_version);
+        Format_description_log_event(4, mysql->server_version);
       break;
     }
   }
@@ -1402,9 +1399,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   mi->rli.relay_log.description_event_for_queue->checksum_alg=
     mi->rli.relay_log.relay_log_checksum_alg;
 
-  DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
-  DBUG_ASSERT(mi->rli.relay_log.relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_ILL); 
-
+  DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg !=
+              BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT(mi->rli.relay_log.relay_log_checksum_alg !=
+              BINLOG_CHECKSUM_ALG_UNDEF); 
   /*
     Compare the master and slave's clock. Do not die if master's clock is
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
@@ -1694,7 +1692,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     int rc;
     const char query[]= "SET @master_binlog_checksum= @@global.binlog_checksum";
     master_res= NULL;
-    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_ILL;  // initially undefined
+    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF; //initially undefined
     /*
       @c checksum_alg_before_fd is queried from master in this block.
       If master is old checksum-unaware the value stays undefined.
@@ -4223,7 +4221,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     Show-up of FD:s affects checksum_alg at once because
     that changes FD_queue.
   */
-  uint8 checksum_alg= mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_ILL ? 
+  uint8 checksum_alg= mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF ? 
     mi->checksum_alg_before_fd :
     mi->rli.relay_log.relay_log_checksum_alg;
 
@@ -4231,7 +4229,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   char rot_buf[LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + FN_REFLEN];
 
   DBUG_ASSERT(checksum_alg == BINLOG_CHECKSUM_ALG_OFF || 
-              checksum_alg == BINLOG_CHECKSUM_ALG_ILL || 
+              checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF || 
               checksum_alg == BINLOG_CHECKSUM_ALG_CRC32); 
 
   DBUG_ENTER("queue_event");
@@ -4245,12 +4243,12 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   // does not hold always because of old binlog can work with NM 
-  // DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_ILL);
+  // DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
 
   // should hold unless manipulations with RL. Tests that do that
   // will have to refine the clause.
   DBUG_ASSERT(mi->rli.relay_log.relay_log_checksum_alg !=
-              BINLOG_CHECKSUM_ALG_ILL);
+              BINLOG_CHECKSUM_ALG_UNDEF);
 
   if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
   {
@@ -4321,7 +4319,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
       DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg ==
                   mi->rli.relay_log.relay_log_checksum_alg);
-      DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_ILL); // the first one
+      /* the first one */
+      DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
       save_buf= (char *) buf;
       buf= rot_buf;
     }
@@ -4340,7 +4339,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
         DBUG_ASSERT(mi->rli.relay_log.description_event_for_queue->checksum_alg ==
                     mi->rli.relay_log.relay_log_checksum_alg);
-        DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_ILL); // the first one
+        /* the first one */
+        DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
         save_buf= (char *) buf;
         buf= rot_buf;
       }
@@ -4364,7 +4364,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     Format_description_log_event* tmp;
     const char* errmsg;
-    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_ILL; // mark it as undefined/irrelevant
+    // mark it as undefined that is irrelevant anymore
+    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
     if (!(tmp= (Format_description_log_event*)
           Log_event::read_log_event(buf, event_len, &errmsg,
                                     mi->rli.relay_log.description_event_for_queue,
@@ -4375,7 +4376,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     delete mi->rli.relay_log.description_event_for_queue;
     mi->rli.relay_log.description_event_for_queue= tmp;
-    if (tmp->checksum_alg == BINLOG_CHECKSUM_ALG_ILL)
+    if (tmp->checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
       tmp->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
 
     /* installing new value of checksum Alg for relay log */
@@ -4568,7 +4569,6 @@ void end_relay_log_info(Relay_log_info* rli)
   }
   rli->inited = 0;
   rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
-  // ???  rli->relay_log.relay_log_checksum_alg= BINLOG_CHECKSUM_ALG_ILL;
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
   /*
     Delete the slave's temporary tables from memory.
