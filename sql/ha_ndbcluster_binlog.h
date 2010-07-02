@@ -30,10 +30,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
-/* server id's with high bit set is reservered */
-#define NDB_ANYVALUE_FOR_NOLOGGING 0xFFFFFFFF
-#define NDB_ANYVALUE_RESERVED      0x80000000
-
 extern handlerton *ndbcluster_hton;
 
 class Ndb_event_data
@@ -346,3 +342,12 @@ private:
   THD *m_thd;
   int m_lock;
 };
+
+
+bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue);
+bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue);
+void ndbcluster_anyvalue_set_nologging(Uint32& anyValue);
+bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId);
+void ndbcluster_anyvalue_set_normal(Uint32& anyValue);
+Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue);
+void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId);

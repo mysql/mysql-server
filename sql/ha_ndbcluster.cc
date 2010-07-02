@@ -67,7 +67,7 @@ static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
-
+extern ulong opt_server_id_mask;
 
 static MYSQL_THDVAR_UINT(
   autoincrement_prefetch_sz,         /* name */
@@ -3571,15 +3571,25 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
       opt_log_slave_updates flag.
     */
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    options->anyValue = 0;
     if (thd->slave_thread)
     {
+      /*
+        Slave-thread, we are applying a replicated event.
+        We set the server_id to the value received from the log which
+        may be a composite of server_id and other data according
+        to the server_id_bits option.
+        In future it may be useful to support *not* mapping composite
+        AnyValues to/from Binlogged server-ids
+      */
+      assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue=thd->server_id;
+      options->anyValue = thd->unmasked_server_id;
     }
     else if (thd_ndb->trans_options & TNTO_NO_LOGGING)
     {
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue=NDB_ANYVALUE_FOR_NOLOGGING;
+      ndbcluster_anyvalue_set_nologging(options->anyValue);
     }
   }
 }

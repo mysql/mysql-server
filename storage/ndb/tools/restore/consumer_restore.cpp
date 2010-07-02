@@ -24,7 +24,7 @@
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
 
-#define NDB_ANYVALUE_FOR_NOLOGGING 0xFFFFFFFF
+#define NDB_ANYVALUE_FOR_NOLOGGING 0x8000007f
 
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;

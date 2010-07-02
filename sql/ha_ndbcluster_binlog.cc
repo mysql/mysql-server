@@ -43,6 +43,7 @@ extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
 extern ulong opt_ndb_extra_logging;
+extern ulong opt_server_id_mask;
 
 /*
   defines for cluster replication table names
@@ -2021,7 +2022,7 @@ int ndbcluster_log_schema_op(THD *thd,
       r|= op->setValue(SCHEMA_TYPE_I, log_type);
       DBUG_ASSERT(r == 0);
       /* any value */
-      Uint32 anyValue;
+      Uint32 anyValue = 0;
       if (! thd->slave_thread)
       {
         /* Schema change originating from this MySQLD, check SQL_LOG_BIN
@@ -2030,22 +2031,30 @@ int ndbcluster_log_schema_op(THD *thd,
         if (thd->options & OPTION_BIN_LOG) /* e.g. SQL_LOG_BIN == on */
         {
           DBUG_PRINT("info", ("Schema event for binlogging"));
-          anyValue = 0;
+          ndbcluster_anyvalue_set_normal(anyValue);
         }
         else
         {
           DBUG_PRINT("info", ("Schema event not for binlogging")); 
-          anyValue = NDB_ANYVALUE_FOR_NOLOGGING;
+          ndbcluster_anyvalue_set_nologging(anyValue);
         }
       }
       else
       {
-        /* Slave applying replicated schema event
-         * Pass original applier's serverId in AnyValue
-         */
+        /* 
+           Slave propagating replicated schema event in ndb_schema
+           In case replicated serverId is composite 
+           (server-id-bits < 31) we copy it into the 
+           AnyValue as-is
+           This is for 'future', as currently Schema operations
+           do not have composite AnyValues.
+           In future it may be useful to support *not* mapping composite
+           AnyValues to/from Binlogged server-ids.
+        */
         DBUG_PRINT("info", ("Replicated schema event with original server id %d",
                             thd->server_id));
-        anyValue = thd->server_id;
+        assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
+        anyValue = thd->unmasked_server_id;
       }
 
       r|= op->setAnyValue(anyValue);
@@ -2297,38 +2306,50 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   /* any_value == 0 means local cluster sourced change that
    * should be logged
    */
-  if (schema->any_value != 0)
+  if (ndbcluster_anyvalue_is_reserved(schema->any_value))
   {
-    if (schema->any_value & NDB_ANYVALUE_RESERVED)
+    /* Originating SQL node did not want this query logged */
+    if (!ndbcluster_anyvalue_is_nologging(schema->any_value))
+      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
+                        "query not logged",
+                        schema->any_value);
+    return;
+  }
+  
+  Uint32 queryServerId = ndbcluster_anyvalue_get_serverid(schema->any_value);
+  /* 
+     Start with serverId as received AnyValue, in case it's a composite
+     (server_id_bits < 31).
+     This is for 'future', as currently schema ops do not have composite
+     AnyValues.
+     In future it may be useful to support *not* mapping composite
+     AnyValues to/from Binlogged server-ids.
+  */
+  Uint32 loggedServerId = schema->any_value;
+
+  if (queryServerId)
+  {
+    /* 
+       AnyValue has non-zero serverId, must be a query applied by a slave 
+       mysqld.
+       TODO : Assert that we are running in the Binlog injector thread?
+    */
+    if (! g_ndb_log_slave_updates)
     {
-      /* Originating SQL node did not want this query logged */
-      if (schema->any_value != NDB_ANYVALUE_FOR_NOLOGGING)
-        sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
-                          "query not logged",
-                          schema->any_value);
+      /* This MySQLD does not log slave updates */
       return;
     }
-    else 
-    {
-      /* AnyValue is set to non-zero serverId, must be a query applied
-       * by a slave mysqld.
-       * TODO : Assert that we are running in the Binlog injector thread?
-       */
-      if (! g_ndb_log_slave_updates)
-      {
-        /* This MySQLD does not log slave updates */
-        return;
-      }
-    }
+  }
+  else
+  {
+    /* No ServerId associated with this query, mark it as ours */
+    ndbcluster_anyvalue_set_serverid(loggedServerId, ::server_id);
   }
 
   uint32 thd_server_id_save= thd->server_id;
   DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
   char *thd_db_save= thd->db;
-  if (schema->any_value == 0)
-    thd->server_id= ::server_id;
-  else
-    thd->server_id= schema->any_value;
+  thd->server_id = loggedServerId;
   thd->db= schema->db;
   int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
   thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
@@ -3240,13 +3261,20 @@ int ndbcluster_binlog_start()
 
   if (::server_id == 0)
   {
-    sql_print_warning("NDB: server id set to zero will cause any other mysqld "
-                      "with bin log to log with wrong server id");
+    sql_print_warning("NDB: server id set to zero - changes logged to "
+                      "bin log with server id zero will be logged with "
+                      "another server id by slave mysqlds");
   }
-  else if (::server_id & 0x1 << 31)
+
+  /* 
+     Check that ServerId is not using the reserved bit or bits reserved
+     for application use
+  */
+  if ((::server_id & 0x1 << 31) ||                             // Reserved bit
+      !ndbcluster_anyvalue_is_serverid_in_range(::server_id))  // server_id_bits
   {
-    sql_print_error("NDB: server id's with high bit set is reserved for internal "
-                    "purposes");
+    sql_print_error("NDB: server id provided is too large to be represented in "
+                    "opt_server_id_bits or is reserved");
     DBUG_RETURN(-1);
   }
 
@@ -5158,17 +5186,20 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     return 0;
   }
 
-  uint32 originating_server_id= pOp->getAnyValue();
-  if (originating_server_id == 0)
-    originating_server_id= ::server_id;
-  else if (originating_server_id & NDB_ANYVALUE_RESERVED)
+  uint32 anyValue= pOp->getAnyValue();
+  if (ndbcluster_anyvalue_is_reserved(anyValue))
   {
-    if (originating_server_id != NDB_ANYVALUE_FOR_NOLOGGING)
+    if (!ndbcluster_anyvalue_is_nologging(anyValue))
       sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
                         "event not logged",
-                        originating_server_id);
+                        anyValue);
     return 0;
   }
+  
+  uint32 originating_server_id= ndbcluster_anyvalue_get_serverid(anyValue);
+
+  if (originating_server_id == 0)
+    originating_server_id= ::server_id;
   else if (!g_ndb_log_slave_updates)
   {
     /*
@@ -5177,6 +5208,16 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     */
     return 0;
   }
+
+  /* 
+     Start with logged_server_id as AnyValue in case it's a composite
+     (server_id_bits < 31).  This way any user-values are passed-through
+     to the Binlog in the high bits of the event's Server Id.
+     In future it may be useful to support *not* mapping composite
+     AnyValues to/from Binlogged server-ids.
+  */
+  uint32 logged_server_id= anyValue;
+  ndbcluster_anyvalue_set_serverid(logged_server_id, originating_server_id);
 
   DBUG_ASSERT(trans.good());
   DBUG_ASSERT(table != 0);
@@ -5227,7 +5268,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
-      IF_DBUG(int ret=) trans.write_row(originating_server_id,
+      IF_DBUG(int ret=) trans.write_row(logged_server_id,
                                         injector::transaction::table(table,
                                                                      TRUE),
                                         &b, n_fields, table->record[0]);
@@ -5268,7 +5309,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       }
       ndb_unpack_record(table, event_data->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
-      IF_DBUG(int ret =) trans.delete_row(originating_server_id,
+      IF_DBUG(int ret =) trans.delete_row(logged_server_id,
                                           injector::transaction::table(table,
                                                                        TRUE),
                                           &b, n_fields, table->record[n]);
@@ -5300,7 +5341,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
           since table has a primary key, we can do a write
           using only after values
         */
-        IF_DBUG(int ret =) trans.write_row(originating_server_id,
+        IF_DBUG(int ret =) trans.write_row(logged_server_id,
                                            injector::transaction::table(table, TRUE),
                                            &b, n_fields, table->record[0]);// after values
         DBUG_ASSERT(ret == 0);
@@ -5322,7 +5363,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         }
         ndb_unpack_record(table, event_data->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
-        IF_DBUG(int ret =) trans.update_row(originating_server_id,
+        IF_DBUG(int ret =) trans.update_row(logged_server_id,
                                             injector::transaction::table(table,
                                                                          TRUE),
                                             &b, n_fields,
@@ -6445,6 +6486,76 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
   else
     pthread_mutex_unlock(&injector_mutex);
   DBUG_RETURN(FALSE);
+}
+
+/*
+   AnyValue carries ServerId or Reserved codes
+   Bits from opt_server_id_bits to 30 may carry other data
+   so we ignore them when reading/setting AnyValue.
+ 
+   332        21        10        0
+   10987654321098765432109876543210
+   roooooooooooooooooooooooosssssss
+ 
+   r = Reserved bit indicates whether
+   bits 0-7+ have ServerId (0) or
+   some special reserved code (1).
+   o = Optional bits, depending on value
+       of server-id-bits will be 
+       serverid bits or user-specific 
+       data
+   s = Serverid bits or reserved codes
+       At least 7 bits will be available
+       for serverid or reserved codes
+  
+*/
+
+#define NDB_ANYVALUE_RESERVED_BIT   0x80000000
+#define NDB_ANYVALUE_RESERVED_MASK  0x8000007f
+
+#define NDB_ANYVALUE_NOLOGGING_CODE 0x8000007f
+
+
+bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue)
+{
+  return ((anyValue & NDB_ANYVALUE_RESERVED_BIT) != 0);
+}
+
+bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue)
+{
+  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
+          NDB_ANYVALUE_NOLOGGING_CODE);
+}
+
+void ndbcluster_anyvalue_set_nologging(Uint32& anyValue)
+{
+  anyValue |= NDB_ANYVALUE_NOLOGGING_CODE;
+}
+
+void ndbcluster_anyvalue_set_normal(Uint32& anyValue)
+{
+  /* Clear reserved bit and serverid bits */
+  anyValue &= ~(NDB_ANYVALUE_RESERVED_BIT);
+  anyValue &= ~(opt_server_id_mask);
+}
+
+bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId)
+{
+  return ((serverId & ~opt_server_id_mask) == 0);
+}
+
+Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue)
+{
+  assert(! (anyValue & NDB_ANYVALUE_RESERVED_BIT) );
+
+  return (anyValue & opt_server_id_mask);
+}
+
+void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId)
+{
+  assert(! (anyValue & NDB_ANYVALUE_RESERVED_BIT) );
+  anyValue &= ~(opt_server_id_mask);
+  anyValue |= (serverId & opt_server_id_mask); 
 }
 
 #endif
