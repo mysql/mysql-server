@@ -36,10 +36,6 @@
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-#ifdef _AIX
-#undef HAVE_BCMP
-#endif
-
 /*  This is needed for the definitions of bzero... on solaris */
 #if defined(HAVE_STRINGS_H)
 #include <strings.h>
@@ -63,14 +59,6 @@
 /* Unixware 7 */
 #if !defined(HAVE_BFILL)
 # define bfill(A,B,C)           memset((A),(C),(B))
-# define bmove_align(A,B,C)    memcpy((A),(B),(C))
-#endif
-
-#if !defined(HAVE_BCMP)
-# define bcopy(s, d, n)		memcpy((d), (s), (n))
-# define bcmp(A,B,C)		memcmp((A),(B),(C))
-# define bzero(A,B)		memset((A),0,(B))
-# define bmove_align(A,B,C)     memcpy((A),(B),(C))
 #endif
 
 #if defined(__cplusplus)
@@ -119,15 +107,6 @@ extern	void bfill(uchar *dst,size_t len,pchar fill);
 #if !defined(bzero) && !defined(HAVE_BZERO)
 extern	void bzero(uchar * dst,size_t len);
 #endif
-
-#if !defined(bcmp) && !defined(HAVE_BCMP)
-extern	size_t bcmp(const uchar *s1,const uchar *s2,size_t len);
-#endif
-#ifdef HAVE_purify
-extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
-#undef bcmp
-#define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#endif /* HAVE_purify */
 
 #ifndef bmove512
 extern	void bmove512(uchar *dst,const uchar *src,size_t len);

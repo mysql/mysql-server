@@ -125,7 +125,6 @@
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
-#cmakedefine HAVE_BCMP 1
 #cmakedefine HAVE_BFILL 1
 #cmakedefine HAVE_BMOVE 1
 #cmakedefine HAVE_BZERO 1
