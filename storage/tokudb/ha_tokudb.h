@@ -2,6 +2,10 @@
 #pragma interface               /* gcc class implementation */
 #endif
 
+#define TOKU_INCLUDE_CHECKPOINT_LOCK 1
+
+#define TOKU_INCLUDE_SHOW_DATA_AMOUNT 1
+
 #if !defined(HA_CLUSTERING)
 #define HA_CLUSTERING 0
 #define HA_CLUSTERED_INDEX 0
