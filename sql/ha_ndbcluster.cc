@@ -3562,6 +3562,7 @@ inline void
 ha_ndbcluster::eventSetAnyValue(THD *thd, 
                                 NdbOperation::OperationOptions *options)
 {
+  options->anyValue= 0;
   if (unlikely(m_slow_path))
   {
     /*
@@ -3571,7 +3572,6 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
       opt_log_slave_updates flag.
     */
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
-    options->anyValue = 0;
     if (thd->slave_thread)
     {
       /*
@@ -3592,6 +3592,18 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
       ndbcluster_anyvalue_set_nologging(options->anyValue);
     }
   }
+#ifndef DBUG_OFF
+  /*
+    MySQLD will set the user-portion of AnyValue (if any) to all 1s
+    This tests code filtering ServerIds on the value of server-id-bits.
+  */
+  const char* p = getenv("NDB_TEST_ANYVALUE_USERDATA");
+  if (p != 0  && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
+  {
+    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+    dbug_ndbcluster_anyvalue_set_userbits(options->anyValue);
+  }
+#endif
 }
 
 bool ha_ndbcluster::isManualBinlogExec(THD *thd)

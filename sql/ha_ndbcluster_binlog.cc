@@ -2057,6 +2057,18 @@ int ndbcluster_log_schema_op(THD *thd,
         anyValue = thd->unmasked_server_id;
       }
 
+#ifndef DBUG_OFF
+      /*
+        MySQLD will set the user-portion of AnyValue (if any) to all 1s
+        This tests code filtering ServerIds on the value of server-id-bits.
+      */
+      const char* p = getenv("NDB_TEST_ANYVALUE_USERDATA");
+      if (p != 0  && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
+      {
+        dbug_ndbcluster_anyvalue_set_userbits(anyValue);
+      }
+#endif  
+
       r|= op->setAnyValue(anyValue);
       DBUG_ASSERT(r == 0);
 #if 0
@@ -6515,6 +6527,19 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 
 #define NDB_ANYVALUE_NOLOGGING_CODE 0x8000007f
 
+#ifndef DBUG_OFF
+void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue)
+{
+  /* 
+     Set userData part of AnyValue (if there is one) to
+     all 1s to test that it is ignored
+  */
+  const Uint32 userDataMask = ~(opt_server_id_mask | 
+                                NDB_ANYVALUE_RESERVED_BIT);
+
+  anyValue |= userDataMask;
+}
+#endif
 
 bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue)
 {
