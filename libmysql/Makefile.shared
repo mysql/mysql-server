@@ -38,7 +38,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			strmake.lo strend.lo strtod.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
-			strcend.lo bcmp.lo ctype-latin1.lo \
+			strcend.lo ctype-latin1.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo my_vsnprintf.lo \
 			ctype.lo ctype-simple.lo ctype-bin.lo ctype-mb.lo \

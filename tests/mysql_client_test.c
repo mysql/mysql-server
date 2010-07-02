@@ -18096,7 +18096,7 @@ static void test_bug53371()
 static void test_bug53907()
 {
   int rc;
-  char buf[] = "\x4test\x14../client_test_db/t1";
+  uchar buf[] = "\x4test\x14../client_test_db/t1";
 
   myheader("test_bug53907");
 

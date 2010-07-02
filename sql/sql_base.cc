@@ -8403,15 +8403,15 @@ my_bool mysql_rm_tmp_tables(void)
                                    (file->name[1] == '.' &&  !file->name[2])))
         continue;
 
-      if (!bcmp((uchar*) file->name, (uchar*) tmp_file_prefix,
-                tmp_file_prefix_length))
+      if (!memcmp(file->name, tmp_file_prefix,
+                  tmp_file_prefix_length))
       {
         char *ext= fn_ext(file->name);
         uint ext_len= strlen(ext);
         uint filePath_len= my_snprintf(filePath, sizeof(filePath),
                                        "%s%c%s", tmpdir, FN_LIBCHAR,
                                        file->name);
-        if (!bcmp((uchar*) reg_ext, (uchar*) ext, ext_len))
+        if (!memcmp(reg_ext, ext, ext_len))
         {
           handler *handler_file= 0;
           /* We should cut file extention before deleting of table */
