@@ -326,10 +326,12 @@ macro ULINTPF. */
 typedef unsigned __int64	ulint;
 #define ULINTPF			"%I64u"
 typedef __int64			lint;
+#define MYSQL_SYSVAR_ULINT MYSQL_SYSVAR_ULONGLONG
 #else
 typedef unsigned long int	ulint;
 #define ULINTPF			"%lu"
 typedef long int		lint;
+#define MYSQL_SYSVAR_ULINT MYSQL_SYSVAR_ULONG
 #endif
 
 #ifdef __WIN__
