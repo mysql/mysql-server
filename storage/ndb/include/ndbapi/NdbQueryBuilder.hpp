@@ -372,25 +372,25 @@ public:
   // Each NdbQueryOperationDef will also be assigned an numeric ident (starting from 0)
   // as an alternative way of locating the NdbQueryOperation.
   
-  NdbQueryLookupOperationDef* readTuple(
+  const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Table*,          // Primary key lookup
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                                 const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
-  NdbQueryLookupOperationDef* readTuple(
+  const NdbQueryLookupOperationDef* readTuple(
                                 const NdbDictionary::Index*,          // Unique key lookup w/ index
 			        const NdbDictionary::Table*,
 				const NdbQueryOperand* const keys[],  // Terminated by NULL element 
                                 const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
-  NdbQueryTableScanOperationDef* scanTable(
+  const NdbQueryTableScanOperationDef* scanTable(
                                 const NdbDictionary::Table*,
                                 const NdbQueryOptions* options = 0,
                                 const char* ident = 0);
 
-  NdbQueryIndexScanOperationDef* scanIndex(
+  const NdbQueryIndexScanOperationDef* scanIndex(
                                 const NdbDictionary::Index*, 
 	                        const NdbDictionary::Table*,
                                 const NdbQueryIndexBound* bound = 0,

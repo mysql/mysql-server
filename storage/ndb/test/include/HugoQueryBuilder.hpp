@@ -136,7 +136,7 @@ private:
   {
     int m_parent;
     int m_idx;
-    NdbQueryOperationDef * m_op;
+    const NdbQueryOperationDef * m_op;
   };
 
   Vector<Op> m_query; // Query built sofar
@@ -151,7 +151,7 @@ private:
   Vector<Op> getParents(OpIdx); //
   NdbQueryOperand * createLink(NdbQueryBuilder&, const NdbDictionary::Column*,
                                Vector<Op> & parents);
-  NdbQueryOperationDef* createOp(NdbQueryBuilder&);
+  const NdbQueryOperationDef* createOp(NdbQueryBuilder&);
 
   void fixOptions();
 };

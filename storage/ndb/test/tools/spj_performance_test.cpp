@@ -246,7 +246,7 @@ void TestThread::doLinkedAPITest(){
       if(queryDef != NULL){
         queryDef->release();
       }
-      NdbQueryOperationDef* parentOpDef = NULL;
+      const NdbQueryOperationDef* parentOpDef = NULL;
       if(m_params->m_scanLength==0){
         // Root is lookup
         const NdbQueryOperand* rootKey[] = {  
