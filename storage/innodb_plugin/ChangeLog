@@ -1,3 +1,8 @@
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb_bug54044.test, innodb_bug54044.result
+	Fix Bug#54044, Create temporary tables and using innodb crashes.
+
 2010-05-25	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
