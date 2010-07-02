@@ -673,7 +673,7 @@ class RANGE_OPT_PARAM
 public:
   THD	*thd;   /* Current thread handle */
   TABLE *table; /* Table being analyzed */
-  COND *cond;   /* Used inside get_mm_tree(). */
+  Item *cond;   /* Used inside get_mm_tree(). */
   table_map prev_tables;
   table_map read_tables;
   table_map current_table; /* Bit of the table being analyzed */
@@ -756,13 +756,13 @@ class TABLE_READ_PLAN;
 
 struct st_ror_scan_info;
 
-static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,COND *cond_func,Field *field,
+static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
 			       Item_func::Functype type,Item *value,
 			       Item_result cmp_type);
-static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,COND *cond_func,Field *field,
+static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
 			    KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
-static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond);
+static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond);
 
 static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
 static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
@@ -1110,7 +1110,7 @@ int imerge_list_or_tree(RANGE_OPT_PARAM *param,
 	   */
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, COND *conds,
+			table_map read_tables, Item *conds,
                         bool allow_null_cond,
                         int *error)
 {
@@ -5571,7 +5571,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
 
 	/* make a select tree of all keys in condition */
 
-static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
+static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 {
   SEL_TREE *tree=0;
   SEL_TREE *ftree= 0;
@@ -5600,7 +5600,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
       }
     }
     else
-    {						// COND OR
+    {						// Item OR
       tree=get_mm_tree(param,li++);
       if (tree)
       {
@@ -5746,7 +5746,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
 
 
 static SEL_TREE *
-get_mm_parts(RANGE_OPT_PARAM *param, COND *cond_func, Field *field,
+get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
 	     Item_func::Functype type,
 	     Item *value, Item_result cmp_type)
 {
@@ -5798,7 +5798,7 @@ get_mm_parts(RANGE_OPT_PARAM *param, COND *cond_func, Field *field,
 
 
 static SEL_ARG *
-get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
+get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
             KEY_PART *key_part, Item_func::Functype type,Item *value)
 {
   uint maybe_null=(uint) field->real_maybe_null();
@@ -9514,7 +9514,7 @@ static bool get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        uchar *key_infix, uint *key_infix_len,
                        KEY_PART_INFO **first_non_infix_part);
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type);
 
 static void
@@ -10111,7 +10111,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
 */
 
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type)
 {
   DBUG_ENTER("check_group_min_max_predicates");

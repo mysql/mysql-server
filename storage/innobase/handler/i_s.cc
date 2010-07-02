@@ -126,7 +126,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond);	/*!< in: condition (not used) */
+	Item*		cond);	/*!< in: condition (not used) */
 
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
@@ -1233,7 +1233,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (not used) */
+	Item*		cond)	/*!< in: condition (not used) */
 {
 	const char*		table_name;
 	int			ret;
@@ -1392,7 +1392,7 @@ i_s_cmp_fill_low(
 /*=============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond,	/*!< in: condition (ignored) */
+	Item*		cond,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	TABLE*	table	= (TABLE *) tables->table;
@@ -1449,7 +1449,7 @@ i_s_cmp_fill(
 /*=========*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmp_fill_low(thd, tables, cond, FALSE));
 }
@@ -1463,7 +1463,7 @@ i_s_cmp_reset_fill(
 /*===============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmp_fill_low(thd, tables, cond, TRUE));
 }
@@ -1668,7 +1668,7 @@ i_s_cmpmem_fill_low(
 /*================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond,	/*!< in: condition (ignored) */
+	Item*		cond,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	int		status = 0;
@@ -1740,7 +1740,7 @@ i_s_cmpmem_fill(
 /*============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmpmem_fill_low(thd, tables, cond, FALSE));
 }
@@ -1754,7 +1754,7 @@ i_s_cmpmem_reset_fill(
 /*==================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmpmem_fill_low(thd, tables, cond, TRUE));
 }
@@ -2006,7 +2006,7 @@ i_s_sys_tables_fill_table(
 /*======================*/
 	THD*		thd,    /*!< in: thread */
 	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	Item*		cond)   /*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2290,7 +2290,7 @@ i_s_sys_tables_fill_table_stats(
 /*============================*/
 	THD*		thd,    /*!< in: thread */
 	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	Item*		cond)   /*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2539,7 +2539,7 @@ i_s_sys_indexes_fill_table(
 /*=======================*/
 	THD*		thd,    /*!< in: thread */
 	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	Item*		cond)   /*!< in: condition (not used) */
 {
         btr_pcur_t		pcur;
 	const rec_t*		rec;
@@ -2778,7 +2778,7 @@ i_s_sys_columns_fill_table(
 /*=======================*/
 	THD*		thd,    /*!< in: thread */
 	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	Item*		cond)   /*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2983,7 +2983,7 @@ i_s_sys_fields_fill_table(
 /*======================*/
 	THD*		thd,    /*!< in: thread */
 	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	Item*		cond)   /*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3213,7 +3213,7 @@ i_s_sys_foreign_fill_table(
 /*=======================*/
 	THD*		thd,    /*!< in: thread */
 	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	Item*		cond)   /*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3424,7 +3424,7 @@ i_s_sys_foreign_cols_fill_table(
 /*============================*/
 	THD*		thd,    /*!< in: thread */
 	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	Item*		cond)   /*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;

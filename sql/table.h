@@ -1191,7 +1191,6 @@ typedef struct st_field_info
 
 
 struct TABLE_LIST;
-typedef class Item COND;
 
 typedef struct st_schema_table
 {
@@ -1200,7 +1199,7 @@ typedef struct st_schema_table
   /* Create information_schema table */
   TABLE *(*create_table)  (THD *thd, TABLE_LIST *table_list);
   /* Fill table with data */
-  int (*fill_table) (THD *thd, TABLE_LIST *tables, COND *cond);
+  int (*fill_table) (THD *thd, TABLE_LIST *tables, Item *cond);
   /* Handle fileds for old SHOW */
   int (*old_format) (THD *thd, struct st_schema_table *schema_table);
   int (*process_table) (THD *thd, TABLE_LIST *tables, TABLE *table,

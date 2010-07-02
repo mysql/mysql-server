@@ -57,7 +57,7 @@ static const char *lock_descriptions[] =
 #ifndef DBUG_OFF
 
 void
-print_where(COND *cond,const char *info, enum_query_type query_type)
+print_where(Item *cond,const char *info, enum_query_type query_type)
 {
   char buff[256];
   String str(buff,(uint32) sizeof(buff), system_charset_info);

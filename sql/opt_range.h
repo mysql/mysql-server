@@ -832,8 +832,8 @@ private:
 class SQL_SELECT :public Sql_alloc {
  public:
   QUICK_SELECT_I *quick;	// If quick-select used
-  COND		*cond;		// where condition
-  COND		*icp_cond;	// conditions pushed to index
+  Item		*cond;		// where condition
+  Item		*icp_cond;	// conditions pushed to index
   TABLE	*head;
   IO_CACHE file;		// Positions to used records
   ha_rows records;		// Records in use if read from file
@@ -876,7 +876,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              ha_rows records);
 uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, COND *conds,
+			table_map read_tables, Item *conds,
                         bool allow_null_cond,  int *error);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE

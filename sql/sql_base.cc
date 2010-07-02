@@ -8163,7 +8163,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 */
 
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                COND **conds)
+                Item **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
