@@ -1322,6 +1322,8 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
   if (operation == HA_EXTRA_FORCE_REOPEN ||
       operation == HA_EXTRA_PREPARE_FOR_DROP)
     return 0;
+  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap)
+    return 0;
   return myrg_extra(file,operation,0);
 }
 
