@@ -113,7 +113,7 @@ private:
 
   /** Current row. */
   row_setup_objects m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
   /** Current position. */
   pos_setup_objects m_pos;

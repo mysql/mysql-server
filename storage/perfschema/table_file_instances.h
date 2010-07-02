@@ -78,7 +78,7 @@ private:
 
   /** Current row. */
   row_file_instances m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
