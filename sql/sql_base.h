@@ -198,7 +198,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-		COND **conds);
+		Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, mysql_mutex_t *mutex,

@@ -1486,8 +1486,6 @@ public:
 #endif /* USE_REGEX */
 
 
-typedef class Item COND;
-
 class Item_cond :public Item_bool_func
 {
 protected:
@@ -1533,7 +1531,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                         COND **conds);
+                         Item **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
@@ -1662,7 +1660,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
-  friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
+  friend Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal);
   friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 

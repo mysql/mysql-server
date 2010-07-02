@@ -20,12 +20,11 @@
 
 class JOIN;
 struct TABLE_LIST;
-typedef class Item COND;
 typedef class st_select_lex SELECT_LEX;
 typedef struct st_sort_field SORT_FIELD;
 
 #ifndef DBUG_OFF
-void print_where(COND *cond,const char *info, enum_query_type query_type);
+void print_where(Item *cond,const char *info, enum_query_type query_type);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void TEST_join(JOIN *join);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,

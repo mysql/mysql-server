@@ -1079,9 +1079,6 @@ typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
 extern KEY_CREATE_INFO default_key_create_info;
 
-/* Forward declaration for condition pushdown to storage engine */
-typedef class Item COND;
-
 typedef struct st_ha_check_opt
 {
   st_ha_check_opt() {}                        /* Remove gcc warning */
@@ -2094,7 +2091,7 @@ public:
    Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
    condition stack.
  */ 
- virtual const COND *cond_push(const COND *cond) { return cond; };
+ virtual const Item *cond_push(const Item *cond) { return cond; };
  /**
    Pop the top condition from the condition stack of the handler instance.
 

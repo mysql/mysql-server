@@ -72,7 +72,7 @@ bool check_reserved_words(LEX_STRING *name)
 */
 
 bool
-eval_const_cond(COND *cond)
+eval_const_cond(Item *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
