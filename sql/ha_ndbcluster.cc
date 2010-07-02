@@ -67,7 +67,7 @@ static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
-
+extern ulong opt_server_id_mask;
 
 static MYSQL_THDVAR_UINT(
   autoincrement_prefetch_sz,         /* name */
@@ -3562,6 +3562,7 @@ inline void
 ha_ndbcluster::eventSetAnyValue(THD *thd, 
                                 NdbOperation::OperationOptions *options)
 {
+  options->anyValue= 0;
   if (unlikely(m_slow_path))
   {
     /*
@@ -3573,15 +3574,36 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     if (thd->slave_thread)
     {
+      /*
+        Slave-thread, we are applying a replicated event.
+        We set the server_id to the value received from the log which
+        may be a composite of server_id and other data according
+        to the server_id_bits option.
+        In future it may be useful to support *not* mapping composite
+        AnyValues to/from Binlogged server-ids
+      */
+      assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue=thd->server_id;
+      options->anyValue = thd->unmasked_server_id;
     }
     else if (thd_ndb->trans_options & TNTO_NO_LOGGING)
     {
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue=NDB_ANYVALUE_FOR_NOLOGGING;
+      ndbcluster_anyvalue_set_nologging(options->anyValue);
     }
   }
+#ifndef DBUG_OFF
+  /*
+    MySQLD will set the user-portion of AnyValue (if any) to all 1s
+    This tests code filtering ServerIds on the value of server-id-bits.
+  */
+  const char* p = getenv("NDB_TEST_ANYVALUE_USERDATA");
+  if (p != 0  && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
+  {
+    options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+    dbug_ndbcluster_anyvalue_set_userbits(options->anyValue);
+  }
+#endif
 }
 
 bool ha_ndbcluster::isManualBinlogExec(THD *thd)

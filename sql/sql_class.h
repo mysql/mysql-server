@@ -1412,6 +1412,7 @@ public:
     first byte of the packet in do_command()
   */
   enum enum_server_command command;
+  uint32     unmasked_server_id;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
