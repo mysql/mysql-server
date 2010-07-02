@@ -745,12 +745,12 @@ NdbQueryOperation::isRowChanged() const
 }
 
 int
-NdbQueryOperation::setOrdering(NdbScanOrdering ordering)
+NdbQueryOperation::setOrdering(NdbQueryOptions::ScanOrdering ordering)
 {
   return m_impl.setOrdering(ordering);
 }
 
-NdbScanOrdering
+NdbQueryOptions::ScanOrdering
 NdbQueryOperation::getOrdering() const
 {
   return m_impl.getOrdering();
@@ -1298,74 +1298,78 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
     return NdbQuery::NextResult_error;
   }
 
-  if (m_state == EndOfData) {
-    return NdbQuery::NextResult_scanComplete;
-  }
-
-  /* To minimize lock contention, each query has two separate root fragment 
-   * conatiners (m_fullFrags and m_applFrags). m_applFrags is only
-   * accessed by the application thread, so it is safe to use it without 
-   * locks.
-   */
-
-  if (unlikely(m_applFrags.getCurrent()==NULL))
+  while (m_state != EndOfData) // Or until return when 'gotRow'
   {
-    /* m_applFrags is empty, so we cannot get more results without 
-     * possibly blocking.
+    /* To minimize lock contention, each query has two separate root fragment 
+     * conatiners (m_fullFrags and m_applFrags). m_applFrags is only
+     * accessed by the application thread, so it is safe to use it without 
+     * locks.
      */
-    if (fetchAllowed)
+
+    if (unlikely(m_applFrags.getCurrent()==NULL))
     {
-      /* fetchMoreResults() will either copy fragments that are already
-       * complete (under mutex protection), or block until more data arrives.
+      /* m_applFrags is empty, so we cannot get more results without 
+       * possibly blocking.
        */
-      const FetchResult fetchResult = fetchMoreResults(forceSend);
-      switch (fetchResult) {
-      case FetchResult_otherError:
-        assert (m_error.code != 0);
-        setErrorCode(m_error.code);
-        return NdbQuery::NextResult_error;
-      case FetchResult_sendFail:
-        // FIXME: copy semantics from NdbScanOperation.
-        setErrorCode(Err_NodeFailCausedAbort); // Node fail
-        return NdbQuery::NextResult_error;
-      case FetchResult_nodeFail:
-        setErrorCode(Err_NodeFailCausedAbort); // Node fail
-        return NdbQuery::NextResult_error;
-      case FetchResult_timeOut:
-        setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
-        return NdbQuery::NextResult_error;
-      case FetchResult_ok:
-        break;
-      case FetchResult_scanComplete:
-        getRoot().nullifyResult();
-        return NdbQuery::NextResult_scanComplete;
-      default:
-        assert(false);
+      if (fetchAllowed)
+      {
+        /* fetchMoreResults() will either copy fragments that are already
+         * complete (under mutex protection), or block until more data arrives.
+         */
+        const FetchResult fetchResult = fetchMoreResults(forceSend);
+        switch (fetchResult) {
+        case FetchResult_otherError:
+          assert (m_error.code != 0);
+          setErrorCode(m_error.code);
+          return NdbQuery::NextResult_error;
+        case FetchResult_sendFail:
+          // FIXME: copy semantics from NdbScanOperation.
+          setErrorCode(Err_NodeFailCausedAbort); // Node fail
+          return NdbQuery::NextResult_error;
+        case FetchResult_nodeFail:
+          setErrorCode(Err_NodeFailCausedAbort); // Node fail
+          return NdbQuery::NextResult_error;
+        case FetchResult_timeOut:
+          setErrorCode(Err_ReceiveFromNdbFailed); // Timeout
+          return NdbQuery::NextResult_error;
+        case FetchResult_ok:
+          break;
+        case FetchResult_scanComplete:
+          getRoot().nullifyResult();
+          return NdbQuery::NextResult_scanComplete;
+        default:
+          assert(false);
+        }
+      } else { 
+        // There are no more cached records in NdbApi
+        return NdbQuery::NextResult_bufferEmpty; 
       }
-    } else { 
-      // There are no more cached records in NdbApi
-      return NdbQuery::NextResult_bufferEmpty; 
     }
+
+    NdbQueryOperationImpl& root = getRoot();
+    NdbResultStream& rootStream = m_applFrags.getCurrent()->getResultStream(0);
+    bool gotRow = false;
+
+    /* Make results from root operation available to the user.*/
+    if (m_queryDef.isScanQuery()) {
+      gotRow = root.fetchScanResults(rootStream.getRootFragNo(), tupleNotFound);
+
+      /* In case we are doing an ordered index scan, reorder the root fragments
+       * such that we get the next record from the right fragment.
+       */
+      m_applFrags.reorder();
+    }
+    else // Lookup query
+    {
+      gotRow = root.fetchLookupResults();
+    }
+
+    if (likely(gotRow))  // Row might have been eliminated by apply of inner join
+      return NdbQuery::NextResult_gotRow;
   }
 
-  NdbQueryOperationImpl& root = getRoot();
-  NdbResultStream& rootStream = m_applFrags.getCurrent()->getResultStream(0);
-
-  /* Make results from root operation available to the user.*/
-  if (m_queryDef.isScanQuery()) {
-    root.fetchScanResults(rootStream.getRootFragNo(), tupleNotFound);
-
-    /* In case we are doing an ordered index scan, reorder the root fragments
-     * such that we get the next record from the right fragment.
-     */
-    m_applFrags.reorder();
-  }
-  else // Lookup query
-  {
-    root.fetchLookupResults();
-  }
-
-  return NdbQuery::NextResult_gotRow;
+  assert (m_state == EndOfData);
+  return NdbQuery::NextResult_scanComplete;
 } //NdbQueryImpl::nextResult
 
 
@@ -1908,7 +1912,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       tupScan = false;
     }
     const Uint32 descending = 
-      root.getOrdering()==NdbScanOrdering_descending ? 1 : 0;
+      root.getOrdering()==NdbQueryOptions::ScanOrdering_descending ? 1 : 0;
     assert(descending==0 || (int) rootTable->m_indexType ==
            (int) NdbDictionary::Index::OrderedIndex);
 
@@ -2166,7 +2170,7 @@ private:
 const Uint32* ReceiverIdIterator::getNextWords(Uint32& sz)
 {
   sz = 0;
-  if(m_query.getRoot().getOrdering() == NdbScanOrdering_unordered)
+  if (m_query.getRoot().getOrdering() == NdbQueryOptions::ScanOrdering_unordered)
   {
     /* For unordered scans, ask for a new batch for each fragment.*/
     while (m_currFragNo < m_query.getRootFragCount()
@@ -2486,7 +2490,7 @@ NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_capacity(0),
   m_size(0),
   m_completedFrags(0),
-  m_ordering(NdbScanOrdering_void),
+  m_ordering(NdbQueryOptions::ScanOrdering_void),
   m_keyRecord(NULL),
   m_resultRecord(NULL),
   m_array(NULL)
@@ -2494,14 +2498,14 @@ NdbQueryImpl::OrderedFragSet::OrderedFragSet():
 }
 
 int
-NdbQueryImpl::OrderedFragSet::prepare(NdbScanOrdering ordering, 
+NdbQueryImpl::OrderedFragSet::prepare(NdbQueryOptions::ScanOrdering ordering, 
                                       int capacity,                
                                       const NdbRecord* keyRecord,
                                       const NdbRecord* resultRecord)
 {
   assert(m_array==NULL);
   assert(m_capacity==0);
-  assert(ordering!=NdbScanOrdering_void);
+  assert(ordering!=NdbQueryOptions::ScanOrdering_void);
   
   if (capacity > 0) 
   { m_capacity = capacity;
@@ -2520,7 +2524,7 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbScanOrdering ordering,
 NdbRootFragment* 
 NdbQueryImpl::OrderedFragSet::getCurrent()
 { 
-  if(m_ordering==NdbScanOrdering_unordered){
+  if(m_ordering==NdbQueryOptions::ScanOrdering_unordered){
     while(m_size>0 && m_array[m_size-1]->isEmpty())
     {
       m_size--;
@@ -2558,7 +2562,7 @@ NdbQueryImpl::OrderedFragSet::getCurrent()
 void 
 NdbQueryImpl::OrderedFragSet::reorder()
 {
-  if(m_ordering!=NdbScanOrdering_unordered && m_size>0)
+  if(m_ordering!=NdbQueryOptions::ScanOrdering_unordered && m_size>0)
   {
     if(m_array[0]->finalBatchReceived() &&
        m_array[0]->isEmpty())
@@ -2609,7 +2613,7 @@ void
 NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
 {
   assert(&frag!=NULL);
-  if(m_ordering==NdbScanOrdering_unordered)
+  if(m_ordering==NdbQueryOptions::ScanOrdering_unordered)
   {
     assert(m_size<m_capacity);
     m_array[m_size++] = &frag;
@@ -2661,7 +2665,7 @@ NdbRootFragment*
 NdbQueryImpl::OrderedFragSet::getEmpty() const
 {
   // This method is not applicable to unordered scans.
-  assert(m_ordering!=NdbScanOrdering_unordered);
+  assert(m_ordering!=NdbQueryOptions::ScanOrdering_unordered);
   // The first frag should be empty when calling this method.
   assert(m_size==0 || m_array[0]->isEmpty());
   assert(verifySortOrder());
@@ -2699,7 +2703,7 @@ int
 NdbQueryImpl::OrderedFragSet::compare(const NdbRootFragment& frag1,
                                       const NdbRootFragment& frag2) const
 {
-  assert(m_ordering!=NdbScanOrdering_unordered);
+  assert(m_ordering!=NdbQueryOptions::ScanOrdering_unordered);
 
   /* f1<f2 if f1 is empty but f2 is not.*/  
   if(frag1.isEmpty())
@@ -2720,7 +2724,7 @@ NdbQueryImpl::OrderedFragSet::compare(const NdbRootFragment& frag1,
                            m_keyRecord,
                            m_resultRecord,
                            m_ordering 
-                           == NdbScanOrdering_descending,
+                           == NdbQueryOptions::ScanOrdering_descending,
                            false);
 }
 
@@ -2749,7 +2753,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_read_mask(NULL),
   m_firstRecAttr(NULL),
   m_lastRecAttr(NULL),
-  m_ordering(NdbScanOrdering_unordered),
+  m_ordering(NdbQueryOptions::ScanOrdering_unordered),
   m_interpretedCode(NULL),
   m_diskInUserProjection(false)
 { 
@@ -2762,11 +2766,11 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
     m_parents.push_back(&m_queryImpl.getQueryOperation(ix));
     m_queryImpl.getQueryOperation(ix).m_children.push_back(this);
   }
-  if(def.getType()==NdbQueryOperationDef::OrderedIndexScan)
+  if (def.getType()==NdbQueryOperationDef::OrderedIndexScan)
   {  
-    const NdbScanOrdering defOrdering = 
+    const NdbQueryOptions::ScanOrdering defOrdering = 
       static_cast<const NdbQueryIndexScanOperationDefImpl&>(def).getOrdering();
-    if(defOrdering != NdbScanOrdering_void)
+    if (defOrdering != NdbQueryOptions::ScanOrdering_void)
     {
       // Use value from definition, if one was set.
       m_ordering = defOrdering;
@@ -3040,7 +3044,7 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
   }
 } // NdbQueryOperationImpl::fetchRow
 
-void 
+bool 
 NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
 {
   NdbResultStream& resultStream = *m_resultStreams[fragNo];
@@ -3067,9 +3071,9 @@ NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
     rowNo = resultStream.findTupleWithParentId(parentId);
     if (rowNo == tupleNotFound)
     {
-      /* This operation gave no result for the current parent tuple.*/
+      /* This operation retrieved no result for the current parent tuple.*/
       nullifyResult();
-      return;
+      return false;
     }
     resultStream.getReceiver().setCurrentRow(rowNo);
   }
@@ -3078,12 +3082,22 @@ NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
   for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
   {
     NdbQueryOperationImpl& child = getChildOperation(i);
-    child.fetchScanResults(fragNo, resultStream.getTupleId(rowNo));
+    bool nullRow = !child.fetchScanResults(fragNo, resultStream.getTupleId(rowNo));
+    if (nullRow &&
+        child.m_operationDef.getMatchType() != NdbQueryOptions::MatchAll)
+    {
+      // If a NULL row is returned from a child which is not outer joined, 
+      // parent row may be eliminate also.
+      (void)resultStream.getReceiver().get_row();  // Get and throw 
+      nullifyResult();
+      return false;
+    }
   }
   fetchRow(resultStream);
+  return true;
 } //NdbQueryOperationImpl::fetchScanResults
 
-void 
+bool 
 NdbQueryOperationImpl::fetchLookupResults()
 {
   NdbResultStream& resultStream = *m_resultStreams[0];
@@ -3092,15 +3106,27 @@ NdbQueryOperationImpl::fetchLookupResults()
   {
     /* This operation gave no result for the current parent tuple.*/
     nullifyResult();
+    return false;
   }
   else
   {
     /* Call recursively for the children of this operation.*/
     for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
     {
-      getChildOperation(i).fetchLookupResults();
+      NdbQueryOperationImpl& child = getChildOperation(i);
+      bool nullRow = !child.fetchLookupResults();
+      if (nullRow &&
+          child.m_operationDef.getMatchType() != NdbQueryOptions::MatchAll)
+      {
+        // If a NULL row is returned from a child which is not outer joined, 
+        // parent row may be eliminate also.
+        (void)resultStream.getReceiver().get_row();  // Get and throw 
+        nullifyResult();
+        return false;
+      }
     }
     fetchRow(resultStream);
+    return true;
   }
 } //NdbQueryOperationImpl::fetchLookupResults
 
@@ -3907,10 +3933,9 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
 } //NdbQueryOperationImpl::execSCAN_TABCONF
 
 int
-NdbQueryOperationImpl::setOrdering(NdbScanOrdering ordering)
+NdbQueryOperationImpl::setOrdering(NdbQueryOptions::ScanOrdering ordering)
 {
-  if(getQueryOperationDef().getType()
-     !=NdbQueryOperationDef::OrderedIndexScan)
+  if (getQueryOperationDef().getType() != NdbQueryOperationDef::OrderedIndexScan)
   {
     getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
     return -1;
@@ -3918,7 +3943,7 @@ NdbQueryOperationImpl::setOrdering(NdbScanOrdering ordering)
 
   if(static_cast<const NdbQueryIndexScanOperationDefImpl&>
        (getQueryOperationDef())
-     .getOrdering() !=NdbScanOrdering_void)
+     .getOrdering() != NdbQueryOptions::ScanOrdering_void)
   {
     getQuery().setErrorCode(QRY_SCAN_ORDER_ALREADY_SET);
     return -1;

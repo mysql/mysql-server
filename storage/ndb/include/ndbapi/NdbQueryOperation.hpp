@@ -22,7 +22,7 @@
 /* There is no way to forward declare nested class NdbDictionary::Column,
  * so this header file must be included.*/
 #include "NdbDictionary.hpp"
-// Needed to get NdbScanOrdering.
+// Needed to get NdbQueryOptions::ScanOrdering.
 #include "NdbQueryBuilder.hpp" 
 #include "NdbIndexScanOperation.hpp"
 
@@ -275,10 +275,10 @@ public:
    * @param ordering The desired ordering of results.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
-  int setOrdering(NdbScanOrdering ordering);
+  int setOrdering(NdbQueryOptions::ScanOrdering ordering);
 
   /** Get the result ordering for this operation.*/
-  NdbScanOrdering getOrdering() const;
+  NdbQueryOptions::ScanOrdering getOrdering() const;
 
 
   /**
