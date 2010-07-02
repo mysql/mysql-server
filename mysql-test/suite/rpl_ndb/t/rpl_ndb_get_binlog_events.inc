@@ -15,7 +15,7 @@ create table raw_binlog_rows (txt varchar(1000));
 # Right trim of length-17 takes out the initial timestamp
 # We are primarily interested in server id and event type
 --replace_regex /thread_id=[0-9]*/ /     /exec_time=[0-9]*/ /   /end_log_pos [0-9]*/ /   /table id [0-9]*/ /   /error_code=[0-9]*/ /   /mapped to number [0-9]*/ /
-select right(txt, length(txt)-17) as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
+select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
 
 --disable_query_log
 drop table raw_binlog_rows;
