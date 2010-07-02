@@ -518,9 +518,9 @@ bool is_conversion_ok(int order, Relay_log_info *rli)
 {
   DBUG_ENTER("is_conversion_ok");
   bool allow_non_lossy=
-    bit_is_set(slave_type_conversions_options, SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY);
+    slave_type_conversions_options & SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY;
   bool allow_lossy=
-    bit_is_set(slave_type_conversions_options, SLAVE_TYPE_CONVERSIONS_ALL_LOSSY);
+    slave_type_conversions_options & SLAVE_TYPE_CONVERSIONS_ALL_LOSSY;
 
   DBUG_PRINT("enter", ("order: %d, flags:%s%s", order,
                        allow_non_lossy ? " ALL_NON_LOSSY" : "",
