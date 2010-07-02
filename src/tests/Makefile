@@ -429,6 +429,7 @@ clean:
 	rm -f $(ALL_BINS)
 	rm -rf dir.* *.check.output *.check.valgrind
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
+	rm -f *.bdb *.tdb
 
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
