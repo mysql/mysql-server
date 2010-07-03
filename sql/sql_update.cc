@@ -469,6 +469,7 @@ int mysql_update(THD *thd,
       while (!(error=info.read_record(&info)) && 
              !thd->killed && !thd->is_error())
       {
+        update_virtual_fields(table);
 	if (!select || select->skip_record(thd) > 0)
 	{
           if (table->file->was_semi_consistent_read())
@@ -575,6 +576,7 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
+    update_virtual_fields(table);
     if (!select || select->skip_record(thd) > 0)
     {
       if (table->file->was_semi_consistent_read())

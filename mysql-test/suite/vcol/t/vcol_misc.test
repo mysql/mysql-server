@@ -1,0 +1,21 @@
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# Bug#601164: DELETE/UPDATE with ORDER BY index and LIMIT
+#             
+
+create table t1 (a int, b int, v int as (a+1), index idx(b));
+insert into t1(a, b) values
+  (4, 40), (3, 30), (5, 50), (7, 70), (8, 80), (2, 20), (1, 10);
+
+select * from t1 order by b;
+
+delete from t1 where v > 6 order by b limit 1;
+select * from t1 order by b;
+
+update t1 set a=v order by b limit 1;
+select * from t1 order by b;
+
+drop table t1;
