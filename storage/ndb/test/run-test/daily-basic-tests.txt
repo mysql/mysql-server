@@ -1175,6 +1175,10 @@ max-time: 180
 cmd: testIndex
 args: -n Bug28804_ATTRINFO T1 T6
 
+max-time: 600
+cmd: testBasic
+args: -n Bug54986 D2
+
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_1 D1
