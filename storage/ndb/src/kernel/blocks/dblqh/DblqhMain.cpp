@@ -12116,6 +12116,8 @@ void Dblqh::execEND_LCPCONF(Signal* signal)
     jam();
     clcpCompletedState = LCP_IDLE;
     sendLCP_COMPLETE_REP(signal, lcpPtr.p->currentFragment.lcpFragOrd.lcpId);
+
+    CRASH_INSERTION(5056);
   }
 }//Dblqh::execEND_LCPCONF()
 

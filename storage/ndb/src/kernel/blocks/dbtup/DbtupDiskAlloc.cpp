@@ -617,6 +617,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
       ext.p->m_free_space= alloc.m_page_free_bits_map[0] * pages; 
       ext.p->m_free_page_count[0]= pages; // All pages are "free"-est
+      ext.p->m_empty_page_no = 0;
       c_extent_hash.add(ext);
 
       Local_fragment_extent_list list1(c_extent_pool, alloc.m_extent_list);
@@ -680,8 +681,15 @@ Dbtup::disk_page_prealloc(Signal* signal,
   if (pageBits == 0)
   {
     jam();
-    //XXX empty page -> fast to map
-    flags |= Page_cache_client::EMPTY_PAGE;
+
+    if (ext.p->m_first_page_no + ext.p->m_empty_page_no == key->m_page_no)
+    {
+      jam();
+      flags |= Page_cache_client::EMPTY_PAGE;
+      //ndbout << "EMPTY_PAGE " << ext.p->m_empty_page_no << " " << *key << endl;
+      ext.p->m_empty_page_no++;
+    }
+
     preq.m_callback.m_callbackFunction = 
       safe_cast(&Dbtup::disk_page_prealloc_initial_callback);
   }
@@ -1916,6 +1924,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
       ext.p->m_key = *key;
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       ext.p->m_free_space= 0;
+      ext.p->m_empty_page_no = (1 << 16); // We don't know, so assume none
       bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
       
       if (alloc.m_curr_extent_info_ptr_i != RNIL)
