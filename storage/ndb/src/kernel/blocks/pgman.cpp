@@ -118,10 +118,17 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   
   if (page_buffer > 0)
   {
-    page_buffer = (page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE; // in pages
-    m_param.m_max_pages = page_buffer;
-    m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_buffer);
-    m_param.m_max_hot_pages = (page_buffer * 9) / 10;
+    Uint32 page_cnt = Uint32((page_buffer + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE);
+
+    if (ERROR_INSERTED(11009))
+    {
+      page_cnt = 25;
+      ndbout_c("Setting page_cnt = %u", page_cnt);
+    }
+
+    m_param.m_max_pages = page_cnt;
+    m_page_entry_pool.setSize(m_param.m_lirs_stack_mult * page_cnt);
+    m_param.m_max_hot_pages = (page_cnt * 9) / 10;
     ndbrequire(m_param.m_max_hot_pages >= 1);
   }
 
@@ -2586,6 +2593,11 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 11008)
   {
     SET_ERROR_INSERT_VALUE(11008);
+  }
+
+  if (signal->theData[0] == 11009)
+  {
+    SET_ERROR_INSERT_VALUE(11009);
   }
 }
 
