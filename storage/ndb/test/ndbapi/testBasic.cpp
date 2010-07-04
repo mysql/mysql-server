@@ -24,6 +24,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <Bitmask.hpp>
 #include <random.h>
+#include <signaldata/DumpStateOrd.hpp>
 
 /**
  * TODO 
@@ -2065,6 +2066,73 @@ int runUnlocker(NDBT_Context* ctx, NDBT_Step* step){
 
 template class Vector<NdbRecAttr*>;
 
+int
+runBug54986(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  NdbDictionary::Table copy = *pTab;
+
+  BaseString name;
+  name.assfmt("%s_COPY", copy.getName());
+  copy.setName(name.c_str());
+  pDict->createTable(copy);
+  const NdbDictionary::Table * copyTab = pDict->getTable(copy.getName());
+
+  HugoTransactions hugoTrans(*pTab);
+  hugoTrans.loadTable(pNdb, 20);
+  hugoTrans.clearTable(pNdb);
+
+  const Uint32 rows = 5000;
+
+  HugoTransactions hugoTransCopy(*copyTab);
+  hugoTransCopy.loadTable(pNdb, rows);
+
+  for (int i = 0; i<5; i++)
+  {
+    int val1 = DumpStateOrd::DihMaxTimeBetweenLCP;
+    int val2 = 7099; // Force start
+
+    restarter.dumpStateAllNodes(&val1, 1);
+
+    HugoTransactions hugoTrans(*pTab);
+    hugoTrans.loadTable(pNdb, 20);
+
+    restarter.dumpStateAllNodes(&val2, 1);
+
+    NdbSleep_SecSleep(15);
+    hugoTrans.clearTable(pNdb);
+
+    hugoTransCopy.pkReadRecords(pNdb, rows);
+
+    HugoOperations hugoOps(*pTab);
+    hugoOps.startTransaction(pNdb);
+    hugoOps.pkInsertRecord(pNdb, 1);
+    hugoOps.execute_NoCommit(pNdb);
+
+    restarter.insertErrorInAllNodes(5056);
+    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateAllNodes(val, 2);
+    restarter.dumpStateAllNodes(&val2, 1);
+    restarter.waitClusterNoStart();
+    int vall = 11009;
+    restarter.dumpStateAllNodes(&vall, 1);
+    restarter.startAll();
+    restarter.waitClusterStarted();
+  }
+
+  pDict->dropTable(copy.getName());
+
+  // remove 25-page pgman
+  restarter.restartAll(false, true, true);
+  restarter.waitClusterNoStart();
+  restarter.startAll();
+  restarter.waitClusterStarted();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -2395,6 +2463,10 @@ TESTCASE("UnlockUpdateBatch",
   STEP(runPkUpdate);
   STEP(runPkRead);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug54986", "")
+{
+  INITIALIZER(runBug54986);
 }
 NDBT_TESTSUITE_END(testBasic);
 
