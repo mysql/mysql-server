@@ -611,6 +611,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   {
     Uint32 m_magic;
     Uint32 m_first_page_no;
+    Uint32 m_empty_page_no;
     Local_key m_key;
     Uint32 m_free_space;
     Uint32 m_free_matrix_pos;
