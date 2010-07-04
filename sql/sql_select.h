@@ -805,7 +805,7 @@ protected:
   enum_nested_loop_state generate_full_extensions(uchar *rec_ptr);
 
   /* Check matching to a partial join record from the join buffer */
-  bool check_match(uchar *rec_ptr);
+  virtual bool check_match(uchar *rec_ptr);
 
   /** @returns whether we should check only the first match for this table */
   bool calc_check_only_first_match(const JOIN_TAB *t) const
@@ -1270,6 +1270,8 @@ protected:
 
   /* Search for a key in the hash table of the join buffer */
   bool key_search(uchar *key, uint key_len, uchar **key_ref_ptr);
+
+  virtual bool check_match(uchar *rec_ptr);
 
 public:
 

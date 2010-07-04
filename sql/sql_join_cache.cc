@@ -1985,7 +1985,7 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     FALSE  there is no match
 */ 
 
-inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
+bool JOIN_CACHE::check_match(uchar *rec_ptr)
 {
   /* Check whether pushdown conditions are satisfied */
   if (join_tab->select && join_tab->select->skip_record())
@@ -3037,35 +3037,43 @@ bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
 }
 
  
-/*
+/**
   Check if the record combination matches the index condition
 
-  SYNOPSIS
-    JOIN_CACHE_BKA_UNIQUE::skip_index_tuple()
-      rseq             Value returned by bka_range_seq_init()
-      range_info       MRR range association data
-    
-  DESCRIPTION
-    See JOIN_CACHE_BKA::skip_index_tuple().
-    This function is the variant for use with
-    JOIN_CACHE_BKA_UNIQUE. The difference from JOIN_CACHE_BKA case is that
-    there may be multiple previous table record combinations that share the
-    same key, i.e. they map to the same MRR range.
-    As a consequence, we need to loop through all previous table record
-    combinations that match the given MRR range key range_info until we find
-    one that satisfies the index condition.
+  @param  rseq             Value returned by bka_range_seq_init()
+  @param  range_info       MRR range association data
 
-  NOTE
-    Possible optimization:
-    Before we unpack the record from a previous table
-    check if this table is used in the condition.
-    If so then unpack the record otherwise skip the unpacking.
-    This should be done by a special virtual method
-    get_partial_record_by_pos().
+  @sa JOIN_CACHE_BKA::skip_index_tuple().
+  This function is the variant for use with
+  JOIN_CACHE_BKA_UNIQUE. The difference from JOIN_CACHE_BKA case is that
+  there may be multiple previous table record combinations that share the
+  same key, i.e. they map to the same MRR range. And for all of those
+  records, we have just done one single key lookup in the current table,
+  found an index tuple. If in this function we discard this index tuple, all
+  those records will be eliminated from the result. Thus, in this function
+  we can discard the index tuple only if _all_ those cached records and the
+  index tuple don't match the pushed index condition. It's a "group-wide
+  decision".
+  Thus we must here loop through all previous table records combinations
+  that match the given MRR range key range_info, searching for a single one
+  matching the index condition.
+  If we find none, we can safely discard the index tuple here, which avoids
+  retrieving the record from the current table.
+  If we instead find one, we cannot discard the index tuple here; later in
+  execution, in join_matching_records(), we can finally take one
+  "case-by-case decision" per cached record, by checking again the index
+  condition (@sa JOIN_CACHE_BKA_UNIQUE::check_match).
 
-  RETURN
-    0    The record combination satisfies the index condition
-    1    Otherwise
+  @note
+  Possible optimization:
+  Before we unpack the record from a previous table
+  check if this table is used in the condition.
+  If so then unpack the record otherwise skip the unpacking.
+  This should be done by a special virtual method
+  get_partial_record_by_pos().
+
+  @retval false  The record combination satisfies the index condition
+  @retval true   Otherwise
 
 
 */
@@ -3334,6 +3342,28 @@ uint JOIN_CACHE_BKA_UNIQUE::get_next_key(uchar ** key)
     }
   }
   return len;
+}
+
+
+/**
+  Check matching to a partial join record from the join buffer, an
+  implementation specialized for JOIN_CACHE_BKA_UNIQUE.
+  Only JOIN_CACHE_BKA_UNIQUE needs that, because it's the only cache using
+  distinct keys.
+  JOIN_CACHE_BKA, on the other hand, does one key lookup per cached
+  record, so can take a per-record individualized decision for the pushed
+  index condition as soon as it has the index tuple.
+  @sa JOIN_CACHE_BKA_UNIQUE::skip_index_tuple
+  @sa JOIN_CACHE::check_match
+ */
+bool JOIN_CACHE_BKA_UNIQUE::check_match(uchar *rec_ptr)
+{
+  /* recheck pushed down index condition */
+  if (join_tab->cache_idx_cond != NULL &&
+      !join_tab->cache_idx_cond->val_int())
+      return FALSE;
+  /* continue with generic tests */
+  return JOIN_CACHE_BKA::check_match(rec_ptr);
 }
 
 
