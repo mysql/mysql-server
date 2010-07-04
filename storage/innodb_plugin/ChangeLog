@@ -1,7 +1,68 @@
+2010-06-24	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54679 alter table causes compressed row_format to revert
+	to compact
+
 2010-06-22	The InnoDB Team
 
-	* handler/ha_innodb.cc, innodb_bug54044.test, innodb_bug54044.result
-	Fix Bug#54044, Create temporary tables and using innodb crashes.
+	* dict/dict0dict.c, dict/dict0mem.c, include/dict0mem.h,
+	include/univ.i, page/page0zip.c, row/row0merge.c:
+	Fix Bug#47991 InnoDB Dictionary Cache memory usage increases
+	indefinitely when renaming tables
+
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#54686: "field->col->mtype == type" assertion error at
+	row/row0sel.c
+
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb_bug54044.result, innodb_bug54044.test:
+	Fix Bug#54044 Create temporary tables and using innodb crashes.
+
+2010-06-21	The InnoDB Team
+
+	* dict/dict0load.c, fil/fil0fil.c:
+	Fix Bug#54658: InnoDB: Warning: allocated tablespace %lu,
+	old maximum was 0 (introduced in Bug #53578 fix)
+
+2010-06-16	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#54330 Broken fast index creation
+
+2010-06-10	The InnoDB Team
+
+	* include/log0log.ic, row/row0ins.c, row/row0purge.c,
+	row/row0uins.c, row/row0umod.c, row/row0upd.c:
+	Fix Bug#39168 ERROR: the age of the last checkpoint ... exceeds
+	the log group capacity
+
+2010-06-08	The InnoDB Team
+
+	* dict/dict0load.c:
+	Fix Bug#54009 Server crashes when data is selected from non backed
+	up table for InnoDB plugin
+
+2010-06-02	The InnoDB Team
+
+	* include/db0err.h, include/lock0lock.h, include/row0mysql.h,
+	lock/lock0lock.c, row/row0ins.c, row/row0mysql.c, row/row0sel.c:
+	Fix Bug#53674 InnoDB: Error: unlock row could not find a
+	4 mode lock on the record
+
+2010-06-01	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0rw.c:
+	Fix Bug#48197 Concurrent rw_lock_free may cause assertion failure
+
+2010-06-01	The InnoDB Team
+
+	* row/row0umod.c:
+	Fix Bug#53812 assert row/row0umod.c line 660 in txn rollback
+	after crash recovery
 
 2010-05-25	The InnoDB Team
 
@@ -255,6 +316,14 @@
 	mysql-test/innodb-autoinc-44030.result:
 	Fix Bug#49497 Error 1467 (ER_AUTOINC_READ_FAILED) on inserting
 	a negative value
+
+2010-01-28	The InnoDB Team
+	*  handler/ha_innodb.h, handler/ha_innodb.cc,
+	handler/handler0alter.cc,
+	mysql-test/innodb_bug47622.test,
+	mysql-test/innodb_bug47622.result:
+	Fix Bug#47622 the new index is added before the existing ones
+	in MySQL, but after one in SE
 
 2010-01-27	The InnoDB Team
 
