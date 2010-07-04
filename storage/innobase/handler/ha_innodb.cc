@@ -583,13 +583,13 @@ thd_is_select(
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
-trx_t*&
+trx_t*
 thd_to_trx(
 /*=======*/
 			/* out: reference to transaction pointer */
 	THD*	thd)	/* in: MySQL thread */
 {
-	return(*(trx_t**) thd_ha_data(thd, innodb_hton_ptr));
+	return((trx_t*) thd_get_ha_data(thd, innodb_hton_ptr));
 }
 
 /************************************************************************
@@ -1164,7 +1164,7 @@ check_trx_exists(
 			/* out: InnoDB transaction handle */
 	THD*	thd)	/* in: user thread handle */
 {
-	trx_t*&	trx = thd_to_trx(thd);
+	trx_t*	trx = thd_to_trx(thd);
 
 	ut_ad(thd == current_thd);
 
@@ -1178,6 +1178,9 @@ check_trx_exists(
 		/* Update the info whether we should skip XA steps that eat
 		CPU time */
 		trx->support_xa = THDVAR(thd, support_xa);
+
+		/* We have a new trx, register with the thread handle */
+		thd_set_ha_data(thd, innodb_hton_ptr, trx);
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -2481,6 +2484,9 @@ innobase_close_connection(
 	}
 
 	innobase_rollback_trx(trx);
+
+	/* Release the lock in thread handler */
+	thd_set_ha_data(thd, hton, NULL);
 
 	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);

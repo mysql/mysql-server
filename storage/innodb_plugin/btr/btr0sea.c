@@ -182,6 +182,7 @@ void
 btr_search_sys_free(void)
 /*=====================*/
 {
+	rw_lock_free(&btr_search_latch);
 	mem_free(btr_search_latch_temp);
 	btr_search_latch_temp = NULL;
 	mem_heap_free(btr_search_sys->hash_index->heap);
