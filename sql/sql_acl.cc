@@ -210,6 +210,7 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
+static inline void get_grantor(THD *thd, char* grantor);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -2755,6 +2756,20 @@ end:
   DBUG_RETURN(result);
 }
 
+static inline void get_grantor(THD *thd, char *grantor)
+{
+  const char *user= thd->security_ctx->user;
+  const char *host= thd->security_ctx->host_or_ip;
+
+#if defined(HAVE_REPLICATION)
+  if (thd->slave_thread && thd->has_invoker())
+  {
+    user= thd->get_invoker_user().str;
+    host= thd->get_invoker_host().str;
+  }
+#endif
+  strxmov(grantor, user, "@", host, NullS);
+}
 
 static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       TABLE *table, const LEX_USER &combo,
@@ -2769,9 +2784,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     The following should always succeed as new users are created before
     this function is called!
@@ -2901,9 +2914,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     New users are created before this function is called.
 
