@@ -1730,32 +1730,36 @@ when it try to get the value of TIME_ZONE global variable from master.";
         }
       }
     }
-    mysql_free_result(mysql_store_result(mysql));
-    if (!mysql_real_query(mysql,
-                          STRING_WITH_LEN("SELECT @master_binlog_checksum")) &&
-        (master_res= mysql_store_result(mysql)) &&
-        (master_row= mysql_fetch_row(master_res)))
+    else
     {
-      mi->checksum_alg_before_fd= (uint8)
-        find_type(&binlog_checksum_typelib, master_row[0], strlen(master_row[0]),
-                  true) - 1;
-      // valid outcome is either of
-      DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
-                  mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
-    }
-    else if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
-    {
-      // this is tolerable as OM -> NS is supported
-      mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master BINLOG_CHECKSUM failed with error: %s", mysql_error(mysql));
-      // this master won't send checksum
-      mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
-    }
-    else if (is_network_error(mysql_errno(mysql)))
-    {
-      mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master BINLOG_CHECKSUM failed with error: %s", mysql_error(mysql));
-      goto network_err;
+      mysql_free_result(mysql_store_result(mysql));
+      if (!mysql_real_query(mysql,
+                            STRING_WITH_LEN("SELECT @master_binlog_checksum")) &&
+          (master_res= mysql_store_result(mysql)) &&
+          (master_row= mysql_fetch_row(master_res)))
+      {
+        mi->checksum_alg_before_fd= (uint8)
+          find_type(&binlog_checksum_typelib, master_row[0], strlen(master_row[0]),
+                    true) - 1;
+        // valid outcome is either of
+        DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
+                    mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
+      }
+      else if (is_network_error(mysql_errno(mysql)))
+      {
+        mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                   "Get master BINLOG_CHECKSUM failed with error: %s", mysql_error(mysql));
+        goto network_err;
+      }
+      else
+      {
+        errmsg= "The slave I/O thread stops because a fatal error is encountered "
+          "when it tried to SELECT @master_binlog_checksum.";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto err;
+      }
     }
     if (master_res)
     {
@@ -4240,6 +4244,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   if (buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
   {
     checksum_alg= get_checksum_alg(buf, event_len);
+  }
+  else if (buf[EVENT_TYPE_OFFSET] == START_EVENT_V3)
+  {
+    // checksum behaviour is similar to the pre-checksum FD handling
+    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
+    mi->rli.relay_log.description_event_for_queue->checksum_alg=
+      mi->rli.relay_log.relay_log_checksum_alg= checksum_alg=
+      BINLOG_CHECKSUM_ALG_OFF;
   }
 
   // does not hold always because of old binlog can work with NM 
