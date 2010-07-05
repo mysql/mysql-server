@@ -158,7 +158,7 @@ int toku_loader_create_loader(DB_ENV *env,
     loader->i->loader_flags       = loader_flags;
     loader->i->temp_file_template = (char *)toku_malloc(MAX_FILE_SIZE);
 
-    int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/%s%s", env->i->real_data_dir, loader_temp_prefix, loader_temp_suffix);
+    int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/%s%s", env->i->real_tmp_dir, loader_temp_prefix, loader_temp_suffix);
     if ( !(n>0 && n<MAX_FILE_SIZE) ) {
         rval = -1;
 	goto create_exit;
@@ -227,16 +227,16 @@ int toku_loader_create_loader(DB_ENV *env,
 		goto create_exit;
 	    }
 	    r = toku_brt_loader_open(&loader->i->brt_loader,
-				 loader->i->env->i->cachetable,
-				 loader->i->env->i->generate_row_for_put,
-				 src_db,
-				 N,
-				 dbs,
-				 descriptors,
-				 (const char **)new_inames_in_env,
-				 compare_functions,
-				 loader->i->temp_file_template,
-				 load_lsn);
+				     loader->i->env->i->cachetable,
+				     loader->i->env->i->generate_row_for_put,
+				     src_db,
+				     N,
+				     dbs,
+				     descriptors,
+				     (const char **)new_inames_in_env,
+				     compare_functions,
+				     loader->i->temp_file_template,
+				     load_lsn);
             if ( r!=0 ) {
 		toku_free(new_inames_in_env);
 		toku_free(descriptors);

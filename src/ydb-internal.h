@@ -70,8 +70,9 @@ struct __toku_db_env_internal {
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
     OMT open_dbs;                                       // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
 
-    char *real_data_dir;                                // data dir used when the env is opened (relative to cwd)
-    char *real_log_dir;                                 // log dir used when the env is opened  (relative to cwd)
+    char *real_data_dir;                                // data dir used when the env is opened (relative to cwd, or absolute with leading /)
+    char *real_log_dir;                                 // log dir used when the env is opened  (relative to cwd, or absolute with leading /)
+    char *real_tmp_dir;                                 // tmp dir used for temporary files (relative to cwd, or absoulte with leading /)
 
     enum { 
         FS_GREEN = 0,                                   // green zone  (we have lots of space)

@@ -346,6 +346,7 @@ static void test_loader(DB **dbs)
 
 char *free_me = NULL;
 char *env_dir = ENVDIR; // the default env_dir.
+char *tmp_subdir = "tmp.subdir";
 
 static void run_test(void) 
 {
@@ -358,8 +359,15 @@ static void run_test(void)
 	r = system(syscmd);                                                                                   CKERR(r);
     }
     r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
-
-    r = db_env_create(&env, 0);                                                                               CKERR(r);
+    {
+	char len = strlen(env_dir) + strlen(tmp_subdir) + 10;
+	char tmpdir[len];
+	r = snprintf(tmpdir, len, "%s/%s", env_dir, tmp_subdir);
+	assert(r<len);
+	r = toku_os_mkdir(tmpdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                   CKERR(r);
+	r = db_env_create(&env, 0);                                                                           CKERR(r);
+	r = env->set_tmp_dir(env, tmp_subdir);                                                                CKERR(r);
+    }
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
     r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
     if ( verbose ) printf("CACHESIZE = %d MB\n", CACHESIZE);
