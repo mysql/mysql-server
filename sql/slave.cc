@@ -1709,7 +1709,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
                    "Notifying master by %s failed with "
                    "error: %s", query, mysql_error(mysql));
       }
-      else         
+      else
       {
         if (is_network_error(mysql_errno(mysql)))
         {
