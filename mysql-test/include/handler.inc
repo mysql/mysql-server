@@ -1757,3 +1757,35 @@ disconnect con51355;
 --echo # Connection default
 connection default;
 
+
+--echo #
+--echo # Bug#54401 assert in Diagnostics_area::set_eof_status , HANDLER
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  SELECT 1 FROM t2 INTO @a;
+  RETURN 1;
+END|
+delimiter ;|
+
+# Get f1() parsed and cached
+--error ER_NO_SUCH_TABLE
+SELECT f1();
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+HANDLER t1 OPEN;
+# This used to cause the assert
+--error ER_NO_SUCH_TABLE
+HANDLER t1 READ FIRST WHERE f1() = 1;
+HANDLER t1 CLOSE;
+
+DROP FUNCTION f1;
+DROP TABLE t1;
