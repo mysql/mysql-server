@@ -715,7 +715,7 @@ extern uint thd_lib_detected;
   The implementation is guaranteed to be thread safe, on all platforms.
   Note that the calling code should *not* assume the counter is protected
   by the mutex given, as the implementation of these helpers may change
-  to use my_atomic operations instead.
+  to use atomic operations instead.
 */
 
 /*
