@@ -747,7 +747,11 @@ retry:
       goto ok;
     }
     if (cond && !cond->val_int())
+    {
+      if (thd->is_error())
+        goto err;
       continue;
+    }
     if (num_rows >= offset_limit_cnt)
     {
       protocol->prepare_for_resend();
