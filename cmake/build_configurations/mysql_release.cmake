@@ -154,7 +154,7 @@ IF(UNIX)
         SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "+O2 ${COMMON_CXX_FLAGS}")
       ENDIF()
     ENDIF()
-    SET(WITH_SSL)
+    SET(WITH_SSL no)
   ENDIF()
   
   # Linux flags
