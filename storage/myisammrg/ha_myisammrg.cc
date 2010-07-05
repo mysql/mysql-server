@@ -298,9 +298,8 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   if (! db || ! table_name)
     DBUG_RETURN(1);
 
-  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", db_length, db,
-                      table_name_length, table_name));
-
+  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", (int) db_length, db,
+                      (int) table_name_length, table_name));
 
   /* Convert to lowercase if required. */
   if (lower_case_table_names && table_name_length)

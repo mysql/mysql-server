@@ -1681,6 +1681,16 @@ COUNT(*)
 DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
+
+Bug#54422 query with = 'variables'
+
+CREATE TABLE variables(f1 INT);
+SELECT COLUMN_DEFAULT, TABLE_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
+COLUMN_DEFAULT	TABLE_NAME
+NULL	variables
+DROP TABLE variables;
 End of 5.1 tests.
 #
 # Additional test for WL#3726 "DDL locking for all metadata objects"

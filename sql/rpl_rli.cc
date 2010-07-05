@@ -1138,8 +1138,7 @@ bool Relay_log_info::cached_charset_compare(char *charset) const
 {
   DBUG_ENTER("Relay_log_info::cached_charset_compare");
 
-  if (bcmp((uchar*) cached_charset, (uchar*) charset,
-           sizeof(cached_charset)))
+  if (memcmp(cached_charset, charset, sizeof(cached_charset)))
   {
     memcpy(const_cast<char*>(cached_charset), charset, sizeof(cached_charset));
     DBUG_RETURN(1);
