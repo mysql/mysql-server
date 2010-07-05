@@ -163,7 +163,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
     }
     DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
-			(long)sf_malloc_max_memory,lineno, filename));
+			(long) sf_malloc_max_memory, lineno, filename));
     DBUG_EXECUTE_IF("simulate_out_of_memory",
                     DBUG_SET("-d,simulate_out_of_memory"););
     if (MyFlags & MY_FAE)

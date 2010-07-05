@@ -353,7 +353,7 @@ int thd_sql_command(const THD *thd)
 extern "C"
 int thd_tx_isolation(const THD *thd)
 {
-  return (int) thd->variables.tx_isolation;
+  return (int) thd->tx_isolation;
 }
 
 extern "C"
@@ -592,7 +592,7 @@ THD::THD()
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
-  init_open_tables_state(this, refresh_version);
+  reset_open_tables_state(this);
 
   init();
 #if defined(ENABLED_PROFILING)
@@ -626,6 +626,9 @@ THD::THD()
   thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
+  current_user_used= FALSE;
+  memset(&invoker_user, 0, sizeof(invoker_user));
+  memset(&invoker_host, 0, sizeof(invoker_host));
 }
 
 
@@ -960,7 +963,7 @@ void THD::init(void)
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
-  session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   update_charset();
   reset_current_stmt_binlog_format_row();
   bzero((char *) &status_var, sizeof(status_var));
@@ -1341,6 +1344,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
+  clean_current_user_used();
 }
 
 
@@ -3399,6 +3403,22 @@ void THD::leave_locked_tables_mode()
   /* Also ensure that we don't release metadata locks for open HANDLERs. */
   if (handler_tables_hash.records)
     mysql_ha_move_tickets_after_trans_sentinel(this);
+}
+
+void THD::get_definer(LEX_USER *definer)
+{
+  set_current_user_used();
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  if (slave_thread && has_invoker())
+  {
+    definer->user = invoker_user;
+    definer->host= invoker_host;
+    definer->password.str= NULL;
+    definer->password.length= 0;
+  }
+  else
+#endif
+    get_default_definer(this, definer);
 }
 
 

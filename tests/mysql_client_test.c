@@ -19060,6 +19060,63 @@ static void test_bug42373()
 }
 
 
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind;
+
+  DBUG_ENTER("test_bug54041");
+  myheader("test_bug54041");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 (a) VALUES (?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  memset(&bind, 0, sizeof(bind));
+
+  /* Any type that does not support long data handling. */
+  bind.buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_bind_param(stmt, &bind);
+  check_execute(stmt, rc);
+
+  /*
+    Trick the client API into sending a long data packet for
+    the parameter. Long data is only supported for string and
+    binary types.
+  */
+  stmt->params[0].buffer_type= MYSQL_TYPE_STRING;
+
+  rc= mysql_stmt_send_long_data(stmt, 0, "data", 5);
+  check_execute(stmt, rc);
+
+  /* Undo API violation. */
+  stmt->params[0].buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_execute(stmt);
+  /* Incorrect arguments. */
+  check_execute_r(stmt, rc);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Bug#49972: Crash in prepared statements.
 
@@ -19500,6 +19557,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug44495", test_bug44495 },
   { "test_bug49972", test_bug49972 },
   { "test_bug42373", test_bug42373 },
+  { "test_bug54041", test_bug54041 },
   { 0, 0 }
 };
 
