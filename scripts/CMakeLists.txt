@@ -243,9 +243,9 @@ SET(localstatedir ${MYSQL_DATADIR})
 
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  SET(TARGET_LINUX 1)
+  SET(TARGET_LINUX "true")
 ELSE()
-  SET(TARGET_LINUX 0)
+  SET(TARGET_LINUX "false")
 ENDIF()
 
 # Use cmake variables to inspect dependencies for 
