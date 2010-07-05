@@ -418,7 +418,7 @@ copy_extra_record_fields(TABLE *table,
 
  DBUG_ASSERT(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
-    bmove_align(table->record[0] + master_reclength,
+    memcpy(table->record[0] + master_reclength,
                 table->record[1] + master_reclength,
                 table->s->reclength - master_reclength);
     
@@ -697,7 +697,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       rnd_pos() returns the record in table->record[0], so we have to
       move it to table->record[1].
      */
-    bmove_align(table->record[1], table->record[0], table->s->reclength);
+    memcpy(table->record[1], table->record[0], table->s->reclength);
     DBUG_RETURN(error);
   }
 
@@ -1190,7 +1190,7 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
     overwriting the default values that where put there by the
     unpack_row() function.
   */
-  bmove_align(table->record[0], m_after_image, table->s->reclength);
+  memcpy(table->record[0], m_after_image, table->s->reclength);
   copy_extra_record_fields(table, m_master_reclength, m_width);
 
   /*

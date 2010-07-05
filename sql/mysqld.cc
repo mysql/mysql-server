@@ -1388,7 +1388,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 {
   if (global_system_variables.log_warnings)
     sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
 #if !defined(__WIN__) && !defined(__NETWARE__)
@@ -2649,7 +2649,6 @@ extern "C" sig_handler handle_segfault(int sig)
 {
   time_t curr_time;
   struct tm tm;
-  THD *thd=current_thd;
 
   /*
     Strictly speaking, one needs a mutex here
@@ -2709,13 +2708,15 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 #endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
+  THD *thd=current_thd;
+
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
-    fprintf(stderr,"\
-Attempting backtrace. You can use the following information to find out\n\
-where mysqld died. If you see no messages after this, something went\n\
-terribly wrong...\n");  
+    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Attempting backtrace. You can use the following "
+                    "information to find out\nwhere mysqld died. If "
+                    "you see no messages after this, something went\n"
+                    "terribly wrong...\n");
     my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
                         my_thread_stack_size);
   }
@@ -3435,8 +3436,16 @@ static int init_common_variables()
     compiler error in the Sun Studio 12 compiler. As a work-around we
     set the def_value member to 0 in my_long_options and initialize it
     to the correct value here.
+
+    From MySQL 5.5 onwards, the default storage engine is InnoDB
+    (except in the embedded server, where the default continues to
+    be MyISAM)
   */
+#ifdef EMBEDDED_LIBRARY
   default_storage_engine= const_cast<char *>("MyISAM");
+#else
+  default_storage_engine= const_cast<char *>("InnoDB");
+#endif
 
   /*
     Add server status variables to the dynamic list of

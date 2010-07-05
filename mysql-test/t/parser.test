@@ -732,3 +732,4 @@ DROP TABLE t1, t2, t3;
 --echo #
 --echo # End of 5.1 tests
 --echo #
+

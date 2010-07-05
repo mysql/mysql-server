@@ -627,26 +627,34 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #endif
 
 /* Does the system remember a signal handler after a signal ? */
-#ifndef HAVE_BSD_SIGNALS
-#define DONT_REMEMBER_SIGNAL
+#if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
+#define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
-#define LINT_INIT(var)	var=0			/* No uninitialize-warning */
+/*
+  Deprecated workaround for false-positive uninitialized variables
+  warnings. Those should be silenced using tool-specific heuristics.
+
+  Enabled by default for g++ due to the bug referenced below.
+*/
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    (defined(__GNUC__) && defined(__cplusplus))
+#define LINT_INIT(var) var= 0
 #else
 #define LINT_INIT(var)
 #endif
 
-/* 
+/*
    Suppress uninitialized variable warning without generating code.
 
    The _cplusplus is a temporary workaround for C++ code pending a fix
-   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772). 
+   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772).
 */
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(__cplusplus) || \
-  !defined(__GNUC__)
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
+    defined(__cplusplus) || !defined(__GNUC__)
 #define UNINIT_VAR(x) x= 0
 #else
+/* GCC specific self-initialization which inhibits the warning. */
 #define UNINIT_VAR(x) x= x
 #endif
 
@@ -670,7 +678,6 @@ typedef unsigned short ushort;
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
-#define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 
 /* Define some general constants */

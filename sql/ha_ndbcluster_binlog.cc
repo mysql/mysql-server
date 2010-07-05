@@ -3679,7 +3679,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd->init_for_queries();
   thd->command= COM_DAEMON;
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
-  thd->version= refresh_version;
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
   my_net_init(&thd->net, 0);
@@ -3966,9 +3965,9 @@ restart:
          !ndb_binlog_running))
       break; /* Shutting down server */
 
-    if (ndb_binlog_index && ndb_binlog_index->s->version < refresh_version)
+    if (ndb_binlog_index && ndb_binlog_index->s->needs_reopen())
     {
-      if (ndb_binlog_index->s->version < refresh_version)
+      if (ndb_binlog_index->s->needs_reopen())
       {
         close_thread_tables(thd);
         ndb_binlog_index= 0;
