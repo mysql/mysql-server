@@ -1104,8 +1104,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
                         " -> not pushable"));
     DBUG_RETURN(0);
   }
-  if (access_type == AQP::AT_MULTI_PRIMARY_KEY ||
-      access_type == AQP::AT_MULTI_UNIQUE_KEY)
+  if (access_type == AQP::AT_MULTI_UNIQUE_KEY)
   {
     DBUG_PRINT("info", ("join_root->get_access_type() == AQP::AT_MULTI_KEY"
                         " -> not (yet) pushable"));
@@ -1184,6 +1183,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     if (push_cnt == 0)
     {
       if (access_type == AQP::AT_PRIMARY_KEY ||
+          access_type == AQP::AT_MULTI_PRIMARY_KEY ||
           access_type == AQP::AT_UNIQUE_KEY)
       {
         const KEY *key= &table->key_info[join_root->get_index_no()];
@@ -1201,8 +1201,8 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
         root_key[key->key_parts]= NULL;
 
         // Primary key access assumed
-        if (access_type == AQP::AT_PRIMARY_KEY)
-        {
+       if (access_type == AQP::AT_PRIMARY_KEY || access_type == AQP::AT_MULTI_PRIMARY_KEY)
+       {
           DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
           DBUG_ASSERT(join_root->get_index_no() == 
                       static_cast<int>(table->s->primary_key));
@@ -13587,7 +13587,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
       // 'Pushable codepath' is incomplete and expected not
       // to be produced as make_join_pushed() handle 
-      // AT_MULTI_PRIMARY_KEY & AT_MULTI_UNIQUE_KEY as non-pushable
+      // AT_MULTI_UNIQUE_KEY as non-pushable
       if (m_pushed_join &&
           !m_disable_pushed_join &&
           !m_pushed_join->get_query_def().isScanQuery())
