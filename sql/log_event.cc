@@ -972,7 +972,8 @@ my_bool Log_event::need_checksum()
      and Stop event) 
      provides their checksum alg preference through Log_event::checksum_alg.
   */
-  ret= (checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)? checksum_alg :
+  ret= (checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+    (checksum_alg != BINLOG_CHECKSUM_ALG_OFF) :
     ((binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF) &&
      (cache_type == Log_event::EVENT_NO_CACHE))? binlog_checksum_options :
     FALSE;
@@ -1402,7 +1403,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
 
   uint event_type= buf[EVENT_TYPE_OFFSET];
-
+  // all following START events in the current file are without checksum
+  if (event_type == START_EVENT_V3)
+    (const_cast< Format_description_log_event *>(description_event))->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
   /*
     CRC verification by SQL and Show-Binlog-Events master side.
     The caller has to provide @description_event->checksum_alg to
