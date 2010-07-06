@@ -727,7 +727,9 @@ dict_table_get(
 			/* If table->ibd_file_missing == TRUE, this will
 			print an error message and return without doing
 			anything. */
-			dict_stats_update(table, DICT_STATS_UPD_FETCH);
+			ut_ad(!mutex_own(&dict_sys->mutex));
+			dict_stats_update(table, DICT_STATS_UPD_FETCH,
+					  FALSE);
 		}
 	}
 
@@ -4268,7 +4270,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_stats_update(table, DICT_STATS_UPD_FETCH);
+	dict_stats_update(table, DICT_STATS_UPD_FETCH, TRUE);
 
 	fprintf(stderr,
 		"--------------------------------------\n"

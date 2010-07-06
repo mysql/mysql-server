@@ -865,7 +865,8 @@ row_update_statistics_if_needed(
 	if (counter > 2000000000
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_stats_update(table, DICT_STATS_UPD_FETCH);
+		ut_ad(!mutex_own(&dict_sys->mutex));
+		dict_stats_update(table, DICT_STATS_UPD_FETCH, FALSE);
 	}
 }
 
@@ -2922,7 +2923,8 @@ funct_exit:
 
 	/* We are supposed to recalc and save the stats only
 	on ANALYZE, but it also makes sense to do so on TRUNCATE */
-	dict_stats_update(table, DICT_STATS_UPD_RECALC_PERSISTENT_SILENT);
+	dict_stats_update(table, DICT_STATS_UPD_RECALC_PERSISTENT_SILENT,
+			  FALSE);
 
 	trx->op_info = "";
 

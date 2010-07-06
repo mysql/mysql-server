@@ -342,8 +342,10 @@ dict_stats_persistent_storage_check() @{
 @return TRUE if exists and all tables are ok */
 static
 ibool
-dict_stats_persistent_storage_check()
-/*=================================*/
+dict_stats_persistent_storage_check(
+/*================================*/
+	ibool	caller_has_dict_sys_mutex)	/*!< in: TRUE if the caller
+						owns dict_sys->mutex */
 {
 	/* definition for the table TABLE_STATS_NAME */
 	dict_stats_chk_column_t	table_stats_columns[] = {
@@ -403,10 +405,7 @@ dict_stats_persistent_storage_check()
 		index_stats_columns
 	};
 
-	ibool	caller_has_dict_sys_mutex;
 	ibool	ret;
-
-	caller_has_dict_sys_mutex = mutex_own(&dict_sys->mutex);
 
 	if (!caller_has_dict_sys_mutex) {
 		mutex_enter(&(dict_sys->mutex));
@@ -1447,7 +1446,9 @@ dict_stats_save_index_stat(
 	ib_uint64_t	stat_value,	/*!< in: value of the stat */
 	ib_uint64_t*	sample_size,	/*!< in: n pages sampled or NULL */
 	const char*	stat_description,/*!< in: description of the stat */
-	trx_t*		trx)		/*!< in/out: transaction to use */
+	trx_t*		trx,		/*!< in/out: transaction to use */
+	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
+					owns dict_sys->mutex */
 {
 	pars_info_t*	pinfo;
 	ulint		ret;
@@ -1523,7 +1524,7 @@ dict_stats_save_index_stat(
 			   "  stat_name = :stat_name;\n"
 			   "END IF;\n"
 			   "END;",
-		TRUE, trx);
+		!caller_has_dict_sys_mutex, trx);
 
 	/* pinfo is freed by que_eval_sql() */
 
@@ -1549,7 +1550,9 @@ static
 enum db_err
 dict_stats_save(
 /*============*/
-	dict_table_t*	table)		/*!< in: table */
+	dict_table_t*	table,		/*!< in: table */
+	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
+					owns dict_sys->mutex */
 {
 	trx_t*		trx;
 	pars_info_t*	pinfo;
@@ -1628,7 +1631,7 @@ dict_stats_save(
 			   "  table_name = :table_name;\n"
 			   "END IF;\n"
 			   "END;",
-			   TRUE, trx);
+			   !caller_has_dict_sys_mutex, trx);
 
 	/* pinfo is freed by que_eval_sql() */
 
@@ -1660,7 +1663,8 @@ dict_stats_save(
 						 NULL,
 						 "Number of pages "
 						 "in the index",
-						 trx);
+						 trx,
+						 caller_has_dict_sys_mutex);
 		if (ret != DB_SUCCESS) {
 			goto end_rollback;
 		}
@@ -1670,7 +1674,8 @@ dict_stats_save(
 						 NULL,
 						 "Number of leaf pages "
 						 "in the index",
-						 trx);
+						 trx,
+						 caller_has_dict_sys_mutex);
 		if (ret != DB_SUCCESS) {
 			goto end_rollback;
 		}
@@ -1718,7 +1723,8 @@ dict_stats_save(
 				index, now, stat_name,
 				stat_n_diff_key_vals[i],
 				&stat_n_sample_sizes[i],
-				stat_description, trx);
+				stat_description, trx,
+				caller_has_dict_sys_mutex);
 
 			if (ret != DB_SUCCESS) {
 				goto end_rollback;
@@ -2070,7 +2076,9 @@ static
 enum db_err
 dict_stats_fetch_from_ps(
 /*=====================*/
-	dict_table_t*	table) /*!< in/out: table */
+	dict_table_t*	table,		/*!< in/out: table */
+	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
+					owns dict_sys->mutex */
 {
 	trx_t*		trx;
 	pars_info_t*	pinfo;
@@ -2162,7 +2170,7 @@ dict_stats_fetch_from_ps(
 			   "CLOSE index_stats_cur;\n"
 
 			   "END;",
-			   TRUE, trx);
+			   !caller_has_dict_sys_mutex, trx);
 
 	/* pinfo is freed by que_eval_sql() */
 
@@ -2195,13 +2203,23 @@ enum db_err
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
-	dict_stats_upd_option_t	stats_upd_option)
+	dict_stats_upd_option_t	stats_upd_option,
 					/*!< in: whether to (re)calc
 					the stats or to fetch them from
 					the persistent statistics
 					storage */
+	ibool			caller_has_dict_sys_mutex)
+					/*!< in: TRUE if the caller
+					owns dict_sys->mutex */
 {
 	enum db_err	ret;
+
+	/* check whether caller_has_dict_sys_mutex is set correctly;
+	note that mutex_own() is not implemented in non-debug code so
+	we cannot avoid having this extra param to the current function */
+	ut_ad(caller_has_dict_sys_mutex
+	      ? mutex_own(&dict_sys->mutex)
+	      : !mutex_own(&dict_sys->mutex));
 
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
@@ -2226,19 +2244,22 @@ dict_stats_update(
 	switch (stats_upd_option) {
 	case DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE:
 	case DICT_STATS_UPD_RECALC_PERSISTENT_SILENT:
-		/* Persistent recalculation requested, probably called from
-		ANALYZE TABLE */
+		/* Persistent recalculation requested, called from
+		ANALYZE TABLE or from TRUNCATE TABLE */
 
 		/* check if the persistent statistics storage exists
 		before calling the potentially slow function
 		dict_stats_update_persistent(); that is a
 		prerequisite for dict_stats_save() succeeding */
-		if (dict_stats_persistent_storage_check()) {
+		if (dict_stats_persistent_storage_check(
+				caller_has_dict_sys_mutex)) {
 
 			ret = dict_stats_update_persistent(table);
 
 			if (ret == DB_SUCCESS) {
-				ret = dict_stats_save(table);
+				ret = dict_stats_save(
+					table,
+					caller_has_dict_sys_mutex);
 			}
 
 		} else {
@@ -2278,9 +2299,19 @@ dict_stats_update(
 		/* fetch requested, either fetch from persistent statistics
 		storage or use the old method */
 
-		if (dict_stats_persistent_storage_check()) {
+		if (strchr(table->name, '/') == NULL) {
+			/* Use the quick transient stats method for
+			SYS_* tables because we know the persistent
+			stats storage does not contain data for SYS_*
+			tables */
+			dict_stats_update_transient(table);
+			ret = DB_SUCCESS;
+		} else if (dict_stats_persistent_storage_check(
+				caller_has_dict_sys_mutex)) {
 
-			ret = dict_stats_fetch_from_ps(table);
+			ret = dict_stats_fetch_from_ps(
+				table,
+				caller_has_dict_sys_mutex);
 		} else {
 
 			/* if persistent statistics storage does not exist,
@@ -2372,7 +2403,7 @@ dict_stats_drop_index(
 	/* If the persistent statistics storage does not exist or is
 	corrupted, then do not attempt to DELETE from its tables because
 	the internal parser will crash. */
-	if (!dict_stats_persistent_storage_check()) {
+	if (!dict_stats_persistent_storage_check(FALSE)) {
 
 		dict_table_decrement_handle_count(table_stats, FALSE);
 		dict_table_decrement_handle_count(index_stats, FALSE);
@@ -2520,7 +2551,7 @@ dict_stats_drop_table(
 	/* If the persistent statistics storage does not exist or is
 	corrupted, then do not attempt to DELETE from its tables because
 	the internal SQL parser will crash. */
-	if (!dict_stats_persistent_storage_check()) {
+	if (!dict_stats_persistent_storage_check(FALSE)) {
 
 		ret = DB_SUCCESS;
 		goto decrement_ref_count_commit_and_return;
@@ -2825,7 +2856,7 @@ test_dict_stats_save()
 	index2_stat_n_sample_sizes[3] = TEST_IDX2_N_DIFF3_SAMPLE_SIZE;
 	index2_stat_n_sample_sizes[4] = TEST_IDX2_N_DIFF4_SAMPLE_SIZE;
 
-	ret = dict_stats_save(&table);
+	ret = dict_stats_save(&table, FALSE);
 	
 	ut_a(ret == DB_SUCCESS);
 
@@ -2952,7 +2983,7 @@ test_dict_stats_fetch_from_ps()
 	index2.stat_n_diff_key_vals = index2_stat_n_diff_key_vals;
 	index2.stat_n_sample_sizes = index2_stat_n_sample_sizes;
 
-	ret = dict_stats_fetch_from_ps(&table);
+	ret = dict_stats_fetch_from_ps(&table, FALSE);
 	
 	ut_a(ret == DB_SUCCESS);
 

@@ -7753,7 +7753,9 @@ ha_innobase::info_low(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			ret = dict_stats_update(ib_table, stats_upd_option);
+			ut_ad(!mutex_own(&dict_sys->mutex));
+			ret = dict_stats_update(ib_table, stats_upd_option,
+						FALSE);
 
 			if (ret != DB_SUCCESS) {
 				prebuilt->trx->op_info = "";
