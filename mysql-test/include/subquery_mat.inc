@@ -1087,3 +1087,29 @@ DEALLOCATE PREPARE STMT;
 DROP TABLE t1; 
 
 --echo # End of BUG#53103
+
+--echo #
+--echo # BUG#54511 - Assertion failed: cache != 0L in file 
+--echo #             sql_select.cc::sub_select_cache on HAVING
+--echo #
+
+CREATE TABLE t1 (i int(11));
+CREATE TABLE t2 (c char(1));
+CREATE TABLE t3 (c char(1));
+
+# These records are needed for the test to fail with MyISAM. The test
+# fails with InnoDB without these (difference due to optimization of
+# aggregates available only in MyISAM)
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES ('a'), ('b');
+INSERT INTO t3 VALUES ('x'), ('y');
+
+SELECT COUNT( i ),i
+FROM t1
+HAVING ('c')  
+  IN (SELECT t2.c FROM (t2 JOIN t3));
+
+DROP TABLE t1,t2,t3;
+
+--echo # End BUG#54511
+

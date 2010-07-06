@@ -18,7 +18,6 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
-#include "debug_sync.h"
 #include "unireg.h"
 #include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"                         // For select_describe
@@ -28,7 +27,6 @@
                                               // primary_key_name,
                                               // build_table_filename
 #include "repl_failsafe.h"
-#include "sql_view.h"                           // mysql_frm_type
 #include "sql_parse.h"             // check_access, check_table_access
 #include "sql_partition.h"         // partition_element
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
@@ -50,8 +48,9 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
-#include "debug_sync.h"
 #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
+#include "debug_sync.h"
+#include "datadict.h"   // dd_frm_type()
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -108,7 +107,7 @@ static void get_cs_converted_string_value(THD *thd,
 static void
 append_algorithm(TABLE_LIST *table, String *buff);
 
-static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table);
+static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
 
 /***************************************************************************
 ** List all table types supported
@@ -216,7 +215,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
 }
 
 
-int fill_plugins(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_plugins");
   TABLE *table= tables->table;
@@ -1844,7 +1843,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   DBUG_VOID_RETURN;
 }
 
-int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
+int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
@@ -2131,7 +2130,7 @@ static bool show_status_array(THD *thd, const char *wild,
                               struct system_status_var *status_var,
                               const char *prefix, TABLE *table,
                               bool ucase_names,
-                              COND *cond)
+                              Item *cond)
 {
   MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
   char * const buff= (char *) &buff_data;
@@ -2141,7 +2140,7 @@ static bool show_status_array(THD *thd, const char *wild,
   int len;
   LEX_STRING null_lex_str;
   SHOW_VAR tmp, *var;
-  COND *partial_cond= 0;
+  Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool res= FALSE;
   CHARSET_INFO *charset= system_charset_info;
@@ -2371,7 +2370,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   Table_ident *table_ident;
   table_ident= new Table_ident(thd, *db_name, *table_name, 1);
   sel->init_query();
-  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
+  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
 }
@@ -2478,7 +2477,7 @@ bool get_lookup_value(THD *thd, Item_func *item_func,
     1             error, there can be no matching records for the condition
 */
 
-bool calc_lookup_values_from_cond(THD *thd, COND *cond, TABLE_LIST *table,
+bool calc_lookup_values_from_cond(THD *thd, Item *cond, TABLE_LIST *table,
                                   LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
   if (!cond)
@@ -2553,10 +2552,10 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
 }
 
 
-static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
+static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table)
 {
   if (!cond)
-    return (COND*) 0;
+    return (Item*) 0;
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
@@ -2564,7 +2563,7 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
       /* Create new top level AND item */
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return (COND*) 0;
+	return (Item*) 0;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -2575,7 +2574,7 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
       }
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (COND*) 0;
+	return (Item*) 0;
       case 1:
 	return new_cond->argument_list()->head();
       default:
@@ -2587,14 +2586,14 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
     {						// Or list
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return (COND*) 0;
+	return (Item*) 0;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
 	Item *fix=make_cond_for_info_schema(item, table);
 	if (!fix)
-	  return (COND*) 0;
+	  return (Item*) 0;
 	new_cond->argument_list()->push_back(fix);
       }
       new_cond->quick_fix_field();
@@ -2604,7 +2603,7 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
   }
 
   if (!uses_only_table_name_fields(cond, table))
-    return (COND*) 0;
+    return (Item*) 0;
   return cond;
 }
 
@@ -2627,7 +2626,7 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
     1             error, there can be no matching records for the condition
 */
 
-bool get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
+bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
                              LOOKUP_FIELD_VALUES *lookup_field_values)
 {
   LEX *lex= thd->lex;
@@ -2971,6 +2970,9 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                        (can_deadlock ?
                                         MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
   lex->sql_command= save_sql_command;
+
+  DEBUG_SYNC(thd, "after_open_table_ignore_flush");
+
   /*
     get_all_tables() returns 1 on failure and 0 on success thus
     return only these and not the result code of ::process_table()
@@ -3030,7 +3032,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     char path[FN_REFLEN + 1];
     (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
-    switch (mysql_frm_type(thd, path, &not_used)) {
+    switch (dd_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
       table->field[3]->store(STRING_WITH_LEN("ERROR"),
                              system_charset_info);
@@ -3138,15 +3140,27 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   bool error;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           MDL_SHARED_HIGH_PRIO);
-  while (!(error=
-           thd->mdl_context.try_acquire_lock(&table->mdl_request)) &&
-         !table->mdl_request.ticket && !can_deadlock)
+
+  if (can_deadlock)
   {
-    if ((error=
-         thd->mdl_context.wait_for_lock(&table->mdl_request,
-                                        thd->variables.lock_wait_timeout)))
-      break;
+    /*
+      When .FRM is being open in order to get data for an I_S table,
+      we might have some tables not only open but also locked.
+      E.g. this happens when a SHOW or I_S statement is run
+      under LOCK TABLES or inside a stored function.
+      By waiting for the conflicting metadata lock to go away we
+      might create a deadlock which won't entirely belong to the
+      MDL subsystem and thus won't be detectable by this subsystem's
+      deadlock detector. To avoid such situation, when there are
+      other locked tables, we prefer not to wait on a conflicting
+      lock.
+    */
+    error= thd->mdl_context.try_acquire_lock(&table->mdl_request);
   }
+  else
+    error= thd->mdl_context.acquire_lock(&table->mdl_request,
+                                         thd->variables.lock_wait_timeout);
+
   return error;
 }
 
@@ -3353,7 +3367,7 @@ end:
     @retval       1                        error
 */
 
-int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
+int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
@@ -3367,7 +3381,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   enum enum_schema_tables schema_table_idx;
   List<LEX_STRING> db_names;
   List_iterator_fast<LEX_STRING> it(db_names);
-  COND *partial_cond= 0;
+  Item *partial_cond= 0;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_backup open_tables_state_backup;
@@ -3637,7 +3651,7 @@ bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
 }
 
 
-int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   /*
     TODO: fill_schema_shemata() is called when new client is connected.
@@ -4148,7 +4162,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_charsets(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   CHARSET_INFO **cs;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -4245,7 +4259,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   DBUG_RETURN(0);
 }
 
-int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_schema_engines");
   if (plugin_foreach_with_mask(thd, iter_schema_engines,
@@ -4256,7 +4270,7 @@ int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_collation(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   CHARSET_INFO **cs;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -4302,7 +4316,7 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   CHARSET_INFO **cs;
   TABLE *table= tables->table;
@@ -4641,7 +4655,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 }
 
 
-int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   TABLE *proc_table;
   TABLE_LIST proc_tables;
@@ -5894,7 +5908,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 }
 #endif
 
-int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_open_tables");
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -5919,7 +5933,7 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
   int res= 0;
@@ -5943,7 +5957,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_status");
   LEX *lex= thd->lex;
@@ -6573,7 +6587,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                        strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
-                              0, 0, TL_READ))
+                              0, 0, TL_READ, MDL_SHARED_READ))
   {
     DBUG_RETURN(1);
   }
@@ -6674,7 +6688,7 @@ bool get_schema_tables_result(JOIN *join,
 struct run_hton_fill_schema_table_args
 {
   TABLE_LIST *tables;
-  COND *cond;
+  Item *cond;
 };
 
 static my_bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
@@ -6689,7 +6703,7 @@ static my_bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
   return false;
 }
 
-int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, COND *cond)
+int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("hton_fill_schema_table");
 

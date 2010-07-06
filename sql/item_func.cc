@@ -34,7 +34,7 @@
 */
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
-#include "slave.h"				// for wait_for_master_pos
+#include "rpl_slave.h"				// for wait_for_master_pos
 #include "sql_show.h"                           // append_identifier
 #include "strfunc.h"                            // find_type
 #include "sql_parse.h"                          // is_update_query
@@ -72,7 +72,7 @@ bool check_reserved_words(LEX_STRING *name)
 */
 
 bool
-eval_const_cond(COND *cond)
+eval_const_cond(Item *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }

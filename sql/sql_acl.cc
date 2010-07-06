@@ -6645,7 +6645,7 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
 #endif
 
 
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -6720,7 +6720,7 @@ err:
 }
 
 
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -6798,7 +6798,7 @@ err:
 }
 
 
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -6882,7 +6882,7 @@ err:
 }
 
 
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;

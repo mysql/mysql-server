@@ -186,7 +186,7 @@ typedef struct st_join_table : public Sql_alloc
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
-  COND		*select_cond;
+  Item		*select_cond;
   QUICK_SELECT_I *quick;
   Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
@@ -364,15 +364,15 @@ typedef struct st_join_table : public Sql_alloc
   {
     return first_inner && first_inner == this;
   }
-  void set_select_cond(COND *to, uint line)
+  void set_select_cond(Item *to, uint line)
   {
     DBUG_PRINT("info", ("select_cond changes %p -> %p at line %u tab %p",
                         select_cond, to, line, this));
     select_cond= to;
   }
-  COND *set_cond(COND *new_cond, uint line)
+  Item *set_cond(Item *new_cond, uint line)
   {
-    COND *tmp_select_cond= select_cond;
+    Item *tmp_select_cond= select_cond;
     set_select_cond(new_cond, line);
     if (select)
       select->cond= new_cond;
@@ -805,7 +805,7 @@ protected:
   enum_nested_loop_state generate_full_extensions(uchar *rec_ptr);
 
   /* Check matching to a partial join record from the join buffer */
-  bool check_match(uchar *rec_ptr);
+  virtual bool check_match(uchar *rec_ptr);
 
   /** @returns whether we should check only the first match for this table */
   bool calc_check_only_first_match(const JOIN_TAB *t) const
@@ -1270,6 +1270,8 @@ protected:
 
   /* Search for a key in the hash table of the join buffer */
   bool key_search(uchar *key, uint key_len, uchar **key_ref_ptr);
+
+  virtual bool check_match(uchar *rec_ptr);
 
 public:
 
@@ -1736,7 +1738,7 @@ public:
   int error;
 
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
-  COND *conds;                            // ---"---
+  Item *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
@@ -1848,7 +1850,7 @@ public:
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
-	      COND *conds, uint og_num, ORDER *order, ORDER *group,
+	      Item *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
   int optimize();
@@ -1960,7 +1962,7 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
-int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
+int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
@@ -2140,7 +2142,7 @@ bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
-COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
+Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
 int get_quick_record(SQL_SELECT *select);
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
                                   SORT_FIELD *sortorder);
@@ -2156,7 +2158,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option);
 bool mysql_select(THD *thd, Item ***rref_pointer_array,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  COND *conds, uint og_num, ORDER *order, ORDER *group,
+                  Item *conds, uint og_num, ORDER *order, ORDER *group,
                   Item *having, ORDER *proc_param, ulonglong select_type, 
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);

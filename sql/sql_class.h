@@ -1017,7 +1017,6 @@ public:
     of the main statement is called.
   */
   enum enum_locked_tables_mode locked_tables_mode;
-  ulong	version;
   uint current_tablenr;
 
   enum enum_flags {
@@ -1035,15 +1034,6 @@ public:
      call init_open_tables_state().
   */
   Open_tables_state() : state_flags(0U) { }
-
-  /**
-     Prepare Open_tables_state instance for operations dealing with tables.
-  */
-  void init_open_tables_state(THD *thd, ulong version_arg)
-  {
-    reset_open_tables_state(thd);
-    version= version_arg;
-  }
 
   void set_open_tables_state(Open_tables_state *state)
   {
@@ -1236,162 +1226,6 @@ public:
                         MYSQL_ERROR ** cond_hdl);
 
 private:
-};
-
-
-/**
-  An abstract class for a strategy specifying how the prelocking
-  algorithm should extend the prelocking set while processing
-  already existing elements in the set.
-*/
-
-class Prelocking_strategy
-{
-public:
-  virtual ~Prelocking_strategy() { }
-
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking) = 0;
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking) = 0;
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking)= 0;
-};
-
-
-/**
-  A Strategy for prelocking algorithm suitable for DML statements.
-
-  Ensures that all tables used by all statement's SF/SP/triggers and
-  required for foreign key checks are prelocked and SF/SPs used are
-  cached.
-*/
-
-class DML_prelocking_strategy : public Prelocking_strategy
-{
-public:
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
-};
-
-
-/**
-  A strategy for prelocking algorithm to be used for LOCK TABLES
-  statement.
-*/
-
-class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
-{
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-};
-
-
-/**
-  Strategy for prelocking algorithm to be used for ALTER TABLE statements.
-
-  Unlike DML or LOCK TABLES strategy, it doesn't
-  prelock triggers, views or stored routines, since they are not
-  used during ALTER.
-*/
-
-class Alter_table_prelocking_strategy : public Prelocking_strategy
-{
-public:
-
-  Alter_table_prelocking_strategy(Alter_info *alter_info)
-    : m_alter_info(alter_info)
-  {}
-
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
-
-private:
-  Alter_info *m_alter_info;
-};
-
-
-/**
-  A context of open_tables() function, used to recover
-  from a failed open_table() or open_routine() attempt.
-
-  Implemented in sql_base.cc.
-*/
-
-class Open_table_context
-{
-public:
-  enum enum_open_table_action
-  {
-    OT_NO_ACTION= 0,
-    OT_WAIT_MDL_LOCK,
-    OT_WAIT_TDC,
-    OT_DISCOVER,
-    OT_REPAIR
-  };
-  Open_table_context(THD *thd, ulong timeout);
-
-  bool recover_from_failed_open(THD *thd, MDL_request *mdl_request,
-                                TABLE_LIST *table);
-  bool request_backoff_action(enum_open_table_action action_arg);
-
-  void add_request(MDL_request *request)
-  { m_mdl_requests.push_front(request); }
-
-  bool can_recover_from_failed_open() const
-  { return m_action != OT_NO_ACTION; }
-
-  /**
-    When doing a back-off, we close all tables acquired by this
-    statement.  Return an MDL savepoint taken at the beginning of
-    the statement, so that we can rollback to it before waiting on
-    locks.
-  */
-  MDL_ticket *start_of_statement_svp() const
-  {
-    return m_start_of_statement_svp;
-  }
-
-  MDL_request *get_global_mdl_request(THD *thd);
-
-  inline ulong get_timeout() const
-  {
-    return m_timeout;
-  }
-
-private:
-  /** List of requests for all locks taken so far. Used for waiting on locks. */
-  MDL_request_list m_mdl_requests;
-  /** Back off action. */
-  enum enum_open_table_action m_action;
-  MDL_ticket *m_start_of_statement_svp;
-  /**
-    Whether we had any locks when this context was created.
-    If we did, they are from the previous statement of a transaction,
-    and we can't safely do back-off (and release them).
-  */
-  bool m_has_locks;
-  /**
-    Request object for global intention exclusive lock which is acquired during
-    opening tables for statements which take upgradable shared metadata locks.
-  */
-  MDL_request *m_global_mdl_request;
-  /**
-    Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
-    tables or to the "lock_wait_timeout" system variable for regular tables.
-  */
-  uint m_timeout;
 };
 
 
@@ -2121,8 +1955,31 @@ public:
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
   uint       select_number;             //number of select (used for EXPLAIN)
-  /* variables.transaction_isolation is reset to this after each commit */
-  enum_tx_isolation session_tx_isolation;
+  /*
+    Current or next transaction isolation level.
+    When a connection is established, the value is taken from
+    @@session.tx_isolation (default transaction isolation for
+    the session), which is in turn taken from @@global.tx_isolation
+    (the global value).
+    If there is no transaction started, this variable
+    holds the value of the next transaction's isolation level.
+    When a transaction starts, the value stored in this variable
+    becomes "actual".
+    At transaction commit or rollback, we assign this variable
+    again from @@session.tx_isolation.
+    The only statement that can otherwise change the value
+    of this variable is SET TRANSACTION ISOLATION LEVEL.
+    Its purpose is to effect the isolation level of the next
+    transaction in this session. When this statement is executed,
+    the value in this variable is changed. However, since
+    this statement is only allowed when there is no active
+    transaction, this assignment (naturally) only affects the
+    upcoming transaction.
+    At the end of the current active transaction the value is
+    be reset again from @@session.tx_isolation, as described
+    above.
+  */
+  enum_tx_isolation tx_isolation;
   enum_check_fields count_cuted_fields;
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
@@ -2502,7 +2359,14 @@ public:
   /** Return FALSE if connection to client is broken. */
   bool is_connected()
   {
-    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+    /*
+      The slave SQL thread and the event worker thread are connected
+      but not using vio. So this function always returns true for
+      them.
+    */
+    return system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+      system_thread == SYSTEM_THREAD_EVENT_WORKER ||
+      (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
@@ -2867,6 +2731,12 @@ public:
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
+  void set_open_tables(TABLE *open_tables_arg)
+  {
+    mysql_mutex_lock(&LOCK_thd_data);
+    open_tables= open_tables_arg;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);

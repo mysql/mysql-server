@@ -1,0 +1,24 @@
+Blackhole slave testing
+=======================
+
+Blackhole slave means intermediate server between master and slave by
+schema:
+
+master -> blackhole slave -> slave
+
+The script bhs.pl copies mysql-test/suite/rpl into mysql-test/suite/rpl_bhs 
+and updates some files there for adding blackhole slave. After that bhs.pl
+calls mysql-test-run.pl.
+The script bhs.pl requires one argument in command line: 
+--trans-test-list=<test list for update> (currently it is 
+update_test_cases)
+
+Other arguments in command line will be used by mysql-test-run.pl
+
+The behavior of update is controlled by bollowing files:
+
+bhs/update_test_cases - list of files for update. Each line contains path to 
+test case (use asteriks instead filename if you want to update all files in a 
+directory) and file with rules
+
+bhs/default.rules - default rules for update. 

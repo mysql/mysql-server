@@ -89,7 +89,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-                Open_table_context *ot_ctx, uint flags);
+                Open_table_context *ot_ctx);
 bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
 bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
 TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
@@ -198,7 +198,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-		COND **conds);
+		Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, mysql_mutex_t *mutex,
@@ -231,7 +231,6 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 void remove_db_from_cache(const char *db);
-void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
@@ -261,10 +260,12 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);
+void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
                                   const char *table_name,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
+bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 
 extern uint  table_cache_count;
 extern TABLE *unused_tables;
@@ -320,6 +321,7 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
                             db_name, table_name);
 }
 
+
 inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
                                       List<Item> &item,
                                       enum_mark_columns mark_used_columns,
@@ -333,6 +335,89 @@ inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
   thd->lex->select_lex.no_wrap_view_item= FALSE;
   return res;
 }
+
+/**
+  An abstract class for a strategy specifying how the prelocking
+  algorithm should extend the prelocking set while processing
+  already existing elements in the set.
+*/
+
+class Prelocking_strategy
+{
+public:
+  virtual ~Prelocking_strategy() { }
+
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking) = 0;
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking) = 0;
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking)= 0;
+};
+
+
+/**
+  A Strategy for prelocking algorithm suitable for DML statements.
+
+  Ensures that all tables used by all statement's SF/SP/triggers and
+  required for foreign key checks are prelocked and SF/SPs used are
+  cached.
+*/
+
+class DML_prelocking_strategy : public Prelocking_strategy
+{
+public:
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+/**
+  A strategy for prelocking algorithm to be used for LOCK TABLES
+  statement.
+*/
+
+class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
+{
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+/**
+  Strategy for prelocking algorithm to be used for ALTER TABLE statements.
+
+  Unlike DML or LOCK TABLES strategy, it doesn't
+  prelock triggers, views or stored routines, since they are not
+  used during ALTER.
+*/
+
+class Alter_table_prelocking_strategy : public Prelocking_strategy
+{
+public:
+
+  Alter_table_prelocking_strategy(Alter_info *alter_info)
+    : m_alter_info(alter_info)
+  {}
+
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+
+private:
+  Alter_info *m_alter_info;
+};
+
 
 inline bool
 open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
@@ -352,5 +437,86 @@ inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   return open_and_lock_tables(thd, tables, derived, flags,
                               &prelocking_strategy);
 }
+
+
+/**
+  A context of open_tables() function, used to recover
+  from a failed open_table() or open_routine() attempt.
+*/
+
+class Open_table_context
+{
+public:
+  enum enum_open_table_action
+  {
+    OT_NO_ACTION= 0,
+    OT_MDL_CONFLICT,
+    OT_WAIT_TDC,
+    OT_DISCOVER,
+    OT_REPAIR
+  };
+  Open_table_context(THD *thd, uint flags);
+
+  bool recover_from_failed_open(THD *thd);
+  bool request_backoff_action(enum_open_table_action action_arg,
+                              TABLE_LIST *table);
+
+  void add_request(MDL_request *request)
+  { m_mdl_requests.push_front(request); }
+
+  bool can_recover_from_failed_open() const
+  { return m_action != OT_NO_ACTION; }
+
+  /**
+    When doing a back-off, we close all tables acquired by this
+    statement.  Return an MDL savepoint taken at the beginning of
+    the statement, so that we can rollback to it before waiting on
+    locks.
+  */
+  MDL_ticket *start_of_statement_svp() const
+  {
+    return m_start_of_statement_svp;
+  }
+
+  MDL_request *get_global_mdl_request(THD *thd);
+
+  inline ulong get_timeout() const
+  {
+    return m_timeout;
+  }
+
+  uint get_flags() const { return m_flags; }
+private:
+  /** List of requests for all locks taken so far. Used for waiting on locks. */
+  MDL_request_list m_mdl_requests;
+  /**
+    For OT_DISCOVER and OT_REPAIR actions, the table list element for
+    the table which definition should be re-discovered or which
+    should be repaired.
+  */
+  TABLE_LIST *m_failed_table;
+  MDL_ticket *m_start_of_statement_svp;
+  /**
+    Request object for global intention exclusive lock which is acquired during
+    opening tables for statements which take upgradable shared metadata locks.
+  */
+  MDL_request *m_global_mdl_request;
+  /**
+    Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
+    tables or to the "lock_wait_timeout" system variable for regular tables.
+  */
+  ulong m_timeout;
+  /* open_table() flags. */
+  uint m_flags;
+  /** Back off action. */
+  enum enum_open_table_action m_action;
+  /**
+    Whether we had any locks when this context was created.
+    If we did, they are from the previous statement of a transaction,
+    and we can't safely do back-off (and release them).
+  */
+  bool m_has_locks;
+};
+
 
 #endif /* SQL_BASE_INCLUDED */

@@ -207,12 +207,12 @@ static int ndbcluster_alter_tablespace(handlerton *hton,
 static int ndbcluster_fill_is_table(handlerton *hton,
                                     THD *thd, 
                                     TABLE_LIST *tables, 
-                                    COND *cond,
+                                    Item *cond,
                                     enum enum_schema_tables);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
-                                       COND *cond);
+                                       Item *cond);
 
 handlerton *ndbcluster_hton;
 
@@ -7407,9 +7407,10 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       DBUG_PRINT("info", ("Remove table %s/%s", db, file_name_str));
       // Delete the table and all related files
       TABLE_LIST table_list;
-      bzero((char*) &table_list,sizeof(table_list));
-      table_list.db= (char*) db;
-      table_list.alias= table_list.table_name= (char*)file_name_str;
+      table_list.init_one_table(db, strlen(db), file_name_str,
+                                strlen(file_name_str), file_name_str,
+                                TL_WRITE);
+      table_list.mdl_request.set_type(MDL_EXCLUSIVE);
       (void)mysql_rm_table_part2(thd, &table_list,
                                  FALSE,   /* if_exists */
                                  FALSE,   /* drop_temporary */ 
@@ -7763,7 +7764,7 @@ ndbcluster_init_error:
 static int ndbcluster_fill_is_table(handlerton *hton,
                                       THD *thd,
                                       TABLE_LIST *tables,
-                                      COND *cond,
+                                      Item *cond,
                                       enum enum_schema_tables schema_table_idx)
 {
   int ret= 0;
@@ -9620,7 +9621,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   if (thd->store_globals())
     goto ndb_util_thread_fail;
   thd->init_for_queries();
-  thd->version=refresh_version;
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
@@ -9901,8 +9901,8 @@ ndb_util_thread_fail:
          the scan for evaluation (and thus not saved on stack)
 */
 const 
-COND* 
-ha_ndbcluster::cond_push(const COND *cond) 
+Item* 
+ha_ndbcluster::cond_push(const Item *cond) 
 { 
   DBUG_ENTER("cond_push");
   if (!m_cond) 
@@ -9912,7 +9912,7 @@ ha_ndbcluster::cond_push(const COND *cond)
     my_errno= HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(NULL);
   }
-  DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname, QT_ORDINARY););
+  DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
 
@@ -10775,7 +10775,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *num_parts)
 static int ndbcluster_fill_files_table(handlerton *hton, 
                                        THD *thd, 
                                        TABLE_LIST *tables,
-                                       COND *cond)
+                                       Item *cond)
 {
   TABLE* table= tables->table;
   Ndb *ndb= check_ndb_in_thd(thd);

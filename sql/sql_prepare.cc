@@ -1691,7 +1691,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
      for the prepare phase.
    */
   create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-  create_table->lock_strategy= TABLE_LIST::SHARED_MDL;
+  create_table->lock_strategy= TABLE_LIST::OTLS_NONE;
 
   if (select_lex->item_list.elements)
   {
