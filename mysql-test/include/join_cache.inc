@@ -1500,3 +1500,29 @@ explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#54359 "Extra rows with join_cache_level=7,8 and two joins
+--echo # --and multi-column index"
+--echo #
+
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`))
+;
+
+INSERT INTO t1 VALUES (4,9,'k','k');
+INSERT INTO t1 VALUES (12,5,'k','k');
+
+let $query_i= SELECT table2 .`col_int_key` FROM t1 table2,
+t1 table3 force index (`col_varchar_key`)
+where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`  
+ and table3 .`col_varchar_key`  = table2 .`col_varchar_nokey`;
+
+eval explain $query_i;
+eval $query_i;
+
+drop table t1;

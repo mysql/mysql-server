@@ -64,12 +64,12 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 struct st_sargable_param;
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
-static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, COND *conds,
+static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
 				 DYNAMIC_ARRAY *keyuse);
 static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
                                 JOIN_TAB *join_tab,
-                                uint tables, COND *conds,
+                                uint tables, Item *conds,
                                 COND_EQUAL *cond_equal,
                                 table_map table_map, SELECT_LEX *select_lex,
                                 st_sargable_param **sargables);
@@ -111,21 +111,21 @@ static bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
-static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
+static ORDER *remove_const(JOIN *join,ORDER *first_order,Item *cond,
 			   bool change_list, bool *simple_order);
 static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
                             List<Item> &fields, bool send_row,
                             ulonglong select_options, const char *info,
                             Item *having);
-static COND *build_equal_items(THD *thd, COND *cond,
+static Item *build_equal_items(THD *thd, Item *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref);
-static COND* substitute_for_best_equal_field(COND *cond,
+static Item* substitute_for_best_equal_field(Item *cond,
                                              COND_EQUAL *cond_equal,
                                              void *table_join_idx);
-static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
-                            COND *conds, bool top, bool in_sj);
+static Item *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
+                            Item *conds, bool top, bool in_sj);
 static bool check_interleaving_with_nj(JOIN_TAB *next);
 static void reset_nj_counters(List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
@@ -139,11 +139,11 @@ void advance_sj_state(JOIN *join, const table_map remaining_tables,
 static void backout_nj_sj_state(const table_map remaining_tables,
                                 const JOIN_TAB *tab);
 
-static COND *optimize_cond(JOIN *join, COND *conds,
+static Item *optimize_cond(JOIN *join, Item *conds,
                            List<TABLE_LIST> *join_list,
 			   bool build_equalities,
                            Item::cond_result *cond_value);
-static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
+static bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                                     MI_COLUMNDEF *start_recinfo,
@@ -189,10 +189,10 @@ static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
-static COND *make_cond_for_table(COND *cond,table_map table,
+static Item *make_cond_for_table(Item *cond,table_map table,
 				 table_map used_table,
                                  bool exclude_expensive_cond);
-static COND *make_cond_for_table_from_pred(COND *root_cond, COND *cond,
+static Item *make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                                            table_map tables,
                                            table_map used_table,
                                            bool exclude_expensive_cond);
@@ -253,7 +253,7 @@ static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool replace_where_subcondition(JOIN *join, Item **tree, 
                                        Item *old_cond, Item *new_cond,
                                        bool do_fix_fields);
-static bool test_if_ref(COND *root_cond, 
+static bool test_if_ref(Item *root_cond, 
                         Item_field *left_item,Item *right_item);
 
 void get_partial_join_cost(JOIN *join, uint idx, double *read_time_arg,
@@ -457,7 +457,7 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       TABLE_LIST *leaves,
 			       List<Item> &fields,
 			       List<Item> &all_fields,
-			       COND **conds,
+			       Item **conds,
 			       ORDER *order,
 			       ORDER *group, bool *hidden_group_fields)
 {
@@ -508,7 +508,7 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 int
 JOIN::prepare(Item ***rref_pointer_array,
 	      TABLE_LIST *tables_init,
-	      uint wild_num, COND *conds_init, uint og_num,
+	      uint wild_num, Item *conds_init, uint og_num,
 	      ORDER *order_init, ORDER *group_init,
 	      Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select_lex_arg,
@@ -1692,7 +1692,7 @@ JOIN::optimize()
       */
       if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
-        COND *table_independent_conds=
+        Item *table_independent_conds=
           make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, 0);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
@@ -3189,7 +3189,7 @@ JOIN::destroy()
 bool
 mysql_select(THD *thd, Item ***rref_pointer_array,
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
+	     Item *conds, uint og_num,  ORDER *order, ORDER *group,
 	     Item *having, ORDER *proc_param, ulonglong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
 	     SELECT_LEX *select_lex)
@@ -4212,7 +4212,7 @@ static uint get_tmp_table_rec_length(List<Item> &items)
 */
 
 static bool
-make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
+make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
@@ -5294,7 +5294,7 @@ is_local_field (Item *field)
 
 static void
 add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
-               COND *cond, table_map usable_tables,
+               Item *cond, table_map usable_tables,
                SARGABLE_PARAM **sargables)
 {
   if (cond->type() == Item_func::COND_ITEM)
@@ -5548,7 +5548,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 
 static bool
 add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
-            JOIN_TAB *stat,COND *cond,table_map usable_tables)
+            JOIN_TAB *stat,Item *cond,table_map usable_tables)
 {
   Item_func_match *cond_func=NULL;
 
@@ -5725,7 +5725,7 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
 
 static bool
 update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
-                    uint tables, COND *cond, COND_EQUAL *cond_equal,
+                    uint tables, Item *cond, COND_EQUAL *cond_equal,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables)
 {
@@ -8701,7 +8701,7 @@ static void add_not_null_conds(JOIN *join)
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias,
                                            QT_ORDINARY););
-          COND *new_cond= referred_tab->select_cond;
+          Item *new_cond= referred_tab->select_cond;
           add_cond_and_fix(&new_cond, notnull);
           referred_tab->set_select_cond(new_cond, __LINE__);
         }
@@ -8727,10 +8727,10 @@ static void add_not_null_conds(JOIN *join)
     -  0, otherwise
 */
 
-static COND*
-add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
+static Item*
+add_found_match_trig_cond(JOIN_TAB *tab, Item *cond, JOIN_TAB *root_tab)
 {
-  COND *tmp;
+  Item *tmp;
   DBUG_ASSERT(cond != 0);
   if (tab == root_tab)
     return cond;
@@ -8840,11 +8840,11 @@ make_outerjoin_info(JOIN *join)
   DBUG_VOID_RETURN;
 }
 
-static bool extend_select_cond(JOIN_TAB *cond_tab, COND *tmp_cond)
+static bool extend_select_cond(JOIN_TAB *cond_tab, Item *tmp_cond)
 {
   DBUG_ENTER("extend_select_cond");
 
-  COND *new_cond= !cond_tab->select_cond ? tmp_cond :
+  Item *new_cond= !cond_tab->select_cond ? tmp_cond :
     new Item_cond_and(cond_tab->select_cond, tmp_cond);
   cond_tab->set_select_cond(new_cond, __LINE__);
   if (!cond_tab->select_cond)
@@ -8879,7 +8879,7 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
     if (*join_tab->on_expr_ref)
     {
       JOIN_TAB *cond_tab= join_tab->first_inner;
-      COND *tmp_cond= make_cond_for_table(*join_tab->on_expr_ref,
+      Item *tmp_cond= make_cond_for_table(*join_tab->on_expr_ref,
                                           join->const_table_map,
                                           (table_map) 0, 0);
       if (!tmp_cond)
@@ -8903,7 +8903,7 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
        Table last_tab is the last inner table of an outer join.
        An on expression is always attached to it.
     */     
-    COND *on_expr= *first_inner_tab->on_expr_ref;
+    Item *on_expr= *first_inner_tab->on_expr_ref;
 
     table_map used_tables= (join->const_table_map |
                             OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
@@ -8912,7 +8912,7 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
     {
       table_map current_map= join_tab->table->map;
       used_tables|= current_map;
-      COND *tmp_cond= make_cond_for_table(on_expr, used_tables, current_map, 0);
+      Item *tmp_cond= make_cond_for_table(on_expr, used_tables, current_map, 0);
       if (!tmp_cond)
         continue;
 
@@ -8975,7 +8975,7 @@ static bool make_join_select(JOIN *join, Item *cond)
            there inside the triggers.
       */
       {
-        COND *const_cond=
+        Item *const_cond=
 	  make_cond_for_table(cond,
                               join->const_table_map,
                               (table_map) 0, 1);
@@ -8990,7 +8990,7 @@ static bool make_join_select(JOIN *join, Item *cond)
           if (*tab->on_expr_ref)
           {
             JOIN_TAB *cond_tab= tab->first_inner;
-            COND *tmp= make_cond_for_table(*tab->on_expr_ref,
+            Item *tmp= make_cond_for_table(*tab->on_expr_ref,
                                            join->const_table_map,
                                            (  table_map) 0, 0);
             if (!tmp)
@@ -8999,7 +8999,7 @@ static bool make_join_select(JOIN *join, Item *cond)
             if (!tmp)
               DBUG_RETURN(1);
             tmp->quick_fix_field();
-            COND *new_cond= !cond_tab->select_cond ? tmp :
+            Item *new_cond= !cond_tab->select_cond ? tmp :
               new Item_cond_and(cond_tab->select_cond, tmp);
             cond_tab->set_select_cond(new_cond, __LINE__);
             if (!cond_tab->select_cond)
@@ -9032,7 +9032,7 @@ static bool make_join_select(JOIN *join, Item *cond)
       JOIN_TAB *first_inner_tab= tab->first_inner; 
       current_map= tab->table->map;
       bool use_quick_range=0;
-      COND *tmp;
+      Item *tmp;
 
       /* 
         Tables that are within SJ-Materialization nests cannot have their
@@ -9137,7 +9137,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
               !first_inner_tab)
           {
-            COND *push_cond= 
+            Item *push_cond= 
               make_cond_for_table(tmp, current_map, current_map, 0);
             if (push_cond)
             {
@@ -9200,7 +9200,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
 	    /* Join with outer join condition */
-	    COND *orig_cond=sel->cond;
+	    Item *orig_cond=sel->cond;
 	    sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
 
 	    /*
@@ -9455,7 +9455,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       table_map used_tables= 0;
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return (COND*) 0;
+	return (Item*) 0;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -9472,7 +9472,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (COND*) 0;
+	return (Item*) 0;
       case 1:
         new_cond->used_tables_cache= used_tables;
 	return new_cond->argument_list()->head();
@@ -9486,14 +9486,14 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
     {
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return (COND*) 0;
+	return (Item*) 0;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
 	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
 	if (!fix)
-	  return (COND*) 0;
+	  return (Item*) 0;
 	new_cond->argument_list()->push_back(fix);
         n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
@@ -9507,7 +9507,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
   }
 
   if (!uses_index_fields_only(cond, table, keyno, other_tbls_ok))
-    return (COND*) 0;
+    return (Item*) 0;
   cond->marker= ICP_COND_USES_INDEX_ONLY;
   return cond;
 }
@@ -9526,7 +9526,7 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
       /* Create new top level AND item */
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return (COND*) 0;
+	return (Item*) 0;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -9540,7 +9540,7 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
       }
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (COND*) 0;
+	return (Item*) 0;
       case 1:
 	return new_cond->argument_list()->head();
       default:
@@ -9553,14 +9553,14 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
     {
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return (COND*) 0;
+	return (Item*) 0;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
 	Item *fix= make_cond_remainder(item, FALSE);
 	if (!fix)
-	  return (COND*) 0;
+	  return (Item*) 0;
 	new_cond->argument_list()->push_back(fix);
         tbl_map |= fix->used_tables();
       }
@@ -9652,7 +9652,7 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
           tab->set_select_cond(row_cond, __LINE__);
         else
         {
-          COND *new_cond= new Item_cond_and(row_cond, idx_remainder_cond);
+          Item *new_cond= new Item_cond_and(row_cond, idx_remainder_cond);
           tab->set_select_cond(new_cond, __LINE__);
 	  tab->select_cond->quick_fix_field();
           ((Item_cond_and*)tab->select_cond)->used_tables_cache= 
@@ -11092,7 +11092,7 @@ static void update_depend_map(JOIN *join, ORDER *order)
 */
 
 static ORDER *
-remove_const(JOIN *join,ORDER *first_order, COND *cond,
+remove_const(JOIN *join,ORDER *first_order, Item *cond,
              bool change_list, bool *simple_order)
 {
   if (join->tables == join->const_tables)
@@ -11733,7 +11733,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     pointer to the transformed condition
 */
 
-static COND *build_equal_items_for_cond(THD *thd, COND *cond,
+static Item *build_equal_items_for_cond(THD *thd, Item *cond,
                                         COND_EQUAL *inherited)
 {
   Item_equal *item_equal;
@@ -11952,7 +11952,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
     pointer to the transformed condition containing multiple equalities
 */
    
-static COND *build_equal_items(THD *thd, COND *cond,
+static Item *build_equal_items(THD *thd, Item *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref)
@@ -12090,7 +12090,7 @@ static int compare_fields_by_table_order(Item_field *field1,
     - 0, otherwise.
 */
 
-Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
+Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal)
 {
   List<Item> eq_list;
@@ -12241,7 +12241,7 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     The transformed condition
 */
 
-static COND* substitute_for_best_equal_field(COND *cond,
+static Item* substitute_for_best_equal_field(Item *cond,
                                              COND_EQUAL *cond_equal,
                                              void *table_join_idx)
 {
@@ -12325,7 +12325,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
   @param table      constant table that has been read
 */
 
-static void update_const_equal_items(COND *cond, JOIN_TAB *tab)
+static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
 {
   if (!(cond->used_tables() & tab->table->map))
     return;
@@ -12493,7 +12493,7 @@ static Item *remove_additional_cond(Item* conds)
 
 static void
 propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
-                         COND *and_father, COND *cond)
+                         Item *and_father, Item *cond)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -12673,8 +12673,8 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     - 0, otherwise
 */
 
-static COND *
-simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
+static Item *
+simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
                bool in_sj)
 {
   TABLE_LIST *table;
@@ -13774,8 +13774,8 @@ static void backout_nj_sj_state(const table_map remaining_tables,
 }
 
 
-static COND *
-optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
+static Item *
+optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
               bool build_equalities, Item::cond_result *cond_value)
 {
   THD *thd= join->thd;
@@ -13830,11 +13830,11 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
     cond_value                  the resulting value of the condition
 
   RETURN
-    *COND with the simplified condition
+    *Item with the simplified condition
 */
 
-static COND *
-internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+static Item *
+internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -13867,14 +13867,14 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	if (and_level)
 	{
 	  *cond_value=tmp_cond_value;
-	  return (COND*) 0;			// Always false
+	  return (Item*) 0;			// Always false
 	}
 	break;
       case Item::COND_TRUE:
 	if (!and_level)
 	{
 	  *cond_value= tmp_cond_value;
-	  return (COND*) 0;			// Always true
+	  return (Item*) 0;			// Always true
 	}
 	break;
       case Item::COND_UNDEF:			// Impossible
@@ -13886,7 +13886,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 
     if (!((Item_cond*) cond)->argument_list()->elements ||
 	*cond_value != Item::COND_OK)
-      return (COND*) 0;
+      return (Item*) 0;
     if (((Item_cond*) cond)->argument_list()->elements == 1)
     {						// Remove list
       item= ((Item_cond*) cond)->argument_list()->head();
@@ -13911,7 +13911,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
            (field->type() == MYSQL_TYPE_DATETIME)) &&
           (field->flags & NOT_NULL_FLAG) && !field->table->maybe_null)
       {
-	COND *new_cond;
+	Item *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
 	{
 	  cond=new_cond;
@@ -13927,7 +13927,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
     if (cond->const_item())
     {
       *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-      return (COND*) 0;
+      return (Item*) 0;
     }
   }
   else if (cond->const_item() && !cond->is_expensive())
@@ -13943,7 +13943,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   */
   {
     *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-    return (COND*) 0;
+    return (Item*) 0;
   }
   else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
   {						// boolan compare function
@@ -13953,7 +13953,7 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
     {
       if (!left_item->maybe_null ||
 	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
-	return (COND*) 0;			// Compare of identical items
+	return (Item*) 0;			// Compare of identical items
     }
   }
   *cond_value=Item::COND_OK;
@@ -13978,11 +13978,11 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
     calls the inner_remove_eq_conds to check all the tree reqursively
 
   RETURN
-    *COND with the simplified condition
+    *Item with the simplified condition
 */
 
-COND *
-remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
+Item *
+remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::FUNC_ITEM &&
       ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
@@ -14010,7 +14010,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->query_cache_tls);
 #endif
-	COND *new_cond;
+	Item *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
                                                      thd->read_first_successful_insert_id_in_prev_stmt(),
@@ -14080,7 +14080,7 @@ test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 */
 
 static bool
-const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
+const_expression_in_where(Item *cond, Item *comp_item, Item **const_item)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -16913,7 +16913,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 {
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
-  COND *select_cond= join_tab->select_cond;
+  Item *select_cond= join_tab->select_cond;
   bool found= TRUE;
 
   DBUG_ENTER("evaluate_join_record");
@@ -17116,7 +17116,7 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
   */
   JOIN_TAB *last_inner_tab= join_tab->last_inner;
   /* Cache variables for faster loop */
-  COND *select_cond;
+  Item *select_cond;
 
   DBUG_ENTER("evaluate_null_complemented_join_record");
 
@@ -18287,7 +18287,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   usage/modifications of test_if_ref().
 */
 
-static bool test_if_ref(COND *root_cond, 
+static bool test_if_ref(Item *root_cond, 
                         Item_field *left_item,Item *right_item)
 {
   Field *field=left_item->field;
@@ -18420,16 +18420,16 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
     Extracted condition
 */
 
-static COND *
-make_cond_for_table(COND *cond, table_map tables, table_map used_table,
+static Item *
+make_cond_for_table(Item *cond, table_map tables, table_map used_table,
                     bool exclude_expensive_cond)
 {
   return make_cond_for_table_from_pred(cond, cond, tables, used_table,
                                        exclude_expensive_cond);
 }
                
-static COND *
-make_cond_for_table_from_pred(COND *root_cond, COND *cond,
+static Item *
+make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
                               bool exclude_expensive_cond)
 {
@@ -18446,7 +18446,7 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
         replace this condition with.
       */
       !((used_table & 1) && cond->is_expensive()))
-    return (COND*) 0;				// Already checked
+    return (Item*) 0;				// Already checked
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
@@ -18454,7 +18454,7 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
       /* Create new top level AND item */
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return (COND*) 0;			// OOM /* purecov: inspected */
+	return (Item*) 0;			// OOM /* purecov: inspected */
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -18467,7 +18467,7 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
       }
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (COND*) 0;			// Always true
+	return (Item*) 0;			// Always true
       case 1:
 	return new_cond->argument_list()->head();
       default:
@@ -18486,7 +18486,7 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
     {						// Or list
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return (COND*) 0;			// OOM /* purecov: inspected */
+	return (Item*) 0;			// OOM /* purecov: inspected */
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -18495,7 +18495,7 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
                                                 tables, 0L,
                                                 exclude_expensive_cond);
 	if (!fix)
-	  return (COND*) 0;			// Always true
+	  return (Item*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
       }
       /*
@@ -18521,7 +18521,7 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
         non-constant, so that they are not evaluated at optimization time.
       */
       (!used_table && exclude_expensive_cond && cond->is_expensive()))
-    return (COND*) 0;				// Can't check this yet
+    return (Item*) 0;				// Can't check this yet
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
 
@@ -18554,26 +18554,26 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
 	test_if_ref(root_cond, (Item_field*) left_item,right_item))
     {
       cond->marker=3;			// Checked when read
-      return (COND*) 0;
+      return (Item*) 0;
     }
     if (right_item->type() == Item::FIELD_ITEM &&
 	test_if_ref(root_cond, (Item_field*) right_item,left_item))
     {
       cond->marker=3;			// Checked when read
-      return (COND*) 0;
+      return (Item*) 0;
     }
   }
   cond->marker=2;
   return cond;
 }
 
-static COND *
+static Item *
 make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
                     table_map sjm_tables)
 {
   if ((!(cond->used_tables() & ~tables) || 
        !(cond->used_tables() & ~sjm_tables)))
-    return (COND*) 0;				// Already checked
+    return (Item*) 0;				// Already checked
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
@@ -18581,7 +18581,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
       /* Create new top level AND item */
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return (COND*) 0;			// OOM /* purecov: inspected */
+	return (Item*) 0;			// OOM /* purecov: inspected */
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -18592,7 +18592,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
       }
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (COND*) 0;			// Always true
+	return (Item*) 0;			// Always true
       case 1:
 	return new_cond->argument_list()->head();
       default:
@@ -18611,14 +18611,14 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
     {						// Or list
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return (COND*) 0;			// OOM /* purecov: inspected */
+	return (Item*) 0;			// OOM /* purecov: inspected */
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
 	Item *fix= make_cond_after_sjm(root_cond, item, tables, 0L);
 	if (!fix)
-	  return (COND*) 0;			// Always true
+	  return (Item*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
       }
       /*
@@ -18639,7 +18639,7 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
   */
 
   if (cond->marker == 3 || (cond->used_tables() & ~(tables | sjm_tables)))
-    return (COND*) 0;				// Can't check this yet
+    return (Item*) 0;				// Can't check this yet
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
 
@@ -18655,13 +18655,13 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
 	test_if_ref(root_cond, (Item_field*) left_item,right_item))
     {
       cond->marker=3;			// Checked when read
-      return (COND*) 0;
+      return (Item*) 0;
     }
     if (right_item->type() == Item::FIELD_ITEM &&
 	test_if_ref(root_cond, (Item_field*) right_item,left_item))
     {
       cond->marker=3;			// Checked when read
-      return (COND*) 0;
+      return (Item*) 0;
     }
   }
   cond->marker=2;
@@ -19091,7 +19091,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   QUICK_SELECT_I *save_quick= 0;
-  COND *orig_select_cond= 0;
+  Item *orig_select_cond= 0;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -19444,7 +19444,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->set_keyread(TRUE);
           if (tab->pre_idx_push_select_cond)
           {
-            COND *tmp_cond= tab->pre_idx_push_select_cond;
+            Item *tmp_cond= tab->pre_idx_push_select_cond;
             if (orig_select_cond)
             {
               tmp_cond= and_conds(tmp_cond, orig_select_cond);
@@ -22317,7 +22317,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  }
 	  else if (tab->select->cond)
           {
-            const COND *pushed_cond= tab->table->file->pushed_cond;
+            const Item *pushed_cond= tab->table->file->pushed_cond;
 
             if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
                 pushed_cond)
@@ -22327,7 +22327,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
               if (thd->lex->describe & DESCRIBE_EXTENDED)
               {
                 extra.append(STRING_WITH_LEN(": "));
-                ((COND *)pushed_cond)->print(&extra, QT_ORDINARY);
+                ((Item *)pushed_cond)->print(&extra, QT_ORDINARY);
               }
             }
             else

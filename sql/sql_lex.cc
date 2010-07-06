@@ -58,7 +58,7 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT
 };
 
 
@@ -442,8 +442,11 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
-                     lex->plugins.elements);
+  if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
+                       lex->plugins.elements);
+  }
   reset_dynamic(&lex->plugins);
 
   DBUG_VOID_RETURN;
@@ -1988,6 +1991,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
+                                                  enum_mdl_type mdl_type,
 						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {
@@ -3141,3 +3145,12 @@ bool LEX::is_partition_management() const
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
 
+
+/**
+  Set all fields to their "unspecified" value.
+*/
+void st_lex_master_info::set_unspecified()
+{
+  bzero((char*) this, sizeof(*this));
+  sql_delay= -1;
+}

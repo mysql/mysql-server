@@ -70,7 +70,7 @@
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
-#include "slave.h"
+#include "rpl_slave.h"
 #include "sql_parse.h"                          // end_active_trans
 #include "rpl_mi.h"
 #include "transaction.h"
@@ -1247,7 +1247,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           TABLE *table, List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
-                          COND **where, bool select_insert,
+                          Item **where, bool select_insert,
                           bool check_fields, bool abort_on_warning)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
@@ -1814,7 +1814,6 @@ public:
     thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
     thd.current_tablenr=0;
-    thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
@@ -3608,13 +3607,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
           an exclusive metadata lock.
         */
-        if (open_table(thd, create_table, thd->mem_root,
-                       &ot_ctx_unused, MYSQL_OPEN_REOPEN))
+        if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
         {
           mysql_mutex_lock(&LOCK_open);
           quick_rm_table(create_info->db_type, create_table->db,
@@ -3627,9 +3625,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
-        if (open_table(thd, create_table, thd->mem_root, &ot_ctx_unused,
-                       MYSQL_OPEN_TEMPORARY_ONLY))
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_TEMPORARY_ONLY);
+        if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
         {
           /*
             This shouldn't happen as creation of temporary table should make

@@ -135,7 +135,7 @@ UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
 
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
-updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
+updated via SET GLOBAL innodb_file_format_max = 'x' or when we open
 or create a table. */
 static	file_format_t	file_format_max;
 
@@ -1160,7 +1160,7 @@ trx_sys_file_format_max_check(
 	if (format_id == ULINT_UNDEFINED) {
 		/* Format ID was not set. Set it to minimum possible
 		value. */
-		format_id = DICT_TF_FORMAT_51;
+		format_id = DICT_TF_FORMAT_MIN;
 	}
 
 	ut_print_timestamp(stderr);
@@ -1240,7 +1240,7 @@ trx_sys_file_format_tag_init(void)
 
 	/* If format_id is not set then set it to the minimum. */
 	if (format_id == ULINT_UNDEFINED) {
-		trx_sys_file_format_max_set(DICT_TF_FORMAT_51, NULL);
+		trx_sys_file_format_max_set(DICT_TF_FORMAT_MIN, NULL);
 	}
 }
 
@@ -1296,7 +1296,7 @@ trx_sys_file_format_init(void)
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
-	file_format_max.id = DICT_TF_FORMAT_51;
+	file_format_max.id = DICT_TF_FORMAT_MIN;
 
 	file_format_max.name = trx_sys_file_format_id_to_name(
 		file_format_max.id);
