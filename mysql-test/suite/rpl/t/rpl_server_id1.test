@@ -20,5 +20,8 @@ source include/wait_for_slave_param.inc;
 --echo *** must be having the replicate-same-server-id IO thread error ***
 let $last_io_errno= query_get_value("show slave status", Last_IO_Errno, 1);
 let $last_io_error= query_get_value("show slave status", Last_IO_Error, 1);
+
 echo Slave_IO_Errno= $last_io_errno;
+# chop the error timestamp
+let $last_io_error= `SELECT SUBSTRING("$last_io_error" FROM 17)`;
 echo Slave_IO_Error= $last_io_error;

@@ -119,6 +119,8 @@ def	mysql	procs_priv	mysql	PRIMARY
 def	mysql	procs_priv	mysql	PRIMARY
 def	mysql	procs_priv	mysql	Grantor
 def	mysql	servers	mysql	PRIMARY
+def	mysql	slave_master_info	mysql	PRIMARY
+def	mysql	slave_relay_log_info	mysql	PRIMARY
 def	mysql	tables_priv	mysql	PRIMARY
 def	mysql	tables_priv	mysql	PRIMARY
 def	mysql	tables_priv	mysql	PRIMARY

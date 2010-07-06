@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -396,8 +396,8 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
   param->user= mi->user;
   param->host= mi->host;
   param->port= mi->port;
-  param->master_log_name= mi->master_log_name;
-  param->master_log_pos= mi->master_log_pos;
+  param->master_log_name= const_cast<char *>(mi->get_master_log_name());
+  param->master_log_pos= mi->get_master_log_pos();
 }
 
 int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi)
