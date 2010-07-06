@@ -506,7 +506,16 @@ if test "$GCC" != "yes" || expr "$CC" : ".*icc.*"
 then
   ABI_CHECK=""
 else
-  ABI_CHECK="abi_check"
+  # Workaround GCC >= 4.5 - See Bug#52514
+  case `$CC -dumpversion` in
+    [[4-9]].[[5-9]]*)
+      AC_MSG_WARN([ABI check disabled (GCC >= 4.5)])
+      ABI_CHECK=""
+      ;;
+    *)
+      ABI_CHECK="abi_check"
+      ;;
+  esac
 fi
 
 AC_SUBST(ABI_CHECK)
