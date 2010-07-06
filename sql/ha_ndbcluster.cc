@@ -771,7 +771,8 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
   DBUG_ASSERT (join_root() < table);
 
   if (table->get_access_type() != AQP::AT_PRIMARY_KEY &&
-      table->get_access_type() != AQP::AT_UNIQUE_KEY)
+      table->get_access_type() != AQP::AT_UNIQUE_KEY  &&
+      table->get_access_type() != AQP::AT_ORDERED_INDEX_SCAN)
     DBUG_RETURN(false);
 
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
@@ -1044,17 +1045,25 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
   KEY_PART_INFO *key_part;
   uint ix;
 
-  if (index.unique_index_attrid_map)
+  if (index.unique_index_attrid_map) // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
   {
     for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
     {
       ix_map[ix]= index.unique_index_attrid_map[ix];
     }
   }
+  else if (index.type == ORDERED_INDEX)
+  {
+    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    {
+      ix_map[ix]= ix;
+    }
+  }
   else  // Primary key does not have a 'unique_index_attrid_map'
   {
     uint key_pos= 0;
     int columnnr= 0;
+    assert (index.type == PRIMARY_KEY_ORDERED_INDEX || index.type == PRIMARY_KEY_INDEX);
 
     for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
     {
@@ -1260,7 +1269,6 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
 
     KEY *key= &handler->table->key_info[join_tab->get_index_no()];
     KEY_PART_INFO *key_part= key->key_part;
-    DBUG_ASSERT(join_tab->get_no_of_key_fields() == key->key_parts);
 
     const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
@@ -1268,7 +1276,9 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
 
     ndb_table_access_map parent_map(join_parent);
 
-    for (uint i= 0; i < key->key_parts; i++, key_part++)
+    uint key_fields= join_tab->get_no_of_key_fields();
+    DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
+    for (uint i= 0; i < key_fields; i++, key_part++)
     {
       const Item* item= join_items[i];
       linked_key[map[i]]= NULL;
@@ -1340,8 +1350,13 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     if (join_tab->get_join_type() == AQP::JT_INNER_JOIN)
       options.setMatchType(NdbQueryOptions::MatchNonNull);
 
+    if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
+    {
+      NdbQueryIndexBound bounds(linked_key);
+      query_op= builder.scanIndex(m_index[join_tab->get_index_no()].index, m_table, &bounds, &options);
+    }
     // Link on primary key or an unique index
-    if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
+    else if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
     {
       query_op= builder.readTuple(table, linked_key, &options);
     }

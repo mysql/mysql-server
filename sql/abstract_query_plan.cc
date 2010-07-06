@@ -163,7 +163,8 @@ namespace AQP
     DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY ||
                 m_access_type == AT_UNIQUE_KEY ||
                 m_access_type == AT_MULTI_PRIMARY_KEY ||
-                m_access_type == AT_MULTI_UNIQUE_KEY);
+                m_access_type == AT_MULTI_UNIQUE_KEY ||
+                m_access_type == AT_ORDERED_INDEX_SCAN); // Used as 'range scan'
     return get_join_tab()->ref.key_parts;
   }
 
@@ -311,6 +312,8 @@ namespace AQP
       }
       else
       {
+        DBUG_ASSERT(join_tab->ref.key_parts > 0);
+        DBUG_ASSERT(join_tab->ref.key_parts <= key_info[m_index_no].key_parts);
         m_access_type= AT_ORDERED_INDEX_SCAN;
         DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       }

@@ -53,8 +53,9 @@ struct QueryNodeParameters  // Effectively used as a base class for QN_xxxParame
 
   enum OpType
   {
-    QN_LOOKUP    = 0x1,
-    QN_SCAN_FRAG = 0x2,
+    QN_LOOKUP     = 0x1,
+    QN_SCAN_FRAG  = 0x2,
+    QN_SCAN_INDEX = 0x3,
     QN_END = 0
   };
 
@@ -72,7 +73,8 @@ struct QueryNodeParameters  // Effectively used as a base class for QN_xxxParame
 struct DABits
 {
   /**
-   * List of bits shared for QN_LookupNode & QN_ScanFragNode
+   * List of requestInfo bits shared for QN_LookupNode, 
+   * QN_ScanFragNode & QN_ScanIndexNode
    */
   enum NodeInfoBits
   {
@@ -98,6 +100,10 @@ struct DABits
     NI_END = 0
   };
 
+  /**
+   * List of requestInfo bits shared for QN_LookupParameters,
+   * QN_ScanFragParameters & QN_ScanIndexParameters
+   */
   enum ParamInfoBits
   {
     PI_ATTR_LIST   = 0x1, // "user" projection list

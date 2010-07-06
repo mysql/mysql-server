@@ -1784,25 +1784,66 @@ private:
 };
 
 
-void
+Uint32
 NdbQueryOperationDefImpl::appendParentList(Uint32Buffer& serializedDef) const
 {
-  Uint16Sequence parentSeq(serializedDef, getNoOfParentOperations());
-  // Multiple parents not yet supported.
-  assert(getNoOfParentOperations()==1);
-  for (Uint32 i = 0; 
-      i < getNoOfParentOperations(); 
-      i++){
-    assert (getParentOperation(i).getQueryOperationId() < getQueryOperationId());
-    parentSeq.append(getParentOperation(i).getQueryOperationId());
+  if (getNoOfParentOperations() > 0)
+  {
+    Uint16Sequence parentSeq(serializedDef, getNoOfParentOperations());
+    // Multiple parents not yet supported.
+    assert(getNoOfParentOperations()==1);
+    for (Uint32 i = 0; i < getNoOfParentOperations(); i++)
+    {
+      assert (getParentOperation(i).getQueryOperationId() < getQueryOperationId());
+      parentSeq.append(getParentOperation(i).getQueryOperationId());
+    }
+    parentSeq.finish();
+    return DABits::NI_HAS_PARENT;
   }
-  parentSeq.finish();
-}
+  return 0;
+} // NdbQueryOperationDefImpl::appendParentList
+
+
+/* Add the projection that should be send to the SPJ block such that 
+ * child operations can be instantiated.
+ */
+Uint32
+NdbQueryOperationDefImpl::appendChildProjection(Uint32Buffer& serializedDef) const
+{
+  Uint32 requestInfo = 0;
+  assert ((getNoOfChildOperations() > 0) == (m_spjProjection.size()>0));
+
+  if (m_spjProjection.size() > 0)
+  {
+    requestInfo |= DABits::NI_LINKED_ATTR;
+    Uint16Sequence spjProjSeq(serializedDef, m_spjProjection.size());
+    for (Uint32 i = 0; i<m_spjProjection.size(); i++)
+    {
+      spjProjSeq.append(m_spjProjection[i]->getColumnNo());
+    }
+    spjProjSeq.finish();
+
+    if (m_diskInChildProjection)
+    {
+      requestInfo |= DABits::NI_LINKED_DISK;
+    }
+  }
+  return requestInfo;
+} // NdbQueryOperationDefImpl::appendChildProjection
+
 
 Uint32
 NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) const
 {
   Uint32 appendedPattern = 0;
+
+  /**
+   * Key value for root operation is constructed when query is instantiated with
+   * NdbQueryOperationImpl::prepareIndexKeyInfo()
+   */
+  if (getQueryOperationIx() == 0)
+    return 0;
+
   if (m_keys[0]!=NULL)
   {
     Uint32 startPos = serializedDef.getSize();
@@ -1821,7 +1862,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
         uint32 levels = 0;
         while (parent != &linkedOp.getParentOperation())
         {
-          if (parent->getType() == NdbQueryOperationDef::UniqueIndexAccess)  // Represented with two nodes QueryTree
+          if (parent->getType() == NdbQueryOperationDef::UniqueIndexAccess)  // Represented with two nodes in QueryTree
             levels+=2;
           else
             levels+=1;
@@ -1867,6 +1908,150 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
   return appendedPattern;
 } // NdbQueryLookupOperationDefImpl::appendKeyPattern
 
+
+Uint32
+NdbQueryIndexScanOperationDefImpl::appendBoundValue(
+                                 Uint32Buffer& serializedDef,
+                                 NdbIndexScanOperation::BoundType type,
+                                 const NdbQueryOperandImpl* value,
+                                 int& paramCnt) const
+{
+  Uint32 appendedPattern = 0;
+
+  serializedDef.append(QueryPattern::data(1));
+  serializedDef.append(type);
+
+  switch(value->getKind())
+  {
+    case NdbQueryOperandImpl::Linked:
+    {
+      appendedPattern |= DABits::NI_KEY_LINKED;
+      const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(value);
+      const NdbQueryOperationDefImpl* parent = &getParentOperation(0);
+      uint32 levels = 0;
+      while (parent != &linkedOp.getParentOperation())
+      {
+        if (parent->getType() == NdbQueryOperationDef::UniqueIndexAccess)  // Represented with two nodes in QueryTree
+          levels+=2;
+        else
+          levels+=1;
+        assert(parent->getNoOfParentOperations() > 0);
+        parent = &parent->getParentOperation(0);
+      }
+      if (levels > 0)
+      {
+        serializedDef.append(QueryPattern::parent(levels));
+      }
+//    serializedDef.append(QueryPattern::col(linkedOp.getLinkedColumnIx()));
+      serializedDef.append(QueryPattern::attrInfo(linkedOp.getLinkedColumnIx())); // col w/ AttributeHeader
+      break;
+    }
+    case NdbQueryOperandImpl::Const:
+    {
+      assert(false);  // Untested code.
+                      // We likely have to append an 'AttributeHeader'
+
+      appendedPattern |= DABits::NI_KEY_CONSTS;
+      const NdbConstOperandImpl& constOp = *static_cast<const NdbConstOperandImpl*>(value);
+     
+      // No of words needed for storing the constant data.
+      const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
+      // Set type and length in words of key pattern field. 
+      serializedDef.append(QueryPattern::data(wordCount));
+      serializedDef.append(constOp.getAddr(),constOp.getSizeInBytes());
+      break;
+    }
+    case NdbQueryOperandImpl::Param:
+    {
+      assert(false);  // Untested code.
+                      // We likely have to append an 'AttributeHeader'
+
+      appendedPattern |= DABits::NI_KEY_PARAMS;
+      serializedDef.append(QueryPattern::param(paramCnt++));
+      break;
+    }
+    default:
+      assert(false);
+  }
+
+  return appendedPattern;
+} // NdbQueryIndexScanOperationDefImpl::appendBoundValue
+
+
+/**
+ * Append the complete patterns for hi & low bound for an index range scan
+ * Each bound may consist of multiple values which in turn are
+ * added with NdbQueryIndexScanOperationDefImpl::appendBoundPattern()
+ */
+Uint32
+NdbQueryIndexScanOperationDefImpl::appendBoundPattern(Uint32Buffer& serializedDef) const
+{
+  Uint32 appendedPattern = 0;
+
+  /**
+   * Bound value for root operation is constructed when query is instantiated with
+   * NdbQueryOperationImpl::prepareIndexKeyInfo()
+   */
+  if (getQueryOperationIx() == 0)
+    return 0;
+
+  if (m_bound.lowKeys>0 || m_bound.highKeys>0)
+  {
+    int paramCnt = 0;
+    Uint32 startPos = serializedDef.getSize();
+    serializedDef.append(0);     // Grab first word for length field, updated at end
+
+    const uint key_count = 
+       (m_bound.lowKeys >= m_bound.highKeys) ? m_bound.lowKeys : m_bound.highKeys;
+
+    for (uint keyNo=0; keyNo<key_count; ++keyNo)
+    {
+      NdbIndexScanOperation::BoundType bound_type;
+
+      /* If upper and lower limits are equal, a single BoundEQ is sufficient */
+      if (m_bound.low[keyNo] == m_bound.high[keyNo])
+      {
+        /* Inclusive if defined, or matching rows can include this value */
+        bound_type= NdbIndexScanOperation::BoundEQ;
+
+        appendedPattern |=
+          appendBoundValue(serializedDef, bound_type, m_bound.low[keyNo], paramCnt);
+
+      } else {
+
+        /* If key is part of lower bound */
+        if (keyNo < m_bound.lowKeys)
+        {
+          /* Inclusive if defined, or matching rows can include this value */
+          bound_type= m_bound.lowIncl || keyNo+1 < m_bound.lowKeys ?
+              NdbIndexScanOperation::BoundLE : NdbIndexScanOperation::BoundLT;
+
+          appendedPattern |=
+            appendBoundValue(serializedDef, bound_type, m_bound.low[keyNo], paramCnt);
+        }
+
+        /* If key is part of upper bound */
+        if (keyNo < m_bound.highKeys)
+        {
+          /* Inclusive if defined, or matching rows can include this value */
+          bound_type= m_bound.highIncl || keyNo+1 < m_bound.highKeys ?
+              NdbIndexScanOperation::BoundGE : NdbIndexScanOperation::BoundGT;
+
+          appendedPattern |=
+            appendBoundValue(serializedDef, bound_type, m_bound.high[keyNo], paramCnt);
+        }
+      }
+    } // for 'all bound values'
+
+    // Set total length of key pattern.
+    Uint32 len = serializedDef.getSize() - startPos -1;
+    serializedDef.put(startPos, (paramCnt << 16) | (len));
+  }
+
+  return appendedPattern;
+} // NdbQueryIndexScanOperationDefImpl::appendPattern
+
+
 int
 NdbQueryPKLookupOperationDefImpl
 ::serializeOperation(Uint32Buffer& serializedDef)
@@ -1890,31 +2075,13 @@ NdbQueryPKLookupOperationDefImpl
    */
 
   // Optional part1: Make list of parent nodes.
-  if (getNoOfParentOperations()>0){
-    requestInfo |= DABits::NI_HAS_PARENT;
-    appendParentList (serializedDef);
-  }
+  requestInfo |= appendParentList (serializedDef);
 
   // Part2: Append m_keys[] values specifying lookup key.
-  if (getQueryOperationIx() > 0) {
-    requestInfo |= appendKeyPattern(serializedDef);
-  }
+  requestInfo |= appendKeyPattern(serializedDef);
 
-  /* Add the projection that should be send to the SPJ block such that 
-   * child operations can be instantiated.*/
-  if (getNoOfChildOperations()>0) {
-    requestInfo |= DABits::NI_LINKED_ATTR;
-    Uint16Sequence spjProjSeq(serializedDef, getSPJProjection().size());
-    for (Uint32 i = 0; i<getSPJProjection().size(); i++) {
-      spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
-    }
-    spjProjSeq.finish();
-
-    if (m_diskInChildProjection)
-    {
-      requestInfo |= DABits::NI_LINKED_DISK;
-    }
-  }
+  // Part3: Columns required by SPJ to instantiate further child operations.
+  requestInfo |= appendChildProjection(serializedDef);
 
   // Fill in LookupNode contents (Already allocated, 'startPos' is our handle:
   QN_LookupNode* node = reinterpret_cast<QN_LookupNode*>(serializedDef.addr(startPos));
@@ -1955,7 +2122,7 @@ NdbQueryIndexOperationDefImpl
   m_isPrepared = true;
 
   /**
-   * Serialize index as a seperate lookupNode
+   * Serialize unique index as a seperate lookupNode
    */
   {
     // Reserve memory for Index LookupNode, fill in contents later when
@@ -1966,15 +2133,10 @@ NdbQueryIndexOperationDefImpl
 
     // Optional part1: Make list of parent nodes.
     assert (getQueryOperationId() > 0);
-    if (getNoOfParentOperations()>0) {
-      requestInfo |= DABits::NI_HAS_PARENT;
-      appendParentList (serializedDef);
-    }
+    requestInfo |= appendParentList (serializedDef);
 
     // Part2: m_keys[] are the keys to be used for index
-    if (getQueryOperationIx() > 0) {  // Root operation key is in KEYINFO 
-      requestInfo |= appendKeyPattern(serializedDef);
-    }
+    requestInfo |= appendKeyPattern(serializedDef);
 
     /* Basetable is executed as child operation of index:
      * Add projection of (only) NDB$PK column which is hidden *after* last index column.
@@ -2010,7 +2172,7 @@ NdbQueryIndexOperationDefImpl
     }
     ndbout << endl;
 #endif
-  } // End: Serialize index table
+  } // End: Serialize unique index access
 
   // Reserve memory for LookupNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
@@ -2039,21 +2201,8 @@ NdbQueryIndexOperationDefImpl
     serializedDef.append(QueryPattern::colPk(0));
   }
 
-  /* Add the projection that should be send to the SPJ block such that 
-   * child operations can be instantiated.*/
-  if (getNoOfChildOperations()>0) {
-    requestInfo |= DABits::NI_LINKED_ATTR;
-    Uint16Sequence spjProjSeq(serializedDef,getSPJProjection().size());
-    for (Uint32 i = 0; i<getSPJProjection().size(); i++) {
-      spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
-    }
-    spjProjSeq.finish();
-
-    if (m_diskInChildProjection)
-    {
-      requestInfo |= DABits::NI_LINKED_DISK;
-    }
-  }
+  // Part3: Columns required by SPJ to instantiate descendant child operations.
+  requestInfo |= appendChildProjection(serializedDef);
 
   // Fill in LookupNode contents (Already allocated, 'startPos' is our handle:
   QN_LookupNode* node = reinterpret_cast<QN_LookupNode*>(serializedDef.addr(startPos)); 
@@ -2088,53 +2237,54 @@ int
 NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
                                         const NdbTableImpl& tableOrIndex)
 {
+  bool isRoot = (getQueryOperationIx()==0);
+
   // This method should only be invoked once.
   assert (!m_isPrepared);
   m_isPrepared = true;
   // Reserve memory for ScanFragNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
   Uint32 startPos = serializedDef.getSize();
+  assert (QN_ScanFragNode::NodeSize==QN_ScanIndexNode::NodeSize);
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
 
   // Optional part1: Make list of parent nodes.
-  if (getNoOfParentOperations()>0) {
-    assert(false); // Scan with parent not yet implemented.
-    requestInfo |= DABits::NI_HAS_PARENT;
-    appendParentList (serializedDef);
-  }
+  requestInfo |= appendParentList (serializedDef);
 
-  /** Add the projection that should be send to the SPJ block such that 
-   *  child operations can be instantiated.
-   */
-  if (getNoOfChildOperations()>0){
-    requestInfo |= DABits::NI_LINKED_ATTR;
-    Uint16Sequence spjProjSeq(serializedDef,getSPJProjection().size());
-    for(Uint32 i = 0; i<getSPJProjection().size(); i++){
-      spjProjSeq.append(getSPJProjection()[i]->getColumnNo());
-    }
-    spjProjSeq.finish();
+  // Part2: Append pattern for building upper/lower bounds.
+  requestInfo |= appendBoundPattern(serializedDef);
 
-    if (m_diskInChildProjection)
-    {
-      requestInfo |= DABits::NI_LINKED_DISK;
-    }
-  }
-
-  // Fill in ScanFragNode contents (Already allocated, 'startPos' is our handle:
-  QN_ScanFragNode* node = reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
-  if (unlikely(node==NULL)) {
-    return Err_MemoryAlloc;
-  }
-  node->tableId = tableOrIndex.getObjectId();
-  node->tableVersion = tableOrIndex.getObjectVersion();
-  node->requestInfo = requestInfo;
+  // Part3: Columns required by SPJ to instantiate descendant child operations.
+  requestInfo |= appendChildProjection(serializedDef);
 
   const Uint32 length = serializedDef.getSize() - startPos;
-  if (unlikely(length > 0xFFFF)) {
+  if (unlikely(length > 0xFFFF))
+  {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
-  } else {
+  }
+  // Fill in ScanFragNode/ScanIndexNode contents (Already allocated, 'startPos' is our handle:
+  if (isRoot)
+  {
+    QN_ScanFragNode* node = reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
+    if (unlikely(node==NULL)) {
+      return Err_MemoryAlloc;
+    }
+    node->tableId = tableOrIndex.getObjectId();
+    node->tableVersion = tableOrIndex.getObjectVersion();
+    node->requestInfo = requestInfo;
     QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG, length);
+  }
+  else 
+  {
+    QN_ScanIndexNode* node = reinterpret_cast<QN_ScanIndexNode*>(serializedDef.addr(startPos)); 
+    if (unlikely(node==NULL)) {
+      return Err_MemoryAlloc;
+    }
+    node->tableId = tableOrIndex.getObjectId();
+    node->tableVersion = tableOrIndex.getObjectVersion();
+    node->requestInfo = requestInfo;
+    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_INDEX, length);
   }
 
 #ifdef __TRACE_SERIALIZATION
