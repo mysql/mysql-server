@@ -1024,6 +1024,8 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 	toku_free(env->i->real_data_dir);
     if (env->i->real_log_dir)
 	toku_free(env->i->real_log_dir);
+    if (env->i->real_tmp_dir)
+	toku_free(env->i->real_tmp_dir);
     if (env->i->open_dbs)
         toku_omt_destroy(&env->i->open_dbs);
     if (env->i->dir)
