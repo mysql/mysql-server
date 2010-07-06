@@ -13,4 +13,4 @@
 rpl_cross_version      : Bug#42311 2009-03-27 joro rpl_cross_version fails on macosx
 rpl_spec_variables              : BUG#47661 2009-10-27 jasonh rpl_spec_variables fails on PB2 hpux
 rpl_row_create_table : Bug#51574 Feb 27 2010 andrei failed different way than earlier with bug#45576
-rpl_row_event_max_size.test : Bug#54988 Jul  5 20:57:52 EEST 2010 andrei Logics of the test oddly allows the test to pass but checksummed server can't make it
+rpl_row_event_max_size : Bug#54988 Jul  5 20:57:52 EEST 2010 andrei Logics of the test oddly allows the test to pass but checksummed server can't make it
