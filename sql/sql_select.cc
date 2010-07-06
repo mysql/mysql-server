@@ -3083,8 +3083,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range &&
-          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+      /**
+       *  SPJ MERGE TODO Bug#53334:
+       *  Awaiting permanent fix when merging from >= 5.1.48.
+       *  Needed as this was a showstopper for further RQG testing of SPJ.
+       */
+      if (records == 0 && s->table->reginfo.impossible_range)
       {
 	/*
 	  Impossible WHERE or ON expression

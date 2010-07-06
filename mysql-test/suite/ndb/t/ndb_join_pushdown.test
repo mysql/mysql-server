@@ -2292,4 +2292,51 @@ from t1 join t1 as t2 on t2.a = t1.b
 where t1.a = '\0123456789';
 drop table t1;
 
+
+# Tests for some bugfixes which have been cherry picked from 5.1 main
+# Not necessarily test of SPJ functionality, but may test optimizer
+# behaviour which we depend on when doing RQG testing
+# We can remove these testcases when fixes - and propper MTR testcases -
+# Have been merged from 5.1 main branch.
+
+create table t1 (pk int primary key, a int unique key) engine = ndb;
+insert into t1 values (1,10), (2,20), (3,30);
+
+set ndb_join_pushdown = false;
+
+# Bug#53334:
+# Join should be optimized as 'Impossible On condition'
+# ... *not* 'Impossible WHERE'
+
+explain
+select * from t1 as x right join t1 as y
+  on x.pk = y.pk
+ and x.pk = y.a
+ and x.a = y.pk
+where y.pk = 2;
+select * from t1 as x right join t1 as y
+  on x.pk = y.pk
+ and x.pk = y.a
+ and x.a = y.pk
+where y.pk = 2;
+
+
+set ndb_join_pushdown = true;
+
+explain
+select * from t1 as x right join t1 as y
+  on x.pk = y.pk
+ and x.pk = y.a
+ and x.a = y.pk
+where y.pk = 2;
+select * from t1 as x right join t1 as y
+  on x.pk = y.pk
+ and x.pk = y.a
+ and x.a = y.pk
+where y.pk = 2;
+
+drop table t1;
+
+
 set ndb_join_pushdown = @save_ndb_join_pushdown;
+
