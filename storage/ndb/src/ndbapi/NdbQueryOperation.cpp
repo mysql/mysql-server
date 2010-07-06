@@ -3397,9 +3397,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
       return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
     }
     QueryNodeParameters::setOpLen(param->len,
-                                  def.isScanOperation()
-                                    ?QueryNodeParameters::QN_SCAN_FRAG
-                                    :QueryNodeParameters::QN_LOOKUP,
+                                  QueryNodeParameters::QN_LOOKUP,
                                   length);
 
 #ifdef __TRACE_SERIALIZATION
@@ -3417,12 +3415,24 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   // Reserve memory for LookupParameters, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
   Uint32 startPos = attrInfo.getSize();
-  attrInfo.alloc(QN_LookupParameters::NodeSize);
   Uint32 requestInfo = 0;
+  bool isRoot = (def.getQueryOperationIx()==0);
+
+  QueryNodeParameters::OpType paramType =
+       !def.isScanOperation() ? QueryNodeParameters::QN_LOOKUP
+           : (isRoot) ? QueryNodeParameters::QN_SCAN_FRAG 
+                      : QueryNodeParameters::QN_SCAN_INDEX;
+
+  if (paramType == QueryNodeParameters::QN_SCAN_INDEX)
+    attrInfo.alloc(QN_ScanIndexParameters::NodeSize);
+  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG)
+    attrInfo.alloc(QN_ScanFragParameters::NodeSize);
+  else
+    attrInfo.alloc(QN_LookupParameters::NodeSize);
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (m_params.getSize() > 0 &&
-      def.getType() == NdbQueryOperationDef::PrimaryKeyAccess)
+      def.getType() != NdbQueryOperationDef::UniqueIndexAccess)
   {
     // parameter values has been serialized as part of NdbTransaction::createQuery()
     // Only need to append it to rest of the serialized arguments
@@ -3451,22 +3461,44 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     requestInfo |= DABits::PI_DISK_ATTR;
   }
 
-  QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
-  if (unlikely(param==NULL))
-    return Err_MemoryAlloc;
-
-  //ndbout << "requestInfo:" << hex << requestInfo << endl;
-  param->requestInfo = requestInfo;
-  param->resultData = getIdOfReceiver();
   Uint32 length = attrInfo.getSize() - startPos;
   if (unlikely(length > 0xFFFF)) {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }
-  QueryNodeParameters::setOpLen(param->len,
-                                def.isScanOperation()
-                                  ?QueryNodeParameters::QN_SCAN_FRAG
-                                  :QueryNodeParameters::QN_LOOKUP,
-                                length);
+
+  if (paramType == QueryNodeParameters::QN_SCAN_INDEX)
+  {
+    QN_ScanIndexParameters* param = reinterpret_cast<QN_ScanIndexParameters*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL; // FIXME: SPJ always assume. SIP_PARALLEL
+    param->requestInfo = requestInfo; 
+    param->batchSize = 0xffff0100;                       // TODO FIXME (bytes=0xffff, rows=0x100)
+    param->resultData = getIdOfReceiver();
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+  }
+  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG)
+  {
+    QN_ScanFragParameters* param = reinterpret_cast<QN_ScanFragParameters*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    param->requestInfo = requestInfo;
+    param->resultData = getIdOfReceiver();
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+  }
+  else
+  {
+    assert(paramType == QueryNodeParameters::QN_LOOKUP);
+    QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    param->requestInfo = requestInfo;
+    param->resultData = getIdOfReceiver();
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+  }
 
 #ifdef __TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 

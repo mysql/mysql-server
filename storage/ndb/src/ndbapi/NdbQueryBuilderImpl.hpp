@@ -64,7 +64,7 @@ class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
 
 // For debuggging.
-//#define TRACE_SERIALIZATION
+#define TRACE_SERIALIZATION
 
 /** A buffer for holding serialized data.
  *
@@ -389,7 +389,10 @@ public:
 protected:
   // QueryTree building:
   // Append list of parent nodes to serialized code
-  void appendParentList(Uint32Buffer& serializedDef) const;
+  Uint32 appendParentList(Uint32Buffer& serializedDef) const;
+
+  // Append list of columns required by SPJ to instantiate child operations.
+  Uint32 appendChildProjection(Uint32Buffer& serializedDef) const;
 
 protected:
   /** True if enclosing query has been prepared.*/
@@ -400,6 +403,7 @@ protected:
    * disk columns.
    */
   bool m_diskInChildProjection;
+
 private:
   bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
 
@@ -454,6 +458,10 @@ protected:
   int serialize(Uint32Buffer& serializedDef,
                 const NdbTableImpl& tableOrIndex);
 
+  // Append pattern for creating complete range bounds to serialized code 
+  virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const
+  { return 0; }
+
 }; // class NdbQueryScanOperationDefImpl
 
 
@@ -481,6 +489,10 @@ public:
   virtual const IndexBound* getBounds() const
   { return &m_bound; } 
 
+protected:
+  // Append pattern for creating complete range bounds to serialized code 
+  virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const;
+
 private:
   virtual ~NdbQueryIndexScanOperationDefImpl() {};
   explicit NdbQueryIndexScanOperationDefImpl (
@@ -490,6 +502,12 @@ private:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix);
+
+  // Append pattern for creating a single bound value to serialized code 
+  Uint32 appendBoundValue( Uint32Buffer& serializedDef,
+                           NdbIndexScanOperation::BoundType type,
+                           const NdbQueryOperandImpl* value,
+                           int& paramCnt) const;
 
 private:
   NdbQueryIndexScanOperationDef m_interface;
