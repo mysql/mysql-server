@@ -27,14 +27,13 @@
   Create right type of Cached_item for an item.
 */
 
-Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
+Cached_item *new_Cached_item(THD *thd, Item *item, bool pass_through_ref)
 {
-  if (item->real_item()->type() == Item::FIELD_ITEM &&
+  if (pass_through_ref && item->real_item()->type() == Item::FIELD_ITEM &&
       !(((Item_field *) (item->real_item()))->field->flags & BLOB_FLAG))
   {
     Item_field *real_item= (Item_field *) item->real_item();
-    Field *cached_field= use_result_field ? real_item->result_field :
-                                            real_item->field;
+    Field *cached_field= real_item->field;
     return new Cached_item_field(cached_field);
   }
   switch (item->result_type()) {

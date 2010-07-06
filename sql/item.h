@@ -3414,7 +3414,7 @@ void mark_select_range_as_dependent(THD *thd,
                                     Item_ident *resolved_item);
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
-                                    bool use_result_field);
+                                    bool pass_through_ref);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);

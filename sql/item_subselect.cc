@@ -2192,8 +2192,6 @@ bool Item_in_subselect::setup_engine()
 bool Item_in_subselect::init_left_expr_cache()
 {
   JOIN *outer_join;
-  Next_select_func end_select;
-  bool use_result_field= FALSE;
 
   outer_join= unit->outer_select()->join;
   /*
@@ -2202,18 +2200,6 @@ bool Item_in_subselect::init_left_expr_cache()
   */ 
   if (!outer_join || !outer_join->tables || !outer_join->tables_list)
     return TRUE;
-  /*
-    If we use end_[send | write]_group to handle complete rows of the outer
-    query, make the cache of the left IN operand use Item_field::result_field
-    instead of Item_field::field.  We need this because normally
-    Cached_item_field uses Item::field to fetch field data, while
-    copy_ref_key() that copies the left IN operand into a lookup key uses
-    Item::result_field. In the case end_[send | write]_group result_field is
-    one row behind field.
-  */
-  end_select= outer_join->join_tab[outer_join->tables-1].next_select;
-  if (end_select == end_send_group || end_select == end_write_group)
-    use_result_field= TRUE;
 
   if (!(left_expr_cache= new List<Cached_item>))
     return TRUE;
@@ -2222,7 +2208,7 @@ bool Item_in_subselect::init_left_expr_cache()
   {
     Cached_item *cur_item_cache= new_Cached_item(thd,
                                                  left_expr->element_index(i),
-                                                 use_result_field);
+                                                 FALSE);
     if (!cur_item_cache || left_expr_cache->push_front(cur_item_cache))
       return TRUE;
   }
