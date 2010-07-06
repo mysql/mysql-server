@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,8 @@
 #include "sql_binlog.h"
 #include "sql_parse.h"
 #include "sql_acl.h"
-#include "rpl_rli.h"
+#include "rpl_info.h"
+#include "rpl_info_factory.h"
 #include "base64.h"
 #include "rpl_slave.h"                              // apply_event_and_update_pos
 #include "log_event.h"                          // Format_description_log_event,
@@ -145,10 +146,16 @@ void mysql_client_binlog_statement(THD* thd)
   */
 
   int err;
-  Relay_log_info *rli;
-  rli= thd->rli_fake;
-  if (!rli && (rli= thd->rli_fake= new Relay_log_info(FALSE)))
-    rli->sql_thd= thd;
+  Relay_log_info *rli= thd->rli_fake;
+  if (!rli)
+  {
+    Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE, &rli);
+    if (rli)
+    {
+      thd->rli_fake= rli;
+      rli->info_thd= thd;
+    }
+  }
 
   const char *error= 0;
   char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
@@ -280,7 +287,7 @@ void mysql_client_binlog_statement(THD* thd)
         i.e. when this thread terminates.
       */
       if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
-        delete ev; 
+        delete ev;
       ev= 0;
       if (err)
       {

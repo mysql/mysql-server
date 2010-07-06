@@ -194,11 +194,12 @@ public:
      be set to 1, otherwise 0.
 
      @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
+     @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success
      @retval other Failure
   */
-  bool flush_and_sync(bool *synced);
+  bool flush_and_sync(bool *synced, const bool force=FALSE);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);

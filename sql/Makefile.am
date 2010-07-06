@@ -104,7 +104,11 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
 			rpl_reporting.h sql_locale.h sql_parse.h \
-			log.h sql_show.h rpl_rli.h rpl_mi.h \
+			rpl_info_handler.h \
+			log.h sql_show.h rpl_info.h rpl_info_file.h \
+			rpl_info_table.h rpl_rli.h rpl_mi.h rpl_info_fields.h \
+			rpl_info_table_access.h \
+			rpl_info_factory.h server_ids.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h sql_base.h \
 			sql_table.h key.h lock.h thr_malloc.h strfunc.h \
@@ -159,7 +163,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
-                        sql_union.cc sql_derived.cc \
+			sql_union.cc sql_derived.cc \
 			sql_client.cc \
 			repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \
@@ -182,8 +186,10 @@ libbinlog_la_SOURCES =	log_event.cc log_event_old.cc binlog.cc \
 			rpl_utility.cc sql_binlog.cc rpl_injector.cc
 librpl_la_SOURCES    =  rpl_handler.cc rpl_tblmap.cc
 libmaster_la_SOURCES =	rpl_master.cc
-libslave_la_SOURCES = 	rpl_slave.cc rpl_reporting.cc rpl_rli.cc rpl_mi.cc
-
+libslave_la_SOURCES = 	rpl_slave.cc rpl_reporting.cc rpl_rli.cc rpl_mi.cc \
+			rpl_info.cc rpl_info_factory.cc rpl_info_file.cc \
+			rpl_info_handler.cc rpl_info_table.cc \
+			rpl_info_table_access.cc rpl_info_fields.cc
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndbcluster_binlog.cc \

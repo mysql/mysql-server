@@ -1,6 +1,5 @@
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
-
 -- source include/have_log_bin.inc
 
 #
@@ -31,6 +30,11 @@ connection slave;
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
 --enable_warnings
+
+--disable_result_log
+CALL mtr.add_suppression("Failed to open the existing info file");
+CALL mtr.add_suppression("Error while reading from master info file");
+--enable_result_log
 
 # START SLAVE will fail because it can't read the file (mode 000)
 # (system error 13)
