@@ -61,10 +61,13 @@ enum db_err
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
-	dict_stats_upd_option_t	stats_upd_option);
+	dict_stats_upd_option_t	stats_upd_option,
 					/*!< in: whether to (re)calc
 					the stats or to fetch them from
 					the persistent storage */
+	ibool			caller_has_dict_sys_mutex);
+					/*!< in: TRUE if the caller
+					owns dict_sys->mutex */
 
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
