@@ -114,7 +114,7 @@ ROLLBACK;
 --echo
 --echo # connection default selects resulting data.
 --echo # Delete of row 1 was committed.
---echo # Dpdate of row 3 was committed.
+--echo # Update of row 3 was committed.
 --echo # Due to isolation level read committed, these should be included.
 --echo # All other changes should not be included.
 --connection default
