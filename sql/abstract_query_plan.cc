@@ -370,7 +370,7 @@ namespace AQP
           if (quick->index == MAX_KEY) 
           {
             m_index_no=    join_tab->table->s->primary_key;
-            m_access_type= AT_OTHER;
+            m_access_type= AT_MULTI_PRIMARY_KEY;    // Multiple PKs are produced by merge
           }
 
           // Else JT_RANGE: May be both exact PK and/or index scans when sorted index available
