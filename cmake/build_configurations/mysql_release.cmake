@@ -130,7 +130,7 @@ ENDIF()
 IF(UNIX)  
 
   # Default GCC flags
-  IF(CMAKE_COMPILER_IS_GNUC)
+  IF(CMAKE_COMPILER_IS_GNUCC)
     SET(COMMON_C_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer")
     SET(CMAKE_C_FLAGS_DEBUG          "-O ${COMMON_C_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
