@@ -4930,6 +4930,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
         if (thd->stmt_da->is_ok())
           thd->stmt_da->reset_diagnostics_area();
+        table->table= NULL;
+        result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
         goto send_result;
       }
     }
@@ -5060,6 +5062,7 @@ send_result_message:
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
+      table->table= NULL;
       thd->mdl_context.release_transactional_locks();
       if (!result_code) // recreation went ok
       {
