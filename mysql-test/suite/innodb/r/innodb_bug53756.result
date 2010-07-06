@@ -78,7 +78,7 @@ ROLLBACK;
 
 # connection default selects resulting data.
 # Delete of row 1 was committed.
-# Dpdate of row 3 was committed.
+# Update of row 3 was committed.
 # Due to isolation level read committed, these should be included.
 # All other changes should not be included.
 SELECT * FROM bug_53756;
