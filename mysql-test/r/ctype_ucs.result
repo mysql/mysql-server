@@ -3864,6 +3864,26 @@ drop function f1;
 #
 # End of WL#2649 Number-to-string conversions
 #
+#
+# Bug#52159 returning time type from function and empty left join causes debug assertion
+#
+CREATE FUNCTION f1() RETURNS TIME RETURN 1;
+CREATE TABLE t1 (b INT);
+INSERT INTO t1 VALUES (0);
+SELECT f1() FROM t1 LEFT JOIN (SELECT 1 AS a FROM t1 LIMIT 0) AS d ON 1 GROUP BY a;
+f1()
+00:00:01
+DROP FUNCTION f1;
+DROP TABLE t1;
+SET NAMES latin1;
+SET sql_mode='';
+CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
+INSERT INTO t1 VALUES ();
+SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
+maketime(`a`,`a`,`a`)
+00:00:00
+DROP TABLE t1;
+SET sql_mode=default;
 SET NAMES latin1;
 #
 # End of 5.5 tests

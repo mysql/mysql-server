@@ -2791,6 +2791,7 @@ protected:
     cached_field_type= item->field_type();
     cached_result_type= item->result_type();
     unsigned_flag= item->unsigned_flag;
+    fixed= item->fixed;
   }
 
 public:
