@@ -371,6 +371,9 @@ typedef unsigned long long int	ullint;
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
+/* The 'undefined' value for a ib_uint64_t */
+#define UINT64_UNDEFINED	((ib_uint64_t)(-1))
+
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF
 /* The undefined 32-bit unsigned integer */

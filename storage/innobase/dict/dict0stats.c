@@ -1947,9 +1947,9 @@ dict_stats_fetch_index_stats_step(
 	dict_index_t*	index = NULL;
 	que_common_t*	cnode;
 	const char*	stat_name = NULL;
-	ulint		stat_name_len = (ulint) -1;
-	ib_uint64_t	stat_value = (ib_uint64_t) -1;
-	ib_uint64_t	sample_size = (ib_uint64_t) -1;
+	ulint		stat_name_len = ULINT_UNDEFINED;
+	ib_uint64_t	stat_value = UINT64_UNDEFINED;
+	ib_uint64_t	sample_size = UINT64_UNDEFINED;
 	int		i;
 
 	/* this should loop exactly 4 times - for the columns that
@@ -2013,7 +2013,7 @@ dict_stats_fetch_index_stats_step(
 
 			ut_a(index != NULL);
 			ut_a(stat_name != NULL);
-			ut_a(stat_name_len != (ulint) -1);
+			ut_a(stat_name_len != ULINT_UNDEFINED);
 
 			stat_value = mach_read_from_8(data);
 
@@ -2026,8 +2026,8 @@ dict_stats_fetch_index_stats_step(
 
 			ut_a(index != NULL);
 			ut_a(stat_name != NULL);
-			ut_a(stat_name_len != (ulint) -1);
-			ut_a(stat_value != (ib_uint64_t) -1);
+			ut_a(stat_name_len != ULINT_UNDEFINED);
+			ut_a(stat_value != UINT64_UNDEFINED);
 
 			if (len == UNIV_SQL_NULL) {
 				break;
@@ -2056,9 +2056,9 @@ dict_stats_fetch_index_stats_step(
 
 	ut_a(index != NULL);
 	ut_a(stat_name != NULL);
-	ut_a(stat_name_len != (ulint) -1);
-	ut_a(stat_value != (ib_uint64_t) -1);
-	/* sample_size could be (ib_uint64_t) -1 here, if it is NULL */
+	ut_a(stat_name_len != ULINT_UNDEFINED);
+	ut_a(stat_value != UINT64_UNDEFINED);
+	/* sample_size could be UINT64_UNDEFINED here, if it is NULL */
 
 #define PFX	"n_diff_pfx"
 
@@ -2132,7 +2132,7 @@ dict_stats_fetch_index_stats_step(
 
 		index->stat_n_diff_key_vals[n_pfx] = stat_value;
 
-		if (sample_size != (ib_uint64_t) -1) {
+		if (sample_size != UINT64_UNDEFINED) {
 			index->stat_n_sample_sizes[n_pfx] = sample_size;
 		} else {
 			/* hmm, strange... the user must have UPDATEd the
