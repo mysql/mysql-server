@@ -4400,7 +4400,7 @@ Dbspj::scanIndex_fixupBound(Ptr<ScanIndexFrag> fragPtr,
     AttributeHeader::init(&tmp, id++, len);
     ndbrequire(r0.updateWord(tmp));
     len32 = (len + 3) >> 2;
-  } while (r0.step(1 + len32));
+  } while (r0.step(2 + len32));  // Skip BoundType(1) + AttributeHeader(1) + Attribute(len32)
 
   fragPtr.p->m_range_builder.m_range_cnt = boundno;
   fragPtr.p->m_range_builder.m_range_size = r0.getSize();
