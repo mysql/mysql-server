@@ -37,6 +37,7 @@ load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
 # simple query to show more in second binlog
 insert into t1 values ("Alas");
+let $master_binlog2= query_get_value(SHOW MASTER STATUS, File, 1);
 flush logs;
 
 # delimiters are for easier debugging in future
@@ -75,7 +76,7 @@ select "--- --start-position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=1074 $MYSQLD_DATADIR/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=1076 $MYSQLD_DATADIR/$master_binlog2
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -111,7 +112,7 @@ select "--- --start-position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=1074 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=1076 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $master_binlog2
 
 
 # Bug#7853 mysqlbinlog does not accept input from stdin

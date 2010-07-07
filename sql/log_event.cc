@@ -654,6 +654,8 @@ const char* Log_event::get_type_str(Log_event_type type)
   case BEGIN_LOAD_QUERY_EVENT: return "Begin_load_query";
   case EXECUTE_LOAD_QUERY_EVENT: return "Execute_load_query";
   case INCIDENT_EVENT: return "Incident";
+  case IGNORABLE_LOG_EVENT: return "Ignorable";
+  case ROWS_QUERY_LOG_EVENT: return "Rows_query";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -1293,10 +1295,24 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case INCIDENT_EVENT:
       ev = new Incident_log_event(buf, event_len, description_event);
       break;
+    case ROWS_QUERY_LOG_EVENT:
+      ev= new Rows_query_log_event(buf, event_len, description_event);
+      break;
     default:
-      DBUG_PRINT("error",("Unknown event code: %d",
-                          (int) buf[EVENT_TYPE_OFFSET]));
-      ev= NULL;
+      /*
+        Create an object of Ignorable_log_event for unrecognized sub-class.
+        So that SLAVE SQL THREAD will only update the position and continue.
+      */
+      if (uint2korr(buf + FLAGS_OFFSET) & LOG_EVENT_IGNORABLE_F)
+      {
+        ev= new Ignorable_log_event(buf, description_event);
+      }
+      else
+      {
+        DBUG_PRINT("error",("Unknown event code: %d",
+                            (int) buf[EVENT_TYPE_OFFSET]));
+        ev= NULL;
+      }
       break;
     }
   }
@@ -3783,6 +3799,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
                       post_header_len[DELETE_ROWS_EVENT-1]= 6;);
       post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
+      post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -9656,6 +9674,110 @@ Incident_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Incident_log_event::write_data_body");
   DBUG_RETURN(write_str(file, m_message.str, (uint) m_message.length));
+}
+
+
+Ignorable_log_event::Ignorable_log_event(const char *buf,
+                                         const Format_description_log_event *descr_event)
+  : Log_event(buf, descr_event)
+{
+  DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+  DBUG_VOID_RETURN;
+}
+
+Ignorable_log_event::~Ignorable_log_event()
+{
+}
+
+#ifndef MYSQL_CLIENT
+/* Pack info for its unrecognized ignorable event */
+void Ignorable_log_event::pack_info(Protocol *protocol)
+{
+  char buf[256];
+  size_t bytes;
+  bytes= my_snprintf(buf, sizeof(buf), "# Unrecognized ignorable event");
+  protocol->store(buf, bytes, &my_charset_bin);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+/* Print for its unrecognized ignorable event */
+void
+Ignorable_log_event::print(FILE *file,
+                           PRINT_EVENT_INFO *print_event_info)
+{
+  if (print_event_info->short_form)
+    return;
+
+  Write_on_release_cache cache(&print_event_info->head_cache, file);
+  print_header(&cache, print_event_info, FALSE);
+  my_b_printf(&cache, "\tIgnorable\n");
+  my_b_printf(&cache, "# Unrecognized ignorable event\n");
+}
+#endif
+
+
+Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
+                                           const Format_description_log_event *descr_event)
+  : Ignorable_log_event(buf, descr_event)
+{
+  DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
+  uint8 const common_header_len=
+    descr_event->common_header_len;
+  uint8 const post_header_len=
+    descr_event->post_header_len[ROWS_QUERY_LOG_EVENT-1];
+
+  DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
+                     event_len, common_header_len, post_header_len));
+
+  char const *ptr= buf + common_header_len + post_header_len;
+  char const *const str_end= buf + event_len;
+  uint8 len= 0;                   // Assignment to keep compiler happy
+  const char *str= NULL;          // Assignment to keep compiler happy
+  read_str(&ptr, str_end, &str, &len);
+  if (!(m_rows_query= (char*) my_malloc(len+1, MYF(MY_WME))))
+    return;
+  my_snprintf(m_rows_query, len+1, "%s", str);
+  DBUG_PRINT("info", ("m_rows_query: %s", m_rows_query));
+  DBUG_VOID_RETURN;
+}
+
+Rows_query_log_event::~Rows_query_log_event()
+{
+  my_free(m_rows_query, MYF(0));
+}
+
+#ifndef MYSQL_CLIENT
+void Rows_query_log_event::pack_info(Protocol *protocol)
+{
+  protocol->store(m_rows_query, (uint) strlen(m_rows_query),
+                  &my_charset_bin);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+void
+Rows_query_log_event::print(FILE *file,
+                         PRINT_EVENT_INFO *print_event_info)
+{
+  if (print_event_info->short_form)
+    return;
+
+  Write_on_release_cache cache(&print_event_info->head_cache, file);
+  print_header(&cache, print_event_info, FALSE);
+  my_b_printf(&cache, "\tRows_query\n");
+  my_b_printf(&cache, "%s\n", m_rows_query);
+
+  IO_CACHE *const body= &print_event_info->body_cache;
+  print_base64(body, print_event_info, true);
+}
+#endif
+
+bool
+Rows_query_log_event::write_data_body(IO_CACHE *file)
+{
+  DBUG_ENTER("Rows_query_log_event::write_data_body");
+  DBUG_RETURN(write_str(file, m_rows_query, (uint) strlen(m_rows_query)));
 }
 
 
