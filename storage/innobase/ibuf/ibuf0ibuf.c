@@ -565,7 +565,7 @@ ibuf_init_at_db_start(void)
 
 	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
 
-	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, IBUF_SPACE_ID);
+	table->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 
 	dict_table_add_to_cache(table, heap);
 	mem_heap_free(heap);
@@ -576,7 +576,7 @@ ibuf_init_at_db_start(void)
 
 	dict_mem_index_add_field(index, "DUMMY_COLUMN", 0);
 
-	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, IBUF_SPACE_ID);
+	index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 
 	error = dict_index_add_to_cache(table, index,
 					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);

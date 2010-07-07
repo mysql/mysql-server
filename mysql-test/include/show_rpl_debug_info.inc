@@ -36,6 +36,7 @@ let $_con= $CURRENT_CONNECTION;
 --echo
 --echo [on $_con]
 --echo
+SELECT NOW();
 --echo **** SHOW SLAVE STATUS on $_con ****
 query_vertical SHOW SLAVE STATUS;
 --echo
@@ -70,6 +71,7 @@ if (`SELECT '$_master_con' != ''`)
   --echo [on $_master_con]
   connection $_master_con;
   --echo
+  SELECT NOW();
   --echo **** SHOW MASTER STATUS on $_master_con ****
   query_vertical SHOW MASTER STATUS;
   --echo
