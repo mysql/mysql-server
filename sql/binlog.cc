@@ -3895,14 +3895,22 @@ void THD::binlog_set_stmt_begin() {
   Note that in order to keep the signature uniform with related methods,
   we use a redundant parameter to indicate whether a transactional table
   was changed or not.
+  Sometimes it will write a Rows_query_log_event into binary log before
+  the table map too.
  
   @param table             a pointer to the table.
   @param is_transactional  @c true indicates a transactional table,
                            otherwise @c false a non-transactional.
+  @param binlog_rows_query @c true indicates a Rows_query log event
+                           will be binlogged before table map,
+                           otherwise @c false indicates it will not
+                           be binlogged.
   @return
-    nonzero if an error pops up when writing the table map event.
+    nonzero if an error pops up when writing the table map event
+    or the Rows_query log event.
 */
-int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
+int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
+                                bool binlog_rows_query)
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
@@ -3925,6 +3933,16 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
 
   IO_CACHE *file=
     cache_mngr->get_binlog_cache_log(use_trans_cache(this, is_transactional));
+
+  if (binlog_rows_query && this->query())
+  {
+    /* Write the Rows_query_log_event into binlog before the table map */
+    Rows_query_log_event* rows_query_ev= new Rows_query_log_event(this, this->query(),
+                                                       this->query_length());
+    if ((error= rows_query_ev->write(file)))
+      DBUG_RETURN(error);
+  }
+
   if ((error= the_event.write(file)))
     DBUG_RETURN(error);
 

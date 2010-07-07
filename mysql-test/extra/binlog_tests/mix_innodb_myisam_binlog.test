@@ -320,6 +320,7 @@ disconnect con3;
 
 connection con4;
 select get_lock("a",10); # wait for rollback to finish
+let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
 flush logs;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -334,7 +335,7 @@ if (`select @@binlog_format = 'ROW'`)
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --exec $MYSQL_BINLOG --start-position=556 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=558 $MYSQLD_DATADIR/$master_binlog > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 
   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval select
