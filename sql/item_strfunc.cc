@@ -242,7 +242,7 @@ void Item_func_sha::fix_length_and_dec()
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
 
-String *Item_func_sha2::val_str(String *str)
+String *Item_func_sha2::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -338,19 +338,19 @@ void Item_func_sha2::fix_length_and_dec()
   switch (sha_variant) {
 #ifndef OPENSSL_NO_SHA512
   case 512:
-    max_length= SHA512_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA512_DIGEST_LENGTH * 2, default_charset());
     break;
   case 384:
-    max_length= SHA384_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA384_DIGEST_LENGTH * 2, default_charset());
     break;
 #endif
 #ifndef OPENSSL_NO_SHA256
   case 256:
   case 0: // SHA-256 is the default
-    max_length= SHA256_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA256_DIGEST_LENGTH * 2, default_charset());
     break;
   case 224:
-    max_length= SHA224_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA224_DIGEST_LENGTH * 2, default_charset());
     break;
 #endif
   default:
