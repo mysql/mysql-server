@@ -1181,7 +1181,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     }
     if (!context.field_ref_is_join_pushable(join_tab, join_items, join_parent))
     {
-      DBUG_PRINT("info", ("Table %d not EQ_REF-joined, not pushable", join_cnt));
+      DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
       continue;
     }
 
