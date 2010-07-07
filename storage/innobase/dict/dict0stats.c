@@ -908,6 +908,17 @@ dict_stats_analyze_index_below_pcur(
 
 			rec = next_rec;
 			{
+				/* Assign offsets_rec = offsets_next_rec
+				so that offsets_rec matches with rec which
+				was just assigned rec = next_rec above.
+				Also need to point offsets_next_rec to the
+				place where offsets_rec was pointing before
+				because we have just 2 placeholders where
+				data is actually stored:
+				offsets_onstack1 and offsets_onstack2 and we
+				are using them in circular fashion
+				(offsets[_next]_rec are just pointers to
+				those placeholders). */
 				ulint*	offsets_tmp;
 				offsets_tmp = offsets_rec;
 				offsets_rec = offsets_next_rec;
@@ -972,6 +983,17 @@ dict_stats_analyze_index_below_pcur(
 
 		rec = next_rec;
 		{
+			/* Assign offsets_rec = offsets_next_rec
+			so that offsets_rec matches with rec which
+			was just assigned rec = next_rec above.
+			Also need to point offsets_next_rec to the
+			place where offsets_rec was pointing before
+			because we have just 2 placeholders where
+			data is actually stored:
+			offsets_onstack1 and offsets_onstack2 and we
+			are using them in circular fashion
+			(offsets[_next]_rec are just pointers to
+			those placeholders). */
 			ulint*	offsets_tmp;
 			offsets_tmp = offsets_rec;
 			offsets_rec = offsets_next_rec;
