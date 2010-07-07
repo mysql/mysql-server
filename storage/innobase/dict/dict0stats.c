@@ -1472,11 +1472,10 @@ dict_stats_save_index_stat(
 
 	pars_info_add_str_literal(pinfo, "stat_name", stat_name);
 
-	pars_info_add_uint64_literal(pinfo, "stat_value", stat_value);
+	pars_info_add_ull_literal(pinfo, "stat_value", stat_value);
 
 	if (sample_size != NULL) {
-		pars_info_add_uint64_literal(pinfo, "sample_size",
-					     *sample_size);
+		pars_info_add_ull_literal(pinfo, "sample_size", *sample_size);
 	} else {
 		pars_info_add_literal(pinfo, "sample_size", NULL,
 				      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
@@ -1588,12 +1587,12 @@ dict_stats_save(
 
 	pars_info_add_int4_literal(pinfo, "stats_timestamp", now);
 
-	pars_info_add_uint64_literal(pinfo, "n_rows", table->stat_n_rows);
+	pars_info_add_ull_literal(pinfo, "n_rows", table->stat_n_rows);
 
-	pars_info_add_uint64_literal(pinfo, "clustered_index_size",
+	pars_info_add_ull_literal(pinfo, "clustered_index_size",
 				     table->stat_clustered_index_size);
 
-	pars_info_add_uint64_literal(pinfo, "sum_of_other_index_sizes",
+	pars_info_add_ull_literal(pinfo, "sum_of_other_index_sizes",
 				     table->stat_sum_of_other_index_sizes);
 
 	ret = que_eval_sql(pinfo,
@@ -1790,7 +1789,7 @@ dict_stats_fetch_table_stats_step(
 			ut_a(dtype_get_mtype(type) == DATA_INT);
 			ut_a(len == 8);
 
-			table->stat_n_rows = mach_read_ull(data);
+			table->stat_n_rows = mach_read_from_8(data);
 
 			break;
 
@@ -1800,7 +1799,7 @@ dict_stats_fetch_table_stats_step(
 			ut_a(len == 8);
 
 			table->stat_clustered_index_size
-				= (ulint) mach_read_ull(data);
+				= (ulint) mach_read_from_8(data);
 
 			break;
 
@@ -1810,7 +1809,7 @@ dict_stats_fetch_table_stats_step(
 			ut_a(len == 8);
 
 			table->stat_sum_of_other_index_sizes
-				= (ulint) mach_read_ull(data);
+				= (ulint) mach_read_from_8(data);
 
 			break;
 
@@ -1932,7 +1931,7 @@ dict_stats_fetch_index_stats_step(
 			ut_a(stat_name != NULL);
 			ut_a(stat_name_len != (ulint) -1);
 
-			stat_value = (ib_uint64_t) mach_read_ull(data);
+			stat_value = mach_read_from_8(data);
 
 			break;
 
@@ -1951,7 +1950,7 @@ dict_stats_fetch_index_stats_step(
 			}
 			/* else */
 
-			sample_size = (ib_uint64_t) mach_read_ull(data);
+			sample_size = mach_read_from_8(data);
 
 			break;
 
