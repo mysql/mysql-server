@@ -47,11 +47,11 @@ Writes 8 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
 void
-mlog_write_dulint(
-/*==============*/
-	byte*	ptr,	/*!< in: pointer where to write */
-	dulint	val,	/*!< in: value to write */
-	mtr_t*	mtr);	/*!< in: mini-transaction handle */
+mlog_write_ull(
+/*===========*/
+	byte*		ptr,	/*!< in: pointer where to write */
+	ib_uint64_t	val,	/*!< in: value to write */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /********************************************************//**
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
@@ -125,13 +125,13 @@ mlog_catenate_ulint_compressed(
 	mtr_t*	mtr,	/*!< in: mtr */
 	ulint	val);	/*!< in: value to write */
 /********************************************************//**
-Catenates a compressed dulint to mlog. */
+Catenates a compressed 64-bit integer to mlog. */
 UNIV_INLINE
 void
-mlog_catenate_dulint_compressed(
-/*============================*/
-	mtr_t*	mtr,	/*!< in: mtr */
-	dulint	val);	/*!< in: value to write */
+mlog_catenate_ull_compressed(
+/*=========================*/
+	mtr_t*		mtr,	/*!< in: mtr */
+	ib_uint64_t	val);	/*!< in: value to write */
 /********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
 @return	buffer, NULL if log mode MTR_LOG_NONE */
@@ -183,7 +183,7 @@ mlog_parse_initial_log_record(
 	ulint*	space,	/*!< out: space id */
 	ulint*	page_no);/*!< out: page number */
 /********************************************************//**
-Parses a log record written by mlog_write_ulint or mlog_write_dulint.
+Parses a log record written by mlog_write_ulint or mlog_write_ull.
 @return	parsed record end, NULL if not a complete record */
 UNIV_INTERN
 byte*

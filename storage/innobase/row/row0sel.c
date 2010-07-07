@@ -4622,8 +4622,7 @@ row_search_check_if_query_cache_permitted(
 	IX type locks actually would require ret = FALSE. */
 
 	if (UT_LIST_GET_LEN(table->locks) == 0
-	    && ut_dulint_cmp(trx->id,
-			     table->query_cache_inv_trx_id) >= 0) {
+	    && trx->id >= table->query_cache_inv_trx_id) {
 
 		ret = TRUE;
 

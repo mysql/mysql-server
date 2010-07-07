@@ -2023,7 +2023,7 @@ row_merge_drop_index(
 
 	ut_ad(index && table && trx);
 
-	pars_info_add_dulint_literal(info, "indexid", index->id);
+	pars_info_add_ull_literal(info, "indexid", index->id);
 
 	trx_start_if_not_started(trx);
 	trx->op_info = "dropping index";
@@ -2093,7 +2093,7 @@ row_merge_drop_temp_indexes(void)
 		const rec_t*	rec;
 		const byte*	field;
 		ulint		len;
-		dulint		table_id;
+		table_id_t	table_id;
 		dict_table_t*	table;
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -2320,7 +2320,7 @@ row_merge_rename_indexes(
 
 	trx->op_info = "renaming indexes";
 
-	pars_info_add_dulint_literal(info, "tableid", table->id);
+	pars_info_add_ull_literal(info, "tableid", table->id);
 
 	err = que_eval_sql(info, rename_indexes, FALSE, trx);
 
@@ -2357,13 +2357,24 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	const char*	old_name= old_table->name;
+	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
+	/* store the old/current name to an automatic variable */
+	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
+		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: too long table name: '%s', "
+			"max length is %d\n", old_table->name,
+			MAX_TABLE_NAME_LEN);
+		ut_error;
+	}
 
 	trx->op_info = "renaming tables";
 
@@ -2497,8 +2508,7 @@ row_merge_create_index(
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
-		index->trx_id = (ib_uint64_t)
-			ut_conv_dulint_to_longlong(trx->id);
+		index->trx_id = trx->id;
 	} else {
 		index = NULL;
 	}
@@ -2515,10 +2525,8 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	return(!trx->read_view || read_view_sees_trx_id(
-		       trx->read_view,
-		       ut_dulint_create((ulint) (index->trx_id >> 32),
-					(ulint) index->trx_id & 0xFFFFFFFF)));
+	return(!trx->read_view
+	       || read_view_sees_trx_id(trx->read_view, index->trx_id));
 }
 
 /*********************************************************************//**

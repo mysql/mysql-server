@@ -60,40 +60,44 @@ UNIV_INLINE
 ibool
 read_view_sees_trx_id(
 /*==================*/
-	const read_view_t*	view,		/*!< in: read view */
-	trx_id_t		in_trx_id)	/*!< in: trx id */
+	const read_view_t*	view,	/*!< in: read view */
+	trx_id_t		trx_id)	/*!< in: trx id */
 {
+	ulint	lower;
+	ulint	upper;
+
 	/* This value is the same as view->trx_ids[view->n_trx_ids-1]. */
-	if (ut_dulint_cmp(in_trx_id, view->up_limit_id) < 0) {
+	if (trx_id < view->up_limit_id) {
+
 		return(TRUE);
-	} else if (ut_dulint_cmp(in_trx_id, view->low_limit_id) >= 0) {
-		return(FALSE);
-	} else {
-		ulint		lower = 0;
-		ulint		upper = view->n_trx_ids - 1;
-		ib_int64_t	trx_id = ut_conv_dulint_to_longlong(in_trx_id);
-
-		ut_a(view->n_trx_ids > 0);
-
-		do {
-			ib_int64_t	cmp;
-			ulint		mid = (lower + upper) >> 1;
-
-			cmp = view->trx_ids[mid] - trx_id;
-
-			if (cmp == 0) {
-				return(FALSE);
-			} else if (cmp < 0) {
-				if (mid > 0) {
-					upper = mid - 1;
-				} else {
-					break;
-				}
-			} else {
-				lower = mid + 1;
-			}
-		} while (lower <= upper);
 	}
+
+	if (trx_id >= view->low_limit_id) {
+
+		return(FALSE);
+	}
+
+	lower = 0;
+	upper = view->n_trx_ids - 1;
+
+	ut_a(view->n_trx_ids > 0);
+
+	do {
+		ulint		mid	= (lower + upper) >> 1;
+		trx_id_t	mid_id	= view->trx_ids[mid];
+
+		if (mid_id == trx_id) {
+			return(FALSE);
+		} else if (mid_id < trx_id) {
+			if (mid > 0) {
+				upper = mid - 1;
+			} else {
+				break;
+			}
+		} else {
+			lower = mid + 1;
+		}
+	} while (lower <= upper);
 
 	return(TRUE);
 }

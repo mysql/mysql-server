@@ -115,7 +115,9 @@ buf_flush_insert_in_flush_rbt(
 	p_node = rbt_prev(buf_pool->flush_rbt, c_node);
 
 	if (p_node != NULL) {
-		prev = *rbt_value(buf_page_t*, p_node);
+		buf_page_t**	value;
+		value = rbt_value(buf_page_t*, p_node);
+		prev = *value;
 		ut_a(prev != NULL);
 	}
 
@@ -985,8 +987,8 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
-			mach_write_ull(page_zip->data
-				       + FIL_PAGE_LSN, newest_lsn);
+			mach_write_to_8(page_zip->data
+					+ FIL_PAGE_LSN, newest_lsn);
 			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
@@ -1008,10 +1010,10 @@ buf_flush_init_for_writing(
 	}
 
 	/* Write the newest modification lsn to the page header and trailer */
-	mach_write_ull(page + FIL_PAGE_LSN, newest_lsn);
+	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
-	mach_write_ull(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-		       newest_lsn);
+	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+			newest_lsn);
 
 	/* Store the new formula checksum */
 
@@ -1099,8 +1101,8 @@ buf_flush_write_block_low(
 			ut_a(mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
 			     == page_zip_calc_checksum(frame, zip_size));
 		}
-		mach_write_ull(frame + FIL_PAGE_LSN,
-			       bpage->newest_modification);
+		mach_write_to_8(frame + FIL_PAGE_LSN,
+				bpage->newest_modification);
 		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 		break;
 	case BUF_BLOCK_FILE_PAGE:
@@ -2093,13 +2095,13 @@ buf_flush_validate_low(
 		ut_a(om > 0);
 
 		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
-			buf_page_t* rpage;
+			buf_page_t** prpage;
 
 			ut_a(rnode);
-			rpage = *rbt_value(buf_page_t*, rnode);
+			prpage = rbt_value(buf_page_t*, rnode);
 
-			ut_a(rpage);
-			ut_a(rpage == bpage);
+			ut_a(*prpage);
+			ut_a(*prpage == bpage);
 			rnode = rbt_next(buf_pool->flush_rbt, rnode);
 		}
 

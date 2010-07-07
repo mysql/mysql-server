@@ -128,7 +128,7 @@ columns, and for them the precise type is usually not used at all.
 /* Precise data types for system columns and the length of those columns;
 NOTE: the values must run from 0 up in the order given! All codes must
 be less than 256 */
-#define	DATA_ROW_ID	0	/* row id: a dulint */
+#define	DATA_ROW_ID	0	/* row id: a 48-bit integer */
 #define DATA_ROW_ID_LEN	6	/* stored length for row id */
 
 #define DATA_TRX_ID	1	/* transaction id: 6 bytes */

@@ -168,8 +168,7 @@ read_view_t*
 read_view_oldest_copy_or_open_new(
 /*==============================*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
-					transaction, or ut_dulint_zero
-					used in purge */
+					transaction, or 0 used in purge */
 	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
@@ -179,7 +178,6 @@ read_view_oldest_copy_or_open_new(
 	ulint		insert_done	= 0;
 	ulint		n;
 	ulint		i;
-	ib_int64_t	trx_id;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -190,11 +188,9 @@ read_view_oldest_copy_or_open_new(
 		return(read_view_open_now(cr_trx_id, heap));
 	}
 
-	trx_id = ut_conv_dulint_to_longlong(old_view->creator_trx_id);
-
 	n = old_view->n_trx_ids;
 
-	if (trx_id != 0) {
+	if (old_view->creator_trx_id) {
 		n++;
 	} else {
 		needs_insert = FALSE;
@@ -209,9 +205,11 @@ read_view_oldest_copy_or_open_new(
 	while (i < n) {
 		if (needs_insert
 		    && (i >= old_view->n_trx_ids
-			|| trx_id > read_view_get_nth_trx_id(old_view, i))) {
+			|| old_view->creator_trx_id
+			> read_view_get_nth_trx_id(old_view, i))) {
 
-			read_view_set_nth_trx_id(view_copy, i, trx_id);
+			read_view_set_nth_trx_id(view_copy, i,
+						 old_view->creator_trx_id);
 			needs_insert = FALSE;
 			insert_done = 1;
 		} else {
@@ -232,8 +230,8 @@ read_view_oldest_copy_or_open_new(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view_copy->up_limit_id = ut_conv_longlong_to_dulint(
-			read_view_get_nth_trx_id(view_copy, n - 1));
+		view_copy->up_limit_id = read_view_get_nth_trx_id(
+			view_copy, n - 1);
 	} else {
 		view_copy->up_limit_id = old_view->up_limit_id;
 	}
@@ -252,8 +250,7 @@ read_view_t*
 read_view_open_now(
 /*===============*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
-					transaction, or ut_dulint_zero
-					used in purge */
+					transaction, or 0 used in purge */
 	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
@@ -267,7 +264,7 @@ read_view_open_now(
 
 	view->creator_trx_id = cr_trx_id;
 	view->type = VIEW_NORMAL;
-	view->undo_no = ut_dulint_zero;
+	view->undo_no = 0;
 
 	/* No future transactions should be visible in the view */
 
@@ -280,13 +277,12 @@ read_view_open_now(
 	/* No active transaction should be visible, except cr_trx */
 
 	while (trx) {
-		if (ut_dulint_cmp(trx->id, cr_trx_id) != 0
+		if (trx->id != cr_trx_id
 		    && (trx->conc_state == TRX_ACTIVE
 			|| trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(
-				view, n,
-				ut_conv_dulint_to_longlong(trx->id));
+				view, n, trx->id);
 
 			n++;
 
@@ -294,9 +290,9 @@ read_view_open_now(
 			trx_sys->max_trx_id can still be active, if it is
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
-			ut_dulint_max. */
+			IB_ULONGLONG_MAX. */
 
-			if (ut_dulint_cmp(view->low_limit_no, trx->no) > 0) {
+			if (view->low_limit_no > trx->no) {
 
 				view->low_limit_no = trx->no;
 			}
@@ -309,8 +305,7 @@ read_view_open_now(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = ut_conv_longlong_to_dulint(
-			read_view_get_nth_trx_id(view, n - 1));
+		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
@@ -370,22 +365,20 @@ read_view_print(
 
 	if (view->type == VIEW_HIGH_GRANULARITY) {
 		fprintf(stderr,
-			"High-granularity read view undo_n:o %lu %lu\n",
-			(ulong) ut_dulint_get_high(view->undo_no),
-			(ulong) ut_dulint_get_low(view->undo_no));
+			"High-granularity read view undo_n:o %llu\n",
+			(ullint) view->undo_no);
 	} else {
 		fprintf(stderr, "Normal read view\n");
 	}
 
-	fprintf(stderr, "Read view low limit trx n:o %lu %lu\n",
-		(ulong) ut_dulint_get_high(view->low_limit_no),
-		(ulong) ut_dulint_get_low(view->low_limit_no));
+	fprintf(stderr, "Read view low limit trx n:o " TRX_ID_FMT "\n",
+		(ullint) view->low_limit_no);
 
 	fprintf(stderr, "Read view up limit trx id " TRX_ID_FMT "\n",
-		TRX_ID_PREP_PRINTF(view->up_limit_id));
+		(ullint) view->up_limit_id);
 
 	fprintf(stderr, "Read view low limit trx id " TRX_ID_FMT "\n",
-		TRX_ID_PREP_PRINTF(view->low_limit_id));
+		(ullint) view->low_limit_id);
 
 	fprintf(stderr, "Read view individually stored trx ids:\n");
 
@@ -393,7 +386,7 @@ read_view_print(
 
 	for (i = 0; i < n_ids; i++) {
 		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
-				read_view_get_nth_trx_id(view, i));
+			(ullint) read_view_get_nth_trx_id(view, i));
 	}
 }
 
@@ -454,9 +447,7 @@ read_cursor_view_create_for_mysql(
 		if (trx->conc_state == TRX_ACTIVE
 		    || trx->conc_state == TRX_PREPARED) {
 
-			read_view_set_nth_trx_id(
-				view, n,
-				ut_conv_dulint_to_longlong(trx->id));
+			read_view_set_nth_trx_id(view, n, trx->id);
 
 			n++;
 
@@ -464,9 +455,9 @@ read_cursor_view_create_for_mysql(
 			trx_sys->max_trx_id can still be active, if it is
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
-			ut_dulint_max. */
+			IB_ULONGLONG_MAX. */
 
-			if (ut_dulint_cmp(view->low_limit_no, trx->no) > 0) {
+			if (view->low_limit_no > trx->no) {
 
 				view->low_limit_no = trx->no;
 			}
@@ -479,8 +470,7 @@ read_cursor_view_create_for_mysql(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = ut_conv_longlong_to_dulint(
-			read_view_get_nth_trx_id(view, n - 1));
+		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}

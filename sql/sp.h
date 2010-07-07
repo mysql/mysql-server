@@ -34,7 +34,8 @@ struct LEX;
 struct TABLE;
 struct TABLE_LIST;
 typedef struct st_hash HASH;
-typedef struct st_sql_list SQL_LIST;
+template <typename T> class SQL_I_List;
+
 
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
@@ -164,7 +165,8 @@ bool sp_update_sp_used_routines(HASH *dst, HASH *src);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   HASH *src, TABLE_LIST *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                                  SQL_LIST *src, TABLE_LIST *belong_to_view);
+                                  SQL_I_List<Sroutine_hash_entry> *src,
+                                  TABLE_LIST *belong_to_view);
 
 extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first);
