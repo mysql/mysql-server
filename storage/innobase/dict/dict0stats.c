@@ -1184,7 +1184,8 @@ dict_stats_analyze_index_for_n_prefix(
 
 		/* if the level has finished before the record we are
 		searching for, this means that the B-tree has changed in
-		the meantime, abort */
+		the meantime, quit our sampling and use whatever stats
+		we have collected so far */
 		if (rec_idx < dive_below_idx) {
 
 			ut_ad(!btr_pcur_is_on_user_rec(&pcur));
