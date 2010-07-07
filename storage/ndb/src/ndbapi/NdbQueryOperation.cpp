@@ -161,16 +161,7 @@ public:
     m_outstandingResults = 0;
   }
 
-  void setConfReceived()
-  { 
-    assert(!m_confReceived);
-    m_confReceived = true; 
-  }
-
-  void setConfReceivedNoCheck()
-  {
-    m_confReceived = true;
-  }
+  void setConfReceived();
 
   /** 
    * The root operation will read from a number of fragments of a table.
@@ -300,6 +291,12 @@ public:
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
 
+  Uint16 getTupleId(Uint16 tupleNo) const
+  { return m_tupleSet[tupleNo].m_tupleId; }
+
+  Uint16 findTupleWithParentId(Uint16 parentId) const;
+
+private:
   /** This stream handles results derived from the m_rootFragNo'th 
    * fragment of the root operation.*/
   const Uint32 m_rootFragNo;
@@ -363,11 +360,6 @@ public:
   void setParentChildMap(Uint16 parentId,
                          Uint16 tupleId, 
                          Uint16 tupleNo);
-
-  Uint16 getTupleId(Uint16 tupleNo) const
-  { return m_tupleSet[tupleNo].m_tupleId; }
-
-  Uint16 findTupleWithParentId(Uint16 parentId) const;
 
   /** No copying.*/
   NdbResultStream(const NdbResultStream&);
@@ -544,6 +536,15 @@ void NdbRootFragment::reset()
   m_confReceived = false;
 }
 
+void NdbRootFragment::setConfReceived()
+{ 
+  /* For a query with a lookup root, there may be more than one TCKEYCONF
+     message. For a scan, there should only be one SCAN_TABCONF per root
+     fragment. 
+  */
+  assert(!m_query->getQueryDef().isScanQuery() || !m_confReceived);
+  m_confReceived = true; 
+}
 
 bool NdbRootFragment::finalBatchReceived() const
 {
@@ -1580,7 +1581,7 @@ NdbQueryImpl::execTCKEYCONF()
   assert(!getQueryDef().isScanQuery());
 
   // We will get 1 + #leaf-nodes TCKEYCONF for a lookup...
-  m_rootFrags[0].setConfReceivedNoCheck();
+  m_rootFrags[0].setConfReceived();
   m_rootFrags[0].incrOutstandingResults(-1);
 
   bool ret = false;
@@ -4047,7 +4048,8 @@ NdbQueryOperationImpl::prepareInterpretedCode(Uint32Buffer& attrInfo) const
   // There should be no subroutines in a filter.
   assert(m_interpretedCode->m_first_sub_instruction_pos==0);
 
-  if (unlikely(m_interpretedCode->m_flags & NdbInterpretedCode::Finalised) == 0)
+  if (unlikely((m_interpretedCode->m_flags & NdbInterpretedCode::Finalised) 
+               == 0))
   {
     //  NdbInterpretedCode::finalise() not called.
     return Err_FinaliseNotCalled;
