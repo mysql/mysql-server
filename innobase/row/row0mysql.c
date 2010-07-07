@@ -3335,20 +3335,13 @@ fputs("	 InnoDB: You are trying to drop table ", stderr);
 
 	err = trx->error_state;
 
-	if (err != DB_SUCCESS) {
-		ut_a(err == DB_OUT_OF_FILE_SPACE);
-
-		err = DB_MUST_GET_MORE_FILE_SPACE;
-		
-		row_mysql_handle_errors(&err, trx, thr, NULL);
-
-		ut_error;
-	} else {
+	switch (err) {
 		ibool		is_path;
 		const char*	name_or_path;
 
+	case DB_SUCCESS:
 		space_id = table->space;
-		
+
 		if (table->dir_path_of_temp_table != NULL) {
 			dir_path_of_temp_table =
 				mem_strdup(table->dir_path_of_temp_table);
@@ -3407,7 +3400,27 @@ fputs("	 InnoDB: You are trying to drop table ", stderr);
 				err = DB_ERROR;
 			}
 		}
+		break;
+
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		/* Cannot even find a free slot for the
+		the undo log. We can directly exit here
+		and return the DB_TOO_MANY_CONCURRENT_TRXS
+		error. */
+		break;
+
+        case DB_OUT_OF_FILE_SPACE:
+		err = DB_MUST_GET_MORE_FILE_SPACE;
+
+		row_mysql_handle_errors(&err, trx, thr, NULL);
+
+		/* Fall through to raise error */
+
+	default:
+		/* No other possible error returns */
+		ut_error;
 	}
+
 funct_exit:
 
   	trx_commit_for_mysql(trx);
