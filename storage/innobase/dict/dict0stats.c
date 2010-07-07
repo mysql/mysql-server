@@ -1135,7 +1135,7 @@ dict_stats_analyze_index_for_n_prefix(
 		segment i=1: [25, 49]
 		segment i=2: [50, 74]
 		segment i=3: [75, 99] or
-		
+
 		let n_diff_for_this_prefix=1, n_recs_to_dive_below=1, then:
 		segment i=0: [0, 0] or
 
@@ -2939,7 +2939,7 @@ test_dict_stats_save()
 	index2_stat_n_sample_sizes[4] = TEST_IDX2_N_DIFF4_SAMPLE_SIZE;
 
 	ret = dict_stats_save(&table, FALSE);
-	
+
 	ut_a(ret == DB_SUCCESS);
 
 	printf("\nOK: stats saved successfully, now go ahead and read "
@@ -3066,7 +3066,7 @@ test_dict_stats_fetch_from_ps()
 	index2.stat_n_sample_sizes = index2_stat_n_sample_sizes;
 
 	ret = dict_stats_fetch_from_ps(&table, FALSE);
-	
+
 	ut_a(ret == DB_SUCCESS);
 
 	ut_a(table.stat_n_rows == TEST_N_ROWS);
