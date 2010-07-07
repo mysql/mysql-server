@@ -653,9 +653,11 @@ dict_stats_analyze_index_level(
 	}
 
 	/* if *total_pages is left untouched then the above loop was not
-	entered at all and there is one page which is empty */
+	entered at all and there is one page in the whole tree which is
+	empty */
 	if (*total_pages == 0) {
 
+		ut_ad(level == 0);
 		ut_ad(*total_recs == 0);
 
 		*total_pages = 1;
