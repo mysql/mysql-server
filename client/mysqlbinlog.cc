@@ -79,6 +79,7 @@ static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
+static my_bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
 static uint stop_never_server_id= 1;
 static const char* host = 0;
@@ -1177,6 +1178,9 @@ static struct my_option my_long_options[] =
    "Used to reserve file descriptors for use by this program.",
    &open_files_limit, &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"verify-binlog-checksum", 'c', "Verify checksum binlog events.",
+   (uchar**) &opt_verify_binlog_checksum, (uchar**) &opt_verify_binlog_checksum,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
    "The maximum size of a row-based binary log event in bytes. Rows will be "
    "grouped into events smaller than this size if possible. "
@@ -1528,7 +1532,17 @@ static Exit_status check_master_version()
           "Master reported NULL for the version.");
     goto err;
   }
-
+  /* 
+     FD from the server will cary the checksum alg descriptor. Because
+     there won't be any fake Rotate there is no need to SELECT the alg
+     unlike slave server does to its master.
+  */
+  if (mysql_query(mysql, "SET @master_binlog_checksum=@@global.binlog_checksum"))
+  {
+    error("Could not notify master about checksum awareness."
+          "Master returned '%s'", mysql_error(mysql));
+    goto err;
+  }
   delete glob_description_event;
   switch (*version) {
   case '3':
@@ -1664,7 +1678,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     {
       if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
                                           len - 1, &error_msg,
-                                          glob_description_event)))
+                                          glob_description_event,
+                                          opt_verify_binlog_checksum)))
       {
         error("Could not construct log event object: %s", error_msg);
         DBUG_RETURN(ERROR_STOP);
@@ -1939,7 +1954,8 @@ static Exit_status check_header(IO_CACHE* file,
         Format_description_log_event *new_description_event;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
         if (!(new_description_event= (Format_description_log_event*) 
-              Log_event::read_log_event(file, glob_description_event)))
+              Log_event::read_log_event(file, glob_description_event,
+                                        opt_verify_binlog_checksum)))
           /* EOF can't be hit here normally, so it's a real error */
         {
           error("Could not read a Format_description_log_event event at "
@@ -1972,7 +1988,8 @@ static Exit_status check_header(IO_CACHE* file,
       {
         Log_event *ev;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
-        if (!(ev= Log_event::read_log_event(file, glob_description_event)))
+        if (!(ev= Log_event::read_log_event(file, glob_description_event,
+                                            opt_verify_binlog_checksum)))
         {
           /* EOF can't be hit here normally, so it's a real error */
           error("Could not read a Rotate_log_event event at offset %llu;"
@@ -2085,7 +2102,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-    Log_event* ev = Log_event::read_log_event(file, glob_description_event);
+    Log_event* ev = Log_event::read_log_event(file, glob_description_event,
+                                              opt_verify_binlog_checksum);
     if (!ev)
     {
       /*
