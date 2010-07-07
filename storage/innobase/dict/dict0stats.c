@@ -50,6 +50,65 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
 
+/* Sampling algorithm description @{
+
+The algorithm is controlled by one number - A, which is the number of leaf
+pages to analyze for a given index for each n-prefix (if the index is on 3
+columns, then 3*A pages will be analyzed).
+
+Let the total number of leaf pages in the table be T.
+Level 0 - leaf pages, level H - root.
+
+Definition: Boring record is a record on a non-leaf page that equals the
+next (to the right, cross page boundaries, skipping the supremum and infimum)
+record on the same level. The last (user) record on a level is not boring (it
+does not match the non-existent user record to the right). We call the
+records boring because all the records on the page below a boring record
+are equal to that boring record.
+
+We avoid diving below boring records when searching for a leaf page to
+estimate the number of distinct records because we know that such a leaf
+page will have number of distinct records == 1.
+
+For each n-prefix start from the root level and full scan subsequent lower
+levels until a level that contains at least A*10 distinct records is found.
+As an optimization the search is canceled if it has reached level 1 (never
+descend to the level 0 (leaf)) and also if the next level to be scanned
+would contain more than A pages. The latter is because the user has asked
+to analyze A leaf pages and it does not make sense to scan much more than
+A non-leaf pages with the sole purpose of finding a good sample of A leaf
+pages.
+
+After finding the appropriate level with >A*10 distinct records (or less in
+the exceptions described above), divide it into groups of equal records and
+pick A such groups. Then pick the last record from each group. For example,
+let the level be:
+
+index:  0,1,2,3,4,5,6,7,8,9,10
+record: 1,1,1,2,2,7,7,7,7,7,9
+
+There are 4 groups of distinct records and if A=2 random ones are selected,
+e.g. 1,1,1 and 7,7,7,7,7, then records with indexes 2 and 9 will be selected.
+
+After selecting A records as described above, dive below them to find A leaf
+pages and analyze them, finding the total number of distinct records. The
+dive to the leaf level is performed by selecting a non-boring record from
+each page and diving below it.
+
+This way, a total of A leaf pages are analyzed for the given n-prefix.
+
+Let the number of different key values found in page i be Pi (i=1..A)
+Let the number of different key values in the whole level A be V.
+Then the total number of different key values in the whole tree is:
+V * (P1 + P2 + ... PA) / A.
+
+The above describes how to calculate the cardinality of an index.
+This algorithm is executed for each n-prefix of a multi-column index
+where n=1..n_uniq.
+
+In the implementation below A is srv_stats_persistent_sample_pages.
+@} */
+
 /* names of the tables from the persistent statistics storage */
 #define TABLE_STATS_NAME	"innodb/table_stats"
 #define TABLE_STATS_NAME_PRINT	"innodb.table_stats"
