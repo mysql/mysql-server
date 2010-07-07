@@ -205,6 +205,15 @@ public:
   Uint32 getRootFragCount() const
   { return m_rootFragCount; }
 
+  Uint32 getScanCount() const
+  { return m_scanCount; }
+
+  NdbQueryOperationImpl& getScan(Uint32 scanNo) const
+  {
+    assert(scanNo < m_scanCount);
+    return *m_scans[scanNo];
+  }
+
 private:
   /** Possible return values from NdbQuery::fetchMoreResults. Integer values
    * matches those returned from PoolGuard::waitScan().
@@ -422,6 +431,10 @@ private:
    * fragment that should be scanned.*/
   Uint32 m_pruneHashVal;
 
+  Uint32 m_scanCount;
+
+  NdbQueryOperationImpl* m_scans[NdbMaxPushedQueryOps];
+
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(
              NdbTransaction& trans,
@@ -570,7 +583,18 @@ public:
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
 
+  bool fetchSubLookupResults(Uint32 rootFragNo, Uint16 parentId);
+
+  /** Copy NdbRecAttr and/or NdbRecord results into appl. buffers */
+  void fetchRow(NdbResultStream& src);
+
+  /** Set result for this operation and all its descendand child 
+   *  operations to NULL.
+   */
+  void nullifyResult();
+
 private:
+
   STATIC_CONST (MAGIC = 0xfade1234);
 
   /** Interface for the application developer.*/
@@ -639,16 +663,7 @@ private:
    *  Return true if a row was fetched, or false if a NULL row was
    *  produced.
    */
-  bool fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
   bool fetchLookupResults();
-
-  /** Set result for this operation and all its descendand child 
-   *  operations to NULL.
-   */
-  void nullifyResult();
-
-  /** Copy NdbRecAttr and/or NdbRecord results into appl. buffers */
-  void fetchRow(NdbResultStream& src);
 
   /** Count number of descendant operations (excluding the operation itself) */
   Int32 getNoOfDescendantOperations() const;
