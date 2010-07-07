@@ -1511,12 +1511,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thd->transaction.stmt.reset();
 
-  thd->protocol->end_statement();
-  query_cache_end_of_result(thd);
-
   thd->proc_info= "closing tables";
   /* Free tables */
   close_thread_tables(thd);
+
+  thd->protocol->end_statement();
+  query_cache_end_of_result(thd);
 
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
