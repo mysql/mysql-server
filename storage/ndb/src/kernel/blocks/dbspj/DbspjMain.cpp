@@ -36,6 +36,8 @@
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
+
+#define VM_TRACE
 #ifdef VM_TRACE
 
 #define DEBUG(x) ndbout << "DBSPJ: "<< x << endl;
@@ -54,11 +56,12 @@
 #define DEBUG_CRASH()
 #endif
 
-
+#if 0
 #undef DEBUG
 #define DEBUG(x)
 #undef DEBUG_LQHKEYREQ
 #undef DEBUG_SCAN_FRAGREQ
+#endif
 
 const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr = { 0, RNIL };
 const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, 0 };
@@ -4400,7 +4403,7 @@ Dbspj::scanIndex_fixupBound(Ptr<ScanIndexFrag> fragPtr,
     AttributeHeader::init(&tmp, id++, len);
     ndbrequire(r0.updateWord(tmp));
     len32 = (len + 3) >> 2;
-  } while (r0.step(1 + len32));
+  } while (r0.step(2 + len32));  // Skip BoundType(1) + AttributeHeader(1) + Attribute(len32)
 
   fragPtr.p->m_range_builder.m_range_cnt = boundno;
   fragPtr.p->m_range_builder.m_range_size = r0.getSize();
