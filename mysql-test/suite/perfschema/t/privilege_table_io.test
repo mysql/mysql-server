@@ -18,7 +18,27 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 --source ../include/table_io_setup_helper.inc
-let $engine_type=myisam;
---source ../include/table_io_basic_dml.inc
+
+# Remove "deleted" records from mysql.db
+# that may come from previous tests,
+# to avoid displaying spurious fetch 
+optimize table mysql.db;
+
+# Start recording events
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+
+# Code to test
+
+flush privileges;
+# This will cause table io in mysql system security tables
+insert into test.marker set a=1;
+# This will not, the ACL cache is already loaded
+insert into test.marker set a=1;
+insert into test.marker set a=1;
+
+# Stop recording events
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+
+let $schema_to_dump="test", "mysql";
 --source ../include/table_io_cleanup_helper.inc
 

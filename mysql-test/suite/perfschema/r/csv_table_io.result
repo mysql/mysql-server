@@ -11,13 +11,13 @@ drop temporary table if exists test.temp_tab;
 update performance_schema.SETUP_CONSUMERS set enabled='YES';
 insert into marker set a=1;
 create table test.no_index_tab
-( a varchar(255) not null, b int not null) engine=myisam;
+( a varchar(255) not null, b int not null) engine=csv;
 show create table test.no_index_tab;
 Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=CSV DEFAULT CHARSET=latin1
 insert into marker set a=1;
 insert into no_index_tab set a = 'foo', b = 1;
 insert into marker set a=1;
@@ -47,7 +47,7 @@ bar	2
 insert into marker set a=1;
 optimize table test.no_index_tab;
 Table	Op	Msg_type	Msg_text
-test.no_index_tab	optimize	status	OK
+test.no_index_tab	optimize	note	The storage engine for the table doesn't support optimize
 insert into marker set a=1;
 select * from test.no_index_tab;
 a	b
@@ -57,13 +57,13 @@ insert into marker set a=1;
 truncate table test.no_index_tab;
 insert into marker set a=1;
 create temporary table test.temp_tab
-( a varchar(255) not null, b int not null) engine=myisam;
+( a varchar(255) not null, b int not null) engine=csv;
 show create table test.temp_tab;
 Table	Create Table
 temp_tab	CREATE TEMPORARY TABLE `temp_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=CSV DEFAULT CHARSET=latin1
 insert into marker set a=1;
 insert into temp_tab set a = 'foo', b = 1;
 insert into marker set a=1;
