@@ -7387,6 +7387,11 @@ view_err:
       mysql_unlock_tables(thd, thd->lock);
       thd->lock=0;
     }
+    /*
+      If LOCK TABLES list is not empty and contains this table,
+      unlock the table and remove the table from this list.
+    */
+    mysql_lock_remove(thd, thd->locked_tables, table, FALSE);
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd, table, 1, 1);
     /* Should pass the 'new_name' as we store table name in the cache */
