@@ -32,6 +32,12 @@ class NdbQueryOptionsImpl;
 class NdbQueryOperandImpl;
 class NdbQueryOperationDefImpl;
 
+/** 
+ * This is the maximal number of table access operations there can be in a 
+ * single pushed join.
+ */
+static const uint NdbMaxPushedQueryOps = 32;
+
 /**
  * This is the API interface for building a (composite) query definition,
  * possibly existing of multiple operations linked together (aka 'joined')
