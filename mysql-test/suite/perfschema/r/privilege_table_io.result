@@ -1,0 +1,62 @@
+drop table if exists test.marker;
+create table test.marker(a int);
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+  where name like "wait/io/table/%";
+truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+flush status;
+optimize table mysql.db;
+Table	Op	Msg_type	Msg_text
+mysql.db	optimize	status	OK
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+flush privileges;
+insert into test.marker set a=1;
+insert into test.marker set a=1;
+insert into test.marker set a=1;
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+select event_name,
+left(source, locate(":", source)) as short_source,
+object_type, object_schema,
+if (locate("#sql-", object_name), "#sql-XXXX", object_name)
+as pretty_name,
+operation, number_of_bytes
+from performance_schema.EVENTS_WAITS_HISTORY_LONG
+where event_name like 'wait/io/table/%'
+  and object_schema in ("test", "mysql")
+order by thread_id, event_id;
+event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	host	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	procs_priv	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+show status like 'performance_schema_%';
+Variable_name	Value
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+drop table test.marker;

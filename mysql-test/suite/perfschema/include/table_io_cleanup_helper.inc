@@ -13,12 +13,27 @@
 # along with this program; if not, write to the Free Software Foundation,
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
-# Tests for PERFORMANCE_SCHEMA
+# See related script table_io_setup_helper.inc
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source ../include/table_io_setup_helper.inc
-let $engine_type=myisam;
---source ../include/table_io_basic_dml.inc
---source ../include/table_io_cleanup_helper.inc
+eval select event_name,
+  left(source, locate(":", source)) as short_source,
+  object_type, object_schema,
+  if (locate("#sql-", object_name), "#sql-XXXX", object_name)
+    as pretty_name,
+  operation, number_of_bytes
+  from performance_schema.EVENTS_WAITS_HISTORY_LONG
+  where event_name like 'wait/io/table/%'
+  and object_schema in ($schema_to_dump)
+  order by thread_id, event_id;
+
+# In case of failures, this will tell if table io are lost.
+show status like 'performance_schema_%';
+
+# Cleanup
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+
+drop table test.marker;
+
 
