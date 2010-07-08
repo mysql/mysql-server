@@ -2032,7 +2032,6 @@ int main(int argc, char** argv)
   {
     usage();
     free_defaults(defaults_argv);
-    my_thread_end();
     exit(1);
   }
 
