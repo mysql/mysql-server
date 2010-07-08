@@ -570,6 +570,14 @@ public:
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
 
+  /** Copy NdbRecAttr and/or NdbRecord results into appl. buffers */
+  void fetchRow(NdbResultStream& src);
+
+  /** Set result for this operation and all its descendand child 
+   *  operations to NULL.
+   */
+  void nullifyResult();
+
 private:
   STATIC_CONST (MAGIC = 0xfade1234);
 
@@ -639,16 +647,9 @@ private:
    *  Return true if a row was fetched, or false if a NULL row was
    *  produced.
    */
-  bool fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
+  // FIXME!!!
+  // bool fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
   bool fetchLookupResults();
-
-  /** Set result for this operation and all its descendand child 
-   *  operations to NULL.
-   */
-  void nullifyResult();
-
-  /** Copy NdbRecAttr and/or NdbRecord results into appl. buffers */
-  void fetchRow(NdbResultStream& src);
 
   /** Count number of descendant operations (excluding the operation itself) */
   Int32 getNoOfDescendantOperations() const;
