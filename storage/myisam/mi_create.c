@@ -834,7 +834,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   mysql_mutex_unlock(&THR_LOCK_myisam);
   if (mysql_file_close(file, MYF(0)))
     goto err;
-  my_free((char*) rec_per_key_part,MYF(0));
+  my_free(rec_per_key_part);
   DBUG_RETURN(0);
 
 err:
@@ -860,7 +860,7 @@ err:
                                                MY_UNPACK_FILENAME | MY_APPEND_EXT),
                                      MYF(0));
   }
-  my_free((char*) rec_per_key_part, MYF(0));
+  my_free(rec_per_key_part);
   DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */
 }
 

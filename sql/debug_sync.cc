@@ -626,7 +626,7 @@ void debug_sync_end_thread(THD *thd)
         action->wait_for.free();
         action->sync_point.free();
       }
-      my_free(ds_control->ds_action, MYF(0));
+      my_free(ds_control->ds_action);
     }
 
     /* Statistics. */
@@ -637,7 +637,7 @@ void debug_sync_end_thread(THD *thd)
       debug_sync_global.dsp_max_active=    ds_control->dsp_max_active;
     mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
-    my_free(ds_control, MYF(0));
+    my_free(ds_control);
     thd->debug_sync_control= NULL;
   }
 

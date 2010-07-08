@@ -128,9 +128,8 @@
 #define PROFILE_ON      (1 <<  7)  /* Print out profiling code */
 #define PID_ON          (1 <<  8)  /* Identify each line with process id */
 #define TIMESTAMP_ON    (1 <<  9)  /* timestamp every line of output */
-#define SANITY_CHECK_ON (1 << 10)  /* Check safemalloc on DBUG_ENTER */
-#define FLUSH_ON_WRITE  (1 << 11)  /* Flush on every write */
-#define OPEN_APPEND     (1 << 12)  /* Open for append      */
+#define FLUSH_ON_WRITE  (1 << 10)  /* Flush on every write */
+#define OPEN_APPEND     (1 << 11)  /* Open for append      */
 #define TRACE_ON        ((uint)1 << 31)  /* Trace enabled. MUST be the highest bit!*/
 
 #define TRACING (cs->stack->flags & TRACE_ON)
@@ -182,12 +181,6 @@
 
 #ifndef HAVE_PERROR
 static void perror();          /* Fake system/library error print routine */
-#endif
-
-#ifdef SAFEMALLOC
-IMPORT int _sanity(const char *file,uint line); /* safemalloc sanity checker */
-#else
-#define _sanity(X,Y) (1)
 #endif
 
 /*
@@ -705,12 +698,6 @@ int DbugParse(CODE_STATE *cs, const char *control)
       else
         stack->flags |= TIMESTAMP_ON;
       break;
-    case 'S':
-      if (sign < 0)
-        stack->flags &= ~SANITY_CHECK_ON;
-      else
-        stack->flags |= SANITY_CHECK_ON;
-      break;
     }
     if (!*end)
       break;
@@ -1069,7 +1056,6 @@ int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
   op_bool_to_buf('r', cs->stack->sub_level != 0);
   op_intf_to_buf('t', cs->stack->maxdepth, MAXDEPTH, TRACING);
   op_bool_to_buf('T', cs->stack->flags & TIMESTAMP_ON);
-  op_bool_to_buf('S', cs->stack->flags & SANITY_CHECK_ON);
 
   *buf= '\0';
   return 0;
@@ -1187,8 +1173,6 @@ void _db_enter_(const char *_func_, const char *_file_,
     if (!TRACING) break;
     /* fall through */
   case DO_TRACE:
-    if ((cs->stack->flags & SANITY_CHECK_ON) && _sanity(_file_,_line_))
-      cs->stack->flags &= ~SANITY_CHECK_ON;
     if (TRACING)
     {
       if (!cs->locked)
@@ -1247,9 +1231,6 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
 #endif
   if (DoTrace(cs) & DO_TRACE)
   {
-    if ((cs->stack->flags & SANITY_CHECK_ON) &&
-        _sanity(_stack_frame_->file,_line_))
-      cs->stack->flags &= ~SANITY_CHECK_ON;
     if (TRACING)
     {
       if (!cs->locked)

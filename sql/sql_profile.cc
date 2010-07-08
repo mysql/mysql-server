@@ -177,8 +177,7 @@ PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg,
 
 PROF_MEASUREMENT::~PROF_MEASUREMENT()
 {
-  if (allocated_status_memory != NULL)
-    my_free(allocated_status_memory, MYF(0));
+  my_free(allocated_status_memory);
   status= function= file= NULL;
 }
 
@@ -268,8 +267,7 @@ QUERY_PROFILE::~QUERY_PROFILE()
   while (! entries.is_empty())
     delete entries.pop();
 
-  if (query_source != NULL)
-    my_free(query_source, MYF(0));
+  my_free(query_source);
 }
 
 /**

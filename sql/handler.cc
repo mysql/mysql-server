@@ -392,7 +392,7 @@ static int ha_finish_errors(void)
   /* Allocate a pointer array for the error message strings. */
   if (! (errmsgs= my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST)))
     return 1;
-  my_free((uchar*) errmsgs, MYF(0));
+  my_free(errmsgs);
   return 0;
 }
 
@@ -447,7 +447,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     hton2plugin[hton->slot]= NULL;
   }
 
-  my_free((uchar*)hton, MYF(0));
+  my_free(hton);
 
  end:
   DBUG_RETURN(0);
@@ -580,7 +580,7 @@ err_deinit:
     (void) plugin->plugin->deinit(NULL);
           
 err:
-  my_free((uchar*) hton, MYF(0));
+  my_free(hton);
 err_no_hton_memory:
   plugin->data= NULL;
   DBUG_RETURN(1);
@@ -1630,7 +1630,7 @@ int ha_recover(HASH *commit_list)
   plugin_foreach(NULL, xarecover_handlerton, 
                  MYSQL_STORAGE_ENGINE_PLUGIN, &info);
 
-  my_free((uchar*)info.list, MYF(0));
+  my_free(info.list);
   if (info.found_foreign_xids)
     sql_print_warning("Found %d prepared XA transactions", 
                       info.found_foreign_xids);
@@ -3658,7 +3658,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
-  my_free(frmblob, MYF(0));
+  my_free(frmblob);
   if (error)
     DBUG_RETURN(2);
 
@@ -4865,7 +4865,7 @@ int fl_log_iterator_next(struct handler_iterator *iterator,
 
 void fl_log_iterator_destroy(struct handler_iterator *iterator)
 {
-  my_free((uchar*)iterator->buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(iterator->buffer);
 }
 
 

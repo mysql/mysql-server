@@ -300,6 +300,6 @@ void mysql_client_binlog_statement(THD* thd)
 
 end:
   rli->slave_close_thread_tables(thd);
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buf);
   DBUG_VOID_RETURN;
 }

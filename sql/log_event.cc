@@ -1137,7 +1137,7 @@ err:
     sql_print_error("Error in Log_event::read_log_event(): "
                     "'%s', data_len: %lu, event_type: %d",
 		    error,data_len,head[EVENT_TYPE_OFFSET]);
-    my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(buf);
     /*
       The SQL slave thread will check if file->error<0 to know
       if there was an I/O error. Even if there is no "low-level" I/O errors
@@ -2054,7 +2054,7 @@ void Log_event::print_base64(IO_CACHE* file,
     }
   }
     
-  my_free(tmp_str, MYF(0));
+  my_free(tmp_str);
   DBUG_VOID_RETURN;
 }
 
@@ -2134,7 +2134,7 @@ void Query_log_event::pack_info(Protocol *protocol)
     pos+= q_len;
   }
   protocol->store(buf, pos-buf, &my_charset_bin);
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buf);
 }
 #endif
 
@@ -3953,7 +3953,7 @@ Format_description_log_event(const char* buf,
       DBUG_PRINT("info", (" number_of_event_types=%d",
                           number_of_event_types));
       /* this makes is_valid() return false. */
-      my_free(post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(post_header_len);
       post_header_len= NULL;
       DBUG_VOID_RETURN;
     }
@@ -4276,7 +4276,7 @@ void Load_log_event::pack_info(Protocol *protocol)
     return;
   print_query(TRUE, NULL, buf, &end, 0, 0);
   protocol->store(buf, end-buf, &my_charset_bin);
-  my_free(buf, MYF(0));
+  my_free(buf);
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
@@ -5548,7 +5548,7 @@ void User_var_log_event::pack_info(Protocol* protocol)
   buf[2+name_len]= '`';
   buf[3+name_len]= '=';
   protocol->store(buf, event_len, &my_charset_bin);
-  my_free(buf, MYF(0));
+  my_free(buf);
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -5963,7 +5963,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
 
 Slave_log_event::~Slave_log_event()
 {
-  my_free(mem_pool, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mem_pool);
 }
 
 
@@ -6788,7 +6788,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     {
       rli->report(ERROR_LEVEL, rli->last_error().number,
                   "%s. Failed executing load from '%s'", tmp, fname);
-      my_free(tmp,MYF(0));
+      my_free(tmp);
     }
     goto err;
   }
@@ -6993,7 +6993,7 @@ void Execute_load_query_log_event::pack_info(Protocol *protocol)
   pos= strmov(pos, " ;file_id=");
   pos= int10_to_str((long) file_id, pos, 10);
   protocol->store(buf, pos-buf, &my_charset_bin);
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buf);
 }
 
 
@@ -7009,7 +7009,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   buf= (char*) my_malloc(q_len + 1 - (fn_pos_end - fn_pos_start) +
                          (FN_REFLEN + 10) + 10 + 8 + 5, MYF(MY_WME));
 
-  DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf, MYF(0)); buf= NULL;);
+  DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error", my_free(buf); buf= NULL;);
 
   /* Replace filename and LOCAL keyword in query before executing it */
   if (buf == NULL)
@@ -7052,7 +7052,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   if (!error)
     mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
 
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buf);
   return error;
 }
 #endif
@@ -7317,7 +7317,7 @@ Rows_log_event::~Rows_log_event()
   if (m_cols.bitmap == m_bitbuf) // no my_malloc happened
     m_cols.bitmap= 0; // so no my_free in bitmap_free
   bitmap_free(&m_cols); // To pair with bitmap_init().
-  my_free((uchar*)m_rows_buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_rows_buf);
 }
 
 int Rows_log_event::get_data_size()
@@ -8241,8 +8241,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
 Table_map_log_event::~Table_map_log_event()
 {
-  my_free(m_meta_memory, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_meta_memory);
+  my_free(m_memory);
 }
 
 /*
@@ -8292,7 +8292,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
       (!rpl_filter->db_ok(table_list->db) ||
        (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
   {
-    my_free(memory, MYF(MY_WME));
+    my_free(memory);
   }
   else
   {
@@ -9347,7 +9347,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   m_table->file->ha_index_or_rnd_end();
-  my_free(m_key, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_key);
   m_key= NULL;
 
   return error;
@@ -9470,7 +9470,7 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   m_table->file->ha_index_or_rnd_end();
-  my_free(m_key, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
+  my_free(m_key); // Free for multi_malloc
   m_key= NULL;
 
   return error;
