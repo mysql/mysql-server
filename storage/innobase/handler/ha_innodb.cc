@@ -8008,7 +8008,7 @@ ha_innobase::info(
 }
 
 /**********************************************************************//**
-Updates index cardinalities of the table, based on 8 random dives into
+Updates index cardinalities of the table, based on random dives into
 each index tree. This does NOT calculate exact statistics on the table.
 @return	HA_ADMIN_* error code or HA_ADMIN_OK */
 UNIV_INTERN
