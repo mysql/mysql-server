@@ -74,7 +74,7 @@ mapped_files::~mapped_files()
     (void) mysql_file_close(file, MYF(0));
     file= -1; map=0;
   }
-  my_free(name,MYF(0));
+  my_free(name);
 #endif
 }
 

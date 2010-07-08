@@ -388,7 +388,7 @@ public:
   ~Sys_var_charptr()
   {
     if (flags & ALLOCATED)
-      my_free(global_var(char*), MYF(MY_ALLOW_ZERO_PTR));
+      my_free(global_var(char*));
     flags&= ~ALLOCATED;
   }
   bool do_check(THD *thd, set_var *var)
@@ -435,7 +435,7 @@ public:
     else
       new_val= 0;
     if (flags & ALLOCATED)
-      my_free(global_var(char*), MYF(MY_ALLOW_ZERO_PTR));
+      my_free(global_var(char*));
     flags|= ALLOCATED;
     global_var(char*)= new_val;
     return false;

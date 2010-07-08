@@ -1019,7 +1019,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
                                  ptrdiff);
     if (ret != 0)
     {
-      my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(blobs_buffer);
       DBUG_PRINT("info", ("blob read error"));
       DBUG_ASSERT(FALSE);
     }
@@ -1070,7 +1070,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
   field++;
   s->type= ((Field_long *)*field)->val_int();
   /* free blobs buffer */
-  my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(blobs_buffer);
   dbug_tmp_restore_column_map(table->read_set, old_map);
 }
 
@@ -1738,7 +1738,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
           old->getObjectVersion() != altered_table->getObjectVersion())
         dict->putTable(altered_table);
       
-      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(data);
       data= NULL;
       if ((error= unpackfrm(&data, &length,
                             (const uchar*) altered_table->getFrmData())) ||
@@ -1771,8 +1771,8 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
 
       mysql_mutex_unlock(&LOCK_open);
     }
-    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(data);
+    my_free(pack_data);
   }
 
   // If only frm was changed continue replicating
@@ -3506,8 +3506,8 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
 
   if (share->flags & NSF_BLOB_FLAG)
   {
-    my_free(blobs_buffer[0], MYF(MY_ALLOW_ZERO_PTR));
-    my_free(blobs_buffer[1], MYF(MY_ALLOW_ZERO_PTR));
+    my_free(blobs_buffer[0]);
+    my_free(blobs_buffer[1]);
   }
 
   return 0;
@@ -3579,7 +3579,7 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     ndb_schema_object->key_length= length;
     if (my_hash_insert(&ndb_schema_objects, (uchar*) ndb_schema_object))
     {
-      my_free((uchar*) ndb_schema_object, 0);
+      my_free(ndb_schema_object);
       break;
     }
     mysql_mutex_init(key_ndb_schema_object_mutex, &ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
@@ -3611,7 +3611,7 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
     my_hash_delete(&ndb_schema_objects, (uchar*) *ndb_schema_object);
     mysql_mutex_destroy(&(*ndb_schema_object)->mutex);
-    my_free((uchar*) *ndb_schema_object, MYF(0));
+    my_free(*ndb_schema_object);
     *ndb_schema_object= 0;
   }
   else

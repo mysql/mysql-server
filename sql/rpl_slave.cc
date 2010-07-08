@@ -1155,7 +1155,7 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
   }
 err:
   if (buf_act != buf)
-    my_free(buf_act, MYF(0));
+    my_free(buf_act);
   DBUG_RETURN(ret);
 }
 
@@ -3935,7 +3935,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
 
@@ -3972,7 +3972,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     mi->master_log_pos += inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
     mysql_mutex_unlock(&mi->data_lock);
-    my_free((char*)tmp_buf, MYF(0));
+    my_free(tmp_buf);
     DBUG_RETURN(error);
   }
   default:
@@ -4023,7 +4023,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
   mysql_mutex_lock(&mi->data_lock);

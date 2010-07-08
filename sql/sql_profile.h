@@ -82,7 +82,7 @@ public:
     for (i= first; i != NULL; i= after_i)
     {
       after_i= i->next;
-      my_free((char *) i, MYF(0));
+      my_free(i);
     }
     elements= 0;
   }
@@ -129,7 +129,7 @@ public:
       last= NULL;
     first= first->next;
 
-    my_free((char *)old_item, MYF(0));
+    my_free(old_item);
     elements--;
 
     return ret;

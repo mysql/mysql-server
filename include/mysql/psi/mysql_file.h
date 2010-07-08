@@ -800,7 +800,7 @@ inline_mysql_file_fopen(
 #endif
       if (unlikely(that->m_file == NULL))
       {
-        my_free(that, MYF(0));
+        my_free(that);
         return NULL;
       }
     }
@@ -834,7 +834,7 @@ inline_mysql_file_fclose(
     if (likely(locker != NULL))
       PSI_server->end_file_wait(locker, (size_t) 0);
 #endif
-    my_free(file, MYF(0));
+    my_free(file);
   }
   return result;
 }

@@ -338,7 +338,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   DBUG_ASSERT(cache_mngr->trx_cache.empty() && cache_mngr->stmt_cache.empty());
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
-  my_free((uchar*)cache_mngr, MYF(0));
+  my_free(cache_mngr);
   return 0;
 }
 
@@ -1685,7 +1685,8 @@ shutdown the MySQL server and restart it.", name, errno);
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
   end_io_cache(&index_file);
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   log_state= LOG_CLOSED;
   DBUG_RETURN(1);
 }
@@ -2001,7 +2002,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0, FALSE))
     open(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE);
-  my_free((uchar*) save_name, MYF(0));
+  my_free((void *) save_name);
 
 err:
   if (error == 1)
@@ -2145,7 +2146,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   DBUG_ASSERT(!included || rli->linfo.index_file_start_offset == 0);
 
 err:
-  my_free(to_purge_if_included, MYF(0));
+  my_free(to_purge_if_included);
   mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
@@ -2785,7 +2786,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   if (!open_index_file(index_file_name, 0, FALSE))
     open(old_name, log_type, new_name_ptr,
          io_cache_type, no_auto_events, max_size, 1, FALSE);
-  my_free(old_name,MYF(0));
+  my_free(old_name);
 
 end:
   if (need_lock)
@@ -3619,7 +3620,8 @@ void MYSQL_BIN_LOG::close(uint exiting)
     }
   }
   log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -3857,7 +3859,7 @@ int THD::binlog_setup_trx_data()
       open_cached_file(&cache_mngr->trx_cache.cache_log, mysql_tmpdir,
                        LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
   {
-    my_free((uchar*)cache_mngr, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(cache_mngr);
     DBUG_RETURN(1);                      // Didn't manage to set it up
   }
   thd_set_ha_data(this, binlog_hton, cache_mngr);
@@ -4693,7 +4695,7 @@ CPP_UNNAMED_NS_START
     ~Row_data_memory()
     {
       if (m_memory != 0 && m_release_memory_on_destruction)
-        my_free((uchar*) m_memory, MYF(MY_WME));
+        my_free(m_memory);
     }
 
     /**

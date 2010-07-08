@@ -383,7 +383,7 @@ void free_table_ent(void* a)
 {
   TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
   
-  my_free((uchar*) e, MYF(0));
+  my_free(e);
 }
 
 
@@ -434,7 +434,7 @@ Rpl_filter::free_string_array(DYNAMIC_ARRAY *a)
   {
     char* p;
     get_dynamic(a, (uchar*) &p, i);
-    my_free(p, MYF(MY_WME));
+    my_free(p);
   }
   delete_dynamic(a);
 }

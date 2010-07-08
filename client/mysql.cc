@@ -1205,7 +1205,7 @@ int main(int argc,char *argv[])
           strncmp(link_name, "/dev/null", 10) == 0)
       {
         /* The .mysql_history file is a symlink to /dev/null, don't use it */
-        my_free(histfile, MYF(MY_ALLOW_ZERO_PTR));
+        my_free(histfile);
         histfile= 0;
       }
     }
@@ -1266,23 +1266,23 @@ sig_handler mysql_end(int sig)
   glob_buffer.free();
   old_buffer.free();
   processed_prompt.free();
-  my_free(server_version,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_mysql_unix_port,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(histfile,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(histfile_tmp,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(default_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(server_version);
+  my_free(opt_password);
+  my_free(opt_mysql_unix_port);
+  my_free(histfile);
+  my_free(histfile_tmp);
+  my_free(current_db);
+  my_free(current_host);
+  my_free(current_user);
+  my_free(full_username);
+  my_free(part_username);
+  my_free(default_prompt);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
-  my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_prompt);
   while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
+    my_free(embedded_server_args[--embedded_server_arg_count]);
   mysql_server_end();
   free_defaults(defaults_argv);
   my_end(my_end_arg);
@@ -1736,7 +1736,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start= argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		// Destroy argument
       if (*start)
@@ -1833,7 +1833,7 @@ static int get_options(int argc, char **argv)
   if (argc == 1)
   {
     skip_updates= 0;
-    my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(current_db);
     current_db= my_strdup(*argv, MYF(MY_WME));
   }
   if (tty_password)
@@ -2731,7 +2731,7 @@ static void get_current_db()
 {
   MYSQL_RES *res;
 
-  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_db);
   current_db= NULL;
   /* In case of error below current_db will be NULL */
   if (!mysql_query(&mysql, "SELECT DATABASE()") &&
@@ -4023,12 +4023,12 @@ com_connect(String *buffer, char *line)
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
-      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(current_db);
       current_db= my_strdup(tmp, MYF(MY_WME));
       tmp= get_arg(buff, 1);
       if (tmp)
       {
-	my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
+	my_free(current_host);
 	current_host=my_strdup(tmp,MYF(MY_WME));
       }
     }
@@ -4200,7 +4200,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
       if (mysql_select_db(&mysql,tmp))
         return put_error(&mysql);
     }
-    my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(current_db);
     current_db=my_strdup(tmp,MYF(MY_WME));
 #ifdef HAVE_READLINE
     if (select_db > 1)
@@ -4952,8 +4952,8 @@ static void add_int_to_prompt(int toadd)
 
 static void init_username()
 {
-  my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(full_username);
+  my_free(part_username);
 
   MYSQL_RES *result;
   LINT_INIT(result);
@@ -4971,7 +4971,7 @@ static int com_prompt(String *buffer, char *line)
 {
   char *ptr=strchr(line, ' ');
   prompt_counter = 0;
-  my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_prompt);
   current_prompt=my_strdup(ptr ? ptr+1 : default_prompt,MYF(MY_WME));
   if (!ptr)
     tee_fprintf(stdout, "Returning to default PROMPT of %s\n", default_prompt);

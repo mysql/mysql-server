@@ -212,7 +212,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   if (is_real_trans && log_info)
   {
     my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info, MYF(0));
+    my_free(log_info);
   }
   return ret;
 }
@@ -240,7 +240,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
   if (is_real_trans && log_info)
   {
     my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info, MYF(0));
+    my_free(log_info);
   }
   return ret;
 }

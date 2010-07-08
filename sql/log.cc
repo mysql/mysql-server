@@ -1431,7 +1431,8 @@ shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   log_state= LOG_CLOSED;
   DBUG_RETURN(1);
 }
@@ -1492,7 +1493,8 @@ void MYSQL_LOG::close(uint exiting)
   }
 
   log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -1570,7 +1572,7 @@ void MYSQL_QUERY_LOG::reopen_file()
   */
 
   open(save_name, log_type, 0, io_cache_type);
-  my_free(save_name, MYF(0));
+  my_free(save_name);
 
   mysql_mutex_unlock(&LOCK_log);
 
@@ -2592,7 +2594,7 @@ void TC_LOG_MMAP::close()
       mysql_cond_destroy(&pages[i].cond);
     }
   case 3:
-    my_free((uchar*)pages, MYF(0));
+    my_free(pages);
   case 2:
     my_munmap((char*)data, (size_t)file_length);
   case 1:

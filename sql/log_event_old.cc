@@ -1017,7 +1017,7 @@ int Delete_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   table->file->ha_index_or_rnd_end();
-  my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
+  my_free(m_memory); // Free for multi_malloc
   m_memory= NULL;
   m_after_image= NULL;
   m_key= NULL;
@@ -1116,7 +1116,7 @@ int Update_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   table->file->ha_index_or_rnd_end();
-  my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_memory);
   m_memory= NULL;
   m_after_image= NULL;
   m_key= NULL;
@@ -1360,7 +1360,7 @@ Old_rows_log_event::~Old_rows_log_event()
   if (m_cols.bitmap == m_bitbuf) // no my_malloc happened
     m_cols.bitmap= 0; // so no my_free in bitmap_free
   bitmap_free(&m_cols); // To pair with bitmap_init().
-  my_free((uchar*)m_rows_buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_rows_buf);
 }
 
 
@@ -2698,7 +2698,7 @@ Delete_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabil
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   m_table->file->ha_index_or_rnd_end();
-  my_free(m_key, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_key);
   m_key= NULL;
 
   return error;
@@ -2797,7 +2797,7 @@ Update_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabil
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   m_table->file->ha_index_or_rnd_end();
-  my_free(m_key, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
+  my_free(m_key); // Free for multi_malloc
   m_key= NULL;
 
   return error;

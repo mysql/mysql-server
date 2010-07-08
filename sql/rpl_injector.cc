@@ -59,7 +59,7 @@ injector::transaction::~transaction()
   */
   *the_memory= '\0';
 
-  my_free(the_memory, MYF(0));
+  my_free(the_memory);
 }
 
 /**

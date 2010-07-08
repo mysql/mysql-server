@@ -3180,7 +3180,6 @@ sub start_run_one ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/$run.test");
 
   my $errfile= "$opt_vardir/tmp/$name.err";
@@ -3759,25 +3758,6 @@ sub extract_server_log ($$) {
   }
   $Ferr = undef; # Close error log file
 
-  # mysql_client_test.test sends a COM_DEBUG packet to the server
-  # to provoke a SAFEMALLOC leak report, ignore any warnings
-  # between "Begin/end safemalloc memory dump"
-  if ( grep(/Begin safemalloc memory dump:/, @lines) > 0)
-  {
-    my $discard_lines= 1;
-    foreach my $line ( @lines )
-    {
-      if ($line =~ /Begin safemalloc memory dump:/){
-	$discard_lines = 1;
-      } elsif ($line =~ /End safemalloc memory dump./){
-	$discard_lines = 0;
-      }
-
-      if ($discard_lines){
-	$line = "ignored";
-      }
-    }
-  }
   return @lines;
 }
 
@@ -3873,8 +3853,6 @@ sub start_check_warnings ($$) {
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-
-  mtr_add_arg($args, "--loose-skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
   if ( $opt_embedded_server )
@@ -4305,8 +4283,6 @@ sub mysqld_arguments ($$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "--loose-skip-safemalloc");
-
     if ( $mysql_version_id < 50100 )
     {
       mtr_add_arg($args, "--skip-bdb");
@@ -4900,9 +4876,6 @@ sub start_check_testcase ($$$) {
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-
-  mtr_add_arg($args, "--skip-safemalloc");
-
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
@@ -4943,7 +4916,6 @@ sub start_mysqltest ($) {
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
