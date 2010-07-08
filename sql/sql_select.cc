@@ -18295,7 +18295,9 @@ static bool test_if_ref(Item *root_cond,
   // No need to change const test
   if (!field->table->const_table && join_tab &&
       (!join_tab->first_inner ||
-       *join_tab->first_inner->on_expr_ref == root_cond))
+       *join_tab->first_inner->on_expr_ref == root_cond) &&
+      /* "ref_or_null" implements "x=y or x is null", not "x=y" */
+      (join_tab->type != JT_REF_OR_NULL))
   {
     Item *ref_item=part_of_refkey(field->table,field);
     if (ref_item && ref_item->eq(right_item,1))

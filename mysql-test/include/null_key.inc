@@ -263,3 +263,15 @@ SELECT * FROM t2 inner join t1 WHERE ( t1.a = 0 OR t1.a IS NULL) AND t2.a = 3 AN
 drop table t1, t2;
 -- echo End of 5.0 tests
 
+--echo #
+--echo # Bug#54608 Query using IN + OR + IS TRUE and IS NULL returns
+--echo # NULL when should be empty
+--echo #
+
+CREATE TABLE t1 (a INT, KEY (a));
+INSERT INTO t1 VALUES (1), (2), (NULL);
+explain SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
+SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
+explain SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
+SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
+drop table t1;
