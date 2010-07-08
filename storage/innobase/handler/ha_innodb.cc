@@ -7137,7 +7137,8 @@ ha_innobase::delete_table(
 	persistent storage if it exists and if there are stats for this
 	table in there. This function creates its own trx and commits
 	it. */
-	error = dict_stats_drop_table(norm_name, errstr, sizeof(errstr));
+	error = dict_stats_delete_table_stats(norm_name,
+					      errstr, sizeof(errstr));
 	if (error != DB_SUCCESS) {
 		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			     ER_LOCK_WAIT_TIMEOUT, errstr);

@@ -1201,8 +1201,10 @@ ha_innobase::final_drop_index(
 			enum db_err	ret;
 			char		errstr[1024];
 
-			ret = dict_stats_drop_index(index, prebuilt->trx,
-						    errstr, sizeof(errstr));
+			ret = dict_stats_delete_index_stats(
+				index, prebuilt->trx,
+				errstr, sizeof(errstr));
+
 			if (ret != DB_SUCCESS) {
 				push_warning(user_thd,
 					     MYSQL_ERROR::WARN_LEVEL_WARN,

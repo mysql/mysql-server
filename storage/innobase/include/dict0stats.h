@@ -79,8 +79,8 @@ index.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 enum db_err
-dict_stats_drop_index(
-/*==================*/
+dict_stats_delete_index_stats(
+/*==========================*/
 	dict_index_t*	index,	/*!< in: index */
 	trx_t*		trx,	/*!< in: transaction to use */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
@@ -94,8 +94,8 @@ This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 enum db_err
-dict_stats_drop_table(
-/*==================*/
+dict_stats_delete_table_stats(
+/*==========================*/
 	const char*	table_name,	/*!< in: table name */
 	char*		errstr,		/*!< out: error message
 					if != DB_SUCCESS is returned */
