@@ -2726,7 +2726,6 @@ commit_and_return:
 /* @} */
 
 /* tests @{ */
-#define UNIV_COMPILE_TEST_FUNCS
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
 /* test_dict_stats_table_check() @{ */
