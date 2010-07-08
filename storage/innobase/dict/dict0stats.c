@@ -2530,18 +2530,20 @@ dict_stats_delete_index_stats(
 
 	/* do not to commit here, see the function's comment */
 
-	ut_a(ret == DB_SUCCESS || ret == DB_LOCK_WAIT_TIMEOUT);
-
-	if (ret == DB_LOCK_WAIT_TIMEOUT) {
+	if (ret != DB_SUCCESS) {
 
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable to instantly delete statistics for index "
-			    "%s from %s because the rows are locked. They can "
-			    "be deleted later using DELETE FROM %s WHERE "
+			    "Unable to delete statistics for index %s "
+			    "from %s%s. They can be deleted later using "
+			    "DELETE FROM %s WHERE "
 			    "database_name = '%s' AND "
 			    "table_name = '%s' AND "
 			    "index_name = '%s';",
-			    index->name, INDEX_STATS_NAME_PRINT,
+			    index->name,
+			    INDEX_STATS_NAME_PRINT,
+			    (ret == DB_LOCK_WAIT_TIMEOUT
+			     ? " because the rows are locked"
+			     : ""),
 			    INDEX_STATS_NAME_PRINT,
 			    database_name,
 			    table_name,
@@ -2674,13 +2676,11 @@ dict_stats_delete_table_stats(
 
 	/* pinfo is freed by que_eval_sql() */
 
-	ut_a(ret == DB_SUCCESS || ret == DB_LOCK_WAIT_TIMEOUT);
-
-	if (ret == DB_LOCK_WAIT_TIMEOUT) {
+	if (ret != DB_SUCCESS) {
 
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable to instantly delete statistics for table "
-			    "%s.%s from %s or %s because the rows are locked. "
+			    "Unable to delete statistics for table %s.%s "
+			    "from %s or %s%s. "
 			    "They can be deleted later using "
 
 			    "DELETE FROM %s WHERE "
@@ -2693,6 +2693,10 @@ dict_stats_delete_table_stats(
 
 			    database_name, table_name_strip,
 			    TABLE_STATS_NAME_PRINT, INDEX_STATS_NAME_PRINT,
+
+			    (ret == DB_LOCK_WAIT_TIMEOUT
+			     ? " because the rows are locked"
+			     : ""),
 
 			    INDEX_STATS_NAME_PRINT,
 			    database_name, table_name_strip,
