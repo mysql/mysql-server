@@ -2437,12 +2437,12 @@ rolling back dict transactions.
 marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
-dict_stats_drop_index() @{
+dict_stats_delete_index_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 enum db_err
-dict_stats_drop_index(
-/*==================*/
+dict_stats_delete_index_stats(
+/*==========================*/
 	dict_index_t*	index,	/*!< in: index */
 	trx_t*		trx,	/*!< in: transaction to use */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
@@ -2563,12 +2563,12 @@ dict_stats_drop_index(
 Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
 the table.  This function creates its own transaction and commits it.
-dict_stats_drop_table() @{
+dict_stats_delete_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 enum db_err
-dict_stats_drop_table(
-/*==================*/
+dict_stats_delete_table_stats(
+/*==========================*/
 	const char*	table_name,	/*!< in: table name */
 	char*		errstr,		/*!< out: error message
 					if != DB_SUCCESS is returned */
