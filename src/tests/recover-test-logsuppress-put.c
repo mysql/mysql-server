@@ -89,8 +89,7 @@ static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *de
 static void 
 load(DB **dbs) {
     int r;
-    DB_TXN    *ptxn = NULL;
-    DB_TXN    *txn = NULL;
+    DB_TXN    *txn;
     DB_LOADER *loader;
     uint32_t db_flags[MAX_DBS];
     uint32_t dbt_flags[MAX_DBS];
@@ -98,12 +97,10 @@ load(DB **dbs) {
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = 0;
+    uint32_t loader_flags = LOADER_USE_PUTS;
 
     // create and initialize loader
-    r = env->txn_begin(env, NULL, &ptxn, 0);
-    CKERR(r);
-    r = env->txn_begin(env, ptxn, &txn, 0);                                                               
+    r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
     r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
     CKERR(r);
@@ -120,12 +117,6 @@ load(DB **dbs) {
 	CKERR(r);
     }
 
-    // close loader
-    r = loader->close(loader);
-    CKERR(r);
-
-    r = txn->commit(txn, 0);
-    CKERR(r);
 }
 
 

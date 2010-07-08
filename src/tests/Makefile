@@ -125,6 +125,7 @@ BDB_DONTRUN_TESTS = \
         recover-split-checkpoint \
         recover-tablelock \
 	recover-test-logsuppress \
+	recover-test-logsuppress-put \
 	recover-upgrade-db-descriptor-multihandle \
 	recover-upgrade-db-descriptor \
         recovery_fileops_stress \
