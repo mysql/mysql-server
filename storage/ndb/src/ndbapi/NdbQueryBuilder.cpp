@@ -1918,6 +1918,7 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
 {
   Uint32 appendedPattern = 0;
 
+  // Append BoundType as a constant value
   serializedDef.append(QueryPattern::data(1));
   serializedDef.append(type);
 
@@ -1948,26 +1949,27 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
     }
     case NdbQueryOperandImpl::Const:
     {
-      assert(false);  // Untested code.
-                      // We likely have to append an 'AttributeHeader'
-
       appendedPattern |= DABits::NI_KEY_CONSTS;
       const NdbConstOperandImpl& constOp = *static_cast<const NdbConstOperandImpl*>(value);
      
       // No of words needed for storing the constant data.
       const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
-      // Set type and length in words of key pattern field. 
-      serializedDef.append(QueryPattern::data(wordCount));
+
+      // Build the AttributeHeader for const value
+      // (AttributeId is later filled in by SPJ in Dbspj::scanIndex_fixupBound())
+      AttributeHeader ah(0, constOp.getSizeInBytes());
+
+      // Constant is then appended as AttributeHeader + const-value
+      serializedDef.append(QueryPattern::data(1+ah.getDataSize()));
+      serializedDef.append(ah.m_value);
       serializedDef.append(constOp.getAddr(),constOp.getSizeInBytes());
       break;
     }
     case NdbQueryOperandImpl::Param:
     {
-      assert(false);  // Untested code.
-                      // We likely have to append an 'AttributeHeader'
-
       appendedPattern |= DABits::NI_KEY_PARAMS;
-      serializedDef.append(QueryPattern::param(paramCnt++));
+//    serializedDef.append(QueryPattern::param(paramCnt++));
+      serializedDef.append(QueryPattern::paramHeader(paramCnt++));
       break;
     }
     default:

@@ -5003,6 +5003,21 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
 }
 
 Uint32
+Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
+                                const RowPtr::Linear & row, Uint32 col)
+{
+  /**
+   * TODO handle errors
+   */
+  Uint32 offset = row.m_header->m_offset[col];
+  const Uint32 * ptr = row.m_data + offset;
+  Uint32 len = AttributeHeader::getDataSize(*ptr);
+  /* Param COL's converted to DATA when appended to pattern */
+  Uint32 info = QueryPattern::data(len+1);
+  return dst.append(&info,1) && dst.append(ptr,len+1) ? 0 : DbspjErr::OutOfQueryMemory;
+}
+
+Uint32
 Dbspj::appendTreeToSection(Uint32 & ptrI, SectionReader & tree, Uint32 len)
 {
   /**
@@ -5602,21 +5617,17 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
       break;
     case QueryPattern::P_PARAM:
       jam();
-      // NOTE: Converted to P_DATA by appendColToPattern
+      // NOTE: Converted to P_DATA by appendParamToPattern
       ndbassert(val < paramCnt);
       err = appendParamToPattern(dst, row, val);
       pattern.ptr++;
       break;
     case QueryPattern::P_PARAM_HEADER:
       jam();
-#if 0
-      // NOTE: Converted to P_DATA by appendParamToPattern
+      // NOTE: Converted to P_DATA by appendParamHeadToPattern
       ndbassert(val < paramCnt);
       err = appendParamHeadToPattern(dst, row, val);
       pattern.ptr++;
-#else
-      ndbrequire(false);
-#endif
       break;
     case QueryPattern::P_PARENT: // Prefix to P_COL
     {
