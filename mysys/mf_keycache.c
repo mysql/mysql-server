@@ -446,7 +446,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
         if ((keycache->block_root= (BLOCK_LINK*) my_malloc(length,
                                                            MYF(0))))
           break;
-        my_large_free(keycache->block_mem, MYF(0));
+        my_large_free(keycache->block_mem);
         keycache->block_mem= 0;
       }
       if (blocks < 8)
@@ -521,12 +521,12 @@ err:
   keycache->blocks=  0;
   if (keycache->block_mem)
   {
-    my_large_free((uchar*) keycache->block_mem, MYF(0));
+    my_large_free((uchar*) keycache->block_mem);
     keycache->block_mem= NULL;
   }
   if (keycache->block_root)
   {
-    my_free((uchar*) keycache->block_root, MYF(0));
+    my_free(keycache->block_root);
     keycache->block_root= NULL;
   }
   my_errno= error;
@@ -747,9 +747,9 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
   {
     if (keycache->block_mem)
     {
-      my_large_free((uchar*) keycache->block_mem, MYF(0));
+      my_large_free((uchar*) keycache->block_mem);
       keycache->block_mem= NULL;
-      my_free((uchar*) keycache->block_root, MYF(0));
+      my_free(keycache->block_root);
       keycache->block_root= NULL;
     }
     keycache->disk_blocks= -1;
@@ -4080,7 +4080,7 @@ restart:
 #endif
 err:
   if (cache != cache_buff)
-    my_free((uchar*) cache, MYF(0));
+    my_free(cache);
   if (last_errno)
     errno=last_errno;                /* Return first error */
   DBUG_RETURN(last_errno != 0);

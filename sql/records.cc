@@ -293,7 +293,7 @@ void end_read_record(READ_RECORD *info)
 {                   /* free cache if used */
   if (info->cache)
   {
-    my_free_lock((char*) info->cache,MYF(0));
+    my_free_lock(info->cache);
     info->cache=0;
   }
   if (info->table)

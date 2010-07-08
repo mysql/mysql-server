@@ -77,7 +77,7 @@ void my_dirend(MY_DIR *buffer)
                                     ALIGN_SIZE(sizeof(MY_DIR))));
     free_root((MEM_ROOT*)((char*)buffer + ALIGN_SIZE(sizeof(MY_DIR)) + 
                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY))), MYF(0));
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
   }
   DBUG_VOID_RETURN;
 } /* my_dirend */
@@ -131,7 +131,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
     goto error;
   }
   init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
@@ -400,7 +400,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
     goto error;
   }
   init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
@@ -547,7 +547,7 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
   DBUG_PRINT("error",("Got errno: %d from stat", errno));
   my_errno= errno;
   if (m_used)					/* Free if new area */
-    my_free((uchar*) stat_area,MYF(0));
+    my_free(stat_area);
 
 error:
   if (my_flags & (MY_FAE+MY_WME))
