@@ -724,8 +724,7 @@ dict_table_get(
 			print an error message and return without doing
 			anything. */
 			ut_ad(!mutex_own(&dict_sys->mutex));
-			dict_stats_update(table, DICT_STATS_UPD_FETCH,
-					  FALSE);
+			dict_stats_update(table, DICT_STATS_FETCH, FALSE);
 		}
 	}
 
@@ -4283,7 +4282,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_stats_update(table, DICT_STATS_UPD_FETCH, TRUE);
+	dict_stats_update(table, DICT_STATS_FETCH, TRUE);
 
 	fprintf(stderr,
 		"--------------------------------------\n"

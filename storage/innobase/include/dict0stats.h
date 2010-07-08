@@ -33,20 +33,20 @@ Created Jan 06, 2010 Vasil Dimov
 #include "trx0types.h"
 
 enum dict_stats_upd_option {
-	DICT_STATS_UPD_RECALC_PERSISTENT,/* (re)calculate the
+	DICT_STATS_RECALC_PERSISTENT,/* (re)calculate the
 				statistics using a precise and slow
 				algo and save them to the persistent
 				storage, if the persistent storage is
 				not present then emit a warning and
 				fall back to transient stats */
-	DICT_STATS_UPD_RECALC_PERSISTENT_SILENT,/* same as
-				DICT_STATS_UPD_RECALC_PERSISTENT
+	DICT_STATS_RECALC_PERSISTENT_SILENT,/* same as
+				DICT_STATS_RECALC_PERSISTENT
 				but do not emit a warning */
-	DICT_STATS_UPD_RECALC_TRANSIENT,/* (re)calculate the statistics
+	DICT_STATS_RECALC_TRANSIENT,/* (re)calculate the statistics
 				using an imprecise quick algo
 				without saving the results
 				persistently */
-	DICT_STATS_UPD_FETCH	/* fetch the statistics from the
+	DICT_STATS_FETCH	/* fetch the statistics from the
 				persistent storage */
 };
 

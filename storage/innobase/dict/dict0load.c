@@ -348,7 +348,7 @@ dict_process_sys_tables_rec(
 		/* Update statistics member fields in *table if
 		DICT_TABLE_UPDATE_STATS is set */
 		ut_ad(mutex_own(&dict_sys->mutex));
-		dict_stats_update(*table, DICT_STATS_UPD_FETCH, TRUE);
+		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
 	}
 
 	return(NULL);

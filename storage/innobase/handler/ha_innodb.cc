@@ -8005,7 +8005,7 @@ ha_innobase::info(
 /*==============*/
 	uint flag)	/*!< in: what information MySQL requests */
 {
-	return(info_low(flag, DICT_STATS_UPD_FETCH));
+	return(info_low(flag, DICT_STATS_FETCH));
 }
 
 /**********************************************************************//**
@@ -8023,9 +8023,9 @@ ha_innobase::analyze(
 	int			ret;
 
 	if (THDVAR(thd, analyze_is_persistent)) {
-		upd_option = DICT_STATS_UPD_RECALC_PERSISTENT;
+		upd_option = DICT_STATS_RECALC_PERSISTENT;
 	} else {
-		upd_option = DICT_STATS_UPD_RECALC_TRANSIENT;
+		upd_option = DICT_STATS_RECALC_TRANSIENT;
 	}
 
 	/* Simply call ::info_low() with all the flags

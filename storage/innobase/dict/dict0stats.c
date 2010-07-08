@@ -2325,8 +2325,8 @@ dict_stats_update(
 	}
 
 	switch (stats_upd_option) {
-	case DICT_STATS_UPD_RECALC_PERSISTENT:
-	case DICT_STATS_UPD_RECALC_PERSISTENT_SILENT:
+	case DICT_STATS_RECALC_PERSISTENT:
+	case DICT_STATS_RECALC_PERSISTENT_SILENT:
 		/* Persistent recalculation requested, called from
 		ANALYZE TABLE or from TRUNCATE TABLE */
 
@@ -2349,8 +2349,7 @@ dict_stats_update(
 			/* Fall back to transient stats since the persistent
 			storage is not present or is corrupted */
 
-			if (stats_upd_option
-			    == DICT_STATS_UPD_RECALC_PERSISTENT) {
+			if (stats_upd_option == DICT_STATS_RECALC_PERSISTENT) {
 
 				ut_print_timestamp(stderr);
 				/* XXX add link to the doc about storage
@@ -2371,14 +2370,14 @@ dict_stats_update(
 
 		break;
 
-	case DICT_STATS_UPD_RECALC_TRANSIENT:
+	case DICT_STATS_RECALC_TRANSIENT:
 
 		dict_stats_update_transient(table);
 		ret = DB_SUCCESS;
 
 		break;
 
-	case DICT_STATS_UPD_FETCH:
+	case DICT_STATS_FETCH:
 		/* fetch requested, either fetch from persistent statistics
 		storage or use the old method */
 
