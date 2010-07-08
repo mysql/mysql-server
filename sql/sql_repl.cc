@@ -94,7 +94,7 @@ static uint8 get_binlog_checksum_value_at_connect(THD * thd)
 
   DBUG_ENTER("get_binlog_checksum_value_at_connect");
   user_var_entry *entry= get_binlog_checksum_uservar(thd);
-  if (!entry || thd->server_id == 0)
+  if (!entry)
   {
     ret= BINLOG_CHECKSUM_ALG_UNDEF;
   }
