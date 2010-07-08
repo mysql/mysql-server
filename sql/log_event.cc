@@ -2412,6 +2412,8 @@ bool Query_log_event::write(IO_CACHE* file)
 Query_log_event::Query_log_event()
   :Log_event(), data_buf(0)
 {
+  memset(&user, 0, sizeof(user));
+  memset(&host, 0, sizeof(host));
 }
 
 
@@ -2453,6 +2455,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    master_data_written(0)
 {
   time_t end_time;
+
+  memset(&user, 0, sizeof(user));
+  memset(&host, 0, sizeof(host));
 
   error_code= errcode;
 
@@ -2860,13 +2865,13 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, 1);
       user.length= *pos++;
       CHECK_SPACE(pos, end, user.length);
-      user.str= my_strndup((const char *)pos, user.length, MYF(0));
+      user.str= (char *)pos;
       pos+= user.length;
 
       CHECK_SPACE(pos, end, 1);
       host.length= *pos++;
       CHECK_SPACE(pos, end, host.length);
-      host.str= my_strndup((const char *)pos, host.length, MYF(0));
+      host.str= (char *)pos;
       pos+= host.length;
     }
     default:
@@ -2882,12 +2887,16 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                               time_zone_len + 1 +
                                               data_len + 1 +
                                               QUERY_CACHE_FLAGS_SIZE +
+                                              user.length + 1 +
+                                              host.length + 1 +
                                               db_len + 1,
                                               MYF(MY_WME))))
 #else
   if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
                                              time_zone_len + 1 +
-                                             data_len + 1,
+                                             data_len + 1 +
+                                             user.length + 1 +
+                                             host.length + 1,
                                              MYF(MY_WME))))
 #endif
       DBUG_VOID_RETURN;
@@ -2909,6 +2918,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   }
   if (time_zone_len)
     copy_str_and_move(&time_zone_str, &start, time_zone_len);
+
+  if (user.length > 0)
+    copy_str_and_move((const char **)&(user.str), &start, user.length);
+  if (host.length > 0)
+    copy_str_and_move((const char **)&(host.str), &start, host.length);
 
   /**
     if time_zone_len or catalog_len are 0, then time_zone and catalog
