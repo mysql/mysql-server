@@ -2325,7 +2325,7 @@ dict_stats_update(
 	}
 
 	switch (stats_upd_option) {
-	case DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE:
+	case DICT_STATS_UPD_RECALC_PERSISTENT:
 	case DICT_STATS_UPD_RECALC_PERSISTENT_SILENT:
 		/* Persistent recalculation requested, called from
 		ANALYZE TABLE or from TRUNCATE TABLE */
@@ -2350,7 +2350,7 @@ dict_stats_update(
 			storage is not present or is corrupted */
 
 			if (stats_upd_option
-			    == DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE) {
+			    == DICT_STATS_UPD_RECALC_PERSISTENT) {
 
 				ut_print_timestamp(stderr);
 				/* XXX add link to the doc about storage
