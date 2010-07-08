@@ -2011,7 +2011,9 @@ NdbQueryIndexScanOperationDefImpl::appendBoundPattern(Uint32Buffer& serializedDe
       NdbIndexScanOperation::BoundType bound_type;
 
       /* If upper and lower limits are equal, a single BoundEQ is sufficient */
-      if (m_bound.low[keyNo] == m_bound.high[keyNo])
+      if (keyNo < m_bound.lowKeys  &&
+          keyNo < m_bound.highKeys &&
+          m_bound.low[keyNo] == m_bound.high[keyNo])
       {
         /* Inclusive if defined, or matching rows can include this value */
         bound_type= NdbIndexScanOperation::BoundEQ;
