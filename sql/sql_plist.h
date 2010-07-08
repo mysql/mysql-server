@@ -18,8 +18,10 @@
 
 #include <my_global.h>
 
-template <typename T, typename B, typename C> class I_P_List_iterator;
+template <typename T, typename B, typename C, typename I>
+class I_P_List_iterator;
 class I_P_List_null_counter;
+template <typename T> class I_P_List_no_push_back;
 
 
 /**
@@ -52,12 +54,19 @@ class I_P_List_null_counter;
              should be done. Instance of this class is also used as a place
              where information about number of list elements is stored.
              @sa I_P_List_null_counter, I_P_List_counter
+   @param I  Policy class specifying whether I_P_List should support
+             efficient push_back() operation. Instance of this class
+             is used as place where we store information to support
+             this operation.
+             @sa I_P_List_no_push_back, I_P_List_fast_push_back.
 */
 
-template <typename T, typename B, typename C = I_P_List_null_counter>
-class I_P_List : public C
+template <typename T, typename B,
+          typename C = I_P_List_null_counter,
+          typename I = I_P_List_no_push_back<T> >
+class I_P_List : public C, public I
 {
-  T *first;
+  T *m_first;
 
   /*
     Do not prohibit copying of I_P_List object to simplify their usage in
@@ -65,31 +74,27 @@ class I_P_List : public C
     is a bad idea.
   */
 public:
-  I_P_List() : first(NULL) { };
-  inline void empty()      { first= NULL; C::reset(); }
-  inline bool is_empty() const { return (first == NULL); }
+  I_P_List() : I(&m_first), m_first(NULL) {};
+  inline void empty()      { m_first= NULL; C::reset(); I::set_last(&m_first); }
+  inline bool is_empty() const { return (m_first == NULL); }
   inline void push_front(T* a)
   {
-    *B::next_ptr(a)= first;
-    if (first)
-      *B::prev_ptr(first)= B::next_ptr(a);
-    first= a;
-    *B::prev_ptr(a)= &first;
+    *B::next_ptr(a)= m_first;
+    if (m_first)
+      *B::prev_ptr(m_first)= B::next_ptr(a);
+    else
+      I::set_last(B::next_ptr(a));
+    m_first= a;
+    *B::prev_ptr(a)= &m_first;
     C::inc();
   }
   inline void push_back(T *a)
   {
-    insert_after(back(), a);
-  }
-  inline T *back()
-  {
-    T *t= front();
-    if (t)
-    {
-      while (*B::next_ptr(t))
-        t= *B::next_ptr(t);
-    }
-    return t;
+    T **last= I::get_last();
+    *B::next_ptr(a)= *last;
+    *last= a;
+    *B::prev_ptr(a)= last;
+    I::set_last(B::next_ptr(a));
   }
   inline void insert_after(T *pos, T *a)
   {
@@ -105,6 +110,8 @@ public:
         T *old_next= *B::next_ptr(a);
         *B::prev_ptr(old_next)= B::next_ptr(a);
       }
+      else
+        I::set_last(B::next_ptr(a));
     }
   }
   inline void remove(T *a)
@@ -112,24 +119,31 @@ public:
     T *next= *B::next_ptr(a);
     if (next)
       *B::prev_ptr(next)= *B::prev_ptr(a);
+    else
+      I::set_last(*B::prev_ptr(a));
     **B::prev_ptr(a)= next;
     C::dec();
   }
-  inline T* front() { return first; }
-  inline const T *front() const { return first; }
+  inline T* front() { return m_first; }
+  inline const T *front() const { return m_first; }
   void swap(I_P_List<T, B, C> &rhs)
   {
-    swap_variables(T *, first, rhs.first);
-    if (first)
-      *B::prev_ptr(first)= &first;
-    if (rhs.first)
-      *B::prev_ptr(rhs.first)= &rhs.first;
+    swap_variables(T *, m_first, rhs.m_first);
+    I::swap(rhs);
+    if (m_first)
+      *B::prev_ptr(m_first)= &m_first;
+    else
+      I::set_last(&m_first);
+    if (rhs.m_first)
+      *B::prev_ptr(rhs.m_first)= &rhs.m_first;
+    else
+      I::set_last(&rhs.m_first);
     C::swap(rhs);
   }
 #ifndef _lint
-  friend class I_P_List_iterator<T, B, C>;
+  friend class I_P_List_iterator<T, B, C, I>;
 #endif
-  typedef I_P_List_iterator<T, B, C> Iterator;
+  typedef I_P_List_iterator<T, B, C, I> Iterator;
 };
 
 
@@ -137,18 +151,22 @@ public:
    Iterator for I_P_List.
 */
 
-template <typename T, typename B, typename C = I_P_List_null_counter>
+template <typename T, typename B,
+          typename C = I_P_List_null_counter,
+          typename I = I_P_List_no_push_back<T> >
 class I_P_List_iterator
 {
-  const I_P_List<T, B, C> *list;
+  const I_P_List<T, B, C, I> *list;
   T *current;
 public:
-  I_P_List_iterator(const I_P_List<T, B, C> &a) : list(&a), current(a.first) {}
-  I_P_List_iterator(const I_P_List<T, B, C> &a, T* current_arg) : list(&a), current(current_arg) {}
-  inline void init(const I_P_List<T, B, C> &a)
+  I_P_List_iterator(const I_P_List<T, B, C, I> &a)
+    : list(&a), current(a.m_first) {}
+  I_P_List_iterator(const I_P_List<T, B, C, I> &a, T* current_arg)
+    : list(&a), current(current_arg) {}
+  inline void init(const I_P_List<T, B, C, I> &a)
   {
     list= &a;
-    current= a.first;
+    current= a.m_first;
   }
   inline T* operator++(int)
   {
@@ -164,7 +182,7 @@ public:
   }
   inline void rewind()
   {
-    current= list->first;
+    current= list->m_first;
   }
 };
 
@@ -201,6 +219,42 @@ protected:
   { swap_variables(uint, m_counter, rhs.m_counter); }
 public:
   uint elements() const { return m_counter; }
+};
+
+
+/**
+  A null insertion policy class for I_P_List to be used
+  in cases when push_back() operation is not necessary.
+*/
+
+template <typename T> class I_P_List_no_push_back
+{
+protected:
+  I_P_List_no_push_back(T **a) {};
+  void set_last(T **a) {}
+  /*
+    T** get_last() const method is intentionally left unimplemented
+    in order to prohibit usage of push_back() method in lists which
+    use this policy.
+  */
+  void swap(I_P_List_no_push_back<T> &rhs) {}
+};
+
+
+/**
+  An insertion policy class for I_P_List which can
+  be used when fast push_back() operation is required.
+*/
+
+template <typename T> class I_P_List_fast_push_back
+{
+  T **m_last;
+protected:
+  I_P_List_fast_push_back(T **a) : m_last(a) { };
+  void set_last(T **a) { m_last= a; }
+  T** get_last() const { return m_last; }
+  void swap(I_P_List_fast_push_back<T> &rhs)
+  { swap_variables(T**, m_last, rhs.m_last); }
 };
 
 #endif

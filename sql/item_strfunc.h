@@ -897,7 +897,6 @@ public:
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
 };
 
-#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
 class Item_func_uuid: public Item_str_func
 {
 public:

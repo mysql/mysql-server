@@ -178,8 +178,7 @@ end|
 # 1.1 Simple SELECT statement.
 #
 # No locks are necessary as this statement won't be written
-# to the binary log and thanks to how MyISAM works SELECT
-# will see version of the table prior to concurrent insert.
+# to the binary log and InnoDB supports snapshots.
 Success: 'select * from t1' doesn't take row locks on 't1'.
 #
 # 1.2 Multi-UPDATE statement.
@@ -484,7 +483,7 @@ Success: 'insert into t2 values (f13((select i+10 from t1 where i=1)))' takes sh
 # row locks on the data it reads.
 Success: 'call p2(@a)' doesn't take row locks on 't1'.
 #
-# 5.2 Function that modifes data and uses CALL, 
+# 5.2 Function that modifies data and uses CALL, 
 #     which reads a table through SELECT.
 #
 # Since a call to such function is written to the binary
@@ -562,3 +561,68 @@ drop view v1, v2;
 drop procedure p1;
 drop procedure p2;
 drop table t1, t2, t3, t4, t5;
+#
+# Test for bug#51263 "Deadlock between transactional SELECT
+# and ALTER TABLE ... REBUILD PARTITION".
+#
+drop table if exists t1, t2;
+create table t1 (i int auto_increment not null primary key) engine=innodb;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+begin;
+# Acquire SR metadata lock on t1 and LOCK_S row-locks on its rows.
+insert into t2 select count(*) from t1;
+# Switching to connection 'con1'.
+# Sending:
+alter table t1 add column j int;
+# Switching to connection 'default'.
+# Wait until ALTER is blocked because it tries to upgrade SNW
+# metadata lock to X lock.
+# It should not be blocked during copying data to new version of
+# table as it acquires LOCK_S locks on rows of old version, which
+# are compatible with locks acquired by connection 'con1'.
+# The below statement will deadlock because it will try to acquire
+# SW lock on t1, which will conflict with ALTER's SNW lock. And
+# ALTER will be waiting for this connection to release its SR lock.
+# This deadlock should be detected by an MDL subsystem and this
+# statement should be aborted with an appropriate error.
+insert into t1 values (6);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Unblock ALTER TABLE.
+commit;
+# Switching to connection 'con1'.
+# Reaping ALTER TABLE.
+# Switching to connection 'default'.
+#
+# Now test for scenario in which bug was reported originally.
+#
+drop tables t1, t2;
+create table t1 (i int auto_increment not null primary key) engine=innodb
+partition by hash (i) partitions 4;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+begin;
+# Acquire SR metadata lock on t1.
+select * from t1;
+i
+1
+2
+3
+4
+5
+# Switching to connection 'con1'.
+# Sending:
+alter table t1 rebuild partition p0;
+# Switching to connection 'default'.
+# Wait until ALTER is blocked because of active SR lock.
+# The below statement should succeed as transaction
+# has SR metadata lock on t1 and only going to read
+# rows from it.
+insert into t2 select count(*) from t1;
+# Unblock ALTER TABLE.
+commit;
+# Switching to connection 'con1'.
+# Reaping ALTER TABLE.
+# Switching to connection 'default'.
+# Clean-up.
+drop tables t1, t2;

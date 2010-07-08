@@ -235,18 +235,21 @@ typedef struct st_lex_master_info
   char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
   float heartbeat_period;
+  int sql_delay;
   ulonglong pos;
   ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+  enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+
+  void set_unspecified();
 } LEX_MASTER_INFO;
 
 
@@ -503,6 +506,7 @@ public:
 					LEX_STRING *alias,
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
+                                        enum_mdl_type mdl_type= MDL_SHARED_READ,
 					List<Index_hint> *hints= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
@@ -800,6 +804,7 @@ public:
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
+                                enum_mdl_type mdl_type= MDL_SHARED_READ,
 				List<Index_hint> *hints= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
@@ -1990,7 +1995,7 @@ struct LEX: public Query_tables_list
   bool autocommit;
   bool verbose, no_write_to_binlog;
 
-  bool tx_chain, tx_release;
+  enum enum_yes_no_unknown tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
     When creating a view, we need to just check its syntax omitting
@@ -2267,6 +2272,7 @@ public:
     yacc_yyvs= NULL;
     m_set_signal_info.clear();
     m_lock_type= TL_READ_DEFAULT;
+    m_mdl_type= MDL_SHARED_READ;
   }
 
   ~Yacc_state();
@@ -2278,6 +2284,7 @@ public:
   void reset_before_substatement()
   {
     m_lock_type= TL_READ_DEFAULT;
+    m_mdl_type= MDL_SHARED_READ;
   }
 
   /**
@@ -2316,6 +2323,12 @@ public:
     to get rid of this member eventually.
   */
   thr_lock_type m_lock_type;
+
+  /**
+    The type of requested metadata lock for tables added to
+    the statement table list.
+  */
+  enum_mdl_type m_mdl_type;
 
   /*
     TODO: move more attributes from the LEX structure here.

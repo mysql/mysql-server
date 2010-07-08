@@ -29,7 +29,6 @@ TL_READ_WITH_SHARED_LOCKS
 TL_READ_HIGH_PRIORITY	# High priority read
 TL_READ_NO_INSERT	# Read without concurrent inserts
 TL_WRITE_ALLOW_WRITE	# Write lock that allows other writers
-TL_WRITE_ALLOW_READ	# Write lock, but allow reading
 TL_WRITE_CONCURRENT_INSERT
 			# Insert that can be mixed when selects
 TL_WRITE_DELAYED	# Used by delayed insert
@@ -41,7 +40,7 @@ TL_WRITE_ONLY		# High priority write
 
 Locks are prioritized according to:
 
-WRITE_ALLOW_WRITE, WRITE_ALLOW_READ, WRITE_CONCURRENT_INSERT, WRITE_DELAYED,
+WRITE_ALLOW_WRITE, WRITE_CONCURRENT_INSERT, WRITE_DELAYED,
 WRITE_LOW_PRIORITY, READ, WRITE, READ_HIGH_PRIORITY and WRITE_ONLY
 
 Locks in the same privilege level are scheduled in first-in-first-out order.
@@ -64,9 +63,8 @@ get_status:
 	In MyISAM this stores the number of rows and size of the datafile
 	for concurrent reads.
 
-The lock algorithm allows one to have one TL_WRITE_ALLOW_READ,
-TL_WRITE_CONCURRENT_INSERT or one TL_WRITE_DELAYED lock at the same time as
-multiple read locks.
+The lock algorithm allows one to have one TL_WRITE_CONCURRENT_INSERT or
+one TL_WRITE_DELAYED lock at the same time as multiple read locks.
 
 */
 
@@ -238,7 +236,6 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	      (((lock->write_wait.data->type == TL_WRITE_CONCURRENT_INSERT ||
 		 lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE) &&
 		!lock->read_no_write_count) ||
-	       lock->write_wait.data->type == TL_WRITE_ALLOW_READ ||
 	       (lock->write_wait.data->type == TL_WRITE_DELAYED &&
 		!lock->read.data)))
 	  {
@@ -543,14 +540,14 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
            Request
           /-------
          H|++++  WRITE_ALLOW_WRITE
-         e|++++  WRITE_ALLOW_READ
-         l|+++-  WRITE_CONCURRENT_INSERT
-         d|++++  WRITE_DELAYED
-           ||||
+         e|+++-  WRITE_CONCURRENT_INSERT
+         l|++++  WRITE_DELAYED
+         d ||||
            |||\= READ_NO_INSERT
            ||\ = READ_HIGH_PRIORITY
            |\  = READ_WITH_SHARED_LOCKS
            \   = READ
+          
 
         + = Request can be satisified.
         - = Request cannot be satisified.
@@ -620,14 +617,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
         result= THR_LOCK_ABORTED;               /* Can't wait for this one */
 	goto end;
       }
-      /*
-	if there is a TL_WRITE_ALLOW_READ lock, we have to wait for a lock
-	(TL_WRITE_ALLOW_READ is used for ALTER TABLE in MySQL)
-      */
-      if ((!lock->write.data ||
-	   lock->write.data->type != TL_WRITE_ALLOW_READ) &&
-	  !have_specific_lock(lock->write_wait.data,TL_WRITE_ALLOW_READ) &&
-	  (lock->write.data || lock->read.data))
+      if (lock->write.data || lock->read.data)
       {
 	/* Add delayed write lock to write_wait queue, and return at once */
 	(*lock->write_wait.last)=data;
@@ -680,8 +670,6 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
             it is OK to grant new lock without additional checks in such
             situation.
         **) The exceptions are situations when:
-            - old lock type is TL_WRITE_ALLOW_READ and new lock type is
-              TL_WRITE_ALLOW_WRITE
             - when old lock type is TL_WRITE_DELAYED
             But these should never happen within MySQL.
         Therefore it is OK to allow acquiring write lock on the table if
@@ -695,9 +683,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
                   ((lock_type <= lock->write.data->type ||
                     (lock_type == TL_WRITE &&
                      lock->write.data->type == TL_WRITE_LOW_PRIORITY)) &&
-                   ! ((lock_type < TL_WRITE_ALLOW_READ &&
-                       lock->write.data->type == TL_WRITE_ALLOW_READ) ||
-                     lock->write.data->type == TL_WRITE_DELAYED)));
+                   lock->write.data->type != TL_WRITE_DELAYED));
 
       if ((lock_type == TL_WRITE_ALLOW_WRITE &&
            ! lock->write_wait.data &&
@@ -1265,10 +1251,7 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
     occurs also other waiters, both readers and writers can be allowed to
     start.
     The previous lock is often TL_WRITE_ONLY but can also be
-    TL_WRITE and TL_WRITE_ALLOW_READ. The normal downgrade variants are
-    TL_WRITE_ONLY => TL_WRITE_ALLOW_READ After a short exclusive lock
-    TL_WRITE_ALLOW_READ => TL_WRITE_ALLOW_WRITE After discovering that the
-    operation didn't need such a high lock.
+    TL_WRITE. The normal downgrade variants are:
     TL_WRITE_ONLY => TL_WRITE after a short exclusive lock while holding a
     write table lock
     TL_WRITE_ONLY => TL_WRITE_ALLOW_WRITE After a short exclusive lock after
@@ -1289,11 +1272,6 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
 #ifndef DBUG_OFF
   enum thr_lock_type old_lock_type= in_data->type;
 #endif
-#ifdef TO_BE_REMOVED
-  THR_LOCK_DATA *data, *next;
-  bool start_writers= FALSE;
-  bool start_readers= FALSE;
-#endif
   DBUG_ENTER("thr_downgrade_write_only_lock");
 
   mysql_mutex_lock(&lock->mutex);
@@ -1302,165 +1280,6 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
   in_data->type= new_lock_type;
   check_locks(lock,"after downgrading lock",0);
 
-#if TO_BE_REMOVED
-  switch (old_lock_type)
-  {
-    case TL_WRITE_ONLY:
-    case TL_WRITE:
-    case TL_WRITE_LOW_PRIORITY:
-    /*
-      Previous lock was exclusive we are now ready to start up most waiting
-      threads.
-    */
-      switch (new_lock_type)
-      {
-        case TL_WRITE_ALLOW_READ:
-        /* Still cannot start WRITE operations. Can only start readers.  */
-          start_readers= TRUE;
-          break;
-        case TL_WRITE:
-        case TL_WRITE_LOW_PRIORITY:
-        /*
-           Still cannot start anything, but new requests are no longer
-           aborted.
-        */
-          break;
-        case TL_WRITE_ALLOW_WRITE:
-        /*
-          We can start both writers and readers.
-        */
-          start_writers= TRUE;
-          start_readers= TRUE;
-          break;
-        case TL_WRITE_CONCURRENT_INSERT:
-        case TL_WRITE_DELAYED:
-        /*
-          This routine is not designed for those. Lock will be downgraded
-          but no start of waiters will occur. This is not the optimal but
-          should be a correct behaviour.
-        */
-          break;
-        default:
-          DBUG_ASSERT(0);
-      }
-      break;
-    case TL_WRITE_DELAYED:
-    case TL_WRITE_CONCURRENT_INSERT:
-    /*
-      This routine is not designed for those. Lock will be downgraded
-      but no start of waiters will occur. This is not the optimal but
-      should be a correct behaviour.
-    */
-      break;
-    case TL_WRITE_ALLOW_READ:
-      DBUG_ASSERT(new_lock_type == TL_WRITE_ALLOW_WRITE);
-      /*
-        Previously writers were not allowed to start, now it is ok to
-        start them again. Readers are already allowed so no reason to
-        handle them.
-      */
-      start_writers= TRUE;
-      break;
-    default:
-      DBUG_ASSERT(0);
-      break;
-  }
-  if (start_writers)
-  {
-    /*
-      At this time the only active writer can be ourselves. Thus we need
-      not worry about that there are other concurrent write operations
-      active on the table. Thus we only need to worry about starting
-      waiting operations.
-      We also only come here with TL_WRITE_ALLOW_WRITE as the new
-      lock type, thus we can start other writers also of the same type.
-      If we find a lock at exclusive level >= TL_WRITE_LOW_PRIORITY we
-      don't start any more operations that would be mean those operations
-      will have to wait for things started afterwards.
-    */
-    DBUG_ASSERT(new_lock_type == TL_WRITE_ALLOW_WRITE);
-    for (data=lock->write_wait.data; data ; data= next)
-    {
-      /*
-        All WRITE requests compatible with new lock type are also
-        started
-      */
-      next= data->next;
-      if (start_writers && data->type == new_lock_type)
-      {
-        mysql_cond_t *cond= data->cond;
-        /*
-          It is ok to start this waiter.
-          Move from being first in wait queue to be last in write queue.
-        */
-        if (((*data->prev)= data->next))
-          data->next->prev= data->prev;
-        else
-          lock->write_wait.last= data->prev;
-        data->prev= lock->write.last;
-        lock->write.last= &data->next;
-        data->next= 0;
-        check_locks(lock, "Started write lock after downgrade",0);
-        data->cond= 0;
-        mysql_cond_signal(cond);
-      }
-      else
-      {
-        /*
-          We found an incompatible lock, we won't start any more write
-          requests to avoid letting writers pass other writers in the
-          queue.
-        */
-        start_writers= FALSE;
-        if (data->type >= TL_WRITE_LOW_PRIORITY)
-        {
-          /*
-            We have an exclusive writer in the queue so we won't start
-            readers either.
-          */
-          start_readers= FALSE;
-        }
-      }
-    }
-  }
-  if (start_readers)
-  {
-    DBUG_ASSERT(new_lock_type == TL_WRITE_ALLOW_WRITE ||
-                new_lock_type == TL_WRITE_ALLOW_READ);
-    /*
-      When we come here we know that the write locks are
-      TL_WRITE_ALLOW_WRITE or TL_WRITE_ALLOW_READ. This means that reads
-      are ok
-    */
-    for (data=lock->read_wait.data; data ; data=next)
-    {
-      next= data->next;
-      /*
-        All reads are ok to start now except TL_READ_NO_INSERT when
-        write lock is TL_WRITE_ALLOW_READ.
-      */
-      if (new_lock_type != TL_WRITE_ALLOW_READ ||
-          data->type != TL_READ_NO_INSERT)
-      {
-        mysql_cond_t *cond= data->cond;
-        if (((*data->prev)= data->next))
-          data->next->prev= data->prev;
-        else
-          lock->read_wait.last= data->prev;
-        data->prev= lock->read.last;
-        lock->read.last= &data->next;
-        data->next= 0;
-
-        if (data->type == TL_READ_NO_INSERT)
-          lock->read_no_write_count++;
-        check_locks(lock, "Started read lock after downgrade",0);
-        data->cond= 0;
-        mysql_cond_signal(cond);
-      }
-    }
-  }
-  check_locks(lock,"after starting waiters after downgrading lock",0);
-#endif
   mysql_mutex_unlock(&lock->mutex);
   DBUG_VOID_RETURN;
 }
@@ -1646,15 +1465,14 @@ struct st_test test_8[] = {{1,TL_READ_NO_INSERT},{2,TL_READ_NO_INSERT},{3,TL_REA
 struct st_test test_9[] = {{4,TL_READ_HIGH_PRIORITY}};
 struct st_test test_10[] ={{4,TL_WRITE}};
 struct st_test test_11[] = {{0,TL_WRITE_LOW_PRIORITY},{1,TL_WRITE_LOW_PRIORITY},{2,TL_WRITE_LOW_PRIORITY},{3,TL_WRITE_LOW_PRIORITY}}; /* Many writes */
-struct st_test test_12[] = {{0,TL_WRITE_ALLOW_READ},{1,TL_WRITE_ALLOW_READ},{2,TL_WRITE_ALLOW_READ},{3,TL_WRITE_ALLOW_READ}}; /* Many writes */
-struct st_test test_13[] = {{0,TL_WRITE_CONCURRENT_INSERT},{1,TL_WRITE_CONCURRENT_INSERT},{2,TL_WRITE_CONCURRENT_INSERT},{3,TL_WRITE_CONCURRENT_INSERT}};
-struct st_test test_14[] = {{0,TL_WRITE_CONCURRENT_INSERT},{1,TL_READ}};
-struct st_test test_15[] = {{0,TL_WRITE_ALLOW_WRITE},{1,TL_READ}};
-struct st_test test_16[] = {{0,TL_WRITE_ALLOW_WRITE},{1,TL_WRITE_ALLOW_WRITE}};
+struct st_test test_12[] = {{0,TL_WRITE_CONCURRENT_INSERT},{1,TL_WRITE_CONCURRENT_INSERT},{2,TL_WRITE_CONCURRENT_INSERT},{3,TL_WRITE_CONCURRENT_INSERT}};
+struct st_test test_13[] = {{0,TL_WRITE_CONCURRENT_INSERT},{1,TL_READ}};
+struct st_test test_14[] = {{0,TL_WRITE_ALLOW_WRITE},{1,TL_READ}};
+struct st_test test_15[] = {{0,TL_WRITE_ALLOW_WRITE},{1,TL_WRITE_ALLOW_WRITE}};
 
 struct st_test *tests[] = {test_0,test_1,test_2,test_3,test_4,test_5,test_6,
 			   test_7,test_8,test_9,test_10,test_11,test_12,
-			   test_13,test_14,test_15,test_16};
+			   test_13,test_14,test_15};
 int lock_counts[]= {sizeof(test_0)/sizeof(struct st_test),
 		    sizeof(test_1)/sizeof(struct st_test),
 		    sizeof(test_2)/sizeof(struct st_test),
@@ -1670,8 +1488,7 @@ int lock_counts[]= {sizeof(test_0)/sizeof(struct st_test),
 		    sizeof(test_12)/sizeof(struct st_test),
 		    sizeof(test_13)/sizeof(struct st_test),
 		    sizeof(test_14)/sizeof(struct st_test),
-		    sizeof(test_15)/sizeof(struct st_test),
-		    sizeof(test_16)/sizeof(struct st_test)
+		    sizeof(test_15)/sizeof(struct st_test)
 };
 
 
@@ -1681,6 +1498,7 @@ static uint thread_count;
 static ulong sum=0;
 
 #define MAX_LOCK_COUNT 8
+#define TEST_TIMEOUT 100000
 
 /* The following functions is for WRITE_CONCURRENT_INSERT */
 
@@ -1727,7 +1545,7 @@ static void *test_thread(void *arg)
       multi_locks[i]= &data[i];
       data[i].type= tests[param][i].lock_type;
     }
-    thr_multi_lock(multi_locks, lock_counts[param], &owner);
+    thr_multi_lock(multi_locks, lock_counts[param], &owner, TEST_TIMEOUT);
     mysql_mutex_lock(&LOCK_thread_count);
     {
       int tmp=rand() & 7;			/* Do something from 0-2 sec */
