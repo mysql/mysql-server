@@ -240,7 +240,7 @@ void print_time_now(void) {
     char timestr[80];
     time_t now = time(NULL);
     format_time(&now, timestr);
-    printf(timestr);
+    printf("%s", timestr);
 }
 
 //Simulate as hard a crash as possible.
