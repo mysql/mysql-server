@@ -189,7 +189,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(name,MYF(0))))
     {
-      my_free((uchar*) share,MYF(0));
+      my_free(share);
       goto err;
     }
 #ifdef THREAD
@@ -305,7 +305,7 @@ void hp_free(HP_SHARE *share)
   thr_lock_delete(&share->lock);
   mysql_mutex_destroy(&share->intern_lock);
 #endif
-  my_free((uchar*) share->name, MYF(0));
-  my_free((uchar*) share, MYF(0));
+  my_free(share->name);
+  my_free(share);
   return;
 }

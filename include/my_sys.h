@@ -158,46 +158,15 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define GETDATE_FIXEDLENGTH	16
 
 	/* defines when allocating data */
-#ifdef SAFEMALLOC
-#define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
-#define my_malloc_ci(SZ,FLAG) _mymalloc((SZ), sFile, uLine, FLAG )
-#define my_realloc(PTR,SZ,FLAG) _myrealloc((PTR), (SZ), __FILE__, __LINE__, FLAG )
-#define my_checkmalloc() _sanity( __FILE__, __LINE__ )
-#define my_free(PTR,FLAG) _myfree((PTR), __FILE__, __LINE__,FLAG)
-#define my_memdup(A,B,C) _my_memdup((A),(B), __FILE__,__LINE__,C)
-#define my_strdup(A,C) _my_strdup((A), __FILE__,__LINE__,C)
-#define my_strndup(A,B,C) _my_strndup((A),(B),__FILE__,__LINE__,C)
-#define TRASH(A,B) do { bfill(A, B, 0x8F); MEM_UNDEFINED(A, B); } while (0)
-#define QUICK_SAFEMALLOC sf_malloc_quick=1
-#define NORMAL_SAFEMALLOC sf_malloc_quick=0
-extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
-extern ulonglong sf_malloc_mem_limit;
-
-#define CALLER_INFO_PROTO   , const char *sFile, uint uLine
-#define CALLER_INFO         , __FILE__, __LINE__
-#define ORIG_CALLER_INFO    , sFile, uLine
-#else
-#define my_checkmalloc()
-#undef TERMINATE
-#define TERMINATE(A,B) {}
-#define QUICK_SAFEMALLOC
-#define NORMAL_SAFEMALLOC
 extern void *my_malloc(size_t Size,myf MyFlags);
-#define my_malloc_ci(SZ,FLAG) my_malloc( SZ, FLAG )
+extern void *my_multi_malloc(myf MyFlags, ...);
 extern void *my_realloc(void *oldpoint, size_t Size, myf MyFlags);
-extern void my_no_flags_free(void *ptr);
+extern void my_free(void *ptr);
 extern void *my_memdup(const void *from,size_t length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strndup(const char *from, size_t length,
 				   myf MyFlags);
-/* we do use FG (as a no-op) in below so that a typo on FG is caught */
-#define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))
-#define CALLER_INFO_PROTO   /* nothing */
-#define CALLER_INFO         /* nothing */
-#define ORIG_CALLER_INFO    /* nothing */
 #define TRASH(A,B) do{MEM_CHECK_ADDRESSABLE(A,B);MEM_UNDEFINED(A,B);} while (0)
-#endif
-
 #if defined(ENABLED_DEBUG_SYNC)
 extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C(_sync_point_name_) do {                            \
@@ -211,11 +180,11 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(size_t size, myf my_flags);
-extern void my_large_free(uchar * ptr, myf my_flags);
+extern void my_large_free(uchar *ptr);
 #else
 #define my_get_large_page_size() (0)
 #define my_large_malloc(A,B) my_malloc_lock((A),(B))
-#define my_large_free(A,B) my_free_lock((A),(B))
+#define my_large_free(A) my_free_lock((A))
 #endif /* HAVE_LARGE_PAGES */
 
 #ifdef HAVE_ALLOCA
@@ -233,7 +202,7 @@ extern void my_large_free(uchar * ptr, myf my_flags);
 #define my_afree(PTR) {}
 #else
 #define my_alloca(SZ) my_malloc(SZ,MYF(0))
-#define my_afree(PTR) my_free(PTR,MYF(MY_WME))
+#define my_afree(PTR) my_free(PTR)
 #endif /* HAVE_ALLOCA */
 
 #ifndef errno				/* did we already get it? */
@@ -642,20 +611,6 @@ extern size_t my_fwrite(FILE *stream,const uchar *Buffer,size_t Count,
 		      myf MyFlags);
 extern my_off_t my_fseek(FILE *stream,my_off_t pos,int whence,myf MyFlags);
 extern my_off_t my_ftell(FILE *stream,myf MyFlags);
-extern void *_mymalloc(size_t uSize,const char *sFile,
-                       uint uLine, myf MyFlag);
-extern void *_myrealloc(void *pPtr,size_t uSize,const char *sFile,
-		       uint uLine, myf MyFlag);
-extern void * my_multi_malloc _VARARGS((myf MyFlags, ...));
-extern void _myfree(void *pPtr,const char *sFile,uint uLine, myf MyFlag);
-extern int _sanity(const char *sFile, uint uLine);
-extern void *_my_memdup(const void *from, size_t length,
-                        const char *sFile, uint uLine,myf MyFlag);
-extern char * _my_strdup(const char *from, const char *sFile, uint uLine,
-                         myf MyFlag);
-extern char *_my_strndup(const char *from, size_t length,
-                         const char *sFile, uint uLine,
-                         myf MyFlag);
 
 /* implemented in my_memmem.c */
 extern void *my_memmem(const void *haystack, size_t haystacklen,
@@ -684,9 +639,6 @@ extern HANDLE   my_get_osfhandle(File fd);
 extern void     my_osmaperr(unsigned long last_error);
 #endif
 
-#ifndef TERMINATE
-extern void TERMINATE(FILE *file, uint flag);
-#endif
 extern void init_glob_errs(void);
 extern const char** get_global_errmsgs();
 extern void wait_for_free_space(const char *filename, int errors);
@@ -835,18 +787,16 @@ extern my_bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
-#define my_init_dynamic_array(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D CALLER_INFO)
-#define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D ORIG_CALLER_INFO)
-#define my_init_dynamic_array2(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E CALLER_INFO)
-#define my_init_dynamic_array2_ci(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E ORIG_CALLER_INFO)
-extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array,uint element_size,
-                                   void *init_buffer, uint init_alloc, 
-                                   uint alloc_increment
-                                   CALLER_INFO_PROTO);
+#define my_init_dynamic_array(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
+#define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
+#define my_init_dynamic_array2(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
+#define my_init_dynamic_array2_ci(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
+extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
+                                   void *init_buffer, uint init_alloc,
+                                   uint alloc_increment);
 /* init_dynamic_array() function is deprecated */
-extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
-                                  uint init_alloc,uint alloc_increment
-                                  CALLER_INFO_PROTO);
+extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+                                  uint init_alloc, uint alloc_increment);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,uchar * element);
 extern uchar *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern uchar *pop_dynamic(DYNAMIC_ARRAY*);
@@ -876,10 +826,10 @@ extern my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
 #ifdef HAVE_MLOCK
 extern void *my_malloc_lock(size_t length,myf flags);
-extern void my_free_lock(void *ptr,myf flags);
+extern void my_free_lock(void *ptr);
 #else
 #define my_malloc_lock(A,B) my_malloc((A),(B))
-#define my_free_lock(A,B) my_free((A),(B))
+#define my_free_lock(A) my_free((A))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
 #define ALLOC_ROOT_MIN_BLOCK_SIZE (MALLOC_OVERHEAD + sizeof(USED_MEM) + 8)

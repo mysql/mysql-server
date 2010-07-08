@@ -1534,13 +1534,13 @@ void release_ddl_log()
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
-    my_free(used_list, MYF(0));
+    my_free(used_list);
     used_list= tmp;
   }
   while (free_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
-    my_free(free_list, MYF(0));
+    my_free(free_list);
     free_list= tmp;
   }
   close_ddl_log();
@@ -1696,8 +1696,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     if (readfrm(shadow_path, &data, &length) ||
         packfrm(data, length, &lpt->pack_frm_data, &lpt->pack_frm_len))
     {
-      my_free(data, MYF(MY_ALLOW_ZERO_PTR));
-      my_free(lpt->pack_frm_data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(data);
+      my_free(lpt->pack_frm_data);
       mem_alloc_error(length);
       error= 1;
       goto end;
@@ -7534,7 +7534,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (t_table)
     {
       intern_close_table(t_table);
-      my_free(t_table, MYF(0));
+      my_free(t_table);
     }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",

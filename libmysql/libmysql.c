@@ -341,7 +341,7 @@ mysql_connect(MYSQL *mysql,const char *host,
     if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
     {
       if (mysql->free_me)
-	my_free((uchar*) mysql,MYF(0));
+	my_free(mysql);
     }
     mysql->reconnect= 1;
     DBUG_RETURN(res);
@@ -457,9 +457,9 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (rc == 0)
   {
     /* Free old connect information */
-    my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->user);
+    my_free(mysql->passwd);
+    my_free(mysql->db);
 
     /* alloc new connect information */
     mysql->user=  my_strdup(user,MYF(MY_WME));
@@ -604,7 +604,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 err:
   /* free up memory allocated with _init, usually */
   (*options->local_infile_end)(li_ptr);
-  my_free(buf, MYF(0));
+  my_free(buf);
   DBUG_RETURN(result);
 }
 
@@ -715,7 +715,7 @@ static void default_local_infile_end(void *ptr)
   {
     if (data->fd >= 0)
       my_close(data->fd, MYF(MY_WME));
-    my_free(ptr, MYF(MY_WME));
+    my_free(ptr);
   }
 }
 
@@ -2206,7 +2206,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     }
     result= execute(stmt, param_data, length);
     stmt->send_types_to_server=0;
-    my_free(param_data, MYF(MY_WME));
+    my_free(param_data);
     DBUG_RETURN(result);
   }
   DBUG_RETURN((int) execute(stmt,0,0));
@@ -4707,7 +4707,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
     }
   }
 
-  my_free((uchar*) stmt, MYF(MY_WME));
+  my_free(stmt);
 
   DBUG_RETURN(test(rc));
 }

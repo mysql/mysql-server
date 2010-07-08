@@ -520,7 +520,7 @@ int flush_master_info(Master_info* mi,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
               heartbeat_buf, "", ignore_server_ids_buf);
-  my_free(ignore_server_ids_buf, MYF(0));
+  my_free(ignore_server_ids_buf);
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 
       ++(mi->sync_counter) >= sync_masterinfo_period)
