@@ -399,10 +399,8 @@ int main(int argc, char **argv)
     mysql_close(&mysql); /* Close & free connection */
 
   /* now free all the strings we created */
-  if (opt_password)
-    my_free(opt_password, MYF(0));
-
-  my_free(concurrency, MYF(0));
+  my_free(opt_password);
+  my_free(concurrency);
 
   statement_cleanup(create_statements);
   statement_cleanup(query_statements);
@@ -411,8 +409,7 @@ int main(int argc, char **argv)
   option_cleanup(engine_options);
 
 #ifdef HAVE_SMEM
-  if (shared_memory_base_name)
-    my_free(shared_memory_base_name, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   free_defaults(defaults_argv);
   my_end(my_end_arg);
@@ -504,7 +501,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   if (opt_csv_str)
     print_conclusions_csv(&conclusion);
 
-  my_free(head_sptr, MYF(0));
+  my_free(head_sptr);
 
 }
 
@@ -721,7 +718,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start= argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password= my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -1367,7 +1364,7 @@ get_options(int *argc,char ***argv)
       tmp_string[sbuf.st_size]= '\0';
       my_close(data_file,MYF(0));
       parse_delimiter(tmp_string, &create_statements, delimiter[0]);
-      my_free(tmp_string, MYF(0));
+      my_free(tmp_string);
     }
     else if (create_string)
     {
@@ -1396,7 +1393,7 @@ get_options(int *argc,char ***argv)
       if (user_supplied_query)
         actual_queries= parse_delimiter(tmp_string, &query_statements,
                                         delimiter[0]);
-      my_free(tmp_string, MYF(0));
+      my_free(tmp_string);
     } 
     else if (user_supplied_query)
     {
@@ -1427,7 +1424,7 @@ get_options(int *argc,char ***argv)
     if (user_supplied_pre_statements)
       (void)parse_delimiter(tmp_string, &pre_statements,
                             delimiter[0]);
-    my_free(tmp_string, MYF(0));
+    my_free(tmp_string);
   } 
   else if (user_supplied_pre_statements)
   {
@@ -1458,7 +1455,7 @@ get_options(int *argc,char ***argv)
     if (user_supplied_post_statements)
       (void)parse_delimiter(tmp_string, &post_statements,
                             delimiter[0]);
-    my_free(tmp_string, MYF(0));
+    my_free(tmp_string);
   } 
   else if (user_supplied_post_statements)
   {
@@ -1555,9 +1552,9 @@ drop_primary_key_list(void)
   if (primary_keys_number_of)
   {
     for (counter= 0; counter < primary_keys_number_of; counter++)
-      my_free(primary_keys[counter], MYF(0));
+      my_free(primary_keys[counter]);
 
-    my_free(primary_keys, MYF(0));
+    my_free(primary_keys);
   }
 
   return 0;
@@ -2154,11 +2151,9 @@ option_cleanup(option_string *stmt)
   for (ptr= stmt; ptr; ptr= nptr)
   {
     nptr= ptr->next;
-    if (ptr->string)
-      my_free(ptr->string, MYF(0)); 
-    if (ptr->option)
-      my_free(ptr->option, MYF(0)); 
-    my_free(ptr, MYF(0));
+    my_free(ptr->string);
+    my_free(ptr->option);
+    my_free(ptr);
   }
 }
 
@@ -2172,9 +2167,8 @@ statement_cleanup(statement *stmt)
   for (ptr= stmt; ptr; ptr= nptr)
   {
     nptr= ptr->next;
-    if (ptr->string)
-      my_free(ptr->string, MYF(0)); 
-    my_free(ptr, MYF(0));
+    my_free(ptr->string);
+    my_free(ptr);
   }
 }
 

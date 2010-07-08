@@ -1523,7 +1523,7 @@ void clean_up(bool print_message)
   if (defaults_argv)
     free_defaults(defaults_argv);
   free_tmpdir(&mysql_tmpdir_list);
-  x_free(opt_bin_logname);
+  my_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
@@ -3135,7 +3135,7 @@ void *my_str_malloc_mysqld(size_t size)
 
 void my_str_free_mysqld(void *ptr)
 {
-  my_free(ptr, MYF(MY_FAE));
+  my_free(ptr);
 }
 #endif /* EMBEDDED_LIBRARY */
 
@@ -3708,7 +3708,7 @@ static int init_common_variables()
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
   {                                                             \
-    x_free(VAR); /* it could be an allocated empty string "" */ \
+    my_free(VAR); /* it could be an allocated empty string "" */ \
     VAR= my_strdup(ALT, MYF(0));                                \
   }
 
@@ -4144,7 +4144,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
     if (ln == buf)
     {
-      my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_bin_logname);
       opt_bin_logname=my_strdup(buf, MYF(0));
     }
     if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
@@ -5931,7 +5931,7 @@ errorconn:
   /* End shared memory handling */
 error:
   if (tmp)
-    my_free(tmp, MYF(0));
+    my_free(tmp);
 
   if (errmsg)
   {
@@ -6231,14 +6231,6 @@ struct my_option my_long_options[]=
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table.",
    &opt_safe_user_create, &opt_safe_user_create, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
-  {"safemalloc", 0, "Enable the memory allocation checking.",
-   &sf_malloc_quick, &sf_malloc_quick, 0,
-   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"safemalloc-mem-limit", 0, "Simulate memory shortage.",
-   &sf_malloc_mem_limit, &sf_malloc_mem_limit, 0, GET_UINT,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"show-slave-auth-info", 0,
    "Show user and password in SHOW SLAVE HOSTS on this master.",
    &opt_show_slave_auth_info, &opt_show_slave_auth_info, 0,
@@ -7867,7 +7859,7 @@ static int fix_paths(void)
       }
       char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
       convert_dirname(secure_file_real_path, buff, NullS);
-      my_free(opt_secure_file_priv, MYF(0));
+      my_free(opt_secure_file_priv);
       opt_secure_file_priv= secure_file_real_path;
     }
   }

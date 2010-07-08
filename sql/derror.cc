@@ -79,7 +79,7 @@ bool init_errmessage(void)
   /* Register messages for use with my_error(). */
   if (my_error_register(get_server_errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
   {
-    x_free((uchar*) errmsgs);
+    my_free(errmsgs);
     DBUG_RETURN(TRUE);
   }
 
@@ -155,7 +155,8 @@ Check that the above file is the right version for this program!",
     DBUG_RETURN(1);
   }
 
-  x_free((uchar*) *point);		/* Free old language */
+  /* Free old language */
+  my_free(*point);
   if (!(*point= (const char**)
 	my_malloc((size_t) (length+count*sizeof(char*)),MYF(0))))
   {
