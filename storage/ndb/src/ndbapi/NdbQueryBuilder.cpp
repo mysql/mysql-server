@@ -875,30 +875,32 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     return NULL;
   }
 
+  // Bind lowKeys, and if applicable, highKeys to the column being refered
   Uint32 i;
   for (i=0; i<op->m_bound.lowKeys; ++i)
   {
     const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
-    assert (op->m_bound.low[i]);
-    int error = op->m_bound.low[i]->bindOperand(col,*op);
+
+    const int error = (i<op->m_bound.highKeys && op->m_bound.high[i]!=op->m_bound.low[i])
+       ? op->m_bound.low[i]->bindOperand(col,*op) || op->m_bound.high[i]->bindOperand(col,*op)
+       : op->m_bound.low[i]->bindOperand(col,*op);
+
     if (unlikely(error))
     { m_pimpl->setErrorCode(error);
       delete op;
       return NULL;
     }
   }
-  if (!op->m_bound.eqBound)
+
+  // Bind any remaining highKeys past '#lowKeys'
+  for (; i<op->m_bound.highKeys; ++i)
   {
-    for (i=0; i<op->m_bound.highKeys; ++i)
-    {
-      const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
-      assert (op->m_bound.high[i]);
-      int error = op->m_bound.high[i]->bindOperand(col,*op);
-      if (unlikely(error))
-      { m_pimpl->setErrorCode(error);
-        delete op;
-        return NULL;
-      }
+    const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
+    const int error = op->m_bound.high[i]->bindOperand(col,*op);
+    if (unlikely(error))
+    { m_pimpl->setErrorCode(error);
+      delete op;
+      return NULL;
     }
   }
 
@@ -1397,12 +1399,10 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 
     m_bound.lowIncl = bound->m_lowInclusive;
     m_bound.highIncl = bound->m_highInclusive;
-    m_bound.eqBound = (bound->m_low==bound->m_high && bound->m_low!=NULL);
   }
   else {
     m_bound.lowKeys = m_bound.highKeys = 0;
     m_bound.lowIncl = m_bound.highIncl = true;
-    m_bound.eqBound = false;
   }
 }
 
