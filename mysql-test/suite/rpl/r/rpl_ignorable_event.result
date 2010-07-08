@@ -1,0 +1,940 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+# Test the binlog_rows_query_log_events is set to off by default
+select @@session.binlog_rows_query_log_events;
+@@session.binlog_rows_query_log_events
+0
+set session binlog_rows_query_log_events= on;
+select @@session.binlog_rows_query_log_events;
+@@session.binlog_rows_query_log_events
+1
+create table t1(i1 int not null auto_increment, a int, b int, primary key(i1)) engine=myisam;
+insert into t1(a,b) values(1,1),(2,1);
+update t1 set a = a + 5 where b = 1 LIMIT 1;
+delete from t1 where a = 6;
+insert into t1(a,b) values(1,2);
+insert into t1(a,b) values(1,3);
+insert into t1(a,b) values(1,4),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5);
+update t1 set a = a + 5 where b = 2;
+create table t2(a int, b int) engine=innodb;
+begin;
+insert into t2(a,b) values(2,1),(3,1);
+insert into t2(a,b) values(2,2);
+insert into t2(a,b) values(2,3);
+update t2 set a = a + 5 where b = 1;
+delete from t2 where a = 7;
+insert into t2(a,b) values(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4);
+commit;
+begin;
+insert into t1(a,b) values(1,5);
+insert into t1(a,b) values(1,6);
+insert into t2(a,b) values(2,4);
+insert into t2(a,b) values(2,5);
+insert into t1(a,b) values(1,7);
+commit;
+insert delayed into t1(a,b) values(1,5),(1,6),(1,7),(1,8),(1,9),(1,10);
+create table t3(a VARCHAR(60)) engine=myisam;
+load data infile '../../std_data/words.dat' into table t3;
+create table t4(a int, b int) engine= myisam;
+insert into t4(a, b) values(1,4);
+update t1,t4 set t1.a=1, t4.a=4 where t1.b=t4.b;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; create table t1(i1 int not null auto_increment, a int, b int, primary key(i1)) engine=myisam
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t1(a,b) values(1,1),(2,1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# update t1 set a = a + 5 where b = 1 LIMIT 1
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# delete from t1 where a = 6
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t1(a,b) values(1,2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t1(a,b) values(1,3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t1(a,b) values(1,4),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# update t1 set a = a + 5 where b = 2
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; create table t2(a int, b int) engine=innodb
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t2(a,b) values(2,1),(3,1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Rows_query	#	#	# insert into t2(a,b) values(2,2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Rows_query	#	#	# insert into t2(a,b) values(2,3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Rows_query	#	#	# update t2 set a = a + 5 where b = 1
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Rows_query	#	#	# delete from t2 where a = 7
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Rows_query	#	#	# insert into t2(a,b) values(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t1(a,b) values(1,5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t1(a,b) values(1,6)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t1(a,b) values(1,7)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t2(a,b) values(2,4)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Rows_query	#	#	# insert into t2(a,b) values(2,5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert delayed into t1(a,b) values(1,5),(1,6),(1,7),(1,8),(1,9),(1,10)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; create table t3(a VARCHAR(60)) engine=myisam
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# load data infile '../../std_data/words.dat' into table t3
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; create table t4(a int, b int) engine= myisam
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t4(a, b) values(1,4)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# update t1,t4 set t1.a=1, t4.a=4 where t1.b=t4.b
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at #
+#server id #  end_log_pos # 	Start: binlog v#, server v #.##.## created # #:#:# at startup
+# Warning: this binlog is either in use or was not closed properly.
+ROLLBACK/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+use test/*!*/;
+SET TIMESTAMP=t/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+create table t1(i1 int not null auto_increment, a int, b int, primary key(i1)) engine=myisam
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t1(a,b) values(1,1),(2,1)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=2 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# update t1 set a = a + 5 where b = 1 LIMIT 1
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# delete from t1 where a = 6
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t1(a,b) values(1,2)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=3 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t1(a,b) values(1,3)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=4 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t1(a,b) values(1,4),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5),(1,5)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=5 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=6 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=7 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=8 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=9 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=10 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=11 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=12 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=13 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=14 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# update t1 set a = a + 5 where b = 2
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=3 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=3 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+create table t2(a int, b int) engine=innodb
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t2(a,b) values(2,1),(3,1)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t2(a,b) values(2,2)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t2(a,b) values(2,3)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=3 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Rows_query
+# update t2 set a = a + 5 where b = 1
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t2
+### WHERE
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=7 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+### UPDATE test.t2
+### WHERE
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=8 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Rows_query
+# delete from t2 where a = 7
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t2
+### WHERE
+###   @1=7 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t2(a,b) values(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4),(2,4)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Xid = #
+COMMIT/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t1(a,b) values(1,5)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=15 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t1(a,b) values(1,6)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=16 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t1(a,b) values(1,7)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=17 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t2(a,b) values(2,4)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t2(a,b) values(2,5)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=5 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Xid = #
+COMMIT/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert delayed into t1(a,b) values(1,5),(1,6),(1,7),(1,8),(1,9),(1,10)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=18 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=19 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=20 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=21 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=8 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=22 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=9 /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=23 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @3=10 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+create table t3(a VARCHAR(60)) engine=myisam
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# load data infile '../../std_data/words.dat' into table t3
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t3
+### SET
+###   @1='Aarhus' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Aaron' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Ababa' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='aback' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abaft' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandon' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandoned' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandoning' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandonment' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandons' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Aarhus' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Aaron' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Ababa' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='aback' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abaft' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandon' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandoned' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandoning' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandonment' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abandons' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abase' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abased' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abasement' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abasements' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abases' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abash' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abashed' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abashes' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abashing' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abasing' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abate' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abated' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abatement' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abatements' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abater' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abates' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abating' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abba' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbe' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbey' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbeys' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbot' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbots' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abbott' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbreviate' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbreviated' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbreviates' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbreviating' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbreviation' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abbreviations' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abby' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abdomen' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abdomens' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abdominal' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abduct' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abducted' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abduction' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abductions' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abductor' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abductors' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abducts' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abe' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='abed' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abel' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abelian' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abelson' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Aberdeen' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='Abernathy' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='aberrant' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+### INSERT INTO test.t3
+### SET
+###   @1='aberration' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+create table t4(a int, b int) engine= myisam
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# insert into t4(a, b) values(1,4)
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t4` mapped to number #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t4
+### SET
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+BEGIN
+/*!*/;
+# at #
+#server id #  end_log_pos # 	Rows_query
+# update t1,t4 set t1.a=1, t4.a=4 where t1.b=t4.b
+# at #
+# at #
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#server id #  end_log_pos # 	Table_map: `test`.`t4` mapped to number #
+#server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t4
+### WHERE
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
+SET TIMESTAMP=t/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+set session binlog_rows_query_log_events= off;
+drop table t1, t2, t3, t4;
