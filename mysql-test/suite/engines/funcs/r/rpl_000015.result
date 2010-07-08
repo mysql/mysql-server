@@ -7,7 +7,7 @@ start slave;
 reset master;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	107		
+master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 stop slave;
 reset slave;
 Master_Log_File	

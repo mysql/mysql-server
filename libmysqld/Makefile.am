@@ -63,7 +63,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc discover.cc sql_locale.cc \
-	sql_profile.cc \
+	sql_profile.cc sql_truncate.cc datadict.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
 	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
@@ -71,6 +71,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc sys_vars.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
+	sql_alloc_error_handler.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc sql_time.cc \
 	unireg.cc uniques.cc sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
@@ -80,7 +81,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	debug_sync.cc sql_tablespace.cc transaction.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
-	rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc
+	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
 nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)

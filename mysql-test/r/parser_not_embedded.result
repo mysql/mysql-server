@@ -47,3 +47,48 @@
 +----------+--------+
 |        4 |      4 |
 +----------+--------+
+# Bug#46527 "COMMIT AND CHAIN RELEASE does not make sense"
+#
+COMMIT AND CHAIN RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE' at line 1
+COMMIT AND NO CHAIN RELEASE;
+COMMIT RELEASE;
+COMMIT CHAIN RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN RELEASE' at line 1
+COMMIT NO CHAIN RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN RELEASE' at line 1
+COMMIT AND NO RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE' at line 1
+COMMIT AND RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE' at line 1
+COMMIT NO RELEASE;
+COMMIT CHAIN NO RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN NO RELEASE' at line 1
+COMMIT NO CHAIN NO RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN NO RELEASE' at line 1
+COMMIT AND RELEASE CHAIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE CHAIN' at line 1
+COMMIT AND NO CHAIN NO RELEASE;
+ROLLBACK AND CHAIN RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE' at line 1
+ROLLBACK AND NO CHAIN RELEASE;
+ROLLBACK RELEASE;
+ROLLBACK CHAIN RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN RELEASE' at line 1
+ROLLBACK NO CHAIN RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN RELEASE' at line 1
+ROLLBACK AND NO RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE' at line 1
+ROLLBACK AND RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE' at line 1
+ROLLBACK NO RELEASE;
+ROLLBACK CHAIN NO RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN NO RELEASE' at line 1
+ROLLBACK NO CHAIN NO RELEASE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAIN NO RELEASE' at line 1
+ROLLBACK AND RELEASE CHAIN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE CHAIN' at line 1
+ROLLBACK AND NO CHAIN NO RELEASE;
+#
+# End of 5.5 tests
+#

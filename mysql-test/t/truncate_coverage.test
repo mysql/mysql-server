@@ -55,6 +55,12 @@ let $invisible_assignment_in_select = `SELECT @id := $ID`;
 KILL QUERY @id;
 --disconnect con2
 --echo #
+--echo # connection default
+--connection default
+--error ER_QUERY_INTERRUPTED
+reap;
+UNLOCK TABLES;
+--echo #
 --echo # connection con1
 --connection con1
 --echo # Release shared metadata lock by closing HANDLER.
@@ -63,9 +69,6 @@ HANDLER t1 CLOSE;
 --echo #
 --echo # connection default
 --connection default
---error ER_QUERY_INTERRUPTED
-reap;
-UNLOCK TABLES;
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';
 ########
@@ -151,13 +154,20 @@ send TRUNCATE TABLE t1;
 SET DEBUG_SYNC='now WAIT_FOR waiting';
 let $invisible_assignment_in_select = `SELECT @id := $ID`;
 KILL QUERY @id;
-COMMIT;
---disconnect con1
 --echo #
 --echo # connection default
 --connection default
 --error ER_QUERY_INTERRUPTED
 reap;
+--echo #
+--echo # connection con1
+--connection con1
+--echo # Release SW lock by committing transaction.
+COMMIT;
+--disconnect con1
+--echo #
+--echo # connection default
+--connection default
 UNLOCK TABLES;
 DROP TABLE t1;
 SET DEBUG_SYNC='RESET';
