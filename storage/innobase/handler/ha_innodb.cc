@@ -8023,7 +8023,7 @@ ha_innobase::analyze(
 	int			ret;
 
 	if (THDVAR(thd, analyze_is_persistent)) {
-		upd_option = DICT_STATS_UPD_RECALC_PERSISTENT_VERBOSE;
+		upd_option = DICT_STATS_UPD_RECALC_PERSISTENT;
 	} else {
 		upd_option = DICT_STATS_UPD_RECALC_TRANSIENT;
 	}
