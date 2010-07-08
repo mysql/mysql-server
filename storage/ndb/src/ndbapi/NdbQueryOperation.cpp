@@ -3866,7 +3866,9 @@ NdbQueryOperationImpl::prepareIndexKeyInfo(
     NdbIndexScanOperation::BoundType bound_type;
 
     /* If upper and lower limit is equal, a single BoundEQ is sufficient */
-    if (bounds->low[keyNo] == bounds->high[keyNo])
+    if (keyNo < bounds->lowKeys  &&
+        keyNo < bounds->highKeys &&
+        bounds->low[keyNo] == bounds->high[keyNo])
     {
       /* Inclusive if defined, or matching rows can include this value */
       bound_type= NdbIndexScanOperation::BoundEQ;
