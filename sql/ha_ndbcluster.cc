@@ -747,9 +747,9 @@ ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
  *
  * To be considdered pushable the child operation should:
  *
- *  1) Have an EQ_REF to the previous parent operations.
+ *  1) Have an REF to the previous parent operations.
  *  2) Refer only a single parent, or a grandparent reachable through 
- *     a single parent common to all key fields in the 'EQ_REF'
+ *     a single parent common to all key fields in the 'REF'
  *
  * In order to increase pushability we use the COND_EQUAL sets 
  * to resolve cases (2) above) where multiple parents are refered.
@@ -782,7 +782,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("Table:%d, Checking %d EQ_REF keys", tab_no, 
+  DBUG_PRINT("info", ("Table:%d, Checking %d REF keys", tab_no, 
                       table->get_no_of_key_fields()));
 
   ndb_table_access_map current_parents;
@@ -822,7 +822,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     if (!key_item_field->field
         ->eq_def(table->get_key_part_info(key_part_no)->field))
     {
-      DBUG_PRINT("info", ("Item_field does not have same definition as EQ_REF'ed key"));
+      DBUG_PRINT("info", ("Item_field does not have same definition as REF'ed key"));
       DBUG_RETURN(false);
     }
 
@@ -1042,25 +1042,25 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
               const KEY *key_def,
               uint ix_map[])
 {
-  KEY_PART_INFO *key_part;
   uint ix;
 
   if (index.unique_index_attrid_map) // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
   {
-    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    for (ix = 0; ix < key_def->key_parts; ix++)
     {
       ix_map[ix]= index.unique_index_attrid_map[ix];
     }
   }
   else if (index.type == ORDERED_INDEX)
   {
-    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    for (ix = 0; ix < key_def->key_parts; ix++)
     {
       ix_map[ix]= ix;
     }
   }
   else  // Primary key does not have a 'unique_index_attrid_map'
   {
+    KEY_PART_INFO *key_part;
     uint key_pos= 0;
     int columnnr= 0;
     assert (index.type == PRIMARY_KEY_ORDERED_INDEX || index.type == PRIMARY_KEY_INDEX);
@@ -1184,6 +1184,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
       continue;
     }
+    ndb_table_access_map parent_map(join_parent);
 
     /**
      * If this is the first child in pushed join we need to define the 
@@ -1268,16 +1269,15 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
                         join_tab->get_no_of_key_fields()));
 
     KEY *key= &handler->table->key_info[join_tab->get_index_no()];
-    KEY_PART_INFO *key_part= key->key_part;
 
     const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
     build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
 
-    ndb_table_access_map parent_map(join_parent);
-
     uint key_fields= join_tab->get_no_of_key_fields();
     DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
+
+    KEY_PART_INFO *key_part= key->key_part;
     for (uint i= 0; i < key_fields; i++, key_part++)
     {
       const Item* item= join_items[i];
@@ -1353,7 +1353,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
     {
       NdbQueryIndexBound bounds(linked_key);
-      query_op= builder.scanIndex(m_index[join_tab->get_index_no()].index, m_table, &bounds, &options);
+      query_op= builder.scanIndex(handler->m_index[join_tab->get_index_no()].index, table, &bounds, &options);
     }
     // Link on primary key or an unique index
     else if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
