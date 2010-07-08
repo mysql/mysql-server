@@ -3233,6 +3233,9 @@ os_aio_array_create(
 #endif
 
 #if defined(LINUX_NATIVE_AIO)
+	array->aio_ctx = NULL;
+	array->aio_events = NULL;
+
 	/* If we are not using native aio interface then skip this
 	part of initialization. */
 	if (!srv_use_native_aio) {
@@ -3312,6 +3315,13 @@ os_aio_array_free(
 	os_mutex_free(array->mutex);
 	os_event_free(array->not_full);
 	os_event_free(array->is_empty);
+
+#if defined(LINUX_NATIVE_AIO)
+	if (srv_use_native_aio) {
+		ut_free(array->aio_events);
+		ut_free(array->aio_ctx);
+	}
+#endif /* LINUX_NATIVE_AIO */
 
 	ut_free(array->slots);
 	ut_free(array);
