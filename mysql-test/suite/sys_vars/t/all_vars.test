@@ -53,6 +53,11 @@ perl;
   print F join "\n", sort map { s/_basic(_32|_64)?\.test$//; basename $_ } @all_tests;
 EOF
 
+#
+# todo: fix Bug #55080 mysql-next-mr requires a specic to new added global variables test file
+# to get rid of unxpected and probited following SELECT results
+#
+
 create table t1 (test_name text);
 create table t2 (variable_name text);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

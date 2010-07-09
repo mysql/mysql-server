@@ -462,8 +462,7 @@ select get_lock("a",10);
 get_lock("a",10)
 1
 flush logs;
-This does not matter in ROW mode as the rolled back changes do not contain transactional changes as these 
-were previously flushed upon committing/rolling back each statement.
+There is nothing to roll back; transactional changes are removed from the trans cache.
 drop table t1, t2;
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;

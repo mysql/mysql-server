@@ -316,10 +316,17 @@ select get_lock("a",10);
 begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
+
 disconnect con3;
 
 connection con4;
 select get_lock("a",10); # wait for rollback to finish
+if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+{
+ --let $wait_binlog_event= ROLLBACK
+ --source include/wait_for_binlog_event.inc
+ --let $binlog_rollback= query_get_value(SHOW BINLOG EVENTS, Pos, 7)
+}
 flush logs;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -328,13 +335,12 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # and does not make slave to stop)
 if (`select @@binlog_format = 'ROW'`)
 {
-  --echo This does not matter in ROW mode as the rolled back changes do not contain transactional changes as these 
-  --echo were previously flushed upon committing/rolling back each statement.
+  --echo There is nothing to roll back; transactional changes are removed from the trans cache.
 }
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --exec $MYSQL_BINLOG --start-position=556 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=$binlog_rollback $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 
   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval select
