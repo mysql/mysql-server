@@ -23,9 +23,9 @@ set global innodb_monitor_counter_on = aaa;
 # We require a valid monitor counter/module name. There is no default
 # counter name or module. A warning will be printed asking user to
 # specify a valid counter name.
-set global innodb_monitor_counter_on = default;
-
-show warnings;
+#--disable_warnings
+#set global innodb_monitor_counter_on = default;
+#--enable_warnings
 
 # Turn off all monitor counters, option name should be case
 # insensitive

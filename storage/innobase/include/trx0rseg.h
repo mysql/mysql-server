@@ -180,7 +180,7 @@ struct trx_rseg_struct{
 
 /** For prioritising the rollback segments for purge. */
 struct rseg_queue_struct {
-        dulint          trx_no;         /*!< trx_rseg_t::last_trx_no */
+        trx_id_t	trx_no;         /*!< trx_rseg_t::last_trx_no */
         trx_rseg_t*     rseg;           /*!< Rollback segment */
 };
 

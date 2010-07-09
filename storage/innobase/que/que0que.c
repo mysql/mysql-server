@@ -818,7 +818,7 @@ que_thr_stop_for_mysql(
 	trx = thr_get_trx(thr);
 
 	/* Can't be the purge transaction. */
-	ut_a(!ut_dulint_is_zero(trx->id));
+	ut_a(trx->id != 0);
 
 	trx_mutex_enter(trx);
 
@@ -896,7 +896,7 @@ que_thr_stop_for_mysql_no_error(
 	trx_t*		trx)	/*!< in: transaction */
 {
 	ut_ad(thr->state == QUE_THR_RUNNING);
-	ut_ad(!ut_dulint_is_zero(thr_get_trx(thr)->id));
+	ut_ad(thr_get_trx(thr)->id != 0);
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->lock.n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
@@ -1229,7 +1229,7 @@ loop:
 
 		trx_mutex_enter(thr_get_trx(thr));
 
-		ut_a(!ut_dulint_is_zero(thr_get_trx(thr)->id));
+		ut_a(thr_get_trx(thr)->id != 0);
 
 		if (thr_get_trx(thr)->error_state != DB_SUCCESS) {
 			/* thr was chosen as a deadlock victim or there was

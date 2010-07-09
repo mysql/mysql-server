@@ -40,6 +40,12 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
+# Enable InnoDB's UNIV_DEBUG if MySQL's WITH_DEBUG[_FULL] is defined
+# enable when this bug is resolved:
+# Bug#54861 Additional connections not handled properly in mtr --embedded
+#IF(WITH_DEBUG OR WITH_DEBUG_FULL)
+#  ADD_DEFINITIONS("-DUNIV_DEBUG")
+#ENDIF()
 
 IF(NOT MSVC)
 # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not

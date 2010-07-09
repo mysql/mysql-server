@@ -1170,7 +1170,7 @@ log_group_file_header_flush(
 	buf = *(group->file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
-	mach_write_ull(buf + LOG_FILE_START_LSN, start_lsn);
+	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 
 	/* Wipe over possible label of ibbackup --restore */
 	memcpy(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "    ", 4);
@@ -1789,8 +1789,8 @@ log_group_checkpoint(
 
 	buf = group->checkpoint_buf;
 
-	mach_write_ull(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
-	mach_write_ull(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			log_group_calc_lsn_offset(
@@ -1810,9 +1810,9 @@ log_group_checkpoint(
 		}
 	}
 
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
 #else /* UNIV_LOG_ARCHIVE */
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
@@ -1907,7 +1907,7 @@ log_reset_first_header_and_checkpoint(
 	ib_uint64_t	lsn;
 
 	mach_write_to_4(hdr_buf + LOG_GROUP_ID, 0);
-	mach_write_ull(hdr_buf + LOG_FILE_START_LSN, start);
+	mach_write_to_8(hdr_buf + LOG_FILE_START_LSN, start);
 
 	lsn = start + LOG_BLOCK_HDR_SIZE;
 
@@ -1919,15 +1919,15 @@ log_reset_first_header_and_checkpoint(
 				+ (sizeof "ibbackup ") - 1));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 
-	mach_write_ull(buf + LOG_CHECKPOINT_NO, 0);
-	mach_write_ull(buf + LOG_CHECKPOINT_LSN, lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_NO, 0);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			LOG_FILE_HDR_SIZE + LOG_BLOCK_HDR_SIZE);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, 2 * 1024 * 1024);
 
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
 
 	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
 	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_1, fold);
@@ -2301,7 +2301,7 @@ log_group_archive_file_header_write(
 	buf = *(group->archive_file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
-	mach_write_ull(buf + LOG_FILE_START_LSN, start_lsn);
+	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 	mach_write_to_4(buf + LOG_FILE_NO, file_no);
 
 	mach_write_to_4(buf + LOG_FILE_ARCH_COMPLETED, FALSE);
@@ -2339,7 +2339,7 @@ log_group_archive_completed_header_write(
 	buf = *(group->archive_file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_FILE_ARCH_COMPLETED, TRUE);
-	mach_write_ull(buf + LOG_FILE_END_LSN, end_lsn);
+	mach_write_to_8(buf + LOG_FILE_END_LSN, end_lsn);
 
 	dest_offset = nth_file * group->file_size + LOG_FILE_ARCH_COMPLETED;
 

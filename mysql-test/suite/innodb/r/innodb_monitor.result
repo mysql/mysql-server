@@ -208,12 +208,6 @@ dml_num_deletes	started
 dml_updates	started
 set global innodb_monitor_counter_on = aaa;
 ERROR 42000: Variable 'innodb_monitor_counter_on' can't be set to the value of 'aaa'
-set global innodb_monitor_counter_on = default;
-Warnings:
-Warning	1230	Default value is not defined for this set option. Please specify counter or module name to turn on/off or reset monitor counters.
-show warnings;
-Level	Code	Message
-Warning	1230	Default value is not defined for this set option. Please specify counter or module name to turn on/off or reset monitor counters.
 set global innodb_monitor_counter_off = All;
 select name, status from information_schema.innodb_metrics;
 name	status
