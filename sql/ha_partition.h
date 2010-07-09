@@ -448,6 +448,15 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_end();
 
+  /**
+    @breif
+    Positions an index cursor to the index specified in the hanlde. Fetches the
+    row if available. If the key value is null, begin at first key of the
+    index.
+  */
+  virtual int index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                 key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag);
   /*
     These methods are used to jump to next or previous entry in the index
     scan. There are also methods to jump to first and last entry.
