@@ -33,8 +33,7 @@ CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY);
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT); 
 --let $stop_position=query_get_value(SHOW MASTER STATUS, Position, 1)
 --let $stop_position1=`select $stop_position - 1`
---let $binlog_start_pos=query_get_value(SHOW MASTER STATUS, Position, 1)
-
+--let $binlog_start_pos=query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
 # Test Section
 # Lets start by putting some data into the tables.
 
