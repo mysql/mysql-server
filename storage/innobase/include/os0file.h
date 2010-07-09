@@ -194,12 +194,12 @@ various file I/O operations with performance schema.
 used to register file creation, opening, closing and renaming.
 2) register_pfs_file_io_begin() and register_pfs_file_io_end() are
 used to register actual file read, write and flush */
-# define register_pfs_file_open_begin(locker, key, op, name,		\
+# define register_pfs_file_open_begin(state, locker, key, op, name,	\
 				      src_file, src_line)		\
 do {									\
 	if (PSI_server) {						\
 		locker = PSI_server->get_thread_file_name_locker(	\
-			key, op, name, &locker);			\
+			state, key, op, name, &locker);			\
 		if (locker) {						\
 			PSI_server->start_file_open_wait(		\
 				locker, src_file, src_line);		\
@@ -215,12 +215,12 @@ do {									\
 	}								\
 } while (0)
 
-# define register_pfs_file_io_begin(locker, file, count, op,		\
+# define register_pfs_file_io_begin(state, locker, file, count, op,	\
 				    src_file, src_line)			\
 do {									\
 	if (PSI_server) {						\
 		locker = PSI_server->get_thread_file_descriptor_locker(	\
-			file, op);					\
+			state, file, op);				\
 		if (locker) {						\
 			PSI_server->start_file_wait(			\
 				locker, count, src_file, src_line);	\
