@@ -15,6 +15,7 @@
 
 CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
+CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 
 --let $uuid_file= auto.cnf
 
