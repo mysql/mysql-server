@@ -1530,7 +1530,7 @@ trx_get_trx_by_xid(
 
 	trx_sys_mutex_exit();
 
-	return(NULL);
+	return(trx);
 }
 
 /*************************************************************//**
