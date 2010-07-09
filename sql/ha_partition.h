@@ -53,8 +53,7 @@ typedef struct st_ha_data_partition
                                         HA_CAN_FULLTEXT | \
                                         HA_DUPLICATE_POS | \
                                         HA_CAN_SQL_HANDLER | \
-                                        HA_CAN_INSERT_DELAYED | \
-                                        HA_PRIMARY_KEY_REQUIRED_FOR_POSITION)
+                                        HA_CAN_INSERT_DELAYED)
 class ha_partition :public handler
 {
 private:
@@ -766,9 +765,6 @@ public:
 
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION:
     Does the storage engine need a PK for position?
-    Used with hidden primary key in InnoDB.
-    Hidden primary keys cannot be supported by partitioning, since the
-    partitioning expressions columns must be a part of the primary key.
     (InnoDB)
 
     HA_FILE_BASED is always set for partition handler since we use a
