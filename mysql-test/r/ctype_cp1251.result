@@ -2649,6 +2649,37 @@ drop function f1;
 # End of WL#2649 Number-to-string conversions
 #
 #
+# Bug#54668 User variable assignments get wrong type
+#
+SET @x=md5('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+cp1251	cp1251_general_ci
+SET @x=old_password('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+cp1251	cp1251_general_ci
+SET @x=password('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+cp1251	cp1251_general_ci
+SET @x=sha('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+cp1251	cp1251_general_ci
+SET @x=sha1('a');
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+cp1251	cp1251_general_ci
+SET @x=astext(point(1,2));
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+cp1251	cp1251_general_ci
+SET @x=aswkt(point(1,2));
+SELECT charset(@x), collation(@x);
+charset(@x)	collation(@x)
+cp1251	cp1251_general_ci
+#
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
