@@ -1132,7 +1132,7 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having && const_table_map)
+  if (having && const_table_map && !having->with_sum_func)
   {
     having->update_used_tables();
     having= remove_eq_conds(thd, having, &having_value);
