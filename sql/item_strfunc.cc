@@ -72,7 +72,12 @@ String *Item_str_ascii_func::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
 
   if (!(collation.collation->state & MY_CS_NONASCII))
-    return val_str_ascii(str);
+  {
+    String *res= val_str_ascii(str);
+    if (res)
+      res->set_charset(collation.collation);
+    return res;
+  }
   
   DBUG_ASSERT(str != &ascii_buf);
   

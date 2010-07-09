@@ -1607,6 +1607,25 @@ drop function f1;
 --echo #
 
 --echo #
+--echo # Bug#54668 User variable assignments get wrong type
+--echo #
+SET @x=md5('a');
+SELECT charset(@x), collation(@x);
+SET @x=old_password('a');
+SELECT charset(@x), collation(@x);
+SET @x=password('a');
+SELECT charset(@x), collation(@x);
+SET @x=sha('a');
+SELECT charset(@x), collation(@x);
+SET @x=sha1('a');
+SELECT charset(@x), collation(@x);
+SET @x=astext(point(1,2));
+SELECT charset(@x), collation(@x);
+SET @x=aswkt(point(1,2));
+SELECT charset(@x), collation(@x);
+
+
+--echo #
 --echo # Bug#52159 returning time type from function and empty left join causes debug assertion
 --echo #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
