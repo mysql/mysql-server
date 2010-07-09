@@ -6439,7 +6439,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_CHAR;
     var->value= buff;
-    my_sprintf(buff, (buff, "%.3f",active_mi->heartbeat_period));
+    sprintf(buff, "%.3f", active_mi->heartbeat_period);
   }
   else
     var->type= SHOW_UNDEF;
