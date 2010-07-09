@@ -504,6 +504,10 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
+const char *binlog_checksum_default= "NONE";
+uint binlog_checksum_options;
+my_bool opt_master_verify_checksum= 0;
+my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names) - 1, "",
@@ -5759,7 +5763,10 @@ enum options_mysqld
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
-  OPT_BINLOG_ROWS_EVENT_MAX_SIZE, 
+  OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+  OPT_BINLOG_CHECKSUM,
+  OPT_MASTER_VERIFY_CHECKSUM,
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
   OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
@@ -5983,9 +5990,30 @@ struct my_option my_long_options[] =
    (uchar**) &opt_binlog_rows_event_max_size, 0, 
    GET_ULONG, REQUIRED_ARG, 
    /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX, 
-   /* sub_size */     0, /* block_size */ 256, 
+   /* sub_size */     0, /* block_size */ 256,
    /* app_type */ 0
   },
+  {"binlog-checksum", OPT_BINLOG_CHECKSUM,
+   "Include checksum for log events in the binary log. Possible values are "
+   "NONE and CRC32; default is NONE.",
+   (uchar**) &binlog_checksum_default,
+   (uchar**) &binlog_checksum_default,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"master-verify-checksum", OPT_MASTER_VERIFY_CHECKSUM,
+   "Force checksum verification of logged events in binary log before "
+   "sending them to slaves or printing them in output of SHOW BINLOG EVENTS. "
+   "Enabled by default.",
+   (uchar**) &opt_master_verify_checksum,
+   (uchar**) &opt_master_verify_checksum,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
+  {"slave-sql-verify-checksum", OPT_SLAVE_SQL_VERIFY_CHECKSUM,
+   "Force checksum verification of replication events after reading them "
+   "from relay log. Note: Events are always checksum-verified by slave on "
+   "receiving them from the network before writing them to the relay "
+   "log. Enabled by default.",
+   (uchar**) &opt_slave_sql_verify_checksum,
+   (uchar**) &opt_slave_sql_verify_checksum,
+   0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7963,6 +7991,9 @@ static int mysql_init_variables(void)
   slave_type_conversions_options=
     find_bit_type_or_exit(slave_type_conversions_default, &slave_type_conversions_typelib,
                           NULL, &error);
+  binlog_checksum_options=
+    find_bit_type_or_exit(binlog_checksum_default, &binlog_checksum_typelib,
+                          NULL, &error) - 1;
   if (error)
     return 1;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -8204,6 +8235,10 @@ mysqld_get_one_option(int optid,
       find_bit_type_or_exit(argument, &slave_type_conversions_typelib, "", &error);
     if (error)
       return 1;
+    break;
+  case OPT_BINLOG_CHECKSUM:
+    binlog_checksum_options=
+      find_type_or_exit(argument, &binlog_checksum_typelib, opt->name) - 1;
     break;
 #endif
   case OPT_SAFEMALLOC_MEM_LIMIT:

@@ -34,7 +34,7 @@ Master_info::Master_info(bool is_slave_recovery)
    inited(0), abort_slave(0), 
    slave_running(0), slave_run_id(0), clock_diff_with_master(0), 
    sync_counter(0), heartbeat_period(0), received_heartbeats(0), 
-   master_id(0)
+   master_id(0), checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
