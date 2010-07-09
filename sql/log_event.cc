@@ -1664,17 +1664,17 @@ beg:
       int i, end;
       char buff[512], *pos;
       pos= buff;
-      pos+= my_sprintf(buff, (buff, "%s", dec.sign() ? "-" : ""));
+      pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
       end= ROUND_UP(dec.frac) + ROUND_UP(dec.intg)-1;
       for (i=0; i < end; i++)
-        pos+= my_sprintf(pos, (pos, "%09d.", dec.buf[i]));
-      pos+= my_sprintf(pos, (pos, "%09d", dec.buf[i]));
+        pos+= sprintf(pos, "%09d.", dec.buf[i]);
+      pos+= sprintf(pos, "%09d", dec.buf[i]);
       my_b_printf(file, "%s", buff);
       my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
                   precision, decimals);
       return bin_size;
     }
-    
+
   case MYSQL_TYPE_FLOAT:
     {
       float fl;
@@ -5481,8 +5481,7 @@ void User_var_log_event::pack_info(Protocol* protocol)
       if (!(buf= (char*) my_malloc(val_offset + FLOATING_POINT_BUFFER,
                                    MYF(MY_WME))))
         return;
-      event_len+= my_sprintf(buf + val_offset,
-			     (buf + val_offset, "%.14g", real_val));
+      event_len+= sprintf(buf + val_offset, "%.14g", real_val);
       break;
     case INT_RESULT:
       if (!(buf= (char*) my_malloc(val_offset + 22, MYF(MY_WME))))
@@ -5664,7 +5663,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       double real_val;
       char real_buf[FMT_G_BUFSIZE(14)];
       float8get(real_val, val);
-      my_sprintf(real_buf, (real_buf, "%.14g", real_val));
+      sprintf(real_buf, "%.14g", real_val);
       my_b_printf(&cache, ":=%s%s\n", real_buf, print_event_info->delimiter);
       break;
     case INT_RESULT:
@@ -6414,10 +6413,9 @@ void Append_block_log_event::print(FILE* file,
 void Append_block_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
-  uint length;
-  length= (uint) my_sprintf(buf,
-			    (buf, ";file_id=%u;block_len=%u", file_id,
-			     block_len));
+  size_t length;
+  length= my_snprintf(buf, sizeof(buf), ";file_id=%u;block_len=%u",
+                      file_id, block_len);
   protocol->store(buf, length, &my_charset_bin);
 }
 
@@ -6566,9 +6564,9 @@ void Delete_file_log_event::print(FILE* file,
 void Delete_file_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
-  uint length;
-  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  protocol->store(buf, (int32) length, &my_charset_bin);
+  size_t length;
+  length= my_snprintf(buf, sizeof(buf), ";file_id=%u", (uint) file_id);
+  protocol->store(buf, length, &my_charset_bin);
 }
 #endif
 
@@ -6664,9 +6662,9 @@ void Execute_load_log_event::print(FILE* file,
 void Execute_load_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
-  uint length;
-  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  protocol->store(buf, (int32) length, &my_charset_bin);
+  size_t length;
+  length= my_snprintf(buf, sizeof(buf), ";file_id=%u", (uint) file_id);
+  protocol->store(buf, length, &my_charset_bin);
 }
 
 

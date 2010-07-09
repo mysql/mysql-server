@@ -2278,7 +2278,7 @@ static bool show_status_array(THD *thd, const char *wild,
           value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_DOUBLE:
-          end= buff + my_sprintf(buff, (buff, "%f", *(double*) value));
+          end= buff + sprintf(buff, "%f", *(double*) value);
           break;
         case SHOW_LONG_STATUS:
           value= ((char *) status_var + (ulong) value);
