@@ -2172,6 +2172,7 @@ int main(int argc, char** argv)
   {
     usage();
     free_defaults(defaults_argv);
+    my_end(my_end_arg);
     exit(1);
   }
 
