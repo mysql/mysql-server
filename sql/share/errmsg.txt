@@ -6261,7 +6261,12 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction"
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot change the binlog direct flag inside a stored function or trigger"
-
+ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from network."
+ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from a log file."
+ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE
+  eng "Slave can not handle replication events with the checksum that master is configured to log."
 ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
   eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
 

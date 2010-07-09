@@ -72,7 +72,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -148,7 +148,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -224,7 +224,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -288,7 +288,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -356,7 +356,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -466,7 +466,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -542,7 +542,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -618,7 +618,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -682,7 +682,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -766,7 +766,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -842,7 +842,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -906,7 +906,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -974,7 +974,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1070,7 +1070,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1146,7 +1146,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1210,7 +1210,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1294,7 +1294,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1353,7 +1353,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta1 VALUES (47)
@@ -1384,7 +1384,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1419,7 +1419,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta1 VALUES (47)
@@ -1461,7 +1461,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1561,7 +1561,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1637,7 +1637,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1713,7 +1713,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1777,7 +1777,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1843,7 +1843,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1935,7 +1935,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -1992,7 +1992,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta1 VALUES (47)
@@ -2021,7 +2021,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2054,7 +2054,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta1 VALUES (47)
@@ -2094,7 +2094,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2162,7 +2162,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2276,7 +2276,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2396,7 +2396,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2492,7 +2492,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2605,7 +2605,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2669,7 +2669,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta1 VALUES (47)
@@ -2702,7 +2702,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2739,7 +2739,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta1 VALUES (47)
@@ -2784,7 +2784,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
@@ -2858,7 +2858,7 @@ Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = S
 * SQL_LOG_BIN = 0: expect nothing logged and no warning.
 * binlog_format = MIXED: expect row events in binlog and no warning.
 ******** Failure! Event number 3 was a 'Query', not a 'Table_map'. ********
-SHOW BINLOG EVENTS FROM <binlog_start>;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO ta2 VALUES (47)
