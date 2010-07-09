@@ -27,7 +27,6 @@ AC_DEFUN([MY_MAINTAINER_MODE_WARNINGS], [
     AC_MSG_CHECKING([whether to use C warning options ${C_WARNINGS}])
     AC_LANG_PUSH(C)
     CFLAGS="$CFLAGS ${C_WARNINGS}"
-    AC_LANG_WERROR
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM()], [myac_c_warning_flags=yes],
                       [myac_c_warning_flags=no])
     AC_LANG_POP()
@@ -41,7 +40,6 @@ AC_DEFUN([MY_MAINTAINER_MODE_WARNINGS], [
     AC_MSG_CHECKING([whether to use C++ warning options ${CXX_WARNINGS}])
     AC_LANG_PUSH(C++)
     CXXFLAGS="$CXXFLAGS ${CXX_WARNINGS}"
-    AC_LANG_WERROR
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM()], [myac_cxx_warning_flags=yes],
                       [myac_cxx_warning_flags=no])
     AC_LANG_POP()
