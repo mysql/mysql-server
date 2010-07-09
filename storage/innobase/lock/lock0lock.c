@@ -470,7 +470,7 @@ lock_check_trx_id_sanity(
 	/* A sanity check: the trx_id in rec must be smaller than the global
 	trx id counter */
 
-	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
+	if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: transaction id associated"
 		      " with record\n",
@@ -483,8 +483,7 @@ lock_check_trx_id_sanity(
 			" global trx id counter " TRX_ID_FMT "!\n"
 			"InnoDB: The table is corrupt. You have to do"
 			" dump + drop + reimport.\n",
-			TRX_ID_PREP_PRINTF(trx_id),
-			TRX_ID_PREP_PRINTF(trx_sys->max_trx_id));
+			(ullint) trx_id, (ullint) trx_sys->max_trx_id);
 
 		is_ok = FALSE;
 	}
@@ -554,9 +553,9 @@ lock_sec_rec_cons_read_sees(
 	}
 
 	max_trx_id = page_get_max_trx_id(page_align(rec));
-	ut_ad(!ut_dulint_is_zero(max_trx_id));
+	ut_ad(max_trx_id);
 
-	return(ut_dulint_cmp(max_trx_id, view->up_limit_id) < 0);
+	return(max_trx_id < view->up_limit_id);
 }
 
 /*********************************************************************//**
@@ -1587,8 +1586,7 @@ lock_sec_rec_some_has_impl(
 	max trx id to the log, and therefore during recovery, this value
 	for a page may be incorrect. */
 
-	if (!(ut_dulint_cmp(page_get_max_trx_id(page),
-			    trx_list_get_min_trx_id()) >= 0)
+	if (page_get_max_trx_id(page) < trx_list_get_min_trx_id()
 	    && !recv_recovery_is_on()) {
 
 		return(NULL);
@@ -1820,8 +1818,8 @@ lock_rec_enqueue_waiting(
 
 #ifdef UNIV_DEBUG
 	if (lock_print_waits) {
-		fprintf(stderr, "Lock wait for trx %lu in index ",
-			(ulong) ut_dulint_get_low(trx->id));
+		fprintf(stderr, "Lock wait for trx " TRX_ID_FMT " in index ",
+			(ullint) trx->id);
 		ut_print_name(stderr, trx, FALSE, index->name);
 	}
 #endif /* UNIV_DEBUG */
@@ -2209,8 +2207,8 @@ lock_grant(
 
 #ifdef UNIV_DEBUG
 	if (lock_print_waits) {
-		fprintf(stderr, "Lock wait for trx %lu ends\n",
-			(ulong) ut_dulint_get_low(lock->trx->id));
+		fprintf(stderr, "Lock wait for trx " TRX_ID_FMT " ends\n",
+			(ullint) lock->trx->id);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -3402,6 +3400,8 @@ retry:
 
 	lock_deadlock_found = TRUE;
 
+	ut_ad(trx_mutex_own(trx));
+
 	return(TRUE);
 }
 
@@ -3492,14 +3492,16 @@ lock_deadlock_recursive(
 
 			if (lock_trx == start) {
 
-				/* To obey the latching levels */
+				FILE*	ef;
+
+				/* To obey the latching order */
 				trx_mutex_exit(start);
 
 				/* We came back to the recursion starting
 				point: a deadlock detected; or we have
 				searched the waits-for graph too long */
 
-				FILE*	ef = lock_latest_err_file;
+				ef = lock_latest_err_file;
 
 				rewind(ef);
 				ut_print_timestamp(ef);
@@ -3557,14 +3559,13 @@ lock_deadlock_recursive(
 #endif /* UNIV_DEBUG */
 				MONITOR_INC(MONITOR_DEADLOCK);
 
-				trx_mutex_enter(start);
-
-				if (trx_weight_cmp(wait_lock->trx,
-						   start) >= 0) {
+				if (trx_weight_ge(wait_lock->trx, start)) {
 					/* Our recursion starting point
 					transaction is 'smaller', let us
 					choose 'start' as the victim and roll
 					back it */
+
+					trx_mutex_enter(start);
 
 					return(LOCK_VICTIM_IS_START);
 				}
@@ -3584,8 +3585,6 @@ lock_deadlock_recursive(
 				/* We need to release the transaction mutex,
 				in case  start is granted its locks once we
 				release wait_lock. */
-
-				trx_mutex_exit(start);
 
 				trx_mutex_enter(wait_lock->trx);
 
@@ -4116,7 +4115,7 @@ lock_release(
 			ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
 
 			if (lock_get_mode(lock) != LOCK_IS
-			    && !ut_dulint_is_zero(trx->undo_no)) {
+			    && trx->undo_no != 0) {
 
 				/* The trx may have modified the table. We
 				block the use of the MySQL query cache for
@@ -4280,8 +4279,7 @@ lock_table_print(
 	fputs("TABLE LOCK table ", file);
 	ut_print_name(file, lock->trx, TRUE,
 		      lock->un_member.tab_lock.table->name);
-	fprintf(file, " trx id " TRX_ID_FMT,
-		TRX_ID_PREP_PRINTF(lock->trx->id));
+	fprintf(file, " trx id " TRX_ID_FMT, (ullint) lock->trx->id);
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
@@ -4334,8 +4332,7 @@ lock_rec_print(
 		(ulong) space, (ulong) page_no,
 		(ulong) lock_rec_get_n_bits(lock));
 	dict_index_name_print(file, lock->trx, lock->index);
-	fprintf(file, " trx id " TRX_ID_FMT,
-		TRX_ID_PREP_PRINTF(lock->trx->id));
+	fprintf(file, " trx id " TRX_ID_FMT, (ullint) lock->trx->id);
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
@@ -4470,13 +4467,13 @@ lock_print_info_summary(
 	      "------------\n", file);
 
 	fprintf(file, "Trx id counter " TRX_ID_FMT "\n",
-		TRX_ID_PREP_PRINTF(trx_sys->max_trx_id));
+		(ullint) trx_sys->max_trx_id);
 
 	fprintf(file,
 		"Purge done for trx's n:o < " TRX_ID_FMT
 		" undo n:o < " TRX_ID_FMT "\n",
-		TRX_ID_PREP_PRINTF(purge_sys->iter.trx_no),
-		TRX_ID_PREP_PRINTF(purge_sys->iter.undo_no));
+		(ullint) purge_sys->iter.trx_no,
+		(ullint) purge_sys->iter.undo_no);
 
 	fprintf(file,
 		"History list length %lu\n",
@@ -4567,10 +4564,8 @@ loop:
 				"Trx read view will not see trx with"
 				" id >= " TRX_ID_FMT
 				", sees < " TRX_ID_FMT "\n",
-				TRX_ID_PREP_PRINTF(
-					trx->read_view->low_limit_id),
-				TRX_ID_PREP_PRINTF(
-					trx->read_view->up_limit_id));
+				(ullint) trx->read_view->low_limit_id,
+				(ullint) trx->read_view->up_limit_id);
 		}
 
 		if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
@@ -5040,12 +5035,11 @@ ibool
 lock_validate(void)
 /*===============*/
 {
-	lock_t*	lock;
-	trx_t*	trx;
-	dulint	limit;
-	ulint	space;
-	ulint	page_no;
-	ulint	i;
+	lock_t*		lock;
+	trx_t*		trx;
+	ulint		space;
+	ulint		page_no;
+	ulint		i;
 
 	lock_mutex_enter();
 
@@ -5068,8 +5062,7 @@ lock_validate(void)
 	}
 
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
-
-		limit = ut_dulint_zero;
+		ib_uint64_t	limit = 0; 
 
 		for (;;) {
 
@@ -5082,9 +5075,7 @@ lock_validate(void)
 				space = lock->un_member.rec_lock.space;
 				page_no = lock->un_member.rec_lock.page_no;
 
-				if (ut_dulint_cmp(
-					    ut_dulint_create(space, page_no),
-					    limit) >= 0) {
+				if (ut_ull_create(space, page_no) > limit) {
 					break;
 				}
 			}
@@ -5098,7 +5089,7 @@ lock_validate(void)
 				TRUE, space,
 				fil_space_get_zip_size(space), page_no);
 
-			limit = ut_dulint_create(space, page_no + 1);
+			limit = ut_ull_create(space, page_no + 1);
 		}
 	}
 
@@ -5486,8 +5477,7 @@ lock_sec_rec_read_check_and_lock(
 	if the max trx id for the page >= min trx id for the trx list or a
 	database recovery is running. */
 
-	if (((ut_dulint_cmp(page_get_max_trx_id(block->frame),
-			    trx_list_get_min_trx_id()) >= 0)
+	if ((page_get_max_trx_id(block->frame) >= trx_list_get_min_trx_id()
 	     || recv_recovery_is_on())
 	    && !page_rec_is_supremum(rec)) {
 
@@ -5716,12 +5706,12 @@ lock_get_type(
 Gets the id of the transaction owning a lock.
 @return	transaction id */
 UNIV_INTERN
-ullint
+trx_id_t
 lock_get_trx_id(
 /*============*/
 	const lock_t*	lock)	/*!< in: lock */
 {
-	return(trx_get_id(lock->trx));
+	return(lock->trx->id);
 }
 
 /*******************************************************************//**
@@ -5815,7 +5805,7 @@ lock_get_table(
 Gets the id of the table on which the lock is.
 @return	id of the table */
 UNIV_INTERN
-ullint
+table_id_t
 lock_get_table_id(
 /*==============*/
 	const lock_t*	lock)	/*!< in: lock */
@@ -5824,7 +5814,7 @@ lock_get_table_id(
 
 	table = lock_get_table(lock);
 
-	return((ullint)ut_conv_dulint_to_longlong(table->id));
+	return(table->id);
 }
 
 /*******************************************************************//**

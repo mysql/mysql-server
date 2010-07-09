@@ -51,6 +51,15 @@ Created 4/20/1996 Heikki Tuuri
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
 
 /*********************************************************************//**
 Creates an insert node struct.
@@ -78,7 +87,7 @@ ins_node_create(
 
 	node->select = NULL;
 
-	node->trx_id = ut_dulint_zero;
+	node->trx_id = 0;
 
 	node->entry_sys_heap = mem_heap_create(128);
 
@@ -198,7 +207,7 @@ ins_node_set_new_row(
 	/* As we allocated a new trx id buf, the trx id should be written
 	there again: */
 
-	node->trx_id = ut_dulint_zero;
+	node->trx_id = 0;
 }
 
 /*******************************************************************//**
@@ -2287,7 +2296,7 @@ row_ins_alloc_row_id_step(
 /*======================*/
 	ins_node_t*	node)	/*!< in: row insert node */
 {
-	dulint	row_id;
+	row_id_t	row_id;
 
 	ut_ad(node->state == INS_NODE_ALLOC_ROW_ID);
 
@@ -2474,7 +2483,7 @@ row_ins_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		if (UT_DULINT_EQ(trx->id, node->trx_id)) {
+		if (trx->id == node->trx_id) {
 			/* No need to do IX-locking */
 
 			goto same_trx;

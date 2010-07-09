@@ -112,7 +112,8 @@ trx_create(
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	trx->no = ut_dulint_max;
+	trx->id = 0;
+	trx->no = IB_ULONGLONG_MAX;
 
 	trx->support_xa = TRUE;
 
@@ -338,9 +339,9 @@ trx_list_insert_ordered(
 	trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx2 != NULL) {
-		if (ut_dulint_cmp(trx->id, trx2->id) >= 0) {
+		if (trx->id >= trx2->id) {
 
-			ut_ad(ut_dulint_cmp(trx->id, trx2->id) == 1);
+			ut_ad(trx->id > trx2->id);
 			break;
 		}
 		trx2 = UT_LIST_GET_NEXT(trx_list, trx2);
@@ -390,8 +391,7 @@ trx_resurrect_insert(
 
 			fprintf(stderr,
 				"InnoDB: Transaction " TRX_ID_FMT " was in the"
-				" XA prepared state.\n",
-				TRX_ID_PREP_PRINTF(trx->id));
+				" XA prepared state.\n", trx->id);
 
 			if (srv_force_recovery == 0) {
 
@@ -418,9 +418,9 @@ trx_resurrect_insert(
 		trx->lock.conc_state = TRX_ACTIVE;
 
 		/* A running transaction always has the number
-		field inited to ut_dulint_max */
+		field inited to IB_ULONGLONG_MAX */
 
-		trx->no = ut_dulint_max;
+		trx->no = IB_ULONGLONG_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -429,7 +429,7 @@ trx_resurrect_insert(
 	}
 
 	if (!undo->empty) {
-		trx->undo_no = ut_dulint_add(undo->top_undo_no, 1);
+		++trx->undo_no;
 	}
 
 	return(trx);
@@ -448,8 +448,7 @@ trx_resurrect_update_in_prepared_state(
 	if (undo->state == TRX_UNDO_PREPARED) {
 		fprintf(stderr,
 			"InnoDB: Transaction " TRX_ID_FMT 
-			" was in the XA prepared state.\n",
-			TRX_ID_PREP_PRINTF(trx->id));
+			" was in the XA prepared state.\n", trx->id);
 
 		if (srv_force_recovery == 0) {
 
@@ -494,9 +493,9 @@ trx_resurrect_update(
 		trx->lock.conc_state = TRX_ACTIVE;
 
 		/* A running transaction always has the number field inited to
-		ut_dulint_max */
+		IB_ULONGLONG_MAX */
 
-		trx->no = ut_dulint_max;
+		trx->no = IB_ULONGLONG_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -504,10 +503,9 @@ trx_resurrect_update(
 		trx->table_id = undo->table_id;
 	}
 
-	if (!undo->empty
-	    && ut_dulint_cmp(undo->top_undo_no, trx->undo_no) >= 0) {
+	if (!undo->empty && undo->top_undo_no >= trx->undo_no) {
 
-		trx->undo_no = ut_dulint_add(undo->top_undo_no, 1);
+		++trx->undo_no;
 	}
 }
 
@@ -628,10 +626,11 @@ trx_start_low(
 	trx_rseg_t*	rseg;
 
 	ut_ad(trx->rseg == NULL);
+
 	ut_ad(trx->lock.conc_state != TRX_ACTIVE);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-	/* The initial value for trx->no: ut_dulint_max is used in
+	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
 	read_view_open_now: */
 
 	rseg = trx_assign_rseg();
@@ -640,7 +639,7 @@ trx_start_low(
 
 	trx_mutex_enter(trx);
 
-	trx->no = ut_dulint_max;
+	trx->no = IB_ULONGLONG_MAX;
 
 	trx->start_time = ut_time();
 
@@ -844,8 +843,8 @@ trx_commit(
 	trx_roll_free_all_savepoints(trx);
 
 	trx->rseg = NULL;
-	trx->undo_no = ut_dulint_zero;
-	trx->last_sql_stat_start.least_undo_no = ut_dulint_zero;
+	trx->undo_no = 0;
+	trx->last_sql_stat_start.least_undo_no = 0;
 
 	ut_ad(trx->lock.wait_thr == NULL);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
@@ -875,8 +874,8 @@ trx_cleanup_at_db_startup(
 	}
 
 	trx->rseg = NULL;
-	trx->undo_no = ut_dulint_zero;
-	trx->last_sql_stat_start.least_undo_no = ut_dulint_zero;
+	trx->undo_no = 0;
+	trx->last_sql_stat_start.least_undo_no = 0;
 
 	trx_sys_mutex_enter();
 
@@ -1123,7 +1122,7 @@ trx_mark_sql_stat_end(
 	//trx_mutex_enter(trx);
 
 	if (trx->lock.conc_state == TRX_NOT_STARTED) {
-		trx->undo_no = ut_dulint_zero;
+		trx->undo_no = 0;
 	}
 
 	//trx_mutex_exit(trx);
@@ -1146,7 +1145,7 @@ trx_print(
 
 	ut_ad(trx_sys_mutex_own());
 
-	fprintf(f, "TRANSACTION " TRX_ID_FMT, TRX_ID_PREP_PRINTF(trx->id));
+	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
 
 	switch (trx->lock.conc_state) {
 	case TRX_NOT_STARTED:
@@ -1182,7 +1181,7 @@ trx_print(
 		fputs(" recovered trx", f);
 	}
 
-	if (ut_dulint_is_zero(trx->id)) {
+	if (trx->id == 0) {
 		fputs(" purge trx", f);
 	}
 
@@ -1230,10 +1229,10 @@ trx_print(
 		fputs(", holds adaptive hash latch", f);
 	}
 
-	if (!ut_dulint_is_zero(trx->undo_no)) {
+	if (trx->undo_no != 0) {
 		newline = TRUE;
-		fprintf(f, ", undo log entries %lu",
-			(ulong) ut_dulint_get_low(trx->undo_no));
+		fprintf(f, ", undo log entries %llu",
+			(ullint) trx->undo_no);
 	}
 
 	if (newline) {
@@ -1249,11 +1248,11 @@ trx_print(
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return	<0, 0 or >0; similar to strcmp(3) */
+@return	TRUE if weight(a) >= weight(b) */
 UNIV_INTERN
-int
-trx_weight_cmp(
-/*===========*/
+ibool
+trx_weight_ge(
+/*==========*/
 	const trx_t*	a,	/*!< in: the first transaction to be compared */
 	const trx_t*	b)	/*!< in: the second transaction to be compared */
 {
@@ -1264,19 +1263,14 @@ trx_weight_cmp(
 	not edited non-transactional tables. */
 
 	a_notrans_edit = a->mysql_thd != NULL
-	    && thd_has_edited_nontrans_tables(a->mysql_thd);
+		&& thd_has_edited_nontrans_tables(a->mysql_thd);
 
 	b_notrans_edit = b->mysql_thd != NULL
-	    && thd_has_edited_nontrans_tables(b->mysql_thd);
+		&& thd_has_edited_nontrans_tables(b->mysql_thd);
 
-	if (a_notrans_edit && !b_notrans_edit) {
+	if (a_notrans_edit != b_notrans_edit) {
 
-		return(1);
-	}
-
-	if (!a_notrans_edit && b_notrans_edit) {
-
-		return(-1);
+		return(a_notrans_edit);
 	}
 
 	/* Either both had edited non-transactional tables or both had
@@ -1287,13 +1281,11 @@ trx_weight_cmp(
 	fprintf(stderr,
 		"%s TRX_WEIGHT(a): %lld+%lu, TRX_WEIGHT(b): %lld+%lu\n",
 		__func__,
-		ut_conv_dulint_to_longlong(a->undo_no),
-		UT_LIST_GET_LEN(a->lock.trx_locks),
-		ut_conv_dulint_to_longlong(b->undo_no),
-		UT_LIST_GET_LEN(b->lock.trx_locks));
+		a->undo_no, UT_LIST_GET_LEN(a->lock.trx_locks),
+		b->undo_no, UT_LIST_GET_LEN(b->lock.trx_locks));
 #endif
 
-	return(ut_dulint_cmp(TRX_WEIGHT(a), TRX_WEIGHT(b)));
+	return(TRX_WEIGHT(a) >= TRX_WEIGHT(b));
 }
 
 /****************************************************************//**
@@ -1466,14 +1458,13 @@ trx_recover_for_mysql(
 			fprintf(stderr,
 				"  InnoDB: Transaction " TRX_ID_FMT " in"
 				" prepared state after recovery\n",
-				TRX_ID_PREP_PRINTF(trx->id));
+				(ullint) trx->id);
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Transaction contains changes"
-				" to %lu rows\n",
-				(ulong) ut_conv_dulint_to_longlong(
-					trx->undo_no));
+				" to %llu rows\n",
+				(ullint) trx->undo_no);
 
 			count++;
 

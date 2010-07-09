@@ -2678,6 +2678,12 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
+	/* init null bytes with default values as they might be
+	left uninitialized in some cases and these uninited bytes
+	might be copied into mysql record buffer that leads to
+	valgrind warnings */
+	memcpy(mysql_rec, prebuilt->default_rec, prebuilt->null_bitmap_len);
+
 	for (i = 0; i < prebuilt->n_template; i++) {
 
 		templ = prebuilt->mysql_template + i;
@@ -4618,7 +4624,7 @@ row_search_check_if_query_cache_permitted(
 	IX type locks actually would require ret = FALSE. */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && ut_dulint_cmp(trx->id, table->query_cache_inv_trx_id) >= 0) {
+	    && trx->id >= table->query_cache_inv_trx_id) {
 
 		ret = TRUE;
 

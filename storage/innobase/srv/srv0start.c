@@ -1604,7 +1604,7 @@ innobase_start_or_create_for_mysql(void)
 		consistent state, this is REQUIRED for the recovery
 		process to work. */
 		err = trx_sys_file_format_max_check(
-			srv_check_file_format_at_startup);
+			srv_max_file_format_at_startup);
 
 		if (err != DB_SUCCESS) {
 			return(err);
