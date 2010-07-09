@@ -6365,3 +6365,10 @@ ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
   eng "The requested value %u for the master delay exceeds the maximum %u"
 ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT
   eng "Only Format_description_log_event and row events are allowed in BINLOG statements (but %s was provided)"
+
+ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from network."
+ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from a log file."
+ER_SLAVE_IS_NOT_CHECKSUM_CAPABLE
+  eng "Slave can not handle replication events with the checksum that master is configured to log."
