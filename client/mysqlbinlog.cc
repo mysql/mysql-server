@@ -1533,11 +1533,12 @@ static Exit_status check_master_version()
     goto err;
   }
   /* 
-     FD from the server will cary the checksum alg descriptor. Because
-     there won't be any fake Rotate there is no need to SELECT the alg
-     unlike slave server does to its master.
+     Make a notice to the server that this client
+     is checksum-aware. It does not need the first fake Rotate
+     necessary checksummed. 
+     That preference is specified below.
   */
-  if (mysql_query(mysql, "SET @master_binlog_checksum=@@global.binlog_checksum"))
+  if (mysql_query(mysql, "SET @master_binlog_checksum='NONE'"))
   {
     error("Could not notify master about checksum awareness."
           "Master returned '%s'", mysql_error(mysql));
