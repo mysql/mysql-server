@@ -994,7 +994,7 @@ int double2decimal(double from, decimal_t *to)
   char buff[400], *end;
   int length, res;
   DBUG_ENTER("double2decimal");
-  length= my_sprintf(buff, (buff, "%.16G", from));
+  length= sprintf(buff, "%.16G", from);
   DBUG_PRINT("info",("from: %g  from_as_str: %s", from, buff));
   end= buff+length;
   res= string2decimal(buff, to, &end);

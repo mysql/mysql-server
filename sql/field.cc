@@ -2277,7 +2277,7 @@ int Field_decimal::store(double nr)
   snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
   length= strlen(buff);
 #else
-  length= my_sprintf(buff,(buff,"%.*f",dec,nr));
+  length= sprintf(buff, "%.*f", dec, nr);
 #endif
 
   if (length > field_length)
@@ -4259,7 +4259,7 @@ String *Field_float::val_str(String *val_buffer,
     snprintf(to,to_length-1,"%.*f",dec,nr);
     to=strend(to);
 #else
-    to+= my_sprintf(to,(to,"%.*f",dec,nr));
+    to+= sprintf(to, "%.*f", dec, nr);
 #endif
 #endif
   }
@@ -4617,7 +4617,7 @@ String *Field_double::val_str(String *val_buffer,
     snprintf(to,to_length-1,"%.*f",dec,nr);
     to=strend(to);
 #else
-    to+= my_sprintf(to,(to,"%.*f",dec,nr));
+    to+= sprintf(to, "%.*f", dec, nr);
 #endif
 #endif
   }
@@ -6461,7 +6461,7 @@ int Field_str::store(double nr)
   /* Limit precision to DBL_DIG to avoid garbage past significant digits */
   set_if_smaller(digits, DBL_DIG);
   
-  length= (uint) my_sprintf(buff, (buff, "%-.*g", digits, nr));
+  length= (uint) sprintf(buff, "%-.*g", digits, nr);
 
 #ifdef __WIN__
   /*
@@ -10419,7 +10419,7 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     /* DBL_DIG is enough to print '-[digits].E+###' */
     char str_nr[DBL_DIG + 8];
-    uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
+    uint str_len= sprintf(str_nr, "%g", nr);
     make_truncated_value_warning(thd, level, str_nr, str_len, ts_type,
                                  field_name);
   }
