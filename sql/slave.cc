@@ -1528,7 +1528,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
        the period is an ulonglong of nano-secs. 
     */
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
-    my_sprintf(query, (query, query_format, llbuf));
+    sprintf(query, query_format, llbuf);
 
     if (mysql_real_query(mysql, query, strlen(query))
         && !check_io_slave_killed(mi->io_thd, mi, NULL))
@@ -1934,17 +1934,17 @@ bool show_master_info(THD* thd, Master_info* mi)
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
         get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-        slen= my_sprintf(sbuff, (sbuff, (i==0? "%lu" : ", %lu"), s_id));
+        slen= sprintf(sbuff, (i==0? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
           /*
             break the loop whenever remained space could not fit
             ellipses on the next cycle
           */
-          my_sprintf(buff + cur_len, (buff + cur_len, "..."));
+          sprintf(buff + cur_len, "...");
           break;
         }
-        cur_len += my_sprintf(buff + cur_len, (buff + cur_len, "%s", sbuff));
+        cur_len += sprintf(buff + cur_len, "%s", sbuff);
       }
       protocol->store(buff, &my_charset_bin);
     }
