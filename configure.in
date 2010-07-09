@@ -65,6 +65,7 @@ MYSQL_TCP_PORT_DEFAULT=3306
 MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 
 dnl Include m4 
+sinclude(config/ac-macros/maintainer.m4)
 sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
@@ -102,6 +103,8 @@ AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
+# Whether the maintainer mode should be enabled.
+MY_MAINTAINER_MODE
 
 # Canonicalize the configuration name.
 
@@ -2888,6 +2891,12 @@ do
   fi
 done
 AC_SUBST(sql_union_dirs)
+
+#
+# Setup maintainer mode options by the end to not disturb
+# system and other checks.
+#
+MY_MAINTAINER_MODE_SETUP
 
 # Some usefull subst
 AC_SUBST(CC)
