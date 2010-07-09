@@ -49,4 +49,6 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(mysys ${MYSYS_SOURCES})
+  
+  INSTALL(TARGETS mysys DESTINATION lib/opt COMPONENT runtime) # TODO: Component?
 ENDIF(NOT SOURCE_SUBLIBS)

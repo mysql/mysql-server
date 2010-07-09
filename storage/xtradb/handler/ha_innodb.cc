@@ -10404,7 +10404,7 @@ static MYSQL_SYSVAR_BOOL(recovery_stats, innobase_recovery_stats,
   "Output statistics of recovery process after it.",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
+static MYSQL_SYSVAR_ULINT(use_purge_thread, srv_use_purge_thread,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
   NULL, NULL, 1, 0, 64, 0);
@@ -10559,7 +10559,7 @@ static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
   "(except for ANALYZE TABLE command) 0:disable 1:enable",
   NULL, NULL, 1, 0, 1, 0);
 
-static MYSQL_SYSVAR_ULONG(stats_update_need_lock, srv_stats_update_need_lock,
+static MYSQL_SYSVAR_ULINT(stats_update_need_lock, srv_stats_update_need_lock,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable InnoDB's update statistics which needs to lock dictionary. "
   "e.g. Data_free.",
@@ -10739,7 +10739,7 @@ static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
   "Tunes amount of insert buffer processing of background, in addition to innodb_io_capacity. (in percentage)",
   NULL, NULL, 100, 100, 999999999, 0);
 
-static MYSQL_SYSVAR_ULONG(checkpoint_age_target, srv_checkpoint_age_target,
+static MYSQL_SYSVAR_ULINT(checkpoint_age_target, srv_checkpoint_age_target,
   PLUGIN_VAR_RQCMDARG,
   "Control soft limit of checkpoint age. (0 : not control)",
   NULL, NULL, 0, 0, ~0UL, 0);
@@ -10833,12 +10833,12 @@ static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
   "Limit the allocated memory for dictionary cache. (0: unlimited)",
   NULL, NULL, 0, 0, LONG_MAX, 0);
 
-static MYSQL_SYSVAR_ULONG(relax_table_creation, srv_relax_table_creation,
+static MYSQL_SYSVAR_ULINT(relax_table_creation, srv_relax_table_creation,
   PLUGIN_VAR_RQCMDARG,
   "Relax limitation of column size at table creation as builtin InnoDB.",
   NULL, NULL, 0, 0, 1, 0);
 
-static	MYSQL_SYSVAR_ULONG(pass_corrupt_table, srv_pass_corrupt_table,
+static	MYSQL_SYSVAR_ULINT(pass_corrupt_table, srv_pass_corrupt_table,
   PLUGIN_VAR_RQCMDARG,
   "Pass corruptions of user tables as 'corrupt table' instead of not crashing itself, "
   "when used with file_per_table. "

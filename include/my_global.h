@@ -90,6 +90,9 @@
 #define IF_WIN(A,B) (B)
 #endif
 
+/* Make it easier to print null strings */
+#define val_or_null(A) ((A) ? (const char*) (A) : "(null)")
+
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_NDB_BINLOG
 #define HAVE_NDB_BINLOG 1

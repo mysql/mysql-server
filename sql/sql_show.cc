@@ -3980,9 +3980,9 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
 
   if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
     DBUG_RETURN(0);
-  DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
-                             lookup_field_vals.db_value.str,
-                             lookup_field_vals.table_value.str));
+  DBUG_PRINT("INDEX VALUES",("db_name: %s  table_name: %s",
+                             val_or_null(lookup_field_vals.db_value.str),
+                             val_or_null(lookup_field_vals.table_value.str)));
   if (make_db_list(thd, &db_names, &lookup_field_vals,
                    &with_i_schema))
     DBUG_RETURN(1);
