@@ -355,7 +355,7 @@ void filesort_free_buffers(TABLE *table, bool full)
     table->sort.sort_keys= NULL;
     my_free(table->sort.buffpek);
     table->sort.buffpek= NULL;
-    table->sort.buffpek_len= NULL;
+    table->sort.buffpek_len= 0;
   }
 
   my_free(table->sort.addon_buf);

@@ -6338,7 +6338,7 @@ void free_win_path_patterns()
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
-    my_free(*pattern);
+    my_free((void *) *pattern);
   }
   delete_dynamic(&patterns);
 }
