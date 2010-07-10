@@ -175,7 +175,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
         thr_lock_init(&share->lock);
         pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
     }
-    pthread_mutex_unlock(&tokudb_mutex);
 
 exit:
     if (error) {
@@ -183,6 +182,7 @@ exit:
         my_free((uchar *) share, MYF(0));
         share = NULL;
     }
+    pthread_mutex_unlock(&tokudb_mutex);
     return share;
 }
 
