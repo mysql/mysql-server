@@ -1070,6 +1070,10 @@ get_thread_v1(void)
   return reinterpret_cast<PSI_thread*> (pfs);
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_user.
+*/
 static void set_thread_user_v1(const char *user, int user_len)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -1107,6 +1111,10 @@ static void set_thread_user_v1(const char *user, int user_len)
   pfs->m_lock.dirty_to_allocated();
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_user_host.
+*/
 static void set_thread_user_host_v1(const char *user, int user_len,
                                     const char *host, int host_len)
 {
@@ -1151,6 +1159,10 @@ static void set_thread_user_host_v1(const char *user, int user_len,
   pfs->m_lock.dirty_to_allocated();
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_db.
+*/
 static void set_thread_db_v1(const char* db, int db_len)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -1169,6 +1181,10 @@ static void set_thread_db_v1(const char* db, int db_len)
   }
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_command.
+*/
 static void set_thread_command_v1(int command)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -1184,6 +1200,10 @@ static void set_thread_command_v1(int command)
   }
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_start_time.
+*/
 static void set_thread_start_time_v1(time_t start_time)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -1196,6 +1216,10 @@ static void set_thread_start_time_v1(time_t start_time)
   }
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_state.
+*/
 static void set_thread_state_v1(const char* state)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -1211,6 +1235,10 @@ static void set_thread_state_v1(const char* state)
   }
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_info.
+*/
 static void set_thread_info_v1(const char* info, int info_len)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);

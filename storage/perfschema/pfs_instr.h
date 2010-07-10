@@ -229,17 +229,29 @@ struct PFS_thread
   */
   PFS_single_stat_chain *m_instr_class_wait_stats;
 
+  /** User name. */
   char m_username[USERNAME_LENGTH];
+  /** Length of @c m_username. */
   uint m_username_length;
+  /** Host name. */
   char m_hostname[HOSTNAME_LENGTH];
+  /** Length of @c m_hostname. */
   uint m_hostname_length;
+  /** Database name. */
   char m_dbname[NAME_LEN];
+  /** Length of @c m_dbname. */
   uint m_dbname_length;
+  /** Current command. */
   int m_command;
+  /** Start time. */
   time_t m_start_time;
+  /** Processlist state. */
   const char *m_processlist_state_ptr;
+  /** Length of @c m_processlist_state_ptr. */
   uint m_processlist_state_length;
+  /** Processlist info. */
   const char *m_processlist_info_ptr;
+  /** Length of @c m_processlist_info_length. */
   uint m_processlist_info_length;
 };
 

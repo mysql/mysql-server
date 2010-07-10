@@ -33,25 +33,37 @@ struct row_threads
 {
   /** Column THREAD_ID. */
   ulong m_thread_internal_id;
-  /** Column ID. */
+  /** Column PROCESSLIST_ID. */
   ulong m_thread_id;
   /** Column NAME. */
   const char* m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
-
+  /** Column PROCESSLIST_USER. */
   char m_username[USERNAME_LENGTH];
+  /** Length in bytes of @c m_username. */
   uint m_username_length;
+  /** Column PROCESSLIST_HOST. */
   char m_hostname[HOSTNAME_LENGTH];
+  /** Length in bytes of @c m_hostname. */
   uint m_hostname_length;
+  /** Column PROCESSLIST_DB. */
   char m_dbname[NAME_LEN];
+  /** Length in bytes of @c m_dbname. */
   uint m_dbname_length;
+  /** Column PROCESSLIST_COMMAND. */
   int m_command;
+  /** Column PROCESSLIST_TIME. */
   time_t m_start_time;
+  /** Column PROCESSLIST_STATE. */
   const char* m_processlist_state_ptr;
+  /** Length in bytes of @c m_processlist_state_ptr. */
   uint m_processlist_state_length;
+  /** Column PROCESSLIST_INFO. */
   const char* m_processlist_info_ptr;
+  /** Length in bytes of @c m_processlist_info_ptr. */
   uint m_processlist_info_length;
+  /** Column INSTRUMENTED. */
   bool *m_enabled_ptr;
 };
 
