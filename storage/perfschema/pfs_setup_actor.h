@@ -43,6 +43,7 @@ struct PFS_setup_actor_key
     the format is "<username><0x00><hostname><0x00><rolename><0x00>"
   */
   char m_hash_key[USERNAME_LENGTH + 1 + HOSTNAME_LENGTH + 1 + ROLENAME_LENGTH + 1];
+  /** Length of @c m_hash_key. */
   uint m_key_length;
 };
 
@@ -50,12 +51,19 @@ struct PFS_setup_actor
 {
   /** Internal lock. */
   pfs_lock m_lock;
+  /** Hash key. */
   PFS_setup_actor_key m_key;
+  /** User name. This points inside the hash key. */
   const char *m_username;
+  /** Length of @c m_username. */
   uint m_username_length;
+  /** Host name. This points inside the hash key. */
   const char *m_hostname;
+  /** Length of @c m_hostname. */
   uint m_hostname_length;
+  /** Role name. This points inside the hash key. */
   const char *m_rolename;
+  /** Length of @c m_rolename. */
   uint m_rolename_length;
 };
 
