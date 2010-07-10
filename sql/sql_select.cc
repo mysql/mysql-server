@@ -8100,6 +8100,8 @@ void JOIN::cleanup(bool full)
     {
       for (tab= top_jtrange_tables?join_tab:NULL; tab; tab= next_linear_tab(this, tab, TRUE))
 	tab->cleanup();
+      //psergey4: how is the above supposed to work when
+      //top_jtrange_tables==FALSE? It will crash right away!
       table= 0;
     }
     else
@@ -12746,133 +12748,6 @@ int rr_sequential_and_unpack(READ_RECORD *info)
 
 
 /*
-  Semi-join materialization join function
-
-  SYNOPSIS
-    sub_select_sjm()
-      join            The join
-      join_tab        The first table in the materialization nest
-      end_of_records  FALSE <=> This call is made to pass another record 
-                                combination
-                      TRUE  <=> EOF
-
-  DESCRIPTION
-    This is a join execution function that does materialization of a join
-    suborder before joining it to the rest of the join.
-
-    The table pointed by join_tab is the first of the materialized tables.
-    This function first creates the materialized table and then switches to
-    joining the materialized table with the rest of the join.
-
-    The materialized table can be accessed in two ways:
-     - index lookups
-     - full table scan
-
-  RETURN
-    One of enum_nested_loop_state values
-*/
-#if 0 
-enum_nested_loop_state
-sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
-{
-  int res;
-  enum_nested_loop_state rc;
-
-  DBUG_ENTER("sub_select_sjm");
-
-  if (!join_tab->emb_sj_nest)
-  {
-    /*
-      We're handling GROUP BY/ORDER BY, this is the first table, and we've
-      actually executed the join already and now we're just reading the
-      result of the join from the temporary table.
-      Bypass to regular join handling.
-      Yes, it would be nicer if sub_select_sjm wasn't called at all in this
-      case but there's no easy way to arrange this.
-    */
-    rc= sub_select(join, join_tab, end_of_records);
-    DBUG_RETURN(rc);
-  }
-
-  SJ_MATERIALIZATION_INFO *sjm= join_tab->emb_sj_nest->sj_mat_info;
-  if (end_of_records)
-  {
-    rc= (*join_tab[sjm->tables - 1].next_select)(join,
-                                                 join_tab + sjm->tables,
-                                                 end_of_records);
-    DBUG_RETURN(rc);
-  }
-  if (!sjm->materialized)
-  {
-    /*
-      Do the materialization. First, put end_sj_materialize after the last
-      inner table so we can catch record combinations of sj-inner tables.
-    */
-    Next_select_func next_func= join_tab[sjm->tables - 1].next_select;
-    join_tab[sjm->tables - 1].next_select= end_sj_materialize;
-
-    /*
-      Now run the join for the inner tables. The first call is to run the
-      join, the second one is to signal EOF (this is essential for some
-      join strategies, e.g. it will make join buffering flush the records)
-    */
-    if ((rc= sub_select(join, join_tab, FALSE)) < 0 ||
-        (rc= sub_select(join, join_tab, TRUE/*EOF*/)) < 0)
-    {
-      join_tab[sjm->tables - 1].next_select= next_func;
-      DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
-    }
-    join_tab[sjm->tables - 1].next_select= next_func;
-
-    /*
-      Ok, materialization finished. Initialize the access to the temptable
-    */
-    sjm->materialized= TRUE;
-    join_tab->read_record.read_record= join_no_more_records;
-    if (sjm->is_sj_scan)
-    {
-      /* Initialize full scan */
-      JOIN_TAB *last_tab= join_tab + (sjm->tables - 1);
-      init_read_record(&last_tab->read_record, join->thd,
-                       sjm->table, NULL, TRUE, TRUE, FALSE);
-
-      DBUG_ASSERT(last_tab->read_record.read_record == rr_sequential);
-      last_tab->read_first_record= join_read_record_no_init;
-      last_tab->read_record.copy_field= sjm->copy_field;
-      last_tab->read_record.copy_field_end= sjm->copy_field +
-                                            sjm->sjm_table_cols.elements;
-      last_tab->read_record.read_record= rr_sequential_and_unpack;
-    }
-  }
-
-  if (sjm->is_sj_scan)
-  {
-    /* Do full scan of the materialized table */
-    JOIN_TAB *last_tab= join_tab + (sjm->tables - 1);
-
-    Item *save_cond= last_tab->select_cond;
-    last_tab->set_select_cond(sjm->join_cond, __LINE__);
-
-    rc= sub_select(join, last_tab, end_of_records);
-    last_tab->set_select_cond(save_cond, __LINE__);
-    DBUG_RETURN(rc);
-  }
-  else
-  {
-    /* Do index lookup in the materialized table */
-    if ((res= join_read_key2(join_tab, sjm->table, sjm->tab_ref)) == 1)
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if (res || !sjm->in_equality->val_int())
-      DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
-  }
-  rc= (*join_tab[sjm->tables - 1].next_select)(join,
-                                               join_tab + sjm->tables,
-                                               end_of_records);
-  DBUG_RETURN(rc);
-}
-#endif
-
-/*
   Fill the join buffer with partial records, retrieve all full  matches for them   
 
   SYNOPSIS
@@ -13122,8 +12997,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     }
     join->thd->row_count= 0;
     
-    if (join_tab_execution_startup(join_tab))
-      DBUG_RETURN(NESTED_LOOP_ERROR);
+    if ((rc= join_tab_execution_startup(join_tab)) < 0)
+      DBUG_RETURN(rc);
 
     error= (*join_tab->read_first_record)(join_tab);
 

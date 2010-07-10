@@ -30,6 +30,8 @@
   3.1.1 Merged semi-join TABLE_LIST object
   3.1.2 Non-merged semi-join data structure
   3.2 Semi-joins and query optimization
+  3.2.1 Non-merged semi-joins and join optimization
+  3.2.2 Merged semi-joins and join optimization
   3.3 Semi-joins and query execution
 
   1. What is a semi-join subquery
@@ -99,8 +101,8 @@
   3. Code-level view of semi-join processing
   ------------------------------------------
   
-  3.1 Conversion
-  --------------
+  3.1 Conversion and pre-optimization data structures
+  ---------------------------------------------------
   * When doing JOIN::prepare for the subquery, we detect that it can be
     converted into a semi-join and register it in parent_join->sj_subselects
 
@@ -117,7 +119,7 @@
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   Merged semi-join object is a TABLE_LIST that contains a sub-join of 
   subquery tables and the semi-join ON expression (in this respect it is 
-  ery similar to nested outer join representation)
+  very similar to nested outer join representation)
   Merged semi-join represents this SQL:
 
     ... SEMI JOIN (inner_tbl1 JOIN ... JOIN inner_tbl_n) ON sj_on_expr
@@ -135,14 +137,38 @@
   clause. (They do remain in PS-saved WHERE clause, and they replace themselves
   with Item_int(1) on subsequent re-executions).
 
-  3.2 Semi-joins and query optimization
-  -------------------------------------
-  Query optimizer operates on semi-join nests.
+  3.2 Semi-joins and join optimization
+  ------------------------------------
+  
+  3.2.1 Non-merged semi-joins and join optimization
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  For join optimization purposes, non-merged semi-join nests are similar to
+  base tables - they've got one JOIN_TAB, which can be accessed with one of
+  two methods:
+   - full table scan (representing SJ-Materialization-Scan strategy)
+   - eq_ref-like table lookup (representing SJ-Materialization-Lookup)
+
+  Unlike regular base tables, non-merged semi-joins have:
+   - non-zero JOIN_TAB::startup_cost, and
+   - join_tab->table->is_filled_at_execution()==TRUE, which means one
+     cannot do const table detection or range analysis or other table data-
+     dependent inferences
+  // instead, get_delayed_table_estimates() runs optimization on the nest so that 
+  // we get an idea about temptable size
+  
+  3.2.2 Merged semi-joins and join optimization
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   - optimize_semijoin_nests() does pre-optimization 
+   - during join optimization, the join has one JOIN_TAB (or is it POSITION?) 
+     array, and suffix-based detection is used, see advance_sj_state()
+   - after join optimization is done, get_best_combination() switches 
+     the data-structure to prefix-based, multiple JOIN_TAB ranges format.
 
   3.3 Semi-joins and query execution
   ----------------------------------
   * Join executor has hooks for all semi-join strategies.
-    TODO elaborate
+    TODO elaborate.
+
 */
 
 
@@ -2682,8 +2708,6 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    //if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
-    //  DBUG_RETURN(TRUE); /* purecov: inspected */
     tab_ref= &sjm_tab->ref;
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
@@ -3966,17 +3990,19 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
     pointers.
   
   RETURN 
-    FALSE  Ok
-    TRUE   Error, join execution is not possible.
+    NESTED_LOOP_OK - OK
+    NESTED_LOOP_ERROR| NESTED_LOOP_KILLED - Error, abort the join execution
 */
 
-bool join_tab_execution_startup(JOIN_TAB *tab)
+enum_nested_loop_state join_tab_execution_startup(JOIN_TAB *tab)
 {
   Item_in_subselect *in_subs;
   DBUG_ENTER("join_tab_execution_startup");
+
   if (tab->table->pos_in_table_list && 
       (in_subs= tab->table->pos_in_table_list->jtbm_subselect))
   {
+    /* It's a non-merged SJM nest */
     DBUG_ASSERT(in_subs->engine->engine_type() ==
                 subselect_engine::HASH_SJ_ENGINE);
 
@@ -3988,13 +4014,13 @@ bool join_tab_execution_startup(JOIN_TAB *tab)
       hash_sj_engine->is_materialized= TRUE; 
 
       if (hash_sj_engine->materialize_join->error || tab->join->thd->is_fatal_error)
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(NESTED_LOOP_ERROR);
     }
   }
   else if (tab->bush_children)
   {
     /* It's a merged SJM nest */
-    int rc; // psergey3: todo: error codes!
+    enum_nested_loop_state rc;
     JOIN *join= tab->join;
     SJ_MATERIALIZATION_INFO *sjm= tab->bush_children->start->emb_sj_nest->sj_mat_info;
     JOIN_TAB *join_tab= tab->bush_children->start;
@@ -4018,6 +4044,6 @@ bool join_tab_execution_startup(JOIN_TAB *tab)
     }
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 

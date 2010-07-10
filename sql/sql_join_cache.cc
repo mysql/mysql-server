@@ -1809,11 +1809,8 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 
   /* Start retrieving all records of the joined table */
   
-  if (join_tab_execution_startup(join_tab))
-  {
-    rc= NESTED_LOOP_ERROR;
+  if ((rc= join_tab_execution_startup(join_tab)) < 0)
     goto finish;
-  }
 
   if ((error= join_init_read_record(join_tab))) 
   {

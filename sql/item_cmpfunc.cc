@@ -5731,10 +5731,8 @@ Item_field* Item_equal::get_first(Item_field *field)
   {
     /*
       It's a field from an materialized semi-join. We can substitute it only
-      for a field from the same semi-join.
+      for a field from the same semi-join. Find the first of such items.
     */
-
-    /* Find an item to substitute for. */
     while ((item= it++))
     {
       if (item->field->table->pos_in_table_list->embedding == emb_nest)
@@ -5762,7 +5760,7 @@ Item_field* Item_equal::get_first(Item_field *field)
       First let's note that either it1.col or it2.col participates in 
       subquery's IN-equality. It can't be otherwise, because materialization is
       only applicable to uncorrelated subqueries, so the only way we could
-      infer "it1.col=ot1.col" is from IN-equality. Ok, so IN-eqality has 
+      infer "it1.col=ot1.col" is from the IN-equality. Ok, so IN-eqality has 
       it1.col or it2.col on its inner side. it1.col is first such item in the
       join order, so it's not possible for SJ-Mat to be
       SJ-Materialization-lookup, it is SJ-Materialization-Scan. The scan part

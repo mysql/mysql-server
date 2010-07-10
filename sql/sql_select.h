@@ -1247,9 +1247,6 @@ enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
                                         end_of_records);
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
-enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, 
-                                      bool end_of_records);
-
 enum_nested_loop_state
 end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	       bool end_of_records);

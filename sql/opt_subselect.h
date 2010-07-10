@@ -372,5 +372,5 @@ void get_delayed_table_estimates(TABLE *table,
                                  double *scan_time,
                                  double *startup_cost);
 
-bool join_tab_execution_startup(JOIN_TAB *tab);
+enum_nested_loop_state join_tab_execution_startup(JOIN_TAB *tab);
 
