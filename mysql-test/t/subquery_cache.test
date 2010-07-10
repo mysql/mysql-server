@@ -1,0 +1,509 @@
+
+set optimizer_switch='subquery_cache=on';
+
+create table t1 (a int, b int);
+insert into t1 values (1,2),(3,4),(1,2),(3,4),(3,4),(4,5),(4,5),(5,6),(5,6),(4,5);
+create table t2 (c int, d int);
+insert into t2 values (2,3),(3,4),(5,6),(4,1);
+
+--echo *
+--echo * Test subquery as top item in different clauses
+--echo *
+--echo #single value subquery test (SELECT list)
+flush status;
+select a, (select d from t2 where b=c) from t1;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select a, (select d from t2 where b=c) from t1;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+
+--echo #single value subquery test (where)
+flush status;
+select a from t1 where (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select a from t1 where (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (having)
+flush status;
+select a from t1 where a > 0 having (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select a from t1 where a > 0 having (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (OUTER JOIN ON)
+flush status;
+select ta.a, tb.a from t1 ta join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select ta.a, tb.a from t1 ta join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (GROUP BY)
+flush status;
+select max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (distinct GROUP BY)
+flush status;
+select distinct max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select distinct max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (ORDER BY)
+flush status;
+select a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (distinct ORDER BY)
+flush status;
+select distinct a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select distinct a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (LEFT JOIN ON)
+flush status;
+select ta.a, tb.a from t1 ta left join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select ta.a, tb.a from t1 ta left join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (PS)
+prepare stmt1 from 'select a, (select d from t2 where b=c) + 1 from t1';
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+deallocate prepare stmt1;
+
+--echo #single value subquery test (SP)
+CREATE PROCEDURE p1() select a, (select d from t2 where b=c) + 1 from t1;
+
+call p1;
+call p1;
+
+drop procedure p1;
+
+--echo #IN subquery test
+flush status;
+
+show status like "subquery_cache%";
+select a, b , b in (select d from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+insert into t1 values (7,8),(9,NULL);
+select a, b , b in (select d from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+insert into t2 values (8,NULL);
+select a, b , b in (select d from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn NOT IN with NULLs
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (b, a) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (b, a) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn NOT IN with NULLs (other order)
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (a, b) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (a, b) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn IN with NULLs
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (b, a) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (b, a) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn IN with NULLs (other order)
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (a, b) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (a, b) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo #IN subquery test (PS)
+delete from t1 where a > 6;
+delete from t2 where c > 6;
+
+prepare stmt1 from 'select a, b , b in (select d from t2) as SUBS from t1';
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+
+insert into t1 values (7,8),(9,NULL);
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+
+insert into t2 values (8,NULL);
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+
+deallocate prepare stmt1;
+
+
+--echo #IN subquery test (SP)
+delete from t1 where a > 6;
+delete from t2 where c > 6;
+
+CREATE PROCEDURE p1() select a, b , b in (select d from t2) as SUBS from t1;
+
+call p1();
+show status like "subquery_cache%";
+call p1();
+show status like "subquery_cache%";
+
+insert into t1 values (7,8),(9,NULL);
+call p1();
+show status like "subquery_cache%";
+call p1();
+show status like "subquery_cache%";
+
+insert into t2 values (8,NULL);
+call p1();
+show status like "subquery_cache%";
+call p1();
+show status like "subquery_cache%";
+
+drop procedure p1;
+
+
+--echo # test of simple exists
+select a, b , exists (select * from t2 where b=d) as SUBS from t1;
+
+--echo # test of prepared statement exists
+show status like "subquery_cache%";
+prepare stmt1 from 'select a, b , exists (select * from t2 where b=d) as SUBS from t1';
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+deallocate prepare stmt1;
+
+--echo # test of stored procedure exists
+CREATE PROCEDURE p1() select a, b , exists (select * from t2 where b=d) as SUBS from t1;
+call p1;
+call p1;
+drop procedure p1;
+
+--echo #several subqueries
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=on';
+flush status;
+select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+--echo #several subqueries (several levels)
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a, b, (select exists (select * from t2 where b=d) from t2 where b=c) as SUNS1 from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+
+set optimizer_switch='subquery_cache=on';
+flush status;
+select a, b, (select exists (select * from t2 where b=d) from t2 where b=c) as SUNS1 from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+
+--echo #clean up
+drop table t1,t2;
+
+--echo test different types
+--echo #int
+CREATE TABLE t1 ( a int, b int);
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+DROP TABLE t1;
+
+--echo #char
+CREATE TABLE t1 ( a char(1), b char (1));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #decimal
+CREATE TABLE t1 ( a decimal(3,1), b decimal(3,1));
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+DROP TABLE t1;
+
+--echo #date
+CREATE TABLE t1 ( a date, b date);
+INSERT INTO t1 VALUES('1000-01-01','1000-01-01'),('2000-02-01','2000-02-01'),('3000-03-03','3000-03-03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-01');
+DROP TABLE t1;
+
+--echo #datetime
+CREATE TABLE t1 ( a datetime, b datetime);
+INSERT INTO t1 VALUES('1000-01-01 01:01:01','1000-01-01 01:01:01'),('2000-02-02  02:02:02','2000-02-02 02:02:02'),('3000-03-03 03:03:03','3000-03-03 03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-02 02:02:02');
+DROP TABLE t1;
+
+--echo #time
+CREATE TABLE t1 ( a time, b time);
+INSERT INTO t1 VALUES('01:01:01','01:01:01'),('02:02:02','02:02:02'),('03:03:03','03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '02:02:02');
+DROP TABLE t1;
+
+--echo #timestamp
+CREATE TABLE t1 ( a timestamp, b timestamp);
+INSERT INTO t1 VALUES('2000-02-02 01:01:01','2000-02-02 01:01:01'),('2000-02-02 02:02:02','2000-02-02 02:02:02'),('2000-02-02 03:03:03','2000-02-02 03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-02 02:02:02');
+DROP TABLE t1;
+
+--echo #bit
+CREATE TABLE t1 ( a bit(20), b bit(20));
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a+0 FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+DROP TABLE t1;
+
+--echo #enum
+CREATE TABLE t1 ( a enum('1','2','3'), b enum('1','2','3'));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #set
+CREATE TABLE t1 ( a set('1','2','3'), b set('1','2','3'));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #blob
+CREATE TABLE t1 ( a blob, b blob);
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #geometry
+CREATE TABLE t1 ( a geometry, b geometry);
+INSERT INTO t1 VALUES(POINT(1,1),POINT(1,1)),(POINT(2,2),POINT(2,2)),(POINT(3,3),POINT(3,3));
+SELECT astext(a) FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = POINT(2,2));
+DROP TABLE t1;
+
+
+--echo #uncacheable queries test (random and side effect)
+flush status;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (4), (1), (3);
+select a, a in (select a from t1) from t1 as ext;
+show status like "subquery_cache%";
+select a, a in (select a from t1 where -1 < rand()) from t1 as ext;
+show status like "subquery_cache%";
+select a, a in (select a from t1 where -1 < benchmark(a,100)) from t1 as ext;
+show status like "subquery_cache%";
+drop table t1;
+
+--echo #test of sql_big_tables switch and outer table reference in subquery with grouping
+set option sql_big_tables=1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
+SELECT (SELECT t1_outer.a FROM t1 AS t1_inner GROUP BY b LIMIT 1) FROM t1 AS t1_outer;
+drop table t1;
+set option sql_big_tables=0;
+
+--echo #test of function reference to outer query
+set local group_concat_max_len=400;
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2);
+select  b x, (select group_concat(x) from t2) from  t2;
+drop table t2;
+set local group_concat_max_len=default;
+
+--echo #aggregate functions
+CREATE TABLE t1 (a int,  b INT);
+CREATE TABLE t2 (c int,  d INT);
+
+insert into t1 values (2,1), (3,1), (2,4), (3,4), (10,2), (20,2), (2,5),
+(3,5), (100,3), (200,3), (10,6), (20,6), (20,7), (100,8), (200,8);
+insert into t2 values (1,1),(3,3),(20,20);
+
+--echo aggregate function as parameter of subquery
+set optimizer_switch='subquery_cache=off';
+flush status;
+select max(a), (select max(a) from t2 where max(a)=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+flush status;
+select max(a), (select max(a) from t2 where max(a)=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+--echo argument of aggregate function as parameter of subquery (illegal use)
+set optimizer_switch='subquery_cache=off';
+flush status;
+select max(a), (select a from t2 where a=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=on';
+flush status;
+select max(a), (select a from t2 where a=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+drop table t1,t2;
+
+--echo #test of flattening subquery optimisations and cache
+create table t0 (a int);
+insert into t0 values (9),(8),(7),(6),(5),(4),(3),(2),(1),(0);
+
+create table t1(a int, b int);
+insert into t1 values
+(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2);
+
+create table t2 (pk int, a int, primary key(pk));
+insert into t2 select a,a from t0;
+
+set optimizer_switch='default,semijoin=on,materialization=on,subquery_cache=on';
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+alter table t2 drop primary key;
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=off';
+
+explain select * from t1 where a in (select pk from t2);
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=on';
+
+explain select * from t1 where a in (select pk from t2);
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+#TODO: switch off cache if materialization used
+set optimizer_switch='default,semijoin=off,materialization=on,subquery_cache=on';
+
+explain select * from t1 where a in (select pk from t2);
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+drop table t0,t1,t2;
+
+set optimizer_switch='default';

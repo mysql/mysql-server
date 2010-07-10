@@ -770,6 +770,8 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 int ha_myisam::close(void)
 {
   MI_INFO *tmp=file;
+  if (!tmp)
+    return 0;
   file=0;
   return mi_close(tmp);
 }

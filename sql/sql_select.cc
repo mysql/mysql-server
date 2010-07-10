@@ -152,7 +152,6 @@ static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
-static int join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref);
 static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
@@ -1293,6 +1292,9 @@ JOIN::optimize()
   int res;
   if ((res= rewrite_to_index_subquery_engine(this)) != -1)
     DBUG_RETURN(res);
+  if (setup_subquery_caches())
+    DBUG_RETURN(-1);
+
   /*
     Need to tell handlers that to play it safe, it should fetch all
     columns of the primary key of the tables: this is because MySQL may
@@ -1511,6 +1513,152 @@ setup_subq_exit:
     DBUG_RETURN(1);
   error= 0;
   DBUG_RETURN(0);
+}
+
+
+/**
+  Transform given item with changing it in all_fields if it is needed.
+
+  @param expr            Reference on expression to transform
+  @param transformer     Transformer to apply to the expression
+
+  @details
+  The function transforms the expression expr and, if the top item of the
+  expression has changed, the function looks for the item in
+  JOIN::all_fields and replaces it with the result of transformation.
+*/
+
+void JOIN::transform_and_change_in_all_fields(Item** expr,
+                                              Item_transformer transformer)
+{
+  DBUG_ENTER("JOIN::transform_and_change_in_all_fields");
+  Item *new_item= (*expr)->transform(transformer,
+                                    (uchar*) thd);
+  if (new_item != (*expr))
+  {
+    List_iterator<Item> li(all_fields);
+    Item *it;
+
+    /*
+      Check if this item already has expression cache and if it has then use
+      that cache instead of the cache we have just created
+   */
+    while ((it= li++))
+    {
+      if (((*expr) == it->get_cached_item()))
+      {
+        /*
+          We have to forget about the created cache, but this situation is
+          really rare.
+        */
+        new_item->cleanup();
+        new_item= it;
+        DBUG_PRINT("info", ("Other cache found"));
+        break;
+      }
+    }
+
+    li.rewind();
+    while ((it= li++))
+    {
+      if (it == (*expr))
+      {
+        li.replace(new_item);
+        DBUG_PRINT("info", ("Cache Added"));
+      }
+    }
+    *expr= new_item;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Setup expression caches for subqueries that need them
+
+  @details
+  The function wraps correlated subquery expressions that return one value
+  into objects of the class Item_cache_wrapper setting up an expression
+  cache for each of them. The result values of the subqueries are to be
+  cached together with the corresponding sets of the parameters - outer
+  references of the subqueries.
+
+  @retval FALSE OK
+  @retval TRUE  Error
+*/
+
+bool JOIN::setup_subquery_caches()
+{
+  DBUG_ENTER("JOIN::setup_subquery_caches");
+
+  /*
+    We have to check all this condition together because items created in
+    one of this clauses can be moved to another one by optimizer
+  */
+  if (select_lex->expr_cache_may_be_used[IN_WHERE] ||
+      select_lex->expr_cache_may_be_used[IN_HAVING] ||
+      select_lex->expr_cache_may_be_used[IN_ON] ||
+      select_lex->expr_cache_may_be_used[NO_MATTER])
+  {
+    if (conds)
+      conds= conds->transform(&Item::expr_cache_insert_transformer,
+                              (uchar*) thd);
+    for (JOIN_TAB *tab= join_tab + const_tables;
+         tab < join_tab + tables ;
+         tab++)
+    {
+      if (tab->select_cond)
+        tab->select_cond=
+          tab->select_cond->transform(&Item::expr_cache_insert_transformer,
+                                      (uchar*) thd);
+      if (tab->cache_select && tab->cache_select->cond)
+        tab->cache_select->cond=
+          tab->cache_select->
+          cond->transform(&Item::expr_cache_insert_transformer,
+                          (uchar*) thd);
+
+    }
+
+    if (having)
+      having= having->transform(&Item::expr_cache_insert_transformer,
+                                (uchar*) thd);
+    if (tmp_having)
+    {
+      DBUG_ASSERT(having == NULL);
+      tmp_having= tmp_having->transform(&Item::expr_cache_insert_transformer,
+                                        (uchar*) thd);
+    }
+  }
+  if (select_lex->expr_cache_may_be_used[SELECT_LIST] ||
+      select_lex->expr_cache_may_be_used[IN_GROUP_BY] ||
+      select_lex->expr_cache_may_be_used[NO_MATTER])
+  {
+    List_iterator<Item> li(fields_list);
+    Item *item;
+    while ((item= li++))
+    {
+      Item *new_item=
+        item->transform(&Item::expr_cache_insert_transformer, (uchar*) thd);
+      if (new_item != item)
+      {
+        thd->change_item_tree(li.ref(), new_item);
+      }
+    }
+    for (ORDER *group= group_list; group ; group= group->next)
+    {
+      transform_and_change_in_all_fields(group->item,
+                                         &Item::expr_cache_insert_transformer);
+    }
+  }
+  if (select_lex->expr_cache_may_be_used[NO_MATTER])
+  {
+    for (ORDER *ord= order; ord; ord= ord->next)
+    {
+      transform_and_change_in_all_fields(ord->item,
+                                         &Item::expr_cache_insert_transformer);
+    }
+  }
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5244,7 +5392,7 @@ greedy_search(JOIN      *join,
         'join->best_positions' contains a complete optimal extension of the
         current partial QEP.
       */
-      DBUG_EXECUTE("opt", print_plan(join, join->tables,
+      DBUG_EXECUTE("opt", print_plan(join, n_tables,
                                      record_count, read_time, read_time,
                                      "optimal"););
       DBUG_RETURN(FALSE);
@@ -6035,7 +6183,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 	store_key_item tmp(thd, keyinfo->key_part[i].field,
                            key_buff + maybe_null,
                            maybe_null ?  key_buff : 0,
-                           keyinfo->key_part[i].length, keyuse->val);
+                           keyinfo->key_part[i].length, keyuse->val,
+                           FALSE);
 	if (thd->is_fatal_error)
 	  DBUG_RETURN(TRUE);
 	tmp.copy();
@@ -6117,7 +6266,7 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 			    key_buff + maybe_null,
 			    maybe_null ? key_buff : 0,
 			    key_part->length,
-			    keyuse->val);
+			    keyuse->val, FALSE);
 }
 
 /**
@@ -7156,7 +7305,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->field, sjm->sjm_table_cols, 1);
+    fill_record(thd, table->field, sjm->sjm_table_cols, TRUE, FALSE);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if ((error= table->file->ha_write_row(table->record[0])))
@@ -7718,6 +7867,72 @@ void JOIN_TAB::cleanup()
     table->reginfo.join_tab= 0;
   }
   end_read_record(&read_record);
+}
+
+
+/**
+  Build a TABLE_REF structure for index lookup in the temporary table
+
+  @param thd             Thread handle
+  @param tmp_key         The temporary table key
+  @param it              The iterator of items for lookup in the key
+
+  @details
+  Build TABLE_REF object for lookup in the key 'tmp_key' using items
+  accessible via item iterator 'it'.
+
+  @retval TRUE  Error
+  @retval FALSE OK
+*/
+
+bool TABLE_REF::tmp_table_index_lookup_init(THD *thd,
+                                            KEY *tmp_key,
+                                            Item_iterator &it,
+                                            bool value)
+{
+  uint tmp_key_parts= tmp_key->key_parts;
+  DBUG_ENTER("TABLE_REF::tmp_table_index_lookup_init");
+
+  key= 0; /* The only temp table index. */
+  key_length= tmp_key->key_length;
+  if (!(key_buff=
+        (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
+      !(key_copy=
+        (store_key**) thd->alloc((sizeof(store_key*) *
+                                  (tmp_key_parts + 1)))) ||
+      !(items=
+        (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
+    DBUG_RETURN(TRUE);
+
+  key_buff2= key_buff + ALIGN_SIZE(tmp_key->key_length);
+
+  KEY_PART_INFO *cur_key_part= tmp_key->key_part;
+  store_key **ref_key= key_copy;
+  uchar *cur_ref_buff= key_buff;
+
+  it.open();
+  for (uint i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
+  {
+    Item *item= it.next();
+    DBUG_ASSERT(item);
+    items[i]= item;
+    int null_count= test(cur_key_part->field->real_maybe_null());
+    *ref_key= new store_key_item(thd, cur_key_part->field,
+                                 /* TIMOUR:
+                                    the NULL byte is taken into account in
+                                    cur_key_part->store_length, so instead of
+                                    cur_ref_buff + test(maybe_null), we could
+                                    use that information instead.
+                                 */
+                                 cur_ref_buff + null_count,
+                                 null_count ? key_buff : 0,
+                                 cur_key_part->length, items[i], value);
+    cur_ref_buff+= cur_key_part->store_length;
+  }
+  *ref_key= NULL; /* End marker. */
+  key_err= 1;
+  key_parts= tmp_key_parts;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -10829,6 +11044,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
+  case Item::CACHE_ITEM:
+  case Item::EXPR_CACHE_ITEM:
     if (make_copy_field)
     {
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
@@ -11089,6 +11306,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         if (item->used_tables() & OUTER_REF_TABLE_BIT)
           item->update_used_tables();
         if (type == Item::SUBSELECT_ITEM ||
+            (item->get_cached_item() &&
+             item->get_cached_item()->type() == Item::SUBSELECT_ITEM ) ||
             (item->used_tables() & ~OUTER_REF_TABLE_BIT))
         {
 	  /*
@@ -11616,7 +11835,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                                   &param->recinfo, select_options))
       goto err;
   }
-  if (open_tmp_table(table))
+  DBUG_PRINT("info", ("skip_create_table: %d", (int)param->skip_create_table));
+  if (!param->skip_create_table && open_tmp_table(table))
     goto err;
 
   thd->mem_root= mem_root_save;
@@ -12609,7 +12829,8 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   else
   {
     /* Do index lookup in the materialized table */
-    if ((res= join_read_key2(join_tab, sjm->table, sjm->tab_ref)) == 1)
+    if ((res= join_read_key2(join_tab->join->thd, join_tab,
+                             sjm->table, sjm->tab_ref)) == 1)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (res || !sjm->in_equality->val_int())
       DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
@@ -13409,25 +13630,24 @@ join_read_const(JOIN_TAB *tab)
 static int
 join_read_key(JOIN_TAB *tab)
 {
-  return join_read_key2(tab, tab->table, &tab->ref);
+  return join_read_key2(tab->join->thd, tab, tab->table, &tab->ref);
 }
 
 
-/* 
+/*
   eq_ref access handler but generalized a bit to support TABLE and TABLE_REF
   not from the join_tab. See join_read_key for detailed synopsis.
 */
-static int
-join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
+int join_read_key2(THD *thd, JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
 {
   int error;
   if (!table->file->inited)
   {
-    table->file->ha_index_init(table_ref->key, tab->sorted);
+    table->file->ha_index_init(table_ref->key, (tab ? tab->sorted : TRUE));
   }
 
   /* TODO: Why don't we do "Late NULLs Filtering" here? */
-  if (cmp_buffer_with_ref(tab->join->thd, table, table_ref) ||
+  if (cmp_buffer_with_ref(thd, table, table_ref) ||
       (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
   {
     if (table_ref->key_err)
@@ -13439,10 +13659,10 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
       Moving away from the current record. Unlock the row
       in the handler if it did not match the partial WHERE.
     */
-    if (tab->ref.has_record && tab->ref.use_count == 0)
+    if (tab && tab->ref.has_record && tab->ref.use_count == 0)
     {
       tab->read_record.file->unlock_row();
-      tab->ref.has_record= FALSE;
+      table_ref->has_record= FALSE;
     }
     error=table->file->ha_index_read_map(table->record[0],
                                   table_ref->key_buff,
@@ -13453,14 +13673,14 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
 
     if (! error)
     {
-      tab->ref.has_record= TRUE;
-      tab->ref.use_count= 1;
+      table_ref->has_record= TRUE;
+      table_ref->use_count= 1;
     }
   }
   else if (table->status == 0)
   {
-    DBUG_ASSERT(tab->ref.has_record);
-    tab->ref.use_count++;
+    DBUG_ASSERT(table_ref->has_record);
+    table_ref->use_count++;
   }
   table->null_row=0;
   return table->status ? -1 : 0;
@@ -16960,6 +17180,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
     }
     else if ((real_pos->type() == Item::FUNC_ITEM ||
 	      real_pos->type() == Item::SUBSELECT_ITEM ||
+              (real_pos->get_cached_item() &&
+               real_pos->get_cached_item()->type() == Item::SUBSELECT_ITEM) ||
 	      real_pos->type() == Item::CACHE_ITEM ||
 	      real_pos->type() == Item::COND_ITEM) &&
 	     !real_pos->with_sum_func)

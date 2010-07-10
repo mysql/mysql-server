@@ -570,12 +570,13 @@ protected:
 #define OPTIMIZER_SWITCH_SEMIJOIN 256
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE 512
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN 1024
+#define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<11)
 
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST 2048
+#  define OPTIMIZER_SWITCH_LAST (1<<12)
 #else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION 2048
-#  define OPTIMIZER_SWITCH_LAST 4096
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<12)
+#  define OPTIMIZER_SWITCH_LAST (1<<13)
 #endif
 
 #ifdef DBUG_OFF 
@@ -590,7 +591,8 @@ protected:
                                     OPTIMIZER_SWITCH_MATERIALIZATION | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
-                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)
+                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
 #else
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -603,7 +605,8 @@ protected:
                                     OPTIMIZER_SWITCH_MATERIALIZATION | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
-                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)
+                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
 #endif
 
 /*
@@ -683,7 +686,8 @@ enum enum_parsing_place
   SELECT_LIST,
   IN_WHERE,
   IN_ON,
-  IN_GROUP_BY
+  IN_GROUP_BY,
+  PARSING_PLACE_SIZE /* always should be the last */
 };
 
 struct st_table;
@@ -925,6 +929,7 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 #ifdef MYSQL_SERVER
 #include "sql_servers.h"
 #include "opt_range.h"
+#include "sql_expression_cache.h"
 
 #ifdef HAVE_QUERY_CACHE
 struct Query_cache_query_flags
@@ -1258,6 +1263,9 @@ bool mysql_select(THD *thd, Item ***rref_pointer_array,
                   Item *having, ORDER *proc_param, ulonglong select_type, 
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);
+
+int join_read_key2(THD *thd, struct st_join_table *tab, TABLE *table,
+                   struct st_table_ref *table_ref);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
                          select_result *result);
@@ -1277,6 +1285,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			bool table_cant_handle_bit_fields,
                         bool make_copy_field,
                         uint convert_blob_length);
+bool open_tmp_table(TABLE *table);
 void sp_prepare_create_field(THD *thd, Create_field *sql_field);
 int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
@@ -1832,7 +1841,7 @@ bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors);
+                 bool ignore_errors, bool use_value);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           bool ignore_errors,

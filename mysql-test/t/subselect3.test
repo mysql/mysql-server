@@ -98,10 +98,12 @@ show status like '%Handler_read_rnd_next';
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 
+set optimizer_switch='subquery_cache=off';
 flush status;
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 show status like '%Handler_read%';
 select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
+set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2;
 
@@ -794,6 +796,8 @@ SELECT i1, i2 FROM t1;
 SELECT i1, i2 FROM t2 ORDER BY i1;
 
 FLUSH STATUS;
+set @save_optimizer_switch2=@@optimizer_switch;
+set optimizer_switch='subquery_cache=off';
 
 --echo 
 SELECT i1, i2
@@ -822,7 +826,7 @@ WHERE (i1, i2)
 --echo # (read record from t1, but do not read from t2)
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
-
+set @@optimizer_switch=@save_optimizer_switch2;
 DROP TABLE t1,t2;
 
 --echo End of 5.1 tests

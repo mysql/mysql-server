@@ -307,6 +307,7 @@ static const char *optimizer_switch_names[]=
   "firstmatch","loosescan","materialization", "semijoin",
   "partial_match_rowid_merge",
   "partial_match_table_scan",
+  "subquery_cache",
 #ifndef DBUG_OFF
   "table_elimination",
 #endif
@@ -327,6 +328,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("semijoin") - 1,
   sizeof("partial_match_rowid_merge") - 1,
   sizeof("partial_match_table_scan") - 1,
+  sizeof("subquery_cache") - 1,
 #ifndef DBUG_OFF
   sizeof("table_elimination") - 1,
 #endif
@@ -406,8 +408,9 @@ static const char *sql_mode_str= "OFF";
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
                                         "index_merge_intersection=on,"
-                                        "index_condition_pushdown=on"
-#ifndef DBUG_OFF                                        
+                                        "index_condition_pushdown=on,"
+                                        "subquery_cache=on"
+#ifndef DBUG_OFF
                                         ",table_elimination=on";
 #else
                                         ;
@@ -5890,7 +5893,9 @@ enum options_mysqld
   OPT_RECORD_RND_BUFFER, OPT_DIV_PRECINCREMENT, OPT_RELAY_LOG_SPACE_LIMIT,
   OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
-  OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_ROWID_MERGE_BUFF_SIZE,
+  OPT_SLAVE_TRANS_RETRIES,
+  OPT_SUBQUERY_CACHE,
+  OPT_READONLY, OPT_ROWID_MERGE_BUFF_SIZE,
   OPT_DEBUGGING, OPT_DEBUG_FLUSH,
   OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
@@ -7222,7 +7227,7 @@ The minimum value for this variable is 4096.",
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
    "index_merge_union, index_merge_sort_union, index_merge_intersection, "
-   "index_condition_pushdown"
+   "index_condition_pushdown, subquery_cache"
 #ifndef DBUG_OFF
    ", table_elimination"
 #endif 
@@ -7936,6 +7941,12 @@ SHOW_VAR status_vars[]= {
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
 #endif /* HAVE_OPENSSL */
   {"Syncs",                    (char*) &my_sync_count,          SHOW_LONG_NOFLUSH},
+  /*
+    Expression cache used only for caching subqueries now, so its statistic
+    variables we call subquery_cache*.
+  */
+  {"Subquery_cache_hit",       (char*) &subquery_cache_hit, SHOW_LONG},
+  {"Subquery_cache_miss",      (char*) &subquery_cache_miss, SHOW_LONG},
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
 #ifdef HAVE_MMAP
@@ -8075,6 +8086,7 @@ static int mysql_init_variables(void)
   abort_loop= select_thread_in_use= signal_thread_in_use= 0;
   ready_to_exit= shutdown_in_progress= grant_option= 0;
   aborted_threads= aborted_connects= 0;
+  subquery_cache_miss= subquery_cache_hit= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
   delayed_insert_errors= thread_created= 0;
   specialflag= 0;

@@ -93,6 +93,8 @@ void Item_subselect::init(st_select_lex *select_lex,
     SELECT_LEX *upper= unit->outer_select();
     if (upper->parsing_place == IN_HAVING)
       upper->subquery_in_having= 1;
+    /* The subquery is an expression cache candidate */
+    upper->expr_cache_may_be_used[upper->parsing_place]= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -116,6 +118,7 @@ void Item_subselect::cleanup()
   }
   if (engine)
     engine->cleanup();
+  depends_on.empty();
   reset();
   value_assigned= 0;
   DBUG_VOID_RETURN;
@@ -486,6 +489,56 @@ bool Item_subselect::exec()
 }
 
 
+/**
+  Check if an expression cache is needed for this subquery
+
+  @param thd             Thread handle
+
+  @details
+  The function checks whether a cache is needed for a subquery and whether
+  the result of the subquery can be put in cache.
+
+  @retval TRUE  cache is needed
+  @retval FALSE otherwise
+*/
+
+bool Item_subselect::expr_cache_is_needed(THD *thd)
+{
+  return (depends_on.elements &&
+          engine->cols() == 1 &&
+          optimizer_flag(thd, OPTIMIZER_SWITCH_SUBQUERY_CACHE) &&
+          !(engine->uncacheable() & (UNCACHEABLE_RAND |
+                                     UNCACHEABLE_SIDEEFFECT)));
+}
+
+
+/**
+  Check if an expression cache is needed for this subquery
+
+  @param thd             Thread handle
+
+  @details
+  The function checks whether a cache is needed for a subquery and whether
+  the result of the subquery can be put in cache.
+
+  @note
+  This method allows many columns in the subquery because it is supported by
+  Item_in optimizer and result of the IN subquery will be scalar in this
+  case.
+
+  @retval TRUE  cache is needed
+  @retval FALSE otherwise
+*/
+
+bool Item_in_subselect::expr_cache_is_needed(THD *thd)
+{
+  return (depends_on.elements &&
+          optimizer_flag(thd, OPTIMIZER_SWITCH_SUBQUERY_CACHE) &&
+          !(engine->uncacheable() & (UNCACHEABLE_RAND |
+                                     UNCACHEABLE_SIDEEFFECT)));
+}
+
+
 /*
   Compute the IN predicate if the left operand's cache changed.
 */
@@ -784,6 +837,36 @@ void Item_singlerow_subselect::fix_length_and_dec()
     maybe_null= engine->may_be_null();
 }
 
+
+/**
+  Add an expression cache for this subquery if it is needed
+
+  @param thd_arg         Thread handle
+
+  @details
+  The function checks whether an expression cache is needed for this item
+  and if if so wraps the item into an item of the class
+  Item_exp_cache_wrapper with an appropriate expression cache set up there.
+
+  @note
+  used from Item::transform()
+
+  @return
+  new wrapper item if an expression cache is needed,
+  this item - otherwise
+*/
+
+Item* Item_singlerow_subselect::expr_cache_insert_transformer(uchar *thd_arg)
+{
+  THD *thd= (THD*) thd_arg;
+  DBUG_ENTER("Item_singlerow_subselect::expr_cache_insert_transformer");
+
+  if (expr_cache_is_needed(thd))
+    DBUG_RETURN(set_expr_cache(thd, depends_on));
+  DBUG_RETURN(this);
+}
+
+
 uint Item_singlerow_subselect::cols()
 {
   return engine->cols();
@@ -975,6 +1058,36 @@ void Item_exists_subselect::fix_length_and_dec()
   /* We need only 1 row to determine existence */
   unit->global_parameters->select_limit= new Item_int((int32) 1);
 }
+
+
+/**
+  Add an expression cache for this subquery if it is needed
+
+  @param thd_arg         Thread handle
+
+  @details
+  The function checks whether an expression cache is needed for this item
+  and if if so wraps the item into an item of the class
+  Item_exp_cache_wrapper with an appropriate expression cache set up there.
+
+  @note
+  used from Item::transform()
+
+  @return
+  new wrapper item if an expression cache is needed,
+  this item - otherwise
+*/
+
+Item* Item_exists_subselect::expr_cache_insert_transformer(uchar *thd_arg)
+{
+  THD *thd= (THD*) thd_arg;
+  DBUG_ENTER("Item_exists_subselect::expr_cache_insert_transformer");
+
+  if (substype() == EXISTS_SUBS && expr_cache_is_needed(thd))
+    DBUG_RETURN(set_expr_cache(thd, depends_on));
+  DBUG_RETURN(this);
+}
+
 
 double Item_exists_subselect::val_real()
 {
@@ -3841,6 +3954,7 @@ subselect_uniquesubquery_engine*
 subselect_hash_sj_engine::make_unique_engine()
 {
   Item_in_subselect *item_in= (Item_in_subselect *) item;
+  Item_iterator_row it(item_in->left_expr);
   /* The only index on the temporary table. */
   KEY *tmp_key= tmp_table->key_info;
   /* Number of keyparts in tmp_key. */
@@ -3858,41 +3972,9 @@ subselect_hash_sj_engine::make_unique_engine()
   */
   if (!(tab= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB))))
     DBUG_RETURN(NULL);
-  tab->table= tmp_table;
-  tab->ref.key= 0; /* The only temp table index. */
-  tab->ref.key_length= tmp_key->key_length;
-  if (!(tab->ref.key_buff=
-        (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
-      !(tab->ref.key_copy=
-        (store_key**) thd->alloc((sizeof(store_key*) *
-                                  (tmp_key_parts + 1)))) ||
-      !(tab->ref.items=
-        (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
-    DBUG_RETURN(NULL);
 
-  KEY_PART_INFO *cur_key_part= tmp_key->key_part;
-  store_key **ref_key= tab->ref.key_copy;
-  uchar *cur_ref_buff= tab->ref.key_buff;
-  
-  for (uint i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
-  {
-    tab->ref.items[i]= item_in->left_expr->element_index(i);
-    int null_count= test(cur_key_part->field->real_maybe_null());
-    *ref_key= new store_key_item(thd, cur_key_part->field,
-                                 /* TIMOUR:
-                                    the NULL byte is taken into account in
-                                    cur_key_part->store_length, so instead of
-                                    cur_ref_buff + test(maybe_null), we could
-                                    use that information instead.
-                                 */
-                                 cur_ref_buff + null_count,
-                                 null_count ? tab->ref.key_buff : 0,
-                                 cur_key_part->length, tab->ref.items[i]);
-    cur_ref_buff+= cur_key_part->store_length;
-  }
-  *ref_key= NULL; /* End marker. */
-  tab->ref.key_err= 1;
-  tab->ref.key_parts= tmp_key_parts;
+  tab->table= tmp_table;
+  tab->ref.tmp_table_index_lookup_init(thd, tmp_key, it, FALSE);
 
   DBUG_RETURN(new subselect_uniquesubquery_engine(thd, tab, item,
                                                   semi_join_conds));

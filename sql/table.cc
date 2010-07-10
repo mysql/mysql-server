@@ -21,6 +21,8 @@
 #include "create_options.h"
 #include <m_ctype.h>
 #include "my_md5.h"
+#include "my_bit.h"
+#include "sql_select.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -5129,6 +5131,126 @@ void st_table::mark_virtual_columns_for_write(void)
   if (bitmap_updated)
     file->column_bitmaps_signal();
 }
+
+
+/**
+  Allocate space for keys
+
+  @param key_count  number of keys to allocate.
+
+  @details
+  Allocates space enough to fit 'key_count' keys for this table.
+
+  @return FALSE space was successfully allocated.
+  @return TRUE an error occur.
+*/
+
+bool TABLE::alloc_keys(uint key_count)
+{
+  DBUG_ASSERT(!s->keys);
+  key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*key_count);
+  max_keys= key_count;
+  return !(key_info);
+}
+
+
+/**
+  Add a key to a temporary  table
+
+  @param key            the number of the key
+  @param key_parts      number of components of the key
+  @param next_field_no  the call-back function that returns the number of
+                        the field used as the next component of the key
+  @param arg            the argument for the above function
+
+  @details
+  The function adds a new key to the table that is assumed to be
+  temprary table. The call-back function must at each call must return
+  the number of the field that used as next component of this key
+
+  @return FALSE is a success
+  @return TRUE if a failure
+*/
+
+bool TABLE::add_tmp_key(uint key, uint key_parts,
+                        uint (*next_field_no) (uchar *), uchar *arg)
+{
+  DBUG_ASSERT(key < max_keys);
+
+  char buf[NAME_CHAR_LEN];
+  KEY* keyinfo;
+  Field **reg_field;
+  uint i;
+  bool key_start= TRUE;
+  KEY_PART_INFO* key_part_info=
+      (KEY_PART_INFO*) alloc_root(&mem_root, sizeof(KEY_PART_INFO)*key_parts);
+  if (!key_part_info)
+    return TRUE;
+  keyinfo= key_info + key;
+  keyinfo->key_part= key_part_info;
+  keyinfo->usable_key_parts= keyinfo->key_parts = key_parts;
+  keyinfo->key_length=0;
+  keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+  keyinfo->flags= HA_GENERATED_KEY;
+  sprintf(buf, "key%i", key);
+  if (!(keyinfo->name= strdup_root(&mem_root, buf)))
+    return TRUE;
+  keyinfo->rec_per_key= (ulong*) alloc_root(&mem_root,
+                                            sizeof(ulong)*key_parts);
+  if (!keyinfo->rec_per_key)
+    return TRUE;
+  bzero(keyinfo->rec_per_key, sizeof(ulong)*key_parts);
+  for (i= 0; i < key_parts; i++)
+  {
+    reg_field= field + next_field_no(arg);
+    if (key_start)
+      (*reg_field)->key_start.set_bit(key);
+    key_start= FALSE;
+      (*reg_field)->part_of_key.set_bit(key);
+    (*reg_field)->flags|= PART_KEY_FLAG;
+    key_part_info->null_bit= (*reg_field)->null_bit;
+    key_part_info->null_offset= (uint) ((*reg_field)->null_ptr -
+                                          (uchar*) record[0]);
+    key_part_info->field=    *reg_field;
+    key_part_info->offset=   (*reg_field)->offset(record[0]);
+    key_part_info->length=   (uint16) (*reg_field)->pack_length();
+    keyinfo->key_length+= key_part_info->length;
+    key_part_info->key_part_flag= 0;
+    /* TODO:
+      The below method of computing the key format length of the
+      key part is a copy/paste from opt_range.cc, and table.cc.
+      This should be factored out, e.g. as a method of Field.
+      In addition it is not clear if any of the Field::*_length
+      methods is supposed to compute the same length. If so, it
+      might be reused.
+    */
+    key_part_info->store_length= key_part_info->length;
+
+    if ((*reg_field)->real_maybe_null())
+    {
+      key_part_info->store_length+= HA_KEY_NULL_LENGTH;
+      keyinfo->key_length+= HA_KEY_NULL_LENGTH;
+    }
+    if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
+        (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
+    {
+      key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
+      keyinfo->key_length+= HA_KEY_BLOB_LENGTH; // ???
+    }
+
+    key_part_info->type=     (uint8) (*reg_field)->key_type();
+    key_part_info->key_type =
+      ((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
+       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
+      0 : FIELDFLAG_BINARY;
+    key_part_info++;
+  }
+  set_if_bigger(s->max_key_length, keyinfo->key_length);
+  s->keys++;
+  return FALSE;
+}
+
 
 /**
   @brief Check if this is part of a MERGE table with attached children.

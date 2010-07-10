@@ -1750,6 +1750,45 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 }
 
 
+/**
+  Add an expression cache for this subquery if it is needed
+
+  @param thd_arg         Thread handle
+
+  @details
+  The function checks whether an expression cache is needed for this item
+  and if if so wraps the item into an item of the class
+  Item_exp_cache_wrapper with an appropriate expression cache set up there.
+
+  @note
+  used from Item::transform()
+
+  @return
+  new wrapper item if an expression cache is needed,
+  this item - otherwise
+*/
+
+Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
+{
+  THD *thd= (THD*) thd_arg;
+  DBUG_ENTER("Item_in_optimizer::expr_cache_insert_transformer");
+  List<Item*> &depends_on= ((Item_subselect *)args[1])->depends_on;
+
+  /* Add left expression to the list of the parameters of the subquery */
+  if (args[0]->cols() == 1)
+    depends_on.push_front((Item**)args);
+  else
+    for (int i= 0; i < args[0]->cols(); i++)
+    {
+      depends_on.push_front(args[0]->addr(i));
+    }
+
+  if (args[1]->expr_cache_is_needed(thd))
+    DBUG_RETURN(set_expr_cache(thd, depends_on));
+  DBUG_RETURN(this);
+}
+
+
 longlong Item_in_optimizer::val_int()
 {
   bool tmp;

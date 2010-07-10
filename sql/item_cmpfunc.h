@@ -264,6 +264,7 @@ public:
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg);
+  virtual Item *expr_cache_insert_transformer(uchar *thd_arg);
 };
 
 class Comp_creator

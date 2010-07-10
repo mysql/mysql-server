@@ -1375,10 +1375,10 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   bool found_old_table= 0;
   TABLE *table= *table_ptr;
   DBUG_ENTER("close_thread_table");
-  DBUG_ASSERT(table->key_read == 0);
-  DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
   DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
                         table->s->table_name.str, (long) table));
+  DBUG_ASSERT(table->key_read == 0);
+  DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
 
  if (table->file)
  {
@@ -6328,12 +6328,21 @@ find_field_in_tables(THD *thd, Item_ident *item,
           sub query as dependent on the outer query
         */
         if (current_sel != last_select)
+        {
           mark_select_range_as_dependent(thd, last_select, current_sel,
                                          found, *ref, item);
+          if (item->can_be_depended)
+          {
+            DBUG_ASSERT((*ref) == (Item*)item);
+            current_sel->register_dependency_item(last_select, ref);
+          }
+        }
       }
       return found;
     }
   }
+  else
+    item->can_be_depended= TRUE;
 
   if (db && lower_case_table_names)
   {
@@ -8083,6 +8092,10 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
   if (*conds)
   {
     thd->where="where clause";
+    DBUG_EXECUTE("where",
+                 print_where(*conds,
+                             "WHERE in setup_conds",
+                             QT_ORDINARY););
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
@@ -8341,6 +8354,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     ptr           pointer on pointer to record
     values        list of fields
     ignore_errors TRUE if we should ignore errors
+    use_value     forces usage of value of the items instead of result
 
   NOTE
     fill_record() may set table->auto_increment_field_not_null and a
@@ -8353,7 +8367,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 */
 
 bool
-fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
+fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
+            bool use_value)
 {
   List_iterator_fast<Item> v(values);
   List<TABLE> tbl_list;
@@ -8395,8 +8410,11 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
                           field->field_name, table->s->table_name.str);
       thd->abort_on_warning= abort_on_warning_saved;
     }
-    if (value->save_in_field(field, 0) < 0)
-      goto err;
+    if (use_value)
+      value->save_val(field);
+    else
+      if (value->save_in_field(field, 0) < 0)
+        goto err;
     tbl_list.push_back(table);
   }
   /* Update virtual fields*/
@@ -8465,7 +8483,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      enum trg_event_type event)
 {
   bool result;
-  result= (fill_record(thd, ptr, values, ignore_errors) ||
+  result= (fill_record(thd, ptr, values, ignore_errors, FALSE) ||
            (triggers && triggers->process_triggers(thd, event,
                                                    TRG_ACTION_BEFORE, TRUE)));
   /*

@@ -1,0 +1,1840 @@
+set optimizer_switch='subquery_cache=on';
+create table t1 (a int, b int);
+insert into t1 values (1,2),(3,4),(1,2),(3,4),(3,4),(4,5),(4,5),(5,6),(5,6),(4,5);
+create table t2 (c int, d int);
+insert into t2 values (2,3),(3,4),(5,6),(4,1);
+*
+* Test subquery as top item in different clauses
+*
+#single value subquery test (SELECT list)
+flush status;
+select a, (select d from t2 where b=c) from t1;
+a	(select d from t2 where b=c)
+1	3
+3	1
+1	3
+3	1
+3	1
+4	6
+4	6
+5	NULL
+5	NULL
+4	6
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	7
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	31
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a, (select d from t2 where b=c) from t1;
+a	(select d from t2 where b=c)
+1	3
+3	1
+1	3
+3	1
+3	1
+4	6
+4	6
+5	NULL
+5	NULL
+4	6
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	61
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (where)
+flush status;
+select a from t1 where (select d from t2 where b=c);
+a
+1
+3
+1
+3
+3
+4
+4
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	7
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	31
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a from t1 where (select d from t2 where b=c);
+a
+1
+3
+1
+3
+3
+4
+4
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	61
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (having)
+flush status;
+select a from t1 where a > 0 having (select d from t2 where b=c);
+a
+1
+3
+1
+3
+3
+4
+4
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	7
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	31
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a from t1 where a > 0 having (select d from t2 where b=c);
+a
+1
+3
+1
+3
+3
+4
+4
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	61
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (OUTER JOIN ON)
+flush status;
+select ta.a, tb.a from t1 ta join t1 tb on (select d from t2 where tb.b=c);
+a	a
+1	1
+3	1
+1	1
+3	1
+3	1
+4	1
+4	1
+5	1
+5	1
+4	1
+1	3
+3	3
+1	3
+3	3
+3	3
+4	3
+4	3
+5	3
+5	3
+4	3
+1	1
+3	1
+1	1
+3	1
+3	1
+4	1
+4	1
+5	1
+5	1
+4	1
+1	3
+3	3
+1	3
+3	3
+3	3
+4	3
+4	3
+5	3
+5	3
+4	3
+1	3
+3	3
+1	3
+3	3
+3	3
+4	3
+4	3
+5	3
+5	3
+4	3
+1	4
+3	4
+1	4
+3	4
+3	4
+4	4
+4	4
+5	4
+5	4
+4	4
+1	4
+3	4
+1	4
+3	4
+3	4
+4	4
+4	4
+5	4
+5	4
+4	4
+1	4
+3	4
+1	4
+3	4
+3	4
+4	4
+4	4
+5	4
+5	4
+4	4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	7
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	442
+set optimizer_switch='subquery_cache=off';
+flush status;
+select ta.a, tb.a from t1 ta join t1 tb on (select d from t2 where tb.b=c);
+a	a
+1	1
+3	1
+1	1
+3	1
+3	1
+4	1
+4	1
+5	1
+5	1
+4	1
+1	3
+3	3
+1	3
+3	3
+3	3
+4	3
+4	3
+5	3
+5	3
+4	3
+1	1
+3	1
+1	1
+3	1
+3	1
+4	1
+4	1
+5	1
+5	1
+4	1
+1	3
+3	3
+1	3
+3	3
+3	3
+4	3
+4	3
+5	3
+5	3
+4	3
+1	3
+3	3
+1	3
+3	3
+3	3
+4	3
+4	3
+5	3
+5	3
+4	3
+1	4
+3	4
+1	4
+3	4
+3	4
+4	4
+4	4
+5	4
+5	4
+4	4
+1	4
+3	4
+1	4
+3	4
+3	4
+4	4
+4	4
+5	4
+5	4
+4	4
+1	4
+3	4
+1	4
+3	4
+3	4
+4	4
+4	4
+5	4
+5	4
+4	4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	472
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (GROUP BY)
+flush status;
+select max(a) from t1  GROUP BY (select d from t2 where b=c);
+max(a)
+5
+3
+1
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	10
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	17
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	4
+Handler_read_rnd_next	36
+set optimizer_switch='subquery_cache=off';
+flush status;
+select max(a) from t1  GROUP BY (select d from t2 where b=c);
+max(a)
+5
+3
+1
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	10
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	4
+Handler_read_rnd_next	86
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (distinct GROUP BY)
+flush status;
+select distinct max(a) from t1  GROUP BY (select d from t2 where b=c);
+max(a)
+5
+3
+1
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	10
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	17
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	4
+Handler_read_rnd_next	41
+set optimizer_switch='subquery_cache=off';
+flush status;
+select distinct max(a) from t1  GROUP BY (select d from t2 where b=c);
+max(a)
+5
+3
+1
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	10
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	4
+Handler_read_rnd_next	91
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (ORDER BY)
+flush status;
+select a from t1 ORDER BY (select d from t2 where b=c);
+a
+5
+5
+3
+3
+3
+1
+1
+4
+4
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	7
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	31
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a from t1 ORDER BY (select d from t2 where b=c);
+a
+5
+5
+3
+3
+3
+1
+1
+4
+4
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	61
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (distinct ORDER BY)
+flush status;
+select distinct a from t1 ORDER BY (select d from t2 where b=c);
+a
+5
+3
+1
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	7
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	4
+Handler_read_rnd_next	37
+set optimizer_switch='subquery_cache=off';
+flush status;
+select distinct a from t1 ORDER BY (select d from t2 where b=c);
+a
+5
+3
+1
+4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	4
+Handler_read_rnd_next	67
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (LEFT JOIN ON)
+flush status;
+select ta.a, tb.a from t1 ta left join t1 tb on (select d from t2 where tb.b=c);
+a	a
+1	1
+1	3
+1	1
+1	3
+1	3
+1	4
+1	4
+1	4
+3	1
+3	3
+3	1
+3	3
+3	3
+3	4
+3	4
+3	4
+1	1
+1	3
+1	1
+1	3
+1	3
+1	4
+1	4
+1	4
+3	1
+3	3
+3	1
+3	3
+3	3
+3	4
+3	4
+3	4
+3	1
+3	3
+3	1
+3	3
+3	3
+3	4
+3	4
+3	4
+4	1
+4	3
+4	1
+4	3
+4	3
+4	4
+4	4
+4	4
+4	1
+4	3
+4	1
+4	3
+4	3
+4	4
+4	4
+4	4
+5	1
+5	3
+5	1
+5	3
+5	3
+5	4
+5	4
+5	4
+5	1
+5	3
+5	1
+5	3
+5	3
+5	4
+5	4
+5	4
+4	1
+4	3
+4	1
+4	3
+4	3
+4	4
+4	4
+4	4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	106
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	70
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	141
+set optimizer_switch='subquery_cache=off';
+flush status;
+select ta.a, tb.a from t1 ta left join t1 tb on (select d from t2 where tb.b=c);
+a	a
+1	1
+1	3
+1	1
+1	3
+1	3
+1	4
+1	4
+1	4
+3	1
+3	3
+3	1
+3	3
+3	3
+3	4
+3	4
+3	4
+1	1
+1	3
+1	1
+1	3
+1	3
+1	4
+1	4
+1	4
+3	1
+3	3
+3	1
+3	3
+3	3
+3	4
+3	4
+3	4
+3	1
+3	3
+3	1
+3	3
+3	3
+3	4
+3	4
+3	4
+4	1
+4	3
+4	1
+4	3
+4	3
+4	4
+4	4
+4	4
+4	1
+4	3
+4	1
+4	3
+4	3
+4	4
+4	4
+4	4
+5	1
+5	3
+5	1
+5	3
+5	3
+5	4
+5	4
+5	4
+5	1
+5	3
+5	1
+5	3
+5	3
+5	4
+5	4
+5	4
+4	1
+4	3
+4	1
+4	3
+4	3
+4	4
+4	4
+4	4
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	671
+set optimizer_switch='subquery_cache=on';
+#single value subquery test (PS)
+prepare stmt1 from 'select a, (select d from t2 where b=c) + 1 from t1';
+execute stmt1;
+a	(select d from t2 where b=c) + 1
+1	4
+3	2
+1	4
+3	2
+3	2
+4	7
+4	7
+5	NULL
+5	NULL
+4	7
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+execute stmt1;
+a	(select d from t2 where b=c) + 1
+1	4
+3	2
+1	4
+3	2
+3	2
+4	7
+4	7
+5	NULL
+5	NULL
+4	7
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	12
+Subquery_cache_miss	8
+deallocate prepare stmt1;
+#single value subquery test (SP)
+CREATE PROCEDURE p1() select a, (select d from t2 where b=c) + 1 from t1;
+call p1;
+a	(select d from t2 where b=c) + 1
+1	4
+3	2
+1	4
+3	2
+3	2
+4	7
+4	7
+5	NULL
+5	NULL
+4	7
+call p1;
+a	(select d from t2 where b=c) + 1
+1	4
+3	2
+1	4
+3	2
+3	2
+4	7
+4	7
+5	NULL
+5	NULL
+4	7
+drop procedure p1;
+#IN subquery test
+flush status;
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+select a, b , b in (select d from t2) as SUBS from t1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	4
+insert into t1 values (7,8),(9,NULL);
+select a, b , b in (select d from t2) as SUBS from t1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+7	8	0
+9	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	12
+Subquery_cache_miss	10
+insert into t2 values (8,NULL);
+select a, b , b in (select d from t2) as SUBS from t1;
+a	b	SUBS
+1	2	NULL
+3	4	1
+1	2	NULL
+3	4	1
+3	4	1
+4	5	NULL
+4	5	NULL
+5	6	1
+5	6	1
+4	5	NULL
+7	8	NULL
+9	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	18
+Subquery_cache_miss	16
+# multicolumn NOT IN with NULLs
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (b, a) not in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	1
+3	4	0
+1	2	1
+3	4	0
+3	4	0
+4	5	1
+4	5	1
+5	6	0
+5	6	0
+4	5	1
+7	8	1
+9	NULL	1
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+set optimizer_switch='subquery_cache=on';
+select a, b, (b, a) not in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	1
+3	4	0
+1	2	1
+3	4	0
+3	4	0
+4	5	1
+4	5	1
+5	6	0
+5	6	0
+4	5	1
+7	8	1
+9	NULL	1
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	6
+# multicolumn NOT IN with NULLs (other order)
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (a, b) not in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	1
+3	4	1
+1	2	1
+3	4	1
+3	4	1
+4	5	1
+4	5	1
+5	6	1
+5	6	1
+4	5	1
+7	8	NULL
+9	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+set optimizer_switch='subquery_cache=on';
+select a, b, (a, b) not in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	1
+3	4	1
+1	2	1
+3	4	1
+3	4	1
+4	5	1
+4	5	1
+5	6	1
+5	6	1
+4	5	1
+7	8	NULL
+9	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	6
+# multicolumn IN with NULLs
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (b, a) in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+7	8	0
+9	NULL	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+set optimizer_switch='subquery_cache=on';
+select a, b, (b, a) in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+7	8	0
+9	NULL	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	6
+# multicolumn IN with NULLs (other order)
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (a, b) in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	0
+3	4	0
+1	2	0
+3	4	0
+3	4	0
+4	5	0
+4	5	0
+5	6	0
+5	6	0
+4	5	0
+7	8	NULL
+9	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+set optimizer_switch='subquery_cache=on';
+select a, b, (a, b) in (select d, c from t2) as SUBS from t1;
+a	b	SUBS
+1	2	0
+3	4	0
+1	2	0
+3	4	0
+3	4	0
+4	5	0
+4	5	0
+5	6	0
+5	6	0
+4	5	0
+7	8	NULL
+9	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	6
+#IN subquery test (PS)
+delete from t1 where a > 6;
+delete from t2 where c > 6;
+prepare stmt1 from 'select a, b , b in (select d from t2) as SUBS from t1';
+execute stmt1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	12
+Subquery_cache_miss	10
+execute stmt1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	18
+Subquery_cache_miss	14
+insert into t1 values (7,8),(9,NULL);
+execute stmt1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	NULL
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	24
+Subquery_cache_miss	20
+execute stmt1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	NULL
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	30
+Subquery_cache_miss	26
+insert into t2 values (8,NULL);
+execute stmt1;
+a	b	SUBS
+1	2	NULL
+3	4	1
+1	2	NULL
+3	4	1
+3	4	1
+4	5	NULL
+4	5	NULL
+5	6	1
+5	6	1
+4	5	NULL
+9	NULL	NULL
+7	8	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	36
+Subquery_cache_miss	32
+execute stmt1;
+a	b	SUBS
+1	2	NULL
+3	4	1
+1	2	NULL
+3	4	1
+3	4	1
+4	5	NULL
+4	5	NULL
+5	6	1
+5	6	1
+4	5	NULL
+9	NULL	NULL
+7	8	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	42
+Subquery_cache_miss	38
+deallocate prepare stmt1;
+#IN subquery test (SP)
+delete from t1 where a > 6;
+delete from t2 where c > 6;
+CREATE PROCEDURE p1() select a, b , b in (select d from t2) as SUBS from t1;
+call p1();
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	48
+Subquery_cache_miss	42
+call p1();
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	54
+Subquery_cache_miss	46
+insert into t1 values (7,8),(9,NULL);
+call p1();
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	NULL
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	60
+Subquery_cache_miss	52
+call p1();
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	NULL
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	66
+Subquery_cache_miss	58
+insert into t2 values (8,NULL);
+call p1();
+a	b	SUBS
+1	2	NULL
+3	4	1
+1	2	NULL
+3	4	1
+3	4	1
+4	5	NULL
+4	5	NULL
+5	6	1
+5	6	1
+4	5	NULL
+9	NULL	NULL
+7	8	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	72
+Subquery_cache_miss	64
+call p1();
+a	b	SUBS
+1	2	NULL
+3	4	1
+1	2	NULL
+3	4	1
+3	4	1
+4	5	NULL
+4	5	NULL
+5	6	1
+5	6	1
+4	5	NULL
+9	NULL	NULL
+7	8	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	78
+Subquery_cache_miss	70
+drop procedure p1;
+# test of simple exists
+select a, b , exists (select * from t2 where b=d) as SUBS from t1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	0
+7	8	0
+# test of prepared statement exists
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	84
+Subquery_cache_miss	76
+prepare stmt1 from 'select a, b , exists (select * from t2 where b=d) as SUBS from t1';
+execute stmt1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	0
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	90
+Subquery_cache_miss	82
+execute stmt1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	0
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	96
+Subquery_cache_miss	88
+deallocate prepare stmt1;
+# test of stored procedure exists
+CREATE PROCEDURE p1() select a, b , exists (select * from t2 where b=d) as SUBS from t1;
+call p1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	0
+7	8	0
+call p1;
+a	b	SUBS
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	1
+5	6	1
+4	5	0
+9	NULL	0
+7	8	0
+drop procedure p1;
+#several subqueries
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
+a	b	SUBSE	SUBSI	SUBSR
+1	2	0	NULL	3
+3	4	1	1	1
+1	2	0	NULL	3
+3	4	1	1	1
+3	4	1	1	1
+4	5	0	NULL	6
+4	5	0	NULL	6
+5	6	1	1	NULL
+5	6	1	1	NULL
+4	5	0	NULL	6
+9	NULL	0	NULL	NULL
+7	8	0	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	11
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	145
+set optimizer_switch='subquery_cache=on';
+flush status;
+select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
+a	b	SUBSE	SUBSI	SUBSR
+1	2	0	NULL	3
+3	4	1	1	1
+1	2	0	NULL	3
+3	4	1	1	1
+3	4	1	1	1
+4	5	0	NULL	6
+4	5	0	NULL	6
+5	6	1	1	NULL
+5	6	1	1	NULL
+4	5	0	NULL	6
+9	NULL	0	NULL	NULL
+7	8	0	NULL	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	18
+Subquery_cache_miss	18
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	32
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	84
+#several subqueries (several levels)
+set optimizer_switch='subquery_cache=off';
+flush status;
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a, b, (select exists (select * from t2 where b=d) from t2 where b=c) as SUNS1 from t1;
+a	b	SUNS1
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	NULL
+5	6	NULL
+4	5	0
+9	NULL	NULL
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	127
+set optimizer_switch='subquery_cache=on';
+flush status;
+select a, b, (select exists (select * from t2 where b=d) from t2 where b=c) as SUNS1 from t1;
+a	b	SUNS1
+1	2	0
+3	4	1
+1	2	0
+3	4	1
+3	4	1
+4	5	0
+4	5	0
+5	6	NULL
+5	6	NULL
+4	5	0
+9	NULL	NULL
+7	8	0
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	10
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	13
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	69
+#clean up
+drop table t1,t2;
+test different types
+#int
+CREATE TABLE t1 ( a int, b int);
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+a
+1
+3
+DROP TABLE t1;
+#char
+CREATE TABLE t1 ( a char(1), b char (1));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+a
+1
+3
+DROP TABLE t1;
+#decimal
+CREATE TABLE t1 ( a decimal(3,1), b decimal(3,1));
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+a
+1.0
+3.0
+DROP TABLE t1;
+#date
+CREATE TABLE t1 ( a date, b date);
+INSERT INTO t1 VALUES('1000-01-01','1000-01-01'),('2000-02-01','2000-02-01'),('3000-03-03','3000-03-03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-01');
+a
+1000-01-01
+3000-03-03
+DROP TABLE t1;
+#datetime
+CREATE TABLE t1 ( a datetime, b datetime);
+INSERT INTO t1 VALUES('1000-01-01 01:01:01','1000-01-01 01:01:01'),('2000-02-02  02:02:02','2000-02-02 02:02:02'),('3000-03-03 03:03:03','3000-03-03 03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-02 02:02:02');
+a
+1000-01-01 01:01:01
+3000-03-03 03:03:03
+DROP TABLE t1;
+#time
+CREATE TABLE t1 ( a time, b time);
+INSERT INTO t1 VALUES('01:01:01','01:01:01'),('02:02:02','02:02:02'),('03:03:03','03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '02:02:02');
+a
+01:01:01
+03:03:03
+DROP TABLE t1;
+#timestamp
+CREATE TABLE t1 ( a timestamp, b timestamp);
+INSERT INTO t1 VALUES('2000-02-02 01:01:01','2000-02-02 01:01:01'),('2000-02-02 02:02:02','2000-02-02 02:02:02'),('2000-02-02 03:03:03','2000-02-02 03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-02 02:02:02');
+a
+2000-02-02 01:01:01
+2000-02-02 03:03:03
+DROP TABLE t1;
+#bit
+CREATE TABLE t1 ( a bit(20), b bit(20));
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a+0 FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+a+0
+1
+3
+DROP TABLE t1;
+#enum
+CREATE TABLE t1 ( a enum('1','2','3'), b enum('1','2','3'));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+a
+1
+3
+DROP TABLE t1;
+#set
+CREATE TABLE t1 ( a set('1','2','3'), b set('1','2','3'));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+a
+1
+3
+DROP TABLE t1;
+#blob
+CREATE TABLE t1 ( a blob, b blob);
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+a
+1
+3
+DROP TABLE t1;
+#geometry
+CREATE TABLE t1 ( a geometry, b geometry);
+INSERT INTO t1 VALUES(POINT(1,1),POINT(1,1)),(POINT(2,2),POINT(2,2)),(POINT(3,3),POINT(3,3));
+SELECT astext(a) FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = POINT(2,2));
+astext(a)
+POINT(1 1)
+POINT(3 3)
+DROP TABLE t1;
+#uncacheable queries test (random and side effect)
+flush status;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (4), (1), (3);
+select a, a in (select a from t1) from t1 as ext;
+a	a in (select a from t1)
+2	1
+4	1
+1	1
+3	1
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	4
+select a, a in (select a from t1 where -1 < rand()) from t1 as ext;
+a	a in (select a from t1 where -1 < rand())
+2	1
+4	1
+1	1
+3	1
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	4
+select a, a in (select a from t1 where -1 < benchmark(a,100)) from t1 as ext;
+a	a in (select a from t1 where -1 < benchmark(a,100))
+2	1
+4	1
+1	1
+3	1
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	4
+drop table t1;
+#test of sql_big_tables switch and outer table reference in subquery with grouping
+set option sql_big_tables=1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
+SELECT (SELECT t1_outer.a FROM t1 AS t1_inner GROUP BY b LIMIT 1) FROM t1 AS t1_outer;
+(SELECT t1_outer.a FROM t1 AS t1_inner GROUP BY b LIMIT 1)
+1
+2
+3
+4
+5
+6
+drop table t1;
+set option sql_big_tables=0;
+#test of function reference to outer query
+set local group_concat_max_len=400;
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2);
+select  b x, (select group_concat(x) from t2) from  t2;
+x	(select group_concat(x) from t2)
+1	1,1
+2	2,2
+drop table t2;
+set local group_concat_max_len=default;
+#aggregate functions
+CREATE TABLE t1 (a int,  b INT);
+CREATE TABLE t2 (c int,  d INT);
+insert into t1 values (2,1), (3,1), (2,4), (3,4), (10,2), (20,2), (2,5),
+(3,5), (100,3), (200,3), (10,6), (20,6), (20,7), (100,8), (200,8);
+insert into t2 values (1,1),(3,3),(20,20);
+aggregate function as parameter of subquery
+set optimizer_switch='subquery_cache=off';
+flush status;
+select max(a), (select max(a) from t2 where max(a)=c) from t1 group by b;
+max(a)	(select max(a) from t2 where max(a)=c)
+3	3
+20	20
+200	NULL
+3	3
+3	3
+20	20
+20	20
+200	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	15
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	8
+Handler_read_rnd_next	57
+set optimizer_switch='subquery_cache=on';
+flush status;
+select max(a), (select max(a) from t2 where max(a)=c) from t1 group by b;
+max(a)	(select max(a) from t2 where max(a)=c)
+3	3
+20	20
+200	NULL
+3	3
+3	3
+20	20
+20	20
+200	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	5
+Subquery_cache_miss	3
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	21
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	8
+Handler_read_rnd_next	37
+argument of aggregate function as parameter of subquery (illegal use)
+set optimizer_switch='subquery_cache=off';
+flush status;
+select max(a), (select a from t2 where a=c) from t1 group by b;
+max(a)	(select a from t2 where a=c)
+3	NULL
+20	NULL
+200	NULL
+3	NULL
+3	NULL
+20	NULL
+20	20
+200	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	15
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	8
+Handler_read_rnd_next	57
+set optimizer_switch='subquery_cache=on';
+flush status;
+select max(a), (select a from t2 where a=c) from t1 group by b;
+max(a)	(select a from t2 where a=c)
+3	NULL
+20	NULL
+200	NULL
+3	NULL
+3	NULL
+20	NULL
+20	20
+200	NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	4
+Subquery_cache_miss	4
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	22
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	8
+Handler_read_rnd_next	41
+drop table t1,t2;
+#test of flattening subquery optimisations and cache
+create table t0 (a int);
+insert into t0 values (9),(8),(7),(6),(5),(4),(3),(2),(1),(0);
+create table t1(a int, b int);
+insert into t1 values
+(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2);
+create table t2 (pk int, a int, primary key(pk));
+insert into t2 select a,a from t0;
+set optimizer_switch='default,semijoin=on,materialization=on,subquery_cache=on';
+flush status;
+select * from t1 where a in (select pk from t2);
+a	b
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	15
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	16
+alter table t2 drop primary key;
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=off';
+explain select * from t1 where a in (select pk from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	15	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+flush status;
+select * from t1 where a in (select pk from t2);
+a	b
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	151
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=on';
+explain select * from t1 where a in (select pk from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	15	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+flush status;
+select * from t1 where a in (select pk from t2);
+a	b
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	12
+Subquery_cache_miss	3
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	15
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	43
+set optimizer_switch='default,semijoin=off,materialization=on,subquery_cache=on';
+explain select * from t1 where a in (select pk from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	15	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
+flush status;
+select * from t1 where a in (select pk from t2);
+a	b
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+0	0
+1	1
+2	2
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	12
+Subquery_cache_miss	3
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	18
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	27
+drop table t0,t1,t2;
+set optimizer_switch='default';

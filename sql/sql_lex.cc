@@ -1632,6 +1632,8 @@ void st_select_lex::init_query()
   nest_level= 0;
   link_next= 0;
   lock_option= TL_READ_DEFAULT;
+
+  bzero((char*) expr_cache_may_be_used, sizeof(expr_cache_may_be_used));
 }
 
 void st_select_lex::init_select()
@@ -1826,6 +1828,55 @@ void st_select_lex_unit::exclude_tree()
   (*prev)= next;
   if (next)
     next->prev= prev;
+}
+
+
+/**
+  Register reference to an item which the subqueries depends on
+
+  @param def_sel         select against which the item is resolved
+  @param dependency      reference to the item
+
+  @details
+  This function puts the reference dependency to an item that is either an
+  outer field or an aggregate function resolved against an outer select into
+  the list 'depends_on'. It adds it to the 'depends_on' lists for each
+  subquery between this one and 'def_sel' - the subquery against which the
+  item is resolved.
+*/
+
+void st_select_lex::register_dependency_item(st_select_lex *def_sel,
+                                             Item **dependency)
+{
+  SELECT_LEX *s= this;
+  DBUG_ENTER("st_select_lex::register_dependency_item");
+  DBUG_ASSERT(this != def_sel);
+  DBUG_ASSERT(*dependency);
+  do
+  {
+    /* check duplicates */
+    List_iterator_fast<Item*> li(s->master_unit()->item->depends_on);
+    Item **dep;
+    while ((dep= li++))
+    {
+      if ((*dep)->eq(*dependency, FALSE))
+      {
+         DBUG_PRINT("info", ("dependency %s already present",
+                             ((*dependency)->name ?
+                              (*dependency)->name :
+                              "<no name>")));
+         DBUG_VOID_RETURN;
+      }
+    }
+
+    s->master_unit()->item->depends_on.push_back(dependency);
+    DBUG_PRINT("info", ("depends_on: Select: %d  added: %s",
+                        s->select_number,
+                        ((*dependency)->name ?
+                         (*dependency)->name :
+                         "<no name>")));
+  } while ((s= s->outer_select()) != def_sel);
+  DBUG_VOID_RETURN;
 }
 
 

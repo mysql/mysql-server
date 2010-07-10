@@ -2297,7 +2297,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
                                    */
                                    cur_ref_buff + null_count,
                                    null_count ? tab_ref->key_buff : 0,
-                                   cur_key_part->length, tab_ref->items[i]);
+                                   cur_key_part->length, tab_ref->items[i],
+                                   FALSE);
       cur_ref_buff+= cur_key_part->store_length;
     }
     *ref_key= NULL; /* End marker. */

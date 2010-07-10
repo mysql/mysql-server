@@ -785,6 +785,7 @@ struct st_table {
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		status;                 /* What's in record[0] */
   uint		db_stat;		/* mode of file as in handler.h */
+  uint          max_keys;               /* Size of allocated key_info array. */
   /* number of select if it is derived table */
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
@@ -917,6 +918,9 @@ struct st_table {
   */
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
+  bool alloc_keys(uint key_count);
+  bool add_tmp_key(uint key, uint key_parts,
+                   uint (*next_field_no) (uchar *), uchar *arg);
   bool is_children_attached(void);
   inline void enable_keyread()
   {

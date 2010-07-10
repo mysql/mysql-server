@@ -57,7 +57,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, 1);
+  fill_record(thd, table->field, values, TRUE, FALSE);
   if (thd->is_error())
     return 1;
 

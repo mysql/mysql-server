@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef HA_MARIA_INCLUDED
+#define HA_MARIA_INCLUDED
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface                               /* gcc class implementation */
@@ -189,3 +191,5 @@ private:
   DsMrr_impl ds_mrr;
   friend ICP_RESULT index_cond_func_maria(void *arg);
 };
+
+#endif /* HA_MARIA_INCLUDED */

@@ -88,11 +88,19 @@ public:
   */
   List<Ref_to_outside> upper_refs;
   st_select_lex *parent_select;
-  
- /*
+
+  /**
+     List of references on items subquery depends on (externally resolved);
+
+     @note We can't store direct links on Items because it could be
+           substituted with other item (for example for grouping).
+   */
+  List<Item*> depends_on;
+
+  /*
    TRUE<=>Table Elimination has made it redundant to evaluate this select
           (and so it is not part of QEP, etc)
- */
+  */
   bool eliminated;
   
   /* changed engine indicator */
@@ -185,6 +193,7 @@ public:
   */
   st_select_lex* get_select_lex();
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
+  virtual bool expr_cache_is_needed(THD *);
 
   friend class select_result_interceptor;
   friend class Item_in_optimizer;
@@ -243,6 +252,8 @@ public:
   */
   st_select_lex* invalidate_and_restore_select_lex();
 
+  Item* expr_cache_insert_transformer(uchar *thd_arg);
+
   friend class select_singlerow_subselect;
 };
 
@@ -289,6 +300,8 @@ public:
   bool val_bool();
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
+
+  Item* expr_cache_insert_transformer(uchar *thd_arg);
 
   friend class select_exists_subselect;
   friend class subselect_uniquesubquery_engine;
@@ -434,6 +447,7 @@ public:
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
   bool is_expensive_processor(uchar *arg);
+  bool expr_cache_is_needed(THD *thd);
   
   /* 
     Return the identifier that we could use to identify the subquery for the
@@ -813,7 +827,7 @@ public:
   {
     return materialize_engine->cols();
   }
-  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
+  uint8 uncacheable() { return materialize_engine->uncacheable(); }
   table_map upper_select_const_tables() { return 0; }
   bool no_rows() { return !tmp_table->file->stats.records; }
   virtual enum_engine_type engine_type() { return HASH_SJ_ENGINE; }

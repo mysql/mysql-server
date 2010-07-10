@@ -1866,7 +1866,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       /* Store regular updated fields in the row. */
       fill_record(thd,
                   tmp_table->field + 1 + unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], 1);
+                  *values_for_table[offset], TRUE, FALSE);
 
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);

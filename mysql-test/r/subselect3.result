@@ -105,6 +105,7 @@ Variable_name	Value
 Handler_read_rnd_next	5
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
+set optimizer_switch='subquery_cache=off';
 flush status;
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 oref	a	Z
@@ -123,6 +124,7 @@ Handler_read_rnd_next	29
 select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
 Z
 No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2;
 create table t1 (a int, b int, primary key (a));
 insert into t1 values (1,1), (3,1),(100,1);
@@ -952,6 +954,8 @@ i1	i2
 4	NULL
 5	0
 FLUSH STATUS;
+set @save_optimizer_switch2=@@optimizer_switch;
+set optimizer_switch='subquery_cache=off';
 
 SELECT i1, i2
 FROM t1
@@ -984,6 +988,7 @@ i1	i2
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 Variable_name	Value
 Handler_read_rnd_next	19
+set @@optimizer_switch=@save_optimizer_switch2;
 DROP TABLE t1,t2;
 End of 5.1 tests
 CREATE TABLE t1 (

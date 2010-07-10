@@ -994,6 +994,8 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
 int ha_maria::close(void)
 {
   MARIA_HA *tmp= file;
+  if (!tmp)
+    return 0;
   file= 0;
   return maria_close(tmp);
 }

@@ -14,6 +14,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#ifndef SQL_SELECT_INCLUDED
+#define SQL_SELECT_INCLUDED
 /**
   @file
 
@@ -114,6 +116,9 @@ typedef struct st_table_ref
 
   */
   bool          disable_cache;
+
+  bool tmp_table_index_lookup_init(THD *thd, KEY *tmp_key, Item_iterator &it,
+                                   bool value);
 } TABLE_REF;
 
 
@@ -1729,6 +1734,7 @@ public:
             ((group || tmp_table_param.sum_func_count) && !group_list)) ?
               NULL : join_tab+const_tables;
   }
+  bool setup_subquery_caches();
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -1736,6 +1742,8 @@ private:
   */
   bool implicit_grouping; 
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
+  void transform_and_change_in_all_fields(Item** item,
+                                          Item_transformer transformer);
 };
 
 
@@ -1867,12 +1875,17 @@ class store_key_item :public store_key
 {
  protected:
   Item *item;
+  /*
+    Flag that forces usage of save_val() method which save value of the
+    item instead of save_in_field() method which saves result.
+  */
+  bool use_value;
 public:
   store_key_item(THD *thd, Field *to_field_arg, uchar *ptr,
-                 uchar *null_ptr_arg, uint length, Item *item_arg)
+                 uchar *null_ptr_arg, uint length, Item *item_arg, bool val)
     :store_key(thd, to_field_arg, ptr,
 	       null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
-	       &err : (uchar*) 0, length), item(item_arg)
+	       &err : (uchar*) 0, length), item(item_arg), use_value(val)
   {}
   const char *name() const { return "func"; }
 
@@ -1882,7 +1895,11 @@ public:
     TABLE *table= to_field->table;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
-    int res= item->save_in_field(to_field, 1);
+    int res= FALSE;
+    if (use_value)
+      item->save_val(to_field);
+    else
+      res= item->save_in_field(to_field, 1);
     /*
      Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
      we need to check for errors executing it and react accordingly
@@ -1906,7 +1923,7 @@ public:
 		       Item *item_arg)
     :store_key_item(thd, to_field_arg,ptr,
 		    null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
-		    &err : (uchar*) 0, length, item_arg), inited(0)
+		    &err : (uchar*) 0, length, item_arg, FALSE), inited(0)
   {
   }
   const char *name() const { return "const"; }
@@ -1997,6 +2014,4 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
 bool open_tmp_table(TABLE *table);
 void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps);
 
-
-
-
+#endif /* SQL_SELECT_INCLUDED */

@@ -319,6 +319,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
   if (aggr_level >= 0)
   {
     ref_by= ref;
+    thd->lex->current_select->register_dependency_item(aggr_sel, ref);
     /* Add the object to the list of registered objects assigned to aggr_sel */
     if (!aggr_sel->inner_sum_func_list)
       next= this;

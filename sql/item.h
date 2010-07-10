@@ -507,7 +507,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM};
+             VIEW_FIXER_ITEM, EXPR_CACHE_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -737,6 +737,17 @@ public:
   */
   virtual bool val_bool();
   virtual String *val_nodeset(String*) { return 0; }
+
+  /*
+    save_val() is method of val_* family which stores value in the given
+    field.
+  */
+  virtual void save_val(Field *to) { save_org_in_field(to); }
+  /*
+    save_result() is method of val*result() family which stores value in
+    the given field.
+  */
+  virtual void save_result(Field *to) { save_val(to); }
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
   String *val_string_from_int(String *str);
@@ -1092,6 +1103,8 @@ public:
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   virtual Item *update_value_transformer(uchar *select_arg) { return this; }
+  virtual Item *expr_cache_insert_transformer(uchar *thd_arg) { return this; }
+  virtual bool expr_cache_is_needed(THD *) { return FALSE; }
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
@@ -1145,6 +1158,9 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+
+  Item* set_expr_cache(THD *thd, List<Item*> &depends_on);
+  virtual Item *get_cached_item() { return NULL; }
 };
 
 
@@ -1524,6 +1540,19 @@ public:
   */
   TABLE_LIST *cached_table;
   st_select_lex *depended_from;
+  /*
+    Some Items resolved in another select should not be marked as dependency
+    of the subquery where they are. During normal name resolution, we check
+    this. Stored procedures and prepared statements first try to resolve an
+    ident item using a cached table reference and field position from the
+    previous query execution (cached_table/cached_field_index). If the
+    tables were not changed, the ident matches the table/field, and we have
+    faster resolution of the ident without looking through all tables and
+    fields in the query. But in this case, we can not check all conditions
+    about this ident item dependency, so we should cache the condition in
+    this variable.
+  */
+  bool can_be_depended;
   Item_ident(Name_resolution_context *context_arg,
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
@@ -1606,6 +1635,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
+  void save_result(Field *to);
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
@@ -1926,8 +1956,6 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
-  bool check_vcol_func_processor(uchar *arg) { return FALSE;}
 };
 
 
@@ -2389,6 +2417,8 @@ public:
     Item *it= ((Item *) item)->real_item();
     return ref && (*ref)->eq(it, binary_cmp);
   }
+  void save_val(Field *to);
+  void save_result(Field *to);
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
@@ -2519,6 +2549,7 @@ public:
               alias_name_used_arg)
   {}
 
+  void save_val(Field *to);
   double val_real();
   longlong val_int();
   String *val_str(String* tmp);
@@ -2528,6 +2559,134 @@ public:
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
+
+class Expression_cache;
+class Item_cache;
+
+
+/**
+  The objects of this class can store its values in an expression cache.
+*/
+
+class Item_cache_wrapper :public Item_result_field
+{
+private:
+  /* Pointer on the cached expression */
+  Item *orig_item;
+  Expression_cache *expr_cache;
+  /*
+    In order to put the expression into the expression cache and return
+    value of val_*() method, we will need to get the expression value twice
+    (probably in different types).  In order to avoid making two
+    (potentially costly) orig_item->val_*() calls, we store expression value
+    in this Item_cache object.
+  */
+  Item_cache *expr_value;
+
+  Item *check_cache();
+  inline void cache();
+
+public:
+  Item_cache_wrapper(Item *item_arg);
+  ~Item_cache_wrapper();
+
+  const char *func_name() const { return "<expr_cache>"; }
+  enum Type type() const { return EXPR_CACHE_ITEM; }
+  virtual Item *get_cached_item() { return orig_item; }
+
+  bool set_cache(THD *thd, List<Item*> &depends_on);
+
+  bool fix_fields(THD *thd, Item **it);
+  void fix_length_and_dec() {}
+  void cleanup();
+
+  /* Methods of getting value which should be cached in the cache */
+  void save_val(Field *to);
+  double val_real();
+  longlong val_int();
+  String *val_str(String* tmp);
+  my_decimal *val_decimal(my_decimal *);
+  bool val_bool();
+  bool is_null();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
+  bool send(Protocol *protocol, String *buffer)
+  {
+    if (result_field)
+      return protocol->store(result_field);
+    return Item::send(protocol, buffer);
+  }
+  void save_org_in_field(Field *field)
+  {
+    save_val(field);
+  }
+  void save_in_result_field(bool no_conversions)
+  {
+    save_val(result_field);
+  }
+
+  /* Following methods make this item transparent as much as possible */
+
+  virtual void print(String *str, enum_query_type query_type)
+  {
+    /* TODO: maybe print something for EXPLAIN EXTENDED */
+    return orig_item->print(str, query_type);
+  }
+  virtual const char *full_name() const { return orig_item->full_name(); }
+  virtual void make_field(Send_field *field) { orig_item->make_field(field); }
+  bool eq(const Item *item, bool binary_cmp) const
+  {
+    Item *it= ((Item *) item)->real_item();
+    return orig_item->eq(it, binary_cmp);
+  }
+  void fix_after_pullout(st_select_lex *new_parent, Item **refptr)
+  {
+    orig_item->fix_after_pullout(new_parent, &orig_item);
+  }
+  int save_in_field(Field *to, bool no_conversions);
+  enum Item_result result_type () const { return orig_item->result_type(); }
+  enum_field_types field_type() const   { return orig_item->field_type(); }
+  table_map used_tables() const { return orig_item->used_tables(); }
+  void update_used_tables() { orig_item->update_used_tables(); }
+  bool const_item() const { return orig_item->const_item(); }
+  table_map not_null_tables() const { return orig_item->not_null_tables(); }
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  {
+    return orig_item->walk(processor, walk_subquery, arg) ||
+      (this->*processor)(arg);
+  }
+  bool enumerate_field_refs_processor(uchar *arg)
+  { return orig_item->enumerate_field_refs_processor(arg); }
+  bool result_as_longlong() { return orig_item->result_as_longlong(); }
+  Item_field *filed_for_view_update()
+  { return orig_item->filed_for_view_update(); }
+
+  /* Row emulation: forwarding of ROW-related calls to orig_item */
+  uint cols()
+  { return result_type() == ROW_RESULT ? orig_item->cols() : 1; }
+  Item* element_index(uint i)
+  { return result_type() == ROW_RESULT ? orig_item->element_index(i) : this; }
+  Item** addr(uint i)
+  { return result_type() == ROW_RESULT ? orig_item->addr(i) : 0; }
+  bool check_cols(uint c)
+  {
+    return (result_type() == ROW_RESULT ?
+            orig_item->check_cols(c) :
+            Item::check_cols(c));
+  }
+  bool null_inside()
+  { return result_type() == ROW_RESULT ? orig_item->null_inside() : 0; }
+  void bring_value()
+  {
+    if (result_type() == ROW_RESULT)
+      orig_item->bring_value();
+  }
+  bool check_vcol_func_processor(uchar *arg)
+  {
+    return trace_unsupported_by_check_vcol_func_processor("cache");
+  }
+};
+
 
 /*
   Class for view fields, the same as Item_direct_ref, but call fix_fields
@@ -2638,6 +2797,7 @@ public:
 		       const char *table_name_arg, const char *field_name_arg)
     :Item_ref(context_arg, item, table_name_arg, field_name_arg),
      owner(master) {}
+  void save_val(Field *to);
   double val_real();
   longlong val_int();
   String* val_str(String* s);
@@ -3172,7 +3332,8 @@ public:
     example(0), used_table_map(0), cached_field(0), cached_field_type(MYSQL_TYPE_STRING),
     value_cached(0)
   {
-    fixed= 1; 
+    fixed= 1;
+    maybe_null= 1;
     null_value= 1;
   }
   Item_cache(enum_field_types field_type_arg):
@@ -3180,6 +3341,7 @@ public:
     value_cached(0)
   {
     fixed= 1;
+    maybe_null= 1;
     null_value= 1;
   }
 

@@ -82,6 +82,7 @@ SET (SQL_SOURCE
                opt_subselect.cc
                opt_index_cond_pushdown.cc
                create_options.cc
+               sql_expression_cache.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
                ${PROJECT_SOURCE_DIR}/include/mysqld_error.h

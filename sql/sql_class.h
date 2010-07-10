@@ -23,6 +23,76 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 
+
+/**
+  Interface for Item iterator
+*/
+
+class Item_iterator
+{
+public:
+  /**
+    Shall set this iterator to the position before the first item
+
+    @note
+    This method also may perform some other initialization actions like
+    allocation of certain resources.
+  */
+  virtual void open()= 0;
+  /**
+    Shall return the next Item (or NULL if there is no next item) and
+    move pointer to position after it.
+  */
+  virtual Item *next()= 0;
+  /**
+    Shall force iterator to free resources (if it holds them)
+
+    @note
+    One should not use the iterator without open() call after close()
+  */
+  virtual void close()= 0;
+
+  virtual ~Item_iterator() {}
+};
+
+
+/**
+  Item iterator over List_iterator_fast for Item references
+*/
+
+class Item_iterator_ref_list: public Item_iterator
+{
+  List_iterator_fast<Item*> list;
+public:
+  Item_iterator_ref_list(List_iterator_fast<Item*> &arg_list):
+    list(arg_list) {}
+  void open() { list.rewind(); }
+  Item *next() { return *(list++); }
+  void close() {}
+};
+
+
+/**
+  Item iterator over Item interface for rows
+*/
+
+class Item_iterator_row: public Item_iterator
+{
+  Item *base_item;
+  uint current;
+public:
+  Item_iterator_row(Item *base) : base_item(base), current(0) {}
+  void open() { current= 0; }
+  Item *next()
+  {
+    if (current >= base_item->cols())
+      return NULL;
+    return base_item->element_index(current++);
+  }
+  void close() {}
+};
+
+
 /**
   An interface that is used to take an action when
   the locking module notices that a table version has changed
@@ -2796,12 +2866,17 @@ public:
     that MEMORY tables cannot index BIT columns.
   */
   bool bit_fields_as_long;
+  /*
+    Whether to create or postpone actual creation of this temporary table.
+    TRUE <=> create_tmp_table will create only the TABLE structure.
+  */
+  bool skip_create_table;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     bit_fields_as_long(0)
+     bit_fields_as_long(0), skip_create_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {

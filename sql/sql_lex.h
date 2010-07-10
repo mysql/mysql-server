@@ -661,6 +661,11 @@ public:
   /* explicit LIMIT clause was used */
   bool explicit_limit;
   /*
+    This array is used to note  whether we have any candidates for
+    expression caching in the corresponding clauses
+  */
+  bool expr_cache_may_be_used[PARSING_PLACE_SIZE];
+  /*
     there are subquery in HAVING clause => we can't close tables before
     query processing end even if we use temporary table
   */
@@ -749,6 +754,7 @@ public:
   inline bool is_subquery_function() { return master_unit()->item != 0; }
 
   bool mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency);
+  void register_dependency_item(st_select_lex *last, Item **dependency);
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();
