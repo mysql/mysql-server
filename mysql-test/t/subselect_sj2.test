@@ -490,6 +490,12 @@ drop table t1, t2;
 # Bug#33062: subquery in stored routine cause crash
 #
 
+--disable_warnings
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop procedure if exists p3;
+drop procedure if exists p4;
+--enable_warnings
 CREATE TABLE t1(a INT);
 CREATE TABLE t2(c INT);
 
