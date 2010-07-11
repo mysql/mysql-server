@@ -237,7 +237,7 @@ unpack_row(Relay_log_info const *rli,
       conv_field ? conv_field : *field_ptr;
     DBUG_PRINT("debug", ("Conversion %srequired for field '%s' (#%ld)",
                          conv_field ? "" : "not ",
-                         (*field_ptr)->field_name, field_ptr - begin_ptr));
+                         (*field_ptr)->field_name, (long)(field_ptr - begin_ptr)));
     DBUG_ASSERT(f != NULL);
 
     /*

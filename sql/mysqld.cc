@@ -3824,7 +3824,7 @@ static int init_server_auto_options()
 {
   bool flush= false;
   char fname[FN_REFLEN];
-  char *name= "auto";
+  char *name= (char *)"auto";
   const char *groups[]= {"auto", NULL};
   char *uuid= 0;
   my_option auto_options[]= {
@@ -3858,7 +3858,7 @@ static int init_server_auto_options()
   {
     if (strlen(uuid) != UUID_LENGTH)
     {
-      sql_print_error("Invalid UUID in the auto.cnf file");
+      sql_print_error("The UUID stored in auto.cnf file is the wrong length.");
       goto err;
     }
     strcpy(server_uuid, uuid);
@@ -3869,8 +3869,9 @@ static int init_server_auto_options()
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
-    sql_print_warning("It might be a maiden lunch of the server, for there is"
-                      " no UUID existing. A new UUID is generated. it is %s",
+    sql_print_warning("No existing UUID has been found, so we assume that this"
+                      " is the first time that this server has been started."
+                      " Generating a new UUID: %s.",
                       server_uuid);
   }
   /*
@@ -4157,16 +4158,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
               my_progname, *tmp_argv);
       unireg_abort(1);
     }
-  }
-
-  /*
-    Each server should have one UUID. We will create it automatically, if it
-    does not exist.
-   */
-  if (!opt_bootstrap && init_server_auto_options())
-  {
-    sql_print_error("Initializing server's UUID failed");
-    unireg_abort(1);
   }
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
@@ -4589,6 +4580,19 @@ int main(int argc, char **argv)
 
   if (init_server_components())
     unireg_abort(1);
+
+  /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist.
+   */
+  if (!opt_bootstrap && init_server_auto_options())
+  {
+    sql_print_error("Initialzation of the server's UUID failed because it could"
+                    " not be read from the auto.cnf file. If this is a new"
+                    " server, the initialization failed because it was not"
+                    " possible to generate a new UUID.");
+    unireg_abort(1);
+  }
 
   init_ssl();
   network_init();
