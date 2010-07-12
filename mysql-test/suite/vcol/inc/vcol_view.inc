@@ -69,10 +69,14 @@ create table t1 (a int not null,
 insert into t1 (a) values (1), (2), (3), (4);
 create view v1 as select b+1 from t1 order by 1 desc limit 2;
 select * from v1;
+--echo MariaDB-5.3: the following EXPLAIN produces incorrect #rows for table t1.
+--echo MariaDB-5.3: this is expected to go away when FROM subquery optimizations are pushed
 explain select * from v1;
 drop view v1;
 create view v1 as select c+1 from t1 order by 1 desc limit 2;
 select * from v1;
+--echo MariaDB-5.3: the following EXPLAIN produces incorrect #rows for table t1.
+--echo MariaDB-5.3: this is expected to go away when FROM subquery optimizations are pushed
 explain select * from v1;
 drop view v1;
 drop table t1;
