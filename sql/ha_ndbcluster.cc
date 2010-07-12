@@ -639,11 +639,12 @@ private:
   Field* m_referred_fields[MAX_REFERRED_FIELDS];
 }; // class ndb_pushed_join
 
-const char* get_referred_field_name(const Item_field* field_item){
+
+static const char* get_referred_field_name(const Item_field* field_item){
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->field_name;
 }
-const char* get_referred_table_access_name(const Item_field* field_item){
+static const char* get_referred_table_access_name(const Item_field* field_item){
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->table->alias;
 }
@@ -671,7 +672,7 @@ ndb_pushed_builder_ctx::add_pushed(
   {
     m_tables[table_no].m_ancestors.clear_all();
   }
-}
+} // ndb_pushed_builder_ctx::add_pushed
 
 /**
  *  get_referred_table_access()
@@ -693,7 +694,7 @@ ndb_pushed_builder_ctx::get_referred_table_access(const ndb_table_access_map& fi
     }
   }
   return NULL;
-}
+} // ndb_pushed_builder_ctx::get_referred_table_access
 
 /**
  *  add_parent_candidate()
@@ -736,7 +737,7 @@ ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
       }
     }
   }
-}
+} // ndb_pushed_builder_ctx::add_parent_candidate
 
 
 /***************************************************************
@@ -769,11 +770,6 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
   parent= NULL;
 
   DBUG_ASSERT (join_root() < table);
-
-  if (table->get_access_type() != AQP::AT_PRIMARY_KEY &&
-      table->get_access_type() != AQP::AT_UNIQUE_KEY  &&
-      table->get_access_type() != AQP::AT_ORDERED_INDEX_SCAN)
-    DBUG_RETURN(false);
 
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
   {
@@ -1030,7 +1026,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
   } // substitute
 
   DBUG_RETURN(true);
-} // field_ref_is_join_pushable
+} // ndb_pushed_builder_ctx::field_ref_is_join_pushable
 
 
 /**
@@ -1093,6 +1089,12 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     }
   }
 } // build_key_map
+
+static bool is_lookup_operation(AQP::enum_access_type accessType)
+{
+  return (accessType == AQP::AT_PRIMARY_KEY ||
+          accessType == AQP::AT_UNIQUE_KEY);
+}
 
 int
 ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
@@ -1177,6 +1179,14 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     if (handler->m_user_defined_partitioning)
     {
       DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt));
+      continue;
+    }
+    AQP::enum_access_type child_type= join_tab->get_access_type();
+    if (!(is_lookup_operation(child_type)  ||
+          // Currently there is a limitation in not allowing LOOKUP - (index)SCAN operations
+          (child_type==AQP::AT_ORDERED_INDEX_SCAN && !is_lookup_operation(access_type))))
+    {
+      DBUG_PRINT("info", ("Table %d not a pushable access type", join_cnt));
       continue;
     }
     if (!context.field_ref_is_join_pushable(join_tab, join_items, join_parent))
