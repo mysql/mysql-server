@@ -717,14 +717,16 @@ row_merge_read(
 }
 
 /********************************************************************//**
-Read a merge block from the file system.
+Write a merge block to the file system.
 @return	TRUE if request was successful, FALSE if fail */
 static
 ibool
 row_merge_write(
 /*============*/
 	int		fd,	/*!< in: file descriptor */
-	ulint		offset,	/*!< in: offset where to write */
+	ulint		offset,	/*!< in: offset where to read
+				in number of row_merge_block_t
+				elements */
 	const void*	buf)	/*!< in: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset)
@@ -1075,11 +1077,14 @@ row_merge_cmp(
 						record to be compared */
 	const ulint*		offsets1,	/*!< in: first record offsets */
 	const ulint*		offsets2,	/*!< in: second record offsets */
-	const dict_index_t*	index)		/*!< in: index */
+	const dict_index_t*	index,		/*!< in: index */
+	ibool*			null_eq)	/*!< out: set to TRUE if
+						found matching null values */
 {
 	int	cmp;
 
-	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index);
+	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index,
+				 null_eq);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_cmp) {
@@ -1445,11 +1450,13 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
+		ibool	null_eq = FALSE;
 		switch (row_merge_cmp(mrec0, mrec1,
-				      offsets0, offsets1, index)) {
+				      offsets0, offsets1, index,
+				      &null_eq)) {
 		case 0:
 			if (UNIV_UNLIKELY
-			    (dict_index_is_unique(index))) {
+			    (dict_index_is_unique(index) && !null_eq)) {
 				innobase_rec_to_mysql(table, mrec0,
 						      index, offsets0);
 				mem_heap_free(heap);
@@ -2087,13 +2094,16 @@ row_merge_drop_temp_indexes(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table_on_id(table_id);
+		table = dict_table_get_on_id_low(table_id);
 
 		if (table) {
 			dict_index_t*	index;
+			dict_index_t*	next_index;
 
 			for (index = dict_table_get_first_index(table);
-			     index; index = dict_table_get_next_index(index)) {
+			     index; index = next_index) {
+
+				next_index = dict_table_get_next_index(index);
 
 				if (*index->name == TEMP_INDEX_PREFIX) {
 					row_merge_drop_index(index, table, trx);
