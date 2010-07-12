@@ -14,4 +14,3 @@ query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails spo
 partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
 ps_3innodb               : Bug#38999 2010-04-30 VasilDimov valgrind warnings (Andrei corrected to the right bug)
 xa			 : Bug#54549 2010-06-17 Andrei
- 	
