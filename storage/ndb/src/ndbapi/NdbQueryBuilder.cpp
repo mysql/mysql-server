@@ -743,7 +743,18 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
         break;  // Seen all PK fields
     }
   }
-  
+
+  if (op->getNoOfParentOperations() == 0 && m_pimpl->m_operations.size() > 0)
+  {
+    // Force an artificial parent dependency with root parent
+    const int error = op->linkWithParent(m_pimpl->m_operations[0]);
+    if (unlikely(error))
+    { m_pimpl->setErrorCode(error);
+      delete op;
+      return NULL;
+    }
+  }
+
   m_pimpl->m_operations.push_back(op);
   return &op->m_interface;
 }
@@ -801,6 +812,17 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
     assert (col.getColumnNo() == i);
 
     int error = keys[i]->getImpl().bindOperand(col,*op);
+    if (unlikely(error))
+    { m_pimpl->setErrorCode(error);
+      delete op;
+      return NULL;
+    }
+  }
+
+  if (op->getNoOfParentOperations() == 0 && m_pimpl->m_operations.size() > 0)
+  {
+    // Force an artificial parent dependency with root parent
+    const int error = op->linkWithParent(m_pimpl->m_operations[0]);
     if (unlikely(error))
     { m_pimpl->setErrorCode(error);
       delete op;
