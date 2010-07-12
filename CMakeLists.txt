@@ -104,6 +104,27 @@ IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
+#
+# Control aspects of the development environment which are
+# specific to MySQL maintainers and developers.
+#
+OPTION(MYSQL_MAINTAINER_MODE "MySQL maintainer-specific development environment" OFF)
+# Whether the maintainer mode should be enabled.
+IF(MYSQL_MAINTAINER_MODE)
+  IF(CMAKE_COMPILER_IS_GNUCC)
+    SET(MY_MAINTAINER_C_WARNINGS "-Wall -Wextra -Wunused -Wwrite-strings -Werror"
+        CACHE STRING "C warning options used in maintainer builds.")
+  ENDIF()
+  IF(CMAKE_COMPILER_IS_GNUCXX)
+    SET(MY_MAINTAINER_CXX_WARNINGS "${MY_MAINTAINER_C_WARNINGS} -Wno-unused-parameter"
+        CACHE STRING "C++ warning options used in maintainer builds.")
+  ENDIF()
+  # Do not make warnings in checks into errors.
+  IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
+    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wno-error")
+  ENDIF()
+ENDIF()
+
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(zlib)
@@ -226,6 +247,19 @@ MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
+
+#
+# Setup maintainer mode options by the end. Platform checks are
+# not run with the warning options as to not perturb fragile checks
+# (i.e. do not make warnings into errors).
+#
+IF(MYSQL_MAINTAINER_MODE)
+  # Set compiler flags required under maintainer mode.
+  MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
+  MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
+ENDIF()
 
 IF(NOT WITHOUT_SERVER)
 SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
