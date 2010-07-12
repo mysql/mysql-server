@@ -1,0 +1,66 @@
+create table t1 (a bigint);
+lock tables t1 write;
+insert into t1 values(0);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+unlock tables;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (a bigint);
+insert into t1 values(0);
+lock tables t1 write;
+delete from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+unlock tables;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (a bigint);
+insert into t1 values(0);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (a mediumtext, fulltext key key1(a)) charset utf8 collate utf8_general_ci engine myisam;
+insert into t1 values ('hello');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+drop table t1;
+CREATE TABLE t1 (a int);
+prepare stmt1 from "SELECT * FROM t1 PROCEDURE ANALYSE()";
+execute stmt1;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+execute stmt1;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+deallocate prepare stmt1;
+drop table t1;
+create temporary table t1(a int, index(a));
+insert into t1 values('1'),('2'),('3'),('4'),('5');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE		
+drop table t1;
+End of 4.1 tests
+create table t1(a int);
+analyze table t1 extended;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'extended' at line 1
+optimize table t1 extended;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'extended' at line 1
+drop table t1;
+End of 5.0 tests
