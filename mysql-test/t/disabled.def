@@ -16,3 +16,4 @@ plugin_load              : Bug#42144 2009-12-21 alik plugin_load fails
 partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
 mysqlhotcopy_myisam      : bug#54129 2010-06-04 Horst
 mysqlhotcopy_archive     : bug#54129 2010-06-04 Horst
+xa			 : Bug#54549 2010-06-17 Andrei
