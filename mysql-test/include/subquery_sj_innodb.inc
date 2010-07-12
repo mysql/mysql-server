@@ -64,6 +64,7 @@ set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 
 # O2I join orders, with shortcutting: 
+--replace_column 9 x
 explain select * from t1 where a in (select b from t2);
 select * from t1;
 select * from t1 where a in (select b from t2);
