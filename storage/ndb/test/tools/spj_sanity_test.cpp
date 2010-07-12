@@ -801,7 +801,7 @@ namespace SPJSanityTest{
   /** Run a set of test cases.*/
   template <typename Row, typename Key>
   void runTestSuite(MYSQL& mysql, Ndb& ndb){
-    for(int caseNo = 0; caseNo<7; caseNo++){
+    for(int caseNo = 3; caseNo<7; caseNo++){
       ndbout << endl << "Running test case " << caseNo << endl;
 
       char tabName[20];

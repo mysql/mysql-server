@@ -326,6 +326,8 @@ private:
   Uint16 m_currentHashRow;
   Uint16 m_currentRootRow;
 
+  bool m_newRow;
+
   /**
    * TupleSet contain two logically distinct set of information:
    *
@@ -400,6 +402,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 rootFr
   m_currentParentId(tupleNotFound),
   m_currentHashRow(tupleNotFound),
   m_currentRootRow(0),
+  m_newRow(false),
   m_tupleSet(NULL)
 {};
 
@@ -568,6 +571,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
 
   if (m_iterState == Iter_notStarted)
   {
+    m_newRow = true;
     if (isRoot)
     {
       m_currentRootRow = 0;
@@ -641,27 +645,35 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     {
       NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
       
-      switch(child.getResultStream(m_rootFragNo)
-             .getNextScanRow(getTupleId(rowNo)))
+      if (m_newRow || child.getQueryOperationDef().hasScanDescendant())
       {
-      case ScanRowResult_gotRow:
-        childrenWithRows++;
-        break;
-      case ScanRowResult_noRow:
-        if (child.getQueryOperationDef().getMatchType() 
-            != NdbQueryOptions::MatchAll)
+        switch(child.getResultStream(m_rootFragNo)
+               .getNextScanRow(getTupleId(rowNo)))
         {
+        case ScanRowResult_gotRow:
+          childrenWithRows++;
+          break;
+        case ScanRowResult_noRow:
+          if (child.getQueryOperationDef().getMatchType() 
+              != NdbQueryOptions::MatchAll)
+          {
+            childRowsOk = false;
+          }
+          break;
+        case ScanRowResult_maybeRow:
           childRowsOk = false;
+          break;
+        default:
+          assert(false);
         }
-        break;
-      case ScanRowResult_maybeRow:
-        childRowsOk = false;
-        break;
-      default:
-        assert(false);
       }
       childNo++;
     }
+    if (!m_newRow && childrenWithRows == 0)
+    {
+      childRowsOk = false;
+    }
+
     if (childRowsOk)
     {
       getReceiver().setCurrentRow(rowNo);
@@ -671,6 +683,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     if (!childRowsOk || childrenWithRows == 0)
     {
       // Advance cursor for this stream.
+      m_newRow = true;
       if (isRoot)
       {
         m_currentRootRow++;
@@ -688,6 +701,10 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
           m_iterState = Iter_finished;
         }
       } 
+    }
+    else
+    {
+      m_newRow = false;
     }
 
     if (childRowsOk)
