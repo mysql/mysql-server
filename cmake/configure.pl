@@ -184,6 +184,12 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." -DWITH_DEBUG_FULL=1"; 
     next;
   }
+  if ($option =~ /mysql-maintainer-mode/)
+  {
+    $cmakeargs = $cmakeargs." -DMYSQL_MAINTAINER_MODE=" .
+                 ($option =~ /enable/ ? "1" : "0");
+    next;
+  }
 
   $option = uc($option);
   $option =~ s/-/_/g;
