@@ -271,10 +271,7 @@ private:
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
-    : NdbQueryScanOperationDefImpl(table,options,ident,ix),
-      m_interface(*this) 
-  {}
+                           Uint32      ix);
 
   NdbQueryTableScanOperationDef m_interface;
 
@@ -1609,6 +1606,7 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      Uint32      ix)
   :m_isPrepared(false), 
    m_diskInChildProjection(false), 
+   m_hasScanDescendant(false),
    m_table(table), 
    m_ident(ident), 
    m_ix(ix), m_id(ix),
@@ -1723,6 +1721,17 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
   return spjRef;
 }
 
+void NdbQueryOperationDefImpl::markScanAncestors()
+{
+  NdbQueryOperationDefImpl* operation = this;
+  while (operation != NULL && !operation->isScanOperation())
+  {
+    // FIXME: Set an error code instead.
+    assert(!operation->m_hasScanDescendant);
+    operation->m_hasScanDescendant = true;
+    operation = &operation->getParentOperation(0);
+  }
+}
 
 /** This class is used for serializing sequences of 16 bit integers,
  * where the first 16 bit integer specifies the length of the sequence.
@@ -2233,6 +2242,19 @@ NdbQueryIndexOperationDefImpl
 } // NdbQueryIndexOperationDefImpl::serializeOperation
 
 
+NdbQueryScanOperationDefImpl::NdbQueryScanOperationDefImpl (
+                           const NdbTableImpl& table,
+                           const NdbQueryOptionsImpl& options,
+                           const char* ident,
+                           Uint32      ix)
+  : NdbQueryOperationDefImpl(table,options,ident,ix)
+{
+  if (getNoOfParentOperations() > 0)
+  {
+    getParentOperation(0).markScanAncestors();
+  }
+}
+
 int
 NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
                                         const NdbTableImpl& tableOrIndex)
@@ -2299,6 +2321,15 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   return 0;
 } // NdbQueryScanOperationDefImpl::serialize
 
+NdbQueryTableScanOperationDefImpl
+::NdbQueryTableScanOperationDefImpl (
+                           const NdbTableImpl& table,
+                           const NdbQueryOptionsImpl& options,
+                           const char* ident,
+                           Uint32      ix)
+    : NdbQueryScanOperationDefImpl(table,options,ident,ix),
+      m_interface(*this) 
+{}
 
 int
 NdbQueryTableScanOperationDefImpl

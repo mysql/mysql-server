@@ -285,13 +285,13 @@ public:
   Uint32 getNoOfParentOperations() const
   { return m_parents.size(); }
 
-  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
+  NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
   { return *m_parents[i]; }
 
   Uint32 getNoOfChildOperations() const
   { return m_children.size(); }
 
-  const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
+  NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
   { return *m_children[i]; }
 
   const NdbTableImpl& getTable() const
@@ -343,6 +343,11 @@ public:
 
   // Return 'true' is query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
+
+  bool hasScanDescendant() const
+  { return m_hasScanDescendant; }
+
+  void markScanAncestors();
 
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
@@ -404,6 +409,8 @@ protected:
    */
   bool m_diskInChildProjection;
 
+  bool m_hasScanDescendant;
+
 private:
   bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
 
@@ -447,9 +454,7 @@ public:
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
-  : NdbQueryOperationDefImpl(table,options,ident,ix)
-  {}
+                           Uint32      ix);
 
   virtual bool isScanOperation() const
   { return true; }
