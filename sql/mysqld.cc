@@ -4373,6 +4373,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
   }
 
+  if (opt_help)
+    unireg_abort(0);
+
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!DEFAULT_ERRMSGS[0][0])
     unireg_abort(1);  
