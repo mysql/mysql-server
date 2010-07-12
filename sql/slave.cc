@@ -1190,10 +1190,10 @@ err:
   }
   else
   {
+    char errmsg[512];
     const char *errmsg_fmt=
       "The slave I/O thread stops because a fatal error is encountered "
       "when it tries to send query to master(query: %s).";
-    char errmsg[strlen(errmsg_fmt) + 1 + sizeof(query)];
 
     my_sprintf(errmsg, (errmsg, errmsg_fmt, query));
     mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
