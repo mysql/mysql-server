@@ -197,8 +197,10 @@ public:
    * @return True if there are no more results from this root fragment (for 
    * the current batch).
    */
-  bool isEmpty() const
+  bool isEmpty() const;
+#if 0
   { return !m_query->getQueryOperation(0U).getReceiver(m_fragNo).nextResult(); }
+#endif
 
 private:
   STATIC_CONST( voidFragNo = 0xffffffff);
@@ -240,7 +242,7 @@ private:
  * structures for correlating child and parent tuples.
  */
 class NdbResultStream {
-  // friend bool NdbRootFragment::isEmpty() const;
+  friend bool NdbRootFragment::isEmpty() const;
 public:
   enum ScanRowResult {
     ScanRowResult_void,
@@ -556,33 +558,56 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     m_operation.getQueryOperationDef().getQueryOperationIx() == 0;
   Uint32 rowNo = tupleNotFound;;
 
-  /* Check if this is the first iteration for this stream and batch. 
-   * If so, get the first row.
-   */
-  if (isRoot)
-  {
-    if (m_currentHashRow == tupleNotFound)
-    {
-      m_currentHashRow = 0;
-    }
-    rowNo = m_currentHashRow;
-  }
-  else
+  /* Restart iteration if parent id has changed.*/
+  if (!isRoot && m_currentParentId != parentId)
   {
     assert (parentId != tupleNotFound);
+    m_currentParentId = parentId;
+    m_iterState = Iter_notStarted;
+  }        
 
-    /* Find the first row that matches the parent tuple id.
-     */
-    if (m_currentParentId != parentId)
+  if (m_iterState == Iter_notStarted)
+  {
+    if (isRoot)
     {
-      m_currentParentId = parentId;
-      rowNo = findTupleWithParentId(parentId);
+      m_currentRootRow = 0;
+      rowNo = m_currentRootRow;
+      if (getReceiver().m_result_rows == 0)
+      {
+        m_iterState = Iter_finished;
+      }
+      else
+      {
+        m_iterState = Iter_started;
+      }
     }
     else
     {
-      rowNo = getReceiver().m_current_row;
+      assert (parentId != tupleNotFound);
+      m_currentParentId = parentId;
+      rowNo = findTupleWithParentId(parentId);
+      if (rowNo == tupleNotFound)
+      {
+        m_iterState = Iter_finished;
+      }
+      else
+      {
+        m_iterState = Iter_started;
+      }
     }
-  }        
+  }
+  else if (m_iterState == Iter_started)
+  {
+    if (isRoot)
+    {
+      rowNo = m_currentRootRow;
+    }
+    else
+    {
+      rowNo = m_currentHashRow;
+    }
+  }
+
 
   /* Loop until we either find a suitable set of rows for this operation
    * and its descendants, or until we decide that there are no more matches
@@ -590,32 +615,27 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
    */
   while (true)
   {
-    if (isRoot)
+    if (m_iterState == Iter_finished)
     {
-      getReceiver().setCurrentRow(rowNo);
-      if (rowNo >= getReceiver().m_result_rows)
+      if (isRoot)
       {
         return ScanRowResult_noRow;
       }
-    }
-    else
-    {
-      if (rowNo == tupleNotFound)
+      else
       {
 #ifdef TULL
+        return ScanRowResult_maybeRow;
+#else
         // FIXME!!! (Handle left outer join)
         m_operation.nullifyResult();
         return ScanRowResult_noRow;
-#else
-        return ScanRowResult_maybeRow;
 #endif
       }
-      getReceiver().setCurrentRow(rowNo);
     }
 
-  
     bool childRowsOk = true;
     Uint32 childNo = 0;
+    Uint32 childrenWithRows = 0;
     /* Call recursively for the children of this operation.*/
     while (childRowsOk && childNo < m_operation.getNoOfChildOperations())
     {
@@ -625,6 +645,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
              .getNextScanRow(getTupleId(rowNo)))
       {
       case ScanRowResult_gotRow:
+        childrenWithRows++;
         break;
       case ScanRowResult_noRow:
         if (child.getQueryOperationDef().getMatchType() 
@@ -643,34 +664,36 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     }
     if (childRowsOk)
     {
-      m_operation.fetchRow(*this);
-      if (m_operation.getNoOfChildOperations() == 0)
-      {
-        if (isRoot)
-        {
-          m_currentHashRow++;
-          rowNo = m_currentHashRow;
-        }
-        else
-        {
-          rowNo = findNextTuple();
-        }
-      }
       getReceiver().setCurrentRow(rowNo);
-      return ScanRowResult_gotRow;
+      m_operation.fetchRow(*this);
     }
-    else
+
+    if (!childRowsOk || childrenWithRows == 0)
     {
+      // Advance cursor for this stream.
       if (isRoot)
       {
-        m_currentHashRow++;
-        rowNo = m_currentHashRow;
+        m_currentRootRow++;
+        rowNo++;
+        if (rowNo >= getReceiver().m_result_rows)
+        {
+          m_iterState = Iter_finished;
+        }
       }
       else
       {
         rowNo = findNextTuple();
-      }
-    } // if (childRowsOk)
+        if (rowNo == tupleNotFound)
+        {
+          m_iterState = Iter_finished;
+        }
+      } 
+    }
+
+    if (childRowsOk)
+    {
+      return ScanRowResult_gotRow;
+    }
   } // while(true)
 } //NdbResultStream::getNextScanRow()
 
@@ -717,14 +740,20 @@ bool NdbRootFragment::finalBatchReceived() const
   return getResultStream(0).getReceiver().m_tcPtrI==RNIL;
 }
 
-#if 0
+
 bool  NdbRootFragment::isEmpty() const
 { 
-  const NdbResultStream& rootStream = 
-    m_query->getQueryOperation(0U).getResultStream(m_fragNo);
-  return rootStream.m_currentHashRow >= rootStream.m_receiver.m_result_rows; 
+  if (m_query->getQueryDef().isScanQuery())
+  {
+    return m_query->getQueryOperation(0U).getResultStream(m_fragNo)
+      .m_iterState == NdbResultStream::Iter_finished;
+  }
+  else
+  {
+    return !m_query->getQueryOperation(0U).getReceiver(m_fragNo).nextResult();
+  }
 }
-#endif
+
 
 ///////////////////////////////////////////
 /////////  NdbQuery API methods ///////////
