@@ -398,9 +398,6 @@ public:
 public:
   bool has_pending_conflicting_lock() const;
 
-  void *get_cached_object();
-  void set_cached_object(void *cached_object);
-  void clear_cached_object();
   MDL_context *get_ctx() const { return m_ctx; }
   bool is_upgradable_or_exclusive() const
   {
@@ -728,7 +725,6 @@ extern "C" const char *set_thd_proc_info(void *thd_arg, const char *info,
                                          const char *calling_function,
                                          const char *calling_file,
                                          const unsigned int calling_line);
-extern void tdc_release_cached_share(void *ptr);
 #ifndef DBUG_OFF
 extern mysql_mutex_t LOCK_open;
 #endif

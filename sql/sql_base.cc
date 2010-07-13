@@ -921,141 +921,6 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
 }
 
 
-#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
-/**
-  Flush MDL cached objects.
-
-  How MDL table share cache works
-  -------------------------------
-  Since we take a table share from the table definition
-  cache only after taking an MDL lock, the MDL lock
-  object is a convenient place to cache a pointer
-  to the table share. However, not all SQL in MySQL
-  takes an MDL lock prior to working with the TDC,
-  various forms of FLUSH TABLES (including SET GLOBAL
-  read_only) being the one and only exception.
-
-  To make FLUSH TABLES work, and avoid having dangling
-  references to TABLE_SHARE objects in MDL subsystem
-  after a flush, we make sure that all references 
-  to table shares are released whenever a flush comes.
-  This is done in this function.
-
-  To sum up, the following invariants are held:
-  - no statement can work with a TABLE_SHARE without
-  a metadata lock. The only exception is FLUSH TABLES.
-  - a metadata lock object can be used to store
-  a cached reference (pointer) to the corresponding
-  TABLE_SHARE, if and only if this TABLE_SHARE is
-  not stale (version == refresh_version). In other words,
-  checking TABLE_SHARE version and setting the reference
-  must happen only in the same critical section protected
-  by LOCK_open.
-  - FLUSH will mark all subject TABLE_SHARE objects
-  as stale, and then will manually release all TABLE_SHARE
-  references in MDL cache. Since marking TABLE_SHARE
-  objects is done inside a critical section protected
-  by LOCK_open and prior to calling flush_mdl_cache(),
-  it's guaranteed that a flush will take place before
-  a new reference to the table share is established
-  in some other connection.
-*/
-
-bool flush_mdl_cache(THD *thd, TABLE_LIST *table_list)
-{
-  MDL_request_list mdl_requests;
-  MDL_request *mdl_request;
-
-  DBUG_ENTER("flush_mdl_cache");
-
-  if (table_list == NULL)
-  {
-    mysql_mutex_lock(&LOCK_open);
-    for (uint idx= 0 ; idx < table_def_cache.records; idx++)
-    {
-      TABLE_SHARE *share=(TABLE_SHARE*) my_hash_element(&table_def_cache,
-                                                        idx);
-      if (share->needs_reopen())
-      {
-        mdl_request= MDL_request::create(MDL_key::TABLE,
-                                         share->db.str,
-                                         share->table_name.str,
-                                         MDL_SHARED_HIGH_PRIO,
-                                         thd->mem_root);
-        if (! mdl_request)
-        {
-          mysql_mutex_unlock(&LOCK_open);
-          DBUG_RETURN(TRUE);
-        }
-        mdl_requests.push_front(mdl_request);
-      }
-    }
-    mysql_mutex_unlock(&LOCK_open);
-  }
-  else
-  {
-    for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
-    {
-      DBUG_ASSERT(tables->mdl_request.type == MDL_SHARED_HIGH_PRIO);
-      mdl_requests.push_front(&tables->mdl_request);
-    }
-  }
-
-  for (MDL_request_list::Iterator it(mdl_requests);
-       (mdl_request= it++); )
-  {
-    if (thd->mdl_context.try_acquire_lock(mdl_request))
-      DBUG_RETURN(TRUE);
-    if (mdl_request->ticket)
-    {
-      mdl_request->ticket->clear_cached_object();
-      thd->mdl_context.release_lock(mdl_request->ticket);
-    }
-  }
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-   @brief Helper function used by MDL subsystem for releasing TABLE_SHARE
-          objects in cases when it no longer wants to cache reference to it.
-*/
-
-void tdc_release_cached_share(void *ptr)
-{
-  TABLE_SHARE **share= (TABLE_SHARE **) ptr;
-  mysql_mutex_lock(&LOCK_open);
-  if (*share)
-  {
-    release_table_share(*share);
-    *share= NULL;
-    broadcast_refresh();
-  }
-  mysql_mutex_unlock(&LOCK_open);
-}
-
-
-/**
-   @brief Mark table share as having one more user (increase its reference
-          count).
-
-   @param share Table share for which reference count should be increased.
-*/
-
-static void tdc_reference_table_share(TABLE_SHARE *share)
-{
-  DBUG_ENTER("tdc_reference_table_share");
-  DBUG_ASSERT(share->ref_count);
-  mysql_mutex_assert_owner(&LOCK_open);
-  share->ref_count++;
-  DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
-                     (ulong) share, share->ref_count));
-  DBUG_VOID_RETURN;
-}
-
-
-#endif // DISABLED_UNTIL_GRL_IS_MADE_PART_OF
-
 /*
   Close all tables which aren't in use by any thread
 
@@ -1166,15 +1031,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
   /* Wait until all threads have closed all the tables we are flushing. */
   DBUG_PRINT("info", ("Waiting for other threads to close their open tables"));
-
-#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF
-  /*
-    @todo We need to do this for fast refresh as well, otherwise
-    deadlocks are possible.
-  */
-  if (flush_mdl_cache(thd, tables))
-    goto err_with_reopen;
-#endif // DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
 
   while (found && ! thd->killed)
   {
@@ -2969,97 +2825,61 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(FALSE);
 
   mysql_mutex_lock(&LOCK_open);
-#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
-  if (!(share= (TABLE_SHARE *) mdl_ticket->get_cached_object()))
+
+  if (!(share= get_table_share_with_create(thd, table_list, key,
+                                           key_length, OPEN_VIEW,
+                                           &error,
+                                           hash_value)))
+    goto err_unlock2;
+
+  if (share->is_view)
   {
-#endif // DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
-    if (!(share= get_table_share_with_create(thd, table_list, key,
-                                             key_length, OPEN_VIEW,
-                                             &error,
-                                             hash_value)))
-      goto err_unlock2;
-
-    if (share->is_view)
-    {
-      /*
-        If parent_l of the table_list is non null then a merge table
-        has this view as child table, which is not supported.
-      */
-      if (table_list->parent_l)
-      {
-        my_error(ER_WRONG_MRG_TABLE, MYF(0));
-        goto err_unlock;
-      }
-
-      /*
-        This table is a view. Validate its metadata version: in particular,
-        that it was a view when the statement was prepared.
-      */
-      if (check_and_update_table_version(thd, table_list, share))
-        goto err_unlock;
-      if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
-        goto err_unlock;
-
-      /* Open view */
-      if (open_new_frm(thd, share, alias,
-                       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                               HA_GET_INDEX | HA_TRY_READ_ONLY),
-                       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-                       thd->open_options,
-                       0, table_list, mem_root))
-        goto err_unlock;
-
-      /* TODO: Don't free this */
-      release_table_share(share);
-
-      DBUG_ASSERT(table_list->view);
-
-      mysql_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(FALSE);
-    }
     /*
-      Note that situation when we are trying to open a table for what
-      was a view during previous execution of PS will be handled in by
-      the caller. Here we should simply open our table even if
-      TABLE_LIST::view is true.
+      If parent_l of the table_list is non null then a merge table
+      has this view as child table, which is not supported.
     */
+    if (table_list->parent_l)
+    {
+      my_error(ER_WRONG_MRG_TABLE, MYF(0));
+      goto err_unlock;
+    }
 
-    if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+    /*
+      This table is a view. Validate its metadata version: in particular,
+      that it was a view when the statement was prepared.
+    */
+    if (check_and_update_table_version(thd, table_list, share))
+      goto err_unlock;
+    if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
       goto err_unlock;
 
-#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
-    /*
-      We are going to to store extra reference to the share
-      in MDL-subsystem so we need to increase reference counter.
-    */
-    if (! share->needs_reopen())
-    {
-      mdl_ticket->set_cached_object(share);
-      tdc_reference_table_share(share);
-    }
-  }
-  else
-  {
-    if (table_list->view)
-    {
-      DBUG_ASSERT(thd->m_reprepare_observer);
-      check_and_update_table_version(thd, table_list, share);
-      /* Always an error. */
-      DBUG_ASSERT(thd->is_error());
-      goto err_unlock2;
-    }
-    /* When we have cached TABLE_SHARE we know that is not a view. */
-    if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
-      goto err_unlock2;
+    /* Open view */
+    if (open_new_frm(thd, share, alias,
+                     (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                             HA_GET_INDEX | HA_TRY_READ_ONLY),
+                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                     thd->open_options,
+                     0, table_list, mem_root))
+      goto err_unlock;
 
-    /*
-      We are going to use this share for construction of new TABLE object
-      so reference counter should be increased.
-    */
-    tdc_reference_table_share(share);
-  }
-#endif // DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
+    /* TODO: Don't free this */
+    release_table_share(share);
 
+    DBUG_ASSERT(table_list->view);
+
+    mysql_mutex_unlock(&LOCK_open);
+    DBUG_RETURN(FALSE);
+  }
+
+  /*
+    Note that situation when we are trying to open a table for what
+    was a view during previous execution of PS will be handled in by
+    the caller. Here we should simply open our table even if
+    TABLE_LIST::view is true.
+  */
+
+  if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+    goto err_unlock;
 
   /*
     If the version changes while we're opening the tables,
@@ -8860,13 +8680,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         automatically deleted once it is no longer referenced.
       */
       share->version= 0;
-#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
-      /*
-        If lock type is not EXCLUSIVE, we must call
-        MDL_ticket::release_cached_object() here to make sure there
-        is no self-reference left on the share in MDL_lock.
-      */
-#endif
+
       while ((table= it++))
         free_cache_entry(table);
     }
