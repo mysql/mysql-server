@@ -35,3 +35,13 @@ a int NOT NULL DEFAULT '0',
 v double AS ((1, a)) VIRTUAL
 );
 ERROR HY000: Expression for computed column cannot return a row
+CREATE TABLE t1 (
+a CHAR(255) BINARY NOT NULL DEFAULT 0,
+b CHAR(255) BINARY NOT NULL DEFAULT 0,
+v CHAR(255) BINARY AS (CONCAT(a,b)) VIRTUAL );
+INSERT INTO t1(a,b) VALUES ('4','7'), ('4','6');
+SELECT 1 AS C FROM t1 ORDER BY v;
+C
+1
+1
+DROP TABLE t1;

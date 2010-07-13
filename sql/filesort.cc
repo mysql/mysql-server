@@ -1009,7 +1009,14 @@ static void register_used_fields(SORTPARAM *param)
     if ((field= sort_field->field))
     {
       if (field->table == table)
-      bitmap_set_bit(bitmap, field->field_index);
+      {
+        if (field->vcol_info)
+	{
+          Item *vcol_item= field->vcol_info->expr_item;
+          vcol_item->walk(&Item::register_field_in_read_map, 1, (uchar *) 0);
+        }                   
+        bitmap_set_bit(bitmap, field->field_index);
+      }
     }
     else
     {						// Item

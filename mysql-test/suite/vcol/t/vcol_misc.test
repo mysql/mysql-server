@@ -30,6 +30,18 @@ CREATE TABLE t1 (
   v double AS ((1, a)) VIRTUAL
 );
 
+#
+# Bug#603654: Virtual column in ORDER BY, no other references of table columns
+#             
+
+CREATE TABLE t1 (
+ a CHAR(255) BINARY NOT NULL DEFAULT 0,
+ b CHAR(255) BINARY NOT NULL DEFAULT 0,
+ v CHAR(255) BINARY AS (CONCAT(a,b)) VIRTUAL );
+INSERT INTO t1(a,b) VALUES ('4','7'), ('4','6');
+SELECT 1 AS C FROM t1 ORDER BY v;
+
+DROP TABLE t1;
 
 
 
