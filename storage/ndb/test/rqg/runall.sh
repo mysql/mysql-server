@@ -56,10 +56,12 @@ CREATE PROCEDURE copydb(dstdb varchar(64), srcdb varchar(64),
 BEGIN
 
   declare tabname varchar(255);
+  declare indextype varchar(32);
   declare done integer default 0;
+  declare cnt integer default 0;
   declare c cursor for 
-  SELECT table_name
-  FROM INFORMATION_SCHEMA.TABLES where table_schema = srcdb;
+    SELECT table_name
+    FROM INFORMATION_SCHEMA.TABLES where table_schema = srcdb;
   declare continue handler for not found set done = 1;
 
   open c;
@@ -77,35 +79,42 @@ BEGIN
        PREPARE stmt from @ddl;
        EXECUTE stmt;
 
+       ## Drop the original index 'col_int_unique' - recreate a richer set of indexes below
+       set @ddl = CONCAT('DROP INDEX col_int_unique ON ', dstdb, '.', tabname);
+       PREPARE stmt from @ddl;
+       EXECUTE stmt;
+
+       set cnt = cnt+1;
+       if ((cnt%2) = 0) then
+         set indextype = 'USING HASH';
+       else
+         set indextype = '';
+       end if;
+
        ## Add some composite unique indexes
        if tabname > 'O' then
-          set @ddl = CONCAT('CREATE UNIQUE INDEX ix1 ON ', dstdb, '.', tabname, 
+          set @ddl = CONCAT('CREATE UNIQUE INDEX ix1 ', indextype,
+                            ' ON ', dstdb, '.', tabname, 
                             '(col_int,col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
-          set @ddl = CONCAT('CREATE UNIQUE INDEX ix2 ON ', dstdb, '.', tabname, 
+          set @ddl = CONCAT('CREATE UNIQUE INDEX ix2 ', indextype,
+                            ' ON ', dstdb, '.', tabname, 
                             '(col_int_key,col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
 
-          ## Drop the original indexes covered by the indexes created above
-          set @ddl = CONCAT('DROP INDEX col_int_key ON ', dstdb, '.', tabname);
-          PREPARE stmt from @ddl;
-          EXECUTE stmt;
-          set @ddl = CONCAT('DROP INDEX col_int_unique ON ', dstdb, '.', tabname);
-          PREPARE stmt from @ddl;
-          EXECUTE stmt;
        elseif tabname > 'H' then
-          set @ddl = CONCAT('CREATE UNIQUE INDEX ix3 ON ', dstdb, '.', tabname, 
+          set @ddl = CONCAT('CREATE UNIQUE INDEX ix3 ', indextype,
+                            ' ON ', dstdb, '.', tabname, 
                             '(col_int,col_int_key,col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
 
-          ## Drop the original indexes covered by the indexes created above
-          set @ddl = CONCAT('DROP INDEX col_int_key ON ', dstdb, '.', tabname);
-          PREPARE stmt from @ddl;
-          EXECUTE stmt;
-          set @ddl = CONCAT('DROP INDEX col_int_unique ON ', dstdb, '.', tabname);
+       else
+          set @ddl = CONCAT('CREATE UNIQUE INDEX col_int_unique ', indextype,
+                            ' ON ', dstdb, '.', tabname, 
+                            '(col_int_unique)');
           PREPARE stmt from @ddl;
           EXECUTE stmt;
        end if;
@@ -179,19 +188,19 @@ EOF
 
     NDB_JOIN_PUSHDOWN=off
     export NDB_JOIN_PUSHDOWN
-    for t in 1 2 3 4 5
+    for t in 1
     do
 	$mysqltest ${pre}_myisam < $tmp >> ${opre}.$no.myisam.$i.txt
     done
 
-    for t in 1 2 3 4 5
+    for t in 1
     do
 	$mysqltest ${pre}_ndb < $tmp >> ${opre}.$no.ndb.$i.txt
     done
 
     NDB_JOIN_PUSHDOWN=on
     export NDB_JOIN_PUSHDOWN
-    for t in 1 2 3 4 5
+    for t in 1
     do
 	$mysqltest ${pre}_ndb < $tmp >> ${opre}.$no.ndbpush.$i.txt
     done
