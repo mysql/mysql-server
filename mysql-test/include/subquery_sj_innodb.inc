@@ -9,14 +9,14 @@ insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (
   a int, 
   b int
-);
+) engine=innodb;
 insert into t1 values (1,1),(1,1),(2,2);
 
 create table t2 (
   a int,
   b int,
   key(b)
-);
+) engine=innodb;
 insert into t2 select a, a/2 from t0;
 
 select * from t1;
@@ -64,7 +64,6 @@ set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 
 # O2I join orders, with shortcutting: 
---replace_column 9 x
 explain select * from t1 where a in (select b from t2);
 select * from t1;
 select * from t1 where a in (select b from t2);
