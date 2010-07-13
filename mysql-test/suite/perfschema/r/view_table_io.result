@@ -6,55 +6,62 @@ update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
   where name like "wait/io/table/%";
 truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
 flush status;
+drop view if exists test.v1;
 drop table if exists test.no_index_tab;
 update performance_schema.SETUP_CONSUMERS set enabled='YES';
 insert into marker set a = 1;
 create table test.no_index_tab
-( a varchar(255) not null, b int not null) engine = CSV;
+( a varchar(255) not null, b int not null) engine = MyISAM;
 insert into marker set a = 1;
 show create table test.no_index_tab;
 Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into marker set a = 1;
-insert into test.no_index_tab set a = 'foo', b = 1;
+create view test.v1 as select * from test.no_index_tab;
 insert into marker set a = 1;
-insert into test.no_index_tab set a = 'foo', b = 2;
+insert into test.v1 set a = 'foo', b = 1;
 insert into marker set a = 1;
-insert into test.no_index_tab set a = 'foo', b = 3;
+insert into test.v1 set a = 'foo', b = 2;
 insert into marker set a = 1;
-select * from test.no_index_tab;
+insert into test.v1 set a = 'foo', b = 3;
+insert into marker set a = 1;
+select * from test.v1;
 a	b
 foo	1
 foo	2
 foo	3
 insert into marker set a = 1;
-update test.no_index_tab set a = 'bar';
+update test.v1 set a = 'bar';
 insert into marker set a = 1;
-select * from test.no_index_tab limit 2;
+select * from test.v1 limit 2;
 a	b
 bar	1
 bar	2
 insert into marker set a = 1;
-delete from test.no_index_tab where b = 3;
+delete from test.v1 where b = 3;
 insert into marker set a = 1;
-select * from test.no_index_tab;
+select * from test.v1;
 a	b
 bar	1
 bar	2
 insert into marker set a = 1;
-optimize table test.no_index_tab;
+optimize table test.v1;
 Table	Op	Msg_type	Msg_text
-test.no_index_tab	optimize	note	The storage engine for the table doesn't support optimize
+test.v1	optimize	Error	'test.v1' is not BASE TABLE
+test.v1	optimize	error	Corrupt
 insert into marker set a = 1;
-select * from test.no_index_tab;
+select * from test.v1;
 a	b
 bar	1
 bar	2
 insert into marker set a = 1;
-truncate table test.no_index_tab;
+truncate table test.v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+insert into marker set a = 1;
+drop view test.v1;
 insert into marker set a = 1;
 drop table test.no_index_tab;
 update performance_schema.SETUP_CONSUMERS set enabled='NO';
@@ -69,6 +76,7 @@ where event_name like 'wait/io/table/%'
   and object_schema in ("test")
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
@@ -108,6 +116,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 show status like 'performance_schema_%';

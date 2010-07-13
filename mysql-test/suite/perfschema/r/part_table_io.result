@@ -10,14 +10,17 @@ drop table if exists test.no_index_tab;
 update performance_schema.SETUP_CONSUMERS set enabled='YES';
 insert into marker set a = 1;
 create table test.no_index_tab
-( a varchar(255) not null, b int not null) engine = CSV;
+( a varchar(255) not null, b int not null) engine = MyISAM
+PARTITION BY KEY (b) PARTITIONS 2;
 insert into marker set a = 1;
 show create table test.no_index_tab;
 Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (b)
+PARTITIONS 2 */
 insert into marker set a = 1;
 insert into test.no_index_tab set a = 'foo', b = 1;
 insert into marker set a = 1;
@@ -28,15 +31,15 @@ insert into marker set a = 1;
 select * from test.no_index_tab;
 a	b
 foo	1
-foo	2
 foo	3
+foo	2
 insert into marker set a = 1;
 update test.no_index_tab set a = 'bar';
 insert into marker set a = 1;
 select * from test.no_index_tab limit 2;
 a	b
 bar	1
-bar	2
+bar	3
 insert into marker set a = 1;
 delete from test.no_index_tab where b = 3;
 insert into marker set a = 1;
@@ -47,7 +50,7 @@ bar	2
 insert into marker set a = 1;
 optimize table test.no_index_tab;
 Table	Op	Msg_type	Msg_text
-test.no_index_tab	optimize	note	The storage engine for the table doesn't support optimize
+test.no_index_tab	optimize	status	OK
 insert into marker set a = 1;
 select * from test.no_index_tab;
 a	b
@@ -73,38 +76,67 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	NULL

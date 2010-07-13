@@ -30,10 +30,14 @@
 # ... to make the final output more readable
 # insert into test.marker set a=1;
 # ... more test payload here ...
-# update performance_schema.SETUP_CONSUMERS set enabled='NO';
-# ... more cleanup scripts as needed...
 # ... optionaly, add the following line (by default, only "test" is dumped) ...
 # let $schema_to_dump="db1", "db2", "db3";
+# --source ../include/table_io_result_helper.inc
+# Optional: Repeat several times
+#    update performance_schema.SETUP_CONSUMERS set enabled='YES';
+#    ... test payload here ...
+#    --source ../include/table_io_result_helper.inc
+# ... cleanup
 # --source ../include/table_io_cleanup_helper.inc
 #
 # (end of template)

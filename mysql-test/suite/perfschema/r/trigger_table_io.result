@@ -8,71 +8,69 @@ truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
 flush status;
 drop table if exists test.t1;
 drop table if exists test.t2;
-create table test.t1 (a int, v int);
-create table test.t2 (b int, v int);
+create table test.t1 (a int, v int) engine = MyISAM;
+create table test.t2 (b int, v int) engine = MyISAM;
 create trigger t1_bi before insert on t1
-for each row insert into test.t2 set b= new.a, v= 0;
+for each row insert into test.t2 set b = new.a, v = 0;
 create trigger t1_ai after insert on t1
-for each row update test.t2 set v= 1 where b = new.a;
+for each row update test.t2 set v = 1 where b = new.a;
 create trigger t1_bu before update on t1
-for each row update test.t2 set v= 3 where b = old.a;
+for each row update test.t2 set v = 3 where b = old.a;
 create trigger t1_au after update on t1
-for each row update test.t2 set v= 4 where b = new.a;
+for each row update test.t2 set v = 4 where b = new.a;
 create trigger t1_bd before delete on t1
 for each row delete from test.t2 where b = old.a;
 create trigger t1_ad after delete on t1
-for each row insert into test.t2 set b= old.a, v=99;
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
-insert into marker set a=1;
-insert into t1 set a=1, v=10;
-insert into marker set a=1;
-insert into t1 set a=2, v=20;
-insert into marker set a=1;
+for each row insert into test.t2 set b = old.a, v = 99;
+update performance_schema.SETUP_CONSUMERS set enabled = 'YES';
+insert into marker set a = 1;
+insert into t1 set a = 1, v = 10;
+insert into marker set a = 1;
+insert into t1 set a = 2, v = 20;
+insert into marker set a = 1;
 select * from t1;
 a	v
 1	10
 2	20
-insert into marker set a=1;
+insert into marker set a = 1;
 select * from t2;
 b	v
 1	1
 2	1
-insert into marker set a=1;
-update t1 set v=v+100;
-insert into marker set a=1;
+insert into marker set a = 1;
+update t1 set v = v + 100;
+insert into marker set a = 1;
 select * from t1;
 a	v
 1	110
 2	120
-insert into marker set a=1;
+insert into marker set a = 1;
 select * from t2;
 b	v
 1	4
 2	4
-insert into marker set a=1;
-delete from t1 where a=1;
-insert into marker set a=1;
+insert into marker set a = 1;
+delete from t1 where a = 1;
+insert into marker set a = 1;
 select * from t1;
 a	v
 2	120
-insert into marker set a=1;
+insert into marker set a = 1;
 select * from t2;
 b	v
 1	99
 2	4
-insert into marker set a=1;
-delete from t1 where a=2;
-insert into marker set a=1;
+insert into marker set a = 1;
+delete from t1 where a = 2;
+insert into marker set a = 1;
 select * from t1;
 a	v
-insert into marker set a=1;
+insert into marker set a = 1;
 select * from t2;
 b	v
 1	99
 2	99
 update performance_schema.SETUP_CONSUMERS set enabled='NO';
-drop table test.t1;
-drop table test.t2;
 select event_name,
 left(source, locate(":", source)) as short_source,
 object_type, object_schema,
@@ -186,6 +184,13 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
+truncate performance_schema.EVENTS_WAITS_HISTORY_LONG;
+flush status;
+drop table test.t1;
+drop table test.t2;
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+truncate performance_schema.EVENTS_WAITS_HISTORY_LONG;
+drop table test.marker;
+flush status;
 update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
 update performance_schema.SETUP_CONSUMERS set enabled='YES';
-drop table test.marker;

@@ -15,11 +15,23 @@
 
 # See related script table_io_setup_helper.inc
 
-# Cleanup
+# Stop table io recording
 update performance_schema.SETUP_CONSUMERS set enabled='NO';
+eval select event_name,
+  left(source, locate(":", source)) as short_source,
+  object_type, object_schema,
+  if (locate("#sql-", object_name), "#sql-XXXX", object_name)
+    as pretty_name,
+  operation, number_of_bytes
+  from performance_schema.EVENTS_WAITS_HISTORY_LONG
+  where event_name like 'wait/io/table/%'
+  and object_schema in ($schema_to_dump)
+  order by thread_id, event_id;
+
+# In case of failures, this will tell if table io are lost.
+show status like 'performance_schema_%';
+
+# Cleanup
 truncate performance_schema.EVENTS_WAITS_HISTORY_LONG;
-drop table test.marker;
 flush status;
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
 
