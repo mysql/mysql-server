@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1047,7 +1047,7 @@ table_def::table_def(unsigned char *types, ulong size,
 
 table_def::~table_def()
 {
-  my_free(m_memory, MYF(0));
+  my_free(m_memory);
 #ifndef DBUG_OFF
   m_type= 0;
   m_size= 0;

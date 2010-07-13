@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -461,11 +461,7 @@ typedef struct xid_t XID;
 
 /* for recover() handlerton call */
 #define MIN_XID_LIST_SIZE  128
-#ifdef SAFEMALLOC
-#define MAX_XID_LIST_SIZE  256
-#else
 #define MAX_XID_LIST_SIZE  (1024*128)
-#endif
 
 /*
   These structures are used to pass information from a set of SQL commands
@@ -1635,6 +1631,19 @@ public:
   /* Estimates calculation */
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
+
+
+/**
+   The cost of reading a set of ranges from the table using an index
+   to access it.
+   
+   @param index  The index number.
+   @param ranges The number of ranges to be read.
+   @param rows   Total number of rows to be read.
+   
+   This method can be used to calculate the total cost of scanning a table
+   using an index by calling it using read_time(index, 1, table_size).
+*/
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
 

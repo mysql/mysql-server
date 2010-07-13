@@ -34,7 +34,7 @@ ENDIF()
 SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
-OPTION(WITH_DEBUG_FULL "Use dbug and safemalloc/safemutex. Slow" OFF)
+OPTION(WITH_DEBUG_FULL "Use dbug and safemutex. Slow." OFF)
 
 # Distinguish between community and non-community builds, with the
 # default being a community build. This does not impact the feature
@@ -175,14 +175,13 @@ IF(NOT CMAKE_BUILD_TYPE
     ENDIF()
 ENDIF()
 
-# Add safemalloc and safemutex for debug condifurations, except on Windows 
-# (C runtime library provides safemalloc functionality and safemutex has never 
-# worked there)
+# Add safemutex for debug configurations, except on Windows
+# (safemutex has never worked on Windows)
 IF(WITH_DEBUG OR WITH_DEBUG_FULL AND NOT WIN32)
   FOREACH(LANG C CXX)
     IF(WITH_DEBUG_FULL)
       SET(CMAKE_${LANG}_FLAGS_DEBUG 
-        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
     ELSE()
       SET(CMAKE_${LANG}_FLAGS_DEBUG 
         "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
@@ -227,6 +226,9 @@ MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
 
+IF(WITH_UNIT_TESTS)
+ ENABLE_TESTING()
+ENDIF()
 IF(NOT WITHOUT_SERVER)
 SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
  # Add storage engines and plugins.
@@ -241,10 +243,6 @@ ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
 
-
-IF(WITH_UNIT_TESTS)
- ENABLE_TESTING()
-ENDIF()
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)
   ADD_SUBDIRECTORY(unittest/examples)

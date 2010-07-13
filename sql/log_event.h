@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @addtogroup Replication
@@ -1031,7 +1031,7 @@ public:
 
   static void operator delete(void *ptr, size_t size)
   {
-    my_free((uchar*) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+    my_free(ptr);
   }
 
   /* Placement version of the above operators */
@@ -1088,7 +1088,7 @@ public:
   {
     if (temp_buf)
     {
-      my_free(temp_buf, MYF(0));
+      my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -1720,7 +1720,7 @@ public:
   ~Query_log_event()
   {
     if (data_buf)
-      my_free((uchar*) data_buf, MYF(0));
+      my_free(data_buf);
   }
   Log_event_type get_type_code() { return QUERY_EVENT; }
 #ifdef MYSQL_SERVER
@@ -2298,7 +2298,7 @@ public:
                                *description_event);
   ~Format_description_log_event()
   {
-    my_free((uchar*)post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(post_header_len);
   }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifdef MYSQL_SERVER
@@ -2697,7 +2697,7 @@ public:
   ~Rotate_log_event()
   {
     if (flags & DUP_NAME)
-      my_free((uchar*) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((void*) new_log_ident);
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
@@ -2759,7 +2759,7 @@ public:
                         const Format_description_log_event* description_event);
   ~Create_file_log_event()
   {
-    my_free((char*) event_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((void*) event_buf);
   }
 
   Log_event_type get_type_code()

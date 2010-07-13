@@ -486,7 +486,7 @@ static my_bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count)
  error:
   while (i--)
     mi_close(mrg->file[i]);
-  my_free((uchar*) mrg->file,MYF(0));
+  my_free(mrg->file);
   return 1;
 }
 
@@ -534,10 +534,10 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 	my_write(join_isam_file,buff,length,
 		 MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
-      my_free(buff,MYF(0));
+      my_free(buff);
       goto err;
     }
-    my_free(buff,MYF(0));
+    my_free(buff);
     (void) fn_format(new_name,result_table,"",MI_NAME_DEXT,2);
   }
   else if (!tmp_dir[0])
@@ -564,7 +564,6 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   }
   trees=fields=share->base.fields;
   huff_counts=init_huff_count(isam_file,mrg->records);
-  QUICK_SAFEMALLOC;
 
   /*
     Read the whole data file(s) for statistics.
@@ -574,7 +573,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     printf("- Calculating statistics\n");
   if (get_statistic(mrg,huff_counts))
     goto err;
-  NORMAL_SAFEMALLOC;
+
   old_length=0;
   for (i=0; i < mrg->count ; i++)
     old_length+= (mrg->file[i]->s->state.state.data_file_length -
@@ -857,11 +856,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     for (i=0 ; i < trees ; i++)
     {
       if (huff_trees[i].element_buffer)
-	my_free((uchar*) huff_trees[i].element_buffer,MYF(0));
+	my_free(huff_trees[i].element_buffer);
       if (huff_trees[i].code)
-	my_free((uchar*) huff_trees[i].code,MYF(0));
+	my_free(huff_trees[i].code);
     }
-    my_free((uchar*) huff_trees,MYF(0));
+    my_free(huff_trees);
   }
   if (huff_counts)
   {
@@ -869,11 +868,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     {
       if (huff_counts[i].tree_buff)
       {
-	my_free((uchar*) huff_counts[i].tree_buff,MYF(0));
+	my_free(huff_counts[i].tree_buff);
 	delete_tree(&huff_counts[i].int_tree);
       }
     }
-    my_free((uchar*) huff_counts,MYF(0));
+    my_free(huff_counts);
   }
   delete_queue(&queue);		/* This is safe to free */
   return;
@@ -977,7 +976,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	       count->int_tree.elements_in_tree > 1))
 	  {
 	    delete_tree(&count->int_tree);
-	    my_free(count->tree_buff,MYF(0));
+	    my_free(count->tree_buff);
 	    count->tree_buff=0;
 	  }
 	  else
@@ -1374,12 +1373,12 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       }
       else
       {
-	my_free((uchar*) huff_counts->tree_buff,MYF(0));
+	my_free(huff_counts->tree_buff);
 	delete_tree(&huff_counts->int_tree);
 	huff_counts->tree_buff=0;
       }
       if (tree.element_buffer)
-	my_free((uchar*) tree.element_buffer,MYF(0));
+	my_free(tree.element_buffer);
     }
     if (huff_counts->pack_type & PACK_TYPE_SPACE_FIELDS)
       space_fields++;
@@ -1496,8 +1495,8 @@ static HUFF_TREE* make_huff_trees(HUFF_COUNTS *huff_counts, uint trees)
     if (make_huff_tree(huff_tree+tree,huff_counts+tree))
     {
       while (tree--)
-	my_free((uchar*) huff_tree[tree].element_buffer,MYF(0));
-      my_free((uchar*) huff_tree,MYF(0));
+	my_free(huff_tree[tree].element_buffer);
+      my_free(huff_tree);
       DBUG_RETURN(0);
     }
   }
@@ -1907,7 +1906,7 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees)
 	  {
 	    memcpy_fixed((uchar*) i->counts,(uchar*) count.counts,
 			 sizeof(count.counts[0])*256);
-	    my_free((uchar*) j->tree->element_buffer,MYF(0));
+	    my_free(j->tree->element_buffer);
 	    j->tree->element_buffer=0;
 	    j->tree=i->tree;
 	    bmove((uchar*) i->counts,(uchar*) count.counts,
@@ -2913,7 +2912,7 @@ static int flush_buffer(ulong neaded_length)
 
 static void end_file_buffer(void)
 {
-  my_free((uchar*) file_buffer.buffer,MYF(0));
+  my_free(file_buffer.buffer);
 }
 
 	/* output `bits` low bits of `value' */
@@ -3117,7 +3116,7 @@ static int mrg_close(PACK_MRG_INFO *mrg)
   for (i=0 ; i < mrg->count ; i++)
     error|=mi_close(mrg->file[i]);
   if (mrg->free_file)
-    my_free((uchar*) mrg->file,MYF(0));
+    my_free(mrg->file);
   return error;
 }
 
@@ -3180,7 +3179,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     */
     if (huff_counts->tree_buff)
     {
-      my_free((uchar*) huff_counts->tree_buff, MYF(0));
+      my_free(huff_counts->tree_buff);
       delete_tree(&huff_counts->int_tree);
       huff_counts->tree_buff= NULL;
       DBUG_PRINT("fakebigcodes", ("freed distinct column values"));

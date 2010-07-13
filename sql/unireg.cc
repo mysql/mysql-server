@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -148,7 +148,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   if (error)
   {
-    my_free(screen_buff, MYF(0));
+    my_free(screen_buff);
     if (! pack_header_error_handler.is_handled)
       DBUG_RETURN(1);
 
@@ -159,7 +159,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                     create_fields,info_length,
 		    screens, create_info->table_options, data_offset, db_file))
     {
-      my_free(screen_buff, MYF(0));
+      my_free(screen_buff);
       DBUG_RETURN(1);
     }
   }
@@ -228,7 +228,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     {
       my_error(ER_TOO_LONG_TABLE_COMMENT, MYF(0),
                real_table_name, (uint) TABLE_COMMENT_MAXLEN);
-      my_free(screen_buff,MYF(0));
+      my_free(screen_buff);
       DBUG_RETURN(1);
     }
     char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -259,7 +259,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
   {
-    my_free(screen_buff, MYF(0));
+    my_free(screen_buff);
     DBUG_RETURN(1);
   }
 
@@ -374,15 +374,15 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     delete crypted;
     if (mysql_file_pwrite(file, disk_buff, read_length, filepos+256, MYF_RW))
     {
-      my_free(disk_buff,MYF(0));
+      my_free(disk_buff);
       goto err;
     }
-    my_free(disk_buff,MYF(0));
+    my_free(disk_buff);
   }
 #endif
 
-  my_free(screen_buff,MYF(0));
-  my_free(keybuff, MYF(0));
+  my_free(screen_buff);
+  my_free(keybuff);
 
   if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       (mysql_file_sync(file, MYF(MY_WME)) ||
@@ -411,8 +411,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   DBUG_RETURN(0);
 
 err:
-  my_free(screen_buff, MYF(0));
-  my_free(keybuff, MYF(0));
+  my_free(screen_buff);
+  my_free(keybuff);
 err2:
   (void) mysql_file_close(file, MYF(MY_WME));
 err3:
@@ -1095,7 +1095,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   error= mysql_file_write(file, buff, (size_t) reclength, MYF_RW) != 0;
 
 err:
-  my_free(buff, MYF(MY_FAE));
+  my_free(buff);
   thd->count_cuted_fields= old_count_cuted_fields;
   DBUG_RETURN(error);
 } /* make_empty_rec */

@@ -196,7 +196,7 @@ my_bool my_gethwaddr(uchar *to)
 
   /* Clean up memory allocation. */
   if (pAdapterAddresses != &adapterAddresses)
-    my_free(pAdapterAddresses, 0);
+    my_free(pAdapterAddresses);
 
   return return_val;
 }

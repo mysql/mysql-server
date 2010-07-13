@@ -139,12 +139,12 @@ main(int argc __attribute__((unused)), char** argv)
 
 #if 0
 	if (err<=0) {
-		my_free((uchar*)ssl_acceptor,MYF(0));
+		my_free(ssl_acceptor);
 		fatal_error("server:SSL_write");
 	}
 #endif /* 0 */
 
-	my_free((uchar*)ssl_acceptor,MYF(0));
+	my_free(ssl_acceptor);
 	return 0;
 }
 #else /* HAVE_OPENSSL */

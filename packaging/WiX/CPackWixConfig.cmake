@@ -1,13 +1,18 @@
 
 IF(ESSENTIALS)
- MESSAGE("Essentials!")
  SET(CPACK_COMPONENTS_USED "Server;Client;DataFiles")
  SET(CPACK_WIX_UI "WixUI_InstallDir")
- MATH(EXPR bits ${CMAKE_SIZEOF_VOID_P}*8)
- SET(CPACK_PACKAGE_FILE_NAME  "mysql-essentials-${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH}-win${bits}")
+ IF(CPACK_PACKAGE_FILE_NAME MATCHES "mysql-")
+   STRING(REPLACE "mysql" "mysql-essentials" CPACK_PACKAGE_FILE_NAME
+     "${CPACK_PACKAGE_FILE_NAME}")
+ ELSE()
+   MATH(EXPR bits ${CMAKE_SIZEOF_VOID_P}*8)
+   SET(CPACK_PACKAGE_FILE_NAME  
+     "mysql-essentials-${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH}-win${bits}")
+ ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts")
+    "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
 ENDIF()
 
 
@@ -45,6 +50,13 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  SET(CPACK_COMPONENT_CLIENT_DISPLAY_NAME "Client Programs")
  SET(CPACK_COMPONENT_CLIENT_DESCRIPTION 
    "Various helpful (commandline) tools including the mysql command line client" )
+ # Subfeature "Debug binaries" 
+ SET(CPACK_COMPONENT_DEBUGBINARIES_GROUP "MySQLServer")
+ SET(CPACK_COMPONENT_DEBUGBINARIES_DISPLAY_NAME "Debug binaries")
+ SET(CPACK_COMPONENT_DEBUGBINARIES_DESCRIPTION 
+   "Debug/trace versions of executables and libraries" )
+ #SET(CPACK_COMPONENT_DEBUGBINARIES_WIX_LEVEL 2)
+  
    
  #Subfeature "Data Files" 
  SET(CPACK_COMPONENT_DATAFILES_GROUP "MySQLServer")

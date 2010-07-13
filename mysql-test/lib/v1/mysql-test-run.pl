@@ -3882,8 +3882,6 @@ sub mysqld_arguments ($$$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "%s--loose-skip-safemalloc", $prefix);
-
     if ( $mysql_version_id < 50100 )
     {
       mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -4722,7 +4720,6 @@ sub run_check_testcase ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
@@ -4805,7 +4802,6 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -264,7 +264,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
-      x_free(table_sort.buffpek);
+      my_free(table_sort.buffpek);
       table_sort.buffpek= 0;
     }
     if (!(table_sort.buffpek=
@@ -304,13 +304,12 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error =0;
 
  err:
-  if (param.tmp_buffer)
-    x_free(param.tmp_buffer);
+  my_free(param.tmp_buffer);
   if (!subselect || !subselect->is_uncacheable())
   {
-    x_free((uchar*) sort_keys);
+    my_free(sort_keys);
     table_sort.sort_keys= 0;
-    x_free((uchar*) buffpek);
+    my_free(buffpek);
     table_sort.buffpek= 0;
     table_sort.buffpek_len= 0;
   }
@@ -347,32 +346,22 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
 void filesort_free_buffers(TABLE *table, bool full)
 {
-  if (table->sort.record_pointers)
-  {
-    my_free((uchar*) table->sort.record_pointers,MYF(0));
-    table->sort.record_pointers=0;
-  }
+  my_free(table->sort.record_pointers);
+  table->sort.record_pointers= NULL;
+
   if (full)
   {
-    if (table->sort.sort_keys )
-    {
-      x_free((uchar*) table->sort.sort_keys);
-      table->sort.sort_keys= 0;
-    }
-    if (table->sort.buffpek)
-    {
-      x_free((uchar*) table->sort.buffpek);
-      table->sort.buffpek= 0;
-      table->sort.buffpek_len= 0;
-    }
+    my_free(table->sort.sort_keys);
+    table->sort.sort_keys= NULL;
+    my_free(table->sort.buffpek);
+    table->sort.buffpek= NULL;
+    table->sort.buffpek_len= 0;
   }
-  if (table->sort.addon_buf)
-  {
-    my_free((char *) table->sort.addon_buf, MYF(0));
-    my_free((char *) table->sort.addon_field, MYF(MY_ALLOW_ZERO_PTR));
-    table->sort.addon_buf=0;
-    table->sort.addon_field=0;
-  }
+
+  my_free(table->sort.addon_buf);
+  my_free(table->sort.addon_field);
+  table->sort.addon_buf= NULL;
+  table->sort.addon_field= NULL;
 }
 
 /** Make a array of string pointers. */
@@ -413,7 +402,7 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
     if (reinit_io_cache(buffpek_pointers,READ_CACHE,0L,0,0) ||
 	my_b_read(buffpek_pointers, (uchar*) tmp, length))
     {
-      my_free((char*) tmp, MYF(0));
+      my_free(tmp);
       tmp=0;
     }
   }

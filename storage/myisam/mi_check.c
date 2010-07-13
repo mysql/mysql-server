@@ -1369,12 +1369,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     printf("Lost space:   %12s    Linkdata:     %10s\n",
 	   llstr(empty,llbuff),llstr(link_used,llbuff2));
   }
-  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record));
   DBUG_RETURN (error);
  err:
   mi_check_print_error(param,"got error: %d when reading datafile at record: %s",my_errno, llstr(records,llbuff));
  err2:
-  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record));
   param->testflag|=T_RETRY_WITHOUT_QUICK;
   DBUG_RETURN(1);
 } /* chk_data_link */
@@ -1736,6 +1736,21 @@ err:
     {
       mysql_file_close(new_file, MYF(0));
       info->dfile=new_file= -1;
+      /*
+        On Windows, the old data file cannot be deleted if it is either
+        open, or memory mapped. Closing the file won't remove the memory
+        map implicilty on Windows. We closed the data file, but we keep
+        the MyISAM table open. A memory map will be closed on the final
+        mi_close() only. So we need to unmap explicitly here. After
+        renaming the new file under the hook, we couldn't use the map of
+        the old file any more anyway.
+      */
+      if (info->s->file_map)
+      {
+        (void) my_munmap((char*) info->s->file_map,
+                         (size_t) info->s->mmaped_length);
+        info->s->file_map= NULL;
+      }
       if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
@@ -1759,11 +1774,9 @@ err:
     }
     mi_mark_crashed_on_repair(info);
   }
-  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
-                            MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
-          MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record));
+  my_free(sort_info.buff);
   (void) end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   (void) end_io_cache(&info->rec_cache);
@@ -2193,11 +2206,11 @@ int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
       mysql_file_write(to, (uchar*) buff, (uint) length, param->myf_rw))
     goto err;
   if (buff != tmp_buff)
-    my_free(buff,MYF(0));
+    my_free(buff);
   DBUG_RETURN(0);
 err:
   if (buff != tmp_buff)
-    my_free(buff,MYF(0));
+    my_free(buff);
   mi_check_print_error(param,"Can't copy %s to tempfile, error %d",
 		       type,my_errno);
   DBUG_RETURN(1);
@@ -2580,13 +2593,11 @@ err:
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
   share->state.changed|=STATE_NOT_SORTED_PAGES;
 
-  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
-                            MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
-          MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record));
+  my_free(sort_info.key_block);
+  my_free(sort_info.ft_buf);
+  my_free(sort_info.buff);
   (void) end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (!got_error && (param->testflag & T_UNPACK))
@@ -3127,10 +3138,10 @@ err:
   mysql_mutex_destroy(&param->print_msg_mutex);
   param->need_print_msg_lock= 0;
 
-  my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar*) sort_param,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_info.ft_buf);
+  my_free(sort_info.key_block);
+  my_free(sort_param);
+  my_free(sort_info.buff);
   (void) end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (!got_error && (param->testflag & T_UNPACK))
@@ -4536,7 +4547,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     if (my_errno != HA_ERR_END_OF_FILE)
     {
       mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
-      my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+      my_free(mi_get_rec_buff_ptr(info, record));
       mi_check_print_error(param,"%d when reading last record",my_errno);
       DBUG_VOID_RETURN;
     }
@@ -4551,7 +4562,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       set_if_bigger(info->s->state.auto_increment, param->auto_increment_value);
   }
   mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
-  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record));
   update_state_info(param, info, UPDATE_AUTO_INC);
   DBUG_VOID_RETURN;
 }

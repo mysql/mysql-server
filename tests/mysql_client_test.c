@@ -19523,7 +19523,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start=argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';               /* Destroy argument */
       if (*start)
@@ -19680,7 +19680,7 @@ int main(int argc, char **argv)
   print_test_output();
 
   while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
+    my_free(embedded_server_args[--embedded_server_arg_count]);
 
   mysql_server_end();
 

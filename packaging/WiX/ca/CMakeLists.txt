@@ -15,13 +15,10 @@
 
 INCLUDE_DIRECTORIES(${WIX_DIR}/../SDK/inc)
 LINK_DIRECTORIES(${WIX_DIR}/../SDK/lib)
-
 SET(WIXCA_SOURCES CustomAction.cpp CustomAction.rc CustomAction.def)
-
+ADD_LIBRARY(wixca SHARED EXCLUDE_FROM_ALL  ${WIXCA_SOURCES} )
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-	LINK_LIBRARIES(wcautil_x64 dutil_x64 msi version)
+  TARGET_LINK_LIBRARIES(wixca wcautil_x64 dutil_x64 msi version)
 ELSE()
-	LINK_LIBRARIES(wcautil dutil msi version)
+  TARGET_LINK_LIBRARIES(wixca wcautil dutil msi version)
 ENDIF()
-	
-ADD_LIBRARY(wixca SHARED ${WIXCA_SOURCES})

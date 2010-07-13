@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -51,6 +51,7 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 #include "set_var.h"
+#include "debug_sync.h"
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -1959,6 +1960,8 @@ double Item_func_pow::val_real()
 double Item_func_acos::val_real()
 {
   DBUG_ASSERT(fixed == 1);
+  /* One can use this to defer SELECT processing. */
+  DEBUG_SYNC(current_thd, "before_acos_function");
   // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
   volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
@@ -3575,7 +3578,7 @@ public:
     {
       if (my_hash_insert(&hash_user_locks,(uchar*) this))
       {
-	my_free(key,MYF(0));
+	my_free(key);
 	key=0;
       }
     }
@@ -3585,7 +3588,7 @@ public:
     if (key)
     {
       my_hash_delete(&hash_user_locks,(uchar*) this);
-      my_free(key, MYF(0));
+      my_free(key);
     }
     mysql_cond_destroy(&cond);
   }
@@ -4094,7 +4097,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     memcpy(entry->name.str, name.str, name.length+1);
     if (my_hash_insert(hash,(uchar*) entry))
     {
-      my_free((char*) entry,MYF(0));
+      my_free(entry);
       return 0;
     }
   }
@@ -4232,7 +4235,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
   {
     char *pos= (char*) entry+ ALIGN_SIZE(sizeof(user_var_entry));
     if (entry->value && entry->value != pos)
-      my_free(entry->value,MYF(0));
+      my_free(entry->value);
     entry->value= 0;
     entry->length= 0;
   }
@@ -4247,7 +4250,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       if (entry->value != pos)
       {
 	if (entry->value)
-	  my_free(entry->value,MYF(0));
+	  my_free(entry->value);
 	entry->value=pos;
       }
     }

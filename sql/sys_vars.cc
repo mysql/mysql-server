@@ -2389,7 +2389,7 @@ static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
        SESSION_VAR(select_limit), NO_CMD_LINE,
-       VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
+       VALID_RANGE(0, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
 
 static bool update_timestamp(THD *thd, set_var *var)
 {

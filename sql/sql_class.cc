@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*****************************************************************************
@@ -100,8 +100,8 @@ extern "C" void free_user_var(user_var_entry *entry)
 {
   char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
   if (entry->value && entry->value != pos)
-    my_free(entry->value, MYF(0));
-  my_free((char*) entry,MYF(0));
+    my_free(entry->value);
+  my_free(entry);
 }
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
@@ -493,7 +493,9 @@ THD::THD()
    rli_fake(0),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
-   binlog_unsafe_warning_flags(0), binlog_table_maps(0),
+   binlog_unsafe_warning_flags(0),
+   stmt_accessed_table_flag(0),
+   binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -537,7 +539,7 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  is_slave_error= thread_specific_used= thread_temporary_used= FALSE;
+  is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
@@ -1120,7 +1122,8 @@ THD::~THD()
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
-  safeFree(db);
+  my_free(db);
+  db= NULL;
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_destroy(&LOCK_thd_data);
@@ -2953,10 +2956,18 @@ void Security_context::destroy()
 {
   // If not pointer to constant
   if (host != my_localhost)
-    safeFree(host);
+  {
+    my_free(host);
+    host= NULL;
+  }
   if (user != delayed_user)
-    safeFree(user);
-  safeFree(ip);
+  {
+    my_free(user);
+    user= NULL;
+  }
+
+  my_free(ip);
+  ip= NULL;
 }
 
 
@@ -2972,7 +2983,7 @@ void Security_context::skip_grants()
 
 bool Security_context::set_user(char *user_arg)
 {
-  safeFree(user);
+  my_free(user);
   user= my_strdup(user_arg, MYF(0));
   return user == 0;
 }
@@ -3448,7 +3459,7 @@ uchar *xid_get_hash_key(const uchar *ptr, size_t *length,
 void xid_free_hash(void *ptr)
 {
   if (!((XID_STATE*)ptr)->in_thd)
-    my_free((uchar*)ptr, MYF(0));
+    my_free(ptr);
 }
 
 #ifdef HAVE_PSI_INTERFACE

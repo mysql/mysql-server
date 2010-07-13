@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -566,7 +566,14 @@ public:
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
   Item *prep_having;/* saved HAVING clause for prepared statement processing */
-  /* Saved values of the WHERE and HAVING clauses*/
+  /**
+    Saved values of the WHERE and HAVING clauses. Allowed values are: 
+     - COND_UNDEF if the condition was not specified in the query or if it 
+       has not been optimized yet
+     - COND_TRUE if the condition is always true
+     - COND_FALSE if the condition is impossible
+     - COND_OK otherwise
+  */
   Item::cond_result cond_value, having_value;
   /* point on lex in which it was created, used in view subquery detection */
   LEX *parent_lex;
@@ -924,7 +931,7 @@ extern const LEX_STRING null_lex_str;
 extern const LEX_STRING empty_lex_str;
 
 
-struct Sroutine_hash_entry;
+class Sroutine_hash_entry;
 
 /*
   Class representing list of all tables used by statement and other

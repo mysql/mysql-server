@@ -236,7 +236,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start=argument;
-      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password=my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -448,10 +448,10 @@ int main(int argc,char *argv[])
   }                                             /* got connection */
 
   mysql_close(&mysql);
-  my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(user,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password);
+  my_free(user);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
   my_end(my_end_arg);
@@ -1008,8 +1008,8 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       /* free up memory from prompted password */
       if (typed_password != argv[1]) 
       {
-        my_free(typed_password,MYF(MY_ALLOW_ZERO_PTR));
-        my_free(verified,MYF(MY_ALLOW_ZERO_PTR));
+        my_free(typed_password);
+        my_free(verified);
       }
       argc--; argv++;
       break;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,6 +300,6 @@ void mysql_client_binlog_statement(THD* thd)
 
 end:
   rli->slave_close_thread_tables(thd);
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buf);
   DBUG_VOID_RETURN;
 }
