@@ -1047,13 +1047,6 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
       ix_map[ix]= index.unique_index_attrid_map[ix];
     }
   }
-  else if (index.type == ORDERED_INDEX)
-  {
-    for (ix = 0; ix < key_def->key_parts; ix++)
-    {
-      ix_map[ix]= ix;
-    }
-  }
   else  // Primary key does not have a 'unique_index_attrid_map'
   {
     KEY_PART_INFO *key_part;
@@ -1282,10 +1275,22 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
 
     const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
-    build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
 
     uint key_fields= join_tab->get_no_of_key_fields();
     DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
+
+    if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY ||
+        join_tab->get_access_type() == AQP::AT_UNIQUE_KEY)
+    {
+      build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
+    }
+    else
+    {
+      for (uint ix = 0; ix < key_fields; ix++)
+      {
+        map[ix]= ix;
+      }
+    }
 
     KEY_PART_INFO *key_part= key->key_part;
     for (uint i= 0; i < key_fields; i++, key_part++)
