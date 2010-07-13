@@ -284,8 +284,6 @@ public:
 public:
   /** The key of the object (data) being protected. */
   MDL_key key;
-  /** A cached reference to the TABLE_SHARE. Protected by LOCK_open. */
-  void   *m_cached_object;
   /**
     Read-write lock protecting this lock context.
 
@@ -362,7 +360,6 @@ public:
 
   MDL_lock(const MDL_key *key_arg)
   : key(key_arg),
-    m_cached_object(NULL),
     m_ref_usage(0),
     m_ref_release(0),
     m_is_destroyed(FALSE)
@@ -370,8 +367,6 @@ public:
     mysql_prlock_init(key_MDL_lock_rwlock, &m_rwlock);
   }
 
-  /* Overridden for TABLE objects, to support TABLE_SHARE cache in MDL. */
-  virtual void release_cached_object() {}
   virtual ~MDL_lock()
   {
     mysql_prlock_destroy(&m_rwlock);
@@ -457,25 +452,6 @@ public:
 private:
   static const bitmap_t m_granted_incompatible[MDL_TYPE_END];
   static const bitmap_t m_waiting_incompatible[MDL_TYPE_END];
-};
-
-
-/** 
-  A lock implementation for MDL_key::TABLE.
-*/
-
-class MDL_table_lock: public MDL_object_lock
-{
-public:
-  MDL_table_lock(const MDL_key *key_arg)
-    : MDL_object_lock(key_arg)
-  { }
-#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
-  virtual void release_cached_object()
-  {
-    tdc_release_cached_share(&m_cached_object);
-  }
-#endif
 };
 
 
@@ -695,8 +671,6 @@ void MDL_map::remove(MDL_lock *lock)
 {
   uint ref_usage, ref_release;
 
-  lock->release_cached_object();
-
   /*
     Destroy the MDL_lock object, but ensure that anyone that is
     holding a reference to the object is not remaining, if so he
@@ -860,8 +834,6 @@ inline MDL_lock *MDL_lock::create(const MDL_key *mdl_key)
     case MDL_key::GLOBAL:
     case MDL_key::SCHEMA:
       return new MDL_scoped_lock(mdl_key);
-    case MDL_key::TABLE:
-      return new MDL_table_lock(mdl_key);
     default:
       return new MDL_object_lock(mdl_key);
   }
@@ -1682,9 +1654,6 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
 
     m_tickets.push_front(ticket);
 
-    if (ticket->get_type() == MDL_EXCLUSIVE)
-      ticket->clear_cached_object();
-
     mdl_request->ticket= ticket;
   }
   else
@@ -1885,9 +1854,6 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
     So all we need to do is to update MDL_context and MDL_request objects.
   */
   DBUG_ASSERT(wait_status == MDL_wait::GRANTED);
-
-  if (ticket->get_type() == MDL_EXCLUSIVE)
-    ticket->clear_cached_object();
 
   m_tickets.push_front(ticket);
 
@@ -2448,75 +2414,6 @@ MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
 bool MDL_ticket::has_pending_conflicting_lock() const
 {
   return m_lock->has_pending_conflicting_lock(m_type);
-}
-
-
-/**
-  Associate pointer to an opaque object with a lock.
-
-  @param cached_object Pointer to the object
-  @param release_hook  Cleanup function to be called when MDL subsystem
-                       decides to remove lock or associate another object.
-
-  This is used to cache a pointer to TABLE_SHARE in the lock
-  structure. Such caching can save one acquisition of LOCK_open
-  and one table definition cache lookup for every table.
-
-  Since the pointer may be stored only inside an acquired lock,
-  the caching is only effective when there is more than one lock
-  granted on a given table.
-
-  This function has the following usage pattern:
-    - try to acquire an MDL lock
-    - when done, call for get_cached_object(). If it returns NULL, our
-      thread has the only lock on this table.
-    - look up TABLE_SHARE in the table definition cache
-    - call mdl_set_cache_object() to assign the share to the opaque pointer.
-
- The release hook is invoked when the last shared metadata
- lock on this name is released.
-*/
-
-void
-MDL_ticket::set_cached_object(void *cached_object)
-{
-  DBUG_ENTER("MDL_ticket::set_cached_object");
-  DBUG_PRINT("enter", ("db=%s name=%s cached_object=%p",
-                        m_lock->key.db_name(), m_lock->key.name(),
-                        cached_object));
-  mysql_mutex_assert_owner(&LOCK_open);
-  DBUG_ASSERT(m_lock->key.mdl_namespace() == MDL_key::TABLE);
-  DBUG_ASSERT(!m_lock->m_cached_object);
-
-  m_lock->m_cached_object= cached_object;
-
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  A helper function to flush the table share cached in MDL.
-  @pre The ticket is acquired.
-*/
-
-void MDL_ticket::clear_cached_object()
-{
-  m_lock->release_cached_object();
-}
-
-
-/**
-  Get a pointer to an opaque object that associated with the lock.
-
-  @param ticket  Lock ticket for the lock which the object is associated to.
-
-  @return Pointer to an opaque object associated with the lock.
-*/
-
-void *MDL_ticket::get_cached_object()
-{
-  mysql_mutex_assert_owner(&LOCK_open);
-  return m_lock->m_cached_object;
 }
 
 
