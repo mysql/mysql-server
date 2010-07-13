@@ -3,13 +3,13 @@ insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (
 a int, 
 b int
-);
+) engine=innodb;
 insert into t1 values (1,1),(1,1),(2,2);
 create table t2 (
 a int,
 b int,
 key(b)
-);
+) engine=innodb;
 insert into t2 select a, a/2 from t0;
 select * from t1;
 a	b
@@ -89,8 +89,8 @@ set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 explain select * from t1 where a in (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	x	Using where
-2	DEPENDENT SUBQUERY	t2	index_subquery	b	b	5	func	x	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	b	b	5	func	1	Using index
 select * from t1;
 a	b
 1	1
