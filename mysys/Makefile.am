@@ -43,9 +43,8 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_keycaches.c my_crc32.c \
 			mf_iocache.c mf_iocache2.c mf_cache.c mf_tempfile.c \
 			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
-			my_malloc.c my_realloc.c my_once.c mulalloc.c \
-			my_alloc.c safemalloc.c my_new.cc \
-			my_vle.c my_atomic.c lf_hash.c \
+			my_malloc.c my_once.c mulalloc.c \
+			my_alloc.c my_new.cc my_vle.c my_atomic.c lf_hash.c \
 			lf_dynarray.c lf_alloc-pin.c \
 			my_fopen.c my_fstream.c my_getsystime.c \
 			my_error.c errors.c my_div.c my_mess.c \

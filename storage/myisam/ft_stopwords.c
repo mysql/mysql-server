@@ -38,7 +38,7 @@ static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
                              void *arg __attribute__((unused)))
 {
   if (action == free_free)
-    my_free((uchar*) w->pos, MYF(0));
+    my_free((void*)w->pos);
 }
 
 static int ft_add_stopword(const char *w)
@@ -87,7 +87,7 @@ int ft_init_stopwords()
     }
     error=0;
 err1:
-    my_free(buffer, MYF(0));
+    my_free(buffer);
 err0:
     my_close(fd, MYF(MY_WME));
     return error;
@@ -121,7 +121,7 @@ void ft_free_stopwords()
   if (stopwords3)
   {
     delete_tree(stopwords3); /* purecov: inspected */
-    my_free((char*) stopwords3,MYF(0));
+    my_free(stopwords3);
     stopwords3=0;
   }
   ft_stopword_file= 0;

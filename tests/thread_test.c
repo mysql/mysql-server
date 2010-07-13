@@ -150,7 +150,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'p':
     if (argument)
     {
-      my_free(password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(password);
       password= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
     }

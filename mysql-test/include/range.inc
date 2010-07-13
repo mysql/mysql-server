@@ -1375,3 +1375,61 @@ insert into t2(c) values (1),(5),(6),(7),(8);
 select 1 from (select c from t1,t2 where b >= 1 and a <=> c group by 1 limit 1) as d1;
 drop table t1, t2;
 
+--echo #
+--echo # Bug #26106: Wrong plan may be chosen when there are several possible
+--echo # range and ref accesses
+--echo #
+CREATE TABLE t1( 
+  a INT,
+  b INT,
+  KEY k ( a ),
+  KEY l ( a, b )
+); 
+
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t1 
+VALUES (2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3);
+INSERT INTO t1 SELECT 3, 4 FROM t1 WHERE a = 2 AND b = 3;
+INSERT INTO t1 SELECT 4, 1 FROM t1 WHERE a = 2 AND b = 3;
+ANALYZE TABLE t1;
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 2
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 4
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 8
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 16
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 32
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 64
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 128
+--echo # This must use range over index l, not k.
+EXPLAIN SELECT * FROM t1 WHERE a = 1 AND b >= 2;
+
+CREATE TABLE t2( 
+  a INT, 
+  b INT, 
+  c INT,
+  KEY k ( a ), 
+  KEY l ( a, b ),
+  KEY m ( b ), 
+  KEY n ( a, c )
+); 
+
+INSERT INTO t2(a) VALUES (1);
+INSERT INTO t2 
+VALUES (2,3,3),(2,3,3),(2,3,3),(2,3,3),(2,3,3),
+       (2,3,3),(2,3,3),(2,3,3),(2,3,3),(2,3,3);
+INSERT INTO t2 SELECT 3, 4, 4 FROM t2 WHERE a = 2 AND b = 3;
+INSERT INTO t2 SELECT 4, 1, 1 FROM t2 WHERE a = 2 AND b = 3;
+ANALYZE TABLE t2;
+INSERT INTO t2 VALUES (1, 2, 2);
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 2
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 4
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 8
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 16
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 32
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 64
+INSERT INTO t2 VALUES (1, 1, 2);
+
+--echo # This must use range over index l, not n.
+EXPLAIN SELECT * FROM t2 WHERE a = 1 AND b >= 2 AND c >= 2;
+
+DROP TABLE t1, t2;

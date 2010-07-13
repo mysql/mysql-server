@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
@@ -288,7 +288,7 @@ ha_partition::~ha_partition()
     for (i= 0; i < m_tot_parts; i++)
       delete m_file[i];
   }
-  my_free((char*) m_ordered_rec_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_ordered_rec_buffer);
 
   clear_handler_file();
   DBUG_VOID_RETURN;
@@ -2268,7 +2268,7 @@ bool ha_partition::create_handler_file(const char *name)
   }
   else
     result= TRUE;
-  my_free((char*) file_buffer, MYF(0));
+  my_free(file_buffer);
   DBUG_RETURN(result);
 }
 
@@ -2286,8 +2286,8 @@ void ha_partition::clear_handler_file()
 {
   if (m_engine_array)
     plugin_unlock_list(NULL, m_engine_array, m_tot_parts);
-  my_free((char*) m_file_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) m_engine_array, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_file_buffer);
+  my_free(m_engine_array);
   m_file_buffer= NULL;
   m_engine_array= NULL;
 }
@@ -2496,7 +2496,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
 err3:
   my_afree((gptr) engine_array);
 err2:
-  my_free(file_buffer, MYF(0));
+  my_free(file_buffer);
 err1:
   (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(TRUE);

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -262,7 +262,7 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock)
 static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock)
 {
   reset_lock_data(*mysql_lock);
-  my_free(*mysql_lock, MYF(0));
+  my_free(*mysql_lock);
   *mysql_lock= 0;
 }
 
@@ -384,7 +384,7 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
     thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
   if (sql_lock->table_count)
     (void) unlock_external(thd,sql_lock->table,sql_lock->table_count);
-  my_free((uchar*) sql_lock,MYF(0));
+  my_free(sql_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -545,7 +545,7 @@ void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
   {
     for (uint i=0; i < locked->lock_count; i++)
       thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
-    my_free((uchar*) locked,MYF(0));
+    my_free(locked);
   }
   DBUG_VOID_RETURN;
 }
@@ -577,7 +577,7 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
                                      table->in_use->thread_id))
         result= TRUE;
     }
-    my_free((uchar*) locked,MYF(0));
+    my_free(locked);
   }
   DBUG_RETURN(result);
 }
@@ -619,8 +619,8 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   }
 
   /* Delete old, not needed locks */
-  my_free((uchar*) a,MYF(0));
-  my_free((uchar*) b,MYF(0));
+  my_free(a);
+  my_free(b);
 
   thr_lock_merge_status(sql_lock->locks, sql_lock->lock_count);
   DBUG_RETURN(sql_lock);

@@ -1191,6 +1191,9 @@ SHOW CREATE TABLE t4;
 ERROR HY000: Table 't4' was not locked with LOCK TABLES
 INSERT INTO t4 VALUES (4);
 ERROR HY000: Table 't4' was not locked with LOCK TABLES
+# Temporary tables can be created in spite of LOCK TABLES.
+# If the temporary MERGE table uses the locked children only,
+# it can even be used.
 CREATE TEMPORARY TABLE t4 LIKE t3;
 SHOW CREATE TABLE t4;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
@@ -1672,6 +1675,7 @@ c1
 33
 DELETE FROM t4 WHERE c1 = 33;
 DROP TRIGGER t3_ai;
+UNLOCK TABLES;
 #
 # Trigger with table use on child
 DELETE FROM t4 WHERE c1 = 4;
@@ -1854,9 +1858,9 @@ ALTER TABLE t2 UNION=(t3,t1);
 SELECT * FROM t2;
 ERROR HY000: Table 't3' is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t1, t2, t3;
-CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
-CREATE TABLE t2 (c1 INT) ENGINE= MyISAM;
-CREATE TABLE t3 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1, t2);
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
 SELECT * FROM t3;
@@ -2635,6 +2639,17 @@ DROP TRIGGER t2_au;
 DROP FUNCTION f1;
 DROP TABLE tm1, t1, t2, t3, t4, t5;
 #
+# Bug#47633 - assert in ha_myisammrg::info during OPTIMIZE
+#
+CREATE TEMPORARY TABLE t1 (c1 INT);
+ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists,t1);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Table 'test.t_not_exists' doesn't exist
+test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
+DROP TABLE t1;
+#
 # Bug47098 assert in MDL_context::destroy on HANDLER
 #          <damaged merge table> OPEN
 #
@@ -2697,6 +2712,18 @@ CREATE TABLE t1 (c1 INT);
 CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
 LOCK TABLE m1 WRITE;
 ALTER TABLE m1 ADD INDEX (c1);
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+#
+# If children are to be altered, they need an explicit lock.
+#
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
+LOCK TABLE m1 WRITE;
+ALTER TABLE t1 ADD INDEX (c1);
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+LOCK TABLE m1 WRITE, t1 WRITE;
+ALTER TABLE t1 ADD INDEX (c1);
 UNLOCK TABLES;
 DROP TABLE m1, t1;
 #

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -419,9 +419,13 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   thd->transaction.savepoints= sv;
 
   /*
-    Release metadata locks that were acquired during this savepoint unit.
+    Release metadata locks that were acquired during this savepoint unit
+    unless binlogging is on. Releasing locks with binlogging on can break
+    replication as it allows other connections to drop these tables before
+    rollback to savepoint is written to the binlog.
   */
-  if (!res)
+  bool binlog_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
+  if (!res && !binlog_on)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
   DBUG_RETURN(test(res));

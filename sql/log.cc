@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -1431,7 +1431,8 @@ shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   log_state= LOG_CLOSED;
   DBUG_RETURN(1);
 }
@@ -1492,7 +1493,8 @@ void MYSQL_LOG::close(uint exiting)
   }
 
   log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
-  safeFree(name);
+  my_free(name);
+  name= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -1570,7 +1572,7 @@ void MYSQL_QUERY_LOG::reopen_file()
   */
 
   open(save_name, log_type, 0, io_cache_type);
-  my_free(save_name, MYF(0));
+  my_free(save_name);
 
   mysql_mutex_unlock(&LOCK_log);
 
@@ -2592,7 +2594,7 @@ void TC_LOG_MMAP::close()
       mysql_cond_destroy(&pages[i].cond);
     }
   case 3:
-    my_free((uchar*)pages, MYF(0));
+    my_free(pages);
   case 2:
     my_munmap((char*)data, (size_t)file_length);
   case 1:

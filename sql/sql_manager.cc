@@ -1,4 +1,4 @@
-/* Copyright (C) 2000, 2002, 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* 
  * sql_manager.cc
@@ -117,7 +117,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
     {
       struct handler_cb *next= cb->next;
       cb->action();
-      my_free((uchar*)cb, MYF(0));
+      my_free(cb);
       cb= next;
     }
   }

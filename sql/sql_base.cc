@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Basic functions needed by many modules */
@@ -885,7 +885,7 @@ static void free_cache_entry(TABLE *table)
 
   intern_close_table(table);
 
-  my_free((uchar*) table,MYF(0));
+  my_free(table);
   DBUG_VOID_RETURN;
 }
 
@@ -897,7 +897,7 @@ void free_io_cache(TABLE *table)
   if (table->sort.io_cache)
   {
     close_cached_file(table->sort.io_cache);
-    my_free((uchar*) table->sort.io_cache,MYF(0));
+    my_free(table->sort.io_cache);
     table->sort.io_cache=0;
   }
   DBUG_VOID_RETURN;
@@ -1636,6 +1636,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 void close_temporary_tables(THD *thd)
 {
+  DBUG_ENTER("close_temporary_tables");
   TABLE *table;
   TABLE *next= NULL;
   TABLE *prev_table;
@@ -1643,10 +1644,9 @@ void close_temporary_tables(THD *thd)
   bool was_quote_show= TRUE;
 
   if (!thd->temporary_tables)
-    return;
+    DBUG_VOID_RETURN;
 
-  if (!mysql_bin_log.is_open() || 
-      (thd->is_current_stmt_binlog_format_row() && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+  if (!mysql_bin_log.is_open())
   {
     TABLE *tmp_next;
     for (table= thd->temporary_tables; table; table= tmp_next)
@@ -1655,7 +1655,7 @@ void close_temporary_tables(THD *thd)
       close_temporary(table, 1, 1);
     }
     thd->temporary_tables= 0;
-    return;
+    DBUG_VOID_RETURN;
   }
 
   /* Better add "if exists", in case a RESET MASTER has been done */
@@ -1771,6 +1771,7 @@ void close_temporary_tables(THD *thd)
   if (!was_quote_show)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -2135,7 +2136,7 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   if (free_share)
   {
     free_table_share(table->s);
-    my_free((char*) table,MYF(0));
+    my_free(table);
   }
   DBUG_VOID_RETURN;
 }
@@ -3017,7 +3018,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
     if (error)
     {
-      my_free(table, MYF(0));
+      my_free(table);
 
       if (error == 7)
         (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
@@ -3032,7 +3033,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     if (open_table_entry_fini(thd, share, table))
     {
       closefrm(table, 0);
-      my_free((uchar*)table, MYF(0));
+      my_free(table);
       goto err_lock;
     }
 
@@ -3778,10 +3779,10 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
                               query, (ulong)(end-query),
                               FALSE, FALSE, FALSE, errcode))
         {
-          my_free(query, MYF(0));
+          my_free(query);
           return TRUE;
         }
-        my_free(query, MYF(0));
+        my_free(query);
       }
       else
       {
@@ -3866,7 +3867,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
     closefrm(entry, 0);
     result= FALSE;
   }
-  my_free(entry, MYF(0));
+  my_free(entry);
 
   mysql_mutex_lock(&LOCK_open);
   release_table_share(share);
@@ -5750,7 +5751,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
-    my_free((char*) tmp_table,MYF(0));
+    my_free(tmp_table);
     DBUG_RETURN(0);
   }
 

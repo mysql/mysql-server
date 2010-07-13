@@ -894,11 +894,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
   How much overhead does malloc have. The code often allocates
   something like 1024-MALLOC_OVERHEAD bytes
 */
-#ifdef SAFEMALLOC
-#define MALLOC_OVERHEAD (8+24+4)
-#else
 #define MALLOC_OVERHEAD 8
-#endif
+
 	/* get memory in huncs */
 #define ONCE_ALLOC_INIT		(uint) (4096-MALLOC_OVERHEAD)
 	/* Typical record cash */
@@ -1716,11 +1713,6 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif  
-
-#define x_free(A) \
-  do { my_free((uchar*)(A), MYF(MY_WME|MY_FAE|MY_ALLOW_ZERO_PTR)); } while (0)
-#define safeFree(X) \
-    do { if (X) { my_free((uchar*)(X), MYF(0)); (X) = NULL; } } while (0)
 
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a
