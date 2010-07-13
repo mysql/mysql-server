@@ -2961,7 +2961,7 @@ Dbspj::lookup_parent_row(Signal* signal,
     }
 
     BuildKeyReq tmp;
-    err = computeHash(signal, tmp, tableId, ptrI);
+    err = computeHash(signal, tmp, tableId, treeNodePtr.p->m_send.m_keyInfoPtrI);
     if (unlikely(err != 0))
       break;
 
