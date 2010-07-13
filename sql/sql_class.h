@@ -2459,7 +2459,12 @@ public:
   /** Return FALSE if connection to client is broken. */
   bool is_connected()
   {
-    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+    /*
+      All system threads (e.g., the slave IO thread) are connected but
+      not using vio. So this function always returns true for all
+      system threads.
+    */
+    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
