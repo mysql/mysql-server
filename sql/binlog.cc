@@ -3937,9 +3937,9 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
   if (binlog_rows_query && this->query())
   {
     /* Write the Rows_query_log_event into binlog before the table map */
-    Rows_query_log_event* rows_query_ev= new Rows_query_log_event(this, this->query(),
-                                                       this->query_length());
-    if ((error= rows_query_ev->write(file)))
+    Rows_query_log_event
+      rows_query_ev(this, this->query(), this->query_length());
+    if ((error= rows_query_ev.write(file)))
       DBUG_RETURN(error);
   }
 
