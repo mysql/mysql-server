@@ -109,7 +109,7 @@ static char *mysql_ha_hash_get_key(TABLE_LIST *tables, size_t *key_len_p,
 
 static void mysql_ha_hash_free(TABLE_LIST *tables)
 {
-  my_free((char*) tables, MYF(0));
+  my_free(tables);
 }
 
 /**
@@ -259,7 +259,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
     {
-      my_free((char*) hash_tables, MYF(0));
+      my_free(hash_tables);
       DBUG_PRINT("exit",("ERROR"));
       DBUG_RETURN(TRUE);
     }

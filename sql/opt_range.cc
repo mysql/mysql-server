@@ -1091,7 +1091,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
     select->file= *head->sort.io_cache;
     select->records=(ha_rows) (select->file.end_of_file/
 			       head->file->ref_length);
-    my_free(head->sort.io_cache, MYF(0));
+    my_free(head->sort.io_cache);
     head->sort.io_cache=0;
   }
   DBUG_RETURN(select);
@@ -1216,11 +1216,11 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     }
     delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
-    my_free((char*) column_bitmap.bitmap, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(column_bitmap.bitmap);
   }
   head->column_bitmaps_set(save_read_set, save_write_set);
-  x_free(multi_range);
-  x_free(multi_range_buff);
+  my_free(multi_range);
+  my_free(multi_range_buff);
   DBUG_VOID_RETURN;
 }
 
@@ -8589,7 +8589,7 @@ int QUICK_RANGE_SELECT::reset()
     }
     if (! multi_range_buff)
     {
-      my_free((char*) multi_range, MYF(0));
+      my_free(multi_range);
       multi_range= NULL;
       multi_range_length= 0;
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -9570,8 +9570,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
           first Item? If so, then why? What is the array for?
         */
         /* Above we already checked that all group items are fields. */
-        DBUG_ASSERT((*tmp_group->item)->type() == Item::FIELD_ITEM);
-        Item_field *group_field= (Item_field *) (*tmp_group->item);
+        DBUG_ASSERT((*tmp_group->item)->real_item()->type() == Item::FIELD_ITEM);
+        Item_field *group_field= (Item_field *) (*tmp_group->item)->real_item();
         if (group_field->field->eq(cur_part->field))
         {
           cur_group_prefix_len+= cur_part->store_length;

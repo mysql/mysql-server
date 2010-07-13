@@ -830,7 +830,7 @@ int ha_myisammrg::attach_children(void)
         error= HA_ERR_WRONG_MRG_TABLE_DEF;
         if (!(this->test_if_locked & HA_OPEN_FOR_REPAIR))
         {
-          my_free((uchar*) recinfo, MYF(0));
+          my_free(recinfo);
           goto err;
         }
         /* purecov: begin inspected */
@@ -838,7 +838,7 @@ int ha_myisammrg::attach_children(void)
         /* purecov: end */
       }
     }
-    my_free((uchar*) recinfo, MYF(0));
+    my_free(recinfo);
     if (error == HA_ERR_WRONG_MRG_TABLE_DEF)
       goto err; /* purecov: inspected */
 

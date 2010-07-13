@@ -1532,13 +1532,13 @@ void release_ddl_log()
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
-    my_free(used_list, MYF(0));
+    my_free(used_list);
     used_list= tmp;
   }
   while (free_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
-    my_free(free_list, MYF(0));
+    my_free(free_list);
     free_list= tmp;
   }
   close_ddl_log();
@@ -1694,8 +1694,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     if (readfrm(shadow_path, &data, &length) ||
         packfrm(data, length, &lpt->pack_frm_data, &lpt->pack_frm_len))
     {
-      my_free(data, MYF(MY_ALLOW_ZERO_PTR));
-      my_free(lpt->pack_frm_data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(data);
+      my_free(lpt->pack_frm_data);
       mem_alloc_error(length);
       error= 1;
       goto end;
@@ -2205,7 +2205,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (some_tables_deleted || tmp_table_deleted || !error)
   {
     query_cache_invalidate3(thd, tables, 0);
-    if (!dont_log_query)
+    if (!dont_log_query && mysql_bin_log.is_open())
     {
       if (!thd->is_current_stmt_binlog_format_row() ||
           (non_temp_tables_count > 0 && !tmp_table_deleted))
@@ -4906,6 +4906,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
         if (thd->stmt_da->is_ok())
           thd->stmt_da->reset_diagnostics_area();
+        table->table= NULL;
+        result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
         goto send_result;
       }
     }
@@ -5036,6 +5038,7 @@ send_result_message:
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
+      table->table= NULL;
       thd->mdl_context.release_transactional_locks();
       if (!result_code) // recreation went ok
       {
@@ -7508,7 +7511,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (t_table)
     {
       intern_close_table(t_table);
-      my_free(t_table, MYF(0));
+      my_free(t_table);
     }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",

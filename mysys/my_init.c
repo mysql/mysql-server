@@ -141,6 +141,7 @@ my_bool my_init(void)
 {
   if (my_init_done)
     return 0;
+
   my_init_done= 1;
 
   if (my_basic_init())
@@ -241,9 +242,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 #if defined(__NETWARE__) && !defined(__WIN__)
     fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
 #endif
-#if defined(SAFEMALLOC)
-    TERMINATE(stderr, (infoflag & MY_GIVE_INFO) != 0);
-#elif defined(__WIN__) && defined(_MSC_VER)
+#if defined(__WIN__) && defined(_MSC_VER)
    _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
    _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
    _CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_FILE );
@@ -253,10 +252,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
    _CrtCheckMemory();
    _CrtDumpMemoryLeaks();
 #endif
-  }
-  else if (infoflag & MY_CHECK_ERROR)
-  {
-    TERMINATE(stderr, 0);		/* Print memory leaks on screen */
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG))
@@ -280,6 +275,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   if (have_tcpip)
     WSACleanup();
 #endif /* __WIN__ */
+
   my_init_done=0;
   my_basic_init_done= 0;
 } /* my_end */

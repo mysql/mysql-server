@@ -88,7 +88,7 @@ void free_tmpdir(MY_TMPDIR *tmpdir)
   if (!tmpdir->full_list.elements)
     return;
   for (i=0; i<=tmpdir->max; i++)
-    my_free(tmpdir->list[i], MYF(0));
+    my_free(tmpdir->list[i]);
   delete_dynamic(&tmpdir->full_list);
   mysql_mutex_destroy(&tmpdir->mutex);
 }

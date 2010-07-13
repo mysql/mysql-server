@@ -1251,7 +1251,7 @@ void Relay_log_info::clear_tables_to_lock()
     tables_to_lock=
       static_cast<RPL_TABLE_LIST*>(tables_to_lock->next_global);
     tables_to_lock_count--;
-    my_free(to_free, MYF(MY_WME));
+    my_free(to_free);
   }
   DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
 }

@@ -186,7 +186,7 @@ err:
   case 3:
     while (files)
       (void) mi_close(m_info->open_tables[--files].table);
-    my_free((char*) m_info,MYF(0));
+    my_free(m_info);
     /* Fall through */
   case 2:
     end_io_cache(&file);
@@ -339,7 +339,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   save_errno= my_errno;
   switch (errpos) {
   case 3:
-    my_free((char*) m_info, MYF(0));
+    my_free(m_info);
     /* Fall through */
   case 2:
     end_io_cache(&file_cache);
@@ -422,7 +422,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       key_parts= myisam->s->base.key_parts;
       if (*need_compat_check && m_info->rec_per_key_part)
       {
-        my_free((char *) m_info->rec_per_key_part, MYF(0));
+        my_free(m_info->rec_per_key_part);
         m_info->rec_per_key_part= NULL;
       }
       if (!m_info->rec_per_key_part)
@@ -491,7 +491,7 @@ err:
   save_errno= my_errno;
   switch (errpos) {
   case 1:
-    my_free((char*) m_info->rec_per_key_part, MYF(0));
+    my_free(m_info->rec_per_key_part);
     m_info->rec_per_key_part= NULL;
   }
   mysql_mutex_unlock(&m_info->mutex);

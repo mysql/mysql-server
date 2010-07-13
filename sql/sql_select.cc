@@ -6957,7 +6957,7 @@ void JOIN_TAB::cleanup()
   select= 0;
   delete quick;
   quick= 0;
-  x_free(cache.buff);
+  my_free(cache.buff);
   cache.buff= 0;
   limit= 0;
   if (table)
@@ -14251,7 +14251,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
   if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records, 0, 
                    key_length, (my_hash_get_key) 0, 0, 0))
   {
-    my_free((char*) key_buffer,MYF(0));
+    my_free(key_buffer);
     DBUG_RETURN(1);
   }
 
@@ -14303,14 +14303,14 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     }
     key_pos+=extra_length;
   }
-  my_free((char*) key_buffer,MYF(0));
+  my_free(key_buffer);
   my_hash_free(&hash);
   file->extra(HA_EXTRA_NO_CACHE);
   (void) file->ha_rnd_end();
   DBUG_RETURN(0);
 
 err:
-  my_free((char*) key_buffer,MYF(0));
+  my_free(key_buffer);
   my_hash_free(&hash);
   file->extra(HA_EXTRA_NO_CACHE);
   (void) file->ha_rnd_end();
@@ -14393,7 +14393,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 
 		  sizeof(CACHE_FIELD*))))
   {
-    my_free((uchar*) cache->buff,MYF(0));		/* purecov: inspected */
+    my_free(cache->buff);		/* purecov: inspected */
     cache->buff=0;				/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
