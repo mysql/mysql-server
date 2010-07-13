@@ -944,20 +944,13 @@ where y.a3=x.d3 and y.b3=x.b3 and
       z2.a3=z.d3 and z2.b3=z.b3 and
       t1.a = z2.d3;
 
-# Table expressions w/ multiple independent table ref. is executed as
-# pushed join by forcing an artificial parent ref. through the first avail 
-# parent candidate
+# Table expressions wo/ parent-child linkage should *not* be executes as a pushed join:
 explain
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
-
-explain
-select straight_join * from t1 x, t1 y where y.a=0x1f and x.a = 0x1f;
-select straight_join * from t1 x, t1 y where y.a=0x1f and x.a = 0x1f;
-
 
 # NOTE: Due to constValue replacement in equality sets, query below are
-# effectively the same as the one above. -> Pushed join
+# effectively the same as the one above. -> Don't push either
 explain
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
@@ -1848,8 +1841,7 @@ from t1
   straight_join t1 as t4 on t4.k = t1.b;
 
 ## Similar example as above, except that access to 't2' is made
-## a const table access - t2 can then be forced to be an artificial
-## child of t1, and all 4 table operations pushed as a single SPJ query
+## a const table access
 explain
 select *
 from t1

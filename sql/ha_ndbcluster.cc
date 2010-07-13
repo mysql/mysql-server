@@ -811,9 +811,8 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
       DBUG_RETURN(false);
     }
 
-    const Item_field* const key_item_field= static_cast<const Item_field*>(key_item);
-    ndb_table_access_map parent_map(key_item_field->used_tables());
-    current_parents.add(parent_map);
+    const Item_field* const key_item_field 
+      = static_cast<const Item_field*>(key_item);
 
     DBUG_PRINT("info", ("keyPart:%d, field:%s.%s",
                 key_part_no, key_item_field->field->table->alias, 
@@ -824,18 +823,6 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     {
       DBUG_PRINT("info", ("Item_field does not have same definition as EQ_REF'ed key"));
       DBUG_RETURN(false);
-    }
-    if (m_const_scope.contain(parent_map))
-    {
-      // This key item refer a parent with the 'const_scope' which are parents
-      // already calculated at this point. These parents are 'const'
-      // wrt. evaluation of the pushed join query. (Represented as paramValues)
-      DBUG_PRINT("info", 
-                 (" join_items[%d] %s.%s refer constant scope",
-                  key_part_no,
-                  get_referred_table_access_name(key_item_field),
-                  get_referred_field_name(key_item_field)));
-      continue;
     }
 
     /**
@@ -864,6 +851,9 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     ////////////////////////////////////////////////////////////////////
     // 1) Add our existing parent reference to the set of parent candidates
     //
+    ndb_table_access_map parent_map(key_item_field->used_tables());
+    current_parents.add(parent_map);
+
     if (m_join_scope.contain(parent_map))
     {
       field_possible_parents.add(parent_map);
@@ -924,13 +914,18 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
       if (parents.is_clear_all())
         break;
     }
+    else if (m_const_scope.contain(parent_map))
+    {
+      // This key item is const. and did not cause the set of possible parents
+      // to be recalculated. Reuse what we had before this key item.
+      DBUG_ASSERT(parents.is_clear_all());
+      parents= old_parents;
+    }
     else
     {
       DBUG_PRINT("info", ("Item_field %s.%s is outside scope of pushable join",
                   get_referred_table_access_name(key_item_field),
                   get_referred_field_name(key_item_field)));
-      DBUG_ASSERT(!m_const_scope.contain(parent_map));
-      DBUG_ASSERT(!m_join_scope.contain(parent_map));
       DBUG_RETURN(false);
     }
   } // for (uint key_part_no= 0 ...
@@ -938,10 +933,12 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
   join_items[table->get_no_of_key_fields()]= NULL;
 
   if (m_const_scope.contain(current_parents))
-  {
-    // NOTE: This is a constant table in the context of this pushed join.
-    DBUG_PRINT("info", ("  Contain only const/param REFs, -> appendable as 'const' wrt. pushed join:%d\n",tab_no+1));
-    DBUG_RETURN(true);
+   {
+     // NOTE: This is a constant table in the context of this pushed join.
+     //       It should be relatively simple to extend the SPJ block to 
+     //       allow such tables to be included in the pushed join.
+    DBUG_PRINT("info", ("  Contain only const/param REFs, -> can't append(yet) as 'const' wrt. pushed join:%d\n",tab_no+1));
+    DBUG_RETURN(false);
   }
   else if (parents.is_clear_all())
   {
@@ -952,7 +949,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
   DBUG_ASSERT(m_join_scope.contain(parents));
 
   /**
-   * Parent is selected among the set of available 'parents'. To improve
+   * Parent is selected among the set of 'parents'. To improve
    * fanout (bushy joins!) we prefer the first of the available parents.
    */
   uint parent_no;
@@ -1274,9 +1271,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
     build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
 
-    ndb_table_access_map parent_map;
-    if (join_parent)
-      parent_map.add(join_parent);
+    ndb_table_access_map parent_map(join_parent);
 
     for (uint i= 0; i < key->key_parts; i++, key_part++)
     {
