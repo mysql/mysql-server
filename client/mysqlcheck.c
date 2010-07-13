@@ -291,7 +291,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start = argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password = my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -470,7 +470,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     }
     *--end = 0;
     handle_request_for_tables(table_names_comma_sep + 1, (uint) (tot_length - 1));
-    my_free(table_names_comma_sep, MYF(0));
+    my_free(table_names_comma_sep);
   }
   else
     for (; tables > 0; tables--, table_names++)
@@ -569,7 +569,7 @@ static int process_all_tables_in_db(char *database)
     *--end = 0;
     if (tot_length)
       handle_request_for_tables(tables + 1, tot_length - 1);
-    my_free(tables, MYF(0));
+    my_free(tables);
   }
   else
   {
@@ -727,7 +727,7 @@ static int handle_request_for_tables(char *tables, uint length)
     return 1;
   }
   print_result();
-  my_free(query, MYF(0));
+  my_free(query);
   return 0;
 }
 
@@ -899,9 +899,9 @@ int main(int argc, char **argv)
   dbDisconnect(current_host);
   if (opt_auto_repair)
     delete_dynamic(&tables4repair);
-  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   my_end(my_end_arg);
   return(first_error!=0);

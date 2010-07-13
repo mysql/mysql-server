@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef MYSQL_FILE_H
 #define MYSQL_FILE_H
@@ -800,7 +800,7 @@ inline_mysql_file_fopen(
 #endif
       if (unlikely(that->m_file == NULL))
       {
-        my_free(that, MYF(0));
+        my_free(that);
         return NULL;
       }
     }
@@ -834,7 +834,7 @@ inline_mysql_file_fclose(
     if (likely(locker != NULL))
       PSI_server->end_file_wait(locker, (size_t) 0);
 #endif
-    my_free(file, MYF(0));
+    my_free(file);
   }
   return result;
 }

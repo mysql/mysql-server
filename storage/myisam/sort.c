@@ -162,7 +162,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
       if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
 			     maxbuffer/2))
       {
-	my_free((uchar*) sort_keys,MYF(0));
+	my_free(sort_keys);
         sort_keys= 0;
       }
       else
@@ -242,8 +242,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   error =0;
 
 err:
-  if (sort_keys)
-    my_free((uchar*) sort_keys,MYF(0));
+  my_free(sort_keys);
   delete_dynamic(&buffpek);
   close_cached_file(&tempfile);
   close_cached_file(&tempfile_for_exceptions);
@@ -382,7 +381,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
         if (my_init_dynamic_array(&sort_param->buffpek, sizeof(BUFFPEK),
                                   maxbuffer, maxbuffer/2))
         {
-          my_free((uchar*) sort_keys,MYF(0));
+          my_free(sort_keys);
           sort_keys= (uchar **) NULL; /* for err: label */
         }
         else
@@ -451,8 +450,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
 err:
     DBUG_PRINT("error", ("got some error"));
     sort_param->sort_info->got_error= 1; /* no need to protect with a mutex */
-    if (sort_keys)
-      my_free((uchar*) sort_keys,MYF(0));
+    my_free(sort_keys);
     sort_param->sort_keys= 0;
     delete_dynamic(& sort_param->buffpek);
     close_cached_file(&sort_param->tempfile);
@@ -509,8 +507,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
     if (!sinfo->sort_keys)
     {
       got_error=1;
-      my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff),
-              MYF(MY_ALLOW_ZERO_PTR));
+      my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff));
       continue;
     }
     if (!got_error)
@@ -528,9 +525,8 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
           got_error=1;
       }
     }
-    my_free((uchar*) sinfo->sort_keys,MYF(0));
-    my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff),
-	    MYF(MY_ALLOW_ZERO_PTR));
+    my_free(sinfo->sort_keys);
+    my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff));
     sinfo->sort_keys=0;
   }
 
@@ -638,7 +634,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
                        sinfo->notnull : NULL,
                        (ulonglong) info->state->records);
   }
-  my_free((uchar*) mergebuf,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mergebuf);
   DBUG_RETURN(got_error);
 }
 #endif /* THREAD */
@@ -1057,7 +1053,7 @@ flush_ft_buf(MI_SORT_PARAM *info)
   if (info->sort_info->ft_buf)
   {
     err=sort_ft_buf_flush(info);
-    my_free((uchar*)info->sort_info->ft_buf, MYF(0));
+    my_free(info->sort_info->ft_buf);
     info->sort_info->ft_buf=0;
   }
   return err;

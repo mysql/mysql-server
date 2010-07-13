@@ -175,7 +175,7 @@ static int daemon_example_plugin_deinit(void *p)
   my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
   my_close(con->heartbeat_file, MYF(0));
 
-  my_free((char *)con, MYF(0));
+  my_free(con);
 
   DBUG_RETURN(0);
 }

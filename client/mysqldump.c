@@ -715,12 +715,6 @@ static void write_footer(FILE *sql_file)
 } /* write_footer */
 
 
-static void free_table_ent(char *key)
-{
-  my_free(key, MYF(0));
-}
-
-
 uchar* get_table_key(const char *entry, size_t *length,
                      my_bool not_used __attribute__((unused)))
 {
@@ -745,7 +739,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start=argument;
-      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password=my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';               /* Destroy argument */
       if (*start)
@@ -905,8 +899,7 @@ static int get_options(int *argc, char ***argv)
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
-                   (my_hash_get_key) get_table_key,
-                   (my_hash_free_key) free_table_ent, 0))
+                   (my_hash_get_key) get_table_key, my_free, 0))
     return(EX_EOM);
   /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
@@ -1420,7 +1413,7 @@ static void free_resources()
 {
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
-  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password);
   if (my_hash_inited(&ignore_table))
     my_hash_free(&ignore_table);
   if (extended_insert)
@@ -1534,7 +1527,7 @@ static void unescape(FILE *file,char *pos,uint length)
   fputs(tmp, file);
   fputc('\'', file);
   check_io(file);
-  my_free(tmp, MYF(MY_WME));
+  my_free(tmp);
   DBUG_VOID_RETURN;
 } /* unescape */
 
@@ -2201,7 +2194,7 @@ static uint dump_routines_for_db(char *db)
               }
             }
 
-            my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
+            my_free(query_str);
           }
         } /* end of routine printing */
         mysql_free_result(routine_res);
@@ -2374,12 +2367,12 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           if (mysql_errno(mysql) == ER_VIEW_INVALID)
             fprintf(sql_file, "\n-- failed on view %s: %s\n\n", result_table, scv_buff ? scv_buff : "");
 
-          my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
+          my_free(scv_buff);
 
           DBUG_RETURN(0);
         }
         else
-          my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
+          my_free(scv_buff);
 
         if (mysql_num_rows(result))
         {
@@ -2855,7 +2848,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
         DBUG_RETURN(TRUE);
     }
 
-    my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(query_str);
   }
 
   DBUG_RETURN(FALSE);
@@ -4073,7 +4066,7 @@ static int dump_all_tables_in_db(char *database)
     if (include_table((uchar*) hash_key, end - hash_key))
     {
       dump_table(table,database);
-      my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(order_by);
       order_by= 0;
       if (opt_dump_triggers && ! opt_xml &&
           mysql_get_server_version(mysql) >= 50009)
@@ -4345,7 +4338,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     dump_routines_for_db(db);
   }
   free_root(&root, MYF(0));
-  my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(order_by);
   order_by= 0;
   if (opt_xml)
   {
@@ -5258,7 +5251,7 @@ int main(int argc, char **argv)
     goto err;
 
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   /*
     No reason to explicitely COMMIT the transaction, neither to explicitely

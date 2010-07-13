@@ -1953,7 +1953,7 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
     if (acquire_lock(*p_req, lock_wait_timeout))
       goto err;
   }
-  my_free(sort_buf, MYF(0));
+  my_free(sort_buf);
   return FALSE;
 
 err:
@@ -1969,7 +1969,7 @@ err:
   {
     (*p_req)->ticket= NULL;
   }
-  my_free(sort_buf, MYF(0));
+  my_free(sort_buf);
   return TRUE;
 }
 
