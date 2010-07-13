@@ -929,16 +929,21 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
 
   join_items[table->get_no_of_key_fields()]= NULL;
 
-  if (parents.is_clear_all())
+  if (m_const_scope.contain(current_parents))
+   {
+     // NOTE: This is a constant table in the context of this pushed join.
+     //       It should be relatively simple to extend the SPJ block to 
+     //       allow such tables to be included in the pushed join.
+    DBUG_PRINT("info", ("  Contain only const/param REFs, -> can't append(yet) as 'const' wrt. pushed join:%d\n",tab_no+1));
+    DBUG_RETURN(false);
+  }
+  else if (parents.is_clear_all())
   {
-    // NOTE: This is a constant table in the context of this pushed join.
-    //       It should be relatively simple to extend the SPJ block to 
-    //       allow such tables to be included in the pushed join.
     DBUG_PRINT("info", ("  No common parents, -> can't append table to pushed joins:%d\n",tab_no+1));
     DBUG_RETURN(false);
   }
 
-  DBUG_ASSERT(parents.is_subset(m_join_scope));
+  DBUG_ASSERT(m_join_scope.contain(parents));
 
   /**
    * Parent is selected among the set of 'parents'. To improve

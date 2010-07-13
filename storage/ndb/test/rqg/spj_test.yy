@@ -457,8 +457,8 @@ char_value:
 
 int_aggregate:
    COUNT(*) AS aggregate_field
- | COUNT(value_expr) AS aggregate_field              ## Removed 'distinct' due to Bug#53531
- | SUM(int_value_expr) AS aggregate_field            ## Removed 'distinct' due to Bug#53531
+ | COUNT(distinct value_expr) AS aggregate_field
+ | SUM(distinct int_value_expr) AS aggregate_field
  | MIN(distinct int_value_expr) AS aggregate_field 
  | MAX(distinct int_value_expr) AS aggregate_field
  ;
