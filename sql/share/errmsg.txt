@@ -6211,28 +6211,31 @@ ER_VCOL_BASED_ON_VCOL
         eng "A computed column cannot be based on a computed column"
 
 ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-        eng "Function or expression is not allowed for column '%s'."
+        eng "Function or expression is not allowed for column '%s'"
 
 ER_DATA_CONVERSION_ERROR_FOR_VIRTUAL_COLUMN
-        eng "Generated value for computed column '%s' cannot be converted to type '%s'."
+        eng "Generated value for computed column '%s' cannot be converted to type '%s'"
 
 ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN
-        eng "Primary key cannot be defined upon a computed column."
+        eng "Primary key cannot be defined upon a computed column"
 
 ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN
-        eng "Key/Index cannot be defined on a non-stored computed column."
+        eng "Key/Index cannot be defined on a non-stored computed column"
 
 ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN
-        eng "Cannot define foreign key with %s clause on a computed column."
+        eng "Cannot define foreign key with %s clause on a computed column"
 
 ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
-        eng "The value specified for computed column '%s' in table '%s' ignored."
+        eng "The value specified for computed column '%s' in table '%s' ignored"
 
 ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-        eng "'%s' is not yet supported for computed columns."
+        eng "'%s' is not yet supported for computed columns"
 
 ER_CONST_EXPR_IN_VCOL
-         eng "Constant expression in computed column function is not allowed."
+        eng "Constant expression in computed column function is not allowed"
+
+ER_ROW_EXPR_FOR_VCOL
+        eng "Expression for computed column cannot return a row"
 
 ER_DEBUG_SYNC_TIMEOUT
   eng "debug sync point wait timed out"

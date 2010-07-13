@@ -30,3 +30,8 @@ a	b	v
 5	50	6
 8	80	9
 drop table t1;
+CREATE TABLE t1 (
+a int NOT NULL DEFAULT '0',
+v double AS ((1, a)) VIRTUAL
+);
+ERROR HY000: Expression for computed column cannot return a row

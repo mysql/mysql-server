@@ -1859,6 +1859,11 @@ bool fix_vcol_expr(THD *thd,
     goto end;
   }
   thd->where= save_where;
+  if (unlikely(func_expr->result_type() == ROW_RESULT))
+  {
+     my_error(ER_ROW_EXPR_FOR_VCOL, MYF(0));
+     goto end;
+  }
 #ifdef PARANOID
   /*
     Walk through the Item tree checking if all items are valid

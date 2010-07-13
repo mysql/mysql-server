@@ -19,3 +19,17 @@ update t1 set a=v order by b limit 1;
 select * from t1 order by b;
 
 drop table t1;
+
+#
+# Bug#604549: Expression for virtual column returns row
+#             
+
+-- error ER_ROW_EXPR_FOR_VCOL 
+CREATE TABLE t1 (
+  a int NOT NULL DEFAULT '0',
+  v double AS ((1, a)) VIRTUAL
+);
+
+
+
+
