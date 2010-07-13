@@ -1009,7 +1009,7 @@ void* pfs_spawn_thread(void *arg)
   */
   user_start_routine= typed_arg->m_user_start_routine;
   user_arg= typed_arg->m_user_arg;
-  my_free(typed_arg, MYF(0));
+  my_free(typed_arg);
 
   /* Then, execute the user code for this thread. */
   (*user_start_routine)(user_arg);
@@ -1037,7 +1037,7 @@ static int spawn_thread_v1(PSI_thread_key key,
 
   int result= pthread_create(thread, attr, pfs_spawn_thread, psi_arg);
   if (unlikely(result != 0))
-    my_free(psi_arg, MYF(0));
+    my_free(psi_arg);
   return result;
 }
 

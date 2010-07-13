@@ -211,7 +211,7 @@ my_bool ac_trie_prepare (TRIE *trie)
         fail= fail->fail;
     }
   }
-  my_free((uchar*)tmp_nodes, MYF(0));
+  my_free(tmp_nodes);
   DBUG_RETURN(FALSE);
 }
 

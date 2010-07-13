@@ -1875,7 +1875,7 @@ int end_io_cache(IO_CACHE *info)
     info->alloced_buffer=0;
     if (info->file != -1)			/* File doesn't exist */
       error= my_b_flush_io_cache(info,1);
-    my_free((uchar*) info->buffer,MYF(MY_WME));
+    my_free(info->buffer);
     info->buffer=info->read_pos=(uchar*) 0;
   }
   if (info->type == SEQ_READ_APPEND)
@@ -1961,7 +1961,7 @@ int main(int argc, char** argv)
     total_bytes += 4+block_size;
   }
   close_file(&sra_cache);
-  my_free(block,MYF(MY_WME));
+  my_free(block);
   if (!my_stat(fname,&status,MYF(MY_WME)))
     die("%s failed to stat, but I had just closed it,\
  wonder how that happened");

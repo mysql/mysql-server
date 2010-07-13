@@ -676,7 +676,7 @@ err:
     mi_report_error(save_errno, name);
   switch (errpos) {
   case 6:
-    my_free((uchar*) m_info,MYF(0));
+    my_free(m_info);
     /* fall through */
   case 5:
     (void) mysql_file_close(info.dfile, MYF(0));
@@ -684,7 +684,7 @@ err:
       break;					/* Don't remove open table */
     /* fall through */
   case 4:
-    my_free((uchar*) share,MYF(0));
+    my_free(share);
     /* fall through */
   case 3:
     if (! lock_error)

@@ -262,7 +262,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
     {
       queue_remove(&alarm_queue,i),MYF(0);
       if (alarm_data->malloced)
-	my_free((uchar*) alarm_data,MYF(0));
+	my_free(alarm_data);
       found++;
 #ifdef DBUG_OFF
       break;

@@ -152,7 +152,7 @@ my_bool my_net_init(NET *net, Vio* vio)
 void net_end(NET *net)
 {
   DBUG_ENTER("net_end");
-  my_free(net->buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(net->buff);
   net->buff=0;
   DBUG_VOID_RETURN;
 }
@@ -696,7 +696,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 #endif
 #ifdef HAVE_COMPRESS
   if (net->compress)
-    my_free((char*) packet,MYF(0));
+    my_free((void*) packet);
 #endif
   if (thr_alarm_in_use(&alarmed))
   {
