@@ -2460,13 +2460,11 @@ public:
   bool is_connected()
   {
     /*
-      The slave SQL thread and the event worker thread are connected
-      but not using vio. So this function always returns true for
-      them.
+      All system threads (e.g., the slave IO thread) are connected but
+      not using vio. So this function always returns true for all
+      system threads.
     */
-    return system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-      system_thread == SYSTEM_THREAD_EVENT_WORKER ||
-      (vio_ok() ? vio_is_connected(net.vio) : FALSE);
+    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
