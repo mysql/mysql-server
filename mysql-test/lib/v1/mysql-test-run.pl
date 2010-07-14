@@ -3114,7 +3114,8 @@ sub install_db ($$) {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
-  mtr_add_arg($args, "--loose-skip-innodb");
+# InnoDB is the default engine now, can't skip it.
+#  mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
