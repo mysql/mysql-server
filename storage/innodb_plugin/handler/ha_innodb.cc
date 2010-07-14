@@ -1004,6 +1004,29 @@ innobase_get_charset(
 	return(thd_charset((THD*) mysql_thd));
 }
 
+/**********************************************************************//**
+Determines the current SQL statement.
+@return	SQL statement string */
+extern "C" UNIV_INTERN
+const char*
+innobase_get_stmt(
+/*==============*/
+	void*	mysql_thd,	/*!< in: MySQL thread handle */
+	size_t*	length)		/*!< out: length of the SQL statement */
+{
+#if MYSQL_VERSION_ID >= 50142
+	LEX_STRING* stmt;
+
+	stmt = thd_query_string((THD*) mysql_thd);
+	*length = stmt->length;
+	return(stmt->str);
+#else
+	const char*	stmt_str = thd_query((THD*) mysql_thd);
+	*length = strlen(stmt_str);
+	return(stmt_str);
+#endif
+}
+
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
@@ -1314,7 +1337,6 @@ innobase_trx_allocate(
 	trx = trx_allocate_for_mysql();
 
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
 
 	innobase_trx_init(thd, trx);
 
@@ -6433,6 +6455,8 @@ ha_innobase::create(
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
 	const ulint	file_format = srv_file_format;
+	const char*	stmt;
+	size_t		stmt_len;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -6649,7 +6673,7 @@ ha_innobase::create(
 			 (int) form->s->primary_key :
 			 -1);
 
-	/* Our function row_get_mysql_key_number_for_index assumes
+	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
 
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
@@ -6709,9 +6733,11 @@ ha_innobase::create(
 		}
 	}
 
-	if (*trx->mysql_query_str) {
-		error = row_table_add_foreign_constraints(trx,
-			*trx->mysql_query_str, norm_name,
+	stmt = innobase_get_stmt(thd, &stmt_len);
+
+	if (stmt) {
+		error = row_table_add_foreign_constraints(
+			trx, stmt, stmt_len, norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		error = convert_error_code_to_mysql(error, flags, NULL);
@@ -6996,7 +7022,6 @@ innobase_drop_database(
 	/* In the Windows plugin, thd = current_thd is always NULL */
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = NULL;
-	trx->mysql_query_str = NULL;
 #else
 	trx = innobase_trx_allocate(thd);
 #endif
@@ -7365,6 +7390,87 @@ ha_innobase::read_time(
 }
 
 /*********************************************************************//**
+Calculates the key number used inside MySQL for an Innobase index. We will
+first check the "index translation table" for a match of the index to get
+the index number. If there does not exist an "index translation table",
+or not able to find the index in the translation table, then we will fall back
+to the traditional way of looping through dict_index_t list to find a
+match. In this case, we have to take into account if we generated a
+default clustered index for the table
+@return the key number used inside MySQL */
+static
+unsigned int
+innobase_get_mysql_key_number_for_index(
+/*====================================*/
+	INNOBASE_SHARE*		share,	/*!< in: share structure for index
+					translation table. */
+	const TABLE*		table,	/*!< in: table in MySQL data
+					dictionary */
+	dict_table_t*		ib_table,/*!< in: table in Innodb data
+					dictionary */
+        const dict_index_t*     index)	/*!< in: index */
+{
+	const dict_index_t*	ind;
+	unsigned int		i;
+
+	ut_ad(index);
+	ut_ad(ib_table);
+	ut_ad(table);
+	ut_ad(share);
+
+	/* If index does not belong to the table of share structure. Search
+	index->table instead */
+	if (index->table != ib_table
+	    && strcmp(index->table->name, share->table_name)) {
+		i = 0;
+		ind = dict_table_get_first_index(index->table);
+
+		while (index != ind) {
+			ind = dict_table_get_next_index(ind);
+			i++;
+		}
+
+		if (row_table_got_default_clust_index(index->table)) {
+			ut_a(i > 0);
+			i--;
+		}
+
+		return(i);
+	}
+
+	/* If index translation table exists, we will first check
+	the index through index translation table for a match. */
+        if (share->idx_trans_tbl.index_mapping) {
+		for (i = 0; i < share->idx_trans_tbl.index_count; i++) {
+			if (share->idx_trans_tbl.index_mapping[i] == index) {
+				return(i);
+			}
+		}
+
+		/* Print an error message if we cannot find the index
+		** in the "index translation table". */
+		sql_print_error("Cannot find index %s in InnoDB index "
+				"translation table.", index->name);
+	}
+
+	/* If we do not have an "index translation table", or not able
+	to find the index in the translation table, we'll directly find
+	matching index in the dict_index_t list */
+	for (i = 0; i < table->s->keys; i++) {
+		ind = dict_table_get_index_on_name(
+			ib_table, table->key_info[i].name);
+
+        	if (index == ind) {
+			return(i);
+		}
+        }
+
+	sql_print_error("Cannot find matching index number for index %s "
+			 "in InnoDB index list.", index->name);
+
+        return(0);
+}
+/*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 UNIV_INTERN
@@ -7633,8 +7739,8 @@ ha_innobase::info(
 		err_index = trx_get_error_info(prebuilt->trx);
 
 		if (err_index) {
-			errkey = (unsigned int)
-				row_get_mysql_key_number_for_index(err_index);
+			errkey = innobase_get_mysql_key_number_for_index(
+					share, table, ib_table, err_index);
 		} else {
 			errkey = (unsigned int) prebuilt->trx->error_key_num;
 		}
@@ -10354,7 +10460,35 @@ innodb_old_blocks_pct_update(
 }
 
 /*************************************************************//**
-Check if it is a valid value of innodb_change_buffering.  This function is
+Find the corresponding ibuf_use_t value that indexes into
+innobase_change_buffering_values[] array for the input
+change buffering option name.
+@return	corresponding IBUF_USE_* value for the input variable
+name, or IBUF_USE_COUNT if not able to find a match */
+static
+ibuf_use_t
+innodb_find_change_buffering_value(
+/*===============================*/
+	const char*	input_name)	/*!< in: input change buffering
+					option name */
+{
+	ulint	use;
+
+	for (use = 0; use < UT_ARR_SIZE(innobase_change_buffering_values);
+	     use++) {
+		/* found a match */
+		if (!innobase_strcasecmp(
+			input_name, innobase_change_buffering_values[use])) {
+			return((ibuf_use_t)use);
+		}
+	}
+
+	/* Did not find any match */
+	return(IBUF_USE_COUNT);
+}
+
+/*************************************************************//**
+Check if it is a valid value of innodb_change_buffering. This function is
 registered as a callback with MySQL.
 @return	0 for valid innodb_change_buffering */
 static
@@ -10378,19 +10512,22 @@ innodb_change_buffering_validate(
 	change_buffering_input = value->val_str(value, buff, &len);
 
 	if (change_buffering_input != NULL) {
-		ulint	use;
+		ibuf_use_t	use;
 
-		for (use = 0; use < UT_ARR_SIZE(innobase_change_buffering_values);
-		     use++) {
-			if (!innobase_strcasecmp(
-				    change_buffering_input,
-				    innobase_change_buffering_values[use])) {
-				*(ibuf_use_t*) save = (ibuf_use_t) use;
-				return(0);
-			}
+		use = innodb_find_change_buffering_value(
+			change_buffering_input);
+
+		if (use != IBUF_USE_COUNT) {
+			/* Find a matching change_buffering option value. */
+			*static_cast<const char**>(save) =
+				innobase_change_buffering_values[use];
+
+			return(0);
 		}
 	}
 
+	/* No corresponding change buffering option for user supplied
+	"change_buffering_input" */
 	return(1);
 }
 
@@ -10401,21 +10538,27 @@ static
 void
 innodb_change_buffering_update(
 /*===========================*/
-	THD*				thd,		/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-	void*				var_ptr,	/*!< out: where the
-							formal string goes */
-	const void*			save)		/*!< in: immediate result
-							from check function */
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
 {
+	ibuf_use_t	use;
+
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(ibuf_use_t*) save) < IBUF_USE_COUNT);
 
-	ibuf_use = *(const ibuf_use_t*) save;
+	use = innodb_find_change_buffering_value(
+		*static_cast<const char*const*>(save));
 
-	*(const char**) var_ptr = innobase_change_buffering_values[ibuf_use];
+	ut_a(use < IBUF_USE_COUNT);
+
+	ibuf_use = use;
+	*static_cast<const char**>(var_ptr) =
+		 *static_cast<const char*const*>(save);
 }
 
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
@@ -10743,7 +10886,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   "Buffer changes to reduce random access: "
   "OFF, ON, none, inserts.",
   innodb_change_buffering_validate,
-  innodb_change_buffering_update, NULL);
+  innodb_change_buffering_update, "inserts"); 
 
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,

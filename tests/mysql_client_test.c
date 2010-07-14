@@ -18092,8 +18092,6 @@ static void test_bug53371()
   myquery(rc);
 }
 
-
-
 /**
   Bug#42373: libmysql can mess a connection at connect
 */
