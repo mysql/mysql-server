@@ -1,0 +1,127 @@
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+
+# Bug#35217 Strange ndb_binlog_index error inserting rows in MyISAM table
+# Verify that mysql.ndb_binlog_index is getting unique epoch values
+# Do this by dropping the PK, inserting some data and checking
+# uniqueness
+# 
+alter table mysql.ndb_binlog_index drop primary key;
+
+use test;
+
+create table t1 (a int) engine=ndb;
+
+delimiter %;
+create procedure ins (rows int)
+begin
+  set @x = 0;
+  repeat
+    insert into t1 values (1);
+    set @x = @x + 1;
+  until @x = rows
+  end repeat;
+end%
+
+delimiter ;%
+
+call ins(10000);
+
+# Did any of the epochs have > 1 entry?
+# (Answer should be no !)
+--echo Duplicate epochs according to mysql.ndb_binlog_index
+select epoch >> 32 as gci, 
+       (epoch << 32) >> 32 as ugci, 
+       sum(1) as count 
+from mysql.ndb_binlog_index 
+group by epoch 
+having count > 1;
+
+# Now look at what's in the Binlog events themselves, in case they also
+# carry duplicate epochs
+#
+# Code here similar to ndb_binlog_get_binlog_stmts.inc
+#
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+
+create table raw_binlog_rows (txt varchar(1000));
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
+
+create table binlog_stmt_parts_unassoc (txt varchar(1000), line_count int, stmt_boundary int);
+
+set @line_count=0;
+set @stmt_boundary=0;
+
+# Use replace() here to get rid of any unwanted Windows
+# CRs
+insert into binlog_stmt_parts_unassoc
+  select replace(txt, '\r', ''),
+         @line_count:= @line_count + 1,  # So we can preserve order later
+         (txt like '%INSERT%' or         # Identify statement boundaries
+          txt like '%UPDATE%' or
+          txt like '%DELETE%')
+    from raw_binlog_rows
+    where
+      txt like '###%';                   # Discard non verbose output
+
+create table binlog_stmt_parts_assoc (txt varchar(1000), line_count int, stmt_num int);
+
+set @stmt_count = 0;
+
+insert into binlog_stmt_parts_assoc
+  select txt, 
+         line_count, 
+         @stmt_count:= @stmt_count + stmt_boundary   # All rows from same stmt will
+                                                     # have same stmt_num
+    from binlog_stmt_parts_unassoc order by line_count;
+
+create table binlog_stmts (txt varchar(1000), stmt_num int);
+
+insert into binlog_stmts 
+  select group_concat(right(txt,             # Combine rows in statment into 1
+                            length(txt) - 4) # Trim ### from line start
+                      order by line_count
+                      separator ' '), stmt_num
+    from binlog_stmt_parts_assoc
+    group by stmt_num;
+
+
+create table epochs_in_binlog (epoch bigint);
+
+# Trim INSERT INTO mysql.ndb_apply_status SET   @1=1   @2=144115213845659648   @3=''   @4=0   @5=0
+# down to a list of epochs
+#
+insert into epochs_in_binlog
+  select substring_index(right(txt, length(txt) - instr(txt, '@2=') - 3),' ', 1) 
+         from binlog_stmts
+         where txt like '%ndb_apply_status%' 
+         order by txt;
+
+--enable_query_log
+--echo Duplicate epochs according to MySQLD Binlog entries
+select  epoch >> 32 as gci, 
+       (epoch << 32) >> 32 as ugci, 
+       sum(1) as count 
+from epochs_in_binlog
+group by epoch
+having count > 1;
+
+--disable_query_log
+drop table raw_binlog_rows;
+drop table binlog_stmt_parts_unassoc;
+drop table binlog_stmt_parts_assoc;
+drop table binlog_stmts;
+drop table epochs_in_binlog;
+--enable_query_log
+
+# Now cleanup
+
+reset master;
+alter table mysql.ndb_binlog_index add primary key (epoch, orig_server_id, orig_epoch);
+
+drop procedure ins;
+drop table t1;

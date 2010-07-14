@@ -3215,13 +3215,13 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     ndb_binlog_index->field[2]->store(epoch= first->epoch, true);
     if (ndb_binlog_index->s->fields > 7)
     {
-      ndb_binlog_index->field[3]->store(row->n_inserts);
-      ndb_binlog_index->field[4]->store(row->n_updates);
-      ndb_binlog_index->field[5]->store(row->n_deletes);
-      ndb_binlog_index->field[6]->store(row->n_schemaops);
-      ndb_binlog_index->field[7]->store(orig_server_id= row->orig_server_id);
+      ndb_binlog_index->field[3]->store(row->n_inserts, true);
+      ndb_binlog_index->field[4]->store(row->n_updates, true);
+      ndb_binlog_index->field[5]->store(row->n_deletes, true);
+      ndb_binlog_index->field[6]->store(row->n_schemaops, true);
+      ndb_binlog_index->field[7]->store(orig_server_id= row->orig_server_id, true);
       ndb_binlog_index->field[8]->store(orig_epoch= row->orig_epoch, true);
-      ndb_binlog_index->field[9]->store(first->gci);
+      ndb_binlog_index->field[9]->store(first->gci, true);
       row= row->next;
     }
     else
@@ -4902,7 +4902,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
             DBUG_PRINT("info", ("bit field H'%.8X", 
                                 (*value).rec->u_32_value()));
             field_bit->Field_bit::store((longlong) (*value).rec->u_32_value(),
-                                        FALSE);
+                                        TRUE);
           }
           else
           {
@@ -6048,8 +6048,8 @@ restart_cluster_failure:
           is unknown here
         */
         apply_status_table->field[2]->store("", 0, &my_charset_bin);
-        apply_status_table->field[3]->store((longlong)0);
-        apply_status_table->field[4]->store((longlong)0);
+        apply_status_table->field[3]->store((longlong)0, true);
+        apply_status_table->field[4]->store((longlong)0, true);
         DBUG_ASSERT(sizeof(apply_status_buf) >= apply_status_table->s->reclength);
         memcpy(apply_status_buf, apply_status_table->record[0],
                apply_status_table->s->reclength);
