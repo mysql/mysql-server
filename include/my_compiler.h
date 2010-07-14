@@ -42,7 +42,7 @@
 
 /* Oracle Solaris Studio */
 #elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
-# if (__SUNPRO_C >= 0x590) || (__SUNPRO_CC >= 0x590)
+# if __SUNPRO_C >= 0x590
 #   define MY_ALIGN_EXT
 # endif
 
@@ -123,5 +123,7 @@ struct my_aligned_storage
 };
 
 #endif /* __cplusplus */
+
+#include <my_attribute.h>
 
 #endif /* MY_COMPILER_INCLUDED */
