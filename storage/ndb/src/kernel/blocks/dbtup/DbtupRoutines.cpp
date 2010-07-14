@@ -2433,20 +2433,6 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     jam();
     sz = 2;
     outBuffer[1] = req_struct->operPtrP->m_root_frag_id;
-#if 0
-    /* If the node number is zero, then the tuple id may have been generated 
-     * localy. Add node number to make sure it is unique
-     */
-    if (req_struct->operPtrP->m_any_value  & 0xff00) == 0)
-    {
-      ndbassert (getOwnNodeId() < 0x100);
-      outBuffer[2] = (getOwnNodeId() << 8) | req_struct->operPtrP->m_any_value;
-    }
-    else
-    {
-      outBuffer[2] = req_struct->operPtrP->m_any_value;
-    }
-#endif
     outBuffer[2] = req_struct->operPtrP->m_any_value;
     break;
   }
