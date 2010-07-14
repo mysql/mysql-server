@@ -15,6 +15,8 @@
 
 # Produce meaningful package name for the binary package
 # The logic is rather involved with special cases for  different OSes
+INCLUDE(CheckTypeSize)
+CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
 MACRO(GET_PACKAGE_FILE_NAME Var)
 IF(NOT VERSION)
     MESSAGE(FATAL_ERROR 
@@ -24,7 +26,8 @@ IF(NOT VERSION)
     SET(NEED_DASH_BETWEEN_PLATFORM_AND_MACHINE 1)
     SET(DEFAULT_PLATFORM ${CMAKE_SYSTEM_NAME})
     SET(DEFAULT_MACHINE  ${CMAKE_SYSTEM_PROCESSOR})
-    IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    MESSAGE("SIZEOF_VOIDP=${SIZEOF_VOIDP}")
+    IF(SIZEOF_VOIDP EQUAL 8)
       SET(64BIT 1)
     ENDIF()
   

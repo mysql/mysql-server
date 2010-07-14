@@ -46,9 +46,16 @@ let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
 let $debug_sync_action= 'now SIGNAL signal.get_server_id';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
+#Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
+connection slave;
+
+let $dbug_sync_point= 'dbug.before_get_MASTER_UUID';
+let $debug_sync_action= 'now SIGNAL signal.get_master_uuid';
+source extra/rpl_tests/rpl_get_master_version_and_clock.test;
+
 eval set global debug= '$debug_saved';
 
-#Test case 3: This test checks that the slave I/O thread refuses to start
+#Test case 4: This test checks that the slave I/O thread refuses to start
 #if slave and master have the same server id.
 connection slave;
 reset master;

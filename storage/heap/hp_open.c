@@ -74,11 +74,32 @@ HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode)
   {
     info->open_list.data= (void*) info;
     heap_open_list= list_add(heap_open_list,&info->open_list);
+    /* Unpin the share, it is now pinned by the file. */
+    share->open_count--;
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(info);
 }
 
+
+/**
+  Dereference a HEAP share and free it if it's not referenced.
+  We don't check open_count for internal tables since they
+  are always thread-local, i.e. referenced by a single thread.
+*/
+void heap_release_share(HP_SHARE *share, my_bool internal_table)
+{
+  /* Couldn't open table; Remove the newly created table */
+  if (internal_table)
+    hp_free(share);
+  else
+  {
+    mysql_mutex_lock(&THR_LOCK_heap);
+    if (--share->open_count == 0)
+      hp_free(share);
+    mysql_mutex_unlock(&THR_LOCK_heap);
+  }
+}
 
 /*
   Open heap table based on name

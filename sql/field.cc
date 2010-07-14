@@ -28,7 +28,7 @@
 #include "sql_priv.h"
 #include "sql_select.h"
 #include "rpl_rli.h"                            // Pull in Relay_log_info
-#include "slave.h"                              // Pull in rpl_master_has_bug()
+#include "rpl_slave.h"                          // Pull in rpl_master_has_bug()
 #include "strfunc.h"                            // find_type2, find_set
 #include "sql_time.h"                    // str_to_datetime_with_warn,
                                          // str_to_time_with_warn,
@@ -2930,7 +2930,21 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
   return (source_size);
 }
 
+/**
+   Check to see if field size is compatible with destination.
 
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+   @param   order_var        Pointer to variable where the order
+                             between the source field and this field
+                             will be returned.
+
+   @return @c true
+*/
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
                                               Relay_log_info * __attribute__((unused)),
                                               uint16 mflags __attribute__((unused)),
@@ -6575,7 +6589,11 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 void Field_string::sort_string(uchar *to,uint length)
 {
   uint tmp __attribute__((unused))=
-    my_strnxfrm(field_charset, to, length, ptr, field_length);
+    field_charset->coll->strnxfrm(field_charset,
+                                  to, length, char_length(),
+                                  ptr, field_length,
+                                  MY_STRXFRM_PAD_WITH_SPACE |
+                                  MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
 }
 
@@ -7029,9 +7047,11 @@ void Field_varstring::sort_string(uchar *to,uint length)
     length-= length_bytes;
   }
  
-  tot_length= my_strnxfrm(field_charset,
-			  to, length, ptr + length_bytes,
-			  tot_length);
+  tot_length= field_charset->coll->strnxfrm(field_charset,
+                                            to, length, char_length(),
+                                            ptr + length_bytes, tot_length,
+                                            MY_STRXFRM_PAD_WITH_SPACE |
+                                            MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tot_length == length);
 }
 
@@ -7742,8 +7762,11 @@ void Field_blob::sort_string(uchar *to,uint length)
     }
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
     
-    blob_length=my_strnxfrm(field_charset,
-                            to, length, blob, blob_length);
+    blob_length= field_charset->coll->strnxfrm(field_charset,
+                                               to, length, length,
+                                               blob, blob_length,
+                                               MY_STRXFRM_PAD_WITH_SPACE |
+                                               MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }
 }
@@ -8837,7 +8860,21 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
   return (source_size);
 }
 
+/**
+   Check to see if field size is compatible with destination.
 
+   This method is used in row-based replication to verify that the slave's
+   field size is less than or equal to the master's field size. The 
+   encoded field metadata (from the master or source) is decoded and compared
+   to the size of this field (the slave or destination). 
+
+   @param   field_metadata   Encoded size in field metadata
+   @param   order_var        Pointer to variable where the order
+                             between the source field and this field
+                             will be returned.
+
+   @return @c true
+*/
 bool
 Field_bit::compatible_field_size(uint field_metadata,
                                  Relay_log_info * __attribute__((unused)),
@@ -8846,8 +8883,7 @@ Field_bit::compatible_field_size(uint field_metadata,
 {
   DBUG_ENTER("Field_bit::compatible_field_size");
   DBUG_ASSERT((field_metadata >> 16) == 0);
-  uint from_bit_len=
-    8 * (field_metadata >> 8) + (field_metadata & 0xff);
+  uint from_bit_len= 8 * (field_metadata >> 8) + (field_metadata & 0xff);
   uint to_bit_len= max_display_length();
   DBUG_PRINT("debug", ("from_bit_len: %u, to_bit_len: %u",
                        from_bit_len, to_bit_len));

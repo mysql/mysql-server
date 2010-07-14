@@ -357,7 +357,7 @@ void
 Sensitive_cursor::reset_thd(THD *thd)
 {
   thd->derived_tables= 0;
-  thd->open_tables= 0;
+  thd->set_open_tables(NULL);
   thd->lock= 0;
   thd->free_list= 0;
   thd->change_list.empty();
@@ -436,7 +436,7 @@ Sensitive_cursor::fetch(ulong num_rows)
               thd->lock == 0);
 
   thd->derived_tables= derived_tables;
-  thd->open_tables= open_tables;
+  thd->set_open_tables(open_tables);
   thd->lock= lock;
   thd->set_query_id(query_id);
   change_list.move_elements_to(&thd->change_list);
@@ -519,14 +519,14 @@ Sensitive_cursor::close()
     TABLE *tmp_derived_tables= thd->derived_tables;
     MYSQL_LOCK *tmp_lock= thd->lock;
 
-    thd->open_tables= open_tables;
+    thd->set_open_tables(open_tables);
     thd->derived_tables= derived_tables;
     thd->lock= lock;
 
     /* Is expected to at least close tables and empty thd->change_list */
     stmt_arena->cleanup_stmt();
 
-    thd->open_tables= tmp_derived_tables;
+    thd->set_open_tables(tmp_derived_tables);
     thd->derived_tables= tmp_derived_tables;
     thd->lock= tmp_lock;
   }

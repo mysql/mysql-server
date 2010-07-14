@@ -814,16 +814,16 @@ select @@lc_time_names;
 @@lc_time_names
 en_US
 LC_TIME_NAMES: testing locale with the last ID:
-set lc_time_names=109;
-select @@lc_time_names;
-@@lc_time_names
-el_GR
-LC_TIME_NAMES: testing a number beyond the valid ID range:
 set lc_time_names=110;
-ERROR HY000: Unknown locale: '110'
 select @@lc_time_names;
 @@lc_time_names
-el_GR
+rm_CH
+LC_TIME_NAMES: testing a number beyond the valid ID range:
+set lc_time_names=111;
+ERROR HY000: Unknown locale: '111'
+select @@lc_time_names;
+@@lc_time_names
+rm_CH
 LC_TIME_NAMES: testing that 0 is en_US:
 set lc_time_names=0;
 select @@lc_time_names;
