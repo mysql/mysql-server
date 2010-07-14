@@ -229,6 +229,7 @@ void Dbtup::copyProcedure(Signal* signal,
   handle.m_cnt=1;
   handle.m_ptr[0].i= cCopyProcedure;
   getSections(handle.m_cnt, handle.m_ptr);
+  regOperPtr->m_any_value = signal->theData[4];
 
   scanProcedure(signal,
                 regOperPtr,

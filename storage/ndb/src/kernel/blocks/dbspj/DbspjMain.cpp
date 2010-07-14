@@ -4462,7 +4462,8 @@ Dbspj::scanIndex_send(Signal* signal,
   ScanFragReq* req = reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   memcpy(req, org, sizeof(data.m_scanFragReq));
   req->variableData[0] = requestPtr.p->m_rootResultData;
-  req->variableData[1] = treeNodePtr.p->m_send.m_correlation;
+  //req->variableData[1] = treeNodePtr.p->m_send.m_correlation;
+  ndbassert((treeNodePtr.p->m_send.m_correlation & 0xff00) == 0);
   req->batch_size_bytes = bs_bytes;
   req->batch_size_rows = bs_rows;
 
@@ -4486,7 +4487,7 @@ Dbspj::scanIndex_send(Signal* signal,
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
     jam();
-
+    req->variableData[1] = (i << 8) | treeNodePtr.p->m_send.m_correlation;
     SectionHandle handle(this);
 
     Uint32 ref = fragPtr.p->m_ref;
@@ -4574,7 +4575,7 @@ Dbspj::scanIndex_send(Signal* signal,
     jam();
     return;
   }
-
+  
   requestPtr.p->m_cnt_active ++;
   requestPtr.p->m_outstanding++;
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
@@ -5045,6 +5046,7 @@ Dbspj::getCorrelationData(const RowPtr::Section & row,
   ndbrequire(len == 2);
   ndbrequire(reader.getWord(&rootStreamId));
   ndbrequire(reader.getWord(&correlationNumber));
+  //ndbassert((correlationNumber & 0xff00) == 0);
 }
 
 void
@@ -5062,6 +5064,7 @@ Dbspj::getCorrelationData(const RowPtr::Linear & row,
   ndbrequire(len == 2);
   rootStreamId = row.m_data[offset+1];
   correlationNumber = row.m_data[offset+2];
+  //ndbassert((correlationNumber & 0xff00) == 0);
 }
 
 Uint32

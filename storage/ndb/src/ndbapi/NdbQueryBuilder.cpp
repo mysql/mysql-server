@@ -1724,13 +1724,18 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
 void NdbQueryOperationDefImpl::markScanAncestors()
 {
   NdbQueryOperationDefImpl* operation = this;
-  while (operation != NULL && !operation->isScanOperation())
+  do
   {
     // FIXME: Set an error code instead.
     assert(!operation->m_hasScanDescendant);
     operation->m_hasScanDescendant = true;
+    if (operation->getNoOfParentOperations() == 0)
+    {
+      break;
+    }
     operation = &operation->getParentOperation(0);
   }
+  while (!operation->isScanOperation());
 }
 
 /** This class is used for serializing sequences of 16 bit integers,
@@ -2249,10 +2254,7 @@ NdbQueryScanOperationDefImpl::NdbQueryScanOperationDefImpl (
                            Uint32      ix)
   : NdbQueryOperationDefImpl(table,options,ident,ix)
 {
-  if (getNoOfParentOperations() > 0)
-  {
-    getParentOperation(0).markScanAncestors();
-  }
+  markScanAncestors();
 }
 
 int
