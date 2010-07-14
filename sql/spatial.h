@@ -16,8 +16,6 @@
 #ifndef _spatial_h
 #define _spatial_h
 
-#include <my_compiler.h>
-
 #ifdef HAVE_SPATIAL
 
 const uint SRID_SIZE= 4;
