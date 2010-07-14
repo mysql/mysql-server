@@ -281,11 +281,17 @@ public:
     bool lowIncl, highIncl;
   };
 
+  /* Currently only a single parent is supported */
   Uint32 getNoOfParentOperations() const
-  { return m_parents.size(); }
+  { return (m_parent) ? 1 : 0; }
 
   const NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
-  { return *m_parents[i]; }
+  { assert(i==0 && m_parent!=NULL);
+    return *m_parent;
+  }
+  const NdbQueryOperationDefImpl* getParentOperation() const
+  { return m_parent;
+  }
 
   Uint32 getNoOfChildOperations() const
   { return m_children.size(); }
@@ -424,9 +430,9 @@ private:
   // - Match type used for hinting on optimal inner-, outer-, semijoin exec.
   const NdbQueryOptionsImpl m_options;
 
-  // parent / child vectors contains dependencies as defined
-  // with linkedValues
-  Vector<NdbQueryOperationDefImpl*> m_parents;
+  // parent pointer & child ptr. vector contains dependencies 
+  // as defined with linkedValues
+  NdbQueryOperationDefImpl* m_parent;
   Vector<NdbQueryOperationDefImpl*> m_children;
 
   // Params required by this operation
