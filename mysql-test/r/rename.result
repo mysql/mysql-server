@@ -55,14 +55,15 @@ t2
 t4
 drop table t2, t4;
 End of 4.1 tests
+#
+# Bug#14959: "ALTER TABLE isn't able to rename a view"
+# Bug#53976: "ALTER TABLE RENAME is allowed on views
+#             (not documented, broken)"
+#
 create table t1(f1 int);
 create view v1 as select * from t1;
 alter table v1 rename to v2;
-alter table v1 rename to v2;
-ERROR 42S02: Table 'test.v1' doesn't exist
-rename table v2 to v1;
-rename table v2 to v1;
-ERROR 42S01: Table 'v1' already exists
+ERROR HY000: 'test.v1' is not BASE TABLE
 drop view v1;
 drop table t1;
 End of 5.0 tests
