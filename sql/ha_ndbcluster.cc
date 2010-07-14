@@ -13946,13 +13946,13 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_TOTAL_EXTENTS]->store(df.getSize()
                                                   / ts.getExtentSize(), true);
       table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-      table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+      table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize(), true);
       table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
       table->field[IS_FILES_INITIAL_SIZE]->store(df.getSize(), true);
       table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
       table->field[IS_FILES_MAXIMUM_SIZE]->store(df.getSize(), true);
       table->field[IS_FILES_VERSION]->set_notnull();
-      table->field[IS_FILES_VERSION]->store(df.getObjectVersion());
+      table->field[IS_FILES_VERSION]->store(df.getObjectVersion(), true);
 
       table->field[IS_FILES_ROW_FORMAT]->set_notnull();
       table->field[IS_FILES_ROW_FORMAT]->store("FIXED", 5, system_charset_info);
@@ -14005,10 +14005,10 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                          system_charset_info);
 
     table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize(), true);
 
     table->field[IS_FILES_VERSION]->set_notnull();
-    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion());
+    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion(), true);
 
     schema_table_store_record(thd, table);
   }
@@ -14063,7 +14063,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                                   strlen(uf.getLogfileGroup()),
                                                        system_charset_info);
       table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
-      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(objid.getObjectId());
+      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(objid.getObjectId(), true);
       table->field[IS_FILES_ENGINE]->set_notnull();
       table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
                                            ndbcluster_hton_name_length,
@@ -14072,7 +14072,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
       table->field[IS_FILES_TOTAL_EXTENTS]->store(uf.getSize()/4, true);
       table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-      table->field[IS_FILES_EXTENT_SIZE]->store(4);
+      table->field[IS_FILES_EXTENT_SIZE]->store(4, true);
 
       table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
       table->field[IS_FILES_INITIAL_SIZE]->store(uf.getSize(), true);
@@ -14080,7 +14080,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_MAXIMUM_SIZE]->store(uf.getSize(), true);
 
       table->field[IS_FILES_VERSION]->set_notnull();
-      table->field[IS_FILES_VERSION]->store(uf.getObjectVersion());
+      table->field[IS_FILES_VERSION]->store(uf.getObjectVersion(), true);
 
       char extra[100];
       int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",
@@ -14121,7 +14121,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                                      strlen(elt.name),
                                                      system_charset_info);
     table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
-    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(lfg.getObjectId());
+    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(lfg.getObjectId(), true);
     table->field[IS_FILES_ENGINE]->set_notnull();
     table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
                                          ndbcluster_hton_name_length,
@@ -14130,10 +14130,10 @@ static int ndbcluster_fill_files_table(handlerton *hton,
     table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
     table->field[IS_FILES_FREE_EXTENTS]->store(lfg.getUndoFreeWords(), true);
     table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-    table->field[IS_FILES_EXTENT_SIZE]->store(4);
+    table->field[IS_FILES_EXTENT_SIZE]->store(4, true);
 
     table->field[IS_FILES_VERSION]->set_notnull();
-    table->field[IS_FILES_VERSION]->store(lfg.getObjectVersion());
+    table->field[IS_FILES_VERSION]->store(lfg.getObjectVersion(), true);
 
     char extra[100];
     int len= my_snprintf(extra,sizeof(extra),
