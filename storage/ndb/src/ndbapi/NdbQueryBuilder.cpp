@@ -1613,7 +1613,7 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
    m_ident(ident), 
    m_ix(ix), m_id(ix),
    m_options(options),
-   m_parents(), 
+   m_parent(NULL), 
    m_children(), 
    m_params(),
    m_spjProjection() 
@@ -1646,8 +1646,8 @@ NdbQueryOperationDefImpl::removeChild(const NdbQueryOperationDefImpl* childOp)
 bool
 NdbQueryOperationDefImpl::isChildOf(const NdbQueryOperationDefImpl* parentOp) const
 {
-  for (Uint32 i=0; i<m_parents.size(); ++i)
-  { if (this->m_parents[i] == parentOp)
+  if (m_parent != NULL)
+  { if (this->m_parent == parentOp)
     {
 #ifndef NDEBUG
       // Assert that parentOp also refer 'this' as a child.
@@ -1659,7 +1659,7 @@ NdbQueryOperationDefImpl::isChildOf(const NdbQueryOperationDefImpl* parentOp) co
 #endif
       return true;
     }
-    else if (m_parents[i]->isChildOf(parentOp))
+    else if (m_parent->isChildOf(parentOp))
     {
       return true;
     }
@@ -1676,8 +1676,7 @@ NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
     return 0;
   }
 
-  assert (m_parents.size() <= 1);
-  if (m_parents.size() > 0)
+  if (m_parent != NULL)
   {
     /**
      * Multiple parental relationship not allowed.
@@ -1686,19 +1685,17 @@ NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
      * This can be resolved if existing parent actually was a grandparent.
      * Then register new parentOp as the real parrent.
      */
-    if (parentOp->isChildOf(m_parents[0]))
+    if (parentOp->isChildOf(m_parent))
     { // Remove existing grandparent linkage being replaced by parentOp.
-      m_parents[0]->removeChild(this);
-      m_parents.erase(0);
+      m_parent->removeChild(this);
+      m_parent = NULL;
     }
     else
     { // This is a real multiparent error.
       return QRY_MULTIPLE_PARENTS;
     }
   }
-  m_parents.push_back(parentOp);
-  assert (m_parents.size() <= 1);
-
+  m_parent = parentOp;
   parentOp->addChild(this);
   return 0;
 }
@@ -1787,16 +1784,13 @@ private:
 void
 NdbQueryOperationDefImpl::appendParentList(Uint32Buffer& serializedDef) const
 {
-  Uint16Sequence parentSeq(serializedDef, getNoOfParentOperations());
-  // Multiple parents not yet supported.
-  assert(getNoOfParentOperations()==1);
-  for (Uint32 i = 0; 
-      i < getNoOfParentOperations(); 
-      i++){
-    assert (getParentOperation(i).getQueryOperationId() < getQueryOperationId());
-    parentSeq.append(getParentOperation(i).getQueryOperationId());
+  if (getParentOperation() != NULL)
+  {
+    Uint16Sequence parentSeq(serializedDef, 1);
+    assert (getParentOperation()->getQueryOperationId() < getQueryOperationId());
+    parentSeq.append(getParentOperation()->getQueryOperationId());
+    parentSeq.finish();
   }
-  parentSeq.finish();
 }
 
 Uint32
@@ -1817,7 +1811,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
       {
         appendedPattern |= DABits::NI_KEY_LINKED;
         const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(key);
-        const NdbQueryOperationDefImpl* parent = &getParentOperation(0);
+        const NdbQueryOperationDefImpl* parent = getParentOperation();
         uint32 levels = 0;
         while (parent != &linkedOp.getParentOperation())
         {
@@ -1825,8 +1819,8 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
             levels+=2;
           else
             levels+=1;
-          assert(parent->getNoOfParentOperations() > 0);
-          parent = &parent->getParentOperation(0);
+          parent = parent->getParentOperation();
+          assert(parent != NULL);
         }
         if (levels > 0)
         {
