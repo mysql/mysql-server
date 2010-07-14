@@ -73,6 +73,7 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
                sql_signal.cc mdl.cc
+               sql_alloc_error_handler.cc
                transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
