@@ -918,80 +918,36 @@ static int my_strnncollsp_big5(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
-                               uchar *dest, size_t len, 
-                               const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_big5(CHARSET_INFO *cs,
+                 uchar *dst, size_t dstlen, uint nweights,
+                 const uchar *src, size_t srclen, uint flags)
 {
-  uint16 e;
-  size_t dstlen= len;
-  uchar *dest_end= dest + dstlen;
-
-  len = srclen;
-  while (len-- && dest < dest_end)
+  uchar *d0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  const uchar *sort_order= cs->sort_order;
+  
+  for (; dst < de && src < se && nweights; nweights--)
   {
-    if ((len > 0) && isbig5code(*src, *(src+1)))
+    if (cs->cset->ismbchar(cs, (const char*) src, (const char*) se))
     {
-      e = big5strokexfrm((uint16) big5code(*src, *(src+1)));
-      *dest++ = big5head(e);
-      if (dest < dest_end)
-        *dest++ = big5tail(e);
-      src +=2;
-      len--;
-    } else
-      *dest++ = sort_order_big5[(uchar) *src++];
+      /*
+        Note, it is safe not to check (src < se)
+        in the code below, because ismbchar() would
+        not return TRUE if src was too short
+      */
+      uint16 e= big5strokexfrm((uint16) big5code(*src, *(src + 1)));
+      *dst++= big5head(e);
+      if (dst < de)
+        *dst++= big5tail(e);
+      src+= 2;
+    }
+    else
+      *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-  if (dstlen > srclen)
-    bfill(dest, dstlen - srclen, ' ');
-  return dstlen;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
-
-#if 0
-static int my_strcoll_big5(const uchar *s1, const uchar *s2)
-{
-
-  while (*s1 && *s2)
-  {
-    if (*(s1+1) && *(s2+1) && isbig5code(*s1,*(s1+1)) && isbig5code(*s2, *(s2+1)))
-    {
-      if (*s1 != *s2 || *(s1+1) != *(s2+1))
-	return ((int) big5code(*s1,*(s1+1)) -
-		(int) big5code(*s2,*(s2+1)));
-      s1 +=2;
-      s2 +=2;
-    } else if (sort_order_big5[(uchar) *s1++] != sort_order_big5[(uchar) *s2++])
-      return ((int) sort_order_big5[(uchar) s1[-1]] -
-	      (int) sort_order_big5[(uchar) s2[-1]]);
-  }
-  return 0;
-}
-
-static int my_strxfrm_big5(uchar *dest, const uchar *src, int len)
-{
-  uint16 e;
-  uchar *d = dest;
-
-  if (len < 1) return 0;
-  if (!*src)
-  {
-    *d = '\0';
-    return 0;
-  }
-  while (*src && (len > 1))
-  {
-    if (*(src+1) && isbig5code(*src, *(src+1)))
-    {
-      e = big5strokexfrm((uint16) big5code(*src, *(src+1)));
-      *d++ = big5head(e);
-      *d++ = big5tail(e);
-      src +=2;
-      len--;
-    } else
-      *d++ = sort_order_big5[(uchar) *src++];
-  }
-  *d = '\0';
-  return (int) (d-dest);
-}
-#endif
 
 
 /*
@@ -7022,6 +6978,8 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
     &my_collation_big5_chinese_ci_handler
 };
@@ -7055,6 +7013,8 @@ CHARSET_INFO my_charset_big5_bin=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
     &my_collation_mb_bin_handler
 };

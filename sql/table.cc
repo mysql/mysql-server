@@ -2770,9 +2770,10 @@ bool check_db_name(LEX_STRING *org_name)
   returns 1 on error
 */
 
-bool check_table_name(const char *name, uint length, bool check_for_path_chars)
+bool check_table_name(const char *name, size_t length, bool check_for_path_chars)
 {
-  uint name_length= 0;  // name length in symbols
+  // name length in symbols
+  size_t name_length= 0;
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
@@ -2805,18 +2806,19 @@ bool check_table_name(const char *name, uint length, bool check_for_path_chars)
     name_length++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-  return (last_char_is_space || name_length > NAME_CHAR_LEN) ;
+  return last_char_is_space || (name_length > NAME_CHAR_LEN);
 #else
-  return 0;
+  return FALSE;
 #endif
 }
 
 
 bool check_column_name(const char *name)
 {
-  uint name_length= 0;  // name length in symbols
+  // name length in symbols
+  size_t name_length= 0;
   bool last_char_is_space= TRUE;
-  
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -2841,7 +2843,7 @@ bool check_column_name(const char *name)
     name_length++;
   }
   /* Error if empty or too long column name */
-  return last_char_is_space || (uint) name_length > NAME_CHAR_LEN;
+  return last_char_is_space || (name_length > NAME_CHAR_LEN);
 }
 
 
@@ -4677,13 +4679,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
          parent_embedding->nested_join->join_list.head() == embedded);
 
   mdl_request.ticket= NULL;
-  /*
-    Since we manipulate with the metadata lock type in open_table(),
-    we need to reset it to the parser default, to restore things back
-    to first-execution state.
-  */
-  mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ);
 }
 
 /*

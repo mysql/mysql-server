@@ -20,7 +20,7 @@
 
 #include "mysql.h"
 #include "my_sys.h"
-#include "slave.h"
+#include "rpl_slave.h"
 
 typedef enum {RPL_AUTH_MASTER=0,RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE,
 	      RPL_LOST_SOLDIER,RPL_TROOP_SOLDIER,

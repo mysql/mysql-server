@@ -1215,18 +1215,23 @@ lock table t2 write;
 # Sending 'insert into t1 (a) values (f1())'...
 insert into t1 (a) values (f1());
 # Waitng for 'insert into t1 ...' to get blocked on table lock...
-# Sending 'drop function f1'. It will abort the table lock wait.
-drop function f1;
+# Sending 'drop function f1'. It will wait till insert finishes.
+drop function f1;;
 # --> connection default
+# Check that 'drop function f1' gets blocked.
 # Now let's let 'insert' go through...
 unlock tables;
-# --> connection con1
+# --> connection master
 # Reaping 'insert into t1 (a) values (f1())'...
-ERROR 42000: FUNCTION test.f1 does not exist
+# --> connection master1
+# Reaping 'drop function f1'
+# --> connection master
 select * from t1;
 a
+1
 select * from  t1;
 a
+1
 drop table t1, t2;
 drop function f1;
 ERROR 42000: FUNCTION test.f1 does not exist
