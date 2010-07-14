@@ -20,6 +20,7 @@
 #include "sql_plist.h"
 #include "sql_list.h"                           /* Sql_alloc */
 #include "mdl.h"
+#include "datadict.h"
 
 #ifndef MYSQL_CLIENT
 
@@ -305,14 +306,6 @@ enum tmp_table_type
   NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
 };
-
-enum frm_type_enum
-{
-  FRMTYPE_ERROR= 0,
-  FRMTYPE_TABLE,
-  FRMTYPE_VIEW
-};
-
 enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
 typedef struct st_filesort_info
@@ -580,9 +573,7 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
-  ulong   raid_chunksize;
   ulong   version, mysql_version;
-  ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
   plugin_ref db_plugin;			/* storage engine plugin */
@@ -593,11 +584,8 @@ struct TABLE_SHARE
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
-  enum enum_ha_unused unused1;
-  enum enum_ha_unused unused2;
 
   uint ref_count;                       /* How many TABLE objects uses this */
-  uint open_count;			/* Number of tables in open list */
   uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
@@ -613,7 +601,6 @@ struct TABLE_SHARE
   uint db_create_options;		/* Create options from database */
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
-  uint raid_type, raid_chunks;
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
   /* Index of auto-updated TIMESTAMP field in field array */
   uint primary_key;
@@ -747,7 +734,7 @@ struct TABLE_SHARE
   /*
     Must all TABLEs be reopened?
   */
-  inline bool needs_reopen()
+  inline bool needs_reopen() const
   {
     return version != refresh_version;
   }
@@ -1600,20 +1587,21 @@ struct TABLE_LIST
     OPEN_STUB
   } open_strategy;
   /**
-    Indicates the locking strategy for the object being opened:
-    whether the associated metadata lock is shared or exclusive.
+    Indicates the locking strategy for the object being opened.
   */
   enum
   {
-    /* Take a shared metadata lock before the object is opened. */
-    SHARED_MDL= 0,
     /*
-       Take a exclusive metadata lock before the object is opened.
-       If opening is successful, downgrade to a shared lock.
+      Take metadata lock specified by 'mdl_request' member before
+      the object is opened. Do nothing after that.
     */
-    EXCLUSIVE_DOWNGRADABLE_MDL,
-    /* Take a exclusive metadata lock before the object is opened. */
-    EXCLUSIVE_MDL
+    OTLS_NONE= 0,
+    /*
+      Take (exclusive) metadata lock specified by 'mdl_request' member
+      before object is opened. If opening is successful, downgrade to
+      a shared lock.
+    */
+    OTLS_DOWNGRADE_IF_EXISTS
   } lock_strategy;
   /* For transactional locking. */
   int           lock_timeout;           /* NOWAIT or WAIT [X]               */
@@ -2039,7 +2027,7 @@ void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 bool check_and_convert_db_name(LEX_STRING *db, bool preserve_lettercase);
 bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
-bool check_table_name(const char *name, uint length, bool check_for_path_chars);
+bool check_table_name(const char *name, size_t length, bool check_for_path_chars);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);

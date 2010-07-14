@@ -41,6 +41,12 @@ our $opt_with_ndbcluster_only;
 our $defaults_file;
 our $defaults_extra_file;
 our $quick_collect;
+# Set to 1 if you want the tests to override
+# default storage engine settings, and use MyISAM
+# as default.  (temporary option used in connection
+# with the change of default storage engine to InnoDB)
+our $default_myisam= 1;
+ 
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -591,6 +597,9 @@ sub optimize_cases {
       my $default_engine=
 	mtr_match_prefix($opt, "--default-storage-engine=");
 
+      # Allow use of uppercase, convert to all lower case
+      $default_engine =~ tr/A-Z/a-z/;
+
       if (defined $default_engine){
 
 	#print " $tinfo->{name}\n";
@@ -948,10 +957,12 @@ sub collect_one_test_case {
       return $tinfo unless $do_innodb_plugin;
     }
   }
-  else
+  elsif ($default_myisam)
   {
-    push(@{$tinfo->{'master_opt'}}, "--loose-skip-innodb");
-    push(@{$tinfo->{'slave_opt'}}, "--loose-skip-innodb");
+    # This is a temporary fix to allow non-innodb tests to run even if
+    # the default storage engine is innodb.
+    push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
+    push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
   }
 
   if ( $tinfo->{'need_binlog'} )
