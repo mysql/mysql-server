@@ -698,7 +698,7 @@ typedef unsigned short ushort;
 #define my_const_cast(A) (A)
 #endif
 
-#include <my_attribute.h>
+#include <my_compiler.h>
 
 /*
   Wen using the embedded library, users might run into link problems,
