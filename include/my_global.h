@@ -1083,20 +1083,6 @@ typedef long long	my_ptrdiff_t;
 #define ADD_TO_PTR(ptr,size,type) (type) ((uchar*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((uchar*) (A) - (uchar*) (B))
 
-#define MY_DIV_UP(A, B) (((A) + (B) - 1) / (B))
-#define MY_ALIGNED_BYTE_ARRAY(N, S, T) T N[MY_DIV_UP(S, sizeof(T))]
-
-#ifdef __cplusplus
-template <size_t sz> struct Aligned_char_array
-{
-  union {
-    void *v;                                    // Ensures alignment.
-    char arr[sz];                               // The actual buffer.
-  } u;
-  void* arr() { return &u.arr[0]; }
-};
-#endif  /* __cplusplus  */
-
 /*
   Custom version of standard offsetof() macro which can be used to get
   offsets of members in class for non-POD types (according to the current
