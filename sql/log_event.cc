@@ -126,6 +126,36 @@ static const char *HA_ERR(int i)
 }
 
 /**
+  Delay to delete the Rows_query log event until all its rows event are applied
+
+  @param ev    log event should be deleted
+  @param rli   Relay_log_info structure for the slave IO thread.
+*/
+void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli)
+{
+  DBUG_ENTER("handle_rows_query_log_event");
+  Log_event_type ev_type= ev->get_type_code();
+
+  /* Delete the Rows_query log event after its last rows event are applied */
+  if ((ev_type == WRITE_ROWS_EVENT || ev_type == DELETE_ROWS_EVENT ||
+       ev_type == UPDATE_ROWS_EVENT) && rli->rows_query_ev != NULL &&
+      ((Rows_log_event*) ev)->get_flags(Rows_log_event::STMT_END_F))
+  {
+    delete rli->rows_query_ev;
+    rli->rows_query_ev= NULL;
+  }
+
+  /* Record the Rows_query log event until all its rows event are applied */
+  if (ev_type == ROWS_QUERY_LOG_EVENT)
+  {
+    DBUG_ASSERT(rli->rows_query_ev == NULL);
+    rli->rows_query_ev= (Rows_query_log_event*) ev;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+/**
    Error reporting facility for Rows_log_event::do_apply_event
 
    @param level     error, warning or info
@@ -9750,8 +9780,14 @@ Rows_query_log_event::~Rows_query_log_event()
 #ifndef MYSQL_CLIENT
 void Rows_query_log_event::pack_info(Protocol *protocol)
 {
-  protocol->store(m_rows_query, (uint) strlen(m_rows_query),
-                  &my_charset_bin);
+  char *buf;
+  size_t bytes;
+  ulong len= sizeof("# ") + (ulong) strlen(m_rows_query);
+  if (!(buf= (char*) my_malloc(len, MYF(MY_WME))))
+    return;
+  bytes= my_snprintf(buf, len, "# %s", m_rows_query);
+  protocol->store(buf, bytes, &my_charset_bin);
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif
 
@@ -9766,7 +9802,7 @@ Rows_query_log_event::print(FILE *file,
   Write_on_release_cache cache(&print_event_info->head_cache, file);
   print_header(&cache, print_event_info, FALSE);
   my_b_printf(&cache, "\tRows_query\n");
-  my_b_printf(&cache, "%s\n", m_rows_query);
+  my_b_printf(&cache, "# %s\n", m_rows_query);
 
   IO_CACHE *const body= &print_event_info->body_cache;
   print_base64(body, print_event_info, true);
@@ -9779,6 +9815,17 @@ Rows_query_log_event::write_data_body(IO_CACHE *file)
   DBUG_ENTER("Rows_query_log_event::write_data_body");
   DBUG_RETURN(write_str(file, m_rows_query, (uint) strlen(m_rows_query)));
 }
+
+#ifndef MYSQL_CLIENT
+int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
+{
+  DBUG_ENTER("Rows_query_log_event::do_apply_event");
+  DBUG_ASSERT(rli->sql_thd == thd);
+  /* Set query for writing Rows_query log event into binlog later.*/
+  thd->set_query(m_rows_query, (uint32) strlen(m_rows_query));
+  DBUG_RETURN(0);
+}
+#endif /* !MYSQL_CLIENT */
 
 
 #ifdef MYSQL_CLIENT

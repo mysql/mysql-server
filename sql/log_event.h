@@ -4105,10 +4105,9 @@ public:
     : Ignorable_log_event(thd_arg)
   {
     DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
-    ulong len= sizeof("# ") + query_len + 1;
-    if (!(m_rows_query= (char*) my_malloc(len, MYF(MY_WME))))
+    if (!(m_rows_query= (char*) my_malloc(query_len + 1, MYF(MY_WME))))
       return;
-    my_snprintf(m_rows_query, len, "# %s", query);
+    my_snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));
     DBUG_VOID_RETURN;
   }
@@ -4136,6 +4135,9 @@ public:
   }
 
 private:
+#if !defined(MYSQL_CLIENT)
+  virtual int do_apply_event(Relay_log_info const* rli);
+#endif
 
   char * m_rows_query;
 };
@@ -4189,6 +4191,7 @@ private:
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool sqlcom_can_generate_row_events(const THD *thd);
+void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli);
 
 /**
   @} (end of group Replication)

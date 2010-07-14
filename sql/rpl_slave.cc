@@ -2740,8 +2740,15 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     */
     if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
     {
+      if (thd->variables.binlog_rows_query_log_events)
+        handle_rows_query_log_event(ev, rli);
+
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
-      delete ev;
+      if (ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+      {
+        delete ev;
+        ev= NULL;
+      }
     }
 
     /*

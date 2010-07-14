@@ -47,7 +47,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    tables_to_lock(0), tables_to_lock_count(0),
    last_event_start_time(0),
    sql_delay(0), sql_delay_end(0),
-   m_flags(0)
+   m_flags(0), rows_query_ev(NULL)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -1290,6 +1290,11 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   {
     trans_rollback_stmt(thd); // if a "statement transaction"
     trans_rollback(thd);      // if a "real transaction"
+    if (rows_query_ev)
+    {
+      delete rows_query_ev;
+      rows_query_ev= NULL;
+    }
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
