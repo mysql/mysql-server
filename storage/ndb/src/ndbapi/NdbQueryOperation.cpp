@@ -466,6 +466,11 @@ NdbResultStream::setParentChildMap(Uint16 parentId,
                                    Uint16 tupleNo)
 {
   assert (m_operation.getQueryDef().isScanQuery());
+  for (Uint32 i = 0; i < tupleNo; i++)
+  {
+    // Check that tuple id is unique.
+    assert (m_tupleSet[i].m_tupleId != tupleId); 
+  }
   m_tupleSet[tupleNo].m_parentId = parentId;
   m_tupleSet[tupleNo].m_tupleId  = tupleId;
 

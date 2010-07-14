@@ -10234,7 +10234,11 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     const Uint32 rangeLen= (firstWord >> 16) ? (firstWord >> 16) : totalLen;
     tcPtrP->m_scan_curr_range_no= (firstWord & 0xFFF0) >> 4;
     tcPtrP->m_anyValue = ((firstWord & 0xFFF0) >> 4) << 16;
-    
+    ndbassert(getOwnNodeId() < 0x100);
+    tcPtrP->m_anyValue |= getOwnNodeId() << 8;
+    hex(ndbout);
+    DEBUG("Setting tcPtrP->m_anyValue to :" << tcPtrP->m_anyValue << endl);
+    dec(ndbout);
     firstWord &= 0xF; // Remove length+range num from first word
     
     /* Write range info to dst */
@@ -10629,7 +10633,9 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   /* No AttrInfo sent to TUP, it uses a stored procedure */
   tupKeyReq->attrInfoIVal= RNIL;
   tupKeyReq->rootStreamId = regTcPtr->m_rootStreamId;
+  //ndbassert(regTcPtr->m_anyValue+scanPtr.p->m_curr_batch_size_rows < 0x100);
   tupKeyReq->anyValue = regTcPtr->m_anyValue+scanPtr.p->m_curr_batch_size_rows;
+    // | (getOwnNodeId() << 8);
   Uint32 blockNo = refToMain(regTcPtr->tcTupBlockref);
   EXECUTE_DIRECT(blockNo, GSN_TUPKEYREQ, signal, 
 		 TupKeyReq::SignalLength);
@@ -11798,6 +11804,7 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
   signal->theData[1] = tcConnectptr.p->tableref;
   signal->theData[2] = scanptr.p->scanSchemaVersion;
   signal->theData[3] = ZSTORED_PROC_COPY;
+  signal->theData[4] = tcConnectptr.p->m_anyValue;
 // theData[4] is not used in TUP with ZSTORED_PROC_COPY
   sendSignal(scanptr.p->scanBlockref, GSN_STORED_PROCREQ, signal, 5, JBB);
   return;
