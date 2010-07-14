@@ -71,6 +71,7 @@
 #include <signaldata/DictLock.hpp>
 #include <DebuggerNames.hpp>
 #include <signaldata/Upgrade.hpp>
+#include <NdbEnv.h>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -13619,14 +13620,31 @@ void Dbdih::initRestartInfo(Signal* signal)
     nodePtr.i = nodePtr.p->nextNode;
   } while (nodePtr.i != RNIL);
 
-  m_micro_gcp.m_old_gci = Uint64(1) << 32;
-  m_micro_gcp.m_current_gci = Uint64(2) << 32;
-  crestartGci = 1;
-  c_newest_restorable_gci = 1;
+  Uint32 startGci = 1;
+#ifndef DBUG_OFF
+  {
+    char envBuf[256];
+    const char* v = NdbEnv_GetEnv("NDB_START_GCI",
+                                  envBuf,
+                                  256);
+    if (v && *v != 0)
+    {
+      startGci = strtoull(v, NULL, 0);
 
-  SYSFILE->keepGCI             = 1;
-  SYSFILE->oldestRestorableGCI = 1;
-  SYSFILE->newestRestorableGCI = 1;
+      ndbout_c("DbDih : Using value of %u from NDB_START_GCI",
+               startGci);
+    }
+  }
+#endif
+
+  m_micro_gcp.m_old_gci = Uint64(startGci) << 32;
+  m_micro_gcp.m_current_gci = Uint64(startGci + 1) << 32;
+  crestartGci = startGci;
+  c_newest_restorable_gci = startGci;
+
+  SYSFILE->keepGCI             = startGci;
+  SYSFILE->oldestRestorableGCI = startGci;
+  SYSFILE->newestRestorableGCI = startGci;
   SYSFILE->systemRestartBits   = 0;
   for (i = 0; i < NdbNodeBitmask::Size; i++) {
     SYSFILE->lcpActive[0]        = 0;
