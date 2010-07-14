@@ -2164,8 +2164,8 @@ row_merge_file_create(
 	/* This temp file open does not go through normal
 	file APIs, add instrumentation to register with
 	performance schema */
-	struct PSI_file_locker* locker = NULL;
-	PSI_file_locker_state state;
+	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 	register_pfs_file_open_begin(&state, locker, innodb_file_temp_key,
 				     PSI_FILE_OPEN,
 				     "Innodb Merge Temp File",
@@ -2188,8 +2188,8 @@ row_merge_file_destroy(
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
 #ifdef UNIV_PFS_IO
-	struct PSI_file_locker* locker = NULL;
-	PSI_file_locker_state state;
+	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
 	register_pfs_file_io_begin(&state, locker, merge_file->fd, 0, PSI_FILE_CLOSE,
 				   __FILE__, __LINE__);
 #endif
