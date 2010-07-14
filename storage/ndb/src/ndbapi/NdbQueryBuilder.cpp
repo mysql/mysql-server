@@ -872,30 +872,32 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     return NULL;
   }
 
+  // Bind lowKeys, and if applicable, highKeys to the column being refered
   Uint32 i;
   for (i=0; i<op->m_bound.lowKeys; ++i)
   {
     const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
-    assert (op->m_bound.low[i]);
-    int error = op->m_bound.low[i]->bindOperand(col,*op);
+
+    const int error = (i<op->m_bound.highKeys && op->m_bound.high[i]!=op->m_bound.low[i])
+       ? op->m_bound.low[i]->bindOperand(col,*op) || op->m_bound.high[i]->bindOperand(col,*op)
+       : op->m_bound.low[i]->bindOperand(col,*op);
+
     if (unlikely(error))
     { m_pimpl->setErrorCode(error);
       delete op;
       return NULL;
     }
   }
-  if (!op->m_bound.eqBound)
+
+  // Bind any remaining highKeys past '#lowKeys'
+  for (; i<op->m_bound.highKeys; ++i)
   {
-    for (i=0; i<op->m_bound.highKeys; ++i)
-    {
-      const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
-      assert (op->m_bound.high[i]);
-      int error = op->m_bound.high[i]->bindOperand(col,*op);
-      if (unlikely(error))
-      { m_pimpl->setErrorCode(error);
-        delete op;
-        return NULL;
-      }
+    const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
+    const int error = op->m_bound.high[i]->bindOperand(col,*op);
+    if (unlikely(error))
+    { m_pimpl->setErrorCode(error);
+      delete op;
+      return NULL;
     }
   }
 
@@ -1394,12 +1396,10 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 
     m_bound.lowIncl = bound->m_lowInclusive;
     m_bound.highIncl = bound->m_highInclusive;
-    m_bound.eqBound = (bound->m_low==bound->m_high && bound->m_low!=NULL);
   }
   else {
     m_bound.lowKeys = m_bound.highKeys = 0;
     m_bound.lowIncl = m_bound.highIncl = true;
-    m_bound.eqBound = false;
   }
 }
 
@@ -1932,6 +1932,7 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
 {
   Uint32 appendedPattern = 0;
 
+  // Append BoundType as a constant value
   serializedDef.append(QueryPattern::data(1));
   serializedDef.append(type);
 
@@ -1962,26 +1963,27 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
     }
     case NdbQueryOperandImpl::Const:
     {
-      assert(false);  // Untested code.
-                      // We likely have to append an 'AttributeHeader'
-
       appendedPattern |= DABits::NI_KEY_CONSTS;
       const NdbConstOperandImpl& constOp = *static_cast<const NdbConstOperandImpl*>(value);
      
       // No of words needed for storing the constant data.
       const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
-      // Set type and length in words of key pattern field. 
-      serializedDef.append(QueryPattern::data(wordCount));
+
+      // Build the AttributeHeader for const value
+      // (AttributeId is later filled in by SPJ in Dbspj::scanIndex_fixupBound())
+      AttributeHeader ah(0, constOp.getSizeInBytes());
+
+      // Constant is then appended as AttributeHeader + const-value
+      serializedDef.append(QueryPattern::data(1+ah.getDataSize()));
+      serializedDef.append(ah.m_value);
       serializedDef.append(constOp.getAddr(),constOp.getSizeInBytes());
       break;
     }
     case NdbQueryOperandImpl::Param:
     {
-      assert(false);  // Untested code.
-                      // We likely have to append an 'AttributeHeader'
-
       appendedPattern |= DABits::NI_KEY_PARAMS;
-      serializedDef.append(QueryPattern::param(paramCnt++));
+//    serializedDef.append(QueryPattern::param(paramCnt++));
+      serializedDef.append(QueryPattern::paramHeader(paramCnt++));
       break;
     }
     default:
@@ -2023,7 +2025,9 @@ NdbQueryIndexScanOperationDefImpl::appendBoundPattern(Uint32Buffer& serializedDe
       NdbIndexScanOperation::BoundType bound_type;
 
       /* If upper and lower limits are equal, a single BoundEQ is sufficient */
-      if (m_bound.low[keyNo] == m_bound.high[keyNo])
+      if (keyNo < m_bound.lowKeys  &&
+          keyNo < m_bound.highKeys &&
+          m_bound.low[keyNo] == m_bound.high[keyNo])
       {
         /* Inclusive if defined, or matching rows can include this value */
         bound_type= NdbIndexScanOperation::BoundEQ;

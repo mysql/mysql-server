@@ -639,11 +639,12 @@ private:
   Field* m_referred_fields[MAX_REFERRED_FIELDS];
 }; // class ndb_pushed_join
 
-const char* get_referred_field_name(const Item_field* field_item){
+
+static const char* get_referred_field_name(const Item_field* field_item){
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->field_name;
 }
-const char* get_referred_table_access_name(const Item_field* field_item){
+static const char* get_referred_table_access_name(const Item_field* field_item){
   DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->table->alias;
 }
@@ -671,7 +672,7 @@ ndb_pushed_builder_ctx::add_pushed(
   {
     m_tables[table_no].m_ancestors.clear_all();
   }
-}
+} // ndb_pushed_builder_ctx::add_pushed
 
 /**
  *  get_referred_table_access()
@@ -693,7 +694,7 @@ ndb_pushed_builder_ctx::get_referred_table_access(const ndb_table_access_map& fi
     }
   }
   return NULL;
-}
+} // ndb_pushed_builder_ctx::get_referred_table_access
 
 /**
  *  add_parent_candidate()
@@ -736,7 +737,7 @@ ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
       }
     }
   }
-}
+} // ndb_pushed_builder_ctx::add_parent_candidate
 
 
 /***************************************************************
@@ -747,9 +748,9 @@ ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
  *
  * To be considdered pushable the child operation should:
  *
- *  1) Have an EQ_REF to the previous parent operations.
+ *  1) Have an REF to the previous parent operations.
  *  2) Refer only a single parent, or a grandparent reachable through 
- *     a single parent common to all key fields in the 'EQ_REF'
+ *     a single parent common to all key fields in the 'REF'
  *
  * In order to increase pushability we use the COND_EQUAL sets 
  * to resolve cases (2) above) where multiple parents are refered.
@@ -770,11 +771,6 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
 
   DBUG_ASSERT (join_root() < table);
 
-  if (table->get_access_type() != AQP::AT_PRIMARY_KEY &&
-      table->get_access_type() != AQP::AT_UNIQUE_KEY  &&
-      table->get_access_type() != AQP::AT_ORDERED_INDEX_SCAN)
-    DBUG_RETURN(false);
-
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
   {
     DBUG_PRINT("info", ("  'key_parts >= ndb_pushed_join::MAX_LINKED_KEYS', "
@@ -782,7 +778,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("Table:%d, Checking %d EQ_REF keys", tab_no, 
+  DBUG_PRINT("info", ("Table:%d, Checking %d REF keys", tab_no, 
                       table->get_no_of_key_fields()));
 
   ndb_table_access_map current_parents;
@@ -822,7 +818,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
     if (!key_item_field->field
         ->eq_def(table->get_key_part_info(key_part_no)->field))
     {
-      DBUG_PRINT("info", ("Item_field does not have same definition as EQ_REF'ed key"));
+      DBUG_PRINT("info", ("Item_field does not have same definition as REF'ed key"));
       DBUG_RETURN(false);
     }
 
@@ -933,16 +929,21 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
 
   join_items[table->get_no_of_key_fields()]= NULL;
 
-  if (parents.is_clear_all())
+  if (m_const_scope.contain(current_parents))
+   {
+     // NOTE: This is a constant table in the context of this pushed join.
+     //       It should be relatively simple to extend the SPJ block to 
+     //       allow such tables to be included in the pushed join.
+    DBUG_PRINT("info", ("  Contain only const/param REFs, -> can't append(yet) as 'const' wrt. pushed join:%d\n",tab_no+1));
+    DBUG_RETURN(false);
+  }
+  else if (parents.is_clear_all())
   {
-    // NOTE: This is a constant table in the context of this pushed join.
-    //       It should be relatively simple to extend the SPJ block to 
-    //       allow such tables to be included in the pushed join.
     DBUG_PRINT("info", ("  No common parents, -> can't append table to pushed joins:%d\n",tab_no+1));
     DBUG_RETURN(false);
   }
 
-  DBUG_ASSERT(parents.is_subset(m_join_scope));
+  DBUG_ASSERT(m_join_scope.contain(parents));
 
   /**
    * Parent is selected among the set of 'parents'. To improve
@@ -1030,7 +1031,7 @@ ndb_pushed_builder_ctx::field_ref_is_join_pushable(
   } // substitute
 
   DBUG_RETURN(true);
-} // field_ref_is_join_pushable
+} // ndb_pushed_builder_ctx::field_ref_is_join_pushable
 
 
 /**
@@ -1042,25 +1043,18 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
               const KEY *key_def,
               uint ix_map[])
 {
-  KEY_PART_INFO *key_part;
   uint ix;
 
   if (index.unique_index_attrid_map) // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
   {
-    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    for (ix = 0; ix < key_def->key_parts; ix++)
     {
       ix_map[ix]= index.unique_index_attrid_map[ix];
     }
   }
-  else if (index.type == ORDERED_INDEX)
-  {
-    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
-    {
-      ix_map[ix]= ix;
-    }
-  }
   else  // Primary key does not have a 'unique_index_attrid_map'
   {
+    KEY_PART_INFO *key_part;
     uint key_pos= 0;
     int columnnr= 0;
     assert (index.type == PRIMARY_KEY_ORDERED_INDEX || index.type == PRIMARY_KEY_INDEX);
@@ -1093,6 +1087,12 @@ build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     }
   }
 } // build_key_map
+
+static bool is_lookup_operation(AQP::enum_access_type accessType)
+{
+  return (accessType == AQP::AT_PRIMARY_KEY ||
+          accessType == AQP::AT_UNIQUE_KEY);
+}
 
 int
 ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
@@ -1179,11 +1179,20 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt));
       continue;
     }
+    AQP::enum_access_type child_type= join_tab->get_access_type();
+    if (!(is_lookup_operation(child_type)  ||
+          // Currently there is a limitation in not allowing LOOKUP - (index)SCAN operations
+          (child_type==AQP::AT_ORDERED_INDEX_SCAN && !is_lookup_operation(access_type))))
+    {
+      DBUG_PRINT("info", ("Table %d not a pushable access type", join_cnt));
+      continue;
+    }
     if (!context.field_ref_is_join_pushable(join_tab, join_items, join_parent))
     {
       DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
       continue;
     }
+    ndb_table_access_map parent_map(join_parent);
 
     /**
      * If this is the first child in pushed join we need to define the 
@@ -1268,16 +1277,27 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
                         join_tab->get_no_of_key_fields()));
 
     KEY *key= &handler->table->key_info[join_tab->get_index_no()];
-    KEY_PART_INFO *key_part= key->key_part;
 
     const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
-    build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
-
-    ndb_table_access_map parent_map(join_parent);
 
     uint key_fields= join_tab->get_no_of_key_fields();
     DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
+
+    if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY ||
+        join_tab->get_access_type() == AQP::AT_UNIQUE_KEY)
+    {
+      build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
+    }
+    else
+    {
+      for (uint ix = 0; ix < key_fields; ix++)
+      {
+        map[ix]= ix;
+      }
+    }
+
+    KEY_PART_INFO *key_part= key->key_part;
     for (uint i= 0; i < key_fields; i++, key_part++)
     {
       const Item* item= join_items[i];
@@ -1353,7 +1373,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
     {
       NdbQueryIndexBound bounds(linked_key);
-      query_op= builder.scanIndex(m_index[join_tab->get_index_no()].index, m_table, &bounds, &options);
+      query_op= builder.scanIndex(handler->m_index[join_tab->get_index_no()].index, table, &bounds, &options);
     }
     // Link on primary key or an unique index
     else if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)

@@ -958,6 +958,8 @@ private:
   Uint32 appendToPattern(Local_pattern_store &, DABuffer & tree, Uint32);
   Uint32 appendParamToPattern(Local_pattern_store&,const RowPtr::Linear&,
                               Uint32);
+  Uint32 appendParamHeadToPattern(Local_pattern_store&,const RowPtr::Linear&,
+                                  Uint32);
 
   Uint32 appendTreeToSection(Uint32 & ptrI, SectionReader &, Uint32);
   Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col);

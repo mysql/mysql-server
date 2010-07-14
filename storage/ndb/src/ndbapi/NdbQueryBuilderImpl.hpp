@@ -279,7 +279,6 @@ public:
     NdbQueryOperandImpl* high[MAX_ATTRIBUTES_IN_INDEX];
     Uint32 lowKeys, highKeys;
     bool lowIncl, highIncl;
-    bool eqBound;         // True if 'low == high'
   };
 
   Uint32 getNoOfParentOperations() const
