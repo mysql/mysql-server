@@ -52,7 +52,7 @@ mystringsextra= 	strto.c
 dbugobjects =		dbug.lo
 mysysheaders =		mysys_priv.h my_static.h
 vioheaders =		vio_priv.h
-mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
+mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo \
 			my_create.lo my_delete.lo mf_tempfile.lo my_open.lo \
 			my_file.lo my_read.lo my_write.lo errors.lo \
 			my_error.lo my_getwd.lo my_div.lo \
