@@ -466,6 +466,7 @@ NdbResultStream::setParentChildMap(Uint16 parentId,
                                    Uint16 tupleNo)
 {
   assert (m_operation.getQueryDef().isScanQuery());
+  assert (tupleNo < m_maxRows);
   for (Uint32 i = 0; i < tupleNo; i++)
   {
     // Check that tuple id is unique.
@@ -1897,7 +1898,7 @@ NdbQueryImpl::prepareSend()
     Uint32 batchRows = m_maxBatchRows; // >0: User specified prefered value, ==0: Use default CFG values
 
 #ifdef TEST_SCANREQ
-    batchRows = 1;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
+    batchRows = 2;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
 #endif
 
     // Calculate batchsize for query as minimum batchRows for all m_operations[].
@@ -3704,7 +3705,12 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 
     requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL; // FIXME: SPJ always assume. SIP_PARALLEL
     param->requestInfo = requestInfo; 
-    param->batchSize = 0xffff0100;                       // TODO FIXME (bytes=0xffff, rows=0x100)
+#ifdef TEST_SCANREQ
+    // One tuple per data node (assuming there are two nodes).
+    param->batchSize = 0xffff0002; 
+#else
+    param->batchSize = 0xffff007f;                       // TODO FIXME (bytes=0xffff, rows=0x100)
+#endif
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
   }
@@ -3900,7 +3906,9 @@ NdbQueryOperationImpl::prepareIndexKeyInfo(
     NdbIndexScanOperation::BoundType bound_type;
 
     /* If upper and lower limit is equal, a single BoundEQ is sufficient */
-    if (bounds->low[keyNo] == bounds->high[keyNo])
+    if (keyNo < bounds->lowKeys  &&
+        keyNo < bounds->highKeys &&
+        bounds->low[keyNo] == bounds->high[keyNo])
     {
       /* Inclusive if defined, or matching rows can include this value */
       bound_type= NdbIndexScanOperation::BoundEQ;

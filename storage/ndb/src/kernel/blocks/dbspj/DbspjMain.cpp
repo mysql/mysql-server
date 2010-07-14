@@ -2961,7 +2961,7 @@ Dbspj::lookup_parent_row(Signal* signal,
     }
 
     BuildKeyReq tmp;
-    err = computeHash(signal, tmp, tableId, ptrI);
+    err = computeHash(signal, tmp, tableId, treeNodePtr.p->m_send.m_keyInfoPtrI);
     if (unlikely(err != 0))
       break;
 
@@ -4439,11 +4439,11 @@ Dbspj::scanIndex_send(Signal* signal,
   Uint32 cnt = 1;
   Uint32 bs_rows = org->batch_size_rows;
   Uint32 bs_bytes = org->batch_size_bytes;
+  ndbrequire(data.m_frags_complete == 0);
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    ndbrequire(data.m_fragCount > data.m_frags_complete);
-    cnt = data.m_fragCount - data.m_frags_complete;
+    cnt = data.m_fragCount;
     bs_rows /= cnt;
     bs_bytes /= cnt;
 
@@ -4736,8 +4736,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   req->closeFlag = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
-  req->batch_size_rows = org->batch_size_rows;
-  req->batch_size_bytes = org->batch_size_bytes;
+  req->batch_size_rows = org->batch_size_rows / data.m_fragCount;
+  req->batch_size_bytes = org->batch_size_bytes / data.m_fragCount;
   
   Ptr<ScanIndexFrag> fragPtr;
   m_scanindexfrag_pool.getPtr(fragPtr, data.m_currentFragmentPtrI);
@@ -5000,6 +5000,21 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
   /* Param COL's converted to DATA when appended to pattern */
   Uint32 info = QueryPattern::data(len);
   return dst.append(&info,1) && dst.append(ptr,len) ? 0 : DbspjErr::OutOfQueryMemory;
+}
+
+Uint32
+Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
+                                const RowPtr::Linear & row, Uint32 col)
+{
+  /**
+   * TODO handle errors
+   */
+  Uint32 offset = row.m_header->m_offset[col];
+  const Uint32 * ptr = row.m_data + offset;
+  Uint32 len = AttributeHeader::getDataSize(*ptr);
+  /* Param COL's converted to DATA when appended to pattern */
+  Uint32 info = QueryPattern::data(len+1);
+  return dst.append(&info,1) && dst.append(ptr,len+1) ? 0 : DbspjErr::OutOfQueryMemory;
 }
 
 Uint32
@@ -5602,21 +5617,17 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
       break;
     case QueryPattern::P_PARAM:
       jam();
-      // NOTE: Converted to P_DATA by appendColToPattern
+      // NOTE: Converted to P_DATA by appendParamToPattern
       ndbassert(val < paramCnt);
       err = appendParamToPattern(dst, row, val);
       pattern.ptr++;
       break;
     case QueryPattern::P_PARAM_HEADER:
       jam();
-#if 0
-      // NOTE: Converted to P_DATA by appendParamToPattern
+      // NOTE: Converted to P_DATA by appendParamHeadToPattern
       ndbassert(val < paramCnt);
       err = appendParamHeadToPattern(dst, row, val);
       pattern.ptr++;
-#else
-      ndbrequire(false);
-#endif
       break;
     case QueryPattern::P_PARENT: // Prefix to P_COL
     {
