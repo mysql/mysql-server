@@ -266,12 +266,12 @@ engine = x
 partition by key (a);
 Warnings:
 Warning	1286	Unknown storage engine 'x'
-Warning	1266	Using storage engine MyISAM for table 't1'
+Warning	1266	Using storage engine InnoDB for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a) */
 drop table t1;
 create table t1 (a int)
