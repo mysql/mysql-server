@@ -503,6 +503,7 @@ class NdbQueryOperationImpl {
 public:
   Uint32 getNoOfParentOperations() const;
   NdbQueryOperationImpl& getParentOperation(Uint32 i) const;
+  NdbQueryOperationImpl* getParentOperation() const;
 
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
@@ -606,10 +607,10 @@ private:
   /** The (transaction independent ) definition from which this instance
    * was created.*/
   const NdbQueryOperationDefImpl& m_operationDef;
-  /* MAYBE: replace m_children and m_parents with navigation via 
-   * m_operationDef.getParentOperation() etc.*/
-  /** Parents of this operation.*/
-  Vector<NdbQueryOperationImpl*> m_parents;
+
+  /* MAYBE: replace m_children with navigation via m_operationDef.getChildOperation().*/
+  /** Parent of this operation.*/
+  NdbQueryOperationImpl* m_parent;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
 

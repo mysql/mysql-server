@@ -531,7 +531,7 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
      * parent and child until all tuples (for this batch and 
      * root fragment) have arrived.
      */
-    setParentChildMap(m_operation.getNoOfParentOperations()>0 ? correlData.getParentTupleId() : tupleNotFound,
+    setParentChildMap(m_operation.getParentOperation()!=NULL ? correlData.getParentTupleId() : tupleNotFound,
                       correlData.getTupleId(),
                       m_rowCount);
   }
@@ -2954,7 +2954,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_magic(MAGIC),
   m_queryImpl(queryImpl),
   m_operationDef(def),
-  m_parents(def.getNoOfParentOperations()),
+  m_parent(NULL),
   m_children(def.getNoOfChildOperations()),
   m_resultStreams(NULL),
   m_params(),
@@ -2971,14 +2971,14 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_interpretedCode(NULL),
   m_diskInUserProjection(false)
 { 
-  // Fill in operations parent refs, and append it as child of its parents
-  for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
+  // Fill in operations parent refs, and append it as child of its parent
+  const NdbQueryOperationDefImpl* parent = def.getParentOperation();
+  if (parent != NULL)
   { 
-    const NdbQueryOperationDefImpl& parent = def.getParentOperation(p);
-    const Uint32 ix = parent.getQueryOperationIx();
+    const Uint32 ix = parent->getQueryOperationIx();
     assert (ix < m_queryImpl.getNoOfOperations());
-    m_parents.push_back(&m_queryImpl.getQueryOperation(ix));
-    m_queryImpl.getQueryOperation(ix).m_children.push_back(this);
+    m_parent = &m_queryImpl.getQueryOperation(ix);
+    m_parent->m_children.push_back(this);
   }
   if (def.getType()==NdbQueryOperationDef::OrderedIndexScan)
   {  
@@ -3054,13 +3054,19 @@ NdbQueryOperationImpl::postFetchRelease()
 Uint32
 NdbQueryOperationImpl::getNoOfParentOperations() const
 {
-  return m_parents.size();
+  return (m_parent) ? 1 : 0;
 }
 
 NdbQueryOperationImpl&
 NdbQueryOperationImpl::getParentOperation(Uint32 i) const
 {
-  return *m_parents[i];
+  assert(i==0 && m_parent!=NULL);
+  return *m_parent;
+}
+NdbQueryOperationImpl*
+NdbQueryOperationImpl::getParentOperation() const
+{
+  return m_parent;
 }
 
 Uint32 
@@ -4340,8 +4346,8 @@ NdbQueryOperationImpl::getReceiver(Uint32 recNo) const {
 NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "[ this: " << &op
       << "  m_magic: " << op.m_magic;
-  for(unsigned int i = 0; i<op.getNoOfParentOperations(); i++){
-    out << "  m_parents[" << i << "]" << &op.getParentOperation(i); 
+  if (op.getParentOperation()){
+    out << "  m_parent" << op.getParentOperation(); 
   }
   for(unsigned int i = 0; i<op.getNoOfChildOperations(); i++){
     out << "  m_children[" << i << "]" << &op.getChildOperation(i); 
