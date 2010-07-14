@@ -535,7 +535,7 @@ public:
 
   bool isRowNULL() const;    // Row associated with Operation is NULL value?
 
-  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrived a new
+  bool isRowChanged() const; // Prev ::nextResult() on NdbQuery retrieved a new
                              // value for this NdbQueryOperation
 
   /** Process result data for this operation. Return true if batch complete.*/
@@ -618,7 +618,11 @@ private:
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
 
-  /** Internally allocated buffer for temporary storing one result batch.*/
+  /** Buffer size allocated for *each* ResultStream/Receiver when 
+   *  fetching results.*/
+  Uint32 m_bufferSize;
+  /** Internally allocated temp. buffer for *all* m_resultStreams[]
+   *  when receiving a batch. (m_bufferSize x #ResultStreams) */
   char* m_batchBuffer;
   /** User specified buffer for final storage of result.*/
   char* m_resultBuffer;
@@ -628,8 +632,6 @@ private:
   const char** m_resultRef;
   /** True if this operation gave no result for the current row.*/
   bool m_isRowNull;
-  /** Batch size for scans or lookups with scan parents.*/
-  Uint32 m_batchByteSize;
 
   /** Result record & optional bitmask to disable read of selected cols.*/
   const NdbRecord* m_ndbRecord;
@@ -678,6 +680,8 @@ private:
   int serializeParams(const NdbQueryParamValue* paramValues);
 
   int serializeProject(Uint32Buffer& attrInfo);
+
+  int calculateBatchedRows(Uint32& batchedRows);
 
   /** Construct and prepare receiver streams for result processing. */
   int prepareReceiver();
