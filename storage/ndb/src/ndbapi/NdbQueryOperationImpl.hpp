@@ -143,11 +143,6 @@ public:
   void setNext(NdbQueryImpl* next)
   { m_next = next; }
 
-  /** Get the maximal number of rows that may be returned in a single 
-   * transaction.*/
-  Uint32 getMaxBatchRows() const
-  { return m_maxBatchRows; }
-
   /** Get the (transaction independent) definition of this query. */
   const NdbQueryDefImpl& getQueryDef() const
   { return m_queryDef; }
@@ -159,11 +154,8 @@ public:
   void execCLOSE_SCAN_REP(bool isClosed);
 
   /** Determines if query has completed and may be garbage collected
-   *  A query is considder complete when it either:
-   *  - Has returned all its rows to the client m_state == EndOfData.
-   *  - Has been closed by the client (m_state == Closed)
-   *  - Has encountered a failure (m_state == Failed)
-   *  - Is a lookup query which has been executed. (single row fetched)
+   *  A query is not considder complete until the client has 
+   *  called the ::close() or ::release() method on it.
    */
   bool hasCompleted() const
   { return (m_state == Closed); 
@@ -359,6 +351,10 @@ private:
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
   Uint32 m_countOperations;             // #elements in above array
 
+  /** Shortcut to all scan operations in this query  */
+  NdbQueryOperationImpl* m_scans[NdbMaxPushedQueryOps];
+  Uint32 m_scanCount;
+
   /** Number of root fragments not yet completed within the current batch.*/
   Uint32 m_pendingFrags;
 
@@ -373,9 +369,6 @@ private:
    * any child operation instance derived from it.
    */
   NdbRootFragment* m_rootFrags;
-
-  /** Max rows (per resultStream) in a scan batch.*/
-  Uint32 m_maxBatchRows;
 
   /** Root fragments that the application is currently iterating over. Only 
    * accessed by application thread.
@@ -430,10 +423,6 @@ private:
   /** If m_prunability==Prune_Yes, this is the hash value of the single 
    * fragment that should be scanned.*/
   Uint32 m_pruneHashVal;
-
-  Uint32 m_scanCount;
-
-  NdbQueryOperationImpl* m_scans[NdbMaxPushedQueryOps];
 
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(
@@ -594,6 +583,12 @@ public:
    */
   void nullifyResult();
 
+  /** Get the maximal number of rows that may be returned in a single 
+   *  SCANREQ to the SPJ block.
+   */
+  Uint32 getMaxBatchRows() const
+  { return m_maxBatchRows; }
+
 private:
 
   STATIC_CONST (MAGIC = 0xfade1234);
@@ -613,6 +608,9 @@ private:
   NdbQueryOperationImpl* m_parent;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
+
+  /** Max rows (per resultStream) in a scan batch.*/
+  Uint32 m_maxBatchRows;
 
   /** For processing results from this operation (Array of).*/
   NdbResultStream** m_resultStreams;
@@ -682,7 +680,8 @@ private:
 
   int serializeProject(Uint32Buffer& attrInfo);
 
-  int calculateBatchedRows(Uint32& batchedRows);
+  int calculateBatchedRows(NdbQueryOperationImpl* scanParent=NULL);
+  void setBatchedRows(Uint32 batchedRows);
 
   /** Construct and prepare receiver streams for result processing. */
   int prepareReceiver();
