@@ -331,12 +331,16 @@ private:
   /** Operation to which this resultStream belong.*/
   NdbQueryOperationImpl& m_operation;
 
-  enum {Iter_notStarted, Iter_started, Iter_finished} m_iterState;
+  enum
+  {
+    Iter_notStarted, 
+    Iter_stepChild, 
+    Iter_stepSelf, 
+    Iter_finished
+  } m_iterState;
 
   Uint16 m_currentParentId;
   Uint16 m_currentRow;
-
-  bool m_newRow;
 
   /**
    * TupleSet contain two logically distinct set of information:
@@ -411,7 +415,6 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 rootFr
   m_iterState(Iter_notStarted),
   m_currentParentId(tupleNotFound),
   m_currentRow(tupleNotFound),
-  m_newRow(false),
   m_tupleSet(NULL)
 {};
 
@@ -582,36 +585,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     m_currentParentId = parentId;
     m_iterState = Iter_notStarted;
   }        
-
-  if (m_iterState == Iter_notStarted)
-  {
-    m_newRow = true;
-    if (isRoot)
-    {
-      m_currentRow = 0;
-      if (getReceiver().m_result_rows == 0)
-      {
-        m_iterState = Iter_finished;
-      }
-      else
-      {
-        m_iterState = Iter_started;
-      }
-    }
-    else
-    {
-      assert (parentId != tupleNotFound);
-      m_currentParentId = parentId;
-      if (findTupleWithParentId(parentId) == tupleNotFound)
-      {
-        m_iterState = Iter_finished;
-      }
-      else
-      {
-        m_iterState = Iter_started;
-      }
-    }
-  }
+  assert(m_iterState != Iter_finished);
 
   /* Loop until we either find a suitable set of rows for this operation
    * and its descendants, or until we decide that there are no more matches
@@ -619,6 +593,53 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
    */
   while (true)
   {
+    if (m_iterState == Iter_notStarted)
+    {
+      if (isRoot)
+      {
+        m_currentRow = 0;
+        if (getReceiver().m_result_rows == 0)
+        {
+          m_iterState = Iter_finished;
+        }
+        else
+        {
+          m_iterState = Iter_stepSelf;
+        }
+      }
+      else
+      {
+        assert (parentId != tupleNotFound);
+        m_currentParentId = parentId;
+        if (findTupleWithParentId(parentId) == tupleNotFound)
+        {
+          m_iterState = Iter_finished;
+        }
+        else
+        {
+          m_iterState = Iter_stepSelf;
+        }
+      }
+    }
+    else if (m_iterState == Iter_stepSelf)
+    {
+      if (isRoot)
+      {
+        m_currentRow++;
+        if (m_currentRow >= getReceiver().m_result_rows)
+        {
+          m_iterState = Iter_finished;
+        }
+      }
+      else
+      {
+        if (findNextTuple() == tupleNotFound)
+        {
+          m_iterState = Iter_finished;
+        }
+      } 
+    }
+
     if (m_iterState == Iter_finished)
     {
       if (isRoot)
@@ -645,7 +666,8 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     {
       NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
       
-      if (m_newRow || child.getQueryOperationDef().hasScanDescendant())
+      if (m_iterState == Iter_stepSelf 
+          || child.getQueryOperationDef().hasScanDescendant())
       {
         switch(child.getResultStream(m_rootFragNo)
                .getNextScanRow(getTupleId(m_currentRow)))
@@ -669,44 +691,25 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       }
       childNo++;
     }
-    if (!m_newRow && childrenWithRows == 0)
+    if (m_iterState != Iter_stepSelf && childrenWithRows == 0)
     {
       childRowsOk = false;
+    }
+
+    if (!childRowsOk || childrenWithRows == 0)
+    {
+      // Advance cursor for this stream.
+      m_iterState = Iter_stepSelf;
+    }
+    else
+    {
+      m_iterState = Iter_stepChild;
     }
 
     if (childRowsOk)
     {
       getReceiver().setCurrentRow(m_currentRow);
       m_operation.fetchRow(*this);
-    }
-
-    if (!childRowsOk || childrenWithRows == 0)
-    {
-      // Advance cursor for this stream.
-      m_newRow = true;
-      if (isRoot)
-      {
-        m_currentRow++;
-        if (m_currentRow >= getReceiver().m_result_rows)
-        {
-          m_iterState = Iter_finished;
-        }
-      }
-      else
-      {
-        if (findNextTuple() == tupleNotFound)
-        {
-          m_iterState = Iter_finished;
-        }
-      } 
-    }
-    else
-    {
-      m_newRow = false;
-    }
-
-    if (childRowsOk)
-    {
       return ScanRowResult_gotRow;
     }
   } // while(true)
