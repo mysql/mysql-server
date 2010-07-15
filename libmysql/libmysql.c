@@ -165,7 +165,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__) && !defined(__NETWARE__)
+#if defined(SIGPIPE) && !defined(__WIN__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -479,15 +479,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if defined(__NETWARE__)
-/* Default to value of USER on NetWare, if unset use "UNKNOWN_USER" */
-void read_user_name(char *name)
-{
-  char *str=getenv("USER");
-  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
-}
-
-#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__)
+#if !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__)
 
 void read_user_name(char *name)
 {

@@ -187,10 +187,6 @@ static ulong	innobase_active_counter	= 0;
 
 static hash_table_t*	innobase_open_tables;
 
-#ifdef __NETWARE__	/* some special cleanup for NetWare */
-bool nw_panic = FALSE;
-#endif
-
 /** Allowed values of innodb_change_buffering */
 static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"none",		/* IBUF_USE_NONE */
@@ -2469,11 +2465,6 @@ innobase_end(
 	DBUG_ENTER("innobase_end");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-#ifdef __NETWARE__	/* some special cleanup for NetWare */
-	if (nw_panic) {
-		set_panic_flag_for_netware();
-	}
-#endif
 	if (innodb_inited) {
 
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
@@ -10794,14 +10785,8 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
-  "values are 0, 1 (faster)"
-  /*
-    NetWare can't close unclosed files, can't automatically kill remaining
-    threads, etc, so on this OS we disable the crash-like InnoDB shutdown.
-  */
-  IF_NETWARE("", " or 2 (fastest - crash-like)")
-  ".",
-  NULL, NULL, 1, 0, IF_NETWARE(1,2), 0);
+  "values are 0, 1 (faster) or 2 (fastest - crash-like).",
+  NULL, NULL, 1, 0, 2, 0);
 
 static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   PLUGIN_VAR_NOCMDARG,

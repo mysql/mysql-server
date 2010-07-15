@@ -27,7 +27,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@pstack_dir@ libservices \
 			@sql_union_dirs@ unittest \
 			@sql_server@ @man_dirs@ tests \
-			netware @libmysqld_dirs@ \
+			@libmysqld_dirs@ \
 			mysql-test support-files sql-bench \
 			win \
 			cmake
@@ -36,7 +36,7 @@ DIST_SUBDIRS =		. include Docs zlib \
 			pstack libservices \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
-			netware libmysqld \
+			libmysqld \
 			mysql-test support-files sql-bench \
 			win \
 			cmake \

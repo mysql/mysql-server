@@ -1630,7 +1630,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
        "semicolon (;)"
 #else
        "colon (:)"
