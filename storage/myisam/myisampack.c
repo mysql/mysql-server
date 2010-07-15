@@ -23,9 +23,6 @@
 #include <queues.h>
 #include <my_tree.h>
 #include "mysys_err.h"
-#ifdef MSDOS
-#include <io.h>
-#endif
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
 #endif

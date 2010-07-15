@@ -679,16 +679,6 @@ int __cxa_pure_virtual () __attribute__ ((weak));
 C_MODE_END
 #endif
 
-/* From old s-system.h */
-
-/*
-  Support macros for non ansi & other old compilers. Since such
-  things are no longer supported we do nothing. We keep then since
-  some of our code may still be needed to upgrade old customers.
-*/
-#define _VARARGS(X) X
-#define _STATIC_VARARGS(X) X
-
 /* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
 #undef DBUG_OFF
@@ -704,7 +694,6 @@ C_MODE_END
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */
-#define NEAR_F			/* No near function handling */
 
 /* Some types that is different between systems */
 
@@ -1078,14 +1067,6 @@ template <size_t sz> struct Aligned_char_array
         ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
 #define NullS		(char *) 0
-/* Nowdays we do not support MessyDos */
-#ifndef NEAR
-#define NEAR				/* Who needs segments ? */
-#define FAR				/* On a good machine */
-#ifndef HUGE_PTR
-#define HUGE_PTR
-#endif
-#endif
 
 #ifdef STDCALL
 #undef STDCALL

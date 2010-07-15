@@ -20,12 +20,8 @@
 #include "rt_index.h"
 #include <m_ctype.h>
 
-#if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
 #include <fcntl.h>
-#else
-#include <process.h>			/* Prototype for getpid */
-#endif
 #endif
 #ifdef VMS
 #include "static.c"
