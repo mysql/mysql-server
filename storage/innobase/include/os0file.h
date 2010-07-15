@@ -383,8 +383,6 @@ os_io_init_simple(void);
 /***********************************************************************//**
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
-On Netware, this function is like tmpfile(3), because the C run-time
-library of Netware does not expose the delete-on-close flag.
 @return	temporary file handle, or NULL on error */
 
 FILE*
@@ -1166,7 +1164,7 @@ os_file_get_status(
 	os_file_stat_t* stat_info);	/*!< information of a file in a
 					directory */
 
-#if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
+#if !defined(UNIV_HOTBACKUP)
 /*********************************************************************//**
 Creates a temporary file that will be deleted on close.
 This function is defined in ha_innodb.cc.
@@ -1175,7 +1173,7 @@ UNIV_INTERN
 int
 innobase_mysql_tmpfile(void);
 /*========================*/
-#endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
+#endif /* !UNIV_HOTBACKUP */
 
 
 #if defined(LINUX_NATIVE_AIO)

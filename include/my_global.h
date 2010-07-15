@@ -82,20 +82,7 @@
 #define CPP_UNNAMED_NS_END    }
 #endif
 
-#if defined(_WIN32) 
 #include <my_config.h>
-#elif defined(__NETWARE__)
-#include <my_config.h>
-#include <config-netware.h>
-#if defined(__cplusplus) && defined(inline)
-#undef inline				/* fix configure problem */
-#endif
-#else
-#include <my_config.h>
-#if defined(__cplusplus) && defined(inline)
-#undef inline				/* fix configure problem */
-#endif
-#endif /* _WIN32... */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #define HAVE_PSI_INTERFACE
@@ -106,12 +93,6 @@
 #define IF_WIN(A,B) A
 #else
 #define IF_WIN(A,B) B
-#endif
-
-#ifdef __NETWARE__
-#define IF_NETWARE(A,B) A
-#else
-#define IF_NETWARE(A,B) B
 #endif
 
 #ifndef DBUG_OFF
@@ -141,12 +122,6 @@
 #ifndef EMBEDDED_LIBRARY
 #define HAVE_REPLICATION
 #define HAVE_EXTERNAL_CLIENT
-#endif
-
-/* Some defines to avoid ifdefs in the code */
-#ifndef NETWARE_YIELD
-#define NETWARE_YIELD
-#define NETWARE_SET_SCREEN_MODE(A)
 #endif
 
 #if defined (_WIN32)
@@ -1677,24 +1652,11 @@ do { doubleget_union _tmp; \
 #endif
 
 
-#ifndef __NETWARE__
 /*
  *  Include standard definitions of operator new and delete.
  */
 #ifdef __cplusplus
 #include <new>
-#endif
-#else
-/*
- *  Define placement versions of operator new and operator delete since
- *  we don't have <new> when building for Netware.
- */
-#ifdef __cplusplus
-inline void *operator new(size_t, void *ptr) { return ptr; }
-inline void *operator new[](size_t, void *ptr) { return ptr; }
-inline void  operator delete(void*, void*) { /* Do nothing */ }
-inline void  operator delete[](void*, void*) { /* Do nothing */ }
-#endif
 #endif
 
 /* Length of decimal number represented by INT32. */
