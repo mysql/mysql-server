@@ -2844,6 +2844,7 @@ cleanup:
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
     TOKUDB_DBUG_ENTER("ha_tokudb::start_bulk_insert");
     THD* thd = ha_thd();
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     delay_updating_ai_metadata = true;
     ai_metadata_update_required = false;
     abort_loader = false;
@@ -2884,6 +2885,8 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
 
                 error = loader->set_error_callback(loader, loader_dup_fun, &lc);
                 assert(!error);
+
+                trx->stmt_progress.using_loader = true;
             }
         }
     exit_try_table_lock:
@@ -2903,6 +2906,7 @@ int ha_tokudb::end_bulk_insert() {
     TOKUDB_DBUG_ENTER("ha_tokudb::end_bulk_insert");
     int error = 0;
     THD* thd = ha_thd();
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     bool using_loader = (loader != NULL);
     if (ai_metadata_update_required) {
         pthread_mutex_lock(&share->mutex);
@@ -2969,6 +2973,7 @@ cleanup:
             share->try_table_lock = true;
         }
     }
+    trx->stmt_progress.using_loader = false;
     TOKUDB_DBUG_RETURN(error ? error : loader_error);
 }
 
@@ -4771,7 +4776,12 @@ void ha_tokudb::track_progress(THD* thd) {
                 first = false;
             }
             if (trx->stmt_progress.inserted) {
-                r = sprintf(next_status, "%sInserted about %llu row%s", first ? "" : ", ", trx->stmt_progress.inserted, trx->stmt_progress.inserted == 1 ? "" : "s"); 
+                if (trx->stmt_progress.using_loader) {
+                    r = sprintf(next_status, "%sFetched about %llu row%s, loading data still remains", first ? "" : ", ", trx->stmt_progress.inserted, trx->stmt_progress.inserted == 1 ? "" : "s"); 
+                }
+                else {
+                    r = sprintf(next_status, "%sInserted about %llu row%s", first ? "" : ", ", trx->stmt_progress.inserted, trx->stmt_progress.inserted == 1 ? "" : "s"); 
+                }
                 assert(r >= 0);
                 next_status += r;
                 first = false;

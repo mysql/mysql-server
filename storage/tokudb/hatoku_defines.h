@@ -91,6 +91,7 @@ typedef struct st_tokudb_stmt_progress {
     ulonglong updated;
     ulonglong deleted;
     ulonglong queried;
+    bool using_loader;
 } tokudb_stmt_progress;
 
 
