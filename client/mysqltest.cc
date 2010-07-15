@@ -3707,7 +3707,6 @@ void do_send_quit(struct st_command *command)
 void do_change_user(struct st_command *command)
 {
   MYSQL *mysql = &cur_con->mysql;
-  /* static keyword to make the NetWare compiler happy. */
   static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
   const struct command_arg change_user_args[] = {
     { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
@@ -6006,8 +6005,6 @@ static struct my_option my_long_options[] =
 };
 
 
-#include <help_start.h>
-
 void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,MTEST_VERSION,
@@ -6025,8 +6022,6 @@ void usage()
   printf("  --no-defaults       Don't read default options from any options file.\n");
   my_print_variables(my_long_options);
 }
-
-#include <help_end.h>
 
 
 /*

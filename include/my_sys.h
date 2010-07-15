@@ -913,10 +913,7 @@ extern int my_getncpus();
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
 
-#ifndef __NETWARE__
 #define HAVE_MMAP
-#endif
-
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
 int my_munmap(void *, size_t);
 #endif
@@ -980,10 +977,6 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 /* implemented in my_conio.c */
 char* my_cgets(char *string, size_t clen, size_t* plen);
 
-#endif
-#ifdef __NETWARE__
-void netware_reg_user(const char *ip, const char *user,
-		      const char *application);
 #endif
 
 #include <mysql/psi/psi.h>

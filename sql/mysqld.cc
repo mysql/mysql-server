@@ -126,14 +126,12 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <my_net.h>
 
 #if !defined(__WIN__)
-#  ifndef __NETWARE__
 #include <sys/resource.h>
-#  endif /* __NETWARE__ */
 #ifdef HAVE_SYS_UN_H
-#  include <sys/un.h>
+#include <sys/un.h>
 #endif
 #ifdef HAVE_SELECT_H
-#  include <select.h>
+#include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
@@ -163,45 +161,6 @@ extern int getpagesizes2(size_t *, int);
 extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif /* __sun__ ... */
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
-
-#ifdef __NETWARE__
-#define zVOLSTATE_ACTIVE 6
-#define zVOLSTATE_DEACTIVE 2
-#define zVOLSTATE_MAINTENANCE 3
-
-#undef __event_h__
-#include <../include/event.h>
-/*
-  This #undef exists here because both libc of NetWare and MySQL have
-  files named event.h which causes compilation errors.
-*/
-
-#include <nks/netware.h>
-#include <nks/vm.h>
-#include <library.h>
-#include <monitor.h>
-#include <zOmni.h>                              //For NEB
-#include <neb.h>                                //For NEB
-#include <nebpub.h>                             //For NEB
-#include <zEvent.h>                             //For NSS event structures
-#include <zPublics.h>
-
-static void *neb_consumer_id= NULL;             //For storing NEB consumer id
-static char datavolname[256]= {0};
-static VolumeID_t datavolid;
-static event_handle_t eh;
-static Report_t ref;
-static void *refneb= NULL;
-my_bool event_flag= FALSE;
-static int volumeid= -1;
-
-  /* NEB event callback */
-unsigned long neb_event_callback(struct EventBlock *eblock);
-static void registerwithneb();
-static void getvolumename();
-static void getvolumeID(BYTE *volumeName);
-#endif /* __NETWARE__ */
-
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -1031,7 +990,7 @@ static void close_connections(void)
   flush_thread_cache();
 
   /* kill connection thread */
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
                       (ulong) select_thread));
   mysql_mutex_lock(&LOCK_thread_count);
@@ -1209,14 +1168,6 @@ static void close_server_sock()
     ip_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
     (void) shutdown(tmp_sock, SHUT_RDWR);
-#if defined(__NETWARE__)
-    /*
-      The following code is disabled for normal systems as it causes MySQL
-      to hang on AIX 4.3 during shutdown
-    */
-    DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));
-    (void) closesocket(tmp_sock);
-#endif
   }
   tmp_sock=unix_sock;
   if (tmp_sock != INVALID_SOCKET)
@@ -1224,14 +1175,6 @@ static void close_server_sock()
     unix_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
     (void) shutdown(tmp_sock, SHUT_RDWR);
-#if defined(__NETWARE__)
-    /*
-      The following code is disabled for normal systems as it may cause MySQL
-      to hang on AIX 4.3 during shutdown
-    */
-    DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
-    (void) closesocket(tmp_sock);
-#endif
     (void) unlink(mysqld_unix_port);
   }
   DBUG_VOID_RETURN;
@@ -1300,10 +1243,7 @@ void kill_mysql(void)
     or stop, we just want to kill the server.
 */
 
-#if defined(__NETWARE__)
-extern "C" void kill_server(int sig_ptr)
-#define RETURN_FROM_KILL_SERVER return
-#elif !defined(__WIN__)
+#if !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
 #define RETURN_FROM_KILL_SERVER return 0
 #else
@@ -1349,11 +1289,6 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_end();
 
   /* purecov: begin deadcode */
-#ifdef __NETWARE__
-  if (!event_flag)
-    pthread_join(select_thread, NULL);		// wait for main thread
-#endif /* __NETWARE__ */
-
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
@@ -1370,7 +1305,7 @@ static void __cdecl kill_server(int sig_ptr)
 }
 
 
-#if defined(USE_ONE_SIGNAL_HAND) || (defined(__NETWARE__) && defined(SIGNALS_DONT_BREAK_READ))
+#if defined(USE_ONE_SIGNAL_HAND)
 pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 {
   my_thread_init();				// Initialize new thread
@@ -1391,7 +1326,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
 #endif
@@ -1425,7 +1360,7 @@ void unireg_end(void)
 {
   clean_up(1);
   my_thread_end();
-#if defined(SIGNALS_DONT_BREAK_READ) && !defined(__NETWARE__)
+#if defined(SIGNALS_DONT_BREAK_READ)
   exit(0);
 #else
   pthread_exit(0);				// Exit is in main thread
@@ -1579,7 +1514,6 @@ void clean_up(bool print_message)
 */
 static void wait_for_signal_thread_to_end()
 {
-#ifndef __NETWARE__
   uint i;
   /*
     Wait up to 10 seconds for signal thread to die. We use this mainly to
@@ -1591,7 +1525,6 @@ static void wait_for_signal_thread_to_end()
       break;
     my_sleep(100);				// Give it time to die
   }
-#endif
 }
 
 
@@ -1689,7 +1622,7 @@ static void set_ports()
 
 static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   struct passwd *tmp_user_info;
   uid_t user_id= geteuid();
 
@@ -1754,7 +1687,7 @@ err:
 static void set_user(const char *user, struct passwd *user_info_arg)
 {
   /* purecov: begin tested */
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   DBUG_ASSERT(user_info_arg != 0);
 #ifdef HAVE_INITGROUPS
   /*
@@ -1784,7 +1717,7 @@ static void set_user(const char *user, struct passwd *user_info_arg)
 
 static void set_effective_user(struct passwd *user_info_arg)
 {
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   DBUG_ASSERT(user_info_arg != 0);
   if (setregid((gid_t)-1, user_info_arg->pw_gid) == -1)
   {
@@ -1803,7 +1736,7 @@ static void set_effective_user(struct passwd *user_info_arg)
 /** Change root user if started with @c --chroot . */
 static void set_root(const char *path)
 {
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   if (chroot(path) == -1)
   {
     sql_perror("chroot");
@@ -2393,243 +2326,7 @@ static void start_signal_handler(void)
 static void check_data_home(const char *path)
 {}
 
-
-#elif defined(__NETWARE__)
-
-/// down server event callback.
-void mysql_down_server_cb(void *, void *)
-{
-  event_flag= TRUE;
-  kill_server(0);
-}
-
-
-/// destroy callback resources.
-void mysql_cb_destroy(void *)
-{
-  UnRegisterEventNotification(eh);  // cleanup down event notification
-  NX_UNWRAP_INTERFACE(ref);
-  /* Deregister NSS volume deactivation event */
-  NX_UNWRAP_INTERFACE(refneb);
-  if (neb_consumer_id)
-    UnRegisterConsumer(neb_consumer_id, NULL);
-}
-
-
-/// initialize callbacks.
-void mysql_cb_init()
-{
-  // register for down server event
-  void *handle = getnlmhandle();
-  rtag_t rt= AllocateResourceTag(handle, "MySQL Down Server Callback",
-                                 EventSignature);
-  NX_WRAP_INTERFACE((void *)mysql_down_server_cb, 2, (void **)&ref);
-  eh= RegisterForEventNotification(rt, EVENT_PRE_DOWN_SERVER,
-                                   EVENT_PRIORITY_APPLICATION,
-                                   NULL, ref, NULL);
-
-  /*
-    Register for volume deactivation event
-    Wrap the callback function, as it is called by non-LibC thread
-  */
-  (void *) NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
-  registerwithneb();
-
-  NXVmRegisterExitHandler(mysql_cb_destroy, NULL);  // clean-up
-}
-
-
-/** To get the name of the NetWare volume having MySQL data folder. */
-static void getvolumename()
-{
-  char *p;
-  /*
-    We assume that data path is already set.
-    If not it won't come here. Terminate after volume name
-  */
-  if ((p= strchr(mysql_real_data_home, ':')))
-    strmake(datavolname, mysql_real_data_home,
-            (uint) (p - mysql_real_data_home));
-}
-
-
-/**
-  Registering with NEB for NSS Volume Deactivation event.
-*/
-
-static void registerwithneb()
-{
-
-  ConsumerRegistrationInfo reg_info;
-    
-  /* Clear NEB registration structure */
-  bzero((char*) &reg_info, sizeof(struct ConsumerRegistrationInfo));
-
-  /* Fill the NEB consumer information structure */
-  reg_info.CRIVersion= 1;  	            // NEB version
-  /* NEB Consumer name */
-  reg_info.CRIConsumerName= (BYTE *) "MySQL Database Server";
-  /* Event of interest */
-  reg_info.CRIEventName= (BYTE *) "NSS.ChangeVolState.Enter";
-  reg_info.CRIUserParameter= NULL;	    // Consumer Info
-  reg_info.CRIEventFlags= 0;	            // Event flags
-  /* Consumer NLM handle */
-  reg_info.CRIOwnerID= (LoadDefinitionStructure *)getnlmhandle();
-  reg_info.CRIConsumerESR= NULL;	    // No consumer ESR required
-  reg_info.CRISecurityToken= 0;	            // No security token for the event
-  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;	
-  reg_info.CRIFilterName= 0;	            // No event filtering
-  reg_info.CRIFilterDataLength= 0;          // No filtering data
-  reg_info.CRIFilterData= 0;	            // No filtering data
-  /* Callback function for the event */
-  (void *)reg_info.CRIConsumerCallback= (void *) refneb;
-  reg_info.CRIOrder= 0;	                    // Event callback order
-  reg_info.CRIConsumerType= CHECK_CONSUMER; // Consumer type
-
-  /* Register for the event with NEB */
-  if (RegisterConsumer(&reg_info))
-  {
-    consoleprintf("Failed to register for NSS Volume Deactivation event \n");
-    return;
-  }
-  /* This ID is required for deregistration */
-  neb_consumer_id= reg_info.CRIConsumerID;
-
-  /* Get MySQL data volume name, stored in global variable datavolname */
-  getvolumename();
-
-  /*
-    Get the NSS volume ID of the MySQL Data volume.
-    Volume ID is stored in a global variable
-  */
-  getvolumeID((BYTE*) datavolname);	
-}
-
-
-/**
-  Callback for NSS Volume Deactivation event.
-*/
-
-ulong neb_event_callback(struct EventBlock *eblock)
-{
-  EventChangeVolStateEnter_s *voldata;
-  extern bool nw_panic;
-
-  voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
-
-  /* Deactivation of a volume */
-  if ((voldata->oldState == zVOLSTATE_ACTIVE &&
-       voldata->newState == zVOLSTATE_DEACTIVE ||
-       voldata->newState == zVOLSTATE_MAINTENANCE))
-  {
-    /*
-      Ensure that we bring down MySQL server only for MySQL data
-      volume deactivation
-    */
-    if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
-    {
-      consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
-      event_flag= TRUE;
-      nw_panic = TRUE;
-      event_flag= TRUE;
-      kill_server(0);
-    }
-  }
-  return 0;
-}
-
-
-#define ADMIN_VOL_PATH					"_ADMIN:/Volumes/"
-
-/**
-  Function to get NSS volume ID of the MySQL data.
-*/
-static void getvolumeID(BYTE *volumeName)
-{
-  char path[zMAX_FULL_NAME];
-  Key_t rootKey= 0, fileKey= 0;
-  QUAD getInfoMask;
-  zInfo_s info;
-  STATUS status;
-
-  /* Get the root key */
-  if ((status= zRootKey(0, &rootKey)) != zOK)
-  {
-    consoleprintf("\nGetNSSVolumeProperties - Failed to get root key, status: %d\n.", (int) status);
-    goto exit;
-  }
-
-  /*
-    Get the file key. This is the key to the volume object in the
-    NSS admin volumes directory.
-  */
-
-  strxmov(path, (const char *) ADMIN_VOL_PATH, (const char *) volumeName,
-          NullS);
-  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8, 
-                     (BYTE *) path, zRR_READ_ACCESS, &fileKey)) != zOK)
-  {
-    consoleprintf("\nGetNSSVolumeProperties - Failed to get file, status: %d\n.", (int) status);
-    goto exit;
-  }
-
-  getInfoMask= zGET_IDS | zGET_VOLUME_INFO ;
-  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info), 
-                        zINFO_VERSION_A, &info)) != zOK)
-  {
-    consoleprintf("\nGetNSSVolumeProperties - Failed in zGetInfo, status: %d\n.", (int) status);
-    goto exit;
-  }
-
-  /* Copy the data to global variable */
-  datavolid.timeLow= info.vol.volumeID.timeLow;
-  datavolid.timeMid= info.vol.volumeID.timeMid;
-  datavolid.timeHighAndVersion= info.vol.volumeID.timeHighAndVersion;
-  datavolid.clockSeqHighAndReserved= info.vol.volumeID.clockSeqHighAndReserved;
-  datavolid.clockSeqLow= info.vol.volumeID.clockSeqLow;
-  /* This is guranteed to be 6-byte length (but sizeof() would be better) */
-  memcpy(datavolid.node, info.vol.volumeID.node, (unsigned int) 6);
-
-exit:
-  if (rootKey)
-    zClose(rootKey);
-  if (fileKey)
-    zClose(fileKey);
-}
-
-
-static void init_signals(void)
-{
-  int signals[] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGABRT};
-
-  for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
-    signal(signals[i], kill_server);
-  mysql_cb_init();  // initialize callbacks
-
-}
-
-
-static void start_signal_handler(void)
-{
-  // Save vm id of this process
-  if (!opt_bootstrap)
-    create_pid_file();
-  // no signal handler
-}
-
-
-/**
-  Warn if the data is on a Traditional volume.
-
-  @note
-    Already done by mysqld_safe
-*/
-
-static void check_data_home(const char *path)
-{
-}
-
-#endif /*__WIN__ || __NETWARE */
+#endif /* __WIN__ */
 
 #ifdef HAVE_LINUXTHREADS
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
@@ -2798,7 +2495,7 @@ bugs.\n");
 #endif
 }
 
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
 #ifndef SA_RESETHAND
 #define SA_RESETHAND 0
 #endif
@@ -4322,10 +4019,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       mysql_bin_log.purge_logs_before_date(purge_time);
   }
 #endif
-#ifdef __NETWARE__
-  /* Increasing stacksize of threads on NetWare */
-  pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
-#endif
 
   if (opt_myisam_log)
     (void) mi_log(1);
@@ -4714,10 +4407,6 @@ int mysqld_main(int argc, char **argv)
     }
   }
 #endif
-#ifdef __NETWARE__
-  /* Increasing stacksize of threads on NetWare */
-  pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
-#endif
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
@@ -4795,9 +4484,9 @@ int mysqld_main(int argc, char **argv)
   {
     abort_loop=1;
     select_thread_in_use=0;
-#ifndef __NETWARE__
+
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
-#endif /* __NETWARE__ */
+
 
     if (!opt_bootstrap)
       mysql_file_delete(key_file_pid, pidfile_name, MYF(MY_WME)); // Not needed anymore
@@ -5343,15 +5032,12 @@ static void create_new_thread(THD *thd)
 inline void kill_broken_server()
 {
   /* hack to get around signals ignored in syscalls for problem OS's */
-  if (
-#if !defined(__NETWARE__)
-      unix_sock == INVALID_SOCKET ||
-#endif
+  if (unix_sock == INVALID_SOCKET ||
       (!opt_disable_networking && ip_sock == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
     /* The following call will never return */
-    kill_server(IF_NETWARE(MYSQL_KILL_SIGNAL, (void*) MYSQL_KILL_SIGNAL));
+    kill_server((void*) MYSQL_KILL_SIGNAL);
   }
 }
 #define MAYBE_BROKEN_SYSCALL kill_broken_server();
@@ -5485,13 +5171,6 @@ void handle_connections_sockets()
       size_socket length= sizeof(struct sockaddr_storage);
       new_sock= accept(sock, (struct sockaddr *)(&cAddr),
                        &length);
-#ifdef __NETWARE__ 
-      // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
-      if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
-      {
-        kill_server(SIGTERM);
-      }
-#endif
       if (new_sock != INVALID_SOCKET ||
 	  (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
 	break;
@@ -7147,23 +6826,21 @@ static int mysql_init_variables(void)
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-#if defined(__WIN__) || defined(__NETWARE__)
-  /* Allow Win32 and NetWare users to move MySQL anywhere */
+#if defined(__WIN__)
+  /* Allow Win32 users to move MySQL anywhere */
   {
     char prg_dev[LIBLEN];
-#if defined __WIN__
-	char executing_path_name[LIBLEN];
-	if (!test_if_hard_path(my_progname))
-	{
-		// we don't want to use GetModuleFileName inside of my_path since
-		// my_path is a generic path dereferencing function and here we care
-		// only about the executing binary.
-		GetModuleFileName(NULL, executing_path_name, sizeof(executing_path_name));
-		my_path(prg_dev, executing_path_name, NULL);
-	}
-	else
-#endif
-    my_path(prg_dev,my_progname,"mysql/bin");
+    char executing_path_name[LIBLEN];
+    if (!test_if_hard_path(my_progname))
+    {
+      // we don't want to use GetModuleFileName inside of my_path since
+      // my_path is a generic path dereferencing function and here we care
+      // only about the executing binary.
+      GetModuleFileName(NULL, executing_path_name, sizeof(executing_path_name));
+      my_path(prg_dev, executing_path_name, NULL);
+    }
+    else
+      my_path(prg_dev, my_progname, "mysql/bin");
     strcat(prg_dev,"/../");			// Remove 'bin' to get base dir
     cleanup_dirname(mysql_home,prg_dev);
   }
@@ -7581,13 +7258,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   }
 
   if (opt_disable_networking)
-  {
-#if defined(__NETWARE__)
-    sql_print_error("Can't start server: skip-networking option is currently not supported on NetWare");
-    return 1;
-#endif
     mysqld_port= 0;
-  }
+
   if (opt_skip_show_db)
     opt_specialflag|= SPECIAL_SKIP_SHOW_DB;
 
