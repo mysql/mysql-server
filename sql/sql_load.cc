@@ -355,7 +355,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
                        MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
                        MY_RETURN_REAL_PATH);
-#if !defined(__WIN__) && ! defined(__NETWARE__)
+#if !defined(__WIN__)
       MY_STAT stat_info;
       if (!mysql_file_stat(key_file_load, name, &stat_info, MYF(MY_WME)))
 	DBUG_RETURN(TRUE);

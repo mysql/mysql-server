@@ -34,7 +34,7 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -45,7 +45,7 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /* !defined(MSDOS) && !defined(__WIN__) */
+#endif /* !defined(__WIN__) */
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
@@ -74,7 +74,7 @@ ulong		max_allowed_packet= 1024L*1024L*1024L;
 my_bool	net_flush(NET *net);
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 /* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
@@ -128,31 +128,29 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     init_client_errs();
     if (!mysql_port)
     {
-      mysql_port = MYSQL_PORT;
-#ifndef MSDOS
-      {
-	struct servent *serv_ptr __attribute__((unused));
-	char	*env;
+      char *env;
+      struct servent *serv_ptr __attribute__((unused));
 
-        /*
-          if builder specifically requested a default port, use that
-          (even if it coincides with our factory default).
-          only if they didn't do we check /etc/services (and, failing
-          on that, fall back to the factory default of 3306).
-          either default can be overridden by the environment variable
-          MYSQL_TCP_PORT, which in turn can be overridden with command
-          line options.
-        */
+      mysql_port = MYSQL_PORT;
+
+      /*
+        if builder specifically requested a default port, use that
+        (even if it coincides with our factory default).
+        only if they didn't do we check /etc/services (and, failing
+        on that, fall back to the factory default of 3306).
+        either default can be overridden by the environment variable
+        MYSQL_TCP_PORT, which in turn can be overridden with command
+        line options.
+      */
 
 #if MYSQL_PORT_DEFAULT == 0
-        if ((serv_ptr = getservbyname("mysql", "tcp")))
-          mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+      if ((serv_ptr= getservbyname("mysql", "tcp")))
+        mysql_port= (uint) ntohs((ushort) serv_ptr->s_port);
 #endif
-        if ((env = getenv("MYSQL_TCP_PORT")))
-          mysql_port =(uint) atoi(env);
-      }
-#endif
+      if ((env= getenv("MYSQL_TCP_PORT")))
+        mysql_port=(uint) atoi(env);
     }
+
     if (!mysql_unix_port)
     {
       char *env;
@@ -165,7 +163,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__) && !defined(__NETWARE__)
+#if defined(SIGPIPE) && !defined(__WIN__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -479,15 +477,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if defined(__NETWARE__)
-/* Default to value of USER on NetWare, if unset use "UNKNOWN_USER" */
-void read_user_name(char *name)
-{
-  char *str=getenv("USER");
-  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
-}
-
-#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__)
+#if !defined(__WIN__)
 
 void read_user_name(char *name)
 {
@@ -517,7 +507,7 @@ void read_user_name(char *name)
   DBUG_VOID_RETURN;
 }
 
-#else /* If MSDOS || VMS */
+#else /* If Windows */
 
 void read_user_name(char *name)
 {

@@ -46,15 +46,6 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
-#if defined(__QNXNTO__) && !defined(FD_SETSIZE)
-#define FD_SETSIZE 1024         /* Max number of file descriptor bits in
-                                   fd_set, used when calling 'select'
-                                   Must be defined before including
-                                   "sys/select.h" and "sys/time.h"
-                                 */
-#endif
-
-
 /* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #define USE_PRAGMA_INTERFACE
@@ -82,20 +73,7 @@
 #define CPP_UNNAMED_NS_END    }
 #endif
 
-#if defined(_WIN32) 
 #include <my_config.h>
-#elif defined(__NETWARE__)
-#include <my_config.h>
-#include <config-netware.h>
-#if defined(__cplusplus) && defined(inline)
-#undef inline				/* fix configure problem */
-#endif
-#else
-#include <my_config.h>
-#if defined(__cplusplus) && defined(inline)
-#undef inline				/* fix configure problem */
-#endif
-#endif /* _WIN32... */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #define HAVE_PSI_INTERFACE
@@ -106,12 +84,6 @@
 #define IF_WIN(A,B) A
 #else
 #define IF_WIN(A,B) B
-#endif
-
-#ifdef __NETWARE__
-#define IF_NETWARE(A,B) A
-#else
-#define IF_NETWARE(A,B) B
 #endif
 
 #ifndef DBUG_OFF
@@ -141,12 +113,6 @@
 #ifndef EMBEDDED_LIBRARY
 #define HAVE_REPLICATION
 #define HAVE_EXTERNAL_CLIENT
-#endif
-
-/* Some defines to avoid ifdefs in the code */
-#ifndef NETWARE_YIELD
-#define NETWARE_YIELD
-#define NETWARE_SET_SCREEN_MODE(A)
 #endif
 
 #if defined (_WIN32)
@@ -591,22 +557,6 @@ C_MODE_END
 extern "C" int madvise(void *addr, size_t len, int behav);
 #endif
 
-#ifdef __QNXNTO__
-/* This has to be after include limits.h */
-#define HAVE_ERRNO_AS_DEFINE
-#define HAVE_FCNTL_LOCK
-#undef  HAVE_FINITE
-#undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
-#undef  LONGLONG_MAX            /* standard system library 'limits.h' */
-#ifdef __cplusplus
-#ifndef HAVE_RINT
-#define HAVE_RINT
-#endif                          /* rint() and isnan() functions are not */
-#define rint(a) std::rint(a)    /* visible in C++ scope due to an error */
-#define isnan(a) std::isnan(a)  /* in the usr/include/math.h on QNX     */
-#endif
-#endif
-
 /* We can not live without the following defines */
 
 #define USE_MYFUNC 1		/* Must use syscall indirection */
@@ -704,16 +654,6 @@ int __cxa_pure_virtual () __attribute__ ((weak));
 C_MODE_END
 #endif
 
-/* From old s-system.h */
-
-/*
-  Support macros for non ansi & other old compilers. Since such
-  things are no longer supported we do nothing. We keep then since
-  some of our code may still be needed to upgrade old customers.
-*/
-#define _VARARGS(X) X
-#define _STATIC_VARARGS(X) X
-
 /* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
 #undef DBUG_OFF
@@ -729,7 +669,6 @@ C_MODE_END
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */
-#define NEAR_F			/* No near function handling */
 
 /* Some types that is different between systems */
 
@@ -1103,14 +1042,6 @@ template <size_t sz> struct Aligned_char_array
         ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
 #define NullS		(char *) 0
-/* Nowdays we do not support MessyDos */
-#ifndef NEAR
-#define NEAR				/* Who needs segments ? */
-#define FAR				/* On a good machine */
-#ifndef HUGE_PTR
-#define HUGE_PTR
-#endif
-#endif
 
 #ifdef STDCALL
 #undef STDCALL
@@ -1677,24 +1608,11 @@ do { doubleget_union _tmp; \
 #endif
 
 
-#ifndef __NETWARE__
 /*
  *  Include standard definitions of operator new and delete.
  */
 #ifdef __cplusplus
 #include <new>
-#endif
-#else
-/*
- *  Define placement versions of operator new and operator delete since
- *  we don't have <new> when building for Netware.
- */
-#ifdef __cplusplus
-inline void *operator new(size_t, void *ptr) { return ptr; }
-inline void *operator new[](size_t, void *ptr) { return ptr; }
-inline void  operator delete(void*, void*) { /* Do nothing */ }
-inline void  operator delete[](void*, void*) { /* Do nothing */ }
-#endif
 #endif
 
 /* Length of decimal number represented by INT32. */

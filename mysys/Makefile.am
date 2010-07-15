@@ -65,7 +65,7 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_net.c my_port.c my_sleep.c \
 			charset.c charset-def.c my_bitmap.c my_bit.c md5.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
-			my_handler.c my_netware.c my_largepage.c \
+			my_handler.c my_largepage.c \
 			my_memmem.c stacktrace.c \
 			my_windac.c my_access.c base64.c \
 			my_rdtsc.c
