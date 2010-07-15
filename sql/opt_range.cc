@@ -7807,7 +7807,7 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
 
   if (unlikely(param->thd->killed != 0))
     return HA_POS_ERROR;
-  
+
   keynr=param->real_keynr[idx];
   param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&
