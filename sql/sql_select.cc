@@ -7925,7 +7925,7 @@ bool TABLE_REF::tmp_table_index_lookup_init(THD *thd,
                                     use that information instead.
                                  */
                                  cur_ref_buff + null_count,
-                                 null_count ? key_buff : 0,
+                                 null_count ? cur_ref_buff : 0,
                                  cur_key_part->length, items[i], value);
     cur_ref_buff+= cur_key_part->store_length;
   }

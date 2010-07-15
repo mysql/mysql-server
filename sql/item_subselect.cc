@@ -3957,8 +3957,6 @@ subselect_hash_sj_engine::make_unique_engine()
   Item_iterator_row it(item_in->left_expr);
   /* The only index on the temporary table. */
   KEY *tmp_key= tmp_table->key_info;
-  /* Number of keyparts in tmp_key. */
-  uint tmp_key_parts= tmp_key->key_parts;
   JOIN_TAB *tab;
 
   DBUG_ENTER("subselect_hash_sj_engine::make_unique_engine");
