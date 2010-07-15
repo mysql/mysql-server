@@ -4022,9 +4022,12 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_LONGLONG:
   case MYSQL_TYPE_INT24:
     field_length= field->max_display_length() - 1;
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    field_length= field->max_display_length() - 
+      ((field->flags & UNSIGNED_FLAG) ? 0 : 1);
     break;
   case MYSQL_TYPE_BIT:
     field_length= field->max_display_length();
