@@ -100,15 +100,6 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     my_errno= tmp;
   }
 
-#elif defined(_ZTC__)
-  if (!dir)
-    dir=getenv("TMPDIR");
-  if ((res=tempnam((char*) dir,(char *) prefix)))
-  {
-    strmake(to,res,FN_REFLEN-1);
-    (*free)(res);
-    file=my_create(to, 0, mode | O_EXCL | O_NOFOLLOW, MyFlags);
-  }
 #elif defined(HAVE_MKSTEMP)
   {
     char prefix_buff[30];
