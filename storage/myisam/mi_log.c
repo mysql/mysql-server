@@ -19,11 +19,8 @@
 */
 
 #include "myisamdef.h"
-#if defined(MSDOS) || defined(__WIN__)
+#ifdef __WIN__
 #include <fcntl.h>
-#ifndef __WIN__
-#include <process.h>
-#endif
 #endif
 #ifdef VMS
 #include <processes.h>

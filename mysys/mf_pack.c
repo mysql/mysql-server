@@ -24,7 +24,7 @@
 #include <descrip.h>
 #endif /* VMS */
 
-static char * NEAR_F expand_tilde(char * *path);
+static char * expand_tilde(char **path);
 
 	/* Pack a dirname ; Changes HOME to ~/ and current dev to ./ */
 	/* from is a dirname (from dirname() ?) ending with FN_LIBCHAR */
@@ -377,7 +377,7 @@ size_t unpack_dirname(char * to, const char *from)
 	/* Expand tilde to home or user-directory */
 	/* Path is reset to point at FN_LIBCHAR after ~xxx */
 
-static char * NEAR_F expand_tilde(char * *path)
+static char * expand_tilde(char **path)
 {
   if (path[0][0] == FN_LIBCHAR)
     return home_dir;			/* ~/ expanded to home */

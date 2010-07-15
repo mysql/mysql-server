@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* TODO: check for overun of memory for names. */
-/*	 Convert MSDOS-TIME to standar time_t (still needed?) */
 
 #include	"mysys_priv.h"
 #include	<m_string.h>
