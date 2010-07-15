@@ -146,9 +146,6 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   DBUG_ENTER("my_lock");
   DBUG_PRINT("my",("fd: %d  Op: %d  start: %ld  Length: %ld  MyFlags: %d",
 		   fd,locktype,(long) start,(long) length,MyFlags));
-#ifdef VMS
-  DBUG_RETURN(0);
-#else
   if (my_disable_locking)
     DBUG_RETURN(0);
 
@@ -223,5 +220,4 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   }
   DBUG_PRINT("error",("my_errno: %d (%d)",my_errno,errno));
   DBUG_RETURN(-1);
-#endif	/* ! VMS */
 } /* my_lock */

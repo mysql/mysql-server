@@ -100,7 +100,6 @@ int my_copystat(const char *from, const char *to, int MyFlags)
   res= chown(to, statbuf.st_uid, statbuf.st_gid);	/* Copy ownership */
 #endif /* !__WIN__ */
 
-#ifndef VMS
   if (MyFlags & MY_COPYTIME)
   {
     struct utimbuf timep;
@@ -108,14 +107,6 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     timep.modtime = statbuf.st_mtime;
     (void) utime((char*) to, &timep);/* Update last accessed and modified times */
   }
-#else
-  if (MyFlags & MY_COPYTIME)
-  {
-    time_t time[2];
-    time[0]= statbuf.st_atime;
-    time[1]= statbuf.st_mtime;
-    (void) utime((char*) to, time);/* Update last accessed and modified times */
-  }
-#endif
+
   return 0;
 } /* my_copystat */
