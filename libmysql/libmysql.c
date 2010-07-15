@@ -477,7 +477,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if !defined(VMS) && !defined(__WIN__)
+#if !defined(__WIN__)
 
 void read_user_name(char *name)
 {
@@ -507,7 +507,7 @@ void read_user_name(char *name)
   DBUG_VOID_RETURN;
 }
 
-#else /* If Windows || VMS */
+#else /* If Windows */
 
 void read_user_name(char *name)
 {

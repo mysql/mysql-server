@@ -19,10 +19,6 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <signal.h>
-#ifdef VMS
-#include <my_static.c>
-#include <m_ctype.h>
-#endif
 #ifdef __WIN__
 #ifdef _MSC_VER
 #include <locale.h>
@@ -79,14 +75,12 @@ my_bool my_basic_init(void)
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
 
-#ifndef VMS
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
     my_umask= (int) (atoi_octal(str) | 0600);
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
     my_umask_dir= (int) (atoi_octal(str) | 0700);
-#endif
 
   init_glob_errs();
 
@@ -152,9 +146,6 @@ my_bool my_init(void)
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
     my_win_init();
-#ifdef VMS
-    init_ctype();                       /* Stupid linker don't link _ctype.c */
-#endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
 #ifdef __WIN__
     win32_init_tcp_ip();

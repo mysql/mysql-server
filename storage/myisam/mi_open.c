@@ -23,9 +23,6 @@
 #ifdef __WIN__
 #include <fcntl.h>
 #endif
-#ifdef VMS
-#include "static.c"
-#endif
 
 static void setup_key_functions(MI_KEYDEF *keyinfo);
 #define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
