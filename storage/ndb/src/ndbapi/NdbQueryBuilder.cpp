@@ -1729,13 +1729,9 @@ void NdbQueryOperationDefImpl::markScanAncestors()
     // FIXME: Set an error code instead.
     assert(!operation->m_hasScanDescendant);
     operation->m_hasScanDescendant = true;
-    if (operation->getNoOfParentOperations() == 0)
-    {
-      break;
-    }
-    operation = &operation->getParentOperation(0);
+    operation = operation->getParentOperation();
   }
-  while (!operation->isScanOperation());
+  while (operation != NULL && !operation->isScanOperation());
 }
 
 /** This class is used for serializing sequences of 16 bit integers,

@@ -245,7 +245,7 @@ public:
   /** Outcome when asking for a new now from a scan.*/
   enum ScanRowResult
   {
-    /** Undefined value.*/
+    /** Undefined value, for variable initialization etc..*/
     ScanRowResult_void,
     /** There was a new row.*/
     ScanRowResult_gotRow,
@@ -331,16 +331,26 @@ private:
   /** Operation to which this resultStream belong.*/
   NdbQueryOperationImpl& m_operation;
 
+  /** This is the state of the iterator used by getNextScanRow().*/
   enum
   {
-    Iter_notStarted, 
-    Iter_stepChild, 
-    Iter_stepSelf, 
+    /** The first row has not been fetched yet.*/
+    Iter_notStarted,
+    /** Get next row from child operation, and keep the current tuple for 
+     * this operation..*/
+    Iter_stepChild,
+    /** Get next row from this operation.*/
+    Iter_stepSelf,
+    /** Last row for current batch has been returned.*/
     Iter_finished
   } m_iterState;
 
+  /** This is the tuple id of the current parent tuple (when iterating using 
+   * getNextScanRow())*/
   Uint16 m_currentParentId;
-  Uint16 m_currentRow;
+  
+  /** This is the current row number (when iterating using getNextScanRow())*/
+  Uint16 m_currentRow; // FIXME: Use NdbReciver::m_current_row instead???
 
   /**
    * TupleSet contain two logically distinct set of information:
@@ -595,6 +605,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
   {
     if (m_iterState == Iter_notStarted)
     {
+      // Fetch first row for this stream
       if (isRoot)
       {
         m_currentRow = 0;
@@ -623,6 +634,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     }
     else if (m_iterState == Iter_stepSelf)
     {
+      // Fetch next row for this stream
       if (isRoot)
       {
         m_currentRow++;
@@ -651,7 +663,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
 #if 0
         return ScanRowResult_endOfBatch;
 #else
-        // FIXME!!! (Handle left outer join)
+        // FIXME!!! (Handle left outer join properly.)
         m_operation.nullifyResult();
         return ScanRowResult_endOfScan;
 #endif
@@ -666,6 +678,11 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     {
       NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
       
+      /* If we fetched a new row for this operation, then we should get a
+       * new row for each child also.
+       * If we did not fetch a new row for this operation, then we should only
+       * get new rows for the child which has a scan desecendant (if there
+       * is such a child.)*/
       if (m_iterState == Iter_stepSelf 
           || child.getQueryOperationDef().hasScanDescendant())
       {
@@ -679,6 +696,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
           if (child.getQueryOperationDef().getMatchType() 
               != NdbQueryOptions::MatchAll)
           {
+            /* This must be an inner join.*/
             childRowsOk = false;
           }
           break;
@@ -693,16 +711,19 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     }
     if (m_iterState != Iter_stepSelf && childrenWithRows == 0)
     {
+      /* A row with "NULL" children should have been issued on the last call.
+       * We should fetch the next row for this operation.*/
       childRowsOk = false;
     }
 
     if (!childRowsOk || childrenWithRows == 0)
     {
-      // Advance cursor for this stream.
+      // Fetch a new row for this operation next time.
       m_iterState = Iter_stepSelf;
     }
     else
     {
+      // Keep iterating over child rows.
       m_iterState = Iter_stepChild;
     }
 
