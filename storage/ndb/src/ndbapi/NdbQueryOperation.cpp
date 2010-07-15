@@ -198,9 +198,6 @@ public:
    * the current batch).
    */
   bool isEmpty() const;
-#if 0
-  { return !m_query->getQueryOperation(0U).getReceiver(m_fragNo).nextResult(); }
-#endif
 
 private:
   STATIC_CONST( voidFragNo = 0xffffffff);
@@ -244,10 +241,18 @@ private:
 class NdbResultStream {
   friend bool NdbRootFragment::isEmpty() const;
 public:
-  enum ScanRowResult {
+
+  /** Outcome when asking for a new now from a scan.*/
+  enum ScanRowResult
+  {
+    /** Undefined value.*/
     ScanRowResult_void,
+    /** There was a new row.*/
     ScanRowResult_gotRow,
+    /** There are no more rows.*/
     ScanRowResult_noRow,
+    /** There are no more rows in the current batch, but there may be more 
+     * in subsequent batches.*/
     ScanRowResult_maybeRow
   };
 
@@ -298,6 +303,12 @@ public:
    */ 
   void handleBatchComplete();
 
+  /**
+   * Get the next row for an operation that is either a scan itself or a 
+   * descendant of a scan.
+   * @param parentId Tuple id of parent tuple (or tupleNotFound if this is the
+   * root operation.
+   */
   ScanRowResult getNextScanRow(Uint16 parentId);
 
   /** For debugging.*/
@@ -420,7 +431,7 @@ NdbResultStream::prepare()
    */
   if (m_operation.getQueryDef().isScanQuery())
   {
-    m_maxRows  = m_operation.getQuery().getMaxBatchRows();
+    m_maxRows  = m_operation.getMaxBatchRows();
     m_tupleSet = new TupleSet[m_maxRows];
     if (unlikely(m_tupleSet==NULL))
       return Err_MemoryAlloc;
@@ -538,7 +549,7 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
      * parent and child until all tuples (for this batch and 
      * root fragment) have arrived.
      */
-    setParentChildMap(m_operation.getNoOfParentOperations()>0 ? correlData.getParentTupleId() : tupleNotFound,
+    setParentChildMap(m_operation.getParentOperation()!=NULL ? correlData.getParentTupleId() : tupleNotFound,
                       correlData.getTupleId(),
                       m_rowCount);
   }
@@ -633,7 +644,7 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       }
       else
       {
-#ifdef TULL
+#if 0
         return ScanRowResult_maybeRow;
 #else
         // FIXME!!! (Handle left outer join)
@@ -1166,10 +1177,10 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_scanTransaction(NULL),
   m_operations(0),
   m_countOperations(0),
+  m_scanCount(0),
   m_pendingFrags(0),
   m_rootFragCount(0),
   m_rootFrags(NULL),
-  m_maxBatchRows(0),
   m_applFrags(),
   m_fullFrags(),
   m_finalBatchFrags(0),
@@ -1186,7 +1197,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_countOperations = queryDef.getNoOfOperations();
   Uint32  size = m_countOperations * 
     static_cast<Uint32>(sizeof(NdbQueryOperationImpl));
-  m_operations = static_cast<NdbQueryOperationImpl*> (malloc(size));
+  m_operations = static_cast<NdbQueryOperationImpl*> (::operator new(size));
   assert (m_operations);
 
   // Then; use placement new to construct each individual 
@@ -1214,7 +1225,7 @@ NdbQueryImpl::~NdbQueryImpl()
     for (int i=m_countOperations-1; i>=0; --i)
     { m_operations[i].~NdbQueryOperationImpl();
     }
-    free(m_operations);
+    ::operator delete(m_operations);
     m_operations = NULL;
   }
   delete[] m_rootFrags;
@@ -1893,36 +1904,6 @@ NdbQueryImpl::prepareSend()
       = getRoot().getQueryOperationDef().getTable().getFragmentCount();
     
     Ndb* const ndb = m_transaction.getNdb();
-    TransporterFacade *tp = ndb->theImpl->m_transporter_facade;
-
-    Uint32 batchRows = m_maxBatchRows; // >0: User specified prefered value, ==0: Use default CFG values
-
-#ifdef TEST_SCANREQ
-    batchRows = 2;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
-#endif
-
-    // Calculate batchsize for query as minimum batchRows for all m_operations[].
-    // Ignore calculated 'batchByteSize' and 'firstBatchRows' here - Recalculated
-    // when building signal after max-batchRows has been determined.
-    for (Uint32 i = 0; i < m_countOperations; i++) {
-      Uint32 batchByteSize, firstBatchRows;
-      NdbReceiver::calculate_batch_size(tp,
-                                    m_operations[i].m_ndbRecord,
-                                    m_operations[i].m_firstRecAttr,
-                                    0, // Key size.
-                                    m_pendingFrags,
-                                    batchRows,
-                                    batchByteSize,
-                                    firstBatchRows);
-      assert (batchRows>0);
-      assert (firstBatchRows==batchRows);
-    }
-    m_maxBatchRows = batchRows;
-    /**
-     * Tuples are indentified with 16 bit unsigned integers, and tupleNotFound
-     * (=0xffff) is used for representing unknown tuples.
-     */
-    assert(batchRows < tupleNotFound);
 
     /** Scan operations need a own sub-transaction object associated with each 
      *  query.
@@ -1941,8 +1922,11 @@ NdbQueryImpl::prepareSend()
   else  // Lookup query
   {
     m_pendingFrags = m_rootFragCount = 1;
-    m_maxBatchRows = 1;
   }
+
+  // Some preparation for later batchsize calculations pr. (sub) scan
+  getRoot().calculateBatchedRows();
+  getRoot().setBatchedRows(1);
 
   // 1. Build receiver structures for each QueryOperation.
   // 2. Fill in parameters (into ATTRINFO) for QueryTree.
@@ -2145,7 +2129,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     assert(descending==0 || (int) rootTable->m_indexType ==
            (int) NdbDictionary::Index::OrderedIndex);
 
-    assert (m_maxBatchRows > 0);
+    assert (root.getMaxBatchRows() > 0);
 
     NdbApiSignal tSignal(&ndb);
     tSignal.setSignal(GSN_SCAN_TABREQ);
@@ -2164,7 +2148,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->transId1 = (Uint32) transId;
     scanTabReq->transId2 = (Uint32) (transId >> 32);
 
-    Uint32 batchRows = m_maxBatchRows;
+    Uint32 batchRows = root.getMaxBatchRows();
     Uint32 batchByteSize, firstBatchRows;
     NdbReceiver::calculate_batch_size(tp,
                                       root.m_ndbRecord,
@@ -2174,7 +2158,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
                                       batchRows,
                                       batchByteSize,
                                       firstBatchRows);
-    assert (batchRows==m_maxBatchRows);
+    assert (batchRows==root.getMaxBatchRows());
     ScanTabReq::setScanBatch(reqInfo, batchRows);
     scanTabReq->batch_byte_size = batchByteSize;
     scanTabReq->first_batch_size = firstBatchRows;
@@ -2970,10 +2954,12 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_magic(MAGIC),
   m_queryImpl(queryImpl),
   m_operationDef(def),
-  m_parents(def.getNoOfParentOperations()),
+  m_parent(NULL),
   m_children(def.getNoOfChildOperations()),
+  m_maxBatchRows(0),   // >0: User specified prefered value, ==0: Use default CFG values
   m_resultStreams(NULL),
   m_params(),
+  m_bufferSize(0),
   m_batchBuffer(NULL),
   m_resultBuffer(NULL),
   m_resultRef(NULL),
@@ -2986,14 +2972,14 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_interpretedCode(NULL),
   m_diskInUserProjection(false)
 { 
-  // Fill in operations parent refs, and append it as child of its parents
-  for (Uint32 p=0; p<def.getNoOfParentOperations(); ++p)
+  // Fill in operations parent refs, and append it as child of its parent
+  const NdbQueryOperationDefImpl* parent = def.getParentOperation();
+  if (parent != NULL)
   { 
-    const NdbQueryOperationDefImpl& parent = def.getParentOperation(p);
-    const Uint32 ix = parent.getQueryOperationIx();
+    const Uint32 ix = parent->getQueryOperationIx();
     assert (ix < m_queryImpl.getNoOfOperations());
-    m_parents.push_back(&m_queryImpl.getQueryOperation(ix));
-    m_queryImpl.getQueryOperation(ix).m_children.push_back(this);
+    m_parent = &m_queryImpl.getQueryOperation(ix);
+    m_parent->m_children.push_back(this);
   }
   if (def.getType()==NdbQueryOperationDef::OrderedIndexScan)
   {  
@@ -3026,7 +3012,7 @@ NdbQueryOperationImpl::postFetchRelease()
 {
   if (m_batchBuffer) {
 #ifndef NDEBUG // Buffer overrun check activated.
-    { const Uint32 bufLen = m_batchByteSize*m_queryImpl.getRootFragCount();
+    { const Uint32 bufLen = m_bufferSize*m_queryImpl.getRootFragCount();
       assert(m_batchBuffer[bufLen+0] == 'a' &&
              m_batchBuffer[bufLen+1] == 'b' &&
              m_batchBuffer[bufLen+2] == 'c' &&
@@ -3069,13 +3055,19 @@ NdbQueryOperationImpl::postFetchRelease()
 Uint32
 NdbQueryOperationImpl::getNoOfParentOperations() const
 {
-  return m_parents.size();
+  return (m_parent) ? 1 : 0;
 }
 
 NdbQueryOperationImpl&
 NdbQueryOperationImpl::getParentOperation(Uint32 i) const
 {
-  return *m_parents[i];
+  assert(i==0 && m_parent!=NULL);
+  return *m_parent;
+}
+NdbQueryOperationImpl*
+NdbQueryOperationImpl::getParentOperation() const
+{
+  return m_parent;
 }
 
 Uint32 
@@ -3273,60 +3265,6 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
   }
 } // NdbQueryOperationImpl::fetchRow
 
-#if 0
-bool 
-NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint16 parentId)
-{
-  NdbResultStream& resultStream = *m_resultStreams[fragNo];
-
-  /* Pick the proper row for a lookup that is a descentdant of the scan.
-   * We iterate linearly over the results of the root scan operation, but
-   * for the descendant in a scan we must use the findTupleWithParentId() 
-   * method to pick the tuple that corresponds to the current parent tuple.
-   */
-  Uint32 rowNo;
-  if (parentId == tupleNotFound)
-  {
-    /* This is root operation in scan:
-     * retrieve rows in order available from scan root.
-     */
-    rowNo = resultStream.getReceiver().getCurrentRow();
-    assert(rowNo != tupleNotFound);
-  }
-  else
-  {
-    /* Use random rather than sequential access on receiver, since we
-     * iterate over results being indexed by 'parentId'
-     */
-    rowNo = resultStream.findTupleWithParentId(parentId);
-    if (rowNo == tupleNotFound)
-    {
-      /* This operation retrieved no result for the current parent tuple.*/
-      nullifyResult();
-      return false;
-    }
-    resultStream.getReceiver().setCurrentRow(rowNo);
-  }
-
-  /* Call recursively for the children of this operation.*/
-  for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
-  {
-    NdbQueryOperationImpl& child = getChildOperation(i);
-    bool nullRow = !child.fetchScanResults(fragNo, resultStream.getTupleId(rowNo));
-    if (nullRow &&
-        child.m_operationDef.getMatchType() != NdbQueryOptions::MatchAll)
-    {
-      // If a NULL row is returned from a child which is not outer joined, 
-      // parent row may be eliminate also.
-      (void)resultStream.getReceiver().get_row();  // Get and throw 
-      nullifyResult();
-      return false;
-    }
-  }
-  fetchRow(resultStream);
-  return true;
-} //NdbQueryOperationImpl::fetchScanResults
-#endif
 
 bool 
 NdbQueryOperationImpl::fetchLookupResults()
@@ -3522,17 +3460,70 @@ int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues
   return 0;
 } // NdbQueryOperationImpl::serializeParams
 
+int
+NdbQueryOperationImpl::calculateBatchedRows(NdbQueryOperationImpl* scanParent)
+{
+  if (m_operationDef.isScanOperation())
+    scanParent = this;
+
+  for (Uint32 i = 0; i < m_children.size(); i++)
+    m_children[i]->calculateBatchedRows(scanParent);
+
+#ifdef TEST_SCANREQ
+    m_maxBatchRows = 1;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
+#endif
+
+  if (scanParent!=NULL)
+  {
+    Ndb& ndb = *getQuery().getNdbTransaction().getNdb();
+    TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
+
+    // Calculate batchsize for query as minimum batchRows for all m_operations[].
+    // Ignore calculated 'batchByteSize' and 'firstBatchRows' here - Recalculated
+    // when building signal after max-batchRows has been determined.
+    Uint32 batchByteSize, firstBatchRows;
+    NdbReceiver::calculate_batch_size(tp,
+                                      m_ndbRecord,
+                                      m_firstRecAttr,
+                                      0, // Key size.
+                                      getQuery().getRootFragCount(),  // scanParent->getFragCount()
+                                      scanParent->m_maxBatchRows,
+                                      batchByteSize,
+                                      firstBatchRows);
+    assert (scanParent->m_maxBatchRows>0);
+    assert (firstBatchRows==scanParent->m_maxBatchRows);
+    m_maxBatchRows = firstBatchRows; // First guess, ::setBatchedRows() updates later  
+  }
+  else
+    m_maxBatchRows = 1;
+
+  return 0;
+} // NdbQueryOperationImpl::calculateBatchedRows
+
+
+void
+NdbQueryOperationImpl::setBatchedRows(Uint32 batchedRows)
+{
+  if (m_operationDef.isScanOperation())
+    batchedRows = this->m_maxBatchRows;
+
+  for (Uint32 i = 0; i < m_children.size(); i++)
+    m_children[i]->setBatchedRows(batchedRows);
+
+  m_maxBatchRows = batchedRows;
+}
+
 
 int 
 NdbQueryOperationImpl::prepareReceiver()
 {
   const Uint32 rowSize = 
     NdbReceiver::ndbrecord_rowsize(m_ndbRecord, m_firstRecAttr,0,false);
-  m_batchByteSize = rowSize * m_queryImpl.getMaxBatchRows();
-//ndbout "m_batchByteSize=" << m_batchByteSize << endl;
+  m_bufferSize = rowSize * getMaxBatchRows();
+//ndbout "m_bufferSize=" << m_bufferSize << endl;
 
-  if (m_batchByteSize > 0) { // 0 bytes in batch if no result requested
-    Uint32 bufLen = m_batchByteSize*m_queryImpl.getRootFragCount();
+  if (m_bufferSize > 0) { // 0 bytes in batch if no result requested
+    Uint32 bufLen = m_bufferSize*m_queryImpl.getRootFragCount();
 #ifdef NDEBUG
     m_batchBuffer = new char[bufLen];
     if (unlikely(m_batchBuffer == NULL)) {
@@ -3575,11 +3566,11 @@ NdbQueryOperationImpl::prepareReceiver()
                                         false, this);
     m_resultStreams[i]->getReceiver()
       .do_setup_ndbrecord(m_ndbRecord,
-                          m_queryImpl.getMaxBatchRows(), 
+                          getMaxBatchRows(), 
                           0 /*key_size*/, 
                           0 /*read_range_no*/, 
                           rowSize,
-                          &m_batchBuffer[m_batchByteSize*i],
+                          &m_batchBuffer[m_bufferSize*i],
                           0);
     m_resultStreams[i]->getReceiver().prepareSend();
   }
@@ -3703,14 +3694,24 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     if (unlikely(param==NULL))
       return Err_MemoryAlloc;
 
+    Ndb& ndb = *m_queryImpl.getNdbTransaction().getNdb();
+    TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
+
+    Uint32 batchRows = getMaxBatchRows();
+    Uint32 batchByteSize, firstBatchRows;
+    NdbReceiver::calculate_batch_size(tp,
+                                      m_ndbRecord,
+                                      m_firstRecAttr,
+                                      0, // Key size.
+                                      m_queryImpl.getRootFragCount(),
+                                      batchRows,
+                                      batchByteSize,
+                                      firstBatchRows);
+    assert (batchRows==getMaxBatchRows());
+
     requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL; // FIXME: SPJ always assume. SIP_PARALLEL
     param->requestInfo = requestInfo; 
-#ifdef TEST_SCANREQ
-    // One tuple per data node (assuming there are two nodes).
-    param->batchSize = 0xffff0002; 
-#else
-    param->batchSize = 0xffff007f;                       // TODO FIXME (bytes=0xffff, rows=0x100)
-#endif
+    param->batchSize = ((Uint16)batchByteSize << 16) | (Uint16)firstBatchRows;
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
   }
@@ -4329,8 +4330,8 @@ NdbQueryOperationImpl::getReceiver(Uint32 recNo) const {
 NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "[ this: " << &op
       << "  m_magic: " << op.m_magic;
-  for(unsigned int i = 0; i<op.getNoOfParentOperations(); i++){
-    out << "  m_parents[" << i << "]" << &op.getParentOperation(i); 
+  if (op.getParentOperation()){
+    out << "  m_parent" << op.getParentOperation(); 
   }
   for(unsigned int i = 0; i<op.getNoOfChildOperations(); i++){
     out << "  m_children[" << i << "]" << &op.getChildOperation(i); 

@@ -132,6 +132,7 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 
   m_record.m_ndb_record= rec;
   m_record.m_row= row_ptr;
+  m_record.m_row_offset= rec->m_row_size;
 }
 
 #define KEY_ATTR_ID (~(Uint32)0)
@@ -699,6 +700,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       {
         assert(m_record.m_read_range_no);
         assert(attrSize==4);
+        assert (m_record.m_row_offset >= m_record.m_ndb_record->m_row_size+attrSize);
         memcpy(m_record.m_row+m_record.m_ndb_record->m_row_size, aDataPtr++, 4);
         aLength--;
         continue; // Next
@@ -710,6 +712,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
        */
       if (attrId == AttributeHeader::READ_PACKED)
       {
+        assert (m_record.m_row_offset >= m_record.m_ndb_record->m_row_size);
         Uint32 len= receive_packed_ndbrecord(attrSize >> 2, // Bitmap length
                                              aDataPtr,
                                              m_record.m_row);
