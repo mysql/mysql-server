@@ -250,10 +250,10 @@ public:
     /** There was a new row.*/
     ScanRowResult_gotRow,
     /** There are no more rows.*/
-    ScanRowResult_noRow,
+    ScanRowResult_endOfScan,
     /** There are no more rows in the current batch, but there may be more 
      * in subsequent batches.*/
-    ScanRowResult_maybeRow
+    ScanRowResult_endOfBatch
   };
 
   /**
@@ -623,16 +623,16 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     {
       if (isRoot)
       {
-        return ScanRowResult_noRow;
+        return ScanRowResult_endOfScan;
       }
       else
       {
 #if 0
-        return ScanRowResult_maybeRow;
+        return ScanRowResult_endOfBatch;
 #else
         // FIXME!!! (Handle left outer join)
         m_operation.nullifyResult();
-        return ScanRowResult_noRow;
+        return ScanRowResult_endOfScan;
 #endif
       }
     }
@@ -653,14 +653,14 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
         case ScanRowResult_gotRow:
           childrenWithRows++;
           break;
-        case ScanRowResult_noRow:
+        case ScanRowResult_endOfScan:
           if (child.getQueryOperationDef().getMatchType() 
               != NdbQueryOptions::MatchAll)
           {
             childRowsOk = false;
           }
           break;
-        case ScanRowResult_maybeRow:
+        case ScanRowResult_endOfBatch:
           childRowsOk = false;
           break;
         default:
