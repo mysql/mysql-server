@@ -1032,7 +1032,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
-    *((double*) variable)=  (double) value;
+    *((double*) variable)= ulonglong2double(value);
     break;
   case GET_STR:
     /*
