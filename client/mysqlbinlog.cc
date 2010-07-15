@@ -68,20 +68,20 @@ TYPELIB base64_output_mode_typelib=
   { array_elements(base64_output_mode_names) - 1, "",
     base64_output_mode_names, NULL };
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
-static const char *opt_base64_output_mode_str= NullS;
-static const char* database= 0;
+static char *opt_base64_output_mode_str= NullS;
+static char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1;
 static ulonglong offset = 0;
-static const char* host = 0;
+static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
 #endif
-static const char* user = 0;
+static char* user = 0;
 static char* pass = 0;
 static char *charset= 0;
 
@@ -96,7 +96,7 @@ static my_time_t start_datetime= 0, stop_datetime= MY_TIME_T_MAX;
 static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
-static const char* dirname_for_local_load= 0;
+static char* dirname_for_local_load= 0;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -191,7 +191,7 @@ public:
   int init()
   {
     return init_dynamic_array(&file_names, sizeof(File_name_record),
-			      100,100 CALLER_INFO);
+			      100, 100);
   }
 
   void init_by_dir_name(const char *dir)
@@ -213,7 +213,7 @@ public:
     {
       if (ptr->fname)
       {
-        my_free(ptr->fname, MYF(MY_WME));
+        my_free(ptr->fname);
         delete ptr->event;
         bzero((char *)ptr, sizeof(File_name_record));
       }
@@ -442,7 +442,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   {
     error("Could not construct local filename %s%s.",
           target_dir_name,bname);
-    my_free(fname, MYF(0));
+    my_free(fname);
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -458,7 +458,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   if (set_dynamic(&file_names, (uchar*)&rec, file_id))
   {
     error("Out of memory.");
-    my_free(fname, MYF(0));
+    my_free(fname);
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -822,7 +822,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         */
         convert_path_to_forward_slashes((char*) ce->fname);
 	ce->print(result_file, print_event_info, TRUE);
-	my_free((char*)ce->fname,MYF(MY_WME));
+	my_free((void*)ce->fname);
 	delete ce;
       }
       else
@@ -887,7 +887,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
 
       if (fname)
-	my_free(fname, MYF(MY_WME));
+	my_free(fname);
       break;
     }
     case TABLE_MAP_EVENT:
@@ -1002,10 +1002,6 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"base64-output", OPT_BASE64_OUTPUT_MODE,
     /* 'unspec' is not mentioned because it is just a placeholder. */
    "Determine when the output statements should be base64-encoded BINLOG "
@@ -1222,23 +1218,21 @@ static void warning(const char *format,...)
 */
 static void cleanup()
 {
-  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) database, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) host, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) user, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) dirname_for_local_load, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(pass);
+  my_free(database);
+  my_free(host);
+  my_free(user);
+  my_free(dirname_for_local_load);
 
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
 }
 
-#include <help_start.h>
 
 static void print_version()
 {
   printf("%s Ver 3.3 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -1280,7 +1274,6 @@ static my_time_t convert_str_to_timestamp(const char* str)
     my_system_gmt_sec(&l_time, &dummy_my_timezone, &dummy_in_dst_time_gap);
 }
 
-#include <help_end.h>
 
 extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -1288,11 +1281,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   bool tty_password=0;
   switch (optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
 #ifndef DBUG_OFF
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
@@ -1306,7 +1294,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       argument= (char*) "";                     // Don't require password
     if (argument)
     {
-      my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(pass);
       char *start=argument;
       pass= my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
@@ -2032,6 +2020,7 @@ int main(int argc, char** argv)
   {
     usage();
     free_defaults(defaults_argv);
+    my_end(my_end_arg);
     exit(1);
   }
 

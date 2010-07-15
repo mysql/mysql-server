@@ -1353,7 +1353,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
       packet->append(for_str, strlen(for_str));
       packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
-      my_free(for_str, MYF(0));
+      my_free(for_str);
     }
 
     /*
@@ -1495,7 +1495,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
        table->part_info->set_show_version_string(packet);
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
-       my_free(part_syntax, MYF(0));
+       my_free(part_syntax);
     }
   }
 #endif
@@ -3347,7 +3347,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
     free_root(&tbl.mem_root, MYF(0));
-    my_free((char*) tbl.alias, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((void *) tbl.alias);
   }
 
 end_share:
@@ -5400,7 +5400,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
       if(ts)
       {
         table->field[24]->store(ts, strlen(ts), cs);
-        my_free(ts, MYF(0));
+        my_free(ts);
       }
       else
         table->field[24]->set_null();
@@ -7495,7 +7495,7 @@ int initialize_schema_table(st_plugin_int *plugin)
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
       plugin->data= NULL;
-      my_free(schema_table, MYF(0));
+      my_free(schema_table);
       DBUG_RETURN(1);
     }
     
@@ -7518,7 +7518,7 @@ int finalize_schema_table(st_plugin_int *plugin)
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
     }
-    my_free(schema_table, MYF(0));
+    my_free(schema_table);
   }
   DBUG_RETURN(0);
 }

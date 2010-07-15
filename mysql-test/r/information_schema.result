@@ -1427,7 +1427,7 @@ USE test;
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-MyISAM	DEFAULT	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
+MyISAM	DEFAULT	MyISAM storage engine	NO	NO	NO
 grant select on *.* to user3148@localhost;
 select user,db from information_schema.processlist;
 user	db

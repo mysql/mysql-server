@@ -164,7 +164,29 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
     */
     if (thread_mask & SLAVE_SQL)
     {
+      bool hot_log= FALSE;
+      /* 
+         my_b_seek does an implicit flush_io_cache, so we need to:
+
+         1. check if this log is active (hot)
+         2. if it is we keep log_lock until the seek ends, otherwise 
+            release it right away.
+
+         If we did not take log_lock, SQL thread might race with IO
+         thread for the IO_CACHE mutex.
+
+       */
+      mysql_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
+      mysql_mutex_lock(log_lock);
+      hot_log= mi->rli.relay_log.is_active(mi->rli.linfo.log_file_name);
+
+      if (!hot_log)
+        mysql_mutex_unlock(log_lock);
+
       my_b_seek(mi->rli.cur_log, (my_off_t) 0);
+
+      if (hot_log)
+        mysql_mutex_unlock(log_lock);
     }
     DBUG_RETURN(0);
   }
@@ -495,7 +517,7 @@ int flush_master_info(Master_info* mi,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
               heartbeat_buf, "", ignore_server_ids_buf);
-  my_free(ignore_server_ids_buf, MYF(0));
+  my_free(ignore_server_ids_buf);
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 
       ++(mi->sync_counter) >= sync_masterinfo_period)

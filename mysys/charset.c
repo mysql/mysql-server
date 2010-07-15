@@ -383,11 +383,11 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 #endif
   }
   
-  my_free(buf, myflags);
+  my_free(buf);
   return FALSE;
 
 error:
-  my_free(buf, myflags);
+  my_free(buf);
   return TRUE;
 }
 

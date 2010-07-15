@@ -298,9 +298,9 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 err3:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err2:
-  my_free((uchar*) share->decode_tables,MYF(0));
+  my_free(share->decode_tables);
 err1:
-  my_free((uchar*) share->decode_trees,MYF(0));
+  my_free(share->decode_trees);
 err0:
   DBUG_RETURN(1);
 }

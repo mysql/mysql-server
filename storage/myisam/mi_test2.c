@@ -21,9 +21,6 @@
 #ifdef DBUG_OFF
 #undef DBUG_OFF
 #endif
-#ifndef SAFEMALLOC
-#define SAFEMALLOC
-#endif
 #include "myisamdef.h"
 #include <m_ctype.h>
 #include <my_bit.h>
@@ -31,7 +28,7 @@
 #define STANDARD_LENGTH 37
 #define MYISAM_KEYS 6
 #define MAX_PARTS 4
-#if !defined(MSDOS) && !defined(labs)
+#if !defined(labs)
 #define labs(a) abs(a)
 #endif
 
@@ -856,7 +853,7 @@ reads:      %10lu\n",
   }
   end_key_cache(dflt_key_cache,1);
   if (blob_buffer)
-    my_free(blob_buffer,MYF(0));
+    my_free(blob_buffer);
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);
   return(0);
 err:

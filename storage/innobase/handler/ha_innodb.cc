@@ -187,10 +187,6 @@ static ulong	innobase_active_counter	= 0;
 
 static hash_table_t*	innobase_open_tables;
 
-#ifdef __NETWARE__	/* some special cleanup for NetWare */
-bool nw_panic = FALSE;
-#endif
-
 /** Allowed values of innodb_change_buffering */
 static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"none",		/* IBUF_USE_NONE */
@@ -2199,8 +2195,7 @@ innobase_init(
 			"InnoDB: syntax error in innodb_data_file_path");
 mem_free_and_error:
 		srv_free_paths_and_sizes();
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
+		my_free(internal_innobase_data_file_path);
 		goto error;
 	}
 
@@ -2470,11 +2465,6 @@ innobase_end(
 	DBUG_ENTER("innobase_end");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-#ifdef __NETWARE__	/* some special cleanup for NetWare */
-	if (nw_panic) {
-		set_panic_flag_for_netware();
-	}
-#endif
 	if (innodb_inited) {
 
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
@@ -2485,8 +2475,7 @@ innobase_end(
 			err = 1;
 		}
 		srv_free_paths_and_sizes();
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
+		my_free(internal_innobase_data_file_path);
 		mysql_mutex_destroy(&innobase_share_mutex);
 		mysql_mutex_destroy(&prepare_commit_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
@@ -3439,7 +3428,7 @@ innobase_build_index_translation(
 func_exit:
 	if (!ret) {
 		/* Build translation table failed. */
-		my_free(index_mapping, MYF(MY_ALLOW_ZERO_PTR));
+		my_free(index_mapping);
 
 		share->idx_trans_tbl.array_size = 0;
 		share->idx_trans_tbl.index_count = 0;
@@ -3673,7 +3662,7 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff, MYF(0));
+		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -3689,7 +3678,7 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff, MYF(0));
+		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table, FALSE);
@@ -3883,7 +3872,7 @@ ha_innobase::close(void)
 
 	row_prebuilt_free(prebuilt, FALSE);
 
-	my_free(upd_buff, MYF(0));
+	my_free(upd_buff);
 	free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -6404,7 +6393,7 @@ create_index(
 
 	error = convert_error_code_to_mysql(error, flags, NULL);
 
-	my_free(field_lengths, MYF(0));
+	my_free(field_lengths);
 
 	DBUG_RETURN(error);
 }
@@ -7215,7 +7204,7 @@ innobase_drop_database(
 	trx = innobase_trx_allocate(thd);
 #endif
 	error = row_drop_database_for_mysql(namebuf, trx);
-	my_free(namebuf, MYF(0));
+	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -7291,8 +7280,8 @@ innobase_rename_table(
 		log_buffer_flush_to_disk();
 	}
 
-	my_free(norm_to, MYF(0));
-	my_free(norm_from, MYF(0));
+	my_free(norm_to);
+	my_free(norm_from);
 
 	return error;
 }
@@ -7455,7 +7444,7 @@ ha_innobase::records_in_range(
 	mem_heap_free(heap);
 
 func_exit:
-	my_free(key_val_buff2, MYF(0));
+	my_free(key_val_buff2);
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -8464,7 +8453,7 @@ ha_innobase::free_foreign_key_create_info(
 	char*	str)	/*!< in, own: create info string to free */
 {
 	if (str) {
-		my_free(str, MYF(0));
+		my_free(str);
 	}
 }
 
@@ -9008,7 +8997,7 @@ innodb_show_status(
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
-	my_free(str, MYF(0));
+	my_free(str);
 
 	DBUG_RETURN(FALSE);
 }
@@ -9279,10 +9268,9 @@ static void free_share(INNOBASE_SHARE* share)
 		thr_lock_delete(&share->lock);
 
 		/* Free any memory from index translation table */
-		my_free(share->idx_trans_tbl.index_mapping,
-			MYF(MY_ALLOW_ZERO_PTR));
+		my_free(share->idx_trans_tbl.index_mapping);
 
-		my_free(share, MYF(0));
+		my_free(share);
 
 		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
 		shrinks too much */
@@ -10797,14 +10785,8 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
-  "values are 0, 1 (faster)"
-  /*
-    NetWare can't close unclosed files, can't automatically kill remaining
-    threads, etc, so on this OS we disable the crash-like InnoDB shutdown.
-  */
-  IF_NETWARE("", " or 2 (fastest - crash-like)")
-  ".",
-  NULL, NULL, 1, 0, IF_NETWARE(1,2), 0);
+  "values are 0, 1 (faster) or 2 (fastest - crash-like).",
+  NULL, NULL, 1, 0, 2, 0);
 
 static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   PLUGIN_VAR_NOCMDARG,

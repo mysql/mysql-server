@@ -875,7 +875,7 @@ static Sys_var_uint Sys_large_page_size(
 
 static Sys_var_mybool Sys_large_pages(
        "large_pages", "Enable support for large pages",
-       READ_ONLY GLOBAL_VAR(opt_large_files),
+       READ_ONLY GLOBAL_VAR(opt_large_pages),
        IF_WIN(NO_CMD_LINE, CMD_LINE(OPT_ARG)), DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_language(
@@ -1630,7 +1630,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
        "semicolon (;)"
 #else
        "colon (:)"
@@ -2379,7 +2379,7 @@ static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
        SESSION_VAR(select_limit), NO_CMD_LINE,
-       VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
+       VALID_RANGE(0, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
 
 static bool update_timestamp(THD *thd, set_var *var)
 {

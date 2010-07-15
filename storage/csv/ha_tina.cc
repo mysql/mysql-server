@@ -251,7 +251,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   mysql_mutex_unlock(&tina_mutex);
-  my_free((uchar*) share, MYF(0));
+  my_free(share);
 
   return NULL;
 }
@@ -429,7 +429,7 @@ static int free_share(TINA_SHARE *share)
     my_hash_delete(&tina_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
-    my_free((uchar*) share, MYF(0));
+    my_free(share);
   }
   mysql_mutex_unlock(&tina_mutex);
 
@@ -1529,7 +1529,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   free_root(&blobroot, MYF(0));
 
-  my_free((char*)buf, MYF(0));
+  my_free(buf);
 
   if (rc == HA_ERR_END_OF_FILE)
   {
@@ -1735,7 +1735,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   free_root(&blobroot, MYF(0));
 
-  my_free((char*)buf, MYF(0));
+  my_free(buf);
   thd_proc_info(thd, old_proc_info);
 
   if ((rc != HA_ERR_END_OF_FILE) || count)
