@@ -429,10 +429,10 @@ static struct my_option my_long_options[] =
    &opt_replace_into, &opt_replace_into, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
-   "Direct output to a given file. This option should be used in MSDOS, "
-   "because it prevents new line '\\n' from being converted to '\\r\\n' "
-   "(carriage return + line feed).",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Direct output to a given file. This option should be used in systems "
+   "(e.g., DOS, Windows) that use carriage-return linefeed pairs (\\r\\n) "
+   "to separate text lines. This option ensures that only a single newline "
+   "is used.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"routines", 'R', "Dump stored routines (functions and procedures).",
    &opt_routines, &opt_routines, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},

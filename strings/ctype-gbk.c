@@ -44,7 +44,7 @@
 #define gbkhead(e)     ((uchar)(e>>8))
 #define gbktail(e)     ((uchar)(e&0xff))
 
-static uchar NEAR ctype_gbk[257] =
+static uchar ctype_gbk[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -65,7 +65,7 @@ static uchar NEAR ctype_gbk[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-static uchar NEAR to_lower_gbk[]=
+static uchar to_lower_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -101,7 +101,7 @@ static uchar NEAR to_lower_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_gbk[]=
+static uchar to_upper_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -995,7 +995,7 @@ static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
 
 
 
-static uchar NEAR sort_order_gbk[]=
+static uchar sort_order_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -1031,7 +1031,7 @@ static uchar NEAR sort_order_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uint16 NEAR gbk_order[]=
+static uint16 gbk_order[]=
 {
 8653,14277,17116,11482,11160,2751,14613,3913,13337,9827,
 19496,1759,8105,7103,7836,5638,2223,21433,5878,8006,

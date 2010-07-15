@@ -80,7 +80,7 @@ my_bool	net_flush(NET *net);
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -91,12 +91,12 @@ my_bool	net_flush(NET *net);
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /*!defined(MSDOS) && !defined(__WIN__) */
+#endif /* !defined(__WIN__) */
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #define perror(A)
 #else
 #include <errno.h>
