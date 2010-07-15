@@ -229,14 +229,7 @@ AC_PROG_CXX
 AC_PROG_CPP
 
 # Print version of CC and CXX compiler (if they support --version)
-case $SYSTEM_TYPE in
-  *netware*)
-CC_VERSION=`$CC -version | grep -i version`
-    ;;
-  *)
 CC_VERSION=`$CC --version | sed 1q`
-    ;;
-esac
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C Compiler version")
@@ -427,15 +420,10 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
-case $SYSTEM_TYPE in
-  *netware*) ;;
-  *)
-    # If ln -f does not exists use -s (AFS systems)
-    if test -n "$LN_CP_F"; then
-      LN_CP_F="$LN_CP_F -s"
-    fi
-    ;;
-esac
+# If ln -f does not exists use -s (AFS systems)
+if test -n "$LN_CP_F"; then
+  LN_CP_F="$LN_CP_F -s"
+fi
 
 AC_PATH_PROG(MV, mv, mv)
 AC_PATH_PROG(RM, rm, rm)
@@ -527,9 +515,6 @@ else
       ;;
     *cygwin*)
       FIND_PROC="$PS -e | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
-      ;;
-    *netware*)
-      FIND_PROC=
       ;;
     *)
       AC_MSG_ERROR([Could not find the right ps and/or grep switches. Which OS is this?  See the Installation chapter in the Reference Manual.])
@@ -1279,9 +1264,7 @@ case $SYSTEM_TYPE in
     if test "$OSVERSION" -gt "600000"
     then
        # Post user-level threads, MYSQLD_NET_RETRY_COUNT is not needed any more
-       AC_MSG_WARN([Adding fix for broken realpath])
-       CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
-       CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_REALPATH"
+       :
     elif test "$OSVERSION" -gt "480100" && \
        test "$OSVERSION" -lt "500000" || \
        test "$OSVERSION" -gt "500109"
@@ -1333,98 +1316,6 @@ dnl Is this the right match for DEC OSF on alpha?
       CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
       # fix to handle include of <stdint.h> correctly on OSF1 with cxx compiler
       CXXFLAGS="$CXXFLAGS -I/usr/include/cxx -I/usr/include/cxx_cname -I/usr/include -I/usr/include.dtk"
-    ;;
-  *netware*)
-    # No need for curses library so set it to null
-    with_named_curses=""
-
-    # No thread library - in LibC
-    with_named_thread=""
-    
-    #
-    # Edit Makefile.in files.
-    #
-    echo -n "configuring Makefile.in files for NetWare... "
-    for file in sql/Makefile.in extra/Makefile.in client/Makefile.in
-    do
-    # echo "#### $file ####"
-      filedir="`dirname $file`"
-      filebase="`basename $file`"
-      filesed=$filedir/$filebase.sed
-      #
-      # Backup and always use original file
-      #
-      if test -f $file.bk
-      then
-        cp -fp $file.bk $file
-      else
-        cp -fp $file $file.bk
-      fi
-      case $file in
-        sql/Makefile.in)
-          # Use gen_lex_hash.linux instead of gen_lex_hash
-          # Add library dependencies to mysqld_DEPENDENCIES
-          lib_DEPENDENCIES="\$(pstack_libs) \$(openssl_libs) \$(yassl_libs)"
-          cat > $filesed << EOF
-s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
-s%\(mysqld_DEPENDENCIES = \)%\1$lib_DEPENDENCIES %
-EOF
-          ;;
-        extra/Makefile.in)
-          cat > $filesed << EOF
-s,\(extra/comp_err\)\$(EXEEXT),\1.linux,
-EOF
-          ;;
-        libmysql/Makefile.in)
-          cat > $filesed << EOF
-s,libyassl.la,.libs/libyassl.a,
-s,libtaocrypt.la,.libs/libtaocrypt.a,
-EOF
-          ;;
-        libmysql_r/Makefile.in)
-          cat > $filesed << EOF
-s,libyassl.la,.libs/libyassl.a,
-s,libtaocrypt.la,.libs/libtaocrypt.a,
-EOF
-          ;;
-        client/Makefile.in)
-          #
-          cat > $filesed << EOF
-s,libmysqlclient.la,.libs/libmysqlclient.a,
-EOF
-          ;;
-      esac
-      if `sed -f $filesed $file > $file.nw`;\
-      then
-        mv -f $file.nw $file
-        rm -f $filesed
-      else
-        exit 1
-      fi
-      # wait for file system changes to complete
-      sleep 1
-    done
-    echo "done"
-
-    #
-    # Make sure the following files are writable.
-    #
-    # When the files are retrieved from some source code control systems they are read-only.
-    #
-    echo -n "making sure specific build files are writable... "
-    for file in \
-        Docs/manual.chm \
-        Docs/mysql.info \
-        Docs/INSTALL-BINARY \
-        INSTALL-SOURCE \
-        COPYING
-    do
-      if test -e $file; then
-        chmod +w $file
-      fi
-    done
-    echo "done"
-
     ;;
 esac
 
@@ -1798,12 +1689,7 @@ esac
 
 
 # System characteristics
-case $SYSTEM_TYPE in
-  *netware*) ;;
-  *)
 AC_SYS_RESTARTABLE_SYSCALLS
-    ;;
-esac
 
 # Build optimized or debug version ?
 # First check for gcc and g++
@@ -1843,17 +1729,6 @@ else
   esac
 fi
 
-case $SYSTEM_TYPE in
-  *netware*)
-    DEBUG_CFLAGS="-g -DDEBUG -sym internal,codeview4"
-    DEBUG_CXXFLAGS="-g -DDEBUG -sym internal,codeview4"
-    DEBUG_OPTIMIZE_CC="-DDEBUG"
-    DEBUG_OPTIMIZE_CXX="-DDEBUG"
-    OPTIMIZE_CFLAGS="-O3 -DNDEBUG"
-    OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
-    ;;
-esac
-
 # If the user specified CFLAGS, we won't add any optimizations
 if test -n "$SAVE_CFLAGS"
 then
@@ -1882,8 +1757,8 @@ elif test "$with_debug" = "full"
 then
   # Full debug. Very slow in some cases
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
-  CFLAGS="$DEBUG_CFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+  CFLAGS="$DEBUG_CFLAGS -DSAFE_MUTEX $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX $CXXFLAGS"
 else
   # Optimized version. No debug
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
@@ -2201,18 +2076,13 @@ MYSQL_TZNAME
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
-case $SYSTEM_TYPE in
-  *netware*) ;;
-  *)
-    MYSQL_CHECK_LONGLONG_TO_FLOAT
-    if test "$ac_cv_conv_longlong_to_float" != "yes"
-    then
-      AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
- If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-    again])
-    fi
-    ;;
-esac
+MYSQL_CHECK_LONGLONG_TO_FLOAT
+if test "$ac_cv_conv_longlong_to_float" != "yes"
+then
+  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
+                If you are using gcc 2.8.# you should upgrade to egcs 1.0.3
+                or newer and try again])
+fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
 AC_CHECK_TYPES([u_int32_t])
@@ -2910,66 +2780,58 @@ readline_h_ln_cmd=""
 readline_link=""
 want_to_use_readline="no"
 
-case $SYSTEM_TYPE in
-  *netware*)
-    # For NetWare, do not need readline
-    echo "Skipping readline"
-    ;;
-  *)
-    if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
+if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
+then
+    readline_topdir="cmd-line-utils"
+    readline_basedir="libedit"
+    readline_dir="$readline_topdir/$readline_basedir"
+    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
+    compile_libedit=yes
+    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
+    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
+elif test "$with_readline" = "yes"
+then
+    readline_topdir="cmd-line-utils"
+    readline_basedir="readline"
+    readline_dir="$readline_topdir/$readline_basedir"
+    readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
+    compile_readline=yes
+    want_to_use_readline="yes"
+    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
+else
+    # Use system readline library
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    MYSQL_CHECK_LIBEDIT_INTERFACE
+    MYSQL_CHECK_NEW_RL_INTERFACE
+    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+    AC_LANG_RESTORE
+    if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "$srcdir/cmd-line-utils/readline"]
     then
-	readline_topdir="cmd-line-utils"
-	readline_basedir="libedit"
-	readline_dir="$readline_topdir/$readline_basedir"
-	readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
-	compile_libedit=yes
-	AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
-	AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
-    elif test "$with_readline" = "yes"
+        # Use the new readline interface, but only if the package includes a bundled libreadline
+        # this way we avoid linking commercial source with GPL readline
+        readline_link="-lreadline"
+        want_to_use_readline="yes"
+    elif [test "$mysql_cv_libedit_interface" = "yes"]
     then
-	readline_topdir="cmd-line-utils"
-	readline_basedir="readline"
-	readline_dir="$readline_topdir/$readline_basedir"
-	readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
-	compile_readline=yes
-	want_to_use_readline="yes"
-	AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
+        # Use libedit
+        readline_link="-ledit"
     else
-	# Use system readline library
-	AC_LANG_SAVE
-	AC_LANG_CPLUSPLUS
-	MYSQL_CHECK_LIBEDIT_INTERFACE
-	MYSQL_CHECK_NEW_RL_INTERFACE
-	MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
-	AC_LANG_RESTORE
-	if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "$srcdir/cmd-line-utils/readline"]
-	then
-	    # Use the new readline interface, but only if the package includes a bundled libreadline
-	    # this way we avoid linking commercial source with GPL readline
-	    readline_link="-lreadline"
-	    want_to_use_readline="yes"
-	elif [test "$mysql_cv_libedit_interface" = "yes"]
-	then
-	    # Use libedit
-	    readline_link="-ledit"
-	else
-	   AC_MSG_ERROR([Could not find system readline or libedit libraries
-	      Use --with-readline or --with-libedit to use the bundled
-	      versions of libedit or readline])
-	fi
+        AC_MSG_ERROR([Could not find system readline or libedit libraries
+          Use --with-readline or --with-libedit to use the bundled
+          versions of libedit or readline])
     fi
+fi
 
-    # if there is no readline, but we want to build with readline, we fail
-    if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
-    then
-	AC_MSG_ERROR([This commercially licensed MySQL source package can't
-	      be built with libreadline. Please use --with-libedit to use
-	      the bundled version of libedit instead.])
-    fi
-    ;;
-esac
+# if there is no readline, but we want to build with readline, we fail
+if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
+then
+    AC_MSG_ERROR([This commercially licensed MySQL source package can't
+          be built with libreadline. Please use --with-libedit to use
+          the bundled version of libedit instead.])
+fi
 
 AC_SUBST(readline_dir)
 AC_SUBST(readline_topdir)
@@ -3059,15 +2921,6 @@ AC_SUBST(NON_THREADED_LIBS)
 AC_SUBST(STATIC_NSS_FLAGS)
 AC_SUBST(sql_client_dirs)
 
-# If configuring for NetWare, build the netware directory
-netware_dir=
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
-then
-  netware_dir="netware"
-fi
-AC_SUBST(netware_dir)
-AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
-
 if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
@@ -3131,14 +2984,6 @@ AC_SUBST(CC)
 AC_SUBST(GXX)
 
 # Set configuration options for make_binary_distribution
-case $SYSTEM_TYPE in
-  *netware*)
-    MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --no-strip"
-    ;;
-  *)
-    : # no change for other platforms yet
-    ;;
-esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 #--------------------------------------------------------------------
@@ -3211,8 +3056,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
  libmysqld/Makefile libmysqld/examples/Makefile dnl
  mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
- netware/Makefile sql-bench/Makefile dnl
- include/mysql_version.h plugin/Makefile win/Makefile
+ sql-bench/Makefile include/mysql_version.h plugin/Makefile win/Makefile dnl
  cmake/Makefile
  )
 

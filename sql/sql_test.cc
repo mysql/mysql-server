@@ -555,11 +555,6 @@ Next alarm time: %lu\n",
 #endif
   display_table_locks();
   fflush(stdout);
-  my_checkmalloc();
-  fprintf(stdout,"\nBegin safemalloc memory dump:\n"); // tag needed for test suite
-  TERMINATE(stdout, 1);				// Write malloc information
-  fprintf(stdout,"\nEnd safemalloc memory dump.\n");  
-  fflush(stdout);
 #ifdef HAVE_MALLINFO
   struct mallinfo info= mallinfo();
   printf("\nMemory status:\n\

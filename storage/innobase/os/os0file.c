@@ -623,7 +623,7 @@ os_file_handle_error_no_exit(
 
 #undef USE_FILE_LOCK
 #define USE_FILE_LOCK
-#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__NETWARE__)
+#if defined(UNIV_HOTBACKUP) || defined(__WIN__)
 /* InnoDB Hot Backup does not lock the data files.
  * On Windows, mandatory locking is used.
  */
@@ -683,35 +683,27 @@ os_io_init_simple(void)
 /***********************************************************************//**
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
-On Netware, this function is like tmpfile(3), because the C run-time
-library of Netware does not expose the delete-on-close flag.
 @return	temporary file handle, or NULL on error */
 UNIV_INTERN
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
 {
-#ifdef __NETWARE__
-	FILE*	file	= tmpfile();
-#else /* __NETWARE__ */
 	FILE*	file	= NULL;
 	int	fd	= innobase_mysql_tmpfile();
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
-#endif /* __NETWARE__ */
 
 	if (!file) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: unable to create temporary file;"
 			" errno: %d\n", errno);
-#ifndef __NETWARE__
 		if (fd >= 0) {
 			close(fd);
 		}
-#endif /* !__NETWARE__ */
 	}
 
 	return(file);
