@@ -101,7 +101,6 @@ int my_copystat(const char *from, const char *to, int MyFlags)
 #endif /* !__WIN__ */
 
 #ifndef VMS
-#ifndef __ZTC__
   if (MyFlags & MY_COPYTIME)
   {
     struct utimbuf timep;
@@ -117,7 +116,6 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     time[1]= statbuf.st_mtime;
     (void) utime((char*) to, time);/* Update last accessed and modified times */
   }
-#endif
 #endif
   return 0;
 } /* my_copystat */
