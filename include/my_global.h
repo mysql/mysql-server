@@ -46,15 +46,6 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
-#if defined(__QNXNTO__) && !defined(FD_SETSIZE)
-#define FD_SETSIZE 1024         /* Max number of file descriptor bits in
-                                   fd_set, used when calling 'select'
-                                   Must be defined before including
-                                   "sys/select.h" and "sys/time.h"
-                                 */
-#endif
-
-
 /* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #define USE_PRAGMA_INTERFACE
@@ -564,22 +555,6 @@ C_MODE_END
 /* Declare madvise where it is not declared for C++, like Solaris */
 #if HAVE_MADVISE && !HAVE_DECL_MADVISE && defined(__cplusplus)
 extern "C" int madvise(void *addr, size_t len, int behav);
-#endif
-
-#ifdef __QNXNTO__
-/* This has to be after include limits.h */
-#define HAVE_ERRNO_AS_DEFINE
-#define HAVE_FCNTL_LOCK
-#undef  HAVE_FINITE
-#undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
-#undef  LONGLONG_MAX            /* standard system library 'limits.h' */
-#ifdef __cplusplus
-#ifndef HAVE_RINT
-#define HAVE_RINT
-#endif                          /* rint() and isnan() functions are not */
-#define rint(a) std::rint(a)    /* visible in C++ scope due to an error */
-#define isnan(a) std::isnan(a)  /* in the usr/include/math.h on QNX     */
-#endif
 #endif
 
 /* We can not live without the following defines */
