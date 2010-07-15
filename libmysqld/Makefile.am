@@ -158,27 +158,6 @@ if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
 else
 	-rm -f libmysqld.a
-	if test "$(host_os)" = "netware" ; \
-		then \
-		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
-		else \
-		  current_dir=`pwd`; \
-		  rm -rf tmp; mkdir tmp; \
-		  (for arc in $(INC_LIB) ./libmysqld_int.a; do \
-		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
-		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
-		    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
-		      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
-		      mkdir $$artmp; cd $$artmp > /dev/null; \
-		      $(AR) x ../../$$arc; \
-		      cd $$current_dir > /dev/null; \
-		      ls $$artmp/* | grep -v SYMDEF; \
-		      continue 2; fi; done; \
-		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
-		  $(AR) r libmysqld.a $(storageobjects); \
-		  $(RANLIB) libmysqld.a	; \
-		  rm -rf tmp; \
-		fi
 endif
 
 ## XXX: any time the client interface changes, we'll need to bump

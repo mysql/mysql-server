@@ -18,9 +18,6 @@
 #include "myrg_def.h"
 #include <stddef.h>
 #include <errno.h>
-#ifdef VMS
-#include "mrg_static.c"
-#endif
 
 /*
 	open a MyISAM MERGE table

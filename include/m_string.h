@@ -92,8 +92,8 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 #endif
 
 /* Declared in int2str() */
-extern char NEAR _dig_vec_upper[];
-extern char NEAR _dig_vec_lower[];
+extern char _dig_vec_upper[];
+extern char _dig_vec_lower[];
 
 #ifndef strmov
 #define strmov_overlapp(A,B) strmov(A,B)
@@ -156,15 +156,15 @@ extern	char *strmov(char *dst,const char *src);
 #else
 extern	char *strmov_overlapp(char *dst,const char *src);
 #endif
-extern	char *strnmov(char *dst,const char *src,size_t n);
-extern	char *strsuff(const char *src,const char *suffix);
-extern	char *strcont(const char *src,const char *set);
-extern	char *strxcat _VARARGS((char *dst,const char *src, ...));
-extern	char *strxmov _VARARGS((char *dst,const char *src, ...));
-extern	char *strxcpy _VARARGS((char *dst,const char *src, ...));
-extern	char *strxncat _VARARGS((char *dst,size_t len, const char *src, ...));
-extern	char *strxnmov _VARARGS((char *dst,size_t len, const char *src, ...));
-extern	char *strxncpy _VARARGS((char *dst,size_t len, const char *src, ...));
+extern	char *strnmov(char *dst, const char *src, size_t n);
+extern	char *strsuff(const char *src, const char *suffix);
+extern	char *strcont(const char *src, const char *set);
+extern	char *strxcat(char *dst, const char *src, ...);
+extern	char *strxmov(char *dst, const char *src, ...);
+extern	char *strxcpy(char *dst, const char *src, ...);
+extern	char *strxncat(char *dst, size_t len, const char *src, ...);
+extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
+extern	char *strxncpy(char *dst, size_t len, const char *src, ...);
 
 /* Prototypes of normal stringfunctions (with may ours) */
 

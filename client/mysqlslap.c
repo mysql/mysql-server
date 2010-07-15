@@ -678,8 +678,6 @@ static struct my_option my_long_options[] =
 };
 
 
-#include <help_start.h>
-
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname, SLAP_VERSION,
@@ -698,7 +696,6 @@ static void usage(void)
   my_print_help(my_long_options);
 }
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -706,11 +703,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   DBUG_ENTER("get_one_option");
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'v':
     verbose++;
     break;

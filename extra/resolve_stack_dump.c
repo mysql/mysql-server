@@ -65,8 +65,6 @@ static struct my_option my_long_options[] =
 static void verify_sort();
 
 
-#include <help_start.h>
-
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
@@ -89,8 +87,6 @@ The symbols-file should include the output from:  'nm --numeric-sort mysqld'.\n\
 The numeric-dump-file should contain a numeric stack trace from mysqld.\n\
 If the numeric-dump-file is not given, the stack trace is read from stdin.\n");
 }
-
-#include <help_end.h>
 
 
 static void die(const char* fmt, ...)

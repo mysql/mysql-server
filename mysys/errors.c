@@ -18,7 +18,7 @@
 
 #ifndef SHARED_LIBRARY
 
-const char * NEAR globerrs[GLOBERRS]=
+const char *globerrs[GLOBERRS]=
 {
   "Can't create/write to file '%s' (Errcode: %d)",
   "Error reading file '%s' (Errcode: %d)",
