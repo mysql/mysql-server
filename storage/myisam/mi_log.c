@@ -22,9 +22,6 @@
 #ifdef __WIN__
 #include <fcntl.h>
 #endif
-#ifdef VMS
-#include <processes.h>
-#endif
 
 #undef GETPID					/* For HPUX */
 #ifdef THREAD
