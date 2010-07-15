@@ -4439,11 +4439,11 @@ Dbspj::scanIndex_send(Signal* signal,
   Uint32 cnt = 1;
   Uint32 bs_rows = org->batch_size_rows;
   Uint32 bs_bytes = org->batch_size_bytes;
-  ndbrequire(data.m_frags_complete == 0);
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    cnt = data.m_fragCount;
+    ndbrequire(data.m_fragCount > data.m_frags_complete);
+    cnt = data.m_fragCount - data.m_frags_complete;
     bs_rows /= cnt;
     bs_bytes /= cnt;
 
@@ -4736,8 +4736,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   req->closeFlag = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
-  req->batch_size_rows = org->batch_size_rows / data.m_fragCount;
-  req->batch_size_bytes = org->batch_size_bytes / data.m_fragCount;
+  req->batch_size_rows = org->batch_size_rows;
+  req->batch_size_bytes = org->batch_size_bytes;
   
   Ptr<ScanIndexFrag> fragPtr;
   m_scanindexfrag_pool.getPtr(fragPtr, data.m_currentFragmentPtrI);

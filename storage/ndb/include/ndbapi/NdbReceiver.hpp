@@ -302,7 +302,7 @@ inline
 void
 NdbReceiver::setCurrentRow(Uint32 currentRow)
 {
-  assert (currentRow <= m_result_rows);
+  assert (currentRow < m_result_rows);
   m_current_row = currentRow;
 }
 
