@@ -1058,7 +1058,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (res)
     {
-      x_free(thd->security_ctx->user);
+      my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
       thd->db= save_db;
@@ -1071,8 +1071,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-      x_free(save_db);
-      x_free(save_security_ctx.user);
+      my_free(save_db);
+      my_free(save_security_ctx.user);
 
       if (cs_number)
       {
@@ -1415,18 +1415,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef EMBEDDED_LIBRARY
     /* Store the buffer in permanent memory */
     my_ok(thd, 0, 0, buff);
-#endif
-#ifdef SAFEMALLOC
-    if (sf_malloc_cur_memory)				// Using SAFEMALLOC
-    {
-      char *end= buff + length;
-      length+= my_snprintf(end, buff_len - length - 1,
-                           end,"  Memory in use: %ldK  Max memory used: %ldK",
-                           (sf_malloc_cur_memory+1023L)/1024L,
-                           (sf_malloc_max_memory+1023L)/1024L);
-    }
-#endif
-#ifndef EMBEDDED_LIBRARY
+#else
     (void) my_net_write(net, (uchar*) buff, length);
     (void) net_flush(net);
     thd->stmt_da->disable_status();
@@ -5633,7 +5622,7 @@ void THD::reset_for_next_command()
     thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
-  thd->thread_specific_used= thd->thread_temporary_used= FALSE;
+  thd->thread_specific_used= FALSE;
 
   if (opt_bin_log)
   {
@@ -5648,6 +5637,7 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+  thd->stmt_accessed_table_flag= 0;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",

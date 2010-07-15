@@ -595,8 +595,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
     case GET_STR_ALLOC:
       if (argument == enabled_my_option)
         break; /* string options don't use this default of "1" */
-      if ((*((char**) value)))
-	my_free((*(char**) value), MYF(MY_WME | MY_FAE));
+      my_free(*((char**) value));
       if (!(*((char**) value)= my_strdup(argument, MYF(MY_WME))))
       {
         res= EXIT_OUT_OF_MEMORY;
@@ -1054,8 +1053,9 @@ static void init_one_value(const struct my_option *option, void *variable,
     */
     if ((char*) (intptr) value)
     {
-      my_free((*(char**) variable), MYF(MY_ALLOW_ZERO_PTR));
-      *((char**) variable)= my_strdup((char*) (intptr) value, MYF(MY_WME));
+      char **pstr= (char **) variable;
+      my_free(*pstr);
+      *pstr= my_strdup((char*) (intptr) value, MYF(MY_WME));
     }
     break;
   default: /* dummy default to avoid compiler warnings */
@@ -1080,7 +1080,7 @@ static void fini_one_value(const struct my_option *option, void *variable,
   DBUG_ENTER("fini_one_value");
   switch ((option->var_type & GET_TYPE_MASK)) {
   case GET_STR_ALLOC:
-    my_free((*(char**) variable), MYF(MY_ALLOW_ZERO_PTR));
+    my_free(*((char**) variable));
     *((char**) variable)= NULL;
     break;
   default: /* dummy default to avoid compiler warnings */
@@ -1146,8 +1146,6 @@ static uint print_name(const struct my_option *optp)
 
   Print help for all options and variables.
 */
-
-#include <help_start.h>
 
 void my_print_help(const struct my_option *options)
 {
@@ -1330,5 +1328,3 @@ void my_print_variables(const struct my_option *options)
     }
   }
 }
-
-#include <help_end.h>

@@ -53,7 +53,7 @@ struct st_irem
 };
 
 
-extern char	NEAR curr_dir[FN_REFLEN],NEAR home_dir_buff[FN_REFLEN];
+extern char curr_dir[FN_REFLEN], home_dir_buff[FN_REFLEN];
 
 extern volatile int _my_signals;
 extern struct st_remember _my_sig_remember[MAX_SIGNALS];

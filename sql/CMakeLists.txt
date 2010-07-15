@@ -156,7 +156,10 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
-INSTALL_DEBUG_TARGET(mysqld DESTINATION ${INSTALL_SBINDIR} RENAME mysqld-debug)
+INSTALL_DEBUG_TARGET(mysqld 
+  DESTINATION ${INSTALL_SBINDIR} 
+  PDB_DESTINATION ${INSTALL_SBINDIR}/debug
+  RENAME mysqld-debug)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 

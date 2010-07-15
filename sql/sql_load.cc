@@ -355,7 +355,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
                        MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
                        MY_RETURN_REAL_PATH);
-#if !defined(__WIN__) && ! defined(__NETWARE__)
+#if !defined(__WIN__)
       MY_STAT stat_info;
       if (!mysql_file_stat(key_file_load, name, &stat_info, MYF(MY_WME)))
 	DBUG_RETURN(TRUE);
@@ -1337,7 +1337,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      (is_fifo ? READ_FIFO : READ_CACHE),0L,1,
 		      MYF(MY_WME)))
     {
-      my_free((uchar*) buffer,MYF(0)); /* purecov: inspected */
+      my_free(buffer); /* purecov: inspected */
       error=1;
     }
     else
@@ -1368,7 +1368,7 @@ READ_INFO::~READ_INFO()
   {
     if (need_end_io_cache)
       ::end_io_cache(&cache);
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
     error=1;
   }
   List_iterator<XML_TAG> xmlit(taglist);

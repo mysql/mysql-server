@@ -48,7 +48,7 @@ const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 extern "C" {
 #if defined( __WIN__)
 #include <conio.h>
-#elif !defined(__NETWARE__)
+#else
 #include <readline/readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 #define HAVE_READLINE
