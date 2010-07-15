@@ -532,6 +532,13 @@ public:
   bool describe; /* union exec() called for EXPLAIN */
   Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
+  /* 
+    Insert table with stored virtual columns.
+    This is used only in those rare cases 
+    when the list of inserted values is empty.
+  */
+  TABLE *insert_table_with_stored_vcol;
+
   void init_query();
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();

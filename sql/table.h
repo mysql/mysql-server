@@ -886,7 +886,7 @@ struct st_table {
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   bool mark_virtual_col(Field *field);
-  void mark_virtual_columns_for_write(void);
+  void mark_virtual_columns_for_write(bool insert_fl);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {

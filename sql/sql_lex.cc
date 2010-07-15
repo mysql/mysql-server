@@ -1590,6 +1590,7 @@ void st_select_lex_unit::init_query()
   item_list.empty();
   describe= 0;
   found_rows_for_union= 0;
+  insert_table_with_stored_vcol= 0;
 }
 
 void st_select_lex::init_query()

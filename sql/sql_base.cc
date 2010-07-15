@@ -8204,6 +8204,8 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table->auto_increment_field_not_null= FALSE;
     f.rewind();
   }
+  else if (thd->lex->unit.insert_table_with_stored_vcol)
+    tbl_list.push_back(thd->lex->unit.insert_table_with_stored_vcol);
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
