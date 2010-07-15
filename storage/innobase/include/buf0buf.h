@@ -869,7 +869,8 @@ buf_page_set_accessed(
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
-page frame exists, or NULL.
+page frame exists, or NULL. Note: even though bpage is not declared a
+const we don't update its value. It is safe to make this pure.
 @return	control block, or NULL */
 UNIV_INLINE
 buf_block_t*
