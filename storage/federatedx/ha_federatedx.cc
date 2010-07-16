@@ -2995,7 +2995,6 @@ int ha_federatedx::rnd_pos(uchar *buf, uchar *pos)
 
 int ha_federatedx::info(uint flag)
 {
-  char error_buffer[FEDERATEDX_QUERY_BUFFER_SIZE];
   uint error_code;
   federatedx_io *tmp_io= 0, **iop= 0;
   DBUG_ENTER("ha_federatedx::info");
@@ -3037,12 +3036,10 @@ int ha_federatedx::info(uint flag)
 error:
   if (iop && *iop)
   {
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              (*iop)->error_code(), (*iop)->error_str()));
-    my_error(error_code, MYF(0), error_buffer);
+    my_printf_error((*iop)->error_code(), "Got error: %d : %s", MYF(0),
+                    (*iop)->error_code(), (*iop)->error_str());
   }
-  else
-  if (remote_error_number != -1 /* error already reported */)
+  else if (remote_error_number != -1 /* error already reported */)
   {
     error_code= remote_error_number;
     my_error(error_code, MYF(0), ER(error_code));
