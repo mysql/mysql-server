@@ -8920,10 +8920,10 @@ record_compare_exit:
 /**
   Locate the current row in event's table.
 
-  The current row is pointed by @c m_curr_row. Member @c m_width tells how many 
-  columns are there in the row (this can be differnet from the number of columns 
-  in the table). It is assumed that event's table is already open and pointed 
-  by @c m_table.
+  The current row is pointed by @c m_curr_row. Member @c m_width tells
+  how many columns are there in the row (this can be differnet from
+  the number of columns in the table). It is assumed that event's
+  table is already open and pointed by @c m_table.
 
   If a corresponding record is found in the table it is stored in 
   @c m_table->record[0]. Note that when record is located based on a primary 
@@ -9139,11 +9139,10 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     int restart_count= 0; // Number of times scanning has restarted from top
 
     /* We don't have a key: search the table using rnd_next() */
-    if ((error= table->file->ha_rnd_init(1)))
+    if ((error= table->file->ha_rnd_init_with_error(1)))
     {
       DBUG_PRINT("info",("error initializing table scan"
                          " (ha_rnd_init returns %d)",error));
-      table->file->print_error(error, MYF(0));
       goto err;
     }
 
@@ -9168,7 +9167,14 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          int error2;
+          if ((error2= table->file->ha_rnd_init_with_error(1)))
+          {
+            error= error2;
+            goto err;
+          }
+        }
         break;
 
       default:

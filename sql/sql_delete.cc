@@ -266,7 +266,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(TRUE);
   }
   if (usable_index==MAX_KEY)
-    init_read_record(&info, thd, table, select, 1, 1, FALSE);
+  {
+    if (init_read_record(&info, thd, table, select, 1, 1, FALSE))
+    {
+      delete select;
+      free_underlaid_joins(thd, select_lex);
+      DBUG_RETURN(TRUE);
+    }
+  }
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
 
@@ -944,7 +951,10 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
   READ_RECORD info;
   ha_rows last_deleted= deleted;
   DBUG_ENTER("do_deletes_for_table");
-  init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
+
+  if (init_read_record(&info, thd, table, NULL, 0, 1, FALSE))
+    DBUG_RETURN(1);
+
   /*
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling

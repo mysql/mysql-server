@@ -2114,6 +2114,18 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 }
 
 
+/* Initialize handler for random reading, with error handling */
+
+int handler::ha_rnd_init_with_error(bool scan)
+{
+  int error;
+  if (!(error= ha_rnd_init(scan)))
+    return 0;
+  table->file->print_error(error, MYF(0));
+  return error;
+}
+
+
 /**
   Read first row (only) from a table.
 
@@ -2133,9 +2145,11 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   if (stats.deleted < 10 || primary_key >= MAX_KEY ||
       !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
-    (void) ha_rnd_init(1);
-    while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-    (void) ha_rnd_end();
+    if ((!(error= ha_rnd_init(1))))
+    {
+      while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
+      (void) ha_rnd_end();
+    }
   }
   else
   {

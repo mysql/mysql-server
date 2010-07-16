@@ -459,7 +459,10 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info, thd, table, select, 0, 1, FALSE);
+      {
+        if (init_read_record(&info, thd, table, select, 0, 1, FALSE))
+          goto err;
+      }
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
@@ -527,7 +530,8 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto err;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info, thd, table, select, 0, 1, FALSE);
+  if (init_read_record(&info, thd, table, select, 0, 1, FALSE))
+    goto err;
 
   updated= found= 0;
   /*
@@ -1954,7 +1958,7 @@ int multi_update::do_updates()
   TABLE_LIST *cur_table;
   int local_error= 0;
   ha_rows org_updated;
-  TABLE *table, *tmp_table;
+  TABLE *table, *tmp_table, *err_table;
   List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
   DBUG_ENTER("multi_update::do_updates");
 
@@ -1972,14 +1976,21 @@ int multi_update::do_updates()
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
-    (void) table->file->ha_rnd_init(0);
+    if ((local_error= table->file->ha_rnd_init(0)))
+    {
+      err_table= table;
+      goto err;
+    }
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     check_opt_it.rewind();
     while(TABLE *tbl= check_opt_it++)
     {
-      if (tbl->file->ha_rnd_init(1))
+      if ((local_error= tbl->file->ha_rnd_init(1)))
+      {
+        err_table= tbl;
         goto err;
+      }
       tbl->file->extra(HA_EXTRA_CACHE);
     }
 
@@ -1997,8 +2008,11 @@ int multi_update::do_updates()
     }
     copy_field_end=copy_field_ptr;
 
-    if ((local_error = tmp_table->file->ha_rnd_init(1)))
+    if ((local_error= tmp_table->file->ha_rnd_init(1)))
+    {
+      err_table= tmp_table;
       goto err;
+    }
 
     can_compare_record= (!(table->file->ha_table_flags() &
                            HA_PARTIAL_COLUMN_READ) ||
@@ -2008,13 +2022,17 @@ int multi_update::do_updates()
     for (;;)
     {
       if (thd->killed && trans_safe)
-	goto err;
+      {
+        thd->fatal_error();
+	goto err2;
+      }
       if ((local_error= tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
 	if (local_error == HA_ERR_END_OF_FILE)
 	  break;
 	if (local_error == HA_ERR_RECORD_DELETED)
 	  continue;				// May happen on dup key
+        err_table= tmp_table;
 	goto err;
       }
 
@@ -2027,7 +2045,10 @@ int multi_update::do_updates()
         if ((local_error=
              tbl->file->ha_rnd_pos(tbl->record[0],
                                    (uchar*) tmp_table->field[field_num]->ptr)))
+        {
+          err_table= tbl;
           goto err;
+        }
         field_num++;
       } while ((tbl= check_opt_it++));
 
@@ -2054,7 +2075,10 @@ int multi_update::do_updates()
           if (error == VIEW_CHECK_SKIP)
             continue;
           else if (error == VIEW_CHECK_ERROR)
-            goto err;
+          {
+            thd->fatal_error();
+            goto err2;
+          }
         }
 	if ((local_error=table->file->ha_update_row(table->record[1],
 						    table->record[0])) &&
@@ -2062,7 +2086,10 @@ int multi_update::do_updates()
 	{
 	  if (!ignore ||
               table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+          {
+            err_table= table;
 	    goto err;
+          }
 	}
         if (local_error != HA_ERR_RECORD_IS_THE_SAME)
           updated++;

@@ -2303,7 +2303,7 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
-void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
+bool init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select, int use_record_cache, 
                       bool print_errors, bool disable_rr_cache);
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 

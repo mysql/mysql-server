@@ -1661,7 +1661,7 @@ int ha_partition::copy_partitions(ulonglong * const copied,
     uint32 new_part;
 
     late_extra_cache(reorg_part);
-    if ((result= file->ha_rnd_init(1)))
+    if ((result= file->ha_rnd_init_with_error(1)))
       goto error;
     while (TRUE)
     {

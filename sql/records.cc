@@ -157,7 +157,8 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
     This is the most basic access method of a table using rnd_init,
     rnd_next and rnd_end. No indexes are used.
 */
-void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
+
+bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_error, 
                       bool disable_rr_cache)
@@ -205,7 +206,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     reinit_io_cache(info->io_cache,READ_CACHE,0L,0,0);
     info->ref_pos=table->file->ref;
     if (!table->file->inited)
-      table->file->ha_rnd_init(0);
+      if (table->file->ha_rnd_init_with_error(0))
+        DBUG_RETURN(1);
 
     /*
       table->sort.addon_field is checked because if we use addon fields,
@@ -242,7 +244,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   else if (table->sort.record_pointers)
   {
     DBUG_PRINT("info",("using record_pointers"));
-    table->file->ha_rnd_init(0);
+    if (table->file->ha_rnd_init_with_error(0))
+      DBUG_RETURN(1);
     info->cache_pos=table->sort.record_pointers;
     info->cache_end=info->cache_pos+ 
                     table->sort.found_records*info->ref_length;
@@ -253,7 +256,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   {
     DBUG_PRINT("info",("using rr_sequential"));
     info->read_record=rr_sequential;
-    table->file->ha_rnd_init(1);
+    if (table->file->ha_rnd_init_with_error(1))
+      DBUG_RETURN(1);
     /* We can use record cache if we don't update dynamic length tables */
     if (!table->no_cache &&
 	(use_record_cache > 0 ||
@@ -271,7 +275,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
       !table->file->pushed_cond)
     table->file->cond_push(select->cond);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 } /* init_read_record */
 
 

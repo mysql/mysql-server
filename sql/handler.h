@@ -1327,7 +1327,7 @@ public:
   }
   /* This is called after index_init() if we need to do a index scan */
   virtual int prepare_index_scan() { return 0; }
-  int ha_rnd_init(bool scan)
+  int ha_rnd_init(bool scan) __attribute__ ((warn_unused_result))
   {
     int result;
     DBUG_ENTER("ha_rnd_init");
@@ -1342,6 +1342,7 @@ public:
     inited=NONE;
     DBUG_RETURN(rnd_end());
   }
+  int ha_rnd_init_with_error(bool scan) __attribute__ ((warn_unused_result));
   int ha_reset();
   /* Tell handler (not storage engine) this is start of a new statement */
   void ha_start_of_new_statement()
