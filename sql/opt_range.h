@@ -520,6 +520,7 @@ public:
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I
 {
+  Unique *unique;
 public:
   QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
   ~QUICK_INDEX_MERGE_SELECT();
@@ -703,7 +704,7 @@ private:
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I
 {
 private:
-  handler *file;         /* The handler used to get data. */
+  handler * const file;   /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
   uchar *record;          /* Buffer where the next record is returned. */

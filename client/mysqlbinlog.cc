@@ -441,7 +441,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   ptr= fname + target_dir_name_len;
   memcpy(ptr,bname,blen);
   ptr+= blen;
-  ptr+= my_sprintf(ptr, (ptr, "-%x", file_id));
+  ptr+= sprintf(ptr, "-%x", file_id);
 
   if ((file= create_unique_file(fname,ptr)) < 0)
   {

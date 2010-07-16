@@ -146,7 +146,9 @@ typedef long long longlong;
 
 #ifdef HAVE_DLOPEN
 
+#if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
 static pthread_mutex_t LOCK_hostname;
+#endif
 
 /* These must be right or mysqld will not find the symbol! */
 
