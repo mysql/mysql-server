@@ -741,7 +741,15 @@ void Buffered_log::print()
     sql_print_warning("Buffered warning: %s\n", m_message.c_ptr_safe());
     break;
   case INFORMATION_LEVEL:
-    sql_print_information("Buffered information: %s\n", m_message.c_ptr_safe());
+    /*
+      Messages printed as "information" still end up in the mysqld *error* log,
+      but with a [Note] tag instead of an [ERROR] tag.
+      While this is probably fine for a human reading the log,
+      it is upsetting existing automated scripts used to parse logs,
+      because such scripts are likely to not already handle [Note] properly.
+      INFORMATION_LEVEL messages are simply silenced, on purpose,
+      to avoid un needed verbosity.
+    */
     break;
   }
 }
@@ -4277,16 +4285,6 @@ int mysqld_main(int argc, char **argv)
         buffered_logs.buffer(WARNING_LEVEL,
                              "Performance schema disabled (reason: init failed).");
       }
-      else
-      {
-        buffered_logs.buffer(INFORMATION_LEVEL,
-                             "Performance schema enabled.");
-      }
-    }
-    else
-    {
-      buffered_logs.buffer(INFORMATION_LEVEL,
-                           "Performance schema disabled (reason: start parameters).");
     }
   }
 #else
@@ -4550,7 +4548,14 @@ int mysqld_main(int argc, char **argv)
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_bootstrap);
-  check_performance_schema();
+  /*
+    Do not check the structure of the performance schema tables
+    during bootstrap:
+    - the tables are not supposed to exist yet, bootstrap will create them
+    - a check would print spurious error messages
+  */
+  if (! opt_bootstrap)
+    check_performance_schema();
 #endif
 
   initialize_information_schema_acl();
