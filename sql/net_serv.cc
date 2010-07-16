@@ -920,7 +920,6 @@ my_real_read(NET *net, size_t *complen)
 		    (int) net->buff[net->where_b + 3],
 		    (uint) (uchar) net->pkt_nr);
             fflush(stderr);
-            DBUG_ASSERT(0);
 #endif
 	  }
 	  len= packet_error;

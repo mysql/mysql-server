@@ -3102,13 +3102,15 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   new_page_pos=param->new_file_pos;
   param->new_file_pos+=keyinfo->block_length;
   key.keyinfo= keyinfo;
-  key.data= info->lastkey_buff;
 
-  if (!(buff= (uchar*) my_alloca((uint) keyinfo->block_length)))
+  if (!(buff= (uchar*) my_alloca((uint) keyinfo->block_length +
+                                 keyinfo->maxlength)))
   {
     _ma_check_print_error(param,"Not enough memory for key block");
     DBUG_RETURN(-1);
   }
+  key.data= buff + keyinfo->block_length;
+
   if (_ma_fetch_keypage(&page, info, keyinfo, pagepos,
                         PAGECACHE_LOCK_LEFT_UNLOCKED,
                         DFLT_INIT_HITS, buff, 0))
