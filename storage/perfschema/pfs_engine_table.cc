@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs_engine_table.cc
@@ -35,6 +35,7 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+#include "pfs_global.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
@@ -677,6 +678,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
     case 40:
       name= "(PFS_FILE_HANDLE).MEMORY";
       size= file_handle_max * sizeof(PFS_file*);
+      total_memory+= size;
       break;
     case 41:
       name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_SIZE";
@@ -691,13 +693,41 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= thread_max * instr_class_per_thread * sizeof(PFS_single_stat_chain);
       total_memory+= size;
       break;
+    case 44:
+      name= "(PFS_TABLE_SHARE).ROW_SIZE";
+      size= sizeof(PFS_table_share);
+      break;
+    case 45:
+      name= "(PFS_TABLE_SHARE).ROW_COUNT";
+      size= table_share_max;
+      break;
+    case 46:
+      name= "(PFS_TABLE_SHARE).MEMORY";
+      size= table_share_max * sizeof(PFS_table_share);
+      total_memory+= size;
+      break;
+    case 47:
+      name= "(PFS_TABLE).ROW_SIZE";
+      size= sizeof(PFS_table);
+      break;
+    case 48:
+      name= "(PFS_TABLE).ROW_COUNT";
+      size= table_max;
+      break;
+    case 49:
+      name= "(PFS_TABLE).MEMORY";
+      size= table_max * sizeof(PFS_table);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 44:
+    case 50:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
+      /* This will fail if something is not advertised here */
+      DBUG_ASSERT(size == pfs_allocated_memory);
       break;
     default:
       goto end;
