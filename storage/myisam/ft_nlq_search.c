@@ -250,12 +250,12 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   {
     QUEUE best;
     init_queue(&best,ft_query_expansion_limit,0,0, (queue_compare) &FT_DOC_cmp,
-	       0);
+	       0, 0, 0);
     tree_walk(&aio.dtree, (tree_walk_action) &walk_and_push,
               &best, left_root_right);
     while (best.elements)
     {
-      my_off_t docid=((FT_DOC *)queue_remove(& best, 0))->dpos;
+      my_off_t docid= ((FT_DOC *)queue_remove_top(&best))->dpos;
       if (!(*info->read_record)(info,docid,record))
       {
         info->update|= HA_STATE_AKTIV;

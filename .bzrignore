@@ -1940,3 +1940,4 @@ sql/client_plugin.c
 *.dgcov
 libmysqld/create_options.cc
 storage/pbxt/bin/xtstat
+libmysqld/sql_expression_cache.cc

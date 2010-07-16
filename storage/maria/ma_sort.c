@@ -933,7 +933,7 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
                  (int (*)(void*, uchar *,uchar*)) info->key_cmp,
-                 (void*) info))
+                 (void*) info, 0, 0))
     DBUG_RETURN(1); /* purecov: inspected */
 
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
@@ -982,7 +982,7 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
           uchar *base= buffpek->base;
           uint max_keys=buffpek->max_keys;
 
-          VOID(queue_remove(&queue,0));
+          VOID(queue_remove_top(&queue));
 
           /* Put room used by buffer to use in other buffer */
           for (refpek= (BUFFPEK**) &queue_top(&queue);
@@ -1007,7 +1007,7 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       }
       else if (error == -1)
         goto err;               /* purecov: inspected */
-      queue_replaced(&queue);   /* Top element has been replaced */
+      queue_replace_top(&queue);   /* Top element has been replaced */
     }
   }
   buffpek=(BUFFPEK*) queue_top(&queue);

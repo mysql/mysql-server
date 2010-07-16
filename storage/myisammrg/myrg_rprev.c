@@ -32,7 +32,7 @@ int myrg_rprev(MYRG_INFO *info, uchar *buf, int inx)
   {
     if (err == HA_ERR_END_OF_FILE)
     {
-      queue_remove(&(info->by_key),0);
+      queue_remove_top(&(info->by_key));
       if (!info->by_key.elements)
         return HA_ERR_END_OF_FILE;
     }
@@ -43,7 +43,7 @@ int myrg_rprev(MYRG_INFO *info, uchar *buf, int inx)
   {
     /* Found here, adding to queue */
     queue_top(&(info->by_key))=(uchar *)(info->current_table);
-    queue_replaced(&(info->by_key));
+    queue_replace_top(&(info->by_key));
   }
 
   /* now, mymerge's read_prev is as simple as one queue_top */

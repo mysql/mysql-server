@@ -473,14 +473,15 @@ static void _ftb_init_index_search(FT_INFO *ftb)
   int i;
   FTB_WORD   *ftbw;
 
-  if ((ftb->state != READY && ftb->state !=INDEX_DONE) ||
-      ftb->keynr == NO_SUCH_KEY)
+  if (ftb->state == UNINITIALIZED || ftb->keynr == NO_SUCH_KEY)
     return;
   ftb->state=INDEX_SEARCH;
 
-  for (i=ftb->queue.elements; i; i--)
+  for (i= queue_last_element(&ftb->queue);
+       (int) i >= (int) queue_first_element(&ftb->queue);
+       i--)
   {
-    ftbw=(FTB_WORD *)(ftb->queue.root[i]);
+    ftbw=(FTB_WORD *)(queue_element(&ftb->queue, i));
 
     if (ftbw->flags & FTB_FLAG_TRUNC)
     {
@@ -585,7 +586,7 @@ FT_INFO * maria_ft_init_boolean_search(MARIA_HA *info, uint keynr,
                                               sizeof(void *))))
     goto err;
   reinit_queue(&ftb->queue, ftb->queue.max_elements, 0, 0,
-                         (int (*)(void*, uchar*, uchar*))FTB_WORD_cmp, 0);
+               (int (*)(void*, uchar*, uchar*))FTB_WORD_cmp, 0, 0, 0);
   for (ftbw= ftb->last_word; ftbw; ftbw= ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
   ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
@@ -828,7 +829,7 @@ int maria_ft_boolean_read_next(FT_INFO *ftb, char *record)
 
       /* update queue */
       _ft2_search(ftb, ftbw, 0);
-      queue_replaced(& ftb->queue);
+      queue_replace_top(&ftb->queue);
     }
 
     ftbe=ftb->root;

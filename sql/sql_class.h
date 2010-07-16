@@ -2907,11 +2907,11 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
-  TMP_TABLE_PARAM *get_tmp_table_param() { return &tmp_table_param; }
-
+  void cleanup();
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
                                    bool is_distinct, ulonglong options,
                                    const char *alias, bool bit_fields_as_long);
+  TMP_TABLE_PARAM *get_tmp_table_param() { return &tmp_table_param; }
 };
 
 /* Base subselect interface class */
@@ -2971,6 +2971,9 @@ protected:
   */
   ha_rows count_rows;
 
+protected:
+  void reset();
+
 public:
   select_materialize_with_stats() { tmp_table_param.init(); }
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
@@ -2978,12 +2981,7 @@ public:
                                    const char *alias, bool bit_fields_as_long);
   bool init_result_table(ulonglong select_options);
   bool send_data(List<Item> &items);
-  void cleanup()
-  {
-    memset(col_stat, 0, table->s->fields * sizeof(Column_statistics));
-    max_nulls_in_row= 0;
-    count_rows= 0;
-  }
+  void cleanup();
   ha_rows get_null_count_of_col(uint idx)
   {
     DBUG_ASSERT(idx < table->s->fields);

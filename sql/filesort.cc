@@ -1151,7 +1151,9 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
 {
   uchar *reuse_end= reuse->base + reuse->max_keys * key_length;
-  for (uint i= 0; i < queue->elements; ++i)
+  for (uint i= queue_first_element(queue);
+       i <= queue_last_element(queue);
+       i++)
   {
     BUFFPEK *bp= (BUFFPEK *) queue_element(queue, i);
     if (bp->base + bp->max_keys * key_length == reuse->base)
@@ -1240,7 +1242,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     first_cmp_arg= (void*) &sort_length;
   }
   if (init_queue(&queue, (uint) (Tb-Fb)+1, offsetof(BUFFPEK,key), 0,
-                 (queue_compare) cmp, first_cmp_arg))
+                 (queue_compare) cmp, first_cmp_arg, 0, 0))
     DBUG_RETURN(1);                                /* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
@@ -1277,7 +1279,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       error= 0;                                       /* purecov: inspected */
       goto end;                                       /* purecov: inspected */
     }
-    queue_replaced(&queue);                        // Top element has been used
+    queue_replace_top(&queue);            // Top element has been used
   }
   else
     cmp= 0;                                        // Not unique
@@ -1325,14 +1327,14 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
         if (!(error= (int) read_to_buffer(from_file,buffpek,
                                           rec_length)))
         {
-          VOID(queue_remove(&queue,0));
+          VOID(queue_remove_top(&queue));
           reuse_freed_buff(&queue, buffpek, rec_length);
           break;                        /* One buffer have been removed */
         }
         else if (error == -1)
           goto err;                        /* purecov: inspected */
       }
-      queue_replaced(&queue);              /* Top element has been replaced */
+      queue_replace_top(&queue);   	/* Top element has been replaced */
     }
   }
   buffpek= (BUFFPEK*) queue_top(&queue);
