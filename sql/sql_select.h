@@ -1776,7 +1776,7 @@ public:
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
   
-  Array<Item_in_subselect> sj_subselects;
+  Array<Item_exists_subselect> sj_subselects;
 
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
