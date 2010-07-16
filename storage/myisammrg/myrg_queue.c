@@ -52,7 +52,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
       if (init_queue(q,info->tables, 0,
 		     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
 		     queue_key_cmp,
-		     info->open_tables->table->s->keyinfo[inx].seg))
+		     info->open_tables->table->s->keyinfo[inx].seg, 0, 0))
 	error=my_errno;
     }
     else
@@ -60,7 +60,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
       if (reinit_queue(q,info->tables, 0,
 		       (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
 		       queue_key_cmp,
-		       info->open_tables->table->s->keyinfo[inx].seg))
+		       info->open_tables->table->s->keyinfo[inx].seg, 0, 0))
 	error=my_errno;
     }
   }

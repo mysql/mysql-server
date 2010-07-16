@@ -1155,10 +1155,7 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
-  :dont_free(0),doing_key_read(0),/*error(0),*/free_file(0),/*in_range(0),*/cur_range(NULL),last_range(0)
- //psergey3-merge: check whether we need doing_key_read and last_range
- // was:
- //   :free_file(0),cur_range(NULL),last_range(0),dont_free(0)
+  :doing_key_read(0),/*error(0),*/free_file(0),/*in_range(0),*/cur_range(NULL),last_range(0),dont_free(0)
 {
   my_bitmap_map *bitmap;
   DBUG_ENTER("QUICK_RANGE_SELECT::QUICK_RANGE_SELECT");
@@ -1594,7 +1591,7 @@ int QUICK_ROR_UNION_SELECT::init()
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::init");
   if (init_queue(&queue, quick_selects.elements, 0,
                  FALSE , QUICK_ROR_UNION_SELECT::queue_cmp,
-                 (void*) this))
+                 (void*) this, 0, 0))
   {
     bzero(&queue, sizeof(QUEUE));
     DBUG_RETURN(1);
@@ -8293,12 +8290,12 @@ int QUICK_ROR_UNION_SELECT::get_next()
       {
         if (error != HA_ERR_END_OF_FILE)
           DBUG_RETURN(error);
-        queue_remove(&queue, 0);
+        queue_remove_top(&queue);
       }
       else
       {
         quick->save_last_pos();
-        queue_replaced(&queue);
+        queue_replace_top(&queue);
       }
 
       if (!have_prev_rowid)

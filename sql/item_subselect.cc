@@ -3957,8 +3957,6 @@ subselect_hash_sj_engine::make_unique_engine()
   Item_iterator_row it(item_in->left_expr);
   /* The only index on the temporary table. */
   KEY *tmp_key= tmp_table->key_info;
-  /* Number of keyparts in tmp_key. */
-  uint tmp_key_parts= tmp_key->key_parts;
   JOIN_TAB *tab;
 
   DBUG_ENTER("subselect_hash_sj_engine::make_unique_engine");
@@ -4879,7 +4877,8 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
     merge_keys[i]->sort_keys();
 
   if (init_queue(&pq, keys_count, 0, FALSE,
-                 subselect_rowid_merge_engine::cmp_keys_by_cur_rownum, NULL))
+                 subselect_rowid_merge_engine::cmp_keys_by_cur_rownum, NULL,
+                 0, 0))
     return TRUE;
 
   return FALSE;

@@ -1129,7 +1129,7 @@ public:
   virtual handlerton *partition_ht() const
   {
     handlerton *h= m_file[0]->ht;
-    for (int i=1; i < m_tot_parts; i++)
+    for (uint i=1; i < m_tot_parts; i++)
       DBUG_ASSERT(h == m_file[i]->ht);
     return h;
   }

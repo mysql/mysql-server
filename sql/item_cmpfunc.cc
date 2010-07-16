@@ -1778,10 +1778,12 @@ Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
   if (args[0]->cols() == 1)
     depends_on.push_front((Item**)args);
   else
-    for (int i= 0; i < args[0]->cols(); i++)
+  {
+    for (uint i= 0; i < args[0]->cols(); i++)
     {
       depends_on.push_front(args[0]->addr(i));
     }
+  }
 
   if (args[1]->expr_cache_is_needed(thd))
     DBUG_RETURN(set_expr_cache(thd, depends_on));
