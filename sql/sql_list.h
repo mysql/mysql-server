@@ -85,7 +85,7 @@ public:
 
   SQL_I_List() { empty(); }
 
-  SQL_I_List(const SQL_I_List &tmp)
+  SQL_I_List(const SQL_I_List &tmp) : Sql_alloc()
   {
     elements= tmp.elements;
     first= tmp.first;
