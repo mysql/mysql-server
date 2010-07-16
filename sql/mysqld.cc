@@ -409,6 +409,12 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
                                         "index_merge_intersection=on,"
                                         "index_condition_pushdown=on,"
+                                        "firstmatch=on,"
+                                        "loosescan=on,"
+                                        "materialization=on,"
+                                        "semijoin=on,"
+                                        "partial_match_rowid_merge=on,"
+                                        "partial_match_table_scan=on,"
                                         "subquery_cache=on"
 #ifndef DBUG_OFF
                                         ",table_elimination=on";
@@ -7227,7 +7233,9 @@ The minimum value for this variable is 4096.",
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
    "index_merge_union, index_merge_sort_union, index_merge_intersection, "
-   "index_condition_pushdown, subquery_cache"
+   "index_condition_pushdown, firstmatch, loosescan, materialization, "
+   "semijoin, partial_match_rowid_merge, partial_match_table_scan, "
+   "subquery_cache"
 #ifndef DBUG_OFF
    ", table_elimination"
 #endif 
