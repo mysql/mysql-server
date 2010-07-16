@@ -103,8 +103,7 @@ drop table t0, t1;
 
 
 # Check that optimizer_switch is present
---replace_regex /,table_elimination=o[nf]*//
-select @@optimizer_switch;
+select @@optimizer_switch like '%index_condition_pushdown=on%';
 
 # Check if it affects ICP 
 create table t0 (a int);

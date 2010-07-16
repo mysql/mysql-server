@@ -1,6 +1,3 @@
-show variables like 'optimizer_switch';
-Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on
 set optimizer_switch='materialization=off,semijoin=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 set @save_optimizer_switch=@@optimizer_switch;
@@ -4925,6 +4922,3 @@ DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
 set optimizer_switch=default;
-show variables like 'optimizer_switch';
-Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on
