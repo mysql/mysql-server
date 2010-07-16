@@ -2198,7 +2198,7 @@ void st_select_lex::print_limit(THD *thd,
                   */
                   (((subs_type == Item_subselect::IN_SUBS) &&
                     ((Item_in_subselect*)item)->exec_method ==
-                    Item_in_subselect::MATERIALIZATION) ?
+                    Item_in_subselect::EXEC_MATERIALIZATION) ?
                    TRUE :
                    (select_limit->val_int() == LL(1)) &&
                    offset_limit == 0));
