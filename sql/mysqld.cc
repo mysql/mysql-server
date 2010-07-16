@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2068,6 +2068,16 @@ static bool cache_thread()
     /* Don't kill the thread, just put it in cache for reuse */
     DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
+
+#ifdef HAVE_PSI_INTERFACE
+    /*
+      Delete the instrumentation for the job that just completed,
+      before parking this pthread in the cache (blocked on COND_thread_cache).
+    */
+    if (likely(PSI_server != NULL))
+      PSI_server->delete_current_thread();
+#endif
+
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_count);
     cached_thread_count--;
@@ -2080,6 +2090,21 @@ static bool cache_thread()
       thd= thread_cache.get();
       thd->thread_stack= (char*) &thd;          // For store_globals
       (void) thd->store_globals();
+
+#ifdef HAVE_PSI_INTERFACE
+      /*
+        Create new instrumentation for the new THD job,
+        and attach it to this running pthread.
+      */
+      if (likely(PSI_server != NULL))
+      {
+        PSI_thread *psi= PSI_server->new_thread(key_thread_one_connection,
+                                                thd, thd->thread_id);
+        if (likely(psi != NULL))
+          PSI_server->set_thread(psi);
+      }
+#endif
+
       /*
         THD::mysys_var::abort is associated with physical thread rather
         than with THD object. So we need to reset this flag before using
