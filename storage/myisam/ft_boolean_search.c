@@ -482,16 +482,18 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 
 static void _ftb_init_index_search(FT_INFO *ftb)
 {
-  int i;
+  uint i;
   FTB_WORD   *ftbw;
 
   if (ftb->state == UNINITIALIZED || ftb->keynr == NO_SUCH_KEY)
     return;
   ftb->state=INDEX_SEARCH;
 
-  for (i=ftb->queue.elements; i; i--)
+  for (i= queue_last_element(&ftb->queue);
+       (int) i >= (int) queue_first_element(&ftb->queue);
+       i--)
   {
-    ftbw=(FTB_WORD *)(ftb->queue.root[i]);
+    ftbw=(FTB_WORD *)(queue_element(&ftb->queue, i));
 
     if (ftbw->flags & FTB_FLAG_TRUNC)
     {
@@ -595,12 +597,12 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
                                               sizeof(void *))))
     goto err;
   reinit_queue(&ftb->queue, ftb->queue.max_elements, 0, 0,
-                         (int (*)(void*, uchar*, uchar*))FTB_WORD_cmp, 0);
+               (int (*)(void*, uchar*, uchar*))FTB_WORD_cmp, 0, 0, 0);
   for (ftbw= ftb->last_word; ftbw; ftbw= ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
   ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
-  memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
+  memcpy(ftb->list, &queue_top(&ftb->queue), sizeof(FTB_WORD *)*ftb->queue.elements);
   my_qsort2(ftb->list, ftb->queue.elements, sizeof(FTB_WORD *),
             (qsort2_cmp)FTB_WORD_cmp_list, (void*) ftb->charset);
   if (ftb->queue.elements<2) ftb->with_scan &= ~FTB_FLAG_TRUNC;
@@ -839,7 +841,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
 
       /* update queue */
       _ft2_search(ftb, ftbw, 0);
-      queue_replaced(& ftb->queue);
+      queue_replace_top(&ftb->queue);
     }
 
     ftbe=ftb->root;

@@ -262,18 +262,20 @@ static int net_data_is_ready(my_socket sd)
 #endif /* EMBEDDED_LIBRARY */
 
 /**
-  Remove unwanted characters from connection
-  and check if disconnected.
+   Intialize NET handler for new reads:
 
-    Read from socket until there is nothing more to read. Discard
-    what is read.
+   - Read from socket until there is nothing more to read. Discard
+     what is read.
+   - Initialize net for new net_read/net_write calls.
 
-    If there is anything when to read 'net_clear' is called this
-    normally indicates an error in the protocol.
+   If there is anything when to read 'net_clear' is called this
+   normally indicates an error in the protocol. Normally one should not
+   need to do clear the communication buffer. If one compiles without
+   -DUSE_NET_CLEAR then one wins one read call / query.
 
-    When connection is properly closed (for TCP it means with
-    a FIN packet), then select() considers a socket "ready to read",
-    in the sense that there's EOF to read, but read() returns 0.
+   When connection is properly closed (for TCP it means with
+   a FIN packet), then select() considers a socket "ready to read",
+   in the sense that there's EOF to read, but read() returns 0.
 
   @param net			NET handler
   @param clear_buffer           if <> 0, then clear all data from comm buff
@@ -281,20 +283,18 @@ static int net_data_is_ready(my_socket sd)
 
 void net_clear(NET *net, my_bool clear_buffer __attribute__((unused)))
 {
-#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
-  size_t count;
-  int ready;
-#endif
   DBUG_ENTER("net_clear");
 
 /*
-  We don't do a clear in case of DBUG_OFF to catch bugs
-  in the protocol handling
+  We don't do a clear in case of not DBUG_OFF to catch bugs in the
+  protocol handling.
 */
 
-#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
+#if (!defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)) || defined(USE_NET_CLEAR)
   if (clear_buffer)
   {
+    size_t count;
+    int ready;
     while ((ready= net_data_is_ready(net->vio->sd)) > 0)
     {
       /* The socket is ready */

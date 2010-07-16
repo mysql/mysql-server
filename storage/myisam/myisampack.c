@@ -576,7 +576,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     Create a global priority queue in preparation for making 
     temporary Huffman trees.
   */
-  if (init_queue(&queue,256,0,0,compare_huff_elements,0))
+  if (init_queue(&queue, 256, 0, 0, compare_huff_elements, 0, 0, 0))
     goto err;
 
   /*
@@ -1511,7 +1511,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   if (queue.max_elements < found)
   {
     delete_queue(&queue);
-    if (init_queue(&queue,found,0,0,compare_huff_elements,0))
+    if (init_queue(&queue,found, 0, 0, compare_huff_elements, 0, 0, 0))
       return -1;
   }
 
@@ -1615,8 +1615,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
     Make a priority queue from the queue. Construct its index so that we
     have a partially ordered tree.
   */
-  for (i=found/2 ; i > 0 ; i--)
-    _downheap(&queue,i);
+  queue_fix(&queue);
 
   /* The Huffman algorithm. */
   bytes_packed=0; bits_packed=0;
@@ -1627,12 +1626,9 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
       Popping from a priority queue includes a re-ordering of the queue,
       to get the next least incidence element to the top.
     */
-    a=(HUFF_ELEMENT*) queue_remove(&queue,0);
-    /*
-      Copy the next least incidence element. The queue implementation
-      reserves root[0] for temporary purposes. root[1] is the top.
-    */
-    b=(HUFF_ELEMENT*) queue.root[1];
+    a=(HUFF_ELEMENT*) queue_remove_top(&queue);
+    /* Copy the next least incidence element */
+    b=(HUFF_ELEMENT*) queue_top(&queue);
     /* Get a new element from the element buffer. */
     new_huff_el=huff_tree->element_buffer+found+i;
     /* The new element gets the sum of the two least incidence elements. */
@@ -1654,8 +1650,8 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
       Replace the copied top element by the new element and re-order the
       queue.
     */
-    queue.root[1]=(uchar*) new_huff_el;
-    queue_replaced(&queue);
+    queue_top(&queue)= (uchar*) new_huff_el;
+    queue_replace_top(&queue);
   }
   huff_tree->root=(HUFF_ELEMENT*) queue.root[1];
   huff_tree->bytes_packed=bytes_packed+(bits_packed+7)/8;
@@ -1786,8 +1782,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
     Make a priority queue from the queue. Construct its index so that we
     have a partially ordered tree.
   */
-  for (i=(found+1)/2 ; i > 0 ; i--)
-    _downheap(&queue,i);
+  queue_fix(&queue);
 
   /* The Huffman algorithm. */
   for (i=0 ; i < found-1 ; i++)
@@ -1801,12 +1796,9 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
       incidence). Popping from a priority queue includes a re-ordering
       of the queue, to get the next least incidence element to the top.
     */
-    a= (my_off_t*) queue_remove(&queue, 0);
-    /*
-      Copy the next least incidence element. The queue implementation
-      reserves root[0] for temporary purposes. root[1] is the top.
-    */
-    b= (my_off_t*) queue.root[1];
+    a= (my_off_t*) queue_remove_top(&queue);
+    /* Copy the next least incidence element. */
+    b= (my_off_t*) queue_top(&queue);
     /* Create a new element in a local (automatic) buffer. */
     new_huff_el= element_buffer + i;
     /* The new element gets the sum of the two least incidence elements. */
@@ -1826,8 +1818,8 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
       queue. This successively replaces the references to counts by
       references to HUFF_ELEMENTs.
     */
-    queue.root[1]=(uchar*) new_huff_el;
-    queue_replaced(&queue);
+    queue_top(&queue)= (uchar*) new_huff_el;
+    queue_replace_top(&queue);
   }
   DBUG_RETURN(bytes_packed+(bits_packed+7)/8);
 }

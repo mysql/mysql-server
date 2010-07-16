@@ -423,7 +423,7 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
   if (end <= begin ||
       merge_buffer_size < (ulong) (key_length * (end - begin + 1)) ||
       init_queue(&queue, (uint) (end - begin), offsetof(BUFFPEK, key), 0,
-                 buffpek_compare, &compare_context))
+                 buffpek_compare, &compare_context, 0, 0))
     return 1;
   /* we need space for one key when a piece of merge buffer is re-read */
   merge_buffer_size-= key_length;
@@ -468,7 +468,7 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
     */
     top->key+= key_length;
     if (--top->mem_count)
-      queue_replaced(&queue);
+      queue_replace_top(&queue);
     else /* next piece should be read */
     {
       /* save old_key not to overwrite it in read_to_buffer */
@@ -478,14 +478,14 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
       if (bytes_read == (uint) (-1))
         goto end;
       else if (bytes_read > 0)      /* top->key, top->mem_count are reset */
-        queue_replaced(&queue);     /* in read_to_buffer */
+        queue_replace_top(&queue);             /* in read_to_buffer */
       else
       {
         /*
           Tree for old 'top' element is empty: remove it from the queue and
           give all its memory to the nearest tree.
         */
-        queue_remove(&queue, 0);
+        queue_remove_top(&queue);
         reuse_freed_buff(&queue, top, key_length);
       }
     }

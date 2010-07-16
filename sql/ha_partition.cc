@@ -2567,7 +2567,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     Initialize priority queue, initialized to reading forward.
   */
   if ((error= init_queue(&m_queue, m_tot_parts, (uint) PARTITION_BYTES_IN_POS,
-                         0, key_rec_cmp, (void*)this)))
+                         0, key_rec_cmp, (void*)this, 0, 0)))
     goto err_handler;
 
   /*
@@ -4622,7 +4622,7 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
 int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
 {
   uint i;
-  uint j= 0;
+  uint j= queue_first_element(&m_queue);
   bool found= FALSE;
   DBUG_ENTER("ha_partition::handle_ordered_index_scan");
 
@@ -4716,7 +4716,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     */
     queue_set_max_at_top(&m_queue, reverse_order);
     queue_set_cmp_arg(&m_queue, (void*)m_curr_key_info);
-    m_queue.elements= j;
+    m_queue.elements= j - queue_first_element(&m_queue);
     queue_fix(&m_queue);
     return_top_record(buf);
     table->status= 0;
@@ -4787,7 +4787,7 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     if (error == HA_ERR_END_OF_FILE)
     {
       /* Return next buffered row */
-      queue_remove(&m_queue, (uint) 0);
+      queue_remove_top(&m_queue);
       if (m_queue.elements)
       {
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
@@ -4799,7 +4799,7 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     }
     DBUG_RETURN(error);
   }
-  queue_replaced(&m_queue);
+  queue_replace_top(&m_queue);
   return_top_record(buf);
   DBUG_PRINT("info", ("Record returned from partition %u", m_top_entry));
   DBUG_RETURN(0);
@@ -4830,7 +4830,7 @@ int ha_partition::handle_ordered_prev(uchar *buf)
   {
     if (error == HA_ERR_END_OF_FILE)
     {
-      queue_remove(&m_queue, (uint) 0);
+      queue_remove_top(&m_queue);
       if (m_queue.elements)
       {
 	return_top_record(buf);
@@ -4842,7 +4842,7 @@ int ha_partition::handle_ordered_prev(uchar *buf)
     }
     DBUG_RETURN(error);
   }
-  queue_replaced(&m_queue);
+  queue_replace_top(&m_queue);
   return_top_record(buf);
   DBUG_PRINT("info", ("Record returned from partition %d", m_top_entry));
   DBUG_RETURN(0);
