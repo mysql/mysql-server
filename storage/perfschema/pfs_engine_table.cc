@@ -18,7 +18,6 @@
   Performance schema tables (implementation).
 */
 
-#include "sql_priv.h"
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
@@ -327,10 +326,10 @@ ulonglong PFS_engine_table::get_field_enum(Field *f)
   return f2->val_int();
 }
 
-int PFS_readonly_table::update_row_values(TABLE *,
-                                          const unsigned char *,
-                                          unsigned char *,
-                                          Field **)
+int PFS_engine_table::update_row_values(TABLE *,
+                                        const unsigned char *,
+                                        unsigned char *,
+                                        Field **)
 {
   my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   return HA_ERR_WRONG_COMMAND;
