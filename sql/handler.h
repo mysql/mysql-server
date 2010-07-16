@@ -1278,9 +1278,9 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
                          COST_VECT *cost);
 
 /*
-  The below two are not used (and not handled) in this milestone of this WL
-  entry because there seems to be no use for them at this stage of
-  implementation.
+  Indicates that all scanned ranges will be singlepoint (aka equality) ranges.
+  The ranges may not use the full key but all of them will use the same number
+  of key parts.
 */
 #define HA_MRR_SINGLE_POINT 1
 #define HA_MRR_FIXED_KEY  2
@@ -1806,9 +1806,10 @@ public:
                                               uint n_ranges, uint *bufsz,
                                               uint *flags, COST_VECT *cost);
   virtual ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                        uint *bufsz, uint *flags, COST_VECT *cost);
+                                        uint key_parts, uint *bufsz, 
+                                        uint *flags, COST_VECT *cost);
   virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                                    uint n_ranges, uint mode,
+                                    uint n_ranges, uint mode, 
                                     HANDLER_BUFFER *buf);
   virtual int multi_range_read_next(char **range_info);
   virtual int read_range_first(const key_range *start_key,
