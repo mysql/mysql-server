@@ -80,6 +80,7 @@ MYSQL_TCP_PORT_DEFAULT=3306
 MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 
 dnl Include m4 
+sinclude(config/ac-macros/maintainer.m4)
 sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
@@ -118,6 +119,8 @@ AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
+# Whether the maintainer mode should be enabled.
+MY_MAINTAINER_MODE
 
 # Canonicalize the configuration name.
 
@@ -283,40 +286,6 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
-
-#check the return type of sprintf
-AC_MSG_CHECKING("return type of sprintf")
-AC_TRY_RUN([
-  int main()
-    {
-      char* s = "hello";
-      char buf[6];
-      if((int)sprintf(buf, s) == strlen(s))
-	return 0;
-      
-      return -1;
-     }
-   ],
-   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
-   AC_MSG_RESULT("int")],
-   [AC_TRY_RUN([
- int main()
-   {
-     char* s = "hello";
-     char buf[6];
-     if((char*)sprintf(buf,s) == buf + strlen(s))
-       return 0;
-     return -1;
-   }           ],
-               [AC_DEFINE(SPRINTF_RETURNS_PTR, [1], [Broken sprintf])
-                AC_MSG_RESULT("ptr")],
-               [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
-                AC_MSG_RESULT("garbage")]
-   )],
-   # Cross compile, assume POSIX
-   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
-    AC_MSG_RESULT("int (we assume)")]
-)
 
 AC_PATH_PROG(uname_prog, uname, no)
 
@@ -494,7 +463,16 @@ if test "$GCC" != "yes" || expr "$CC" : ".*icc.*"
 then
   ABI_CHECK=""
 else
-  ABI_CHECK="abi_check"
+  # Workaround GCC >= 4.5 - See Bug#52514
+  case `$CC -dumpversion` in
+    [[4-9]].[[5-9]]*)
+      AC_MSG_WARN([ABI check disabled (GCC >= 4.5)])
+      ABI_CHECK=""
+      ;;
+    *)
+      ABI_CHECK="abi_check"
+      ;;
+  esac
 fi
 
 AC_SUBST(ABI_CHECK)
@@ -2212,7 +2190,7 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
-AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
+AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
@@ -2994,6 +2972,12 @@ do
   fi
 done
 AC_SUBST(sql_union_dirs)
+
+#
+# Setup maintainer mode options by the end to not disturb
+# system and other checks.
+#
+MY_MAINTAINER_MODE_SETUP
 
 # Some usefull subst
 AC_SUBST(CC)

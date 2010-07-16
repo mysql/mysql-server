@@ -1331,7 +1331,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 {
   if (global_system_variables.log_warnings)
     sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
 #if !defined(__WIN__)
@@ -2379,7 +2379,6 @@ extern "C" sig_handler handle_segfault(int sig)
 {
   time_t curr_time;
   struct tm tm;
-  THD *thd=current_thd;
 
   /*
     Strictly speaking, one needs a mutex here
@@ -2439,13 +2438,15 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 #endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
+  THD *thd=current_thd;
+
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr,"thd: 0x%lx\n",(long) thd);
-    fprintf(stderr,"\
-Attempting backtrace. You can use the following information to find out\n\
-where mysqld died. If you see no messages after this, something went\n\
-terribly wrong...\n");  
+    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Attempting backtrace. You can use the following "
+                    "information to find out\nwhere mysqld died. If "
+                    "you see no messages after this, something went\n"
+                    "terribly wrong...\n");
     my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
                         my_thread_stack_size);
   }
@@ -6139,7 +6140,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_CHAR;
     var->value= buff;
-    my_sprintf(buff, (buff, "%.3f",active_mi->heartbeat_period));
+    sprintf(buff, "%.3f", active_mi->heartbeat_period);
   }
   else
     var->type= SHOW_UNDEF;

@@ -8280,7 +8280,13 @@ int Field_set::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= 0;
-  ulonglong max_nr= set_bits(ulonglong, typelib->count);
+  ulonglong max_nr;
+
+  if (sizeof(ulonglong)*8 <= typelib->count)
+    max_nr= ULONGLONG_MAX;
+  else
+    max_nr= (ULL(1) << typelib->count) - 1;
+
   if ((ulonglong) nr > max_nr)
   {
     nr&= max_nr;
@@ -10135,7 +10141,7 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     /* DBL_DIG is enough to print '-[digits].E+###' */
     char str_nr[DBL_DIG + 8];
-    uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
+    uint str_len= sprintf(str_nr, "%g", nr);
     make_truncated_value_warning(thd, level, str_nr, str_len, ts_type,
                                  field_name);
   }

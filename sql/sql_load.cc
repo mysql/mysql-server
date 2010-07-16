@@ -1441,29 +1441,6 @@ int READ_INFO::read_field()
     while ( to < end_of_buff)
     {
       chr = GET;
-#ifdef USE_MB
-      if ((my_mbcharlen(read_charset, chr) > 1) &&
-          to+my_mbcharlen(read_charset, chr) <= end_of_buff)
-      {
-	  uchar* p = (uchar*)to;
-	  *to++ = chr;
-	  int ml = my_mbcharlen(read_charset, chr);
-	  int i;
-	  for (i=1; i<ml; i++) {
-	      chr = GET;
-	      if (chr == my_b_EOF)
-		  goto found_eof;
-	      *to++ = chr;
-	  }
-	  if (my_ismbchar(read_charset,
-                          (const char *)p,
-                          (const char *)to))
-	    continue;
-	  for (i=0; i<ml; i++)
-	    PUSH((uchar) *--to);
-	  chr = GET;
-      }
-#endif
       if (chr == my_b_EOF)
 	goto found_eof;
       if (chr == escape_char)
@@ -1547,6 +1524,39 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
+#ifdef USE_MB
+      if (my_mbcharlen(read_charset, chr) > 1 &&
+          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+      {
+        uchar* p= (uchar*) to;
+        int ml, i;
+        *to++ = chr;
+
+        ml= my_mbcharlen(read_charset, chr);
+
+        for (i= 1; i < ml; i++) 
+        {
+          chr= GET;
+          if (chr == my_b_EOF)
+          {
+            /*
+             Need to back up the bytes already ready from illformed
+             multi-byte char 
+            */
+            to-= i;
+            goto found_eof;
+          }
+          *to++ = chr;
+        }
+        if (my_ismbchar(read_charset,
+                        (const char *)p,
+                        (const char *)to))
+          continue;
+        for (i= 0; i < ml; i++)
+          PUSH((uchar) *--to);
+        chr= GET;
+      }
+#endif
       *to++ = (uchar) chr;
     }
     /*
