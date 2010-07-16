@@ -1,5 +1,6 @@
-/* Copyright (C) 2000-2009 MySQL AB & Monty Program Ab
+/* Copyright (C) 2000-2009 MySQL AB
    Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright 2000-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +16,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define COPYRIGHT_NOTICE "\
-Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL v2 license\n"
 
@@ -2212,9 +2212,12 @@ static bool add_line(String &buffer,char *line,char *in_string,
                  the line -- which would occur only because of the
                  user sending newline -- which is itself whitespace
                  and should also match.
+                 We also ignore lines starting with '--', even if there
+                 isn't a whitespace after. (This makes it easier to run
+                 mysql-test-run cases through the client)
                */
-               (my_isspace(charset_info,pos[2]) ||
-                !pos[2])))))
+                ((my_isspace(charset_info,pos[2]) || !pos[2]) ||
+                 (buffer.is_empty() && out == line))))))
     {
       // Flush previously accepted characters
       if (out != line)
