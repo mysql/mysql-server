@@ -479,16 +479,13 @@ int flush_master_info(Master_info* mi,
                          (1 + mi->ignore_server_ids.elements), MYF(MY_WME));
     if (!ignore_server_ids_buf)
       DBUG_RETURN(1);
-    for (ulong i= 0, cur_len= my_sprintf(ignore_server_ids_buf,
-                                         (ignore_server_ids_buf, "%u",
-                                          mi->ignore_server_ids.elements));
-         i < mi->ignore_server_ids.elements; i++)
+    ulong cur_len= sprintf(ignore_server_ids_buf, "%u",
+                           mi->ignore_server_ids.elements);
+    for (ulong i= 0; i < mi->ignore_server_ids.elements; i++)
     {
       ulong s_id;
       get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-      cur_len +=my_sprintf(ignore_server_ids_buf + cur_len,
-                           (ignore_server_ids_buf + cur_len,
-                            " %lu", s_id));
+      cur_len+= sprintf(ignore_server_ids_buf + cur_len, " %lu", s_id);
     }
   }
 
@@ -509,7 +506,7 @@ int flush_master_info(Master_info* mi,
      of file we don't care about this garbage.
   */
   char heartbeat_buf[sizeof(mi->heartbeat_period) * 4]; // buffer to suffice always
-  my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
+  sprintf(heartbeat_buf, "%.3f", mi->heartbeat_period);
   my_b_seek(file, 0L);
   my_b_printf(file,
               "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",

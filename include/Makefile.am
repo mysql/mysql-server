@@ -45,7 +45,7 @@ noinst_HEADERS =	config-win.h lf.h my_bit.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-			atomic/solaris.h mysql/innodb_priv.h
+			atomic/solaris.h mysql/innodb_priv.h my_compiler.h
 
 pkgpsiinclude_HEADERS = mysql/psi/psi.h mysql/psi/mysql_thread.h \
 			mysql/psi/mysql_file.h

@@ -2270,7 +2270,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 100; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -2309,7 +2309,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (o_tiny_data= 0; o_tiny_data < 100; o_tiny_data++)
   {
-    len= my_sprintf(data, (data, "MySQL%d", o_int_data));
+    len= sprintf(data, "MySQL%d", o_int_data);
 
     rc= mysql_stmt_fetch(stmt);
     check_execute(stmt, rc);
@@ -3675,7 +3675,7 @@ static void test_simple_update()
   my_bind[0].buffer= szData;                /* string data */
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *) &nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -3871,7 +3871,7 @@ static void test_long_data_str()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%d", i*5));
+  sprintf(data, "%d", i*5);
   verify_col_data("test_long_data_str", "LENGTH(longstr)", data);
   data[0]= '\0';
   while (i--)
@@ -3929,7 +3929,7 @@ static void test_long_data_str1()
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
-  length= my_sprintf(data, (data, "MySQL AB"));
+  length= sprintf(data, "MySQL AB");
 
   /* supply data in pieces */
   for (i= 0; i < 3; i++)
@@ -3969,10 +3969,10 @@ static void test_long_data_str1()
   DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
-  my_sprintf(data, (data, "%ld", (long)i*length));
+  sprintf(data, "%ld", (long)i*length);
   verify_col_data("test_long_data_str", "length(longstr)", data);
 
-  my_sprintf(data, (data, "%d", i*2));
+  sprintf(data, "%d", i*2);
   verify_col_data("test_long_data_str", "length(blb)", data);
 
   /* Test length of field->max_length */
@@ -4244,7 +4244,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "inserted-data"));
+  length[0]= sprintf(szData, "inserted-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4273,7 +4273,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= my_sprintf(szData, (szData, "updated-data"));
+  length[0]= sprintf(szData, "updated-data");
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4842,7 +4842,7 @@ static void bind_fetch(int row_count)
     /* CHAR */
     {
       char buff[20];
-      long len= my_sprintf(buff, (buff, "%d", rc));
+      long len= sprintf(buff, "%d", rc);
       DIE_UNLESS(strcmp(s_data, buff) == 0);
       DIE_UNLESS(length[6] == (ulong) len);
     }
@@ -5435,7 +5435,7 @@ static void test_insert()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 3; tiny_data++)
   {
-    length= my_sprintf(str_data, (str_data, "MySQL%d", tiny_data));
+    length= sprintf(str_data, "MySQL%d", tiny_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
   }
@@ -18097,7 +18097,7 @@ static void test_wl4166_1()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 10; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -18120,7 +18120,7 @@ static void test_wl4166_1()
 
   for (tiny_data= 50; tiny_data < 60; tiny_data++)
   {
-    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
+    length[1]= sprintf(str_data, "MySQL%d", int_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -19060,6 +19060,63 @@ static void test_bug42373()
 }
 
 
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind;
+
+  DBUG_ENTER("test_bug54041");
+  myheader("test_bug54041");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 (a) VALUES (?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  memset(&bind, 0, sizeof(bind));
+
+  /* Any type that does not support long data handling. */
+  bind.buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_bind_param(stmt, &bind);
+  check_execute(stmt, rc);
+
+  /*
+    Trick the client API into sending a long data packet for
+    the parameter. Long data is only supported for string and
+    binary types.
+  */
+  stmt->params[0].buffer_type= MYSQL_TYPE_STRING;
+
+  rc= mysql_stmt_send_long_data(stmt, 0, "data", 5);
+  check_execute(stmt, rc);
+
+  /* Undo API violation. */
+  stmt->params[0].buffer_type= MYSQL_TYPE_LONG;
+
+  rc= mysql_stmt_execute(stmt);
+  /* Incorrect arguments. */
+  check_execute_r(stmt, rc);
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Bug#49972: Crash in prepared statements.
 
@@ -19500,6 +19557,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug44495", test_bug44495 },
   { "test_bug49972", test_bug49972 },
   { "test_bug42373", test_bug42373 },
+  { "test_bug54041", test_bug54041 },
   { 0, 0 }
 };
 

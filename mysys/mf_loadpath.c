@@ -42,7 +42,7 @@ char * my_load_path(char * to, const char *path,
     if (is_cur)
       is_cur=2;					/* Remove current dir */
     if (! my_getwd(buff,(uint) (FN_REFLEN-strlen(path)+is_cur),MYF(0)))
-      (void) strncat(buff, path+is_cur, FN_REFLEN);
+      (void) strncat(buff, path+is_cur, FN_REFLEN-1);
     else
       (void) strnmov(buff, path, FN_REFLEN);			/* Return org file name */
   }
