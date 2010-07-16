@@ -817,10 +817,9 @@ public:
   }
   ~subselect_hash_sj_engine();
 
-  bool init_permanent(List<Item> *tmp_columns);
-  bool init_runtime();
+  bool init(List<Item> *tmp_columns);
   void cleanup();
-  int prepare() { return 0; } /* Override virtual function in base class. */
+  int prepare();
   int exec();
   virtual void print(String *str, enum_query_type query_type);
   uint cols()

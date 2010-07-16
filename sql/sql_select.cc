@@ -2586,14 +2586,13 @@ err:
   Setup for execution all subqueries of a query, for which the optimizer
   chose hash semi-join.
 
-  @details Iterate over all subqueries of the query, and if they are under an
-  IN predicate, and the optimizer chose to compute it via hash semi-join:
-  - try to initialize all data structures needed for the materialized execution
-    of the IN predicate,
-  - if this fails, then perform the IN=>EXISTS transformation which was
-    previously blocked during JOIN::prepare.
-
-  This method is part of the "code generation" query processing phase.
+  @details Iterate over all immediate child subqueries of the query, and if
+  they are under an IN predicate, and the optimizer chose to compute it via
+  materialization:
+  - optimize each subquery,
+  - choose an optimial execution strategy for the IN predicate - either
+    materialization, or an IN=>EXISTS transformation with an approriate
+    engine.
 
   This phase must be called after substitute_for_best_equal_field() because
   that function may replace items with other items from a multiple equality,
@@ -7925,7 +7924,7 @@ bool TABLE_REF::tmp_table_index_lookup_init(THD *thd,
                                     use that information instead.
                                  */
                                  cur_ref_buff + null_count,
-                                 null_count ? key_buff : 0,
+                                 null_count ? cur_ref_buff : 0,
                                  cur_key_part->length, items[i], value);
     cur_ref_buff+= cur_key_part->store_length;
   }
@@ -11408,10 +11407,30 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       {
 	if (thd->is_fatal_error)
 	  goto err;				// Got OOM
-	continue;				// Some kindf of const item
+	continue;				// Some kind of const item
       }
       if (type == Item::SUM_FUNC_ITEM)
-	((Item_sum *) item)->result_field= new_field;
+      {
+        Item_sum *agg_item= (Item_sum *) item;
+        /*
+          Update the result field only if it has never been set, or if the
+          created temporary table is not to be used for subquery
+          materialization.
+
+          The reason is that for subqueries that require materialization as part
+          of their plan, we create the 'external' temporary table needed for IN
+          execution, after the 'internal' temporary table needed for grouping.
+          Since both the external and the internal temporary tables are created
+          for the same list of SELECT fields of the subquery, setting
+          'result_field' for each invocation of create_tmp_table overrides the
+           previous value of 'result_field'.
+
+          The condition below prevents the creation of the external temp table
+          to override the 'result_field' that was set for the internal temp table.
+        */
+        if (!agg_item->result_field || !param->materialized_subquery)
+          agg_item->result_field= new_field;
+      }
       tmp_from_field++;
       reclength+=new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG))
@@ -19240,6 +19259,8 @@ bool JOIN::change_result(select_result *res)
 {
   DBUG_ENTER("JOIN::change_result");
   result= res;
+  if (tmp_join)
+    tmp_join->result= res;
   if (!procedure && (result->prepare(fields_list, select_lex->master_unit()) ||
                      result->prepare2()))
   {

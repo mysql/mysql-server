@@ -166,6 +166,7 @@ void Item_in_subselect::cleanup()
 Item_subselect::~Item_subselect()
 {
   delete engine;
+  engine= NULL;
 }
 
 Item_subselect::trans_res
@@ -2220,73 +2221,73 @@ void Item_in_subselect::update_used_tables()
 
 bool Item_in_subselect::setup_engine()
 {
-  subselect_hash_sj_engine *new_engine= NULL;
-  bool res= FALSE;
+  subselect_hash_sj_engine       *mat_engine= NULL;
+  subselect_single_select_engine *select_engine;
 
   DBUG_ENTER("Item_in_subselect::setup_engine");
 
-  if (engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE)
+
+  SELECT_LEX *save_select= thd->lex->current_select;
+  thd->lex->current_select= get_select_lex();
+  int res= thd->lex->current_select->join->optimize();
+  thd->lex->current_select= save_select;
+  if (res)
+    DBUG_RETURN(TRUE);
+
+  /*
+    The select_engine (that executes transformed IN=>EXISTS subselects) is
+    pre-created at parse time, and is stored in statment memory (preserved
+    across PS executions).
+  */
+  DBUG_ASSERT(engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE);
+  select_engine= (subselect_single_select_engine*) engine;
+
+  /* Create/initialize execution objects. */
+  if (!(mat_engine= new subselect_hash_sj_engine(thd, this, select_engine)))
+    DBUG_RETURN(TRUE);
+
+  if (mat_engine->init(&select_engine->join->fields_list))
   {
-    /* Create/initialize objects in permanent memory. */
-    subselect_single_select_engine *old_engine;
-    Query_arena *arena= thd->stmt_arena, backup;
-
-    old_engine= (subselect_single_select_engine*) engine;
-
-    if (arena->is_conventional())
-      arena= 0;
-    else
-      thd->set_n_backup_active_arena(arena, &backup);
-
-    if (!(new_engine= new subselect_hash_sj_engine(thd, this,
-                                                   old_engine)) ||
-        new_engine->init_permanent(unit->get_unit_column_types()))
-    {
-      Item_subselect::trans_res trans_res;
-      /*
-        If for some reason we cannot use materialization for this IN predicate,
-        delete all materialization-related objects, and apply the IN=>EXISTS
-        transformation.
-      */
-      delete new_engine;
-      new_engine= NULL;
-      exec_method= NOT_TRANSFORMED;
-      if (left_expr->cols() == 1)
-        trans_res= single_value_in_to_exists_transformer(old_engine->join,
-                                                         &eq_creator);
-      else
-        trans_res= row_value_in_to_exists_transformer(old_engine->join);
-      res= (trans_res != Item_subselect::RES_OK);
-    }
-    if (new_engine)
-      engine= new_engine;
-
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
-  }
-  else
-  {
-    DBUG_ASSERT(engine->engine_type() == subselect_engine::HASH_SJ_ENGINE);
-    new_engine= (subselect_hash_sj_engine*) engine;
-  }
-
-  /* Initilizations done in runtime memory, repeated for each execution. */
-  if (new_engine)
-  {
+    Item_subselect::trans_res trans_res;
     /*
-      Reset the LIMIT 1 set in Item_exists_subselect::fix_length_and_dec.
-      TODO:
-      Currently we set the subquery LIMIT to infinity, and this is correct
-      because we forbid at parse time LIMIT inside IN subqueries (see
-      Item_in_subselect::test_limit). However, once we allow this, here
-      we should set the correct limit if given in the query.
+      If for some reason we cannot use materialization for this IN predicate,
+      delete all materialization-related objects, and apply the IN=>EXISTS
+      transformation.
     */
-    unit->global_parameters->select_limit= NULL;
-    if ((res= new_engine->init_runtime()))
-      DBUG_RETURN(res);
+    delete mat_engine;
+    mat_engine= NULL;
+    exec_method= NOT_TRANSFORMED;
+
+    if (left_expr->cols() == 1)
+      trans_res= single_value_in_to_exists_transformer(select_engine->join,
+                                                       &eq_creator);
+    else
+      trans_res= row_value_in_to_exists_transformer(select_engine->join);
+
+    /*
+      The IN=>EXISTS transformation above injects new predicates into the
+      WHERE and HAVING clauses. Since the subquery was already optimized,
+      below we force its reoptimization with the new injected conditions
+      by the first call to subselect_single_select_engine::exec().
+      This is the only case of lazy subquery optimization in the server.
+    */
+    DBUG_ASSERT(select_engine->join->optimized);
+    select_engine->join->optimized= false;
+    DBUG_RETURN(trans_res != Item_subselect::RES_OK);
   }
 
-  DBUG_RETURN(res);
+  /*
+    Reset the "LIMIT 1" set in Item_exists_subselect::fix_length_and_dec.
+    TODO:
+    Currently we set the subquery LIMIT to infinity, and this is correct
+    because we forbid at parse time LIMIT inside IN subqueries (see
+    Item_in_subselect::test_limit). However, once we allow this, here
+    we should set the correct limit if given in the query.
+  */
+  unit->global_parameters->select_limit= NULL;
+
+  engine= mat_engine;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -3787,13 +3788,14 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   @retval FALSE otherwise
 */
 
-bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
+bool subselect_hash_sj_engine::init(List<Item> *tmp_columns)
 {
+  select_union *result_sink;
   /* Options to create_tmp_table. */
   ulonglong tmp_create_options= thd->options | TMP_TABLE_ALL_COLUMNS;
                              /* | TMP_TABLE_FORCE_MYISAM; TIMOUR: force MYISAM */
 
-  DBUG_ENTER("subselect_hash_sj_engine::init_permanent");
+  DBUG_ENTER("subselect_hash_sj_engine::init");
 
   if (bitmap_init_memroot(&non_null_key_parts, tmp_columns->elements,
                             thd->mem_root) ||
@@ -3822,15 +3824,16 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
     DBUG_RETURN(TRUE);
   }
 */
-  if (!(result= new select_materialize_with_stats))
+  if (!(result_sink= new select_materialize_with_stats))
+    DBUG_RETURN(TRUE);
+  result_sink->get_tmp_table_param()->materialized_subquery= true;
+  if (result_sink->create_result_table(thd, tmp_columns, TRUE,
+                                       tmp_create_options,
+                                       "materialized subselect", TRUE))
     DBUG_RETURN(TRUE);
 
-  if (((select_union*) result)->create_result_table(
-                         thd, tmp_columns, TRUE, tmp_create_options,
-                         "materialized subselect", TRUE))
-    DBUG_RETURN(TRUE);
-
-  tmp_table= ((select_union*) result)->table;
+  tmp_table= result_sink->table;
+  result= result_sink;
 
   /*
     If the subquery has blobs, or the total key lenght is bigger than
@@ -3866,6 +3869,17 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
       /* A unique_engine is used both for complete and partial matching. */
       !(lookup_engine= make_unique_engine()))
     DBUG_RETURN(TRUE);
+
+  /*
+    Repeat name resolution for 'cond' since cond is not part of any
+    clause of the query, and it is not 'fixed' during JOIN::prepare.
+  */
+  if (semi_join_conds && !semi_join_conds->fixed &&
+      semi_join_conds->fix_fields(thd, (Item**)&semi_join_conds))
+    DBUG_RETURN(TRUE);
+  /* Let our engine reuse this query plan for materialization. */
+  materialize_join= materialize_engine->join;
+  materialize_join->change_result(result);
 
   DBUG_RETURN(FALSE);
 }
@@ -3957,8 +3971,6 @@ subselect_hash_sj_engine::make_unique_engine()
   Item_iterator_row it(item_in->left_expr);
   /* The only index on the temporary table. */
   KEY *tmp_key= tmp_table->key_info;
-  /* Number of keyparts in tmp_key. */
-  uint tmp_key_parts= tmp_key->key_parts;
   JOIN_TAB *tab;
 
   DBUG_ENTER("subselect_hash_sj_engine::make_unique_engine");
@@ -3981,41 +3993,22 @@ subselect_hash_sj_engine::make_unique_engine()
 }
 
 
-/**
-  Initialize members of the engine that need to be re-initilized at each
-  execution.
-
-  @retval TRUE  if a memory allocation error occurred
-  @retval FALSE if success
-*/
-
-bool subselect_hash_sj_engine::init_runtime()
-{
-  /*
-    Create and optimize the JOIN that will be used to materialize
-    the subquery if not yet created.
-  */
-  materialize_engine->prepare();
-  /*
-    Repeat name resolution for 'cond' since cond is not part of any
-    clause of the query, and it is not 'fixed' during JOIN::prepare.
-  */
-  if (semi_join_conds && !semi_join_conds->fixed &&
-      semi_join_conds->fix_fields(thd, (Item**)&semi_join_conds))
-    return TRUE;
-  /* Let our engine reuse this query plan for materialization. */
-  materialize_join= materialize_engine->join;
-  materialize_join->change_result(result);
-  return FALSE;
-}
-
-
 subselect_hash_sj_engine::~subselect_hash_sj_engine()
 {
   delete lookup_engine;
   delete result;
   if (tmp_table)
     free_tmp_table(thd, tmp_table);
+}
+
+
+int subselect_hash_sj_engine::prepare()
+{
+  /*
+    Create and optimize the JOIN that will be used to materialize
+    the subquery if not yet created.
+  */
+  return materialize_engine->prepare();
 }
 
 
@@ -4036,6 +4029,12 @@ void subselect_hash_sj_engine::cleanup()
   count_null_only_columns= 0;
   strategy= UNDEFINED;
   materialize_engine->cleanup();
+  /*
+    Restore the original Item_in_subselect engine. This engine is created once
+    at parse time and stored across executions, while all other materialization
+    related engines are created and chosen for each execution.
+  */
+  ((Item_in_subselect *) item)->engine= materialize_engine;
   if (lookup_engine_type == TABLE_SCAN_ENGINE ||
       lookup_engine_type == ROWID_MERGE_ENGINE)
   {
@@ -4052,6 +4051,9 @@ void subselect_hash_sj_engine::cleanup()
   DBUG_ASSERT(lookup_engine->engine_type() == UNIQUESUBQUERY_ENGINE);
   lookup_engine->cleanup();
   result->cleanup(); /* Resets the temp table as well. */
+  DBUG_ASSERT(tmp_table);
+  free_tmp_table(thd, tmp_table);
+  tmp_table= NULL;
 }
 
 
@@ -4080,9 +4082,8 @@ int subselect_hash_sj_engine::exec()
     the subquery predicate.
   */
   thd->lex->current_select= materialize_engine->select_lex;
-  if ((res= materialize_join->optimize()))
-    goto err; /* purecov: inspected */
-  DBUG_ASSERT(!is_materialized); /* We should materialize only once. */
+  /* The subquery should be optimized, and materialized only once. */
+  DBUG_ASSERT(materialize_join->optimized && !is_materialized);
   materialize_join->exec();
   if ((res= test(materialize_join->error || thd->is_fatal_error)))
     goto err;
