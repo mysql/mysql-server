@@ -11069,7 +11069,8 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   if (table->file->indexes_are_disabled())
     new_table.file->ha_disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->ha_index_or_rnd_end();
-  table->file->ha_rnd_init(1);
+  if (table->file->ha_rnd_init_with_error(1))
+    DBUG_RETURN(1);
   if (table->no_rows)
   {
     new_table.file->extra(HA_EXTRA_NO_ROWS);
@@ -12322,7 +12323,7 @@ int rr_sequential(READ_RECORD *info);
 int init_read_record_seq(JOIN_TAB *tab)
 {
   tab->read_record.read_record= rr_sequential;
-  if (tab->read_record.file->ha_rnd_init(1))
+  if (tab->read_record.file->ha_rnd_init_with_error(1))
     return 1;
   return (*tab->read_record.read_record)(&tab->read_record);
 }
@@ -12342,8 +12343,9 @@ join_init_read_record(JOIN_TAB *tab)
 {
   if (tab->select && tab->select->quick && tab->select->quick->reset())
     return 1;
-  init_read_record(&tab->read_record, tab->join->thd, tab->table,
-		   tab->select,1,1, FALSE);
+  if (init_read_record(&tab->read_record, tab->join->thd, tab->table,
+                       tab->select,1,1, FALSE))
+    return 1;
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
@@ -14264,7 +14266,9 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   org_record=(char*) (record=table->record[0])+offset;
   new_record=(char*) table->record[1]+offset;
 
-  file->ha_rnd_init(1);
+  if (file->ha_rnd_init_with_error(1))
+    DBUG_RETURN(1);
+
   error= file->ha_rnd_next(record);
   for (;;)
   {
@@ -14393,7 +14397,9 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
 
-  file->ha_rnd_init(1);
+  if ((error= file->ha_rnd_init(1)))
+    goto err;
+
   key_pos=key_buffer;
   for (;;)
   {

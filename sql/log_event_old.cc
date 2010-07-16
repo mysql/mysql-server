@@ -816,7 +816,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     int error;
 
     /* We don't have a key: search the table using rnd_next() */
-    if ((error= table->file->ha_rnd_init(1)))
+    if ((error= table->file->ha_rnd_init_with_error(1)))
       return error;
 
     /* Continue until we find the right record or have made a full loop */
@@ -840,15 +840,19 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
         goto restart_rnd_next;
 
       case HA_ERR_END_OF_FILE:
-  if (++restart_count < 2)
-    table->file->ha_rnd_init(1);
-  break;
+        if (++restart_count < 2)
+        {
+          int error2;
+          if ((error2= table->file->ha_rnd_init_with_error(1)))
+            DBUG_RETURN(error2);
+        }
+        break;
 
       default:
-  table->file->print_error(error, MYF(0));
+        table->file->print_error(error, MYF(0));
         DBUG_PRINT("info", ("Record not found"));
         table->file->ha_rnd_end();
-  DBUG_RETURN(error);
+        DBUG_RETURN(error);
       }
     }
     while (restart_count < 2 && record_compare(table));
@@ -2461,11 +2465,10 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     int restart_count= 0; // Number of times scanning has restarted from top
 
     /* We don't have a key: search the table using rnd_next() */
-    if ((error= table->file->ha_rnd_init(1)))
+    if ((error= table->file->ha_rnd_init_with_error(1)))
     {
       DBUG_PRINT("info",("error initializing table scan"
                          " (ha_rnd_init returns %d)",error));
-      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
     }
 
@@ -2485,7 +2488,11 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          int error2;
+          if ((error2= table->file->ha_rnd_init_with_error(1)))
+            DBUG_RETURN(error2);
+        }
         break;
 
       default:

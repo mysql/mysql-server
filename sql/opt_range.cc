@@ -1431,7 +1431,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
     quick->record= head->record[0];
   }
 
-  if (need_to_fetch_row && head->file->ha_rnd_init(1))
+  if (need_to_fetch_row && head->file->ha_rnd_init_with_error(1))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
     DBUG_RETURN(1);
@@ -1602,7 +1602,7 @@ int QUICK_ROR_UNION_SELECT::reset()
     queue_insert(&queue, (uchar*)quick);
   }
 
-  if (head->file->ha_rnd_init(1))
+  if (head->file->ha_rnd_init_with_error(1))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
     DBUG_RETURN(1);
@@ -8199,7 +8199,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     index_merge currently doesn't support "using index" at all
   */
   head->disable_keyread();
-  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
+  if (init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE))
+    result= 1;
   DBUG_RETURN(result);
 
 err:

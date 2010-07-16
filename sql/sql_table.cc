@@ -7877,7 +7877,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
   to->mark_virtual_columns_for_write(TRUE);
-  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
+  if (init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE))
+    goto err;
   errpos= 4;
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);

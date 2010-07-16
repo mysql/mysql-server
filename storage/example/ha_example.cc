@@ -588,7 +588,7 @@ int ha_example::index_last(uchar *buf)
 int ha_example::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_example::rnd_init");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_RETURN(0);
 }
 
 int ha_example::rnd_end()

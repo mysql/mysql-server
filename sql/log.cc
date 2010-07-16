@@ -412,7 +412,7 @@ bool Log_to_csv_event_handler::
   need_close= TRUE;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0))
+      table->file->ha_rnd_init_with_error(0))
     goto err;
 
   need_rnd_end= TRUE;
@@ -563,7 +563,7 @@ bool Log_to_csv_event_handler::
   need_close= TRUE;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0))
+      table->file->ha_rnd_init_with_error(0))
     goto err;
 
   need_rnd_end= TRUE;

@@ -608,7 +608,7 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
   thd->set_n_backup_active_arena(this, &backup_arena);
   /* Create a list of fields and start sequential scan */
   rc= result->prepare(item_list, &fake_unit);
-  if (!rc && !(rc= table->file->ha_rnd_init(TRUE)))
+  if (!rc && !(rc= table->file->ha_rnd_init_with_error(TRUE)))
     is_rnd_inited= 1;
 
   thd->restore_active_arena(this, &backup_arena);
