@@ -108,7 +108,12 @@ void PFS_check_intact::report_error(uint code, const char *fmt, ...)
   my_vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
 
-  my_message(code, buff, MYF(0));
+  /*
+    This is an install/upgrade issue:
+    - do not report it in the user connection, there is none in main(),
+    - report it in the server error log.
+  */
+  sql_print_error("%s", buff);
 }
 
 /**
@@ -139,6 +144,9 @@ void PFS_engine_table_share::check_one_table(THD *thd)
       m_checked= true;
     close_thread_tables(thd);
   }
+  else
+    sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
+                    PERFORMANCE_SCHEMA_str.str, m_name.str);
 
   lex_end(&dummy_lex);
   thd->lex= old_lex;
