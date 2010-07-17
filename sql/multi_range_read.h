@@ -115,6 +115,7 @@ private:
   uchar *mrr_buf_end;   /* End of the buffer */
 
   uchar *mrr_buf_next_identical;
+  bool use_key_pointers;
 
   bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
 
@@ -129,6 +130,8 @@ private:
 
   /* Length of lookup tuple being used, in bytes */
   uint cpk_tuple_length;
+
+  uint key_buf_element_size;
   /*
     TRUE <=> We're scanning on a full primary key (and not on prefix), and so 
     can get max. one match for each key 

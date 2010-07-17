@@ -312,6 +312,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   uint elem_size;
   Item *pushed_cond= NULL;
   handler *new_h2= 0;
+  THD *thd= current_thd;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
 
   /*
@@ -332,17 +333,16 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 
   // psergey2: split the buffer:
   /*
-
   psergey2-note: we can't split the buffer here because we don't know how key
   length. we'll only be able to do it when we've got the first range.
-
-  if ((mrr_flags & HA_MRR_SINGLE_POINT) && 
+  */
+  if ((mode & HA_MRR_SINGLE_POINT) && 
        optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS))
   {
-    do_sort_keys= TRUE; // will use key buffer to sort keys;
-    bool use_key_pointers= test(mrr_flags & HA_MRR_MATERIALIZED_KEYS);
+    //do_sort_keys= TRUE; // will use key buffer to sort keys;
+    use_key_pointers= test(mode & HA_MRR_MATERIALIZED_KEYS);
   }
-  
+  /*
   do_rowid_fetch= FALSE;
   if (!doing_cpk_scan && !index_only_read)
   {
@@ -409,7 +409,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if (!h2)
   {
     /* Create a separate handler object to do rnd_pos() calls. */
-    THD *thd= current_thd;
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
       The constant 5 is an empiric result.
@@ -609,6 +608,8 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
 
 /* 
   my_qsort2-compatible function to compare key tuples 
+
+  If dsmrr->use_key_pointers==FALSE
 */
 
 int DsMrr_impl::key_tuple_cmp(void* arg, uchar* key1, uchar* key2)
@@ -617,6 +618,14 @@ int DsMrr_impl::key_tuple_cmp(void* arg, uchar* key1, uchar* key2)
   TABLE *table= dsmrr->h->table;
   
   KEY_PART_INFO *part= table->key_info[table->s->primary_key].key_part;
+  
+  if (dsmrr->use_key_pointers)
+  {
+    /* the buffer stores pointers to keys, get to the keys */
+    key1= *((uchar**)key1);
+    key2= *((uchar**)key2);  // todo is this alignment-safe?
+  }
+
   uchar *key1_end= key1 + dsmrr->cpk_tuple_length;
 
   while (key1 < key1_end)
@@ -664,14 +673,15 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
          !(res= h->mrr_funcs.next(h->mrr_iter, &cur_range)))
   {
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
-    DBUG_ASSERT(!cpk_tuple_length || 
-                cpk_tuple_length == cur_range.start_key.length);
     if (!cpk_tuple_length)
     {
       cpk_tuple_length= cur_range.start_key.length;
+      key_buf_element_size= use_key_pointers ? sizeof(char*) : 
+                                           cpk_tuple_length;
+
       cpk_is_unique_scan= test(table->key_info[h->active_index].key_parts == 
                                my_count_bits(cur_range.start_key.keypart_map));
-      uint elem_size= cpk_tuple_length + (int)is_mrr_assoc * sizeof(void*);
+      uint elem_size= key_buf_element_size + (int)is_mrr_assoc * sizeof(void*);
       mrr_buf_last= mrr_buf + ((mrr_buf_end - mrr_buf)/elem_size) * elem_size;
       mrr_buf_end= mrr_buf_last;
     }
@@ -679,8 +689,12 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
     //psergey2: if keys are materialized, store pointers, not copy keys
 
     /* Put key, or {key, range_id} pair into the buffer */
-    memcpy(mrr_buf_cur, cur_range.start_key.key, cpk_tuple_length);
-    mrr_buf_cur += cpk_tuple_length;
+    if (use_key_pointers)
+      memcpy(mrr_buf_cur, &cur_range.start_key.key, sizeof(char*));
+    else
+      memcpy(mrr_buf_cur, cur_range.start_key.key, cpk_tuple_length);
+
+    mrr_buf_cur += key_buf_element_size;
 
     if (is_mrr_assoc)
     {
@@ -692,7 +706,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
   dsmrr_eof= test(res);
 
   /* Sort the buffer contents by rowid */
-  uint elem_size= cpk_tuple_length + (int)is_mrr_assoc * sizeof(void*);
+  uint elem_size= key_buf_element_size + (int)is_mrr_assoc * sizeof(void*);
   uint n_rowids= (mrr_buf_cur - mrr_buf) / elem_size;
   
   my_qsort2(mrr_buf, n_rowids, elem_size, 
@@ -739,7 +753,8 @@ int DsMrr_impl::dsmrr_next_cpk(char **range_info)
       break;
     }
 
-    res= h->index_next_same(table->record[0], mrr_buf_cur, cpk_tuple_length);
+    uchar *lookup_tuple= use_key_pointers? (*((uchar**)mrr_buf_cur)) : mrr_buf_cur;
+    res= h->index_next_same(table->record[0], lookup_tuple, cpk_tuple_length);
 
     if (h->mrr_funcs.skip_index_tuple &&
         h->mrr_funcs.skip_index_tuple(h->mrr_iter, cpk_saved_range_info))
@@ -775,8 +790,8 @@ int DsMrr_impl::dsmrr_next_cpk(char **range_info)
     }
     
     /* Ok, got the range. Try making a lookup.  */
-    uchar *lookup_tuple= mrr_buf_cur;
-    mrr_buf_cur += cpk_tuple_length;
+    uchar *lookup_tuple= use_key_pointers? (*((uchar**)mrr_buf_cur)) : mrr_buf_cur;
+    mrr_buf_cur += key_buf_element_size;
     if (is_mrr_assoc)
     {
       memcpy(&cpk_saved_range_info, mrr_buf_cur, sizeof(void*));
