@@ -65,19 +65,6 @@ my_bool my_use_large_pages= 0;
 uint    my_large_page_size= 0;
 #endif
 
-	/* from safe_malloc */
-uint sf_malloc_prehunc=0,		/* If you have problem with core- */
-     sf_malloc_endhunc=0,		/* dump when malloc-message.... */
-					/* set theese to 64 or 128  */
-     sf_malloc_quick=0;			/* set if no calls to sanity */
-size_t sf_malloc_cur_memory= 0L;		/* Current memory usage */
-size_t sf_malloc_max_memory= 0L;		/* Maximum memory usage */
-uint  sf_malloc_count= 0;		/* Number of times NEW() was called */
-uchar *sf_min_adress= (uchar*) ~(unsigned long) 0L,
-     *sf_max_adress= (uchar*) 0L;
-/* Root of the linked list of struct st_irem */
-struct st_irem *sf_malloc_root = NULL;
-
 	/* from my_alarm */
 int volatile my_have_got_alarm=0;	/* declare variable to reset */
 ulong my_time_to_wait_for_lock=2;	/* In seconds */
