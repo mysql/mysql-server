@@ -114,6 +114,8 @@ private:
   uchar *mrr_buf_last;  /* When reading: end of used buffer space */
   uchar *mrr_buf_end;   /* End of the buffer */
 
+  uchar *mrr_buf_next_identical;
+
   bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
 
   /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
@@ -143,8 +145,8 @@ private:
                                uint *buffer_size, COST_VECT *cost);
   bool check_cpk_scan(uint keyno, uint mrr_flags);
   static int key_tuple_cmp(void* arg, uchar* key1, uchar* key2);
-  int dsmrr_fill_buffer();
-  void dsmrr_fill_buffer_cpk();
+  int dsmrr_fill_rowid_buffer();
+  void dsmrr_fill_key_buffer();
   int dsmrr_next_cpk(char **range_info);
 };
 

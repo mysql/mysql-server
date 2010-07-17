@@ -1322,6 +1322,12 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 #define HA_MRR_NO_NULL_ENDPOINTS 128
 
+/*
+  The MRR user has materialized range keys somewhere in the user's buffer.
+  This can be used for optimization of the procedure that sorts these keys
+  since in this case key values don't have to be copied into the MRR buffer.
+*/
+#define HA_MRR_MATERIALIZED_KEYS 256
 
 
 /*

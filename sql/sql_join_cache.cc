@@ -651,6 +651,9 @@ int JOIN_CACHE_BKA::init()
 
   use_emb_key= check_emb_key_usage();
 
+  if (use_emb_key)
+    mrr_mode|= HA_MRR_MATERIALIZED_KEYS;
+
   create_remaining_fields(FALSE);
 
   set_constants();
@@ -2630,6 +2633,8 @@ int JOIN_CACHE_BKA_UNIQUE::init()
     for ( ; copy < copy_end; copy++)
       data_fields_offset+= copy->length;
   } 
+
+  mrr_mode|= HA_MRR_MATERIALIZED_KEYS;
 
   DBUG_RETURN(rc);
 }
