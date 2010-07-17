@@ -21,7 +21,9 @@ create table t1 (a int auto_increment not null primary key, b char(3));
 insert into t1 values(null, "a");
 insert into t1 values(null, "b");
 set timestamp=@a+2;
+--let $binlog_pos_760=query_get_value(SHOW MASTER STATUS, Position, 1)
 insert into t1 values(null, "c");
+--let $binlog_pos_951=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000001' from $binlog_pos_760, Pos, 4)
 set timestamp=@a+4;
 insert into t1 values(null, "d");
 insert into t1 values(null, "e");
@@ -29,6 +31,8 @@ insert into t1 values(null, "e");
 flush logs;
 set timestamp=@a+1; # this could happen on a slave
 insert into t1 values(null, "f");
+--let $binlog_pos_135=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000002', Pos, 3)
+--let $binlog_pos_203=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000002', Pos, 4)
 
 # delimiters are for easier debugging in future
 
@@ -50,15 +54,15 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=760 $MYSQLD_DATADIR/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=760 $MYSQLD_DATADIR/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_760 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- start and stop positions ---" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=760 --stop-position 951  $MYSQLD_DATADIR/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --stop-position=$binlog_pos_951  $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
@@ -84,11 +88,11 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=760 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=203 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_203 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
@@ -111,15 +115,15 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 --disable_query_log
 select "--- start and stop positions ---" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=760 --stop-position 951 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --stop-position=$binlog_pos_951 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
@@ -142,11 +146,11 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
+--exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=135 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
+--exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_135 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
