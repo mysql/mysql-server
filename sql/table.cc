@@ -1928,10 +1928,8 @@ end:
     parses it, building an item object for it. The pointer to this item is
     placed into in field->vcol_info.expr_item. After this the function performs
     semantic analysis of the item by calling the the function fix_vcol_expr.
-    Since the defining expression is part of the table definition the item
-    for it is created in table->memroot within a separate Query_arena.
-    The free_list of this arena is saved in field->vcol_info.item_free_list
-    to be freed when the table defition is removed from the TABLE_SHARE cache.
+    Since the defining expression is part of the table definition the item for
+    it is created in table->memroot within the special arena TABLE::expr_arena.
 
   @note
     Before passing 'vcol_expr" to the parser the function embraces it in 
@@ -1988,9 +1986,18 @@ bool unpack_vcol_info_from_frm(THD *thd,
   */
   Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
   Query_arena backup_arena;
-  Query_arena vcol_arena(&table->mem_root, Query_arena::INITIALIZED);
-  thd->set_n_backup_active_arena(&vcol_arena, &backup_arena);
-  thd->stmt_arena= &vcol_arena;
+  Query_arena *vcol_arena= table->expr_arena;
+  if (!vcol_arena)
+  {
+    Query_arena expr_arena(&table->mem_root, Query_arena::INITIALIZED);
+    if (!(vcol_arena= (Query_arena *) alloc_root(&table->mem_root,
+                                                 sizeof(Query_arena))))
+      goto err;
+    *vcol_arena= expr_arena;
+    table->expr_arena= vcol_arena;
+  }
+  thd->set_n_backup_active_arena(vcol_arena, &backup_arena);
+  thd->stmt_arena= vcol_arena;
 
   thd->lex->parse_vcol_expr= TRUE;
   old_character_set_client= thd->variables.character_set_client;
@@ -2012,7 +2019,6 @@ bool unpack_vcol_info_from_frm(THD *thd,
     field->vcol_info= 0;
     goto err;
   }
-  field->vcol_info->item_free_list= thd->free_list;
   goto end;
 
 err:
@@ -2021,7 +2027,8 @@ err:
   thd->free_items();
 end:
   thd->stmt_arena= backup_stmt_arena_ptr;
-  thd->restore_active_arena(&vcol_arena, &backup_arena);
+  if (vcol_arena)
+    thd->restore_active_arena(vcol_arena, &backup_arena);
   thd->variables.character_set_client= old_character_set_client;
 
   DBUG_RETURN(rc);
@@ -2444,12 +2451,12 @@ int closefrm(register TABLE *table, bool free_share)
   }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
+  if (table->expr_arena)
+    table->expr_arena->free_items();
   if (table->field)
   {
     for (Field **ptr=table->field ; *ptr ; ptr++)
     {
-      if ((*ptr)->vcol_info)
-        free_items((*ptr)->vcol_info->item_free_list);
       delete *ptr;
     }
     table->field= 0;
@@ -5425,6 +5432,7 @@ size_t max_row_length(TABLE *table, const uchar *data)
 /*
   @brief Compute values for virtual columns used in query
 
+  @param  thd              Thread handle
   @param  table            The TABLE object
   @param  for_write        Requests to compute only fields needed for write   
   
@@ -5441,7 +5449,7 @@ size_t max_row_length(TABLE *table, const uchar *data)
     >0   Error occurred when storing a virtual field value
 */
 
-int update_virtual_fields(TABLE *table, bool for_write)
+int update_virtual_fields(THD *thd, TABLE *table, bool for_write)
 {
   DBUG_ENTER("update_virtual_fields");
   Field **vfield_ptr, *vfield;
@@ -5449,6 +5457,7 @@ int update_virtual_fields(TABLE *table, bool for_write)
   if (!table || !table->vfield)
     DBUG_RETURN(0);
 
+  thd->reset_arena_for_cached_items(table->expr_arena);
   /* Iterate over virtual fields in the table */
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
@@ -5467,6 +5476,7 @@ int update_virtual_fields(TABLE *table, bool for_write)
       DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
     }
   }
+  thd->reset_arena_for_cached_items(0);
   DBUG_RETURN(0);
 }
 

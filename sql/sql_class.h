@@ -2379,6 +2379,27 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
+
+private:
+  /* 
+    This reference points to the table arena when the expression
+    for a virtual column is being evaluated
+  */ 
+  Query_arena *arena_for_cached_items;
+
+public:
+  void reset_arena_for_cached_items(Query_arena *new_arena)
+  {
+    arena_for_cached_items= new_arena;
+  }
+  Query_arena *switch_to_arena_for_cached_items(Query_arena *backup)
+  {
+    if (!arena_for_cached_items)
+      return 0;
+    set_n_backup_active_arena(arena_for_cached_items, backup);
+    return backup;
+  }
+
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;

@@ -44,7 +44,7 @@ SELECT 1 AS C FROM t1 ORDER BY v;
 DROP TABLE t1;
 
 #
-# Bug#603186: Insert for a table with stored vurtual columns
+# Bug#603186: Insert into a table with stored vurtual columns
 #             
 
 CREATE TABLE t1(a int, b int DEFAULT 0, v INT AS (b+10) PERSISTENT);
@@ -62,3 +62,28 @@ SELECT a, v FROM t1;
 SELECT a, v FROM t2;
 
 DROP TABLE t1,t2;
+
+#
+# Bug#604503: Virtual column expression with datetime comparison
+#
+
+CREATE TABLE t1 (
+ a datetime NOT NULL DEFAULT '2000-01-01',
+ v boolean AS (a < '2001-01-01')
+);
+INSERT INTO t1(a) VALUES ('2002-02-15');
+INSERT INTO t1(a) VALUES ('2000-10-15');
+
+SELECT a, v FROM t1;
+SELECT a, v FROM t1;
+
+CREATE TABLE t2 (
+ a datetime NOT NULL DEFAULT '2000-01-01',
+ v boolean AS (a < '2001-01-01') PERSISTENT
+);
+INSERT INTO t2(a) VALUES ('2002-02-15');
+INSERT INTO t2(a) VALUES ('2000-10-15');
+
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;

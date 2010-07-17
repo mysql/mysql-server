@@ -8254,7 +8254,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
         prev_table= table;
         if (table->vfield)
         {
-          if (update_virtual_fields(table, TRUE))
+          if (update_virtual_fields(thd, table, TRUE))
           {
             goto err;
           }
@@ -8322,7 +8322,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       if (item_field && item_field->field &&
           (table= item_field->field->table) &&
         table->vfield)
-        result= update_virtual_fields(table, TRUE);
+        result= update_virtual_fields(thd, table, TRUE);
     }
   }
   return result;
@@ -8413,7 +8413,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
         prev_table= table;
         if (table->vfield)
         {
-          if (update_virtual_fields(table, TRUE))
+          if (update_virtual_fields(thd, table, TRUE))
           {
             goto err;
           }
@@ -8473,7 +8473,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
   {
     TABLE *table= (*ptr)->table;
     if (table->vfield)
-      result= update_virtual_fields(table, TRUE);
+      result= update_virtual_fields(thd, table, TRUE);
   }
   return result;
 

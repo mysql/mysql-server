@@ -27,6 +27,7 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
+class Query_arena;
 
 /*************************************************************************/
 
@@ -869,6 +870,14 @@ struct st_table {
   MEM_ROOT mem_root;
   GRANT_INFO grant;
   FILESORT_INFO sort;
+  /*
+    The arena which the items for expressions from the table definition
+    are associated with.  
+    Currently only the items of the expressions for virtual columns are
+    associated with this arena.
+    TODO: To attach the partitioning expressions to this arena.  
+  */
+  Query_arena *expr_arena;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
   bool no_partitions_used; /* If true, all partitions have been pruned away */

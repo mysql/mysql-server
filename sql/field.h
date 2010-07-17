@@ -73,20 +73,11 @@ public:
   Item *expr_item;
   /* Text representation of the defining expression */
   LEX_STRING expr_str;
-  /*
-    The list of items created when the defining expression for the virtual
-    column is being parsed and validated. These items are freed in the closefrm
-    function when the table containing this virtual column is removed from
-    the TABLE cache.
-    TODO. Items for all different virtual columns of a table should be put into
-    one list attached to the TABLE structure.    
-  */
-  Item *item_free_list;
 
   Virtual_column_info()
   : field_type((enum enum_field_types)MYSQL_TYPE_VIRTUAL),
     stored_in_db(FALSE), in_partitioning_expr(FALSE), 
-    expr_item(NULL), item_free_list(NULL)
+    expr_item(NULL)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
