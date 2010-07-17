@@ -802,6 +802,8 @@ THD::THD()
   thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
+
+  arena_for_cached_items= 0;
 }
 
 

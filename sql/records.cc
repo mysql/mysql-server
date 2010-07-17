@@ -327,7 +327,7 @@ static int rr_quick(READ_RECORD *info)
       break;
     }
   }
-  update_virtual_fields(info->table);
+  update_virtual_fields(info->thd, info->table);
   return tmp;
 }
 
@@ -396,7 +396,7 @@ int rr_sequential(READ_RECORD *info)
     }
   }
   if (!tmp)
-    update_virtual_fields(info->table);
+    update_virtual_fields(info->thd, info->table);
   return tmp;
 }
 

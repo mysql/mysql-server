@@ -11628,7 +11628,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   }
   DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
 
-  update_virtual_fields(join_tab->table);
+  update_virtual_fields(join->thd, join_tab->table);
 
   if (select_cond)
   {
@@ -11850,7 +11850,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     int err= 0;
     SQL_SELECT *select=join_tab->select;
     if (rc == NESTED_LOOP_OK)
-      update_virtual_fields(join_tab->table);
+      update_virtual_fields(join->thd, join_tab->table);
     if (rc == NESTED_LOOP_OK &&
         (!join_tab->cache.select ||
          (err= join_tab->cache.select->skip_record(join->thd)) != 0 ))
@@ -12038,7 +12038,7 @@ join_read_system(JOIN_TAB *tab)
       empty_record(table);			// Make empty record
       return -1;
     }
-    update_virtual_fields(table);
+    update_virtual_fields(tab->join->thd, table);
     store_record(table,record[1]);
   }
   else if (!table->status)			// Only happens with left join
@@ -12087,7 +12087,7 @@ join_read_const(JOIN_TAB *tab)
 	return report_error(table, error);
       return -1;
     }
-    update_virtual_fields(table);
+    update_virtual_fields(tab->join->thd, table);
     store_record(table,record[1]);
   }
   else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join

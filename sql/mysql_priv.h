@@ -1365,7 +1365,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
-int update_virtual_fields(TABLE *table, bool ignore_stored= FALSE);
+int update_virtual_fields(THD *thd, TABLE *table, bool ignore_stored= FALSE);
 
 #endif /* MYSQL_SERVER */
 

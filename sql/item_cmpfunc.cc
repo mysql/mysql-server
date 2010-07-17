@@ -825,7 +825,6 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
   return cmp_type;
 }
 
-
 /*
   Retrieves correct TIME value from the given item.
 
@@ -876,7 +875,12 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
+    Query_arena backup;
+    Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
     Item_cache_int *cache= new Item_cache_int();
+    if (save_arena)
+      thd->set_query_arena(save_arena);
+
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store_longlong(item, value);
@@ -912,7 +916,12 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
         cache_converted_constant can't be used here because it can't
         correctly convert a DATETIME value from string to int representation.
       */
+      Query_arena backup;
+      Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
       Item_cache_int *cache= new Item_cache_int();
+      if (save_arena)
+        thd->set_query_arena(save_arena);
+
       /* Mark the cache as non-const to prevent re-caching. */
       cache->set_used_tables(1);
       if (!(*a)->is_datetime())
@@ -1142,7 +1151,12 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
+    Query_arena backup;
+    Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
     Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
+    if (save_arena)
+      thd->set_query_arena(save_arena);
+      
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store_longlong(item, value);

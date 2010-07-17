@@ -664,7 +664,7 @@ retry:
       goto ok;
     }
     /* Generate values for virtual fields */
-    update_virtual_fields(table);
+    update_virtual_fields(thd, table);
     if (cond && !cond->val_int())
       continue;
     if (num_rows >= offset_limit_cnt)

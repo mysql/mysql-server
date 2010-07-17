@@ -7891,7 +7891,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       error= 1;
       break;
     }
-    update_virtual_fields(from);
+    update_virtual_fields(thd, from);
     thd->row_count++;
     /* Return error if source table isn't empty. */
     if (error_if_not_empty)
@@ -7912,7 +7912,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    update_virtual_fields(to, TRUE);
+    update_virtual_fields(thd, to, TRUE);
     if (thd->is_error())
     {
       error= 1;
