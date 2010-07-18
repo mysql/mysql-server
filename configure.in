@@ -85,6 +85,7 @@ sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/plugins.m4)
 sinclude(config/ac-macros/dtrace.m4)
+sinclude(config/ac-macros/gtest.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
@@ -407,6 +408,7 @@ AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
 AC_SUBST(CXXFLAGS)
+AC_SUBST(CXXFLAGS_OVERRIDE)
 AC_SUBST(ASFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
@@ -422,6 +424,7 @@ then
   # regarding offset() usage in C++ which are done in a safe manner in the
   # server
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+  CXXFLAGS_OVERRIDE="-fimplicit-templates -fexceptions -frtti"
   AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
     [1], [Defined by configure. Use explicit template instantiation.])
 fi
@@ -2776,6 +2779,7 @@ MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
 MYSQL_CHECK_VIO
 MYSQL_CHECK_SSL
+MYSQL_CHECK_GTEST([1.5.0])
 
 #--------------------------------------------------------------------
 # Declare our plugin modules
@@ -3213,6 +3217,7 @@ if test -d "$srcdir/cmd-line-utils/readline" ; then
 fi
 
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
+ unittest/gunit/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl

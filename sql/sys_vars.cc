@@ -585,9 +585,6 @@ static Sys_var_dbug Sys_dbug(
        ON_CHECK(check_has_super));
 #endif
 
-static Sys_var_charptr Sys_server_uuid("server_uuid", "UUID of the server",
-       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
-       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 /**
   @todo
     When updating myisam_delay_key_write, we should do a 'flush tables'
@@ -1759,6 +1756,12 @@ static Sys_var_ulong Sys_server_id(
        GLOBAL_VAR(server_id), CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
+
+static Sys_var_charptr Sys_server_uuid(
+       "server_uuid",
+       "Uniquely identifies the server instance in the universe",
+       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
+       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
