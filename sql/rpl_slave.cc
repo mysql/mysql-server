@@ -1180,6 +1180,14 @@ bool is_network_error(uint errorno)
   return FALSE;   
 }
 
+/**
+  Set user variables after connecting to the master.
+
+  @param  mysql MYSQL to request uuid from master.
+  @param  mi    Master_info to set master_uuid
+
+  @return 0: Success, 1: Fatal error, 2: Network error.
+ */
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
 {
   char query[256];
@@ -1197,13 +1205,20 @@ err:
   if (mysql_errno(mysql) && is_network_error(mysql_errno(mysql)))
   {
     mi->report(WARNING_LEVEL, mysql_errno(mysql),
-               "init-command:'%s' failed with error: %s", mysql_error(mysql));
+               "The initialization command '%s' failed with the following"
+               " error: '%s'.", query, mysql_error(mysql));
     ret= 2;
   }
   else
   {
+    char errmsg[512];
+    const char *errmsg_fmt=
+      "The slave I/O thread stops because a fatal error is encountered "
+      "when it tries to send query to master(query: %s).";
+
+    my_sprintf(errmsg, (errmsg, errmsg_fmt, query));
     mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
-               query);
+               errmsg);
     ret= 1;
   }
   mysql_free_result(mysql_store_result(mysql));
@@ -1252,8 +1267,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     else
     {
       if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[1]))
-        sql_print_warning("Master's UUID has changed, its old UUID is %s, "
-                          "the new one is %s", mi->master_uuid, master_row[1]);
+        sql_print_warning("The master's UUID has changed, although this should"
+                          " not happen unless you have changed it manually."
+                          " The old UUID was %s.",
+                          mi->master_uuid, master_row[1]);
       strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
       mi->master_uuid[UUID_LENGTH]= 0;
     }
@@ -1271,7 +1288,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     {
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered "
-        "when it try to get the value of SERVER_UUID variable from master.";
+        "when it tries to get the value of SERVER_UUID variable from master.";
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                  errmsg);
       ret= 1;
