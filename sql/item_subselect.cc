@@ -1521,16 +1521,35 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 */
 
 Item_subselect::trans_res
-Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creator *func)
+Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join,
+                                                         Comp_creator *func)
+{
+  Item *where_term;
+  Item *having_term;
+  Item_subselect::trans_res res;
+
+  res= create_single_value_in_to_exists_cond(join, func,
+                                             &where_term, &having_term);
+  if (res != RES_OK)
+    return res;
+  res= inject_single_value_in_to_exists_cond(join, func,
+                                             where_term, having_term);
+  return res;
+}
+
+
+Item_subselect::trans_res
+Item_in_subselect::create_single_value_in_to_exists_cond(JOIN * join,
+                                                         Comp_creator *func,
+                                                         Item **where_term,
+                                                         Item **having_term)
 {
   SELECT_LEX *select_lex= join->select_lex;
-  DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
+  DBUG_ENTER("Item_in_subselect::create_single_value_in_to_exists_cond");
 
-  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (join->having || select_lex->with_sum_func ||
       select_lex->group_list.elements)
   {
-    bool tmp;
     Item *item= func->create(expr,
                              new Item_ref_null_helper(&select_lex->context,
                                                       this,
@@ -1546,24 +1565,12 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
       */
       item= new Item_func_trig_cond(item, get_cond_guard(0));
     }
-    
-    /*
-      AND and comparison functions can't be changed during fix_fields()
-      we can assign select_lex->having here, and pass 0 as last
-      argument (reference) to fix_fields()
-    */
-    select_lex->having= join->having= and_items(join->having, item);
-    if (join->having == item)
-      item->name= (char*)in_having_cond;
-    select_lex->having_fix_field= 1;
-    /*
-      we do not check join->having->fixed, because Item_and (from and_items)
-      or comparison function (from func->create) can't be fixed after creation
-    */
-    tmp= join->having->fix_fields(thd, 0);
-    select_lex->having_fix_field= 0;
-    if (tmp)
+
+    if (item->fix_fields(thd, 0))
       DBUG_RETURN(RES_ERROR);
+
+    *having_term= item;
+    *where_term= NULL;
   }
   else
   {
@@ -1571,13 +1578,8 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 
     if (select_lex->table_list.elements)
     {
-      bool tmp;
-      Item *having= item, *orig_item= item;
-      select_lex->item_list.empty();
-      select_lex->item_list.push_back(new Item_int("Not_used",
-                                                   (longlong) 1,
-                                                   MY_INT64_NUM_DECIMAL_DIGITS));
-      select_lex->ref_pointer_array[0]= select_lex->item_list.head();
+      Item *having= item;
+      Item *orig_item= item;
        
       item= func->create(expr, item);
       if (!abort_on_null && orig_item->maybe_null)
@@ -1589,23 +1591,12 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
                                                 get_cond_guard(0))))
             DBUG_RETURN(RES_ERROR);
         }
-	/*
-	  Item_is_not_null_test can't be changed during fix_fields()
-	  we can assign select_lex->having here, and pass 0 as last
-	  argument (reference) to fix_fields()
-	*/
-        having->name= (char*)in_having_cond;
-	select_lex->having= join->having= having;
-	select_lex->having_fix_field= 1;
-        /*
-          we do not check join->having->fixed, because Item_and (from
-          and_items) or comparison function (from func->create) can't be
-          fixed after creation
-        */
-	tmp= join->having->fix_fields(thd, 0);
-        select_lex->having_fix_field= 0;
-        if (tmp)
+
+        if (having->fix_fields(thd, 0))
 	  DBUG_RETURN(RES_ERROR);
+
+        *having_term= having;
+
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(orig_item));
       }
@@ -1618,30 +1609,14 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         if (!(item= new Item_func_trig_cond(item, get_cond_guard(0))))
           DBUG_RETURN(RES_ERROR);
       }
-      /*
-        TODO: figure out why the following is done here in 
-        single_value_transformer but there is no corresponding action in
-        row_value_transformer?
-      */
-      item->name= (char *)in_additional_cond;
 
-      /*
-	AND can't be changed during fix_fields()
-	we can assign select_lex->having here, and pass 0 as last
-	argument (reference) to fix_fields()
-      */
-      select_lex->where= join->conds= and_items(join->conds, item);
-      select_lex->where->top_level_item();
-      /*
-        we do not check join->conds->fixed, because Item_and can't be fixed
-        after creation
-      */
-      if (join->conds->fix_fields(thd, 0))
+      if (item->fix_fields(thd, 0))
 	DBUG_RETURN(RES_ERROR);
+
+      *where_term= item;
     }
     else
     {
-      bool tmp;
       if (select_lex->master_unit()->is_union())
       {
 	/*
@@ -1661,17 +1636,128 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
                                                     get_cond_guard(0))))
             DBUG_RETURN(RES_ERROR);
         }
-        new_having->name= (char*)in_having_cond;
-	select_lex->having= join->having= new_having;
+
+	if (new_having->fix_fields(thd, 0))
+	  DBUG_RETURN(RES_ERROR);
+
+        *having_term= new_having;
+        *where_term= NULL;
+      }
+      else
+      {
+        *having_term= NULL;
+        *where_term= (Item*) select_lex->item_list.head();
+      }
+    }
+  }
+
+  DBUG_RETURN(RES_OK);
+}
+
+
+
+Item_subselect::trans_res
+Item_in_subselect::inject_single_value_in_to_exists_cond(JOIN * join,
+                                                         Comp_creator *func,
+                                                         Item *where_term,
+                                                         Item *having_term)
+{
+  SELECT_LEX *select_lex= join->select_lex;
+  bool fix_res;
+  DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
+
+  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+  if (join->having || select_lex->with_sum_func ||
+      select_lex->group_list.elements)
+  {
+    /*
+      AND and comparison functions can't be changed during fix_fields()
+      we can assign select_lex->having here, and pass 0 as last
+      argument (reference) to fix_fields()
+    */
+    select_lex->having= join->having= and_items(join->having, having_term);
+    if (join->having == having_term)
+      having_term->name= (char*)in_having_cond;
+    select_lex->having_fix_field= 1;
+    /*
+      we do not check join->having->fixed, because Item_and (from and_items)
+      or comparison function (from func->create) can't be fixed after creation
+    */
+    if (!join->having->fixed)
+      fix_res= join->having->fix_fields(thd, 0);
+    select_lex->having_fix_field= 0;
+    if (fix_res)
+      DBUG_RETURN(RES_ERROR);
+  }
+  else
+  {
+    if (select_lex->table_list.elements)
+    {
+      Item *orig_item= (Item*) select_lex->item_list.head();
+      select_lex->item_list.empty();
+      select_lex->item_list.push_back(new Item_int("Not_used",
+                                                   (longlong) 1,
+                                                   MY_INT64_NUM_DECIMAL_DIGITS));
+      select_lex->ref_pointer_array[0]= select_lex->item_list.head();
+       
+      if (!abort_on_null && orig_item->maybe_null)
+      {
+	/*
+	  Item_is_not_null_test can't be changed during fix_fields()
+	  we can assign select_lex->having here, and pass 0 as last
+	  argument (reference) to fix_fields()
+	*/
+        having_term->name= (char*)in_having_cond;
+	select_lex->having= join->having= having_term;
+	select_lex->having_fix_field= 1;
+        /*
+          we do not check join->having->fixed, because Item_and (from
+          and_items) or comparison function (from func->create) can't be
+          fixed after creation
+        */
+        if (!join->having->fixed)
+          fix_res= join->having->fix_fields(thd, 0);
+        select_lex->having_fix_field= 0;
+        if (fix_res)
+	  DBUG_RETURN(RES_ERROR);
+      }
+      /*
+        TODO: figure out why the following is done here in 
+        single_value_transformer but there is no corresponding action in
+        row_value_transformer?
+      */
+      where_term->name= (char *)in_additional_cond;
+
+      /*
+	AND can't be changed during fix_fields()
+	we can assign select_lex->having here, and pass 0 as last
+	argument (reference) to fix_fields()
+      */
+      select_lex->where= join->conds= and_items(join->conds, where_term);
+      select_lex->where->top_level_item();
+      /*
+        we do not check join->conds->fixed, because Item_and can't be fixed
+        after creation
+      */
+      if (!join->conds->fixed && join->conds->fix_fields(thd, 0))
+        DBUG_RETURN(RES_ERROR);
+    }
+    else
+    {
+      if (select_lex->master_unit()->is_union())
+      {
+        having_term->name= (char*)in_having_cond;
+	select_lex->having= join->having= having_term;
 	select_lex->having_fix_field= 1;
         
         /*
           we do not check join->having->fixed, because comparison function
           (from func->create) can't be fixed after creation
         */
-	tmp= join->having->fix_fields(thd, 0);
+        if (!join->having->fixed)
+          fix_res= join->having->fix_fields(thd, 0);
         select_lex->having_fix_field= 0;
-        if (tmp)
+        if (fix_res)
 	  DBUG_RETURN(RES_ERROR);
       }
       else
@@ -1679,11 +1765,11 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 	// it is single select without tables => possible optimization
         // remove the dependence mark since the item is moved to upper
         // select and is not outer anymore.
-        item->walk(&Item::remove_dependence_processor, 0,
-                           (uchar *) select_lex->outer_select());
-	item= func->create(left_expr, item);
+        where_term->walk(&Item::remove_dependence_processor, 0,
+                         (uchar *) select_lex->outer_select());
+	where_term= func->create(left_expr, where_term);
 	// fix_field of item will be done in time of substituting
-	substitution= item;
+	substitution= where_term;
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)
 	{

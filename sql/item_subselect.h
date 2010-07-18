@@ -425,8 +425,18 @@ public:
   trans_res select_in_like_transformer(JOIN *join, Comp_creator *func);
   trans_res single_value_transformer(JOIN *join, Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
+
   trans_res single_value_in_to_exists_transformer(JOIN * join,
                                                   Comp_creator *func);
+  trans_res create_single_value_in_to_exists_cond(JOIN * join,
+                                                  Comp_creator *func,
+                                                  Item **where_term,
+                                                  Item **having_term);
+  trans_res inject_single_value_in_to_exists_cond(JOIN * join,
+                                                  Comp_creator *func,
+                                                  Item *where_term,
+                                                  Item *having_term);
+
   trans_res row_value_in_to_exists_transformer(JOIN * join);
   virtual bool exec();
   longlong val_int();
