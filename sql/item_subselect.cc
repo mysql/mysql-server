@@ -1524,16 +1524,16 @@ Item_subselect::trans_res
 Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join,
                                                          Comp_creator *func)
 {
-  Item *where_term;
-  Item *having_term;
+  Item *where_item;
+  Item *having_item;
   Item_subselect::trans_res res;
 
   res= create_single_value_in_to_exists_cond(join, func,
-                                             &where_term, &having_term);
+                                             &where_item, &having_item);
   if (res != RES_OK)
     return res;
   res= inject_single_value_in_to_exists_cond(join, func,
-                                             where_term, having_term);
+                                             where_item, having_item);
   return res;
 }
 
@@ -1541,8 +1541,8 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join,
 Item_subselect::trans_res
 Item_in_subselect::create_single_value_in_to_exists_cond(JOIN * join,
                                                          Comp_creator *func,
-                                                         Item **where_term,
-                                                         Item **having_term)
+                                                         Item **where_item,
+                                                         Item **having_item)
 {
   SELECT_LEX *select_lex= join->select_lex;
   DBUG_ENTER("Item_in_subselect::create_single_value_in_to_exists_cond");
@@ -1569,8 +1569,8 @@ Item_in_subselect::create_single_value_in_to_exists_cond(JOIN * join,
     if (item->fix_fields(thd, 0))
       DBUG_RETURN(RES_ERROR);
 
-    *having_term= item;
-    *where_term= NULL;
+    *having_item= item;
+    *where_item= NULL;
   }
   else
   {
@@ -1595,7 +1595,7 @@ Item_in_subselect::create_single_value_in_to_exists_cond(JOIN * join,
         if (having->fix_fields(thd, 0))
 	  DBUG_RETURN(RES_ERROR);
 
-        *having_term= having;
+        *having_item= having;
 
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(orig_item));
@@ -1613,7 +1613,7 @@ Item_in_subselect::create_single_value_in_to_exists_cond(JOIN * join,
       if (item->fix_fields(thd, 0))
 	DBUG_RETURN(RES_ERROR);
 
-      *where_term= item;
+      *where_item= item;
     }
     else
     {
@@ -1640,13 +1640,13 @@ Item_in_subselect::create_single_value_in_to_exists_cond(JOIN * join,
 	if (new_having->fix_fields(thd, 0))
 	  DBUG_RETURN(RES_ERROR);
 
-        *having_term= new_having;
-        *where_term= NULL;
+        *having_item= new_having;
+        *where_item= NULL;
       }
       else
       {
-        *having_term= NULL;
-        *where_term= (Item*) select_lex->item_list.head();
+        *having_item= NULL;
+        *where_item= (Item*) select_lex->item_list.head();
       }
     }
   }
@@ -1659,8 +1659,8 @@ Item_in_subselect::create_single_value_in_to_exists_cond(JOIN * join,
 Item_subselect::trans_res
 Item_in_subselect::inject_single_value_in_to_exists_cond(JOIN * join,
                                                          Comp_creator *func,
-                                                         Item *where_term,
-                                                         Item *having_term)
+                                                         Item *where_item,
+                                                         Item *having_item)
 {
   SELECT_LEX *select_lex= join->select_lex;
   bool fix_res;
@@ -1675,9 +1675,9 @@ Item_in_subselect::inject_single_value_in_to_exists_cond(JOIN * join,
       we can assign select_lex->having here, and pass 0 as last
       argument (reference) to fix_fields()
     */
-    select_lex->having= join->having= and_items(join->having, having_term);
-    if (join->having == having_term)
-      having_term->name= (char*)in_having_cond;
+    select_lex->having= join->having= and_items(join->having, having_item);
+    if (join->having == having_item)
+      having_item->name= (char*)in_having_cond;
     select_lex->having_fix_field= 1;
     /*
       we do not check join->having->fixed, because Item_and (from and_items)
@@ -1707,8 +1707,8 @@ Item_in_subselect::inject_single_value_in_to_exists_cond(JOIN * join,
 	  we can assign select_lex->having here, and pass 0 as last
 	  argument (reference) to fix_fields()
 	*/
-        having_term->name= (char*)in_having_cond;
-	select_lex->having= join->having= having_term;
+        having_item->name= (char*)in_having_cond;
+	select_lex->having= join->having= having_item;
 	select_lex->having_fix_field= 1;
         /*
           we do not check join->having->fixed, because Item_and (from
@@ -1726,14 +1726,14 @@ Item_in_subselect::inject_single_value_in_to_exists_cond(JOIN * join,
         single_value_transformer but there is no corresponding action in
         row_value_transformer?
       */
-      where_term->name= (char *)in_additional_cond;
+      where_item->name= (char *)in_additional_cond;
 
       /*
 	AND can't be changed during fix_fields()
 	we can assign select_lex->having here, and pass 0 as last
 	argument (reference) to fix_fields()
       */
-      select_lex->where= join->conds= and_items(join->conds, where_term);
+      select_lex->where= join->conds= and_items(join->conds, where_item);
       select_lex->where->top_level_item();
       /*
         we do not check join->conds->fixed, because Item_and can't be fixed
@@ -1746,8 +1746,8 @@ Item_in_subselect::inject_single_value_in_to_exists_cond(JOIN * join,
     {
       if (select_lex->master_unit()->is_union())
       {
-        having_term->name= (char*)in_having_cond;
-	select_lex->having= join->having= having_term;
+        having_item->name= (char*)in_having_cond;
+	select_lex->having= join->having= having_item;
 	select_lex->having_fix_field= 1;
         
         /*
@@ -1765,11 +1765,11 @@ Item_in_subselect::inject_single_value_in_to_exists_cond(JOIN * join,
 	// it is single select without tables => possible optimization
         // remove the dependence mark since the item is moved to upper
         // select and is not outer anymore.
-        where_term->walk(&Item::remove_dependence_processor, 0,
+        where_item->walk(&Item::remove_dependence_processor, 0,
                          (uchar *) select_lex->outer_select());
-	where_term= func->create(left_expr, where_term);
+	where_item= func->create(left_expr, where_item);
 	// fix_field of item will be done in time of substituting
-	substitution= where_term;
+	substitution= where_item;
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)
 	{
@@ -1866,20 +1866,37 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       add the equi-join and the "is null" to WHERE
       add the is_not_null_test to HAVING
 */
-
 Item_subselect::trans_res
 Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
 {
+  Item *where_item;
+  Item *having_item;
+  Item_subselect::trans_res res;
+
+  res= create_row_value_in_to_exists_cond(join, &where_item, &having_item);
+  if (res != RES_OK)
+    return res;
+  res= inject_row_value_in_to_exists_cond(join, where_item, having_item);
+  return res;
+}
+
+
+Item_subselect::trans_res
+Item_in_subselect::create_row_value_in_to_exists_cond(JOIN * join,
+                                                      Item **where_item,
+                                                      Item **having_item)
+{
   SELECT_LEX *select_lex= join->select_lex;
-  Item *having_item= 0;
   uint cols_num= left_expr->cols();
   bool is_having_used= (join->having || select_lex->with_sum_func ||
                         select_lex->group_list.first ||
                         !select_lex->table_list.elements);
 
-  DBUG_ENTER("Item_in_subselect::row_value_in_to_exists_transformer");
+  DBUG_ENTER("Item_in_subselect::create_row_value_in_to_exists_cond");
 
-  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+  *where_item= NULL;
+  *having_item= NULL;
+
   if (is_having_used)
   {
     /*
@@ -1899,6 +1916,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
     for (uint i= 0; i < cols_num; i++)
     {
       DBUG_ASSERT((left_expr->fixed &&
+
                   select_lex->ref_pointer_array[i]->fixed) ||
                   (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
                    ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
@@ -1932,8 +1950,8 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
         if (!(col_item= new Item_func_trig_cond(col_item, get_cond_guard(i))))
           DBUG_RETURN(RES_ERROR);
       }
-      having_item= and_items(having_item, col_item);
-      
+      *having_item= and_items(*having_item, col_item);
+
       Item *item_nnull_test= 
          new Item_is_not_null_test(this,
                                    new Item_ref(&select_lex->context,
@@ -1950,8 +1968,8 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
       item_having_part2= and_items(item_having_part2, item_nnull_test);
       item_having_part2->top_level_item();
     }
-    having_item= and_items(having_item, item_having_part2);
-    having_item->top_level_item();
+    *having_item= and_items(*having_item, item_having_part2);
+    (*having_item)->top_level_item();
   }
   else
   {
@@ -1972,7 +1990,6 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
                                (l2 = v2) and
                                (l3 = v3)
     */
-    Item *where_item= 0;
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item, *item_isnull;
@@ -2030,10 +2047,33 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
                   new Item_func_trig_cond(having_col_item, get_cond_guard(i))))
             DBUG_RETURN(RES_ERROR);
         }
-        having_item= and_items(having_item, having_col_item);
+        *having_item= and_items(*having_item, having_col_item);
       }
-      where_item= and_items(where_item, item);
+      *where_item= and_items(*where_item, item);
     }
+    (*where_item)->fix_fields(thd, 0);
+  }
+
+  DBUG_RETURN(RES_OK);
+}
+
+
+Item_subselect::trans_res
+Item_in_subselect::inject_row_value_in_to_exists_cond(JOIN * join,
+                                                      Item *where_item,
+                                                      Item *having_item)
+{
+  SELECT_LEX *select_lex= join->select_lex;
+  bool is_having_used= (join->having || select_lex->with_sum_func ||
+                        select_lex->group_list.first ||
+                        !select_lex->table_list.elements);
+
+  DBUG_ENTER("Item_in_subselect::inject_row_value_in_to_exists_cond");
+
+  select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+
+  if (!is_having_used)
+  {
     /*
       AND can't be changed during fix_fields()
       we can assign select_lex->where here, and pass 0 as last
@@ -2041,9 +2081,10 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
     */
     select_lex->where= join->conds= and_items(join->conds, where_item);
     select_lex->where->top_level_item();
-    if (join->conds->fix_fields(thd, 0))
+    if (!join->conds->fixed && join->conds->fix_fields(thd, 0))
       DBUG_RETURN(RES_ERROR);
   }
+
   if (having_item)
   {
     bool res;
@@ -2057,12 +2098,11 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
       argument (reference) to fix_fields()
     */
     select_lex->having_fix_field= 1;
-    res= join->having->fix_fields(thd, 0);
+    if (!join->having->fixed)
+      res= join->having->fix_fields(thd, 0);
     select_lex->having_fix_field= 0;
     if (res)
-    {
       DBUG_RETURN(RES_ERROR);
-    }
   }
 
   DBUG_RETURN(RES_OK);

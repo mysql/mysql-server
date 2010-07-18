@@ -438,6 +438,13 @@ public:
                                                   Item *having_term);
 
   trans_res row_value_in_to_exists_transformer(JOIN * join);
+  trans_res create_row_value_in_to_exists_cond(JOIN * join,
+                                               Item **where_term,
+                                               Item **having_term);
+  trans_res inject_row_value_in_to_exists_cond(JOIN * join,
+                                               Item *where_term,
+                                               Item *having_term);
+
   virtual bool exec();
   longlong val_int();
   double val_real();
