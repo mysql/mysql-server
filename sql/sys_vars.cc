@@ -942,10 +942,10 @@ static bool update_cached_long_query_time(sys_var *self, THD *thd,
 {
   if (type == OPT_SESSION)
     thd->variables.long_query_time=
-      thd->variables.long_query_time_double * 1e6;
+      double2ulonglong(thd->variables.long_query_time_double * 1e6);
   else
     global_system_variables.long_query_time=
-      global_system_variables.long_query_time_double * 1e6;
+      double2ulonglong(global_system_variables.long_query_time_double * 1e6);
   return false;
 }
 
@@ -1630,7 +1630,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
        "semicolon (;)"
 #else
        "colon (:)"

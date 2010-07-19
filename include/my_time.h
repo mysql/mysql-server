@@ -35,8 +35,6 @@ extern uchar days_in_month[];
 
   Using the system built in time_t is not an option as
   we rely on the above requirements in the time functions
-
-  For example QNX has an unsigned time_t type
 */
 typedef long my_time_t;
 

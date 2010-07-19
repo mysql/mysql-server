@@ -19,12 +19,8 @@
 #include "sp_defs.h"
 #include <my_bit.h>
 
-#if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
 #include <fcntl.h>
-#else
-#include <process.h>			/* Prototype for getpid */
-#endif
 #endif
 #include <m_ctype.h>
 

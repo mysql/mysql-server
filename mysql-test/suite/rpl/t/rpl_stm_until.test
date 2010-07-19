@@ -203,11 +203,14 @@ flush logs;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/master-bin.000001
 --copy_file $MYSQL_TEST_DIR/std_data/bug47142_master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
+# this a constant bound to the bug47142_master-bin.000001 binlog file
+--let $binlog_before_drop=294;
 
 connection slave;
 stop slave;
 reset slave;
-start slave until master_log_file='master-bin.000001', master_log_pos=294 /* to stop right before DROP */;
+--replace_regex /master_log_pos=[0-9]+/master_log_pos=MASTER_LOG_POS/
+eval start slave until master_log_file='master-bin.000001', master_log_pos=$binlog_before_drop  /* to stop right before DROP */;
 --source include/wait_for_slave_sql_to_stop.inc
 
 show tables /* t1 must exist */;
