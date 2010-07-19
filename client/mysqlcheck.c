@@ -62,10 +62,6 @@ static struct my_option my_long_options[] =
    "Instead of issuing one query for each table, use one query per database, naming all tables in the database in a comma-separated list.",
    &opt_all_in_1, &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"auto-repair", OPT_AUTO_REPAIR,
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
    &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
@@ -208,13 +204,11 @@ static uint fixed_name_length(const char *name);
 static char *fix_table_name(char *dest, char *src);
 int what_to_do = 0;
 
-#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, CHECK_VERSION,
    MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -245,18 +239,12 @@ static void usage(void)
   my_print_variables(my_long_options);
 } /* usage */
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'a':
     what_to_do = DO_ANALYZE;
     break;
@@ -708,8 +696,7 @@ static int handle_request_for_tables(char *tables, uint length)
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
-    query_length= my_sprintf(query,
-			     (query, "%s TABLE %s %s", op, tables, options));
+    query_length= sprintf(query, "%s TABLE %s %s", op, tables, options);
   }
   else
   {

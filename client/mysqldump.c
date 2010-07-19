@@ -212,10 +212,6 @@ static struct my_option my_long_options[] =
    "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom of dump.",
    &opt_slave_apply, &opt_slave_apply, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -433,10 +429,10 @@ static struct my_option my_long_options[] =
    &opt_replace_into, &opt_replace_into, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
-   "Direct output to a given file. This option should be used in MSDOS, "
-   "because it prevents new line '\\n' from being converted to '\\r\\n' "
-   "(carriage return + line feed).",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Direct output to a given file. This option should be used in systems "
+   "(e.g., DOS, Windows) that use carriage-return linefeed pairs (\\r\\n) "
+   "to separate text lines. This option ensures that only a single newline "
+   "is used.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"routines", 'R', "Dump stored routines (functions and procedures).",
    &opt_routines, &opt_routines, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -531,7 +527,6 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
 static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 
-#include <help_start.h>
 
 /*
   Print the supplied message if in verbose mode
@@ -575,7 +570,6 @@ static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
          MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -585,7 +579,6 @@ static void short_usage_sub(void)
   printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
          my_progname);
   printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -607,8 +600,6 @@ static void short_usage(void)
   short_usage_sub();
   printf("For more options, use %s --help\n", my_progname);
 }
-
-#include <help_end.h>
 
 
 static void write_header(FILE *sql_file, char *db_name)
@@ -728,11 +719,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                char *argument)
 {
   switch (optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'p':
     if (argument == disabled_my_option)
       argument= (char*) "";                     /* Don't require password */

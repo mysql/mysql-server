@@ -95,7 +95,7 @@
 #define fnmatch(A,B,C) strcmp(A,B)
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #include <process.h>
 #endif
 
@@ -302,7 +302,7 @@ static int DoTrace(CODE_STATE *cs);
 #define DISABLE_TRACE   4
 
         /* Test to see if file is writable */
-#if defined(HAVE_ACCESS) && !defined(MSDOS)
+#if defined(HAVE_ACCESS)
 static BOOLEAN Writable(const char *pathname);
         /* Change file owner and group */
 static void ChangeOwner(CODE_STATE *cs, char *pathname);
@@ -336,22 +336,18 @@ static unsigned long Clock(void);
 #define ERR_OPEN "%s: can't open debug output stream \"%s\": "
 #define ERR_CLOSE "%s: can't close debug file: "
 #define ERR_ABORT "%s: debugger aborting because %s\n"
-#define ERR_CHOWN "%s: can't change owner/group of \"%s\": "
 
 /*
  *      Macros and defines for testing file accessibility under UNIX and MSDOS.
  */
 
 #undef EXISTS
-#if !defined(HAVE_ACCESS) || defined(MSDOS)
+#if !defined(HAVE_ACCESS)
 #define EXISTS(pathname) (FALSE)        /* Assume no existance */
 #define Writable(name) (TRUE)
 #else
 #define EXISTS(pathname)         (access(pathname, F_OK) == 0)
 #define WRITABLE(pathname)       (access(pathname, W_OK) == 0)
-#endif
-#ifndef MSDOS
-#define ChangeOwner(cs,name)
 #endif
 
 
@@ -2008,10 +2004,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
         else
         {
           cs->stack->out_file= fp;
-          if (newfile)
-          {
-            ChangeOwner(cs, name);
-          }
         }
       }
     }
@@ -2069,10 +2061,6 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
     else
     {
       cs->stack->prof_file= fp;
-      if (newfile)
-      {
-        ChangeOwner(cs, name);
-      }
     }
   }
   return fp;
@@ -2266,42 +2254,6 @@ static BOOLEAN Writable(const char *pathname)
 /*
  *  FUNCTION
  *
- *      ChangeOwner    change owner to real user for suid programs
- *
- *  SYNOPSIS
- *
- *      static VOID ChangeOwner(pathname)
- *
- *  DESCRIPTION
- *
- *      For unix systems, change the owner of the newly created debug
- *      file to the real owner.  This is strictly for the benefit of
- *      programs that are running with the set-user-id bit set.
- *
- *      Note that at this point, the fact that pathname represents
- *      a newly created file has already been established.  If the
- *      program that the debugger is linked to is not running with
- *      the suid bit set, then this operation is redundant (but
- *      harmless).
- *
- */
-
-#ifndef ChangeOwner
-static void ChangeOwner(CODE_STATE *cs, char *pathname)
-{
-  if (chown(pathname, getuid(), getgid()) == -1)
-  {
-    (void) fprintf(stderr, ERR_CHOWN, cs->process, pathname);
-    perror("");
-    (void) fflush(stderr);
-  }
-}
-#endif
-
-
-/*
- *  FUNCTION
- *
  *      _db_setjmp_    save debugger environment
  *
  *  SYNOPSIS
@@ -2470,7 +2422,7 @@ static unsigned long Clock()
     return ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
 }
 
-#elif defined(MSDOS) || defined(__WIN__)
+#elif defined(__WIN__)
 
 static ulong Clock()
 {
@@ -2518,37 +2470,6 @@ static unsigned long Clock()
 }
 #endif /* RUSAGE */
 #endif /* THREADS */
-
-#ifdef NO_VARARGS
-
-/*
- *      Fake vfprintf for systems that don't support it.  If this
- *      doesn't work, you are probably SOL...
- */
-
-static int vfprintf(stream, format, ap)
-FILE *stream;
-char *format;
-va_list ap;
-{
-    int rtnval;
-    ARGS_DCL;
-
-    ARG0=  va_arg(ap, ARGS_TYPE);
-    ARG1=  va_arg(ap, ARGS_TYPE);
-    ARG2=  va_arg(ap, ARGS_TYPE);
-    ARG3=  va_arg(ap, ARGS_TYPE);
-    ARG4=  va_arg(ap, ARGS_TYPE);
-    ARG5=  va_arg(ap, ARGS_TYPE);
-    ARG6=  va_arg(ap, ARGS_TYPE);
-    ARG7=  va_arg(ap, ARGS_TYPE);
-    ARG8=  va_arg(ap, ARGS_TYPE);
-    ARG9=  va_arg(ap, ARGS_TYPE);
-    rtnval= fprintf(stream, format, ARGS_LIST);
-    return rtnval;
-}
-
-#endif  /* NO_VARARGS */
 
 #else
 

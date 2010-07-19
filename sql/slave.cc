@@ -1528,7 +1528,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
        the period is an ulonglong of nano-secs. 
     */
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
-    my_sprintf(query, (query, query_format, llbuf));
+    sprintf(query, query_format, llbuf);
 
     if (mysql_real_query(mysql, query, strlen(query))
         && !check_io_slave_killed(mi->io_thd, mi, NULL))
@@ -1934,17 +1934,17 @@ bool show_master_info(THD* thd, Master_info* mi)
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
         get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-        slen= my_sprintf(sbuff, (sbuff, (i==0? "%lu" : ", %lu"), s_id));
+        slen= sprintf(sbuff, (i==0? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
           /*
             break the loop whenever remained space could not fit
             ellipses on the next cycle
           */
-          my_sprintf(buff + cur_len, (buff + cur_len, "..."));
+          sprintf(buff + cur_len, "...");
           break;
         }
-        cur_len += my_sprintf(buff + cur_len, (buff + cur_len, "%s", sbuff));
+        cur_len += sprintf(buff + cur_len, "%s", sbuff);
       }
       protocol->store(buff, &my_charset_bin);
     }
@@ -2295,7 +2295,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
-                      rli->last_event_start_time));
+                      (ulong) rli->last_event_start_time));
 
   /*
     Execute the event to change the database and update the binary
@@ -3125,8 +3125,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
-  my_off_t saved_log_pos;
-  my_off_t saved_master_log_pos;
+  my_off_t UNINIT_VAR(saved_log_pos);
+  my_off_t UNINIT_VAR(saved_master_log_pos);
   my_off_t saved_skip= 0;
 
   Relay_log_info* rli = &((Master_info*)arg)->rli;

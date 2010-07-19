@@ -522,10 +522,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   mysql_data_home= mysql_real_data_home;
   mysql_data_home_len= mysql_real_data_home_len;
-    
+
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined( __WIN__) || defined(OS2)
+#if defined(__WIN__)
   if (!opt_mysql_tmpdir)
     opt_mysql_tmpdir=getenv("TEMP");
   if (!opt_mysql_tmpdir)
