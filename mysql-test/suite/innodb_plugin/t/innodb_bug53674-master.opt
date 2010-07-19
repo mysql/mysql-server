@@ -1,0 +1,1 @@
+--log-bin --innodb-locks-unsafe-for-binlog --binlog-format=mixed
