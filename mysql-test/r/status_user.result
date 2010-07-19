@@ -3,66 +3,66 @@ select variable_value from information_schema.global_status where variable_name=
 show columns from information_schema.client_statistics;
 Field	Type	Null	Key	Default	Extra
 CLIENT	varchar(64)	NO			
-TOTAL_CONNECTIONS	int(21)	NO		0	
-CONCURRENT_CONNECTIONS	int(21)	NO		0	
-CONNECTED_TIME	int(21)	NO		0	
+TOTAL_CONNECTIONS	bigint(21)	NO		0	
+CONCURRENT_CONNECTIONS	bigint(21)	NO		0	
+CONNECTED_TIME	bigint(21)	NO		0	
 BUSY_TIME	double	NO		0	
 CPU_TIME	double	NO		0	
-BYTES_RECEIVED	int(21)	NO		0	
-BYTES_SENT	int(21)	NO		0	
-BINLOG_BYTES_WRITTEN	int(21)	NO		0	
-ROWS_READ	int(21)	NO		0	
-ROWS_SENT	int(21)	NO		0	
-ROWS_DELETED	int(21)	NO		0	
-ROWS_INSERTED	int(21)	NO		0	
-ROWS_UPDATED	int(21)	NO		0	
-SELECT_COMMANDS	int(21)	NO		0	
-UPDATE_COMMANDS	int(21)	NO		0	
-OTHER_COMMANDS	int(21)	NO		0	
-COMMIT_TRANSACTIONS	int(21)	NO		0	
-ROLLBACK_TRANSACTIONS	int(21)	NO		0	
-DENIED_CONNECTIONS	int(21)	NO		0	
-LOST_CONNECTIONS	int(21)	NO		0	
-ACCESS_DENIED	int(21)	NO		0	
-EMPTY_QUERIES	int(21)	NO		0	
+BYTES_RECEIVED	bigint(21)	NO		0	
+BYTES_SENT	bigint(21)	NO		0	
+BINLOG_BYTES_WRITTEN	bigint(21)	NO		0	
+ROWS_READ	bigint(21)	NO		0	
+ROWS_SENT	bigint(21)	NO		0	
+ROWS_DELETED	bigint(21)	NO		0	
+ROWS_INSERTED	bigint(21)	NO		0	
+ROWS_UPDATED	bigint(21)	NO		0	
+SELECT_COMMANDS	bigint(21)	NO		0	
+UPDATE_COMMANDS	bigint(21)	NO		0	
+OTHER_COMMANDS	bigint(21)	NO		0	
+COMMIT_TRANSACTIONS	bigint(21)	NO		0	
+ROLLBACK_TRANSACTIONS	bigint(21)	NO		0	
+DENIED_CONNECTIONS	bigint(21)	NO		0	
+LOST_CONNECTIONS	bigint(21)	NO		0	
+ACCESS_DENIED	bigint(21)	NO		0	
+EMPTY_QUERIES	bigint(21)	NO		0	
 show columns from information_schema.user_statistics;
 Field	Type	Null	Key	Default	Extra
 USER	varchar(48)	NO			
-TOTAL_CONNECTIONS	int(21)	NO		0	
-CONCURRENT_CONNECTIONS	int(21)	NO		0	
-CONNECTED_TIME	int(21)	NO		0	
+TOTAL_CONNECTIONS	int(11)	NO		0	
+CONCURRENT_CONNECTIONS	int(11)	NO		0	
+CONNECTED_TIME	int(11)	NO		0	
 BUSY_TIME	double	NO		0	
 CPU_TIME	double	NO		0	
-BYTES_RECEIVED	int(21)	NO		0	
-BYTES_SENT	int(21)	NO		0	
-BINLOG_BYTES_WRITTEN	int(21)	NO		0	
-ROWS_READ	int(21)	NO		0	
-ROWS_SENT	int(21)	NO		0	
-ROWS_DELETED	int(21)	NO		0	
-ROWS_INSERTED	int(21)	NO		0	
-ROWS_UPDATED	int(21)	NO		0	
-SELECT_COMMANDS	int(21)	NO		0	
-UPDATE_COMMANDS	int(21)	NO		0	
-OTHER_COMMANDS	int(21)	NO		0	
-COMMIT_TRANSACTIONS	int(21)	NO		0	
-ROLLBACK_TRANSACTIONS	int(21)	NO		0	
-DENIED_CONNECTIONS	int(21)	NO		0	
-LOST_CONNECTIONS	int(21)	NO		0	
-ACCESS_DENIED	int(21)	NO		0	
-EMPTY_QUERIES	int(21)	NO		0	
+BYTES_RECEIVED	bigint(21)	NO		0	
+BYTES_SENT	bigint(21)	NO		0	
+BINLOG_BYTES_WRITTEN	bigint(21)	NO		0	
+ROWS_READ	bigint(21)	NO		0	
+ROWS_SENT	bigint(21)	NO		0	
+ROWS_DELETED	bigint(21)	NO		0	
+ROWS_INSERTED	bigint(21)	NO		0	
+ROWS_UPDATED	bigint(21)	NO		0	
+SELECT_COMMANDS	bigint(21)	NO		0	
+UPDATE_COMMANDS	bigint(21)	NO		0	
+OTHER_COMMANDS	bigint(21)	NO		0	
+COMMIT_TRANSACTIONS	bigint(21)	NO		0	
+ROLLBACK_TRANSACTIONS	bigint(21)	NO		0	
+DENIED_CONNECTIONS	bigint(21)	NO		0	
+LOST_CONNECTIONS	bigint(21)	NO		0	
+ACCESS_DENIED	bigint(21)	NO		0	
+EMPTY_QUERIES	bigint(21)	NO		0	
 show columns from information_schema.index_statistics;
 Field	Type	Null	Key	Default	Extra
 TABLE_SCHEMA	varchar(192)	NO			
 TABLE_NAME	varchar(192)	NO			
 INDEX_NAME	varchar(192)	NO			
-ROWS_READ	int(21)	NO		0	
+ROWS_READ	bigint(21)	NO		0	
 show columns from information_schema.table_statistics;
 Field	Type	Null	Key	Default	Extra
 TABLE_SCHEMA	varchar(192)	NO			
 TABLE_NAME	varchar(192)	NO			
-ROWS_READ	int(21)	NO		0	
-ROWS_CHANGED	int(21)	NO		0	
-ROWS_CHANGED_X_INDEXES	int(21)	NO		0	
+ROWS_READ	bigint(21)	NO		0	
+ROWS_CHANGED	bigint(21)	NO		0	
+ROWS_CHANGED_X_INDEXES	bigint(21)	NO		0	
 set @save_general_log=@@global.general_log;
 set @@global.general_log=0;
 set @@global.userstat=1;
