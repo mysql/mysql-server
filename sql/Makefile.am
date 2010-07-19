@@ -162,7 +162,6 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
                         sql_union.cc sql_derived.cc \
 			sql_client.cc \
-			repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
 			tztime.cc my_decimal.cc\

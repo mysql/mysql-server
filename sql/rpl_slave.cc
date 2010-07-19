@@ -32,7 +32,6 @@
 #include "rpl_mi.h"
 #include "rpl_rli.h"
 #include "rpl_filter.h"
-#include "repl_failsafe.h"
 #include "transaction.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
@@ -1181,6 +1180,14 @@ bool is_network_error(uint errorno)
   return FALSE;   
 }
 
+/**
+  Set user variables after connecting to the master.
+
+  @param  mysql MYSQL to request uuid from master.
+  @param  mi    Master_info to set master_uuid
+
+  @return 0: Success, 1: Fatal error, 2: Network error.
+ */
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
 {
   char query[256];
@@ -1198,13 +1205,19 @@ err:
   if (mysql_errno(mysql) && is_network_error(mysql_errno(mysql)))
   {
     mi->report(WARNING_LEVEL, mysql_errno(mysql),
-               "init-command:'%s' failed with error: %s", mysql_error(mysql));
+               "The initialization command '%s' failed with the following"
+               " error: '%s'.", query, mysql_error(mysql));
     ret= 2;
   }
   else
   {
+    char errmsg[512];
+    const char *errmsg_fmt=
+      "The slave I/O thread stops because a fatal error is encountered "
+      "when it tries to send query to master(query: %s).";
+    sprintf(errmsg, errmsg_fmt, query);
     mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
-               query);
+               errmsg);
     ret= 1;
   }
   mysql_free_result(mysql_store_result(mysql));
@@ -1253,8 +1266,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     else
     {
       if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[1]))
-        sql_print_warning("Master's UUID has changed, its old UUID is %s, "
-                          "the new one is %s", mi->master_uuid, master_row[1]);
+        sql_print_warning("The master's UUID has changed, although this should"
+                          " not happen unless you have changed it manually."
+                          " The old UUID was %s.",
+                          mi->master_uuid);
       strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
       mi->master_uuid[UUID_LENGTH]= 0;
     }
@@ -1272,7 +1287,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     {
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered "
-        "when it try to get the value of SERVER_UUID variable from master.";
+        "when it tries to get the value of SERVER_UUID variable from master.";
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                  errmsg);
       ret= 1;
@@ -3289,8 +3304,6 @@ err:
   /* Forget the relay log's format */
   delete mi->rli.relay_log.description_event_for_queue;
   mi->rli.relay_log.description_event_for_queue= 0;
-  // TODO: make rpl_status part of Master_info
-  change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   close_thread_tables(thd);
@@ -4478,8 +4491,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     if (++err_count == master_retry_count)
     {
       slave_was_killed=1;
-      if (reconnect)
-        change_rpl_status(RPL_ACTIVE_SLAVE,RPL_LOST_SOLDIER);
       break;
     }
     safe_sleep(thd,mi->connect_retry,(CHECK_KILLED_FUNC)io_slave_killed,
@@ -4500,7 +4511,6 @@ replication resumed in log '%s' at position %s", mi->user,
     }
     else
     {
-      change_rpl_status(RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE);
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                         mi->user, mi->host, mi->port);
     }

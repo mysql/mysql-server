@@ -1175,7 +1175,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_binlog_rows_event_max_size,
    (uchar**) &opt_binlog_rows_event_max_size, 0,
    GET_ULONG, REQUIRED_ARG,
-   /* def_value 4GB */ 4*1024L*1024L*1024L - 1, /* min_value */ 256,
+   /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
