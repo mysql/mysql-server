@@ -1654,17 +1654,17 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       int i, end;
       char buff[512], *pos;
       pos= buff;
-      pos+= my_sprintf(buff, (buff, "%s", dec.sign() ? "-" : ""));
+      pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
       end= ROUND_UP(dec.frac) + ROUND_UP(dec.intg)-1;
       for (i=0; i < end; i++)
-        pos+= my_sprintf(pos, (pos, "%09d.", dec.buf[i]));
-      pos+= my_sprintf(pos, (pos, "%09d", dec.buf[i]));
+        pos+= sprintf(pos, "%09d.", dec.buf[i]);
+      pos+= sprintf(pos, "%09d", dec.buf[i]);
       my_b_printf(file, "%s", buff);
       my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
                   precision, decimals);
       return bin_size;
     }
-    
+
   case MYSQL_TYPE_FLOAT:
     {
       float fl;
@@ -2324,6 +2324,53 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 4;
   }
 
+  if (thd && thd->is_current_user_used())
+  {
+    LEX_STRING user;
+    LEX_STRING host;
+    memset(&user, 0, sizeof(user));
+    memset(&host, 0, sizeof(host));
+
+    if (thd->slave_thread && thd->has_invoker())
+    {
+      /* user will be null, if master is older than this patch */
+      user= thd->get_invoker_user();
+      host= thd->get_invoker_host();
+    }
+    else if (thd->security_ctx->priv_user)
+    {
+      Security_context *ctx= thd->security_ctx;
+
+      user.length= strlen(ctx->priv_user);
+      user.str= ctx->priv_user;
+      if (ctx->priv_host[0] != '\0')
+      {
+        host.str= ctx->priv_host;
+        host.length= strlen(ctx->priv_host);
+      }
+    }
+
+    if (user.length > 0)
+    {
+      *start++= Q_INVOKER;
+
+      /*
+        Store user length and user. The max length of use is 16, so 1 byte is
+        enough to store the user's length.
+       */
+      *start++= (uchar)user.length;
+      memcpy(start, user.str, user.length);
+      start+= user.length;
+
+      /*
+        Store host length and host. The max length of host is 60, so 1 byte is
+        enough to store the host's length.
+       */
+      *start++= (uchar)host.length;
+      memcpy(start, host.str, host.length);
+      start+= host.length;
+    }
+  }
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -2366,6 +2413,8 @@ bool Query_log_event::write(IO_CACHE* file)
 Query_log_event::Query_log_event()
   :Log_event(), data_buf(0)
 {
+  memset(&user, 0, sizeof(user));
+  memset(&host, 0, sizeof(host));
 }
 
 
@@ -2407,6 +2456,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    master_data_written(0)
 {
   time_t end_time;
+
+  memset(&user, 0, sizeof(user));
+  memset(&host, 0, sizeof(host));
 
   error_code= errcode;
 
@@ -2654,6 +2706,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
+  memset(&user, 0, sizeof(user));
+  memset(&host, 0, sizeof(host));
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
@@ -2808,6 +2862,20 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       data_written= master_data_written= uint4korr(pos);
       pos+= 4;
       break;
+    case Q_INVOKER:
+    {
+      CHECK_SPACE(pos, end, 1);
+      user.length= *pos++;
+      CHECK_SPACE(pos, end, user.length);
+      user.str= (char *)pos;
+      pos+= user.length;
+
+      CHECK_SPACE(pos, end, 1);
+      host.length= *pos++;
+      CHECK_SPACE(pos, end, host.length);
+      host.str= (char *)pos;
+      pos+= host.length;
+    }
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
@@ -2821,12 +2889,16 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                               time_zone_len + 1 +
                                               data_len + 1 +
                                               QUERY_CACHE_FLAGS_SIZE +
+                                              user.length + 1 +
+                                              host.length + 1 +
                                               db_len + 1,
                                               MYF(MY_WME))))
 #else
   if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
                                              time_zone_len + 1 +
-                                             data_len + 1,
+                                             data_len + 1 +
+                                             user.length + 1 +
+                                             host.length + 1,
                                              MYF(MY_WME))))
 #endif
       DBUG_VOID_RETURN;
@@ -2848,6 +2920,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   }
   if (time_zone_len)
     copy_str_and_move(&time_zone_str, &start, time_zone_len);
+
+  if (user.length > 0)
+    copy_str_and_move((const char **)&(user.str), &start, user.length);
+  if (host.length > 0)
+    copy_str_and_move((const char **)&(host.str), &start, host.length);
 
   /**
     if time_zone_len or catalog_len are 0, then time_zone and catalog
@@ -2984,7 +3061,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   if (likely(charset_inited) &&
       (unlikely(!print_event_info->charset_inited ||
-                bcmp((uchar*) print_event_info->charset, (uchar*) charset, 6))))
+                memcmp(print_event_info->charset, charset, 6))))
   {
     CHARSET_INFO *cs_info= get_charset(uint2korr(charset), MYF(MY_WME));
     if (cs_info)
@@ -3007,8 +3084,8 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   }
   if (time_zone_len)
   {
-    if (bcmp((uchar*) print_event_info->time_zone_str,
-             (uchar*) time_zone_str, time_zone_len+1))
+    if (memcmp(print_event_info->time_zone_str,
+               time_zone_str, time_zone_len+1))
     {
       my_b_printf(file,"SET @@session.time_zone='%s'%s\n",
                   time_zone_str, print_event_info->delimiter);
@@ -3254,7 +3331,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->variables.collation_database= thd->db_charset;
       
       thd->table_map_for_update= (table_map)table_map_for_update;
-      
+      thd->set_invoker(&user, &host);
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
@@ -5713,7 +5790,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       double real_val;
       char real_buf[FMT_G_BUFSIZE(14)];
       float8get(real_val, val);
-      my_sprintf(real_buf, (real_buf, "%.14g", real_val));
+      sprintf(real_buf, "%.14g", real_val);
       my_b_printf(&cache, ":=%s%s\n", real_buf, print_event_info->delimiter);
       break;
     case INT_RESULT:
@@ -6472,10 +6549,9 @@ void Append_block_log_event::print(FILE* file,
 void Append_block_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
-  uint length;
-  length= (uint) my_sprintf(buf,
-			    (buf, ";file_id=%u;block_len=%u", file_id,
-			     block_len));
+  size_t length;
+  length= my_snprintf(buf, sizeof(buf), ";file_id=%u;block_len=%u",
+                      file_id, block_len);
   protocol->store(buf, length, &my_charset_bin);
 }
 
@@ -6630,9 +6706,9 @@ void Delete_file_log_event::print(FILE* file,
 void Delete_file_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
-  uint length;
-  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  protocol->store(buf, (int32) length, &my_charset_bin);
+  size_t length;
+  length= my_snprintf(buf, sizeof(buf), ";file_id=%u", (uint) file_id);
+  protocol->store(buf, length, &my_charset_bin);
 }
 #endif
 
@@ -6728,9 +6804,9 @@ void Execute_load_log_event::print(FILE* file,
 void Execute_load_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
-  uint length;
-  length= (uint) my_sprintf(buf, (buf, ";file_id=%u", (uint) file_id));
-  protocol->store(buf, (int32) length, &my_charset_bin);
+  size_t length;
+  length= my_snprintf(buf, sizeof(buf), ";file_id=%u", (uint) file_id);
+  protocol->store(buf, length, &my_charset_bin);
 }
 
 
@@ -8656,7 +8732,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
   TABLE *table= m_table;  // pointer to event's table
   int error;
-  int keynum;
+  int UNINIT_VAR(keynum);
   auto_afree_ptr<char> key(NULL);
 
   /* fill table->record[0] with default values */
@@ -8850,19 +8926,19 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
 #endif
 
-int 
+int
 Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
   int error= write_row(rli, slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT);
-    
+
   if (error && !thd->is_error())
   {
     DBUG_ASSERT(0);
     my_error(ER_UNKNOWN_ERROR, MYF(0));
   }
-  
-  return error; 
+
+  return error;
 }
 
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */

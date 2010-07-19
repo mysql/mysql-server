@@ -252,7 +252,7 @@ static void test_key_cache(KEY_CACHE *keycache,
 
 #if defined(KEYCACHE_DEBUG_LOG)
 static FILE *keycache_debug_log=NULL;
-static void keycache_debug_print _VARARGS((const char *fmt,...));
+static void keycache_debug_print(const char *fmt,...);
 #define KEYCACHE_DEBUG_OPEN                                                   \
           if (!keycache_debug_log)                                            \
           {                                                                   \

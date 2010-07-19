@@ -42,7 +42,7 @@ typedef struct my_aio_result {
 #endif /* HAVE_VALGRIND */
 
 #ifndef THREAD
-extern int NEAR my_errno;		/* Last error in mysys */
+extern int my_errno;  /* Last error in mysys */
 #else
 #include <my_pthread.h>
 #endif
@@ -214,7 +214,7 @@ extern int errno;			/* declare errno */
 #endif					/* #ifndef errno */
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
-extern char NEAR curr_dir[];		/* Current directory for user */
+extern char curr_dir[];		/* Current directory for user */
 extern void (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
@@ -247,17 +247,16 @@ extern void (*my_sigtstp_cleanup)(void),
 	    (*my_sigtstp_restart)(void),
 	    (*my_abort_hook)(int);
 					/* Executed when comming from shell */
-extern MYSQL_PLUGIN_IMPORT int NEAR my_umask;		/* Default creation mask  */
-extern int NEAR my_umask_dir,
-	   NEAR my_recived_signals,	/* Signals we have got */
-	   NEAR my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
-	   NEAR my_dont_interrupt;	/* call remember_intr when set */
-extern my_bool NEAR my_use_symdir;
-extern size_t sf_malloc_cur_memory, sf_malloc_max_memory;
+extern MYSQL_PLUGIN_IMPORT int my_umask;		/* Default creation mask  */
+extern int my_umask_dir,
+	   my_recived_signals,	/* Signals we have got */
+	   my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
+	   my_dont_interrupt;	/* call remember_intr when set */
+extern my_bool my_use_symdir;
 
 extern ulong	my_default_record_cache_size;
-extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
-               NEAR my_disable_flush_key_blocks, NEAR my_disable_symlinks;
+extern my_bool  my_disable_locking, my_disable_async_io,
+                my_disable_flush_key_blocks, my_disable_symlinks;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */
@@ -650,10 +649,10 @@ extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
-extern void my_error _VARARGS((int nr,myf MyFlags, ...));
-extern void my_printf_error _VARARGS((uint my_err, const char *format,
-                                     myf MyFlags, ...))
-                                     ATTRIBUTE_FORMAT(printf, 2, 4);
+extern void my_error(int nr,myf MyFlags, ...);
+extern void my_printf_error(uint my_err, const char *format,
+                            myf MyFlags, ...)
+                            ATTRIBUTE_FORMAT(printf, 2, 4);
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
@@ -913,10 +912,7 @@ extern int my_getncpus();
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
 
-#ifndef __NETWARE__
 #define HAVE_MMAP
-#endif
-
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
 int my_munmap(void *, size_t);
 #endif
@@ -980,10 +976,6 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 /* implemented in my_conio.c */
 char* my_cgets(char *string, size_t clen, size_t* plen);
 
-#endif
-#ifdef __NETWARE__
-void netware_reg_user(const char *ip, const char *user,
-		      const char *application);
 #endif
 
 #include <mysql/psi/psi.h>

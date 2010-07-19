@@ -28,7 +28,7 @@
 #define STANDARD_LENGTH 37
 #define MYISAM_KEYS 6
 #define MAX_PARTS 4
-#if !defined(MSDOS) && !defined(labs)
+#if !defined(labs)
 #define labs(a) abs(a)
 #endif
 
@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
     }
     ant=0;
     while (mi_rprev(file,read_record3,0) == 0 &&
-	   bcmp(read_record3+start,key,length) == 0) ant++;
+	   memcmp(read_record3+start,key,length) == 0) ant++;
     if (ant != dupp_keys)
     {
       printf("prev: Found: %d records of %d\n",ant,dupp_keys);
@@ -450,7 +450,7 @@ int main(int argc, char *argv[])
     goto end;
   }
   if (mi_rlast(file,read_record2,0) ||
-      bcmp(read_record2,read_record3,reclength))
+      memcmp(read_record2,read_record3,reclength))
   {
     printf("Can't find last record\n");
     DBUG_DUMP("record2",(uchar*) read_record2,reclength);
@@ -465,7 +465,7 @@ int main(int argc, char *argv[])
     printf("prev: I found: %d records of %d\n",ant,write_count);
     goto end;
   }
-  if (bcmp(read_record,read_record3,reclength))
+  if (memcmp(read_record,read_record3,reclength))
   {
     printf("Can't find first record\n");
     goto end;
@@ -480,7 +480,7 @@ int main(int argc, char *argv[])
       mi_rprev(file,read_record3,0) == 0 ||
       mi_rnext(file,read_record3,0))
       goto err;
-  if (bcmp(read_record,read_record3,reclength) != 0)
+  if (memcmp(read_record,read_record3,reclength) != 0)
      printf("Can't find first record\n");
 
   if (!silent)
@@ -492,7 +492,7 @@ int main(int argc, char *argv[])
       mi_rnext(file,read_record3,0) == 0 ||
       mi_rprev(file,read_record3,0))
       goto err;
-  if (bcmp(read_record2,read_record3,reclength))
+  if (memcmp(read_record2,read_record3,reclength))
      printf("Can't find last record\n");
 #ifdef NOT_ANYMORE
   if (!silent)
@@ -506,7 +506,7 @@ int main(int argc, char *argv[])
     bzero((char*) file->lastkey,file->s->base.max_key_length*2);
     if (mi_rkey(file,read_record,0,key2,(uint) i,HA_READ_PREFIX))
       goto err;
-    if (bcmp(read_record+start,key,(uint) i))
+    if (memcmp(read_record+start,key,(uint) i))
     {
       puts("Didn't find right record");
       goto end;
@@ -525,7 +525,7 @@ int main(int argc, char *argv[])
     opt_delete++;
     ant=1;
     while (mi_rnext(file,read_record3,0) == 0 &&
-	   bcmp(read_record3+start,key,length) == 0) ant++;
+	   memcmp(read_record3+start,key,length) == 0) ant++;
     if (ant != dupp_keys-1)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-1);
@@ -543,7 +543,7 @@ int main(int argc, char *argv[])
     opt_delete++;
     ant=1;
     while (mi_rprev(file,read_record3,0) == 0 &&
-	   bcmp(read_record3+start,key,length) == 0) ant++;
+	   memcmp(read_record3+start,key,length) == 0) ant++;
     if (ant != dupp_keys-2)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-2);
@@ -563,7 +563,7 @@ int main(int argc, char *argv[])
     if (mi_rnext(file,read_record,0))
       goto err;					/* Skall finnas poster */
     while (mi_rnext(file,read_record3,0) == 0 &&
-	   bcmp(read_record3+start,key,length) == 0) ant++;
+	   memcmp(read_record3+start,key,length) == 0) ant++;
     if (ant != dupp_keys-3)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-3);
@@ -578,7 +578,7 @@ int main(int argc, char *argv[])
     opt_delete++;
     ant=0;
     while (mi_rprev(file,read_record3,0) == 0 &&
-	   bcmp(read_record3+start,key,length) == 0) ant++;
+	   memcmp(read_record3+start,key,length) == 0) ant++;
     if (ant != dupp_keys-4)
     {
       printf("next: I can only find: %d keys of %d\n",ant,dupp_keys-4);
@@ -601,7 +601,7 @@ int main(int argc, char *argv[])
   for (i=min(2,keys) ; i-- > 0 ;)
   {
     if (mi_rsame(file,read_record2,(int) i)) goto err;
-    if (bcmp(read_record,read_record2,reclength) != 0)
+    if (memcmp(read_record,read_record2,reclength) != 0)
     {
       printf("is_rsame didn't find same record\n");
       goto end;
