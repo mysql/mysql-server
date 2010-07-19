@@ -54,5 +54,6 @@ errmsg\\\\.sys$
 run_collection_test-bt.cmake
 run_collection_test-bt-debug.cmake
 run_collection_test-bt-fast.cmake
+storage/ndb/
 #
 )
