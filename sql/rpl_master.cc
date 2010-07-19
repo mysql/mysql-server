@@ -228,7 +228,7 @@ bool show_slave_hosts(THD* thd)
 
     /* get slave's UUID */
     String slave_uuid;
-    if (get_slave_uuid(si->thd, &slave_uuid));
+    if (get_slave_uuid(si->thd, &slave_uuid))
       protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
     if (protocol->write())
     {
