@@ -1270,7 +1270,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
         sql_print_warning("The master's UUID has changed, although this should"
                           " not happen unless you have changed it manually."
                           " The old UUID was %s.",
-                          mi->master_uuid, master_row[1]);
+                          mi->master_uuid);
       strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
       mi->master_uuid[UUID_LENGTH]= 0;
     }
