@@ -477,7 +477,14 @@ int mysql_update(THD *thd,
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
         thd->examined_row_count++;
-	if (!(select && select->skip_record()))
+        bool skip_record= FALSE;
+        if (select && select->skip_record(thd, &skip_record))
+        {
+          error= 1;
+          table->file->unlock_row();
+          break;
+        }
+        if (!skip_record)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -584,7 +591,8 @@ int mysql_update(THD *thd,
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     thd->examined_row_count++;
-    if (!(select && select->skip_record()))
+    bool skip_record;
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
