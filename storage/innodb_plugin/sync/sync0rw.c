@@ -267,7 +267,7 @@ rw_lock_create_func(
 	lock->level = level;
 #endif /* UNIV_SYNC_DEBUG */
 
-	lock->magic_n = RW_LOCK_MAGIC_N;
+	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
 
 	lock->cfile_name = cfile_name;
 	lock->cline = (unsigned int) cline;
@@ -282,10 +282,8 @@ rw_lock_create_func(
 
 	mutex_enter(&rw_lock_list_mutex);
 
-	if (UT_LIST_GET_LEN(rw_lock_list) > 0) {
-		ut_a(UT_LIST_GET_FIRST(rw_lock_list)->magic_n
-		     == RW_LOCK_MAGIC_N);
-	}
+	ut_ad(UT_LIST_GET_FIRST(rw_lock_list) == NULL
+	      || UT_LIST_GET_FIRST(rw_lock_list)->magic_n == RW_LOCK_MAGIC_N);
 
 	UT_LIST_ADD_FIRST(list, rw_lock_list, lock);
 
@@ -305,8 +303,6 @@ rw_lock_free(
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
 
-	lock->magic_n = 0;
-
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 	mutex_free(rw_lock_get_mutex(lock));
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -316,16 +312,16 @@ rw_lock_free(
 
 	os_event_free(lock->wait_ex_event);
 
-	if (UT_LIST_GET_PREV(list, lock)) {
-		ut_a(UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
-	}
-	if (UT_LIST_GET_NEXT(list, lock)) {
-		ut_a(UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
-	}
+	ut_ad(UT_LIST_GET_PREV(list, lock) == NULL
+	      || UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
+	ut_ad(UT_LIST_GET_NEXT(list, lock) == NULL
+	      || UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
 
 	UT_LIST_REMOVE(list, rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
+
+	ut_d(lock->magic_n = 0);
 }
 
 #ifdef UNIV_DEBUG
@@ -344,7 +340,7 @@ rw_lock_validate(
 	ulint waiters = rw_lock_get_waiters(lock);
 	lint lock_word = lock->lock_word;
 
-	ut_a(lock->magic_n == RW_LOCK_MAGIC_N);
+	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
 	ut_a(waiters == 0 || waiters == 1);
 	ut_a(lock_word > -X_LOCK_DECR ||(-lock_word) % X_LOCK_DECR == 0);
 
