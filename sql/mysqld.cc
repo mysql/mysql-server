@@ -57,7 +57,6 @@
 #include "rpl_master.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
-#include "repl_failsafe.h"
 #include <my_stacktrace.h>
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
@@ -500,7 +499,6 @@ ulong slow_launch_threads = 0;
 uint sync_binlog_period= 0, sync_relaylog_period= 0,
      sync_relayloginfo_period= 0, sync_masterinfo_period= 0;
 ulong expire_logs_days = 0;
-ulong rpl_recovery_rank=0;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1562,10 +1560,6 @@ static void clean_up_mutexes()
     mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
 #endif
-#endif
-#ifdef HAVE_REPLICATION
-  mysql_mutex_destroy(&LOCK_rpl_status);
-  mysql_cond_destroy(&COND_rpl_status);
 #endif
   mysql_mutex_destroy(&LOCK_active_mi);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
@@ -3576,10 +3570,6 @@ static int init_thread_environment()
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
   mysql_cond_init(key_COND_manager, &COND_manager, NULL);
-#ifdef HAVE_REPLICATION
-  mysql_mutex_init(key_LOCK_rpl_status, &LOCK_rpl_status, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_rpl_status, &COND_rpl_status, NULL);
-#endif
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
@@ -3812,7 +3802,7 @@ static int init_server_auto_options()
 {
   bool flush= false;
   char fname[FN_REFLEN];
-  char *name= "auto";
+  char *name= (char *)"auto";
   const char *groups[]= {"auto", NULL};
   char *uuid= 0;
   my_option auto_options[]= {
@@ -3846,7 +3836,7 @@ static int init_server_auto_options()
   {
     if (strlen(uuid) != UUID_LENGTH)
     {
-      sql_print_error("Invalid UUID in the auto.cnf file");
+      sql_print_error("The UUID stored in auto.cnf file is the wrong length.");
       goto err;
     }
     strcpy(server_uuid, uuid);
@@ -3857,8 +3847,9 @@ static int init_server_auto_options()
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
-    sql_print_warning("It might be a maiden lunch of the server, for there is"
-                      " no UUID existing. A new UUID is generated. it is %s",
+    sql_print_warning("No existing UUID has been found, so we assume that this"
+                      " is the first time that this server has been started."
+                      " Generating a new UUID: %s.",
                       server_uuid);
   }
   /*
@@ -4097,15 +4088,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   if (opt_help)
     unireg_abort(0);
-  /*
-    Each server should have one UUID. We will create it automatically, if it
-    does not exist.
-   */
-  if (!opt_bootstrap && init_server_auto_options())
-  {
-    sql_print_error("Initializing server's UUID failed");
-    unireg_abort(1);
-  }
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!DEFAULT_ERRMSGS[0][0])
@@ -4642,6 +4624,19 @@ int mysqld_main(int argc, char **argv)
 
   if (init_server_components())
     unireg_abort(1);
+
+  /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist.
+   */
+  if (!opt_bootstrap && init_server_auto_options())
+  {
+    sql_print_error("Initialzation of the server's UUID failed because it could"
+                    " not be read from the auto.cnf file. If this is a new"
+                    " server, the initialization failed because it was not"
+                    " possible to generate a new UUID.");
+    unireg_abort(1);
+  }
 
   init_ssl();
   network_init();
@@ -6024,9 +6019,6 @@ struct my_option my_long_options[]=
    &master_retry_count, &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
-  {"init-rpl-role", 0, "Set the replication role.",
-   &rpl_status, &rpl_status, &rpl_role_typelib,
-   GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"max-binlog-dump-events", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &max_binlog_dump_events, &max_binlog_dump_events, 0,
@@ -6242,13 +6234,6 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 #endif
 
 #ifdef HAVE_REPLICATION
-static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
-{
-  var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(rpl_status_type[(int)rpl_status]);
-  return 0;
-}
-
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
@@ -6668,9 +6653,6 @@ SHOW_VAR status_vars[]= {
 #endif /*HAVE_QUERY_CACHE*/
   {"Queries",                  (char*) &show_queries,            SHOW_FUNC},
   {"Questions",                (char*) offsetof(STATUS_VAR, questions), SHOW_LONG_STATUS},
-#ifdef HAVE_REPLICATION
-  {"Rpl_status",               (char*) &show_rpl_status,          SHOW_FUNC},
-#endif
   {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONG_STATUS},
   {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONG_STATUS},
   {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count), SHOW_LONG_STATUS},
@@ -7871,7 +7853,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_manager, key_LOCK_mapped_file,
   key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
-  key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_server_started, key_LOCK_status,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
@@ -7914,7 +7896,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_mysql_create_db, "LOCK_mysql_create_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
-  { &key_LOCK_rpl_status, "LOCK_rpl_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_GLOBAL},
   { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
@@ -7960,7 +7941,7 @@ PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 
 PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
-  key_COND_refresh, key_COND_rpl_status, key_COND_server_started,
+  key_COND_refresh, key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
@@ -7985,7 +7966,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_global_read_lock, "COND_global_read_lock", PSI_FLAG_GLOBAL},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_refresh, "COND_refresh", PSI_FLAG_GLOBAL},
-  { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
   { &key_delayed_insert_cond, "Delayed_insert::cond", 0},
   { &key_delayed_insert_cond_client, "Delayed_insert::cond_client", 0},

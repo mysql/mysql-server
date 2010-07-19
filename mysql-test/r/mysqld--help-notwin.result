@@ -171,8 +171,6 @@ The following options may be given as the first argument:
  Disable initialization of builtin InnoDB plugin
  --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
- --init-rpl-role=name 
- Set the replication role.
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
  --interactive-timeout=# 
@@ -575,8 +573,6 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
- --rpl-recovery-rank=# 
- Unused, will be removed
  --safe-mode         Skip some optimize stages (for testing).
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
@@ -770,7 +766,6 @@ help TRUE
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
-init-rpl-role MASTER
 init-slave 
 interactive-timeout 28800
 join-buffer-size 131072
@@ -891,7 +886,6 @@ report-host (No default value)
 report-password (No default value)
 report-port 3306
 report-user (No default value)
-rpl-recovery-rank 0
 safe-user-create FALSE
 secure-auth FALSE
 secure-file-priv (No default value)
