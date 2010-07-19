@@ -1301,9 +1301,7 @@ case $SYSTEM_TYPE in
     if test "$OSVERSION" -gt "600000"
     then
        # Post user-level threads, MYSQLD_NET_RETRY_COUNT is not needed any more
-       AC_MSG_WARN([Adding fix for broken realpath])
-       CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
-       CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_REALPATH"
+       :
     elif test "$OSVERSION" -gt "480100" && \
        test "$OSVERSION" -lt "500000" || \
        test "$OSVERSION" -gt "500109"
