@@ -972,8 +972,8 @@ static bool ParseUrl ( CSphSEShare * share, TABLE * table, bool bCreate )
 	}
 
 	char * sScheme = NULL;
-	char * sHost = SPHINXSE_DEFAULT_HOST;
-	char * sIndex = SPHINXSE_DEFAULT_INDEX;
+	char * sHost = (char*) SPHINXSE_DEFAULT_HOST;
+	char * sIndex = (char*) SPHINXSE_DEFAULT_INDEX;
 	int iPort = SPHINXSE_DEFAULT_PORT;
 
 	bool bOk = true;
@@ -993,12 +993,12 @@ static bool ParseUrl ( CSphSEShare * share, TABLE * table, bool bCreate )
 			// unix-domain socket
 			iPort = 0;
 			if (!( sIndex = strrchr ( sHost, ':' ) ))
-				sIndex = SPHINXSE_DEFAULT_INDEX;
+                                sIndex = (char*) SPHINXSE_DEFAULT_INDEX;
 			else
 			{
 				*sIndex++ = '\0';
 				if ( !*sIndex )
-					sIndex = SPHINXSE_DEFAULT_INDEX;
+                                  	sIndex = (char*) SPHINXSE_DEFAULT_INDEX;
 			}
 			bOk = true;
 			break;
@@ -1018,11 +1018,11 @@ static bool ParseUrl ( CSphSEShare * share, TABLE * table, bool bCreate )
 				if ( sIndex )
 					*sIndex++ = '\0'; 
 				else
-					sIndex = SPHINXSE_DEFAULT_INDEX;
+                                  	sIndex = (char*) SPHINXSE_DEFAULT_INDEX;
 
 				iPort = atoi(sPort);
 				if ( !iPort )
-					iPort = SPHINXSE_DEFAULT_PORT;
+                                  	iPort = SPHINXSE_DEFAULT_PORT;
 			}
 		} else
 		{
@@ -1030,7 +1030,7 @@ static bool ParseUrl ( CSphSEShare * share, TABLE * table, bool bCreate )
 			if ( sIndex )
 				*sIndex++ = '\0';
 			else
-				sIndex = SPHINXSE_DEFAULT_INDEX;
+                          	sIndex = (char*) SPHINXSE_DEFAULT_INDEX;
 		}
 
 		bOk = true;
@@ -1150,37 +1150,37 @@ static handler * sphinx_create_handler ( handlerton * hton, TABLE_SHARE * table,
 CSphSEQuery::CSphSEQuery ( const char * sQuery, int iLength, const char * sIndex )
 	: m_sHost ( "" )
 	, m_iPort ( 0 )
-	, m_sIndex ( sIndex ? sIndex : "*" )
+	, m_sIndex ( sIndex ? sIndex : (char*) "*" )
 	, m_iOffset ( 0 )
 	, m_iLimit ( 20 )
 	, m_bQuery ( false )
-	, m_sQuery ( "" )
+	, m_sQuery ( (char*) "" )
 	, m_pWeights ( NULL )
 	, m_iWeights ( 0 )
 	, m_eMode ( SPH_MATCH_ALL )
 	, m_eRanker ( SPH_RANK_PROXIMITY_BM25 )
 	, m_eSort ( SPH_SORT_RELEVANCE )
-	, m_sSortBy ( "" )
+	, m_sSortBy ( (char*) "" )
 	, m_iMaxMatches ( 1000 )
 	, m_iMaxQueryTime ( 0 )
 	, m_iMinID ( 0 )
 	, m_iMaxID ( 0 )
 	, m_iFilters ( 0 )
 	, m_eGroupFunc ( SPH_GROUPBY_DAY )
-	, m_sGroupBy ( "" )
-	, m_sGroupSortBy ( "@group desc" )
+	, m_sGroupBy ( (char*) "" )
+	, m_sGroupSortBy ( (char*) "@group desc" )
 	, m_iCutoff ( 0 )
 	, m_iRetryCount ( 0 )
 	, m_iRetryDelay ( 0 )
-	, m_sGroupDistinct ( "" )
+	, m_sGroupDistinct ( (char*) "" )
 	, m_iIndexWeights ( 0 )
 	, m_iFieldWeights ( 0 )
 	, m_bGeoAnchor ( false )
-	, m_sGeoLatAttr ( "" )
-	, m_sGeoLongAttr ( "" )
+	, m_sGeoLatAttr ( (char*) "" )
+	, m_sGeoLongAttr ( (char*) "" )
 	, m_fGeoLatitude ( 0.0f )
 	, m_fGeoLongitude ( 0.0f )
-	, m_sComment ( "" )
+	, m_sComment ( (char*) "" )
 
 	, m_pBuf ( NULL )
 	, m_pCur ( NULL )
@@ -1622,7 +1622,7 @@ bool CSphSEQuery::ParseField ( char * sField )
 				{ "float",		SPH_ATTR_FLOAT },
 				{ "bigint",		SPH_ATTR_BIGINT }
 			};
-			for ( int i=0; i<sizeof(dAttrTypes)/sizeof(*dAttrTypes); i++ )
+			for ( uint i=0; i<sizeof(dAttrTypes)/sizeof(*dAttrTypes); i++ )
 				if ( !strncmp( sType, dAttrTypes[i].m_sName, sRest - sType ) )
 			{
 				iType = dAttrTypes[i].m_iType;

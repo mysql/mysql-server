@@ -539,6 +539,15 @@
    fun:_Unwind_ForcedUnwind
 }
 
+{
+   dlsym memory loss from plugin
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_signal_error
+   fun:_dl_signal_error
+   fun:_dl_lookup_symbol_x
+}
+
 #
 # Reading wrong addresses on SuSe Linux 10.3 32 bit
 #

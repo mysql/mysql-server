@@ -367,8 +367,10 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock,&lock,NULL);
 
+#ifndef DBUG_OFF
   example_table_options_struct *options=
     (example_table_options_struct *)table->s->option_struct;
+#endif
 
   DBUG_ASSERT(options);
   DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
@@ -896,6 +898,7 @@ ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
 int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
+#ifndef DBUG_OFF
   example_table_options_struct *options=
     (example_table_options_struct *)table_arg->s->option_struct;
   DBUG_ENTER("ha_example::create");
@@ -918,10 +921,10 @@ int ha_example::create(const char *name, TABLE *table_arg,
                          (field_options->compex_param_to_parse_it_in_engine ?
                           field_options->compex_param_to_parse_it_in_engine :
                           "<NULL>")));
-
   }
 
   DBUG_RETURN(0);
+#endif
 }
 
 

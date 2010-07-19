@@ -115,5 +115,5 @@ maria_declare_plugin(socket_auth)
   "1.0",
   MariaDB_PLUGIN_MATURITY_BETA
 }
-mysql_declare_plugin_end;
+maria_declare_plugin_end;
 
