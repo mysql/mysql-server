@@ -87,3 +87,13 @@ a	v
 2002-02-15 00:00:00	0
 2000-10-15 00:00:00	1
 DROP TABLE t1, t2;
+CREATE TABLE t1 (
+a char(255), b char(255), c char(255), d char(255),
+v char(255) AS (CONCAT(c,d) ) VIRTUAL
+);
+INSERT INTO t1(a,b,c,d) VALUES ('w','x','y','z'), ('W','X','Y','Z');
+SELECT v FROM t1 ORDER BY CONCAT(a,b);
+v
+yz
+YZ
+DROP TABLE t1;

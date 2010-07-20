@@ -87,3 +87,18 @@ INSERT INTO t2(a) VALUES ('2000-10-15');
 SELECT * FROM t2;
 
 DROP TABLE t1, t2;
+
+#
+# Bug#607566: Virtual column in the select list of SELECT with ORDER BY
+#
+
+CREATE TABLE t1 (
+  a char(255), b char(255), c char(255), d char(255),
+  v char(255) AS (CONCAT(c,d) ) VIRTUAL
+);
+
+INSERT INTO t1(a,b,c,d) VALUES ('w','x','y','z'), ('W','X','Y','Z');
+
+SELECT v FROM t1 ORDER BY CONCAT(a,b);
+
+DROP TABLE t1;
