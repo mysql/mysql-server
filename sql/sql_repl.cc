@@ -1394,12 +1394,9 @@ bool change_master(THD* thd, Master_info* mi)
   /*
     Before processing the command, save the previous state.
   */
-  char *pos;
-  pos= strmake(saved_host, mi->host, HOSTNAME_LENGTH);
-  pos= '\0';
+  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
   saved_port= mi->port;
-  pos= strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
-  pos= '\0';
+  strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
   saved_log_pos= mi->master_log_pos;
 
   /*

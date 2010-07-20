@@ -6499,7 +6499,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint index_add_count= 0;
   uint *index_add_buffer= NULL;
   uint candidate_key_count= 0;
-  bool committed= 0;
   bool no_pk;
   DBUG_ENTER("mysql_alter_table");
 
@@ -7329,7 +7328,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_PRINT("info", ("Committing before unlocking table"));
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
-    committed= 1;
   }
   /*end of if (! new_table) for add/drop index*/
 

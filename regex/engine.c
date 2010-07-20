@@ -256,7 +256,6 @@ sopno stopst;
 	register char *ssp;	/* start of string matched by subsubRE */
 	register char *sep;	/* end of string matched by subsubRE */
 	register char *oldssp;	/* previous ssp */
-	register char *dp;      /* used in debug mode to check asserts */
 
 	AT("diss", start, stop, startst, stopst);
 	sp = start;
@@ -314,11 +313,9 @@ sopno stopst;
 			ssub = ss + 1;
 			esub = es - 1;
 			/* did innards match? */
-			if (slow(charset, m, sp, rest, ssub, esub) != NULL) {
-				dp = dissect(charset, m, sp, rest, ssub, esub);
-				assert(dp == rest);
-			} else		/* no */
-				assert(sp == rest);
+			if (slow(charset, m, sp, rest, ssub, esub) != NULL)
+				sp = dissect(charset, m, sp, rest, ssub, esub);
+			assert(sp == rest);
 			sp = rest;
 			break;
 		case OPLUS_:
@@ -353,8 +350,8 @@ sopno stopst;
 			}
 			assert(sep == rest);	/* must exhaust substring */
 			assert(slow(charset, m, ssp, sep, ssub, esub) == rest);
-			dp = dissect(charset, m, ssp, sep, ssub, esub);
-			assert(dp == sep);
+			sp = dissect(charset, m, ssp, sep, ssub, esub);
+			assert(sp == sep);
 			sp = rest;
 			break;
 		case OCH_:
@@ -388,8 +385,8 @@ sopno stopst;
 				else
 					assert(OP(m->g->strip[esub]) == O_CH);
 			}
-			dp = dissect(charset, m, sp, rest, ssub, esub);
-			assert(dp == rest);
+			sp = dissect(charset, m, sp, rest, ssub, esub);
+			assert(sp == rest);
 			sp = rest;
 			break;
 		case O_PLUS:
