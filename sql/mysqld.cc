@@ -3783,7 +3783,6 @@ static void end_ssl()
 
 static int init_server_components()
 {
-  FILE* reopen;
   DBUG_ENTER("init_server_components");
   /*
     We need to call each of these following functions to ensure that
@@ -3826,8 +3825,8 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        reopen= freopen(log_error_file, "a+", stderr);
-        setbuf(stderr, NULL);
+        if (freopen(log_error_file, "a+", stderr))
+          setbuf(stderr, NULL);
       }
     }
   }
@@ -8222,7 +8221,7 @@ mysqld_get_one_option(int optid,
     *val= 0;
     val+= 2;
     while (*val && my_isspace(mysqld_charset, *val))
-      *val++;
+      val++;
     if (!*val)
     {
       sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");

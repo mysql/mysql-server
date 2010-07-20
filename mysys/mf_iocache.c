@@ -1701,16 +1701,19 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
 #endif
 
 
-int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
+int my_b_flush_io_cache(IO_CACHE *info,
+                        int need_append_buffer_lock __attribute__((unused)))
 {
   size_t length;
-  my_bool append_cache;
   my_off_t pos_in_file;
+  my_bool append_cache= (info->type == SEQ_READ_APPEND);
   DBUG_ENTER("my_b_flush_io_cache");
   DBUG_PRINT("enter", ("cache: 0x%lx", (long) info));
 
-  if (!(append_cache = (info->type == SEQ_READ_APPEND)))
-    need_append_buffer_lock=0;
+#ifdef THREAD
+  if (!append_cache)
+    need_append_buffer_lock= 0;
+#endif
 
   if (info->type == WRITE_CACHE || append_cache)
   {
