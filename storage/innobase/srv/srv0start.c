@@ -1160,9 +1160,17 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_use_native_aio = FALSE;
 		break;
-	default:
-		/* On Win 2000 and XP use async i/o */
+
+	case OS_WIN2000:
+	case OS_WINXP:
+		/* On 2000 and XP, async IO is available. */
 		srv_use_native_aio = TRUE;
+		break;
+
+	default:
+		/* Vista and later have both async IO and condition variables */
+		srv_use_native_aio = TRUE;
+		srv_use_native_conditions = TRUE;
 		break;
 	}
 
