@@ -49,6 +49,14 @@ Slave_IO_Running = No (expect No)
 SELECT "Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'" AS Last_IO_Error;
 Last_IO_Error
 Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+SET @max_allowed_packet_0= @@session.max_allowed_packet;
+SHOW BINLOG EVENTS;
+SET @max_allowed_packet_1= @@session.max_allowed_packet;
+SHOW BINLOG EVENTS;
+SET @max_allowed_packet_2= @@session.max_allowed_packet;
 ==== clean up ====
 DROP TABLE t1;
 SET @@global.max_allowed_packet= 1024;
