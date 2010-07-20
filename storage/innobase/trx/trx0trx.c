@@ -2030,7 +2030,7 @@ trx_get_trx_by_xid(
 	while (trx) {
 		/* Compare two X/Open XA transaction id's: their
 		length should be the same and binary comparison
-		of gtrid_lenght+bqual_length bytes should be
+		of gtrid_length+bqual_length bytes should be
 		the same */
 
 		if (xid->gtrid_length == trx->xid.gtrid_length
