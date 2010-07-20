@@ -825,7 +825,11 @@ class SQL_SELECT :public Sql_alloc {
     tmp.set_all();
     return test_quick_select(thd, tmp, 0, limit, force_quick_range) < 0;
   }
-  inline bool skip_record() { return cond ? cond->val_int() == 0 : 0; }
+  inline bool skip_record(THD *thd, bool *skip_record)
+  {
+    *skip_record= cond ? cond->val_int() == FALSE : FALSE;
+    return thd->is_error();
+  }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
 			ha_rows limit, bool force_quick_range);
 };
