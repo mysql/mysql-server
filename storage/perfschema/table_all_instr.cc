@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,22 +10,21 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/table_all_instr.cc
   Abstract tables for all instruments (implementation).
 */
 
-#include "sql_priv.h"
 #include "my_global.h"
 #include "my_pthread.h"
 #include "table_all_instr.h"
 #include "pfs_global.h"
 
 table_all_instr::table_all_instr(const PFS_engine_table_share *share)
-  : PFS_readonly_table(share, &m_pos),
+  : PFS_engine_table(share, &m_pos),
     m_pos(), m_next_pos()
 {}
 
@@ -154,7 +153,7 @@ int table_all_instr::rnd_pos(const void *pos)
 
 table_all_instr_class::table_all_instr_class
 (const PFS_engine_table_share *share)
-  : PFS_readonly_table(share, &m_pos),
+  : PFS_engine_table(share, &m_pos),
     m_pos(), m_next_pos()
 {}
 
