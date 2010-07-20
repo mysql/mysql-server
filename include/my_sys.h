@@ -253,7 +253,6 @@ extern int my_umask_dir,
 	   my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
 	   my_dont_interrupt;	/* call remember_intr when set */
 extern my_bool my_use_symdir;
-extern size_t sf_malloc_cur_memory, sf_malloc_max_memory;
 
 extern ulong	my_default_record_cache_size;
 extern my_bool  my_disable_locking, my_disable_async_io,
