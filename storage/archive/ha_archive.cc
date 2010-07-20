@@ -1290,10 +1290,11 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 */
 int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  DBUG_ENTER("ha_archive::optimize");
   int rc= 0;
   azio_stream writer;
   char writer_filename[FN_REFLEN];
+  char* frm_string;
+  DBUG_ENTER("ha_archive::optimize");
 
   init_archive_reader();
 
@@ -1304,12 +1305,28 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     share->archive_write_open= FALSE;
   }
 
+  if (!(frm_string= (char*) malloc(archive.frm_length)))
+    return ENOMEM;
+
+  azread_frm(&archive, frm_string);
+
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
   if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
+  {
+    free(frm_string);
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+  }
+
+  rc= azwrite_frm(&writer, frm_string, archive.frm_length);
+  free(frm_string);
+  if (rc)
+  {
+    rc= HA_ERR_CRASHED_ON_USAGE;
+    goto error;
+  }
 
   /* 
     An extended rebuild is a lot more effort. We open up each row and re-record it. 
@@ -1386,7 +1403,6 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   // make the file we just wrote be our data file
   rc = my_rename(writer_filename,share->data_file_name,MYF(0));
-
 
   DBUG_RETURN(rc);
 error:
