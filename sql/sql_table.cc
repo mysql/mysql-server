@@ -7339,12 +7339,22 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
     /* Close lock if this is a transactional table */
-    if (thd->lock &&
-        ! (thd->locked_tables_mode == LTM_LOCK_TABLES ||
-           thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
+    if (thd->lock)
     {
-      mysql_unlock_tables(thd, thd->lock);
-      thd->lock=0;
+      if (thd->locked_tables_mode != LTM_LOCK_TABLES &&
+          thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES)
+      {
+        mysql_unlock_tables(thd, thd->lock);
+        thd->lock=0;
+      }
+      else
+      {
+        /*
+          If LOCK TABLES list is not empty and contains this table,
+          unlock the table and remove the table from this list.
+        */
+        mysql_lock_remove(thd, thd->lock, table);
+      }
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd, table, 1, 1);
