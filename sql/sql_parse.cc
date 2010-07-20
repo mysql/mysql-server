@@ -465,6 +465,12 @@ static void handle_bootstrap_impl(THD *thd)
       }
       buff= (char*) thd->net.buff;
       res= fgets(buff + length, thd->net.max_packet - length, file);
+      if (!res && !feof(file))
+      {
+        net_end_statement(thd);
+        bootstrap_error= 1;
+        break;
+      }
       length+= (ulong) strlen(buff + length);
       /* purecov: end */
     }
@@ -1535,7 +1541,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR current_global_status_var;
     ulong uptime;
-    uint length;
+    uint length __attribute__((unused));
     ulonglong queries_per_second1000;
     char buff[250];
     uint buff_len= sizeof(buff);
@@ -1548,7 +1554,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
       queries_per_second1000= thd->query_id * LL(1000) / uptime;
 
-    length= my_snprintf((char*) buff, buff_len - 1,
+    length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%u",
@@ -1560,10 +1566,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         cached_open_tables(),
                         (uint) (queries_per_second1000 / 1000),
                         (uint) (queries_per_second1000 % 1000));
-#ifdef EMBEDDED_LIBRARY
-    /* Store the buffer in permanent memory */
-    my_ok(thd, 0, 0, buff);
-#endif
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
     {
@@ -1578,6 +1580,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     VOID(my_net_write(net, (uchar*) buff, length));
     VOID(net_flush(net));
     thd->main_da.disable_status();
+#else
+    /* Store the buffer in permanent memory */
+    my_ok(thd, 0, 0, buff);
 #endif
     break;
   }

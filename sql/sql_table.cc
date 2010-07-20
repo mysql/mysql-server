@@ -6507,7 +6507,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint index_add_count= 0;
   uint *index_add_buffer= NULL;
   uint candidate_key_count= 0;
-  bool committed= 0;
   bool no_pk;
   DBUG_ENTER("mysql_alter_table");
 
@@ -7380,7 +7379,6 @@ view_err:
     DBUG_PRINT("info", ("Committing before unlocking table"));
     if (ha_autocommit_or_rollback(thd, 0) || end_active_trans(thd))
       goto err1;
-    committed= 1;
   }
   /*end of if (! new_table) for add/drop index*/
 
