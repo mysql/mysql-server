@@ -3639,7 +3639,7 @@ xmlencode_print(const char *src, uint length)
     tee_fputs("NULL", PAGER);
   else
   {
-    for (const char *p = src; length; *p++, length--)
+    for (const char *p = src; length; p++, length--)
     {
       const char *t;
       if ((t = array_value(xmlmeta, *p)))
@@ -4726,7 +4726,7 @@ static const char* construct_prompt()
   struct tm *t = localtime(&lclock);
 
   /* parse thru the settings for the prompt */
-  for (char *c = current_prompt; *c ; *c++)
+  for (char *c = current_prompt; *c ; c++)
   {
     if (*c != PROMPT_CHAR)
 	processed_prompt.append(*c);
