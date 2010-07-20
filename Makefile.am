@@ -63,7 +63,7 @@ dist-hook:
 	test ! -f $(top_srcdir)/configure.am  || \
 	$(INSTALL_DATA)  $(top_srcdir)/configure.am $(distdir)
 
-all-local:		@ABI_CHECK@	
+all-local:		@ABI_CHECK@
 
 tags:
 	support-files/build-tags
