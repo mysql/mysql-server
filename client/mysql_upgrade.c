@@ -596,7 +596,10 @@ static int upgrade_already_done(void)
 
   my_fclose(in, MYF(0));
 
-  return (strncmp(buf, MYSQL_SERVER_VERSION,
+  if (!res)
+    return 0; /* Could not read from file => not sure */
+
+  return (strncmp(res, MYSQL_SERVER_VERSION,
                   sizeof(MYSQL_SERVER_VERSION)-1)==0);
 }
 

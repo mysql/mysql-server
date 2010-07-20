@@ -180,7 +180,7 @@ static int example_done_func(void *p)
   my_hash_free(&example_open_tables);
   mysql_mutex_destroy(&example_mutex);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
