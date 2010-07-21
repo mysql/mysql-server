@@ -102,3 +102,13 @@ INSERT INTO t1(a,b,c,d) VALUES ('w','x','y','z'), ('W','X','Y','Z');
 SELECT v FROM t1 ORDER BY CONCAT(a,b);
 
 DROP TABLE t1;
+
+#
+# Bug#607168: CREATE TABLE AS SELECT that returns virtual columns
+#
+
+CREATE TABLE t1 (f1 INTEGER, v1 INTEGER AS (f1) VIRTUAL);
+CREATE TABLE t2 AS SELECT v1 FROM t1;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1,t2;
