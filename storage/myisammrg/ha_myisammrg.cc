@@ -103,6 +103,7 @@
 #include "myrg_def.h"
 #include "thr_malloc.h"                         // int_sql_alloc
 #include "sql_class.h"                          // THD
+#include "debug_sync.h"
 
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
@@ -298,9 +299,8 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   if (! db || ! table_name)
     DBUG_RETURN(1);
 
-  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", db_length, db,
-                      table_name_length, table_name));
-
+  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", (int) db_length, db,
+                      (int) table_name_length, table_name));
 
   /* Convert to lowercase if required. */
   if (lower_case_table_names && table_name_length)
@@ -755,6 +755,7 @@ int ha_myisammrg::attach_children(void)
   /* Must not call this with attached children. */
   DBUG_ASSERT(!this->file->children_attached);
 
+  DEBUG_SYNC(current_thd, "before_myisammrg_attach");
   /* Must call this with children list in place. */
   DBUG_ASSERT(this->table->pos_in_table_list->next_global == this->children_l);
 
@@ -829,7 +830,7 @@ int ha_myisammrg::attach_children(void)
         error= HA_ERR_WRONG_MRG_TABLE_DEF;
         if (!(this->test_if_locked & HA_OPEN_FOR_REPAIR))
         {
-          my_free((uchar*) recinfo, MYF(0));
+          my_free(recinfo);
           goto err;
         }
         /* purecov: begin inspected */
@@ -837,7 +838,7 @@ int ha_myisammrg::attach_children(void)
         /* purecov: end */
       }
     }
-    my_free((uchar*) recinfo, MYF(0));
+    my_free(recinfo);
     if (error == HA_ERR_WRONG_MRG_TABLE_DEF)
       goto err; /* purecov: inspected */
 

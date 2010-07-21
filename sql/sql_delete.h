@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@ template <typename T> class SQL_I_List;
 
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_I_List<ORDER> *order, ha_rows rows, ulonglong options,
-                  bool reset_auto_increment);
-bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
+                  SQL_I_List<ORDER> *order, ha_rows rows, ulonglong options);
 
 #endif /* SQL_DELETE_INCLUDED */

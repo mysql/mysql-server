@@ -44,7 +44,7 @@
 #define gbkhead(e)     ((uchar)(e>>8))
 #define gbktail(e)     ((uchar)(e&0xff))
 
-static uchar NEAR ctype_gbk[257] =
+static uchar ctype_gbk[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -65,7 +65,7 @@ static uchar NEAR ctype_gbk[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-static uchar NEAR to_lower_gbk[]=
+static uchar to_lower_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -101,7 +101,7 @@ static uchar NEAR to_lower_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_gbk[]=
+static uchar to_upper_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -995,7 +995,7 @@ static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
 
 
 
-static uchar NEAR sort_order_gbk[]=
+static uchar sort_order_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -1031,7 +1031,7 @@ static uchar NEAR sort_order_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uint16 NEAR gbk_order[]=
+static uint16 gbk_order[]=
 {
 8653,14277,17116,11482,11160,2751,14613,3913,13337,9827,
 19496,1759,8105,7103,7836,5638,2223,21433,5878,8006,
@@ -3520,31 +3520,35 @@ static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                              uchar *dest, size_t len,
-                              const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_gbk(CHARSET_INFO *cs,
+                uchar *dst, size_t dstlen, uint nweights,
+                const uchar *src, size_t srclen, uint flags)
 {
-  uint16 e;
-  size_t dstlen= len;
-  uchar *dest_end= dest + dstlen;
+  uchar *d0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  const uchar *sort_order= cs->sort_order;
 
-  len = srclen;
-  while (len-- && dest < dest_end)
+  for (; dst < de && src < se && nweights; nweights--)
   {
-    if ((len > 0) && isgbkcode(*src, *(src+1)))
+    if (cs->cset->ismbchar(cs, (const char*) src, (const char*) se))
     {
-      e = gbksortorder((uint16) gbkcode(*src, *(src+1)));
-      *dest++ = gbkhead(e);
-      if (dest < dest_end)
-        *dest++ = gbktail(e);
-      src+=2;
-      len--;
-    } else 
-      *dest++ = sort_order_gbk[(uchar) *src++];
+      /*
+        Note, it is safe not to check (src < se)
+        in the code below, because ismbchar() would
+        not return TRUE if src was too short
+      */
+      uint16 e= gbksortorder((uint16) gbkcode(*src, *(src + 1)));
+      *dst++= gbkhead(e);
+      if (dst < de)
+        *dst++= gbktail(e);
+      src+= 2;
+    }
+    else
+      *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-  if (dstlen > srclen)
-    bfill(dest, dstlen - srclen, ' ');
-  return dstlen;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
 
 
@@ -10909,6 +10913,8 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -10941,6 +10947,8 @@ CHARSET_INFO my_charset_gbk_bin=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

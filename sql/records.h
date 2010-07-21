@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface                      /* gcc class implementation */
@@ -71,7 +71,7 @@ void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select, int use_record_cache,
                       bool print_errors, bool disable_rr_cache);
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
-                          bool print_error, uint idx);
+                          bool print_error, uint idx, bool reverse);
 void end_read_record(READ_RECORD *info);
 
 void rr_unlock_row(st_join_table *tab);

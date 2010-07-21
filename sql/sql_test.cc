@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Write some debug info */
@@ -45,7 +45,6 @@ static const char *lock_descriptions[] =
   /* TL_READ_HIGH_PRIORITY      */  "High priority read lock",
   /* TL_READ_NO_INSERT          */  "Read lock without concurrent inserts",
   /* TL_WRITE_ALLOW_WRITE       */  "Write lock that allows other writers",
-  /* TL_WRITE_ALLOW_READ        */  "Write lock, but allow reading",
   /* TL_WRITE_CONCURRENT_INSERT */  "Concurrent insert lock",
   /* TL_WRITE_DELAYED           */  "Lock used by delayed insert",
   /* TL_WRITE_DEFAULT           */  NULL,
@@ -555,11 +554,6 @@ Next alarm time: %lu\n",
 	 alarm_info.next_alarm_time);
 #endif
   display_table_locks();
-  fflush(stdout);
-  my_checkmalloc();
-  fprintf(stdout,"\nBegin safemalloc memory dump:\n"); // tag needed for test suite
-  TERMINATE(stdout, 1);				// Write malloc information
-  fprintf(stdout,"\nEnd safemalloc memory dump.\n");  
   fflush(stdout);
 #ifdef HAVE_MALLINFO
   struct mallinfo info= mallinfo();

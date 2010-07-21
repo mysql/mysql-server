@@ -33,7 +33,7 @@ ctype-ujis.c file.
 #ifdef HAVE_CHARSET_eucjpms
 
 
-static uchar NEAR ctype_eucjpms[257] =
+static uchar ctype_eucjpms[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -70,7 +70,7 @@ static uchar NEAR ctype_eucjpms[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar NEAR to_lower_eucjpms[]=
+static uchar to_lower_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -106,7 +106,7 @@ static uchar NEAR to_lower_eucjpms[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR to_upper_eucjpms[]=
+static uchar to_upper_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -142,7 +142,7 @@ static uchar NEAR to_upper_eucjpms[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR sort_order_eucjpms[]=
+static uchar sort_order_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -67505,7 +67505,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     NULL,		/* init */
     my_strnncoll_simple,/* strnncoll    */
     my_strnncollsp_simple,
-    my_strnxfrm_simple,	/* strnxfrm     */
+    my_strnxfrm_mb,	/* strnxfrm     */
     my_strnxfrmlen_simple,
     my_like_range_mb,   /* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
@@ -67576,6 +67576,8 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci=
     255,		/* max_sort_char */
     ' ',		/* pad_char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -67609,6 +67611,8 @@ CHARSET_INFO my_charset_eucjpms_bin=
     255,		/* max_sort_char */
     ' ',		/* pad_char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

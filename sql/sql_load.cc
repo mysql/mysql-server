@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Copy data from a textfile to table */
@@ -34,7 +34,7 @@
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <m_ctype.h>
 #include "rpl_mi.h"
-#include "sql_repl.h"
+#include "rpl_slave.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 
@@ -355,7 +355,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
                        MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
                        MY_RETURN_REAL_PATH);
-#if !defined(__WIN__) && ! defined(__NETWARE__)
+#if !defined(__WIN__)
       MY_STAT stat_info;
       if (!mysql_file_stat(key_file_load, name, &stat_info, MYF(MY_WME)))
 	DBUG_RETURN(TRUE);
@@ -1337,7 +1337,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      (is_fifo ? READ_FIFO : READ_CACHE),0L,1,
 		      MYF(MY_WME)))
     {
-      my_free((uchar*) buffer,MYF(0)); /* purecov: inspected */
+      my_free(buffer); /* purecov: inspected */
       error=1;
     }
     else
@@ -1368,7 +1368,7 @@ READ_INFO::~READ_INFO()
   {
     if (need_end_io_cache)
       ::end_io_cache(&cache);
-    my_free((uchar*) buffer,MYF(0));
+    my_free(buffer);
     error=1;
   }
   List_iterator<XML_TAG> xmlit(taglist);
@@ -1441,29 +1441,6 @@ int READ_INFO::read_field()
     while ( to < end_of_buff)
     {
       chr = GET;
-#ifdef USE_MB
-      if ((my_mbcharlen(read_charset, chr) > 1) &&
-          to+my_mbcharlen(read_charset, chr) <= end_of_buff)
-      {
-	  uchar* p = (uchar*)to;
-	  *to++ = chr;
-	  int ml = my_mbcharlen(read_charset, chr);
-	  int i;
-	  for (i=1; i<ml; i++) {
-	      chr = GET;
-	      if (chr == my_b_EOF)
-		  goto found_eof;
-	      *to++ = chr;
-	  }
-	  if (my_ismbchar(read_charset,
-                          (const char *)p,
-                          (const char *)to))
-	    continue;
-	  for (i=0; i<ml; i++)
-	    PUSH((uchar) *--to);
-	  chr = GET;
-      }
-#endif
       if (chr == my_b_EOF)
 	goto found_eof;
       if (chr == escape_char)
@@ -1547,6 +1524,39 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
+#ifdef USE_MB
+      if (my_mbcharlen(read_charset, chr) > 1 &&
+          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+      {
+        uchar* p= (uchar*) to;
+        int ml, i;
+        *to++ = chr;
+
+        ml= my_mbcharlen(read_charset, chr);
+
+        for (i= 1; i < ml; i++) 
+        {
+          chr= GET;
+          if (chr == my_b_EOF)
+          {
+            /*
+             Need to back up the bytes already ready from illformed
+             multi-byte char 
+            */
+            to-= i;
+            goto found_eof;
+          }
+          *to++ = chr;
+        }
+        if (my_ismbchar(read_charset,
+                        (const char *)p,
+                        (const char *)to))
+          continue;
+        for (i= 0; i < ml; i++)
+          PUSH((uchar) *--to);
+        chr= GET;
+      }
+#endif
       *to++ = (uchar) chr;
     }
     /*

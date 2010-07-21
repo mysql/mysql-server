@@ -93,3 +93,28 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE t2;
 DROP TABLE t1;
 End of 5.5 tests.
+#
+# Bug#53236 Segfault in DTCollation::set(DTCollation&)
+#
+CREATE TABLE t1 (
+pk INTEGER AUTO_INCREMENT,
+col_varchar VARCHAR(1),
+PRIMARY KEY (pk)
+)
+;
+INSERT INTO t1 (col_varchar) 
+VALUES
+('w'),
+('m')
+;
+SELECT  table1.pk
+FROM ( t1 AS table1 JOIN t1 AS table2 ON (table1.col_varchar =
+table2.col_varchar) ) 
+WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
+SUBQUERY1_t1.pk AS SUBQUERY1_field2
+FROM ( t1 AS SUBQUERY1_t1 JOIN t1 AS SUBQUERY1_t2
+ON (SUBQUERY1_t2.col_varchar =
+SUBQUERY1_t1.col_varchar) ) ) 
+;
+pk
+drop table t1;

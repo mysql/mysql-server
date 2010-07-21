@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Insert of records */
@@ -70,7 +70,7 @@
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
-#include "slave.h"
+#include "rpl_slave.h"
 #include "sql_parse.h"                          // end_active_trans
 #include "rpl_mi.h"
 #include "transaction.h"
@@ -93,7 +93,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 #define my_safe_afree(ptr, size, min_length) my_afree(ptr)
 #else
 #define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(0)))
-#define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr,MYF(0))
+#define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr)
 #endif
 
 /*
@@ -1779,8 +1779,8 @@ public:
     {}
   ~delayed_row()
   {
-    x_free(query.str);
-    x_free(record);
+    my_free(query.str);
+    my_free(record);
   }
 };
 
@@ -1814,7 +1814,6 @@ public:
     thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
     thd.current_tablenr=0;
-    thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
@@ -1869,7 +1868,7 @@ public:
     mysql_cond_destroy(&cond);
     mysql_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
-    x_free(thd.query());
+    my_free(thd.query());
     thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
@@ -2277,7 +2276,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   row= new delayed_row(query, duplic, ignore, log_on);
   if (row == NULL)
   {
-    my_free(query.str, MYF(MY_WME));
+    my_free(query.str);
     goto err;
   }
 
@@ -2681,7 +2680,7 @@ static void free_delayed_insert_blobs(register TABLE *table)
     {
       uchar *str;
       ((Field_blob *) (*ptr))->get_ptr(&str);
-      my_free(str,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(str);
       ((Field_blob *) (*ptr))->reset();
     }
   }
@@ -3608,13 +3607,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
           an exclusive metadata lock.
         */
-        if (open_table(thd, create_table, thd->mem_root,
-                       &ot_ctx_unused, MYSQL_OPEN_REOPEN))
+        if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
         {
           mysql_mutex_lock(&LOCK_open);
           quick_rm_table(create_info->db_type, create_table->db,
@@ -3627,9 +3625,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
-        if (open_table(thd, create_table, thd->mem_root, &ot_ctx_unused,
-                       MYSQL_OPEN_TEMPORARY_ONLY))
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_TEMPORARY_ONLY);
+        if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
         {
           /*
             This shouldn't happen as creation of temporary table should make
