@@ -301,11 +301,10 @@ my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
-  char *end_ptr;
-  if (!(res= val_str(&str_value)))
-    return 0;                                   // NULL or EOM
 
-  end_ptr= (char*) res->ptr()+ res->length();
+  if (!(res= val_str(&str_value)))
+    return NULL;
+
   if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
@@ -4914,11 +4913,8 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
     e.g. <bin_col> = <int_col> AND <bin_col> = <hex_string>) since
     Items don't know the context they are in and there are functions like 
     IF (<hex_string>, 'yes', 'no').
-    The same problem occurs when comparing a DATE/TIME field with a
-    DATE/TIME represented as an int and as a string.
   */
-  if (!item ||
-      (cmp_context != (Item_result)-1 && item->cmp_context != cmp_context))
+  if (!item || !has_compatible_context(item))
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
@@ -4982,8 +4978,7 @@ Item *Item_field::replace_equal_field(uchar *arg)
     Item *const_item= item_equal->get_const();
     if (const_item)
     {
-      if (cmp_context != (Item_result)-1 &&
-          const_item->cmp_context != cmp_context)
+      if (!has_compatible_context(const_item))
         return this;
       return const_item;
     }
@@ -5050,21 +5045,6 @@ enum_field_types Item::field_type() const
     DBUG_ASSERT(0);
     return MYSQL_TYPE_VARCHAR;
   }
-}
-
-
-bool Item::is_datetime()
-{
-  switch (field_type())
-  {
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      return TRUE;
-    default:
-      break;
-  }
-  return FALSE;
 }
 
 
@@ -7468,6 +7448,8 @@ bool  Item_cache_datetime::cache_value_int()
     return FALSE;
 
   value_cached= TRUE;
+  // Mark cached string value obsolete
+  str_value_cached= FALSE;
   /* Assume here that the underlying item will do correct conversion.*/
   int_value= example->val_int_result();
   null_value= example->null_value;
@@ -7480,7 +7462,13 @@ bool  Item_cache_datetime::cache_value()
 {
   if (!example)
     return FALSE;
+
+  if (cmp_context == INT_RESULT)
+    return cache_value_int();
+
   str_value_cached= TRUE;
+  // Mark cached int value obsolete
+  value_cached= FALSE;
   /* Assume here that the underlying item will do correct conversion.*/
   String *res= example->str_result(&str_value);
   if (res && res != &str_value)
@@ -7504,8 +7492,47 @@ void Item_cache_datetime::store(Item *item, longlong val_arg)
 String *Item_cache_datetime::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!str_value_cached && !cache_value())
-    return NULL;
+  if (!str_value_cached)
+  {
+    /*
+      When it's possible the Item_cache_datetime uses INT datetime
+      representation due to speed reasons. But still, it always has the STRING
+      result type and thus it can be asked to return a string value. 
+      It is possible that at this time cached item doesn't contain correct
+      string value, thus we have to convert cached int value to string and
+      return it.
+    */
+    if (value_cached)
+    {
+      MYSQL_TIME ltime;
+      if (str_value.alloc(MAX_DATE_STRING_REP_LENGTH))
+        return NULL;
+      if (cached_field_type == MYSQL_TYPE_TIME)
+      {
+        ulonglong time= int_value;
+        DBUG_ASSERT(time < TIME_MAX_VALUE);
+        set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
+        ltime.second= time % 100;
+        time/= 100;
+        ltime.minute= time % 100;
+        time/= 100;
+        ltime.hour= time % 100;
+      }
+      else
+      {
+        int was_cut;
+        longlong res;
+        res= number_to_datetime(val_int(), &ltime, TIME_FUZZY_DATE, &was_cut);
+        if (res == -1)
+          return NULL;
+      }
+      str_value.length(my_TIME_to_str(&ltime,
+                                      const_cast<char*>(str_value.ptr())));
+      str_value_cached= TRUE;
+    }
+    else if (!cache_value())
+      return NULL;
+  }
   return &str_value;
 }
 

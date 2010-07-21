@@ -1034,7 +1034,7 @@ public:
 
   static void operator delete(void *ptr, size_t size)
   {
-    my_free((uchar*) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+    my_free(ptr);
   }
 
   /* Placement version of the above operators */
@@ -1091,7 +1091,7 @@ public:
   {
     if (temp_buf)
     {
-      my_free(temp_buf, MYF(0));
+      my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -1725,7 +1725,7 @@ public:
   ~Query_log_event()
   {
     if (data_buf)
-      my_free((uchar*) data_buf, MYF(0));
+      my_free(data_buf);
   }
   Log_event_type get_type_code() { return QUERY_EVENT; }
 #ifdef MYSQL_SERVER
@@ -2304,7 +2304,7 @@ public:
                                *description_event);
   ~Format_description_log_event()
   {
-    my_free((uchar*)post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(post_header_len);
   }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifdef MYSQL_SERVER
@@ -2703,7 +2703,7 @@ public:
   ~Rotate_log_event()
   {
     if (flags & DUP_NAME)
-      my_free((uchar*) new_log_ident, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((void*) new_log_ident);
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
@@ -2765,7 +2765,7 @@ public:
                         const Format_description_log_event* description_event);
   ~Create_file_log_event()
   {
-    my_free((char*) event_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((void*) event_buf);
   }
 
   Log_event_type get_type_code()

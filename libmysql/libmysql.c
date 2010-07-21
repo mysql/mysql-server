@@ -34,7 +34,7 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -45,7 +45,7 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /* !defined(MSDOS) && !defined(__WIN__) */
+#endif /* !defined(__WIN__) */
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
@@ -74,7 +74,7 @@ ulong		max_allowed_packet= 1024L*1024L*1024L;
 my_bool	net_flush(NET *net);
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 /* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
@@ -128,31 +128,29 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     init_client_errs();
     if (!mysql_port)
     {
-      mysql_port = MYSQL_PORT;
-#ifndef MSDOS
-      {
-	struct servent *serv_ptr __attribute__((unused));
-	char	*env;
+      char *env;
+      struct servent *serv_ptr __attribute__((unused));
 
-        /*
-          if builder specifically requested a default port, use that
-          (even if it coincides with our factory default).
-          only if they didn't do we check /etc/services (and, failing
-          on that, fall back to the factory default of 3306).
-          either default can be overridden by the environment variable
-          MYSQL_TCP_PORT, which in turn can be overridden with command
-          line options.
-        */
+      mysql_port = MYSQL_PORT;
+
+      /*
+        if builder specifically requested a default port, use that
+        (even if it coincides with our factory default).
+        only if they didn't do we check /etc/services (and, failing
+        on that, fall back to the factory default of 3306).
+        either default can be overridden by the environment variable
+        MYSQL_TCP_PORT, which in turn can be overridden with command
+        line options.
+      */
 
 #if MYSQL_PORT_DEFAULT == 0
-        if ((serv_ptr = getservbyname("mysql", "tcp")))
-          mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+      if ((serv_ptr= getservbyname("mysql", "tcp")))
+        mysql_port= (uint) ntohs((ushort) serv_ptr->s_port);
 #endif
-        if ((env = getenv("MYSQL_TCP_PORT")))
-          mysql_port =(uint) atoi(env);
-      }
-#endif
+      if ((env= getenv("MYSQL_TCP_PORT")))
+        mysql_port=(uint) atoi(env);
     }
+
     if (!mysql_unix_port)
     {
       char *env;
@@ -165,7 +163,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 	mysql_unix_port = env;
     }
     mysql_debug(NullS);
-#if defined(SIGPIPE) && !defined(__WIN__) && !defined(__NETWARE__)
+#if defined(SIGPIPE) && !defined(__WIN__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
@@ -341,7 +339,7 @@ mysql_connect(MYSQL *mysql,const char *host,
     if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
     {
       if (mysql->free_me)
-	my_free((uchar*) mysql,MYF(0));
+	my_free(mysql);
     }
     mysql->reconnect= 1;
     DBUG_RETURN(res);
@@ -457,9 +455,9 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (rc == 0)
   {
     /* Free old connect information */
-    my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->user);
+    my_free(mysql->passwd);
+    my_free(mysql->db);
 
     /* alloc new connect information */
     mysql->user=  my_strdup(user,MYF(MY_WME));
@@ -479,15 +477,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if defined(__NETWARE__)
-/* Default to value of USER on NetWare, if unset use "UNKNOWN_USER" */
-void read_user_name(char *name)
-{
-  char *str=getenv("USER");
-  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
-}
-
-#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__)
+#if !defined(__WIN__)
 
 void read_user_name(char *name)
 {
@@ -517,7 +507,7 @@ void read_user_name(char *name)
   DBUG_VOID_RETURN;
 }
 
-#else /* If MSDOS || VMS */
+#else /* If Windows */
 
 void read_user_name(char *name)
 {
@@ -604,7 +594,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 err:
   /* free up memory allocated with _init, usually */
   (*options->local_infile_end)(li_ptr);
-  my_free(buf, MYF(0));
+  my_free(buf);
   DBUG_RETURN(result);
 }
 
@@ -715,7 +705,7 @@ static void default_local_infile_end(void *ptr)
   {
     if (data->fd >= 0)
       my_close(data->fd, MYF(MY_WME));
-    my_free(ptr, MYF(MY_WME));
+    my_free(ptr);
   }
 }
 
@@ -2211,7 +2201,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     }
     result= execute(stmt, param_data, length);
     stmt->send_types_to_server=0;
-    my_free(param_data, MYF(MY_WME));
+    my_free(param_data);
     DBUG_RETURN(result);
   }
   DBUG_RETURN((int) execute(stmt,0,0));
@@ -4042,6 +4032,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_TIME:
     field->max_length= 15;                    /* 19:23:48.123456 */
     param->skip_result= skip_result_with_length;
+    break;
   case MYSQL_TYPE_DATE:
     field->max_length= 10;                    /* 2003-11-11 */
     param->skip_result= skip_result_with_length;
@@ -4727,7 +4718,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
     }
   }
 
-  my_free((uchar*) stmt, MYF(MY_WME));
+  my_free(stmt);
 
   DBUG_RETURN(test(rc));
 }

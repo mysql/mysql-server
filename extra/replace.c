@@ -262,7 +262,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
-      my_free((uchar*) pa->typelib.type_names,MYF(0));
+      my_free(pa->typelib.type_names);
       DBUG_RETURN (-1);
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
@@ -324,9 +324,9 @@ static void free_pointer_array(reg1 POINTER_ARRAY *pa)
   if (pa->typelib.count)
   {
     pa->typelib.count=0;
-    my_free((uchar*) pa->typelib.type_names,MYF(0));
+    my_free(pa->typelib.type_names);
     pa->typelib.type_names=0;
-    my_free((uchar*) pa->str,MYF(0));
+    my_free(pa->str);
   }
   return;
 } /* free_pointer_array */
@@ -441,7 +441,7 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
   if (!(follow=(FOLLOWS*) my_malloc((states+2)*sizeof(FOLLOWS),MYF(MY_WME))))
   {
     free_sets(&sets);
-    my_free((uchar*) found_set,MYF(0));
+    my_free(found_set);
     DBUG_RETURN(0);
   }
 
@@ -663,9 +663,9 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
 	  replace[i].next[j]=(REPLACE*) (rep_str+(-sets.set[i].next[j]-1));
     }
   }
-  my_free((uchar*) follow,MYF(0));
+  my_free(follow);
   free_sets(&sets);
-  my_free((uchar*) found_set,MYF(0));
+  my_free(found_set);
   DBUG_PRINT("exit",("Replace table has %d states",sets.count));
   DBUG_RETURN(replace);
 }
@@ -681,7 +681,7 @@ static int init_sets(REP_SETS *sets,uint states)
   if (!(sets->bit_buffer=(uint*) my_malloc(sizeof(uint)*sets->size_of_bits*
 					   SET_MALLOC_HUNC,MYF(MY_WME))))
   {
-    my_free((uchar*) sets->set,MYF(0));
+    my_free(sets->set);
     return 1;
   }
   return 0;
@@ -742,8 +742,8 @@ static void free_last_set(REP_SETS *sets)
 
 static void free_sets(REP_SETS *sets)
 {
-  my_free((uchar*)sets->set_buffer,MYF(0));
-  my_free((uchar*)sets->bit_buffer,MYF(0));
+  my_free(sets->set_buffer);
+  my_free(sets->bit_buffer);
   return;
 }
 
@@ -950,8 +950,8 @@ static void reset_buffer()
 
 static void free_buffer()
 {
-  my_free(buffer,MYF(MY_WME));
-  my_free(out_buff,MYF(MY_WME));
+  my_free(buffer);
+  my_free(out_buff);
 }
 
 

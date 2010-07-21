@@ -95,7 +95,7 @@ public:
   ~ha_tina()
   {
     if (chain_alloced)
-      my_free(chain, 0);
+      my_free(chain);
     if (file_buff)
       delete file_buff;
     free_root(&blobroot, MYF(0));

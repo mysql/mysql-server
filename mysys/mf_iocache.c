@@ -1703,16 +1703,19 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
 #endif
 
 
-int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
+int my_b_flush_io_cache(IO_CACHE *info,
+                        int need_append_buffer_lock __attribute__((unused)))
 {
   size_t length;
-  my_bool append_cache;
   my_off_t pos_in_file;
+  my_bool append_cache= (info->type == SEQ_READ_APPEND);
   DBUG_ENTER("my_b_flush_io_cache");
   DBUG_PRINT("enter", ("cache: 0x%lx", (long) info));
 
-  if (!(append_cache = (info->type == SEQ_READ_APPEND)))
-    need_append_buffer_lock=0;
+#ifdef THREAD
+  if (!append_cache)
+    need_append_buffer_lock= 0;
+#endif
 
   if (info->type == WRITE_CACHE || append_cache)
   {
@@ -1831,7 +1834,7 @@ int end_io_cache(IO_CACHE *info)
     info->alloced_buffer=0;
     if (info->file != -1)			/* File doesn't exist */
       error= my_b_flush_io_cache(info,1);
-    my_free((uchar*) info->buffer,MYF(MY_WME));
+    my_free(info->buffer);
     info->buffer=info->read_pos=(uchar*) 0;
   }
   if (info->type == SEQ_READ_APPEND)
@@ -1917,7 +1920,7 @@ int main(int argc, char** argv)
     total_bytes += 4+block_size;
   }
   close_file(&sra_cache);
-  my_free(block,MYF(MY_WME));
+  my_free(block);
   if (!my_stat(fname,&status,MYF(MY_WME)))
     die("%s failed to stat, but I had just closed it,\
  wonder how that happened");
