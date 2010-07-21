@@ -2,7 +2,7 @@
 
 # 2010-01-25 - Added
 #
-
+--source include/not_embedded.inc
 --source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_file_format_max;

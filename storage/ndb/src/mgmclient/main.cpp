@@ -20,7 +20,7 @@
 extern "C" {
 #if defined( __WIN__)
 #include <conio.h>
-#elif !defined(__NETWARE__)
+#else
 #include <readline/readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 extern "C" int read_history(const char *command);

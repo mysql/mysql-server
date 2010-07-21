@@ -246,7 +246,9 @@ static int add_collation(CHARSET_INFO *cs)
         return MY_XML_ERROR;
 
       newcs->caseup_multiply= newcs->casedn_multiply= 1;
-
+      newcs->levels_for_compare= 1;
+      newcs->levels_for_order= 1;
+      
       if (!strcmp(cs->csname,"ucs2") )
       {
 #if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
@@ -383,11 +385,11 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 #endif
   }
   
-  my_free(buf, myflags);
+  my_free(buf);
   return FALSE;
 
 error:
-  my_free(buf, myflags);
+  my_free(buf);
   return TRUE;
 }
 

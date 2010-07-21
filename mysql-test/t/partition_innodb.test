@@ -1,3 +1,4 @@
+--source include/not_embedded.inc
 --source include/have_partition.inc
 --source include/have_innodb.inc
 
@@ -451,3 +452,19 @@ SELECT * FROM t1;
 COMMIT;
 DROP TABLE t1;
 --enable_parsing
+
+--echo #
+--echo # Bug#54783: optimize table crashes with invalid timestamp default value and NO_ZERO_DATE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT '0000-00-00 00:00:00')
+  ENGINE=INNODB PARTITION BY LINEAR HASH (a) PARTITIONS 1;
+SET @old_mode = @@sql_mode;
+SET SESSION sql_mode = 'NO_ZERO_DATE';
+OPTIMIZE TABLE t1;
+SET SESSION sql_mode = @old_mode;
+DROP TABLE t1;

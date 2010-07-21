@@ -148,7 +148,7 @@ enum options_mc {
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
-  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD
+  OPT_MAX_RECORD_LENGTH, OPT_STATS_METHOD
 };
 
 static struct my_option my_long_options[] =
@@ -156,10 +156,6 @@ static struct my_option my_long_options[] =
   {"analyze", 'a',
    "Analyze distribution of keys. Will make some joins in MySQL faster. You can check the calculated distribution.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"block-search", 'b',
    "No help available.",
    0, 0, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -336,13 +332,10 @@ static struct my_option my_long_options[] =
 };
 
 
-#include <help_start.h>
-
 static void print_version(void)
 {
   printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -364,7 +357,7 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined( __WIN__)
    printf("semicolon (;)");
 #else
    printf("colon (:)");
@@ -460,7 +453,6 @@ static void usage(void)
   my_print_variables(my_long_options);
 }
 
-#include <help_end.h>
 
 const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
                                            "nulls_ignored", NullS};
@@ -476,11 +468,6 @@ get_one_option(int optid,
 	       char *argument)
 {
   switch (optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'a':
     if (argument == disabled_my_option)
       check_param.testflag&= ~T_STATISTICS;
@@ -1629,11 +1616,10 @@ err:
   {
     my_afree((uchar*) temp_buff);
   }
-  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
-          MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   (void) end_io_cache(&info->rec_cache);
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_info.buff);
   sort_info.buff=0;
   share->state.sortkey=sort_key;
   DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile) |
@@ -1673,7 +1659,6 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
   endpos=buff+used_length;
   for ( ;; )
   {
-    _sanity(__FILE__,__LINE__);
     if (nod_flag)
     {
       next_page=_mi_kpos(nod_flag,keypos);
@@ -1689,7 +1674,6 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
 			    new_file, update_index))
 	goto err;
     }
-    _sanity(__FILE__,__LINE__);
     if (keypos >= endpos ||
 	(key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,lastkey))
 	== 0)

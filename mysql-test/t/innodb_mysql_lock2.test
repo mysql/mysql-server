@@ -3,9 +3,18 @@
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements
 # so weaker locks are acquired for it.
+# Also in ROW mode LOCK_S row locks won't be acquired for DML
+# and test for bug#51263 won't trigger execution path on which
+# this bug was encountered.
 --source include/have_binlog_format_mixed_or_statement.inc
+# Original test case for bug#51263 needs partitioning.
+--source include/have_partition.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
 
 --echo #
 --echo # Test how do we handle locking in various cases when
@@ -199,8 +208,7 @@ let $table= t1;
 --echo # 1.1 Simple SELECT statement.
 --echo #
 --echo # No locks are necessary as this statement won't be written
---echo # to the binary log and thanks to how MyISAM works SELECT
---echo # will see version of the table prior to concurrent insert.
+--echo # to the binary log and InnoDB supports snapshots.
 let $statement= select * from t1;
 --source include/check_no_row_lock.inc
 
@@ -654,7 +662,7 @@ let $statement= call p2(@a);
 --source include/check_no_row_lock.inc
 
 --echo #
---echo # 5.2 Function that modifes data and uses CALL, 
+--echo # 5.2 Function that modifies data and uses CALL, 
 --echo #     which reads a table through SELECT.
 --echo #
 --echo # Since a call to such function is written to the binary
@@ -759,6 +767,104 @@ drop procedure p1;
 drop procedure p2;
 drop table t1, t2, t3, t4, t5;
 disconnect con1;
+
+
+--echo #
+--echo # Test for bug#51263 "Deadlock between transactional SELECT
+--echo # and ALTER TABLE ... REBUILD PARTITION".
+--echo #
+connect (con1,localhost,root,,test,,);
+connection default;
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (i int auto_increment not null primary key) engine=innodb;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+
+begin;
+--echo # Acquire SR metadata lock on t1 and LOCK_S row-locks on its rows.
+insert into t2 select count(*) from t1;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Sending:
+--send alter table t1 add column j int
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER is blocked because it tries to upgrade SNW
+--echo # metadata lock to X lock.
+--echo # It should not be blocked during copying data to new version of
+--echo # table as it acquires LOCK_S locks on rows of old version, which
+--echo # are compatible with locks acquired by connection 'con1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist where state =
+    "Waiting for table" and info = "alter table t1 add column j int";
+--source include/wait_condition.inc
+
+--echo # The below statement will deadlock because it will try to acquire
+--echo # SW lock on t1, which will conflict with ALTER's SNW lock. And
+--echo # ALTER will be waiting for this connection to release its SR lock.
+--echo # This deadlock should be detected by an MDL subsystem and this
+--echo # statement should be aborted with an appropriate error.
+--error ER_LOCK_DEADLOCK
+insert into t1 values (6);
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+
+--echo #
+--echo # Now test for scenario in which bug was reported originally.
+--echo #
+drop tables t1, t2;
+create table t1 (i int auto_increment not null primary key) engine=innodb
+  partition by hash (i) partitions 4;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5);
+
+begin;
+--echo # Acquire SR metadata lock on t1.
+select * from t1;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Sending:
+--send alter table t1 rebuild partition p0
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER is blocked because of active SR lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 rebuild partition p0";
+--source include/wait_condition.inc
+
+--echo # The below statement should succeed as transaction
+--echo # has SR metadata lock on t1 and only going to read
+--echo # rows from it.
+insert into t2 select count(*) from t1;
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con1;
+--echo # Clean-up.
+drop tables t1, t2;
+
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
