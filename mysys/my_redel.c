@@ -76,11 +76,8 @@ end:
 int my_copystat(const char *from, const char *to, int MyFlags)
 {
   struct stat statbuf;
-#if !defined(__WIN__) && !defined(__NETWARE__)
-  int res;
-#endif
 
-  if (stat((char*) from, &statbuf))
+  if (stat(from, &statbuf))
   {
     my_errno=errno;
     if (MyFlags & (MY_FAE+MY_WME))
@@ -89,7 +86,15 @@ int my_copystat(const char *from, const char *to, int MyFlags)
   }
   if ((statbuf.st_mode & S_IFMT) != S_IFREG)
     return 1;
-  VOID(chmod(to, statbuf.st_mode & 07777));		/* Copy modes */
+
+  /* Copy modes */
+  if (chmod(to, statbuf.st_mode & 07777))
+  {
+    my_errno= errno;
+    if (MyFlags & (MY_FAE+MY_WME))
+      my_error(EE_CHANGE_PERMISSIONS, MYF(ME_BELL+ME_WAITTANG), from, errno);
+    return -1;
+  }
 
 #if !defined(__WIN__) && !defined(__NETWARE__)
   if (statbuf.st_nlink > 1 && MyFlags & MY_LINK_WARNING)
@@ -97,7 +102,14 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     if (MyFlags & MY_LINK_WARNING)
       my_error(EE_LINK_WARNING,MYF(ME_BELL+ME_WAITTANG),from,statbuf.st_nlink);
   }
-  res= chown(to, statbuf.st_uid, statbuf.st_gid);	/* Copy ownership */
+  /* Copy ownership */
+  if (chown(to, statbuf.st_uid, statbuf.st_gid))
+  {
+    my_errno= errno;
+    if (MyFlags & (MY_FAE+MY_WME))
+      my_error(EE_CHANGE_OWNERSHIP, MYF(ME_BELL+ME_WAITTANG), from, errno);
+    return -1;
+  }
 #endif /* !__WIN__ && !__NETWARE__ */
 
 #ifndef VMS

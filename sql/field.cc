@@ -2277,7 +2277,7 @@ int Field_decimal::store(double nr)
   snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
   length= strlen(buff);
 #else
-  length= my_sprintf(buff,(buff,"%.*f",dec,nr));
+  length= sprintf(buff, "%.*f", dec, nr);
 #endif
 
   if (length > field_length)
@@ -4259,7 +4259,7 @@ String *Field_float::val_str(String *val_buffer,
     snprintf(to,to_length-1,"%.*f",dec,nr);
     to=strend(to);
 #else
-    to+= my_sprintf(to,(to,"%.*f",dec,nr));
+    to+= sprintf(to, "%.*f", dec, nr);
 #endif
 #endif
   }
@@ -4617,7 +4617,7 @@ String *Field_double::val_str(String *val_buffer,
     snprintf(to,to_length-1,"%.*f",dec,nr);
     to=strend(to);
 #else
-    to+= my_sprintf(to,(to,"%.*f",dec,nr));
+    to+= sprintf(to, "%.*f", dec, nr);
 #endif
 #endif
   }
@@ -5541,7 +5541,6 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
 int Field_date::store(double nr)
 {
   longlong tmp;
-  int error= 0;
   if (nr >= 19000000000000.0 && nr <= 99991231235959.0)
     nr=floor(nr/1000000.0);			// Timestamp to date
   if (nr < 0.0 || nr > 99991231.0)
@@ -5550,7 +5549,6 @@ int Field_date::store(double nr)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATE);
-    error= 1;
   }
   else
     tmp= (longlong) rint(nr);
@@ -6461,7 +6459,7 @@ int Field_str::store(double nr)
   /* Limit precision to DBL_DIG to avoid garbage past significant digits */
   set_if_smaller(digits, DBL_DIG);
   
-  length= (uint) my_sprintf(buff, (buff, "%-.*g", digits, nr));
+  length= (uint) sprintf(buff, "%-.*g", digits, nr);
 
 #ifdef __WIN__
   /*
@@ -8691,7 +8689,13 @@ int Field_set::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= 0;
-  ulonglong max_nr= set_bits(ulonglong, typelib->count);
+  ulonglong max_nr;
+
+  if (sizeof(ulonglong)*8 <= typelib->count)
+    max_nr= ULONGLONG_MAX;
+  else
+    max_nr= (ULL(1) << typelib->count) - 1;
+
   if ((ulonglong) nr > max_nr)
   {
     nr&= max_nr;
@@ -10413,7 +10417,7 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     /* DBL_DIG is enough to print '-[digits].E+###' */
     char str_nr[DBL_DIG + 8];
-    uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
+    uint str_len= sprintf(str_nr, "%g", nr);
     make_truncated_value_warning(thd, level, str_nr, str_len, ts_type,
                                  field_name);
   }
