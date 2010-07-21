@@ -264,7 +264,8 @@ struct sql_ex_info
                                    1 + 2          /* type, lc_time_names_number */ + \
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
-                                   1 + 4          /* type, master_data_written */)
+                                   1 + 4          /* type, master_data_written */ + \
+                                   1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \
@@ -332,6 +333,8 @@ struct sql_ex_info
 #define Q_TABLE_MAP_FOR_UPDATE_CODE 9
 
 #define Q_MASTER_DATA_WRITTEN_CODE 10
+
+#define Q_INVOKER 11
 
 /* Intvar event post-header */
 
@@ -1546,6 +1549,8 @@ protected:
 */
 class Query_log_event: public Log_event
 {
+  LEX_STRING user;
+  LEX_STRING host;
 protected:
   Log_event::Byte* data_buf;
 public:

@@ -1862,7 +1862,7 @@ static int find_uniq_filename(char *name)
   file_info= dir_info->dir_entry;
   for (i=dir_info->number_off_files ; i-- ; file_info++)
   {
-    if (bcmp((uchar*) file_info->name, (uchar*) start, length) == 0 &&
+    if (memcmp(file_info->name, start, length) == 0 &&
 	test_if_number(file_info->name+length, &number,0))
     {
       set_if_bigger(max_found,(ulong) number);
@@ -5050,6 +5050,22 @@ void sql_perror(const char *message)
 }
 
 
+/*
+  Unfortunately, there seems to be no good way
+  to restore the original streams upon failure.
+*/
+static bool redirect_std_streams(const char *file)
+{
+  if (freopen(file, "a+", stdout) && freopen(file, "a+", stderr))
+  {
+    setbuf(stderr, NULL);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
 bool flush_error_log()
 {
   bool result=0;
@@ -5077,11 +5093,7 @@ bool flush_error_log()
       setbuf(stderr, NULL);
       (void) my_delete(err_renamed, MYF(0));
       my_rename(log_error_file,err_renamed,MYF(0));
-      if (freopen(log_error_file,"a+",stdout))
-      {
-        freopen(log_error_file,"a+",stderr);
-        setbuf(stderr, NULL);
-      }
+      redirect_std_streams(log_error_file);
 
       if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
       {
@@ -5096,13 +5108,7 @@ bool flush_error_log()
      result= 1;
 #else
    my_rename(log_error_file,err_renamed,MYF(0));
-   if (freopen(log_error_file,"a+",stdout))
-   {
-     FILE *reopen;
-     reopen= freopen(log_error_file,"a+",stderr);
-     setbuf(stderr, NULL);
-   }
-   else
+   if (redirect_std_streams(log_error_file))
      result= 1;
 #endif
     VOID(pthread_mutex_unlock(&LOCK_error_log));
@@ -5153,25 +5159,9 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 #endif /* __NT__ */
 
 
-/**
-  Prints a printf style message to the error log and, under NT, to the
-  Windows event log.
-
-  This function prints the message into a buffer and then sends that buffer
-  to other functions to write that message to other logging sources.
-
-  @param event_type          Type of event to write (Error, Warning, or Info)
-  @param format              Printf style format of message
-  @param args                va_list list of arguments for the message
-
-  @returns
-    The function always returns 0. The return value is present in the
-    signature to be compatible with other logging routines, which could
-    return an error (e.g. logging to the log tables)
-*/
-
 #ifndef EMBEDDED_LIBRARY
-static void print_buffer_to_file(enum loglevel level, const char *buffer)
+static void print_buffer_to_file(enum loglevel level, const char *buffer,
+                                 size_t length)
 {
   time_t skr;
   struct tm tm_tmp;
@@ -5185,7 +5175,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
 
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %.*s\n",
           start->tm_year % 100,
           start->tm_mon+1,
           start->tm_mday,
@@ -5194,7 +5184,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
           start->tm_sec,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
            "Warning" : "Note"),
-          buffer);
+          (int) length, buffer);
 
   fflush(stderr);
 
@@ -5202,7 +5192,22 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Prints a printf style message to the error log and, under NT, to the
+  Windows event log.
 
+  This function prints the message into a buffer and then sends that buffer
+  to other functions to write that message to other logging sources.
+
+  @param level          The level of the msg significance
+  @param format         Printf style format of message
+  @param args           va_list list of arguments for the message
+
+  @returns
+    The function always returns 0. The return value is present in the
+    signature to be compatible with other logging routines, which could
+    return an error (e.g. logging to the log tables)
+*/
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
@@ -5210,7 +5215,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
   DBUG_ENTER("vprint_msg_to_log");
 
   length= my_vsnprintf(buff, sizeof(buff), format, args);
-  print_buffer_to_file(level, buff);
+  print_buffer_to_file(level, buff, length);
 
 #ifdef __NT__
   print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
@@ -5218,7 +5223,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 
   DBUG_RETURN(0);
 }
-#endif /*EMBEDDED_LIBRARY*/
+#endif /* EMBEDDED_LIBRARY */
 
 
 void sql_print_error(const char *format, ...) 

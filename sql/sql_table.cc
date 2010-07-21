@@ -6507,7 +6507,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint index_add_count= 0;
   uint *index_add_buffer= NULL;
   uint candidate_key_count= 0;
-  bool committed= 0;
   bool no_pk;
   DBUG_ENTER("mysql_alter_table");
 
@@ -6848,6 +6847,14 @@ view_err:
     if (!error && (new_name != table_name || new_db != db))
     {
       thd_proc_info(thd, "rename");
+
+      /*
+        Workaround InnoDB ending the transaction when the table instance
+        is unlocked/closed (close_cached_table below), otherwise the trx
+        state will differ between the server and storage engine layers.
+      */
+      ha_autocommit_or_rollback(thd, 0);
+
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -7372,7 +7379,6 @@ view_err:
     DBUG_PRINT("info", ("Committing before unlocking table"));
     if (ha_autocommit_or_rollback(thd, 0) || end_active_trans(thd))
       goto err1;
-    committed= 1;
   }
   /*end of if (! new_table) for add/drop index*/
 

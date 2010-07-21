@@ -521,8 +521,19 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         continue;
 
       file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));
-      if (wild && wild_compare(uname, wild, 0))
-        continue;
+      if (wild)
+      {
+	if (lower_case_table_names)
+	{
+          if (my_wildcmp(files_charset_info,
+                         uname, uname + file_name_len,
+                         wild, wild + wild_length,
+                         wild_prefix, wild_one,wild_many))
+            continue;
+	}
+	else if (wild_compare(uname, wild, 0))
+	  continue;
+      }
       if (!(file_name= 
             thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
       {
@@ -2202,8 +2213,8 @@ static bool show_status_array(THD *thd, const char *wild,
                               bool ucase_names,
                               COND *cond)
 {
-  MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
-  char * const buff= (char *) &buff_data;
+  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(long)> buffer;
+  char * const buff= buffer.data;
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
@@ -2278,7 +2289,7 @@ static bool show_status_array(THD *thd, const char *wild,
           value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_DOUBLE:
-          end= buff + my_sprintf(buff, (buff, "%f", *(double*) value));
+          end= buff + sprintf(buff, "%f", *(double*) value);
           break;
         case SHOW_LONG_STATUS:
           value= ((char *) status_var + (ulong) value);
@@ -2690,36 +2701,54 @@ bool get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
 {
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  bool rc= 0;
+
   bzero((char*) lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
   switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     if (wild)
     {
-      lookup_field_values->db_value.str= (char*) wild;
-      lookup_field_values->db_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->db_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_db_value= 1;
     }
-    return 0;
+    break;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
-    lookup_field_values->db_value.str= lex->select_lex.db;
-    lookup_field_values->db_value.length=strlen(lex->select_lex.db);
+    thd->make_lex_string(&lookup_field_values->db_value, 
+                         lex->select_lex.db, strlen(lex->select_lex.db), 0);
     if (wild)
     {
-      lookup_field_values->table_value.str= (char*)wild;
-      lookup_field_values->table_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->table_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_table_value= 1;
     }
-    return 0;
+    break;
   default:
     /*
       The "default" is for queries over I_S.
       All previous cases handle SHOW commands.
     */
-    return calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    rc= calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    break;
   }
+
+  if (lower_case_table_names && !rc)
+  {
+    /* 
+      We can safely do in-place upgrades here since all of the above cases
+      are allocating a new memory buffer for these strings.
+    */  
+    if (lookup_field_values->db_value.str && lookup_field_values->db_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->db_value.str);
+    if (lookup_field_values->table_value.str && 
+        lookup_field_values->table_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->table_value.str);
+  }
+
+  return rc;
 }
 
 
@@ -2921,11 +2950,15 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   {
     if (with_i_schema)
     {
+      LEX_STRING *name;
       ST_SCHEMA_TABLE *schema_table=
         find_schema_table(thd, lookup_field_vals->table_value.str);
       if (schema_table && !schema_table->hidden)
       {
-        if (table_names->push_back(&lookup_field_vals->table_value))
+        if (!(name= 
+              thd->make_lex_string(NULL, schema_table->table_name,
+                                   strlen(schema_table->table_name), TRUE)) ||
+            table_names->push_back(name))
           return 1;
       }
     }
@@ -3324,6 +3357,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     error= 0;
     goto err;
   }
+
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              STR_OR_NIL(lookup_field_vals.db_value.str),
                              STR_OR_NIL(lookup_field_vals.table_value.str)));
@@ -3845,7 +3879,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     uint flags=field->flags;
     char tmp[MAX_FIELD_WIDTH];
     String type(tmp,sizeof(tmp), system_charset_info);
-    char *end;
     int decimals, field_length;
 
     if (wild && wild[0] &&
@@ -3866,7 +3899,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                                  field->field_name) & COL_ACLS;
     if (!tables->schema_table && !col_access)
       continue;
-    end= tmp;
+    char *end= tmp;
     for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
     {
       if (col_access & 1)
@@ -3942,9 +3975,12 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_INT24:
       field_length= field->max_display_length() - 1;
+      break;
+    case MYSQL_TYPE_LONGLONG:
+      field_length= field->max_display_length() - 
+        ((field->flags & UNSIGNED_FLAG) ? 0 : 1);
       break;
     case MYSQL_TYPE_BIT:
       field_length= field->max_display_length();
@@ -3989,7 +4025,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     table->field[15]->store((const char*) pos,
                             strlen((const char*) pos), cs);
 
-    end= tmp;
     if (field->unireg_check == Field::NEXT_NUMBER)
       table->field[16]->store(STRING_WITH_LEN("auto_increment"), cs);
     if (show_table->timestamp_field == field &&

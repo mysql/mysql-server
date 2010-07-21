@@ -123,16 +123,16 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   a->beg=p->cur;
   a->end=p->cur;
   
-  if ((p->end - p->cur > 3) && !bcmp(p->cur,"<!--",4))
+  if ((p->end - p->cur > 3) && !memcmp(p->cur,"<!--",4))
   {
-    for (; (p->cur < p->end) && bcmp(p->cur, "-->", 3); p->cur++)
+    for (; (p->cur < p->end) && memcmp(p->cur, "-->", 3); p->cur++)
     {}
-    if (!bcmp(p->cur, "-->", 3))
+    if (!memcmp(p->cur, "-->", 3))
       p->cur+=3;
     a->end=p->cur;
     lex=MY_XML_COMMENT;
   }
-  else if (!bcmp(p->cur, "<![CDATA[",9))
+  else if (!memcmp(p->cur, "<![CDATA[",9))
   {
     p->cur+= 9;
     for (; p->cur < p->end - 2 ; p->cur++)
