@@ -144,7 +144,7 @@ struct read_view_struct{
 				this is the "low water mark". */
 	ulint		n_trx_ids;
 				/*!< Number of cells in the trx_ids array */
-	ib_int64_t*	trx_ids;/*!< Additional trx ids which the read should
+	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
 				not see: typically, these are the active
 				transactions at the time when the read is
 				serialized, except the reading transaction
