@@ -388,7 +388,7 @@ public:
   ~Sys_var_charptr()
   {
     if (flags & ALLOCATED)
-      my_free(global_var(char*), MYF(MY_ALLOW_ZERO_PTR));
+      my_free(global_var(char*));
     flags&= ~ALLOCATED;
   }
   bool do_check(THD *thd, set_var *var)
@@ -435,7 +435,7 @@ public:
     else
       new_val= 0;
     if (flags & ALLOCATED)
-      my_free(global_var(char*), MYF(MY_ALLOW_ZERO_PTR));
+      my_free(global_var(char*));
     flags|= ALLOCATED;
     global_var(char*)= new_val;
     return false;
@@ -741,13 +741,13 @@ public:
           uint deprecated_version=0, const char *substitute=0,
           int parse_flag= PARSE_NORMAL)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
-              getopt.arg_type, SHOW_DOUBLE, def_val, lock, binlog_status_arg,
-              on_check_func, on_update_func, deprecated_version, substitute,
-              parse_flag)
+              getopt.arg_type, SHOW_DOUBLE, (longlong) double2ulonglong(def_val),
+              lock, binlog_status_arg, on_check_func, on_update_func,
+              deprecated_version, substitute, parse_flag)
   {
     option.var_type= GET_DOUBLE;
-    option.min_value= min_val;
-    option.max_value= max_val;
+    option.min_value= (longlong) double2ulonglong(min_val);
+    option.max_value= (longlong) double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
     DBUG_ASSERT(min_val < max_val);
     DBUG_ASSERT(min_val <= def_val);

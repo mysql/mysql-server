@@ -150,7 +150,7 @@ void bitmap_free(MY_BITMAP *map)
     if (map->mutex)
       mysql_mutex_destroy(map->mutex);
 #endif
-    my_free((char*) map->bitmap, MYF(0));
+    my_free(map->bitmap);
     map->bitmap=0;
   }
   DBUG_VOID_RETURN;

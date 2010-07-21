@@ -476,12 +476,14 @@ typedef struct system_variables
 } SV;
 
 
-/* per thread status variables */
+/**
+  Per thread status variables.
+  Must be long/ulong up to last_system_status_var so that
+  add_to_status/add_diff_to_status can work.
+*/
 
 typedef struct system_status_var
 {
-  ulonglong bytes_received;
-  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
@@ -537,13 +539,14 @@ typedef struct system_status_var
     Number of statements sent from the client
   */
   ulong questions;
+
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
-    Below 'last_system_status_var' are all variables which doesn't make any
-    sense to add to the /global/ status variable counter.
-    Status variables which it does not make sense to add to
-    global status variable counter
+    Below 'last_system_status_var' are all variables that cannot be handled
+    automatically by add_to_status()/add_diff_to_status().
   */
   double last_query_cost;
 } STATUS_VAR;
@@ -1567,6 +1570,125 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
+  enum enum_stmt_accessed_table
+  {
+    /*
+       If a transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_TRANS_TABLE= 0,
+    /*
+       If a transactional table is about to be updated.
+    */
+    STMT_WRITES_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_NON_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be updated.
+    */
+    STMT_WRITES_NON_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be read. Note
+       that a write implies a read.
+    */
+    STMT_READS_TEMP_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be read. Note
+      that a write implies a read.
+    */
+    STMT_READS_TEMP_NON_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    /*
+      The last element of the enumeration. Please, if necessary add
+      anything before this.
+    */
+    STMT_ACCESS_TABLE_COUNT
+  };
+
+  /**
+    Sets the type of table that is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+  */
+  inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::set_stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+    stmt_accessed_table_flag |= (1U << accessed_table);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Checks if a type of table is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+
+    @return
+      @retval TRUE  if the type of the table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+
+    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
+  }
+
+  /**
+    Checks if a temporary table is about to be accessed while executing a
+    statement.
+
+    @return
+      @retval TRUE  if a temporary table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
+                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
+  /**
+    Checks if a temporary non-transactional table is about to be accessed
+    while executing a statement.
+
+    @return
+      @retval TRUE  if a temporary non-transactional table is about to be
+                    accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_non_trans_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
 private:
   /**
     Indicates the format in which the current statement will be
@@ -1603,6 +1725,12 @@ private:
     stored routine is invoked.  Only THD persists between the calls.
   */
   uint32 binlog_unsafe_warning_flags;
+
+  /**
+    Bit field that determines the type of tables that are about to be
+    be accessed while executing a statement.
+  */
+  uint32 stmt_accessed_table_flag;
 
   void issue_unsafe_warnings();
 
@@ -2022,7 +2150,6 @@ public:
     is set if a statement accesses a temporary table created through
     CREATE TEMPORARY TABLE. 
   */
-  bool       thread_temporary_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
@@ -2336,7 +2463,12 @@ public:
   /** Return FALSE if connection to client is broken. */
   bool is_connected()
   {
-    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+    /*
+      All system threads (e.g., the slave IO thread) are connected but
+      not using vio. So this function always returns true for all
+      system threads.
+    */
+    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
@@ -2534,7 +2666,7 @@ public:
       memcpy(db, new_db, new_db_len+1);
     else
     {
-      x_free(db);
+      my_free(db);
       if (new_db)
         db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else

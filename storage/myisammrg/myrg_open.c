@@ -18,9 +18,6 @@
 #include "myrg_def.h"
 #include <stddef.h>
 #include <errno.h>
-#ifdef VMS
-#include "mrg_static.c"
-#endif
 
 /*
 	open a MyISAM MERGE table
@@ -186,7 +183,7 @@ err:
   case 3:
     while (files)
       (void) mi_close(m_info->open_tables[--files].table);
-    my_free((char*) m_info,MYF(0));
+    my_free(m_info);
     /* Fall through */
   case 2:
     end_io_cache(&file);
@@ -229,9 +226,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   int       save_errno;
   int       insert_method;
   uint      length;
-  uint      dir_length;
   uint      child_count;
-  size_t    name_buff_length;
   File      fd;
   IO_CACHE  file_cache;
   char      parent_name_buff[FN_REFLEN * 2];
@@ -303,7 +298,6 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   }
 
   /* Call callback for each child. */
-  dir_length= dirname_part(parent_name_buff, parent_name, &name_buff_length);
   my_b_seek(&file_cache, 0);
   while ((length= my_b_gets(&file_cache, child_name_buff, FN_REFLEN - 1)))
   {
@@ -339,7 +333,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   save_errno= my_errno;
   switch (errpos) {
   case 3:
-    my_free((char*) m_info, MYF(0));
+    my_free(m_info);
     /* Fall through */
   case 2:
     end_io_cache(&file_cache);
@@ -384,7 +378,6 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
 {
   ulonglong  file_offset;
   MI_INFO    *myisam;
-  int        rc;
   int        errpos;
   int        save_errno;
   uint       idx;
@@ -403,7 +396,6 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     here and in ha_myisammrg::store_lock() forces consistent data.
   */
   mysql_mutex_lock(&m_info->mutex);
-  rc= 1;
   errpos= 0;
   file_offset= 0;
   min_keys= 0;
@@ -422,7 +414,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       key_parts= myisam->s->base.key_parts;
       if (*need_compat_check && m_info->rec_per_key_part)
       {
-        my_free((char *) m_info->rec_per_key_part, MYF(0));
+        my_free(m_info->rec_per_key_part);
         m_info->rec_per_key_part= NULL;
       }
       if (!m_info->rec_per_key_part)
@@ -491,7 +483,7 @@ err:
   save_errno= my_errno;
   switch (errpos) {
   case 1:
-    my_free((char*) m_info->rec_per_key_part, MYF(0));
+    my_free(m_info->rec_per_key_part);
     m_info->rec_per_key_part= NULL;
   }
   mysql_mutex_unlock(&m_info->mutex);
