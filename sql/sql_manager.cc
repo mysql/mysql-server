@@ -108,7 +108,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 
     if (error == ETIMEDOUT || error == ETIME)
     {
-      flush_tables();
+      tdc_flush_unused_tables();
       error = 0;
       reset_flush_time = TRUE;
     }
@@ -117,7 +117,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
     {
       struct handler_cb *next= cb->next;
       cb->action();
-      my_free((uchar*)cb, MYF(0));
+      my_free(cb);
       cb= next;
     }
   }

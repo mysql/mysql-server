@@ -102,7 +102,6 @@ static int init_failsafe_rpl_thread(THD* thd)
 
   thd->mem_root->free= thd->mem_root->used= 0;
   thd_proc_info(thd, "Thread initialized");
-  thd->version=refresh_version;
   thd->set_time();
   DBUG_RETURN(0);
 }
@@ -206,7 +205,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   return res;
 
 err:
-  my_free(si, MYF(MY_WME));
+  my_free(si);
   my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0)); /* purecov: inspected */
 err2:
   return 1;
@@ -222,7 +221,7 @@ extern "C" uint32
 
 extern "C" void slave_info_free(void *s)
 {
-  my_free(s, MYF(MY_WME));
+  my_free(s);
 }
 
 #ifdef HAVE_PSI_INTERFACE

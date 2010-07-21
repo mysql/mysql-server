@@ -76,7 +76,7 @@ end:
 int my_copystat(const char *from, const char *to, int MyFlags)
 {
   struct stat statbuf;
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   int res;
 #endif
 
@@ -91,17 +91,15 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     return 1;
   (void) chmod(to, statbuf.st_mode & 07777);		/* Copy modes */
 
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   if (statbuf.st_nlink > 1 && MyFlags & MY_LINK_WARNING)
   {
     if (MyFlags & MY_LINK_WARNING)
       my_error(EE_LINK_WARNING,MYF(ME_BELL+ME_WAITTANG),from,statbuf.st_nlink);
   }
   res= chown(to, statbuf.st_uid, statbuf.st_gid);	/* Copy ownership */
-#endif /* !__WIN__ && !__NETWARE__ */
+#endif /* !__WIN__ */
 
-#ifndef VMS
-#ifndef __ZTC__
   if (MyFlags & MY_COPYTIME)
   {
     struct utimbuf timep;
@@ -109,15 +107,6 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     timep.modtime = statbuf.st_mtime;
     (void) utime((char*) to, &timep);/* Update last accessed and modified times */
   }
-#else
-  if (MyFlags & MY_COPYTIME)
-  {
-    time_t time[2];
-    time[0]= statbuf.st_atime;
-    time[1]= statbuf.st_mtime;
-    (void) utime((char*) to, time);/* Update last accessed and modified times */
-  }
-#endif
-#endif
+
   return 0;
 } /* my_copystat */

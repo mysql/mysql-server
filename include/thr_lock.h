@@ -54,12 +54,6 @@ enum thr_lock_type { TL_IGNORE=-1,
 		      */
 		     TL_WRITE_ALLOW_WRITE,
 		     /*
-			Write lock, but allow other threads to read.
-			Used by ALTER TABLE in MySQL to allow readers
-			to use the table until ALTER TABLE is finished.
-		     */
-		     TL_WRITE_ALLOW_READ,
-		     /*
 		       WRITE lock used by concurrent insert. Will allow
 		       READ, if one could use concurrent insert on table.
 		     */

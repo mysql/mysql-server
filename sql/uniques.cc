@@ -566,7 +566,7 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
                   (BUFFPEK *) file_ptrs.buffer + file_ptrs.elements,
                   action, walk_action_arg,
                   tree.compare, tree.custom_arg, &file);
-  my_free((char*) merge_buffer, MYF(0));
+  my_free(merge_buffer);
   return res;
 }
 
@@ -642,7 +642,7 @@ bool Unique::get(TABLE *table)
     goto err;
   error=0;
 err:
-  x_free(sort_buffer);
+  my_free(sort_buffer);
   if (flush_io_cache(outfile))
     error=1;
 

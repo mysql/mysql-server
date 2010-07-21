@@ -262,7 +262,7 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock)
 static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock)
 {
   reset_lock_data(*mysql_lock);
-  my_free(*mysql_lock, MYF(0));
+  my_free(*mysql_lock);
   *mysql_lock= 0;
 }
 
@@ -384,7 +384,7 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
     thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
   if (sql_lock->table_count)
     (void) unlock_external(thd,sql_lock->table,sql_lock->table_count);
-  my_free((uchar*) sql_lock,MYF(0));
+  my_free(sql_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -415,7 +415,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   THR_LOCK_DATA **lock=sql_lock->locks;
   for (i=found=0 ; i < sql_lock->lock_count ; i++)
   {
-    if (sql_lock->locks[i]->type >= TL_WRITE_ALLOW_READ)
+    if (sql_lock->locks[i]->type > TL_WRITE_ALLOW_WRITE)
     {
       swap_variables(THR_LOCK_DATA *, *lock, sql_lock->locks[i]);
       lock++;
@@ -435,7 +435,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   for (i=found=0 ; i < sql_lock->table_count ; i++)
   {
     DBUG_ASSERT(sql_lock->table[i]->lock_position == i);
-    if ((uint) sql_lock->table[i]->reginfo.lock_type >= TL_WRITE_ALLOW_READ)
+    if ((uint) sql_lock->table[i]->reginfo.lock_type > TL_WRITE_ALLOW_WRITE)
     {
       swap_variables(TABLE *, *table, sql_lock->table[i]);
       table++;
@@ -545,7 +545,7 @@ void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
   {
     for (uint i=0; i < locked->lock_count; i++)
       thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
-    my_free((uchar*) locked,MYF(0));
+    my_free(locked);
   }
   DBUG_VOID_RETURN;
 }
@@ -577,7 +577,7 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
                                      table->in_use->thread_id))
         result= TRUE;
     }
-    my_free((uchar*) locked,MYF(0));
+    my_free(locked);
   }
   DBUG_RETURN(result);
 }
@@ -619,8 +619,8 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   }
 
   /* Delete old, not needed locks */
-  my_free((uchar*) a,MYF(0));
-  my_free((uchar*) b,MYF(0));
+  my_free(a);
+  my_free(b);
 
   thr_lock_merge_status(sql_lock->locks, sql_lock->lock_count);
   DBUG_RETURN(sql_lock);
@@ -866,6 +866,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
          before calling it. Also it cannot be called while holding
          LOCK_open mutex. Both these invariants are enforced by asserts
          in MDL_context::acquire_locks().
+   @note Initialization of MDL_request members of TABLE_LIST elements
+         is a responsibility of the caller.
 
    @retval FALSE  Success.
    @retval TRUE   Failure (OOM or thread was killed).
@@ -880,12 +882,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
   global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
 
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
-  {
-    lock_table->mdl_request.init(MDL_key::TABLE,
-                                 lock_table->db, lock_table->table_name,
-                                 MDL_EXCLUSIVE);
     mdl_requests.push_front(&lock_table->mdl_request);
-  }
 
   mdl_requests.push_front(&global_request);
 
@@ -1301,7 +1298,8 @@ wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
     old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
 				"Waiting for release of readlock");
     while (must_wait && ! thd->killed &&
-	   (!abort_on_refresh || thd->version == refresh_version))
+	   (!abort_on_refresh || !thd->open_tables ||
+            thd->open_tables->s->version == refresh_version))
     {
       DBUG_PRINT("signal", ("Waiting for COND_global_read_lock"));
       mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);

@@ -2223,7 +2223,7 @@ void Query_cache::free_cache()
 {
   DBUG_ENTER("Query_cache::free_cache");
 
-  my_free((uchar*) cache, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(cache);
   make_disabled();
   my_hash_free(&queries);
   my_hash_free(&tables);

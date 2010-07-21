@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,16 +10,16 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/table_file_summary.cc
   Table FILE_SUMMARY_BY_xxx (implementation).
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
+#include "my_global.h"
+#include "my_pthread.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
@@ -88,7 +88,7 @@ int table_file_summary_by_event_name::delete_all_rows(void)
 }
 
 table_file_summary_by_event_name::table_file_summary_by_event_name()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_pos(1), m_next_pos(1)
 {}
 
@@ -251,7 +251,7 @@ int table_file_summary_by_instance::delete_all_rows(void)
 }
 
 table_file_summary_by_instance::table_file_summary_by_instance()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 

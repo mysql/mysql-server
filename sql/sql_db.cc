@@ -94,7 +94,7 @@ extern "C" void lock_db_free_element(void *ptr);
 
 void lock_db_free_element(void *ptr)
 {
-  my_free(ptr, MYF(0));
+  my_free(ptr);
 }
 
 
@@ -136,7 +136,7 @@ static my_bool lock_db_insert(const char *dbname, uint length)
     opt->name_length= length;
     
     if ((error= my_hash_insert(&lock_db_cache, (uchar*) opt)))
-      my_free(opt, MYF(0));
+      my_free(opt);
   }
 
 end:
@@ -209,7 +209,7 @@ extern "C" void free_dbopt(void *dbopt);
 
 void free_dbopt(void *dbopt)
 {
-  my_free((uchar*) dbopt, MYF(0));
+  my_free(dbopt);
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -377,7 +377,7 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
     
     if ((error= my_hash_insert(&dboptions, (uchar*) opt)))
     {
-      my_free(opt, MYF(0));
+      my_free(opt);
       goto end;
     }
   }
@@ -1203,6 +1203,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
+      table_list->mdl_request.init(MDL_key::TABLE, table_list->db,
+                                   table_list->table_name, MDL_EXCLUSIVE);
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next_local;
@@ -1436,8 +1438,7 @@ static void mysql_change_db_impl(THD *thd,
       we just call THD::reset_db(). Since THD::reset_db() does not releases
       the previous database name, we should do it explicitly.
     */
-
-    x_free(thd->db);
+    my_free(thd->db);
 
     thd->reset_db(new_db_name->str, new_db_name->length);
   }
@@ -1650,7 +1651,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   if (check_db_name(&new_db_file_name))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), new_db_file_name.str);
-    my_free(new_db_file_name.str, MYF(0));
+    my_free(new_db_file_name.str);
 
     if (force_switch)
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
@@ -1680,7 +1681,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
              new_db_file_name.str);
     general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
                       sctx->priv_user, sctx->priv_host, new_db_file_name.str);
-    my_free(new_db_file_name.str, MYF(0));
+    my_free(new_db_file_name.str);
     DBUG_RETURN(TRUE);
   }
 #endif
@@ -1695,7 +1696,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
                           ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
                           new_db_file_name.str);
 
-      my_free(new_db_file_name.str, MYF(0));
+      my_free(new_db_file_name.str);
 
       /* Change db to NULL. */
 
@@ -1710,7 +1711,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
       /* Report an error and free new_db_file_name. */
 
       my_error(ER_BAD_DB_ERROR, MYF(0), new_db_file_name.str);
-      my_free(new_db_file_name.str, MYF(0));
+      my_free(new_db_file_name.str);
 
       /* The operation failed. */
 
@@ -1918,9 +1919,11 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
       Table_ident *new_ident= new Table_ident(thd, new_db, table_str, 0);
       if (!old_ident || !new_ident ||
           !sl->add_table_to_list(thd, old_ident, NULL,
-                                 TL_OPTION_UPDATING, TL_IGNORE) ||
+                                 TL_OPTION_UPDATING, TL_IGNORE,
+                                 MDL_EXCLUSIVE) ||
           !sl->add_table_to_list(thd, new_ident, NULL,
-                                 TL_OPTION_UPDATING, TL_IGNORE))
+                                 TL_OPTION_UPDATING, TL_IGNORE,
+                                 MDL_EXCLUSIVE))
       {
         error= 1;
         my_dirend(dirp);
