@@ -102,6 +102,22 @@ create table t1 (`` int);
 create table t1 (i int, index `` (i)); 
 
 #
+# CREATE TABLE under LOCK TABLES
+#
+# We don't allow creation of non-temporary tables under LOCK TABLES
+# as following meta-data locking protocol in this case can lead to
+# deadlock.
+create table t1 (i int);
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED
+create table t2 (j int);
+# OTOH creating of temporary table should be OK
+create temporary table t2 (j int);
+drop temporary table t2;
+unlock tables;
+drop table t1;
+
+#
 # Test of CREATE ... SELECT with indexes
 #
 
@@ -313,6 +329,26 @@ create temporary table t3 like t1;
 drop table t1, t2, t3;
 drop table t3;
 drop database mysqltest;
+
+#
+# CREATE TABLE LIKE under LOCK TABLES
+#
+# Similarly to ordinary CREATE TABLE we don't allow creation of
+# non-temporary tables under LOCK TABLES. Also we require source
+# table to be locked.
+create table t1 (i int);
+create table t2 (j int);
+lock tables t1 read;
+--error ER_TABLE_NOT_LOCKED
+create table t3 like t1;
+# OTOH creating of temporary table should be OK
+create temporary table t3 like t1;
+drop temporary table t3;
+# Source table should be locked
+--error ER_TABLE_NOT_LOCKED
+create temporary table t3 like t2;
+unlock tables;
+drop tables t1, t2;
 
 #
 # Test default table type
@@ -1731,3 +1767,34 @@ DROP TABLE t1;
  
 DROP TEMPORARY TABLE t2;
 
+
+--echo # 
+--echo # Bug #22909 "Using CREATE ... LIKE is possible to create field
+--echo #             with invalid default value"
+--echo #
+--echo # Altough original bug report suggests to use older version of MySQL
+--echo # for producing .FRM with invalid defaults we use sql_mode to achieve
+--echo # the same effect.
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+--echo # Attempt to create table with invalid default should fail in normal mode
+--error ER_INVALID_DEFAULT
+create table t1 (dt datetime default '2008-02-31 00:00:00');
+set @old_mode= @@sql_mode;
+set @@sql_mode='ALLOW_INVALID_DATES';
+--echo # The same should be possible in relaxed mode
+create table t1 (dt datetime default '2008-02-31 00:00:00');
+set @@sql_mode= @old_mode;
+--echo # In normal mode attempt to create copy of table with invalid
+--echo # default should fail
+--error ER_INVALID_DEFAULT
+create table t2 like t1;
+set @@sql_mode='ALLOW_INVALID_DATES';
+--echo # But should work in relaxed mode
+create table t2 like t1;
+--echo # Check that table definitions match
+show create table t1;
+show create table t2;
+set @@sql_mode= @old_mode;
+drop tables t1, t2;

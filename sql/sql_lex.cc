@@ -443,8 +443,11 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
-                     lex->plugins.elements);
+  if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
+                       lex->plugins.elements);
+  }
   reset_dynamic(&lex->plugins);
 
   DBUG_VOID_RETURN;
@@ -454,8 +457,8 @@ Yacc_state::~Yacc_state()
 {
   if (yacc_yyss)
   {
-    my_free(yacc_yyss, MYF(0));
-    my_free(yacc_yyvs, MYF(0));
+    my_free(yacc_yyss);
+    my_free(yacc_yyvs);
   }
 }
 
@@ -1986,6 +1989,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
+                                                  enum_mdl_type mdl_type,
 						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {

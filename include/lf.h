@@ -204,7 +204,7 @@ uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 #define lf_alloc_get_pins(A)           lf_pinbox_get_pins(&(A)->pinbox)
 #define _lf_alloc_put_pins(PINS)      _lf_pinbox_put_pins(PINS)
 #define lf_alloc_put_pins(PINS)        lf_pinbox_put_pins(PINS)
-#define lf_alloc_direct_free(ALLOC, ADDR) my_free((uchar*)(ADDR), MYF(0))
+#define lf_alloc_direct_free(ALLOC, ADDR) my_free((ADDR))
 
 lock_wrap(lf_alloc_new, void *,
           (LF_PINS *pins),

@@ -262,7 +262,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
-      my_free((uchar*) pa->typelib.type_names,MYF(0));
+      my_free(pa->typelib.type_names);
       DBUG_RETURN (-1);
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
@@ -324,9 +324,9 @@ static void free_pointer_array(reg1 POINTER_ARRAY *pa)
   if (pa->typelib.count)
   {
     pa->typelib.count=0;
-    my_free((uchar*) pa->typelib.type_names,MYF(0));
+    my_free(pa->typelib.type_names);
     pa->typelib.type_names=0;
-    my_free((uchar*) pa->str,MYF(0));
+    my_free(pa->str);
   }
   return;
 } /* free_pointer_array */
@@ -441,7 +441,7 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
   if (!(follow=(FOLLOWS*) my_malloc((states+2)*sizeof(FOLLOWS),MYF(MY_WME))))
   {
     free_sets(&sets);
-    my_free((uchar*) found_set,MYF(0));
+    my_free(found_set);
     DBUG_RETURN(0);
   }
 
@@ -648,7 +648,7 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
     for (i=1 ; i <= found_sets ; i++)
     {
       pos=from[found_set[i-1].table_offset];
-      rep_str[i].found= (my_bool) (!bcmp(pos,"\\^",3) ? 2 : 1);
+      rep_str[i].found= (my_bool) (!memcmp(pos,"\\^",3) ? 2 : 1);
       rep_str[i].replace_string=to_array[found_set[i-1].table_offset];
       rep_str[i].to_offset=found_set[i-1].found_offset-start_at_word(pos);
       rep_str[i].from_offset=found_set[i-1].found_offset-replace_len(pos)+
@@ -663,9 +663,9 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
 	  replace[i].next[j]=(REPLACE*) (rep_str+(-sets.set[i].next[j]-1));
     }
   }
-  my_free((uchar*) follow,MYF(0));
+  my_free(follow);
   free_sets(&sets);
-  my_free((uchar*) found_set,MYF(0));
+  my_free(found_set);
   DBUG_PRINT("exit",("Replace table has %d states",sets.count));
   DBUG_RETURN(replace);
 }
@@ -681,7 +681,7 @@ static int init_sets(REP_SETS *sets,uint states)
   if (!(sets->bit_buffer=(uint*) my_malloc(sizeof(uint)*sets->size_of_bits*
 					   SET_MALLOC_HUNC,MYF(MY_WME))))
   {
-    my_free((uchar*) sets->set,MYF(0));
+    my_free(sets->set);
     return 1;
   }
   return 0;
@@ -742,8 +742,8 @@ static void free_last_set(REP_SETS *sets)
 
 static void free_sets(REP_SETS *sets)
 {
-  my_free((uchar*)sets->set_buffer,MYF(0));
-  my_free((uchar*)sets->bit_buffer,MYF(0));
+  my_free(sets->set_buffer);
+  my_free(sets->bit_buffer);
   return;
 }
 
@@ -776,8 +776,8 @@ static void copy_bits(REP_SET *to,REP_SET *from)
 
 static int cmp_bits(REP_SET *set1,REP_SET *set2)
 {
-  return bcmp((uchar*) set1->bits,(uchar*) set2->bits,
-	      sizeof(uint) * set1->size_of_bits);
+  return memcmp(set1->bits, set2->bits,
+                sizeof(uint) * set1->size_of_bits);
 }
 
 
@@ -849,14 +849,14 @@ static short find_found(FOUND_SET *found_set,uint table_offset,
 
 static uint start_at_word(char * pos)
 {
-  return (((!bcmp(pos,"\\b",2) && pos[2]) || !bcmp(pos,"\\^",2)) ? 1 : 0);
+  return (((!memcmp(pos,"\\b",2) && pos[2]) || !memcmp(pos,"\\^",2)) ? 1 : 0);
 }
 
 static uint end_of_word(char * pos)
 {
   char * end=strend(pos);
-  return ((end > pos+2 && !bcmp(end-2,"\\b",2)) ||
-	  (end >= pos+2 && !bcmp(end-2,"\\$",2))) ?
+  return ((end > pos+2 && !memcmp(end-2,"\\b",2)) ||
+	  (end >= pos+2 && !memcmp(end-2,"\\$",2))) ?
 	    1 : 0;
 }
 
@@ -950,8 +950,8 @@ static void reset_buffer()
 
 static void free_buffer()
 {
-  my_free(buffer,MYF(MY_WME));
-  my_free(out_buff,MYF(MY_WME));
+  my_free(buffer);
+  my_free(out_buff);
 }
 
 

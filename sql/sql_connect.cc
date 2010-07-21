@@ -98,7 +98,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     if (my_hash_insert(&hash_user_connections, (uchar*) uc))
     {
       /* The only possible error is out of memory, MY_WME sets an error. */
-      my_free((char*) uc,0);
+      my_free(uc);
       return_val= 1;
       goto end;
     }
@@ -555,7 +555,7 @@ extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
 
 extern "C" void free_user(struct user_conn *uc)
 {
-  my_free((char*) uc,MYF(0));
+  my_free(uc);
 }
 
 
@@ -940,8 +940,7 @@ static int check_connection(THD *thd)
     user_len-= 2;
   }
 
-  if (thd->main_security_ctx.user)
-    x_free(thd->main_security_ctx.user);
+  my_free(thd->main_security_ctx.user);
   if (!(thd->main_security_ctx.user= my_strdup(user, MYF(MY_WME))))
     return 1; /* The error is set by my_strdup(). */
   return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
@@ -1073,10 +1072,6 @@ static void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
 
-#ifdef __NETWARE__
-  netware_reg_user(sctx->ip, sctx->user, "MySQL");
-#endif
-
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
 
@@ -1085,7 +1080,6 @@ static void prepare_new_connection_state(THD* thd)
     embedded server library.
     TODO: refactor this to avoid code duplication there
   */
-  thd->version= refresh_version;
   thd->proc_info= 0;
   thd->command= COM_SLEEP;
   thd->set_time();

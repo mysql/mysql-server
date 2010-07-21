@@ -49,6 +49,7 @@
                               // mysql_recreate_table,
                               // mysql_backup_table,
                               // mysql_restore_table
+#include "sql_truncate.h"     // mysql_truncate_table
 #include "sql_connect.h"      // check_user,
                               // decrease_user_connections,
                               // thd_init_client_charset, check_mqh,
@@ -264,7 +265,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_PROTECT_AGAINST_GRL |
@@ -496,7 +497,6 @@ static void handle_bootstrap_impl(THD *thd)
 #endif /* EMBEDDED_LIBRARY */
 
   thd_proc_info(thd, 0);
-  thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
   thd->security_ctx->priv_host[0]=0;
@@ -1058,7 +1058,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (res)
     {
-      x_free(thd->security_ctx->user);
+      my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
       thd->db= save_db;
@@ -1071,8 +1071,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-      x_free(save_db);
-      x_free(save_security_ctx.user);
+      my_free(save_db);
+      my_free(save_security_ctx.user);
 
       if (cs_number)
       {
@@ -1415,18 +1415,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef EMBEDDED_LIBRARY
     /* Store the buffer in permanent memory */
     my_ok(thd, 0, 0, buff);
-#endif
-#ifdef SAFEMALLOC
-    if (sf_malloc_cur_memory)				// Using SAFEMALLOC
-    {
-      char *end= buff + length;
-      length+= my_snprintf(end, buff_len - length - 1,
-                           end,"  Memory in use: %ldK  Max memory used: %ldK",
-                           (sf_malloc_cur_memory+1023L)/1024L,
-                           (sf_malloc_max_memory+1023L)/1024L);
-    }
-#endif
-#ifndef EMBEDDED_LIBRARY
+#else
     (void) my_net_write(net, (uchar*) buff, length);
     (void) net_flush(net);
     thd->stmt_da->disable_status();
@@ -1674,7 +1663,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     /* 'parent_lex' is used in init_query() so it must be before it. */
     schema_select_lex->parent_lex= lex;
     schema_select_lex->init_query();
-    if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
+    if (!schema_select_lex->add_table_to_list(thd, table_ident, 0, 0, TL_READ,
+                                              MDL_SHARED_READ))
       DBUG_RETURN(1);
     lex->query_tables_last= query_tables_last;
     break;
@@ -2612,7 +2602,7 @@ case SQLCOM_PREPARE:
 
     /* Set strategies: reset default or 'prepared' values. */
     create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-    create_table->lock_strategy= TABLE_LIST::EXCLUSIVE_DOWNGRADABLE_MDL;
+    create_table->lock_strategy= TABLE_LIST::OTLS_DOWNGRADE_IF_EXISTS;
 
     /*
       Close any open handlers for the table
@@ -3350,9 +3340,8 @@ end_with_restore_list:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-      goto error;
-    res= mysql_truncate(thd, first_table, 0);
+    if (! (res= mysql_truncate_table(thd, first_table)))
+      my_ok(thd);
     break;
   case SQLCOM_DELETE:
   {
@@ -3365,8 +3354,7 @@ end_with_restore_list:
     MYSQL_DELETE_START(thd->query());
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
-                       unit->select_limit_cnt, select_lex->options,
-                       FALSE);
+                       unit->select_limit_cnt, select_lex->options);
     MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
     break;
   }
@@ -3572,16 +3560,13 @@ end_with_restore_list:
         thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       goto error;
 
-    init_mdl_requests(all_tables);
-
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
     thd->in_lock_tables=1;
 
     {
       Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
 
-      res= (open_and_lock_tables(thd, all_tables, FALSE,
-                                 MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+      res= (open_and_lock_tables(thd, all_tables, FALSE, 0,
                                  &lock_tables_prelocking_strategy) ||
             thd->locked_tables_list.init_locked_tables(thd));
     }
@@ -4103,33 +4088,65 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_COMMIT:
+  {
     DBUG_ASSERT(thd->lock == NULL ||
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
+    bool tx_chain= (lex->tx_chain == TVL_YES ||
+                    (thd->variables.completion_type == 1 &&
+                     lex->tx_chain != TVL_NO));
+    bool tx_release= (lex->tx_release == TVL_YES ||
+                      (thd->variables.completion_type == 2 &&
+                       lex->tx_release != TVL_NO));
     if (trans_commit(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
     /* Begin transaction with the same isolation level. */
-    if (lex->tx_chain && trans_begin(thd))
+    if (tx_chain)
+    {
+      if (trans_begin(thd))
       goto error;
+    }
+    else
+    {
+      /* Reset the isolation level if no chaining transaction. */
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    }
     /* Disconnect the current client connection. */
-    if (lex->tx_release)
+    if (tx_release)
       thd->killed= THD::KILL_CONNECTION;
     my_ok(thd);
     break;
+  }
   case SQLCOM_ROLLBACK:
+  {
     DBUG_ASSERT(thd->lock == NULL ||
                 thd->locked_tables_mode == LTM_LOCK_TABLES);
+    bool tx_chain= (lex->tx_chain == TVL_YES ||
+                    (thd->variables.completion_type == 1 &&
+                     lex->tx_chain != TVL_NO));
+    bool tx_release= (lex->tx_release == TVL_YES ||
+                      (thd->variables.completion_type == 2 &&
+                       lex->tx_release != TVL_NO));
     if (trans_rollback(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
     /* Begin transaction with the same isolation level. */
-    if (lex->tx_chain && trans_begin(thd))
-      goto error;
+    if (tx_chain)
+    {
+      if (trans_begin(thd))
+        goto error;
+    }
+    else
+    {
+      /* Reset the isolation level if no chaining transaction. */
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    }
     /* Disconnect the current client connection. */
-    if (lex->tx_release)
+    if (tx_release)
       thd->killed= THD::KILL_CONNECTION;
     my_ok(thd);
     break;
+  }
   case SQLCOM_RELEASE_SAVEPOINT:
     if (trans_release_savepoint(thd, lex->ident))
       goto error;
@@ -4632,12 +4649,22 @@ create_sp_error:
     if (trans_xa_commit(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
+    /*
+      We've just done a commit, reset transaction
+      isolation level to the session default.
+    */
+    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
     my_ok(thd);
     break;
   case SQLCOM_XA_ROLLBACK:
     if (trans_xa_rollback(thd))
       goto error;
     thd->mdl_context.release_transactional_locks();
+    /*
+      We've just done a rollback, reset transaction
+      isolation level to the session default.
+    */
+    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
     my_ok(thd);
     break;
   case SQLCOM_XA_RECOVER:
@@ -5595,7 +5622,7 @@ void THD::reset_for_next_command()
     thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
-  thd->thread_specific_used= thd->thread_temporary_used= FALSE;
+  thd->thread_specific_used= FALSE;
 
   if (opt_bin_log)
   {
@@ -5610,6 +5637,7 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+  thd->stmt_accessed_table_flag= 0;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
@@ -6087,6 +6115,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
                          - TL_OPTION_FORCE_INDEX : Force usage of index
                          - TL_OPTION_ALIAS : an alias in multi table DELETE
   @param lock_type	How table should be locked
+  @param mdl_type       Type of metadata lock to acquire on the table.
   @param use_index	List of indexed used in USE INDEX
   @param ignore_index	List of indexed used in IGNORE INDEX
 
@@ -6101,6 +6130,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     LEX_STRING *alias,
 					     ulong table_options,
 					     thr_lock_type lock_type,
+					     enum_mdl_type mdl_type,
 					     List<Index_hint> *index_hints_arg,
                                              LEX_STRING *option)
 {
@@ -6248,9 +6278,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name,
-                        (ptr->lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                        MDL_SHARED_WRITE : MDL_SHARED_READ);
+  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type);
   DBUG_RETURN(ptr);
 }
 
@@ -7620,7 +7648,7 @@ LEX_USER *create_default_definer(THD *thd)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  get_default_definer(thd, definer);
+  thd->get_definer(definer);
 
   return definer;
 }

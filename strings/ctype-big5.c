@@ -47,7 +47,7 @@
 #define big5head(e)	((uchar)(e>>8))
 #define big5tail(e)	((uchar)(e&0xff))
 
-static uchar NEAR ctype_big5[257] =
+static uchar ctype_big5[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -68,7 +68,7 @@ static uchar NEAR ctype_big5[257] =
   3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,
 };
 
-static uchar NEAR to_lower_big5[]=
+static uchar to_lower_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +104,7 @@ static uchar NEAR to_lower_big5[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_big5[]=
+static uchar to_upper_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +140,7 @@ static uchar NEAR to_upper_big5[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR sort_order_big5[]=
+static uchar sort_order_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',

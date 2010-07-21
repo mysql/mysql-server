@@ -48,7 +48,7 @@ void libmysql_init(void)
 #ifdef __WIN__
 
 static int inited=0,threads=0;
-HINSTANCE NEAR s_hModule;	/* Saved module handle */
+HINSTANCE s_hModule; /* Saved module handle */
 DWORD main_thread;
 
 BOOL APIENTRY LibMain(HANDLE hInst,DWORD ul_reason_being_called,
@@ -105,21 +105,3 @@ int __stdcall DllMain(HANDLE hInst,DWORD ul_reason_being_called,LPVOID lpReserve
   return TRUE;
 }
 
-#elif defined(WINDOWS)
-
-/****************************************************************************
-**	This routine is called by LIBSTART.ASM at module load time.  All it
-**	does in this sample is remember the DLL module handle.	The module
-**	handle is needed if you want to do things like load stuff from the
-**	resource file (for instance string resources).
-****************************************************************************/
-
-int _export FAR PASCAL libmain(HANDLE hModule,short cbHeapSize,
-			       UCHAR FAR *lszCmdLine)
-{
-  s_hModule = hModule;
-  libmysql_init();
-  return TRUE;
-}
-
-#endif
