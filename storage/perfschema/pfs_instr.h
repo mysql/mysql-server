@@ -196,6 +196,8 @@ struct PFS_thread
   bool m_enabled;
   /** Internal thread identifier, unique. */
   ulong m_thread_internal_id;
+  /** Parent internal thread identifier. */
+  ulong m_parent_thread_internal_id;
   /** External (SHOW PROCESSLIST) thread identifier, not unique. */
   ulong m_thread_id;
   /** Thread class. */
