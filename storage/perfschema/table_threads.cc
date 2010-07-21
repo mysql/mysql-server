@@ -183,6 +183,7 @@ void table_threads::make_row(PFS_thread *pfs)
     return;
 
   m_row.m_thread_internal_id= pfs->m_thread_internal_id;
+  m_row.m_parent_thread_internal_id= pfs->m_parent_thread_internal_id;
   m_row.m_thread_id= pfs->m_thread_id;
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
@@ -294,7 +295,10 @@ int table_threads::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 11: /* PARENT_THREAD_ID */
-        f->set_null();
+        if (m_row.m_parent_thread_internal_id != 0)
+          set_field_ulong(f, m_row.m_parent_thread_internal_id);
+        else
+          f->set_null();
         break;
       case 12: /* ROLE */
         f->set_null();

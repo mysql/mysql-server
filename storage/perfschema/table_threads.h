@@ -65,6 +65,8 @@ struct row_threads
   uint m_processlist_info_length;
   /** Column INSTRUMENTED. */
   bool *m_enabled_ptr;
+  /** Column PARENT_THREAD_ID. */
+  ulong m_parent_thread_internal_id;
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */

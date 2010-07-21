@@ -728,6 +728,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         {
           pfs->m_thread_internal_id=
             PFS_atomic::add_u32(&thread_internal_id_counter, 1);
+          pfs->m_parent_thread_internal_id= 0;
           pfs->m_thread_id= thread_id;
           pfs->m_event_id= 1;
           pfs->m_enabled= true;

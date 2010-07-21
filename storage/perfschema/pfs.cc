@@ -997,9 +997,25 @@ void* pfs_spawn_thread(void *arg)
   /* First, attach instrumentation to this newly created pthread. */
   PFS_thread_class *klass= find_thread_class(typed_arg->m_child_key);
   if (likely(klass != NULL))
+  {
     pfs= create_thread(klass, typed_arg->m_child_identity, 0);
+    if (likely(pfs != NULL))
+    {
+      PFS_thread *parent= typed_arg->m_parent_thread;
+
+      pfs->m_parent_thread_internal_id= parent->m_thread_internal_id;
+
+      memcpy_fixed(pfs->m_username, parent->m_username, sizeof(pfs->m_username));
+      pfs->m_username_length= parent->m_username_length;
+
+      memcpy_fixed(pfs->m_hostname, parent->m_hostname, sizeof(pfs->m_hostname));
+      pfs->m_hostname_length= parent->m_hostname_length;
+    }
+  }
   else
+  {
     pfs= NULL;
+  }
   my_pthread_setspecific_ptr(THR_PFS, pfs);
 
   /*
