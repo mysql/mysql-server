@@ -419,9 +419,13 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   thd->transaction.savepoints= sv;
 
   /*
-    Release metadata locks that were acquired during this savepoint unit.
+    Release metadata locks that were acquired during this savepoint unit
+    unless binlogging is on. Releasing locks with binlogging on can break
+    replication as it allows other connections to drop these tables before
+    rollback to savepoint is written to the binlog.
   */
-  if (!res)
+  bool binlog_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
+  if (!res && !binlog_on)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
   DBUG_RETURN(test(res));

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,18 +10,19 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/ha_perfschema.cc
   Performance schema storage engine (implementation).
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
-#include "ha_perfschema.h"
+#include "my_global.h"
+#include "my_pthread.h"
+#include "sql_plugin.h"
 #include "mysql/plugin.h"
+#include "ha_perfschema.h"
 #include "pfs_engine_table.h"
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
@@ -145,7 +146,7 @@ mysql_declare_plugin(perfschema)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &pfs_storage_engine,
   pfs_engine_name,
-  "Marc Alff, Sun Microsystems",
+  "Marc Alff, Oracle", /* Formerly Sun Microsystems, formerly MySQL */
   "Performance Schema",
   PLUGIN_LICENSE_GPL,
   pfs_init_func,                                /* Plugin Init */

@@ -57,7 +57,7 @@ int mi_close(register MI_INFO *info)
   myisam_open_list=list_delete(myisam_open_list,&info->open_list);
   mysql_mutex_unlock(&share->intern_lock);
 
-  my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
   if (flag)
   {
     DBUG_EXECUTE_IF("crash_before_flush_keys",
@@ -88,8 +88,8 @@ int mi_close(register MI_INFO *info)
 #endif
     if (share->decode_trees)
     {
-      my_free((uchar*) share->decode_trees,MYF(0));
-      my_free((uchar*) share->decode_tables,MYF(0));
+      my_free(share->decode_trees);
+      my_free(share->decode_tables);
     }
 #ifdef THREAD
     thr_lock_delete(&share->lock);
@@ -103,19 +103,19 @@ int mi_close(register MI_INFO *info)
       }
     }
 #endif
-    my_free((uchar*) info->s,MYF(0));
+    my_free(info->s);
   }
   mysql_mutex_unlock(&THR_LOCK_myisam);
   if (info->ftparser_param)
   {
-    my_free((uchar*)info->ftparser_param, MYF(0));
+    my_free(info->ftparser_param);
     info->ftparser_param= 0;
   }
   if (info->dfile >= 0 && mysql_file_close(info->dfile, MYF(0)))
     error = my_errno;
 
   myisam_log_command(MI_LOG_CLOSE,info,NULL,0,error);
-  my_free((uchar*) info,MYF(0));
+  my_free(info);
 
   if (error)
   {

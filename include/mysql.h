@@ -44,7 +44,9 @@ extern "C" {
 #endif
 
 #ifndef _global_h				/* If not standard header */
+#ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
+#endif
 #ifdef __LCC__
 #include <winsock2.h>				/* For windows */
 #endif
@@ -78,10 +80,6 @@ extern char *mysql_unix_port;
 
 #define CLIENT_NET_READ_TIMEOUT		365*24*3600	/* Timeout on read */
 #define CLIENT_NET_WRITE_TIMEOUT	365*24*3600	/* Timeout on write */
-
-#ifdef __NETWARE__
-#pragma pack(push, 8)		/* 8 byte alignment */
-#endif
 
 #define IS_PRI_KEY(n)	((n) & PRI_KEY_FLAG)
 #define IS_NOT_NULL(n)	((n) & NOT_NULL_FLAG)
@@ -745,10 +743,6 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 #define stmt_command(mysql, command, arg, length, stmt) \
   (*(mysql)->methods->advanced_command)(mysql, command, 0,  \
                                         0, arg, length, 1, stmt)
-
-#ifdef __NETWARE__
-#pragma pack(pop)		/* restore alignment */
-#endif
 
 #ifdef	__cplusplus
 }

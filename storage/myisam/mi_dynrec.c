@@ -44,7 +44,7 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 #undef my_alloca
 #undef my_afree
 #define my_alloca(A) my_malloc((A),MYF(0))
-#define my_afree(A) my_free((A),MYF(0))
+#define my_afree(A) my_free((A))
 #endif
 
 	/* Interface function from MI_INFO */
@@ -1575,7 +1575,7 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
     error=mi_unique_comp(def, record, old_record, def->null_are_equal);
   if (info->s->base.blobs)
   {
-    my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
     info->rec_buff=rec_buff;
   }
   my_afree(old_record);
