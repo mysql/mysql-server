@@ -34,8 +34,20 @@ ENDIF()
 SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
-OPTION(WITH_DEBUG_FULL "Use dbug and safemalloc/safemutex. Slow" OFF)
+OPTION(WITH_DEBUG_FULL "Use dbug and safemutex. Slow." OFF)
 
+# Distinguish between community and non-community builds, with the
+# default being a community build. This does not impact the feature
+# set that will be compiled in; it's merely provided as a hint to
+# custom packaging steps.
+OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON) 
+
+# Use a default manufacturer if no manufacturer was identified.
+SET(MANUFACTURER_DOCSTRING
+  "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
+IF(NOT DEFINED MANUFACTURER) 
+  SET(MANUFACTURER "Built from Source" CACHE BOOL ${MANUFACTURER_DOCSTRING})
+ENDIF()
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 
@@ -92,6 +104,27 @@ IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
+#
+# Control aspects of the development environment which are
+# specific to MySQL maintainers and developers.
+#
+OPTION(MYSQL_MAINTAINER_MODE "MySQL maintainer-specific development environment" OFF)
+# Whether the maintainer mode should be enabled.
+IF(MYSQL_MAINTAINER_MODE)
+  IF(CMAKE_COMPILER_IS_GNUCC)
+    SET(MY_MAINTAINER_C_WARNINGS "-Wall -Wextra -Wunused -Wwrite-strings -Werror"
+        CACHE STRING "C warning options used in maintainer builds.")
+  ENDIF()
+  IF(CMAKE_COMPILER_IS_GNUCXX)
+    SET(MY_MAINTAINER_CXX_WARNINGS "${MY_MAINTAINER_C_WARNINGS} -Wno-unused-parameter"
+        CACHE STRING "C++ warning options used in maintainer builds.")
+  ENDIF()
+  # Do not make warnings in checks into errors.
+  IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
+    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wno-error")
+  ENDIF()
+ENDIF()
+
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(zlib)
@@ -135,9 +168,9 @@ IF(WITH_ERROR_INJECT)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DERROR_INJECT_SUPPORT") 
 ENDIF() 
 
-OPTION(ENABLE_LOCAL_INFILE
+OPTION(ENABLED_LOCAL_INFILE
  "If we should should enable LOAD DATA LOCAL by default" ${IF_WIN})
-MARK_AS_ADVANCED(ENABLE_LOCAL_INFILE)
+MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(WITH_FAST_MUTEXES "Compile with fast mutexes" OFF)
 MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
@@ -166,14 +199,13 @@ IF(NOT CMAKE_BUILD_TYPE
     ENDIF()
 ENDIF()
 
-# Add safemalloc and safemutex for debug condifurations, except on Windows 
-# (C runtime library provides safemalloc functionality and safemutex has never 
-# worked there)
+# Add safemutex for debug configurations, except on Windows
+# (safemutex has never worked on Windows)
 IF(WITH_DEBUG OR WITH_DEBUG_FULL AND NOT WIN32)
   FOREACH(LANG C CXX)
     IF(WITH_DEBUG_FULL)
       SET(CMAKE_${LANG}_FLAGS_DEBUG 
-        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
     ELSE()
       SET(CMAKE_${LANG}_FLAGS_DEBUG 
         "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
@@ -217,6 +249,19 @@ MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
+
+#
+# Setup maintainer mode options by the end. Platform checks are
+# not run with the warning options as to not perturb fragile checks
+# (i.e. do not make warnings into errors).
+#
+IF(MYSQL_MAINTAINER_MODE)
+  # Set compiler flags required under maintainer mode.
+  MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_MAINTAINER_C_WARNINGS}")
+  MESSAGE(STATUS "C++ warning options: ${MY_MAINTAINER_CXX_WARNINGS}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
+ENDIF()
 
 IF(NOT WITHOUT_SERVER)
 SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
@@ -280,6 +325,7 @@ IF(WIN32)
 ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
+ADD_SUBDIRECTORY(packaging/WiX)
 INCLUDE(CPack)
 IF(UNIX)
   INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL)

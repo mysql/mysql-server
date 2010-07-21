@@ -96,7 +96,18 @@ bool trans_begin(THD *thd, uint flags)
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
-  if (trans_commit_implicit(thd))
+  if (thd->in_multi_stmt_transaction_mode() ||
+      (thd->variables.option_bits & OPTION_TABLE_LOCK))
+  {
+    thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    res= test(ha_commit_trans(thd, TRUE));
+  }
+
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->transaction.all.modified_non_trans_table= FALSE;
+
+  if (res)
     DBUG_RETURN(TRUE);
 
   /*
@@ -182,6 +193,14 @@ bool trans_commit_implicit(THD *thd)
   thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
 
+  /*
+    Upon implicit commit, reset the current transaction
+    isolation level. We do not care about
+    @@session.completion_type since it's documented
+    to not have any effect on implicit commit.
+  */
+  thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+
   DBUG_RETURN(res);
 }
 
@@ -234,7 +253,11 @@ bool trans_commit_stmt(THD *thd)
   DBUG_ENTER("trans_commit_stmt");
   int res= FALSE;
   if (thd->transaction.stmt.ha_list)
+  {
     res= ha_commit_trans(thd, FALSE);
+    if (! thd->in_active_multi_stmt_transaction())
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+  }
 
   if (res)
     /*
@@ -265,6 +288,8 @@ bool trans_rollback_stmt(THD *thd)
     ha_rollback_trans(thd, FALSE);
     if (thd->transaction_rollback_request && !thd->in_sub_stmt)
       ha_rollback_trans(thd, TRUE);
+    if (! thd->in_active_multi_stmt_transaction())
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
   }
 
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
@@ -394,9 +419,13 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   thd->transaction.savepoints= sv;
 
   /*
-    Release metadata locks that were acquired during this savepoint unit.
+    Release metadata locks that were acquired during this savepoint unit
+    unless binlogging is on. Releasing locks with binlogging on can break
+    replication as it allows other connections to drop these tables before
+    rollback to savepoint is written to the binlog.
   */
-  if (!res)
+  bool binlog_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
+  if (!res && !binlog_on)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
   DBUG_RETURN(test(res));

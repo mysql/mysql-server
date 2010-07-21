@@ -3442,6 +3442,6 @@ void cleanup_errmsgs()
 {
   for (MY_LOCALE_ERRMSGS *msgs= global_errmsgs; msgs->language; msgs++)
   {
-    my_free(msgs->errmsgs, MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+    my_free(msgs->errmsgs);
   }
 }

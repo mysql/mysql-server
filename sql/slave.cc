@@ -1154,7 +1154,7 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f)
   }
 err:
   if (buf_act != buf)
-    my_free(buf_act, MYF(0));
+    my_free(buf_act);
   DBUG_RETURN(ret);
 }
 
@@ -1528,7 +1528,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
        the period is an ulonglong of nano-secs. 
     */
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
-    my_sprintf(query, (query, query_format, llbuf));
+    sprintf(query, query_format, llbuf);
 
     if (mysql_real_query(mysql, query, strlen(query))
         && !check_io_slave_killed(mi->io_thd, mi, NULL))
@@ -1934,17 +1934,17 @@ bool show_master_info(THD* thd, Master_info* mi)
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
         get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-        slen= my_sprintf(sbuff, (sbuff, (i==0? "%lu" : ", %lu"), s_id));
+        slen= sprintf(sbuff, (i==0? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
           /*
             break the loop whenever remained space could not fit
             ellipses on the next cycle
           */
-          my_sprintf(buff + cur_len, (buff + cur_len, "..."));
+          sprintf(buff + cur_len, "...");
           break;
         }
-        cur_len += my_sprintf(buff + cur_len, (buff + cur_len, "%s", sbuff));
+        cur_len += sprintf(buff + cur_len, "%s", sbuff);
       }
       protocol->store(buff, &my_charset_bin);
     }
@@ -2055,7 +2055,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     thd_proc_info(thd, "Waiting for the next event in relay log");
   else
     thd_proc_info(thd, "Waiting for master update");
-  thd->version=refresh_version;
   thd->set_time();
   /* Do not use user-supplied timeout value for system threads. */
   thd->variables.lock_wait_timeout= LONG_TIMEOUT;
@@ -2296,7 +2295,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
-                      rli->last_event_start_time));
+                      (ulong) rli->last_event_start_time));
 
   /*
     Execute the event to change the database and update the binary
@@ -3126,8 +3125,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
-  my_off_t saved_log_pos;
-  my_off_t saved_master_log_pos;
+  my_off_t UNINIT_VAR(saved_log_pos);
+  my_off_t UNINIT_VAR(saved_master_log_pos);
   my_off_t saved_skip= 0;
 
   Relay_log_info* rli = &((Master_info*)arg)->rli;
@@ -3687,7 +3686,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
 
@@ -3724,7 +3723,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     mi->master_log_pos += inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
     mysql_mutex_unlock(&mi->data_lock);
-    my_free((char*)tmp_buf, MYF(0));
+    my_free(tmp_buf);
     DBUG_RETURN(error);
   }
   default:
@@ -3775,7 +3774,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
   mysql_mutex_lock(&mi->data_lock);

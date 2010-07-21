@@ -130,11 +130,6 @@ bool check_simple_select();
 Item *negate_expression(THD *thd, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
-bool begin_trans(THD *thd);
-bool end_active_trans(THD *thd);
-int end_trans(THD *thd, enum enum_mysql_completiontype completion);
-
-
 /* Variables */
 
 extern const char* any_db;
@@ -188,9 +183,8 @@ inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }
-inline bool check_access(THD *thd, ulong access, const char *db,
-                         ulong *save_priv, bool no_grant, bool no_errors,
-                         bool schema_db)
+inline bool check_access(THD *, ulong, const char *, ulong *save_priv,
+                         GRANT_INTERNAL_INFO *, bool, bool)
 {
   if (save_priv)
     *save_priv= GLOBAL_ACLS;

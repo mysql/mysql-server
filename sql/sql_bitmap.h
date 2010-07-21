@@ -22,6 +22,7 @@
 #ifndef SQL_BITMAP_INCLUDED
 #define SQL_BITMAP_INCLUDED
 
+#include <my_sys.h>
 #include <my_bitmap.h>
 
 template <uint default_width> class Bitmap
@@ -101,16 +102,7 @@ template <> class Bitmap<64>
   ulonglong map;
 public:
   Bitmap<64>() { }
-#if defined(__NETWARE__) || defined(__MWERKS__)
-  /*
-    Metwork compiler gives error on Bitmap<64>
-    Changed to Bitmap, since in this case also it will proper construct
-    this class
-  */
-  explicit Bitmap(uint prefix_to_set) { set_prefix(prefix_to_set); }
-#else
   explicit Bitmap<64>(uint prefix_to_set) { set_prefix(prefix_to_set); }
-#endif
   void init() { }
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }

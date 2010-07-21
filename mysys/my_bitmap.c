@@ -150,7 +150,7 @@ void bitmap_free(MY_BITMAP *map)
     if (map->mutex)
       mysql_mutex_destroy(map->mutex);
 #endif
-    my_free((char*) map->bitmap, MYF(0));
+    my_free(map->bitmap);
     map->bitmap=0;
   }
   DBUG_VOID_RETURN;
@@ -508,10 +508,8 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
             if (*byte_ptr & (1 << k))
               return (i*32) + (j*8) + k;
           }
-          DBUG_ASSERT(0);
         }
       }
-      DBUG_ASSERT(0);
     }
   }
   return MY_BIT_NONE;
@@ -534,7 +532,7 @@ uint bitmap_get_first(const MY_BITMAP *map)
     {
       byte_ptr= (uchar*)data_ptr;
       for (j=0; ; j++, byte_ptr++)
-      { 
+      {
         if (*byte_ptr != 0xFF)
         {
           for (k=0; ; k++)
@@ -542,10 +540,8 @@ uint bitmap_get_first(const MY_BITMAP *map)
             if (!(*byte_ptr & (1 << k)))
               return (i*32) + (j*8) + k;
           }
-          DBUG_ASSERT(0);
         }
       }
-      DBUG_ASSERT(0);
     }
   }
   return MY_BIT_NONE;
