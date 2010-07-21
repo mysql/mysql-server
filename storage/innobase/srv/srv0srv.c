@@ -3022,6 +3022,8 @@ srv_purge_thread(
 
 	slot_no = srv_table_reserve_slot(SRV_WORKER);
 
+	slot = srv_table_get_nth_slot(slot_no);
+
 	++srv_n_threads_active[SRV_WORKER];
 
 	mutex_exit(&kernel_mutex);
@@ -3073,19 +3075,15 @@ srv_purge_thread(
 
 	mutex_enter(&kernel_mutex);
 
+	ut_ad(srv_table_get_nth_slot(slot_no) == slot);
+
 	/* Decrement the active count. */
 	srv_suspend_thread();
 
-	mutex_exit(&kernel_mutex);
+	slot->in_use = FALSE;
 
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());
-
-	mutex_enter(&kernel_mutex);
-
-	/* Free the slot for reuse. */
-	slot = srv_table_get_nth_slot(slot_no);
-	slot->in_use = FALSE;
 
 	mutex_exit(&kernel_mutex);
 
