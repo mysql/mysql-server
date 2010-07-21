@@ -5513,7 +5513,7 @@ static void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
 {
   uint null_fields,blobs,fields,rec_length;
   Field **f_ptr,*field;
-  MY_BITMAP *read_set= join_tab->table->read_set;;
+  MY_BITMAP *read_set= join_tab->table->read_set;
 
   null_fields= blobs= fields= rec_length=0;
   for (f_ptr=join_tab->table->field ; (field= *f_ptr) ; f_ptr++)
@@ -9877,11 +9877,11 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   uint field_count= table->s->fields;
   bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
               FALSE);
-  bitmap_init(&table->tmp_set,
+  bitmap_init(&table->def_vcol_set,
               (my_bitmap_map*) (bitmaps+ bitmap_buffer_size(field_count)),
               field_count, FALSE);
-  bitmap_init(&table->vcol_set,
-              (my_bitmap_map*) (bitmaps+ 2+bitmap_buffer_size(field_count)),
+  bitmap_init(&table->tmp_set,
+              (my_bitmap_map*) (bitmaps+ 2*bitmap_buffer_size(field_count)),
               field_count, FALSE);
 
   /* write_set and all_set are copies of read_set */

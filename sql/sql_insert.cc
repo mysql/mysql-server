@@ -2109,7 +2109,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
 				   (share->fields+1)*sizeof(Field**)+
 				   share->reclength +
-                                   share->column_bitmap_size*2);
+                                   share->column_bitmap_size*3);
   if (!copy)
     goto error;
 
@@ -2119,7 +2119,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   /* Assign the pointers for the field pointers array and the record. */
   field= copy->field= (Field**) (copy + 1);
   bitmap= (uchar*) (field + share->fields + 1);
-  copy->record[0]= (bitmap + share->column_bitmap_size * 2);
+  copy->record[0]= (bitmap + share->column_bitmap_size*3);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
   /*
     Make a copy of all fields.
@@ -2161,10 +2161,13 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy->def_read_set.bitmap= (my_bitmap_map*) bitmap;
   copy->def_write_set.bitmap= ((my_bitmap_map*)
                                (bitmap + share->column_bitmap_size));
+  copy->def_vcol_set.bitmap= ((my_bitmap_map*)
+                               (bitmap + 2*share->column_bitmap_size));
   copy->tmp_set.bitmap= 0;                      // To catch errors
-  bzero((char*) bitmap, share->column_bitmap_size*2);
+  bzero((char*) bitmap, share->column_bitmap_size*3);
   copy->read_set=  &copy->def_read_set;
   copy->write_set= &copy->def_write_set;
+  copy->vcol_set= &copy->def_vcol_set;
 
   DBUG_RETURN(copy);
 

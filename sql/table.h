@@ -719,9 +719,8 @@ struct st_table {
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
-  MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
-  MY_BITMAP     vcol_set;                 /* set of used virtual columns */
-  MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+  MY_BITMAP     def_read_set, def_write_set, def_vcol_set, tmp_set; 
+  MY_BITMAP     *read_set, *write_set, *vcol_set; /* Active column sets */
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
@@ -904,11 +903,29 @@ struct st_table {
     if (file)
       file->column_bitmaps_signal();
   }
+  inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
+                                 MY_BITMAP *write_set_arg,
+                                 MY_BITMAP *vcol_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+    vcol_set= vcol_set_arg;
+    if (file)
+      file->column_bitmaps_signal();
+  }
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
                                            MY_BITMAP *write_set_arg)
   {
     read_set= read_set_arg;
     write_set= write_set_arg;
+  }
+  inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
+                                           MY_BITMAP *write_set_arg,
+                                           MY_BITMAP *vcol_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+    vcol_set= vcol_set_arg;
   }
   inline void use_all_columns()
   {
@@ -918,6 +935,7 @@ struct st_table {
   {
     read_set= &def_read_set;
     write_set= &def_write_set;
+    vcol_set= &def_vcol_set;
   }
   /* Is table open or should be treated as such by name-locking? */
   inline bool is_name_opened() { return db_stat || open_placeholder; }

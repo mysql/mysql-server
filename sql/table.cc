@@ -2343,9 +2343,9 @@ partititon_err:
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
   bitmap_init(&outparam->def_write_set,
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
-  bitmap_init(&outparam->tmp_set,
+  bitmap_init(&outparam->def_vcol_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
-  bitmap_init(&outparam->vcol_set,
+  bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
   outparam->default_column_bitmaps();
 
@@ -4809,10 +4809,10 @@ void st_table::clear_column_bitmaps()
     Reset column read/write usage. It's identical to:
     bitmap_clear_all(&table->def_read_set);
     bitmap_clear_all(&table->def_write_set);
+    bitmap_clear_all(&table->def_vcol_set);
   */
-  bzero((char*) def_read_set.bitmap, s->column_bitmap_size*2);
-  bzero((char*) def_read_set.bitmap, s->column_bitmap_size*4);
-  column_bitmaps_set(&def_read_set, &def_write_set);
+  bzero((char*) def_read_set.bitmap, s->column_bitmap_size*3);
+  column_bitmaps_set(&def_read_set, &def_write_set, &def_vcol_set);
 }
 
 
@@ -5085,7 +5085,7 @@ bool st_table::mark_virtual_col(Field *field)
 {
   bool res;
   DBUG_ASSERT(field->vcol_info);
-  if (!(res= bitmap_fast_test_and_set(&vcol_set, field->field_index)))
+  if (!(res= bitmap_fast_test_and_set(vcol_set, field->field_index)))
   {
     Item *vcol_item= field->vcol_info->expr_item;
     DBUG_ASSERT(vcol_item);
@@ -5464,7 +5464,7 @@ int update_virtual_fields(THD *thd, TABLE *table, bool for_write)
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->vcol_info && vfield->vcol_info->expr_item);
     /* Only update those fields that are marked in the vcol_set bitmap */
-    if (bitmap_is_set(&table->vcol_set, vfield->field_index) &&
+    if (bitmap_is_set(table->vcol_set, vfield->field_index) &&
         (for_write || !vfield->stored_in_db))
     {
       /* Compute the actual value of the virtual fields */
