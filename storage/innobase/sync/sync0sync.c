@@ -40,6 +40,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "buf0types.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#ifdef UNIV_SYNC_DEBUG
+# include "srv0start.h" /* srv_is_being_started */
+#endif /* UNIV_SYNC_DEBUG */
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
@@ -1152,6 +1155,13 @@ sync_thread_add_level(
 	case SYNC_TREE_NODE_FROM_HASH:
 		/* Do no order checking */
 		break;
+	case SYNC_TRX_SYS_HEADER:
+		if (srv_is_being_started) {
+			/* This is violated during trx_sys_create_rsegs()
+			when creating additional rollback segments when
+			upgrading in innobase_start_or_create_for_mysql(). */
+			break;
+		}
 	case SYNC_MEM_POOL:
 	case SYNC_MEM_HASH:
 	case SYNC_RECV:
@@ -1160,7 +1170,6 @@ sync_thread_add_level(
 	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_THR_LOCAL:
 	case SYNC_ANY_LATCH:
-	case SYNC_TRX_SYS_HEADER:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:
@@ -1222,8 +1231,12 @@ sync_thread_add_level(
 			ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1,
 						  TRUE));
 		} else {
-			ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP,
-						  TRUE));
+			/* This is violated during trx_sys_create_rsegs()
+			when creating additional rollback segments when
+			upgrading in innobase_start_or_create_for_mysql(). */
+			ut_a(srv_is_being_started
+			     || sync_thread_levels_g(array, SYNC_IBUF_BITMAP,
+						     TRUE));
 		}
 		break;
 	case SYNC_FSP_PAGE:

@@ -184,7 +184,7 @@ struct os_aio_slot_struct{
 					which pending aio operation was
 					completed */
 #ifdef WIN_ASYNC_IO
-	os_event_t	event;		/*!< event object we need in the
+	HANDLE		handle;		/*!< handle object we need in the
 					OVERLAPPED struct */
 	OVERLAPPED	control;	/*!< Windows control block for the
 					aio request */
@@ -226,7 +226,7 @@ struct os_aio_array_struct{
 				aio array outside the ibuf segment */
 	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
 #ifdef __WIN__
-	os_native_event_t* native_events;
+	HANDLE*		handles;
 				/*!< Pointer to an array of OS native
 				event handles where we copied the
 				handles from slots, in the same
@@ -305,7 +305,8 @@ UNIV_INTERN ulint	os_n_pending_reads = 0;
 
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
-@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000 */
+@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
+OS_WIN7. */
 UNIV_INTERN
 ulint
 os_get_os_version(void)
@@ -323,10 +324,18 @@ os_get_os_version(void)
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
 		return(OS_WIN95);
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-		if (os_info.dwMajorVersion <= 4) {
-			return(OS_WINNT);
-		} else {
-			return(OS_WIN2000);
+		switch (os_info.dwMajorVersion) {
+		case 3:
+		case 4:
+			return OS_WINNT;
+		case 5:
+			return (os_info.dwMinorVersion == 0) ? OS_WIN2000
+							     : OS_WINXP;
+		case 6:
+			return (os_info.dwMinorVersion == 0) ? OS_WINVISTA
+							     : OS_WIN7;
+		default:
+			return OS_WIN7;
 		}
 	} else {
 		ut_error;
@@ -674,10 +683,10 @@ os_io_init_simple(void)
 {
 	ulint	i;
 
-	os_file_count_mutex = os_mutex_create(NULL);
+	os_file_count_mutex = os_mutex_create();
 
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
-		os_file_seek_mutexes[i] = os_mutex_create(NULL);
+		os_file_seek_mutexes[i] = os_mutex_create();
 	}
 }
 
@@ -3235,7 +3244,7 @@ os_aio_array_create(
 
 	array = ut_malloc(sizeof(os_aio_array_t));
 
-	array->mutex		= os_mutex_create(NULL);
+	array->mutex		= os_mutex_create();
 	array->not_full		= os_event_create(NULL);
 	array->is_empty		= os_event_create(NULL);
 
@@ -3247,7 +3256,7 @@ os_aio_array_create(
 	array->cur_seg		= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
 #ifdef __WIN__
-	array->native_events	= ut_malloc(n * sizeof(os_native_event_t));
+	array->handles		= ut_malloc(n * sizeof(HANDLE));
 #endif
 
 #if defined(LINUX_NATIVE_AIO)
@@ -3291,13 +3300,13 @@ skip_native_aio:
 		slot->pos = i;
 		slot->reserved = FALSE;
 #ifdef WIN_ASYNC_IO
-		slot->event = os_event_create(NULL);
+		slot->handle = CreateEvent(NULL,TRUE, FALSE, NULL);
 
 		over = &(slot->control);
 
-		over->hEvent = slot->event->handle;
+		over->hEvent = slot->handle;
 
-		*((array->native_events) + i) = over->hEvent;
+		*((array->handles) + i) = over->hEvent;
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3323,12 +3332,12 @@ os_aio_array_free(
 
 	for (i = 0; i < array->n_slots; i++) {
 		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
-		os_event_free(slot->event);
+		CloseHandle(slot->handle);
 	}
 #endif /* WIN_ASYNC_IO */
 
 #ifdef __WIN__
-	ut_free(array->native_events);
+	ut_free(array->handles);
 #endif /* __WIN__ */
 	os_mutex_free(array->mutex);
 	os_event_free(array->not_full);
@@ -3481,7 +3490,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 
 	for (i = 0; i < array->n_slots; i++) {
 
-		os_event_set((array->slots + i)->event);
+		SetEvent((array->slots + i)->handle);
 	}
 }
 #endif
@@ -3720,7 +3729,7 @@ found:
 	control = &(slot->control);
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3792,7 +3801,7 @@ os_aio_array_free_slot(
 
 #ifdef WIN_ASYNC_IO
 
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -4226,13 +4235,20 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
-		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
+		WaitForSingleObject(
+			os_aio_array_get_nth_slot(array, pos)->handle,
+			INFINITE);
 		i = pos;
 	} else {
 		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
-		i = os_event_wait_multiple(n,
-					   (array->native_events)
-					   + segment * n);
+		i = WaitForMultipleObjects((DWORD) n,
+					   array->handles + segment * n,
+					   FALSE,
+					   INFINITE);
+	}
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		os_thread_exit(NULL);
 	}
 
 	os_mutex_enter(array->mutex);
