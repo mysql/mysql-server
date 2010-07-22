@@ -36,6 +36,7 @@
 #include <cilk.h>
 #include <cilk_mutex.h>
 #include <fake_mutex.h>
+#define cilk_worker_count (cilk::current_worker_count())
 #else
 // maybe #include <cilk_stub.h>
 #if !defined(CILK_STUB)
@@ -44,6 +45,7 @@
 #define cilk_sync
 #define cilk_for for
 #endif
+#define cilk_worker_count 1
 #endif
 
 // mark everything as C and selectively mark cilk functions
@@ -71,8 +73,10 @@ static int      nodesize = (1<<22);
 enum { EXTRACTOR_QUEUE_DEPTH = 2,
        FILE_BUFFER_SIZE = 1<<24,
        MIN_ROWSET_MEMORY = 1<<23,
-       MERGE_BUF_SIZE    = 1<<24,
-       MIN_MERGE_FANIN   = 4,
+       MIN_MERGE_FANIN   = 2,
+       MERGE_QUEUE_DEPTH = 3,
+       TARGET_MERGE_BUF_SIZE    = 1<<24, // we'd like the merge buffer to be this big.
+       MIN_MERGE_BUF_SIZE = 1<<20 // always use at least this much
 };
 
 
@@ -351,7 +355,7 @@ static void *extractor_thread (void*);
 
 #define MAX(a,b) (((a)<(b)) ? (b) : (a))
 
-static uint64_t memory_per_rowset (BRTLOADER bl)
+static uint64_t memory_per_rowset_during_extract (BRTLOADER bl)
 // Return how much memory can be allocated for each rowset.
 {
     if (size_factor==1) {
@@ -362,7 +366,7 @@ static uint64_t memory_per_rowset (BRTLOADER bl)
 	// There is one rowset for each index (bl->N) being filled in.
 	// Later we may have sort_and_write operations spawning in parallel, and will need to account for that.
 	int n_copies = (1 // primary rowset
-			+2  // the two primaries in the queue
+			+EXTRACTOR_QUEUE_DEPTH  // the number of primaries in the queue
 			+bl->N // the N rowsets being constructed by the extrator thread.
 			+1     // Give the extractor thread one more so that it can have temporary space for sorting.  This is overkill.
 			);
@@ -372,14 +376,35 @@ static uint64_t memory_per_rowset (BRTLOADER bl)
     }
 }
 
-static int merge_fanin (BRTLOADER bl)
-// Return the fanin
-{
-    // assume we only perform one fanin at a time.
-    int tentative_fanin = ((int64_t)(bl->reserved_memory - FILE_BUFFER_SIZE))/MERGE_BUF_SIZE;
-    int result = MAX(tentative_fanin, (int)MIN_MERGE_FANIN);
-    //printf("%s:%d Mergefanin=%d (memory=%ld)\n", __FILE__, __LINE__, result, bl->reserved_memory);
-    return result;
+// To compute a merge, we have a certain amount of memory to work with.
+// We perform only one fanin at a time.
+// If the fanout is F then we are using
+//   F merges.  Each merge uses
+//   MERGE_QUEUE_DEPTH buffers for double buffering.  Each buffer is of size at least MERGE_BUF_SIZE
+// so the memory is
+//    F*MERGE_BUF_SIZE*MERGE_QUEUE_DEPTH storage.
+// We use some additional space to buffer the outputs. 
+//  That's FILE_BUFFER_SIZE for writing to a merge file if we are writing to a mergefile.
+//  And we have MERGE_QUEUE_DEPTH*MERGE_BUF_SIZE*bl->N buffers for queue
+//  And if we are doing a fractal, each worker could have have a fractal tree that it's working on.
+static int64_t memory_avail_during_merge(BRTLOADER bl, BOOL is_fractal_node) {
+    int64_t extra_reserved_memory_for_queues = (int64_t)MERGE_QUEUE_DEPTH*(int64_t)TARGET_MERGE_BUF_SIZE* (int64_t)bl->N;
+    int64_t extra_reserved_memory_for_fractal = (is_fractal_node ? cilk_worker_count*(int64_t)nodesize : 0);
+    int64_t extra_reserved_memory = extra_reserved_memory_for_queues + extra_reserved_memory_for_fractal;
+    return bl->reserved_memory-extra_reserved_memory;
+}
+
+static int merge_fanin (BRTLOADER bl, BOOL is_fractal_node) {
+    int64_t memory_avail = memory_avail_during_merge(bl, is_fractal_node);
+    int64_t min_buffers_needed = (int64_t)MIN_MERGE_FANIN*(int64_t)TARGET_MERGE_BUF_SIZE*(int64_t)MERGE_QUEUE_DEPTH;
+    if (memory_avail<min_buffers_needed) return MIN_MERGE_FANIN;
+    else return memory_avail/((int64_t)TARGET_MERGE_BUF_SIZE*(int64_t)MERGE_QUEUE_DEPTH);
+}
+
+static uint64_t memory_per_rowset_during_merge (BRTLOADER bl, int merge_factor, BOOL is_fractal_node // if it is being sent to a q
+						) {
+    int64_t memory_avail = memory_avail_during_merge(bl, is_fractal_node);
+    return MAX(memory_avail/merge_factor, (int64_t)MIN_MERGE_BUF_SIZE);
 }
 
 int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
@@ -450,7 +475,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     MY_CALLOC_N(N, bl->last_key);
     for(int i=0;i<N;i++) {
         { 
-            int r = init_rowset(&bl->rows[i], memory_per_rowset(bl)); 
+            int r = init_rowset(&bl->rows[i], memory_per_rowset_during_extract(bl)); 
             if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; } 
         }
         init_merge_fileset(&bl->fs[i]);
@@ -464,7 +489,7 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
     brt_loader_init_poll_callback(&bl->poll_callback);
 
     { 
-        int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); 
+        int r = init_rowset(&bl->primary_rowset, memory_per_rowset_during_extract(bl)); 
         if (r!=0) { toku_brtloader_internal_destroy(bl, TRUE); return r; }
     }
     {   int r = queue_create(&bl->primary_rowset_queue, EXTRACTOR_QUEUE_DEPTH); 
@@ -921,7 +946,7 @@ static int loader_do_put(BRTLOADER bl,
 	enqueue_for_extraction(bl);
 	BL_TRACE(blt_extract_enq);
 	{
-            int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); 
+            int r = init_rowset(&bl->primary_rowset, memory_per_rowset_during_extract(bl)); 
             // bl->primary_rowset will get destroyed by toku_brt_loader_abort
             if (r != 0) 
                 result = r;
@@ -1032,7 +1057,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 		int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
 		// If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
 		BL_TRACE(blt_sort_and_write_rows);
-		init_rowset(rows, memory_per_rowset(bl)); // we passed the contents of rows to sort_and_write_rows.
+		init_rowset(rows, memory_per_rowset_during_extract(bl)); // we passed the contents of rows to sort_and_write_rows.
 		if (r != 0) {
 		    error_codes[i] = r;
                     inc_error_count();
@@ -1537,7 +1562,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     struct rowset *output_rowset = NULL;
     if (result==0 && to_q) {
 	XMALLOC(output_rowset); // freed in cleanup
-	int r = init_rowset(output_rowset, memory_per_rowset(bl));
+	int r = init_rowset(output_rowset, memory_per_rowset_during_merge(bl, n_sources, to_q));
         if (r!=0) result = r;
     }
     
@@ -1568,7 +1593,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		}
                 XMALLOC(output_rowset); // freed in cleanup
 		{
-		    int r = init_rowset(output_rowset, memory_per_rowset(bl));
+		    int r = init_rowset(output_rowset, memory_per_rowset_during_merge(bl, n_sources, to_q));
 		    if (r!=0) {        
 			result = r;
 			break;
@@ -1678,7 +1703,7 @@ static int merge_some_files (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sou
 	}
     }
     if (result==0) {
-	int r = create_dbufio_fileset(&bfs, n_sources, fds, MERGE_BUF_SIZE);
+	int r = create_dbufio_fileset(&bfs, n_sources, fds, memory_per_rowset_during_merge(bl, n_sources, to_q));
 	if (r!=0) { result = r; }
     }
 	
@@ -1733,9 +1758,12 @@ int merge_files (struct merge_fileset *fs,
 {
     //printf(" merge_files %d files\n", fs->n_temp_files);
     //printf(" merge_files use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
-    const int mergelimit = (size_factor == 1) ? 4 : merge_fanin(bl);
-    int n_passes_left = (fs->n_temp_files==1) ? 1 : n_passes(fs->n_temp_files, mergelimit);
-    //printf("%d files, %d per pass, %d passes\n", fs->n_temp_files, mergelimit, n_passes_left);
+    const int final_mergelimit   = (size_factor == 1) ? 4 : merge_fanin(bl, TRUE); // try for a merge to the leaf level
+    const int earlier_mergelimit = (size_factor == 1) ? 4 : merge_fanin(bl, FALSE); // try for a merge at nonleaf.
+    int n_passes_left  = (fs->n_temp_files<=final_mergelimit)
+	? 1
+	: 1+n_passes((fs->n_temp_files+final_mergelimit-1)/final_mergelimit, earlier_mergelimit);
+    //printf("%d files, %d on last pass, %d on earlier passes, %d passes\n", fs->n_temp_files, final_mergelimit, earlier_mergelimit, n_passes_left);
     int result = 0;
     while (fs->n_temp_files > 0) {
 	int progress_allocation_for_this_pass = progress_allocation/n_passes_left;
@@ -1744,11 +1772,11 @@ int merge_files (struct merge_fileset *fs,
 
 	invariant(fs->n_temp_files>0);
 	struct merge_fileset next_file_set;
-	BOOL to_queue = (BOOL)(fs->n_temp_files <= mergelimit);
+	BOOL to_queue = (BOOL)(fs->n_temp_files <= final_mergelimit);
 	init_merge_fileset(&next_file_set);
 	while (fs->n_temp_files>0) {
 	    // grab some files and merge them.
-	    int n_to_merge = int_min(mergelimit, fs->n_temp_files);
+	    int n_to_merge = int_min(to_queue?final_mergelimit:earlier_mergelimit, fs->n_temp_files);
 
 	    // We are about to do n_to_merge/n_temp_files of the remaining for this pass.
 	    int progress_allocation_for_this_subpass = progress_allocation_for_this_pass * (double)n_to_merge / (double)fs->n_temp_files;
@@ -2414,7 +2442,7 @@ static int loader_do_i (BRTLOADER bl,
     progress_allocation -= allocation_for_merge;
 
     int r;
-    r = queue_create(&bl->fractal_queues[which_db], 3);
+    r = queue_create(&bl->fractal_queues[which_db], MERGE_QUEUE_DEPTH);
     if (r) goto error;
 
     {
