@@ -1246,6 +1246,39 @@ UNLOCK TABLES;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#54905 Connection with WRITE lock cannot ALTER table due to
+--echo #           concurrent SHOW CREATE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+
+--echo # Connection con1
+connect (con1,localhost,root);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SHOW CREATE TABLE t1;
+
+--echo # Connection con1
+connection con1;
+# Used to block
+ALTER TABLE t1 CHARACTER SET = utf8;
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+COMMIT;
+disconnect con1;
+DROP TABLE t1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
