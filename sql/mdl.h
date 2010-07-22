@@ -721,10 +721,10 @@ void mdl_destroy();
 
 extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
                                                    bool needs_thr_lock_abort);
-extern "C" const char *set_thd_proc_info(void *thd_arg, const char *info,
-                                         const char *calling_function,
-                                         const char *calling_file,
-                                         const unsigned int calling_line);
+extern "C" const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
+                                      mysql_mutex_t *mutex, const char *msg);
+extern "C" void thd_exit_cond(MYSQL_THD thd, const char *old_msg);
+
 #ifndef DBUG_OFF
 extern mysql_mutex_t LOCK_open;
 #endif
