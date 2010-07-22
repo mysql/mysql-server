@@ -112,6 +112,9 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+#ifdef __WIN__
+extern ibool	srv_use_native_conditions;
+#endif
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
