@@ -881,67 +881,6 @@ uint MDL_ticket::get_deadlock_weight() const
 }
 
 
-/**
-  Helper functions and macros to be used for killable waiting in metadata
-  locking subsystem.
-
-  @sa THD::enter_cond()/exit_cond()/killed.
-
-  @note We can't use THD::enter_cond()/exit_cond()/killed directly here
-        since this will make metadata subsystem dependent on THD class
-        and thus prevent us from writing unit tests for it. And usage of
-        wrapper functions to access THD::killed/enter_cond()/exit_cond()
-        will probably introduce too much overhead.
-*/
-
-#define MDL_ENTER_COND(A, B, C, D) \
-        mdl_enter_cond(A, B, C, D, __func__, __FILE__, __LINE__)
-
-static inline const char *mdl_enter_cond(THD *thd,
-                                         st_my_thread_var *mysys_var,
-                                         mysql_cond_t *cond,
-                                         mysql_mutex_t *mutex,
-                                         const char *calling_func,
-                                         const char *calling_file,
-                                         const unsigned int calling_line)
-{
-  mysql_mutex_assert_owner(mutex);
-
-  mysys_var->current_mutex= mutex;
-  mysys_var->current_cond= cond;
-
-  DEBUG_SYNC(thd, "mdl_enter_cond");
-
-  return set_thd_proc_info(thd, "Waiting for table",
-                           calling_func, calling_file, calling_line);
-}
-
-#define MDL_EXIT_COND(A, B, C, D) \
-        mdl_exit_cond(A, B, C, D, __func__, __FILE__, __LINE__)
-
-static inline void mdl_exit_cond(THD *thd,
-                                 st_my_thread_var *mysys_var,
-                                 mysql_mutex_t *mutex,
-                                 const char* old_msg,
-                                 const char *calling_func,
-                                 const char *calling_file,
-                                 const unsigned int calling_line)
-{
-  DBUG_ASSERT(mutex == mysys_var->current_mutex);
-
-  mysql_mutex_unlock(mutex);
-  mysql_mutex_lock(&mysys_var->mutex);
-  mysys_var->current_mutex= NULL;
-  mysys_var->current_cond= NULL;
-  mysql_mutex_unlock(&mysys_var->mutex);
-
-  DEBUG_SYNC(thd, "mdl_exit_cond");
-
-  (void) set_thd_proc_info(thd, old_msg, calling_func,
-                           calling_file, calling_line);
-}
-
-
 /** Construct an empty wait slot. */
 
 MDL_wait::MDL_wait()
@@ -1021,15 +960,14 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
 {
   const char *old_msg;
   enum_wait_status result;
-  st_my_thread_var *mysys_var= my_thread_var;
   int wait_result= 0;
 
   mysql_mutex_lock(&m_LOCK_wait_status);
 
-  old_msg= MDL_ENTER_COND(thd, mysys_var, &m_COND_wait_status,
-                          &m_LOCK_wait_status);
+  old_msg= thd_enter_cond(thd, &m_COND_wait_status, &m_LOCK_wait_status,
+                          "Waiting for table");
 
-  while (!m_wait_status && !mysys_var->abort &&
+  while (!m_wait_status && !thd_killed(thd) &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
@@ -1048,14 +986,14 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
       false, which means that the caller intends to restart the
       wait.
     */
-    if (mysys_var->abort)
+    if (thd_killed(thd))
       m_wait_status= KILLED;
     else if (set_status_on_timeout)
       m_wait_status= TIMEOUT;
   }
   result= m_wait_status;
 
-  MDL_EXIT_COND(thd, mysys_var, &m_LOCK_wait_status, old_msg);
+  thd_exit_cond(thd, old_msg);
 
   return result;
 }
