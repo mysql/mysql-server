@@ -1466,3 +1466,24 @@ t1	CREATE TABLE `t1` (
 # Switching to connection 'default'.
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Bug#54905 Connection with WRITE lock cannot ALTER table due to
+#           concurrent SHOW CREATE
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+# Connection con1
+LOCK TABLE t1 WRITE;
+# Connection default
+START TRANSACTION;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+# Connection con1
+ALTER TABLE t1 CHARACTER SET = utf8;
+UNLOCK TABLES;
+# Connection default
+COMMIT;
+DROP TABLE t1;
