@@ -521,8 +521,19 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         continue;
 
       file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));
-      if (wild && wild_compare(uname, wild, 0))
-        continue;
+      if (wild)
+      {
+	if (lower_case_table_names)
+	{
+          if (my_wildcmp(files_charset_info,
+                         uname, uname + file_name_len,
+                         wild, wild + wild_length,
+                         wild_prefix, wild_one,wild_many))
+            continue;
+	}
+	else if (wild_compare(uname, wild, 0))
+	  continue;
+      }
       if (!(file_name= 
             thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
       {
