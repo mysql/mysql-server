@@ -21,18 +21,24 @@ done
 IFS="$save_ifs"
 
 rm -rf configure
-aclocal || die "Can't execute aclocal" 
-autoheader || die "Can't execute autoheader"
-# --force means overwrite ltmain.sh script if it already exists 
-$LIBTOOLIZE --automake --force --copy || die "Can't execute libtoolize"
-  
-# --add-missing instructs automake to install missing auxiliary files
-# and --force to overwrite them if they already exist
-automake --add-missing --force  --copy || die "Can't execute automake"
-autoconf || die "Can't execute autoconf"
-# Do not use autotools generated configure directly. Instead, use a script
-# that will either call CMake or original configure shell script at build 
-# time (CMake is preferred if installed).
-mv configure configure.am
-cp BUILD/choose_configure.sh configure
-chmod a+x configure
+
+# Ensure that cmake and perl are available. Required for cmake based builds.
+cmake -P cmake/check_minimal_version.cmake >/dev/null 2>&1 || HAVE_CMAKE=no
+perl --version >/dev/null 2>&1 || HAVE_CMAKE=no
+
+# Whether to use the autotools configuration script or cmake.
+if test "$HAVE_CMAKE" = "no"
+then
+  aclocal || die "Can't execute aclocal"
+  autoheader || die "Can't execute autoheader"
+  # --force means overwrite ltmain.sh script if it already exists
+  $LIBTOOLIZE --automake --force --copy || die "Can't execute libtoolize"
+  # --add-missing instructs automake to install missing auxiliary files
+  # and --force to overwrite them if they already exist
+  automake --add-missing --force  --copy || die "Can't execute automake"
+  autoconf || die "Can't execute autoconf"
+else
+  path=`dirname $0`
+  cp $path/cmake_configure.sh $path/../configure
+  chmod +x $path/../configure
+fi
