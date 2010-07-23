@@ -169,7 +169,6 @@ protected:
   { return ((uchar*)&global_system_variables) + offset; }
 };
 
-#include "log.h"                           /* binlog_format_typelib */
 #include "sql_plugin.h"                    /* SHOW_HA_ROWS, SHOW_MY_BOOL */
 
 /****************************************************************************

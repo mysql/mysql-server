@@ -2866,6 +2866,8 @@ static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
   return false;
 }
 
+static const char *log_output_names[] = { "NONE", "FILE", "TABLE", NULL};
+
 static Sys_var_set Sys_log_output(
        "log_output", "Syntax: log-output=value[,value...], "
        "where \"value\" could be TABLE, FILE or NONE",

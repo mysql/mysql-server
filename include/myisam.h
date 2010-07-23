@@ -252,7 +252,7 @@ extern ulong myisam_block_size;
 extern uint myisam_concurrent_insert;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_off_t myisam_max_temp_length;
-extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
+extern ulong myisam_data_pointer_size;
 
 /* usually used to check if a symlink points into the mysql data home */
 /* which is normally forbidden                                        */

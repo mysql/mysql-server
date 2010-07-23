@@ -78,9 +78,6 @@ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
 
-extern TYPELIB log_output_typelib;
-extern const char *log_output_names[];
-
 /**
   Character set of the buildin error messages loaded from errmsg.sys.
 */
@@ -105,7 +102,7 @@ extern bool volatile abort_loop;
 extern bool in_bootstrap;
 extern uint volatile thread_count, global_read_lock;
 extern uint connection_count;
-extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
+extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern uint slave_exec_mode_options;
@@ -173,7 +170,6 @@ extern ulong slave_trans_retries;
 extern uint  slave_net_timeout;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
-extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
@@ -210,9 +206,7 @@ extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
-extern FILE *stderror_file;
 extern I_List<THD> threads;
-extern char err_shared_dir[];
 extern scheduler_functions thread_scheduler;
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
@@ -313,7 +307,6 @@ extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct system_variables global_system_variables;
 extern char default_logfile_name[FN_REFLEN];
-extern char err_shared_dir[];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
