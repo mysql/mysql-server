@@ -138,9 +138,6 @@ my_bool my_init(void)
 #ifdef THREAD
   if (my_thread_global_init())
     return 1;
-#if !defined(__WIN__)
-  sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
-#endif
 #endif /* THREAD */
   {
     DBUG_ENTER("my_init");

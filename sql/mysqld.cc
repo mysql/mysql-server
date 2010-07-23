@@ -602,7 +602,7 @@ pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_thread_count;
 mysql_mutex_t LOCK_mysql_create_db, LOCK_open,
-  LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
+  LOCK_status, LOCK_global_read_lock,
   LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
   LOCK_crypt,
@@ -1532,7 +1532,6 @@ static void clean_up_mutexes()
   mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_open);
   mysql_mutex_destroy(&LOCK_thread_count);
-  mysql_mutex_destroy(&LOCK_mapped_file);
   mysql_mutex_destroy(&LOCK_status);
   mysql_mutex_destroy(&LOCK_delayed_insert);
   mysql_mutex_destroy(&LOCK_delayed_status);
@@ -3512,7 +3511,6 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_lock_db, &LOCK_lock_db, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_mapped_file, &LOCK_mapped_file, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
                    &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
@@ -7691,7 +7689,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
-  key_LOCK_lock_db, key_LOCK_manager, key_LOCK_mapped_file,
+  key_LOCK_lock_db, key_LOCK_manager,
   key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
   key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
@@ -7732,7 +7730,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
   { &key_LOCK_lock_db, "LOCK_lock_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
-  { &key_LOCK_mapped_file, "LOCK_mapped_file", PSI_FLAG_GLOBAL},
   { &key_LOCK_mysql_create_db, "LOCK_mysql_create_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
