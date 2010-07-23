@@ -78,7 +78,7 @@ extern int my_errno;  /* Last error in mysys */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
 #define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
-#define MY_RAID         64      /* Support for RAID */
+#define MY_UNUSED       64      /* Unused (was support for RAID) */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
@@ -100,10 +100,6 @@ extern int my_errno;  /* Last error in mysys */
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
 #define MY_DONT_FREE_DBUG 4     /* Do not call DBUG_END() in my_end() */
-
-#define MY_REMOVE_NONE    0     /* Params for modify_defaults_file */
-#define MY_REMOVE_OPTION  1
-#define MY_REMOVE_SECTION 2
 
 #define ME_HIGHBYTE	8	/* Shift for colours */
 #define ME_NOCUR	1	/* Don't use curses message */
@@ -265,13 +261,6 @@ extern const char *my_defaults_group_suffix;
 extern const char *my_defaults_file;
 
 extern my_bool timed_mutexes;
-
-typedef struct wild_file_pack	/* Struct to hold info when selecting files */
-{
-  uint		wilds;		/* How many wildcards */
-  uint		not_pos;	/* Start of not-theese-files */
-  char *	*wild;		/* Pointer to wildcards */
-} WF_PACK;
 
 enum loglevel {
    ERROR_LEVEL,
@@ -568,7 +557,6 @@ typedef int (*Process_option_func)(void *ctx, const char *group_name,
 	/* Prototypes for mysys and my_func functions */
 
 extern int my_copy(const char *from,const char *to,myf MyFlags);
-extern int my_append(const char *from,const char *to,myf MyFlags);
 extern int my_delete(const char *name,myf MyFlags);
 extern int my_getwd(char * buf,size_t size,myf MyFlags);
 extern int my_setwd(const char *dir,myf MyFlags);
@@ -584,7 +572,6 @@ extern File my_register_filename(File fd, const char *FileName,
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccessFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);
-extern File my_dup(File file, myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
 extern int my_is_symlink(const char *filename);
@@ -713,9 +700,6 @@ extern char * my_load_path(char * to, const char *path,
 			      const char *own_path_prefix);
 extern int wild_compare(const char *str,const char *wildstr,
                         pbool str_is_pattern);
-extern WF_PACK *wf_comp(char * str);
-extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
-extern void wf_end(struct wild_file_pack *buffer);
 extern my_bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
@@ -729,8 +713,6 @@ extern int end_record_cache(RECORD_CACHE *info);
 extern int write_cache_record(RECORD_CACHE *info,my_off_t filepos,
 			      const uchar *record,size_t length);
 extern int flush_write_cache(RECORD_CACHE *info);
-extern long my_clock(void);
-extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
 
 extern sig_handler my_set_alarm_variable(int signo);
@@ -852,9 +834,6 @@ extern int my_load_defaults(const char *conf_file, const char **groups,
                             int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,
                          int *argc, char ***argv);
-extern int modify_defaults_file(const char *file_location, const char *option,
-                                const char *option_value,
-                                const char *section_name, int remove_option);
 extern int my_search_option_files(const char *conf_file, int *argc,
                                   char ***argv, uint *args_used,
                                   Process_option_func func, void *func_ctx,

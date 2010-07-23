@@ -81,9 +81,6 @@ select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_thread_count";
 
 select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_mapped_file";
-
-select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_status";
 
 select count(name) from MUTEX_INSTANCES

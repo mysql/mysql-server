@@ -2683,10 +2683,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
 #endif
 
           /* Copy data from the cache buffer */
-          if (!(read_length & 511))
-            bmove512(buff, block->buffer+offset, read_length);
-          else
-            memcpy(buff, block->buffer+offset, (size_t) read_length);
+          memcpy(buff, block->buffer+offset, (size_t) read_length);
 
 #if !defined(SERIALIZED_READ_FROM_CACHE)
           keycache_pthread_mutex_lock(&keycache->cache_lock);
@@ -2920,10 +2917,7 @@ int key_cache_insert(KEY_CACHE *keycache,
 #endif
 
           /* Copy data from buff */
-          if (!(read_length & 511))
-            bmove512(block->buffer+offset, buff, read_length);
-          else
-            memcpy(block->buffer+offset, buff, (size_t) read_length);
+          memcpy(block->buffer+offset, buff, (size_t) read_length);
 
 #if !defined(SERIALIZED_READ_FROM_CACHE)
           keycache_pthread_mutex_lock(&keycache->cache_lock);
@@ -3246,10 +3240,7 @@ int key_cache_write(KEY_CACHE *keycache,
 #if !defined(SERIALIZED_READ_FROM_CACHE)
         keycache_pthread_mutex_unlock(&keycache->cache_lock);
 #endif
-        if (!(read_length & 511))
-	  bmove512(block->buffer+offset, buff, read_length);
-        else
-          memcpy(block->buffer+offset, buff, (size_t) read_length);
+        memcpy(block->buffer+offset, buff, (size_t) read_length);
 
 #if !defined(SERIALIZED_READ_FROM_CACHE)
         keycache_pthread_mutex_lock(&keycache->cache_lock);
