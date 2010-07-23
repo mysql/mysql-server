@@ -237,11 +237,12 @@ pfs_mutex_enter_func(
 	ulint		line)		/*!< in: line where locked */
 {
 	struct PSI_mutex_locker*	locker = NULL;
+	PSI_mutex_locker_state		state;
 	int	result = 0;
 
 	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
 		locker = PSI_server->get_thread_mutex_locker(
-				mutex->pfs_psi, PSI_MUTEX_LOCK);
+				&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
 		if (locker) {
 			PSI_server->start_mutex_wait(locker, file_name, line);
 		}
@@ -270,11 +271,12 @@ pfs_mutex_enter_nowait_func(
 {
 	ulint	ret;
 	struct PSI_mutex_locker*	locker = NULL;
+	PSI_mutex_locker_state		state;
 	int	result = 0;
 
 	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
 		locker = PSI_server->get_thread_mutex_locker(
-				mutex->pfs_psi, PSI_MUTEX_LOCK);
+				&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
 		if (locker) {
 			PSI_server->start_mutex_wait(locker, file_name, line);
 		}
@@ -300,12 +302,7 @@ pfs_mutex_exit_func(
 	mutex_t*	mutex)	/*!< in: pointer to mutex */
 {
 	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
-		struct PSI_thread*	thread;
-		thread = PSI_server->get_thread();
-
-		if (thread) {
-			PSI_server->unlock_mutex(thread, mutex->pfs_psi);
-		}
+		PSI_server->unlock_mutex(mutex->pfs_psi);
 	}
 
 	mutex_exit_func(mutex);

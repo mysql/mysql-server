@@ -20,4 +20,5 @@
 #   #Legacy option, maybe not needed anymore , taken as is from autotools build
 #   ADD_DEFINITIONS(-DNET_RETRY_COUNT=1000000)
 
-ADD_DEFINITIONS(-DHAVE_BROKEN_REALPATH)
+# The below was used for really old versions of FreeBSD, roughly: before 5.1.9
+# ADD_DEFINITIONS(-DHAVE_BROKEN_REALPATH)

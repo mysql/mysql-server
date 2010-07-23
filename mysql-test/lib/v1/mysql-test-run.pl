@@ -76,7 +76,6 @@ $| = 1; # Automatically flush STDOUT
 our $glob_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
 our $glob_cygwin_perl= ($^O eq "cygwin");  # Cygwin Perl
 our $glob_win32=       ($glob_win32_perl or $glob_cygwin_perl);
-our $glob_netware=     ($^O eq "NetWare"); # NetWare
 
 require "lib/v1/mtr_cases.pl";
 require "lib/v1/mtr_im.pl";
@@ -3124,11 +3123,8 @@ sub install_db ($$) {
 		$path_vardir_trace, $type);
   }
 
-  if ( ! $glob_netware )
-  {
-    mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
-    mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
-  }
+  mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
+  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
   # configure --disable-grant-options), mysqld will not recognize the
@@ -3881,8 +3877,6 @@ sub mysqld_arguments ($$$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "%s--loose-skip-safemalloc", $prefix);
-
     if ( $mysql_version_id < 50100 )
     {
       mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -4721,7 +4715,6 @@ sub run_check_testcase ($$) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
 
@@ -4804,7 +4797,6 @@ sub run_mysqltest ($) {
 
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
