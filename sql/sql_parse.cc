@@ -7536,28 +7536,6 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   if (select_lex->item_list.elements)
   {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
-
-#ifdef NOT_NECESSARY_TO_CHECK_CREATE_TABLE_EXIST_WHEN_PREPARING_STATEMENT
-    /* This code throws an ill error for CREATE TABLE t1 SELECT * FROM t1 */
-    /*
-      Only do the check for PS, because we on execute we have to check that
-      against the opened tables to ensure we don't use a table that is part
-      of the view (which can only be done after the table has been opened).
-    */
-    if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
-    {
-      /*
-        For temporary tables we don't have to check if the created table exists
-      */
-      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-          find_table_in_global_list(tables, create_table->db,
-                                    create_table->table_name))
-      {
-	error= FALSE;
-        goto err;
-      }
-    }
-#endif
     if (tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                      UINT_MAX, FALSE))
       goto err;
