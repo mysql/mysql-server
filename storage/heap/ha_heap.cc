@@ -654,7 +654,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
 				       parts * sizeof(HA_KEYSEG),
 				       MYF(MY_WME))))
     return my_errno;
-  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + keys);
+  seg= reinterpret_cast<HA_KEYSEG*>(keydef + keys);
   for (key= 0; key < keys; key++)
   {
     KEY *pos= table_arg->key_info+key;
