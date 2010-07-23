@@ -708,6 +708,7 @@ SELECT 1 FROM
 
 DROP TABLE t1;
 
+--echo End of 5.0 tests
 
 --echo #
 --echo # Bug #52397: another crash with explain extended and group_concat
@@ -719,5 +720,18 @@ EXPLAIN EXTENDED SELECT 1 FROM
     t1 t2, t1 GROUP BY t1.a) AS d;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #54476: crash when group_concat and 'with rollup' in prepared statements
+--echo # 
 
---echo End of 5.0 tests
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+PREPARE stmt FROM "SELECT GROUP_CONCAT(t1.a ORDER BY t1.a) FROM t1 JOIN t1 t2 GROUP BY t1.a WITH ROLLUP";
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+--echo End of 5.1 tests
