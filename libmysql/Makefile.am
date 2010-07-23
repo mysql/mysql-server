@@ -33,7 +33,7 @@ include $(srcdir)/Makefile.shared
 libmysqlclient_la_SOURCES = $(target_sources)
 libmysqlclient_la_LIBADD = $(target_libadd) $(yassl_las)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
-EXTRA_DIST = Makefile.shared libmysql.def dll.c CMakeLists.txt
+EXTRA_DIST = Makefile.shared libmysql.def CMakeLists.txt
 noinst_HEADERS = client_settings.h
 
 link_sources:
@@ -82,7 +82,7 @@ link_sources:
 # keep only the stubs for debug.c
 #
 # A list of needed headers collected from the deps information 000213
-nh =		my_global.h config-win32.h dbug.h errmsg.h \
+nh =		my_global.h dbug.h errmsg.h \
 		m_ctype.h m_string.h password.h \
 		my_alarm.h my_config.h my_dir.h my_list.h my_net.h my_sys.h \
 		mysql.h mysql_com.h mysql_version.h mysqld_error.h \
