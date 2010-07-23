@@ -1983,12 +1983,12 @@ void ha_federated::start_bulk_insert(ha_rows rows)
   @retval       != 0    Error occured at remote server. Also sets my_errno.
 */
 
-int ha_federated::end_bulk_insert(bool abort)
+int ha_federated::end_bulk_insert()
 {
   int error= 0;
   DBUG_ENTER("ha_federated::end_bulk_insert");
   
-  if (!abort && bulk_insert.str && bulk_insert.length)
+  if (!table_will_be_deleted && bulk_insert.str && bulk_insert.length)
   {
     if (real_query(bulk_insert.str, bulk_insert.length))
       error= stash_remote_error();
@@ -2905,6 +2905,8 @@ int ha_federated::extra(ha_extra_function operation)
   case HA_EXTRA_INSERT_WITH_UPDATE:
     insert_dup_update= TRUE;
     break;
+  case HA_EXTRA_PREPARE_FOR_DROP:
+    table_will_be_deleted = TRUE;
   default:
     /* do nothing */
     DBUG_PRINT("info",("unhandled operation: %d", (uint) operation));
@@ -3305,6 +3307,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
     }
   }
 #endif /* XXX_SUPERCEDED_BY_WL2952 */
+  table_will_be_deleted = FALSE;
   DBUG_RETURN(error);
 }
 

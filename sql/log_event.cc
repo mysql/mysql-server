@@ -8416,7 +8416,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
       ultimately. Still todo: fix
     */
   }
-  if ((local_error= m_table->file->ha_end_bulk_insert(0)))
+  if ((local_error= m_table->file->ha_end_bulk_insert()))
   {
     m_table->file->print_error(local_error, MYF(0));
   }

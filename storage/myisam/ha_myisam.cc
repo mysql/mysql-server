@@ -1591,11 +1591,11 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
     != 0  Error
 */
 
-int ha_myisam::end_bulk_insert(bool abort)
+int ha_myisam::end_bulk_insert()
 {
   mi_end_bulk_insert(file);
   int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
-  if (!err && !abort)
+  if (!err && !file->s->deleting)
   {
     if (can_enable_indexes)
     {

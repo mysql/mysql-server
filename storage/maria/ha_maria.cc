@@ -1944,14 +1944,14 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     != 0  Error
 */
 
-int ha_maria::end_bulk_insert(bool table_will_be_deleted)
+int ha_maria::end_bulk_insert()
 {
   int err;
   DBUG_ENTER("ha_maria::end_bulk_insert");
-  maria_end_bulk_insert(file, table_will_be_deleted);
+  maria_end_bulk_insert(file);
   if ((err= maria_extra(file, HA_EXTRA_NO_CACHE, 0)))
     goto end;
-  if (can_enable_indexes && !table_will_be_deleted)
+  if (can_enable_indexes && !file->s->deleting)
     err= enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 end:
   if (bulk_insert_single_undo != BULK_INSERT_NONE)

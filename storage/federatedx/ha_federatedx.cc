@@ -2143,12 +2143,12 @@ void ha_federatedx::start_bulk_insert(ha_rows rows)
   @retval       != 0    Error occured at remote server. Also sets my_errno.
 */
 
-int ha_federatedx::end_bulk_insert(bool abort)
+int ha_federatedx::end_bulk_insert()
 {
   int error= 0;
   DBUG_ENTER("ha_federatedx::end_bulk_insert");
   
-  if (bulk_insert.str && bulk_insert.length && !abort)
+  if (bulk_insert.str && bulk_insert.length && !table_will_be_deleted)
   {
     if ((error= txn->acquire(share, FALSE, &io)))
       DBUG_RETURN(error);
@@ -3082,6 +3082,9 @@ int ha_federatedx::extra(ha_extra_function operation)
   case HA_EXTRA_INSERT_WITH_UPDATE:
     insert_dup_update= TRUE;
     break;
+  case HA_EXTRA_PREPARE_FOR_DROP:
+    table_will_be_deleted = TRUE;
+    break;
   default:
     /* do nothing */
     DBUG_PRINT("info",("unhandled operation: %d", (uint) operation));
@@ -3391,6 +3394,7 @@ int ha_federatedx::external_lock(MYSQL_THD thd, int lock_type)
     txn->release(&io);
   else
   {
+    table_will_be_deleted = FALSE;
     txn= get_txn(thd);  
     if (!(error= txn->acquire(share, lock_type == F_RDLCK, &io)) &&
         (lock_type == F_WRLCK || !io->is_autocommit()))

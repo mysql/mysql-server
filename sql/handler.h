@@ -1249,10 +1249,10 @@ public:
     estimation_rows_to_insert= rows;
     start_bulk_insert(rows);
   }
-  int ha_end_bulk_insert(bool abort)
+  int ha_end_bulk_insert()
   {
     estimation_rows_to_insert= 0;
-    return end_bulk_insert(abort);
+    return end_bulk_insert();
   }
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
@@ -1796,7 +1796,6 @@ protected:
 private:
   /* Private helpers */
   inline void mark_trx_read_write();
-private:
   /*
     Low-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
@@ -1879,7 +1878,7 @@ private:
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual void start_bulk_insert(ha_rows rows) {}
-  virtual int end_bulk_insert(bool abort) { return 0; }
+  virtual int end_bulk_insert() { return 0; }
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
