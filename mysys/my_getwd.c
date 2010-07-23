@@ -72,16 +72,6 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
       getwd(pathname);
       strmake(buf,pathname,size-1);
     }
-#elif defined(VMS)
-    if (size < 2)
-      DBUG_RETURN(-1);
-    if (!getcwd(buf,size-2,1) && MyFlags & MY_WME)
-    {
-      my_errno=errno;
-      my_error(EE_GETWD,MYF(ME_BELL+ME_WAITTANG),errno);
-      DBUG_RETURN(-1);
-    }
-    intern_filename(buf,buf);
 #else
 #error "No way to get current directory"
 #endif
@@ -103,27 +93,12 @@ int my_setwd(const char *dir, myf MyFlags)
   int res;
   size_t length;
   char *start, *pos;
-#if defined(VMS)
-  char buff[FN_REFLEN];
-#endif
   DBUG_ENTER("my_setwd");
   DBUG_PRINT("my",("dir: '%s'  MyFlags %d", dir, MyFlags));
 
   start=(char *) dir;
   if (! dir[0] || (dir[0] == FN_LIBCHAR && dir[1] == 0))
     dir=FN_ROOTDIR;
-#ifdef VMS
-  {
-    pos=strmov(buff,dir);
-    if (pos[-1] != FN_LIBCHAR)
-    {
-      pos[0]=FN_LIBCHAR;		/* Mark as directory */
-      pos[1]=0;
-    }
-    system_filename(buff,buff);		/* Change to VMS format */
-    dir=buff;
-  }
-#endif /* VMS */
   if ((res=chdir((char*) dir)) != 0)
   {
     my_errno=errno;

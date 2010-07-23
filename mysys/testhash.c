@@ -286,5 +286,5 @@ static int rnd(int max_value)
 
 void free_record(void *record)
 {
-  my_free(record,MYF(0));
+  my_free(record);
 }

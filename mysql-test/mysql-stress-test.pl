@@ -123,7 +123,7 @@ $pid_file="mysql_stress_test.pid";
 $opt_mysqltest= ($^O =~ /mswin32/i) ? "mysqltest.exe" : "mysqltest";
 $opt_check_tests_file="";
 # OBM adding a setting for 'max-connect-retries=20' the default of 500 is to high  
-@mysqltest_args=("--silent", "-v", "--skip-safemalloc", "--max-connect-retries=20");
+@mysqltest_args=("--silent", "-v", "--max-connect-retries=20");
 
 # Client ip address
 $client_ip=inet_ntoa((gethostbyname(hostname()))[4]);

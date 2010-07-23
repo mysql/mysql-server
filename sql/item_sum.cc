@@ -1214,8 +1214,7 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
-  if (value_arg)
-    value->store(value_arg);
+  value->store(value_arg);
   cmp= new Arg_comparator();
   cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
   collation.set(item->collation);
@@ -1903,7 +1902,7 @@ void Item_sum_variance::update_field()
 
 void Item_sum_hybrid::clear()
 {
-  value->null_value= 1;
+  value->clear();
   null_value= 1;
 }
 

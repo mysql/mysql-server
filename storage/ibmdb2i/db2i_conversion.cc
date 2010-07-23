@@ -292,7 +292,7 @@ static void get_field_default_value(Field *field,
               if (iconv(iconvD, (char**)&tempIn, &ilen, &tempOut, &olen, &substitutedChars) < 0)
               {
                 warning(current_thd, DB2I_ERR_WARN_COL_ATTRS, field->field_name);
-                my_free(out, MYF(0));
+                my_free(out);
                 return;
               }
               // Now we process the converted string to represent it as 
@@ -310,7 +310,7 @@ static void get_field_default_value(Field *field,
             if (length > 16370)
             {
               warning(current_thd, DB2I_ERR_WARN_COL_ATTRS, field->field_name);
-              my_free(out, MYF(0));
+              my_free(out);
               return;
             }
 
@@ -335,7 +335,7 @@ static void get_field_default_value(Field *field,
             if (field->charset() == &my_charset_bin)
               defaultClause.append(")");              
 
-            my_free(out, MYF(0));
+            my_free(out);
           }
         }
         else

@@ -42,12 +42,14 @@ static int rr_from_cache(READ_RECORD *info);
 static int init_rr_cache(THD *thd, READ_RECORD *info);
 static int rr_cmp(uchar *a,uchar *b);
 static int rr_index_first(READ_RECORD *info);
+static int rr_index_last(READ_RECORD *info);
 static int rr_index(READ_RECORD *info);
+static int rr_index_desc(READ_RECORD *info);
 
 
 /**
-  Initialize READ_RECORD structure to perform full index scan (in forward
-  direction) using read_record.read_record() interface.
+  Initialize READ_RECORD structure to perform full index scan in desired 
+  direction using read_record.read_record() interface
 
     This function has been added at late stage and is used only by
     UPDATE/DELETE. Other statements perform index scans using
@@ -59,10 +61,11 @@ static int rr_index(READ_RECORD *info);
   @param print_error  If true, call table->file->print_error() if an error
                       occurs (except for end-of-records error)
   @param idx          index to scan
+  @param reverse      Scan in the reverse direction
 */
 
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
-                          bool print_error, uint idx)
+                          bool print_error, uint idx, bool reverse)
 {
   empty_record(table);
   bzero((char*) info,sizeof(*info));
@@ -77,7 +80,7 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   if (!table->file->inited)
     table->file->ha_index_init(idx, 1);
   /* read_record will be changed to rr_index in rr_index_first */
-  info->read_record= rr_index_first;
+  info->read_record= reverse ? rr_index_last : rr_index_first;
 }
 
 
@@ -290,7 +293,7 @@ void end_read_record(READ_RECORD *info)
 {                   /* free cache if used */
   if (info->cache)
   {
-    my_free_lock((char*) info->cache,MYF(0));
+    my_free_lock(info->cache);
     info->cache=0;
   }
   if (info->table)
@@ -365,6 +368,29 @@ static int rr_index_first(READ_RECORD *info)
 
 
 /**
+  Reads last row in an index scan.
+
+  @param info  	Scan info
+
+  @retval
+    0   Ok
+  @retval
+    -1   End of records
+  @retval
+    1   Error
+*/
+
+static int rr_index_last(READ_RECORD *info)
+{
+  int tmp= info->file->index_last(info->record);
+  info->read_record= rr_index_desc;
+  if (tmp)
+    tmp= rr_handle_error(info, tmp);
+  return tmp;
+}
+
+
+/**
   Reads index sequentially after first row.
 
   Read the next index record (in forward direction) and translate return
@@ -383,6 +409,31 @@ static int rr_index_first(READ_RECORD *info)
 static int rr_index(READ_RECORD *info)
 {
   int tmp= info->file->index_next(info->record);
+  if (tmp)
+    tmp= rr_handle_error(info, tmp);
+  return tmp;
+}
+
+
+/**
+  Reads index sequentially from the last row to the first.
+
+  Read the prev index record (in backward direction) and translate return
+  value.
+
+  @param info  Scan info
+
+  @retval
+    0   Ok
+  @retval
+    -1   End of records
+  @retval
+    1   Error
+*/
+
+static int rr_index_desc(READ_RECORD *info)
+{
+  int tmp= info->file->index_prev(info->record);
   if (tmp)
     tmp= rr_handle_error(info, tmp);
   return tmp;

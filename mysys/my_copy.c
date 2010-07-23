@@ -103,10 +103,10 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
 	DBUG_RETURN(0);			/* File copyed but not stat */
     res= chmod(to, stat_buff.st_mode & 07777); /* Copy modes */
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
     res= chown(to, stat_buff.st_uid,stat_buff.st_gid); /* Copy ownership */
 #endif
-#if !defined(VMS) && !defined(__ZTC__)
+
     if (MyFlags & MY_COPYTIME)
     {
       struct utimbuf timep;
@@ -114,7 +114,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
       timep.modtime = stat_buff.st_mtime;
       (void) utime((char*) to, &timep); /* last accessed and modified times */
     }
-#endif
+
     DBUG_RETURN(0);
   }
 
