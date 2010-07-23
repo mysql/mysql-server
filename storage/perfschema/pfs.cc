@@ -1055,7 +1055,7 @@ void* pfs_spawn_thread(void *arg)
   */
   user_start_routine= typed_arg->m_user_start_routine;
   user_arg= typed_arg->m_user_arg;
-  my_free(typed_arg, MYF(0));
+  my_free(typed_arg);
 
   /* Then, execute the user code for this thread. */
   (*user_start_routine)(user_arg);
@@ -1083,7 +1083,7 @@ static int spawn_thread_v1(PSI_thread_key key,
 
   int result= pthread_create(thread, attr, pfs_spawn_thread, psi_arg);
   if (unlikely(result != 0))
-    my_free(psi_arg, MYF(0));
+    my_free(psi_arg);
   return result;
 }
 
@@ -1139,7 +1139,8 @@ static void delete_thread_v1(PSI_thread *thread)
 }
 
 static PSI_mutex_locker*
-get_thread_mutex_locker_v1(PSI_mutex *mutex, PSI_mutex_operation op)
+get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
+                           PSI_mutex *mutex, PSI_mutex_operation op)
 {
   PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex*> (mutex);
   DBUG_ASSERT((int) op >= 0);
@@ -1192,7 +1193,8 @@ get_thread_mutex_locker_v1(PSI_mutex *mutex, PSI_mutex_operation op)
 }
 
 static PSI_rwlock_locker*
-get_thread_rwlock_locker_v1(PSI_rwlock *rwlock, PSI_rwlock_operation op)
+get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
+                            PSI_rwlock *rwlock, PSI_rwlock_operation op)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
   DBUG_ASSERT(static_cast<int> (op) >= 0);
@@ -1246,7 +1248,8 @@ get_thread_rwlock_locker_v1(PSI_rwlock *rwlock, PSI_rwlock_operation op)
 }
 
 static PSI_cond_locker*
-get_thread_cond_locker_v1(PSI_cond *cond, PSI_mutex * /* unused: mutex */,
+get_thread_cond_locker_v1(PSI_cond_locker_state *state,
+                          PSI_cond *cond, PSI_mutex * /* unused: mutex */,
                           PSI_cond_operation op)
 {
   /*
@@ -1316,7 +1319,8 @@ get_thread_cond_locker_v1(PSI_cond *cond, PSI_mutex * /* unused: mutex */,
   @sa PSI_v1::get_thread_table_locker.
 */
 static PSI_table_locker*
-get_thread_table_locker_v1(PSI_table *table, PSI_table_operation op, ulong flags)
+get_thread_table_locker_v1(PSI_table_locker_state *state,
+                           PSI_table *table, PSI_table_operation op, ulong flags)
 {
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(table_operation_map));
@@ -1379,7 +1383,8 @@ get_thread_table_locker_v1(PSI_table *table, PSI_table_operation op, ulong flags
 }
 
 static PSI_file_locker*
-get_thread_file_name_locker_v1(PSI_file_key key,
+get_thread_file_name_locker_v1(PSI_file_locker_state *state,
+                               PSI_file_key key,
                                PSI_file_operation op,
                                const char *name, const void *identity)
 {
@@ -1444,7 +1449,8 @@ get_thread_file_name_locker_v1(PSI_file_key key,
 }
 
 static PSI_file_locker*
-get_thread_file_stream_locker_v1(PSI_file *file, PSI_file_operation op)
+get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
+                                 PSI_file *file, PSI_file_operation op)
 {
   PFS_file *pfs_file= reinterpret_cast<PFS_file*> (file);
 
@@ -1503,7 +1509,8 @@ get_thread_file_stream_locker_v1(PSI_file *file, PSI_file_operation op)
 }
 
 static PSI_file_locker*
-get_thread_file_descriptor_locker_v1(File file, PSI_file_operation op)
+get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
+                                     File file, PSI_file_operation op)
 {
   int index= static_cast<int> (file);
 
@@ -1581,7 +1588,7 @@ get_thread_file_descriptor_locker_v1(File file, PSI_file_operation op)
   return NULL;
 }
 
-static void unlock_mutex_v1(PSI_thread * thread, PSI_mutex *mutex)
+static void unlock_mutex_v1(PSI_mutex *mutex)
 {
   PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex*> (mutex);
   DBUG_ASSERT(pfs_mutex != NULL);
@@ -1620,7 +1627,7 @@ static void unlock_mutex_v1(PSI_thread * thread, PSI_mutex *mutex)
 #endif
 }
 
-static void unlock_rwlock_v1(PSI_thread *thread, PSI_rwlock *rwlock)
+static void unlock_rwlock_v1(PSI_rwlock *rwlock)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
   DBUG_ASSERT(pfs_rwlock != NULL);
@@ -1696,7 +1703,7 @@ static void unlock_rwlock_v1(PSI_thread *thread, PSI_rwlock *rwlock)
 #endif
 }
 
-static void signal_cond_v1(PSI_thread *thread, PSI_cond* cond)
+static void signal_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
   DBUG_ASSERT(pfs_cond != NULL);
@@ -1704,7 +1711,7 @@ static void signal_cond_v1(PSI_thread *thread, PSI_cond* cond)
   pfs_cond->m_cond_stat.m_signal_count++;
 }
 
-static void broadcast_cond_v1(PSI_thread *thread, PSI_cond* cond)
+static void broadcast_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
   DBUG_ASSERT(pfs_cond != NULL);

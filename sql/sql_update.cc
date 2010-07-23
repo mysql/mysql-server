@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -203,12 +203,13 @@ int mysql_update(THD *thd,
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
-  bool		used_key_is_modified, transactional_table, will_batch;
+  bool          used_key_is_modified= FALSE, transactional_table, will_batch;
   bool		can_compare_record;
   int           res;
   int		error, loc_error;
-  uint		used_index= MAX_KEY, dup_key_found;
+  uint          used_index, dup_key_found;
   bool          need_sort= TRUE;
+  bool          reverse= FALSE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -358,11 +359,7 @@ int mysql_update(THD *thd,
     my_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
-  if (!select && limit != HA_POS_ERROR)
-  {
-    if ((used_index= get_index_for_order(table, order, limit)) != MAX_KEY)
-      need_sort= FALSE;
-  }
+
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -378,23 +375,19 @@ int mysql_update(THD *thd,
 
   table->mark_columns_needed_for_update();
 
-  /* Check if we are modifying a key that we are used to search with */
-  
-  if (select && select->quick)
-  {
-    used_index= select->quick->index;
-    used_key_is_modified= (!select->quick->unique_key_range() &&
-                          select->quick->is_keys_used(table->write_set));
+  table->update_const_key_parts(conds);
+  order= simple_remove_const(order, conds);
+        
+  used_index= get_index_for_order(order, table, select, limit,
+                                  &need_sort, &reverse);
+  if (need_sort)
+  { // Assign table scan index to check below for modified key fields:
+    used_index= table->file->key_used_on_scan;
   }
-  else
-  {
-    used_key_is_modified= 0;
-    if (used_index == MAX_KEY)                  // no index for sort order
-      used_index= table->file->key_used_on_scan;
-    if (used_index != MAX_KEY)
-      used_key_is_modified= is_key_used(table, used_index, table->write_set);
+  if (used_index != MAX_KEY)
+  { // Check if we are modifying a key that we are used to search with:
+    used_key_is_modified= is_key_used(table, used_index, table->write_set);
   }
-
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (used_key_is_modified || order ||
@@ -414,7 +407,7 @@ int mysql_update(THD *thd,
       table->use_all_columns();
     }
 
-    /* note: We avoid sorting avoid if we sort on the used index */
+    /* note: We avoid sorting if we sort on the used index */
     if (order && (need_sort || used_key_is_modified))
     {
       /*
@@ -476,7 +469,7 @@ int mysql_update(THD *thd,
       if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
-        init_read_record_idx(&info, thd, table, 1, used_index);
+        init_read_record_idx(&info, thd, table, 1, used_index, reverse);
 
       thd_proc_info(thd, "Searching rows for update");
       ha_rows tmp_limit= limit;
@@ -484,7 +477,14 @@ int mysql_update(THD *thd,
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
         thd->examined_row_count++;
-	if (!(select && select->skip_record()))
+        bool skip_record= FALSE;
+        if (select && select->skip_record(thd, &skip_record))
+        {
+          error= 1;
+          table->file->unlock_row();
+          break;
+        }
+        if (!skip_record)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -591,7 +591,8 @@ int mysql_update(THD *thd,
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     thd->examined_row_count++;
-    if (!(select && select->skip_record()))
+    bool skip_record;
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */

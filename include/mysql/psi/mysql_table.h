@@ -33,6 +33,7 @@
   @def MYSQL_START_TABLE_WAIT
   Instrumentation helper for table waits.
   This instrumentation marks the start of a wait event.
+  @param STATE The locker state
   @param PSI The instrumented table
   @param OP The table operation to be performed
   @param INDEX The table index used if any, or MAY_KEY.
@@ -40,10 +41,10 @@
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_INTERFACE
-  #define MYSQL_START_TABLE_WAIT(PSI, OP, INDEX, FLAGS) \
-    inline_mysql_start_table_wait(PSI, OP, INDEX, FLAGS, __FILE__, __LINE__)
+  #define MYSQL_START_TABLE_WAIT(STATE, PSI, OP, INDEX, FLAGS) \
+    inline_mysql_start_table_wait(STATE, PSI, OP, INDEX, FLAGS, __FILE__, __LINE__)
 #else
-  #define MYSQL_START_TABLE_WAIT(PSI, OP, INDEX, FLAGS) \
+  #define MYSQL_START_TABLE_WAIT(STATE, PSI, OP, INDEX, FLAGS) \
     NULL
 #endif
 
@@ -67,14 +68,15 @@
   @sa MYSQL_START_TABLE_WAIT.
 */
 static inline struct PSI_table_locker *
-inline_mysql_start_table_wait(struct PSI_table *psi, enum PSI_table_operation op,
+inline_mysql_start_table_wait(PSI_table_locker_state *state,
+                              struct PSI_table *psi, enum PSI_table_operation op,
                               uint index, ulong flags,
                               const char *src_file, int src_line)
 {
   struct PSI_table_locker *locker= NULL;
   if (likely(PSI_server && psi))
   {
-    locker= PSI_server->get_thread_table_locker(psi, op, flags);
+    locker= PSI_server->get_thread_table_locker(state, psi, op, flags);
     if (likely(locker != NULL))
       PSI_server->start_table_wait(locker, index, src_file, src_line);
   }

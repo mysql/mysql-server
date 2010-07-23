@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* compare and test functions */
@@ -123,7 +123,17 @@ public:
     delete [] comparators;
     comparators= 0;
   }
-
+  /*
+    Set correct cmp_context if items would be compared as INTs.
+  */
+  inline void set_cmp_context_for_datetime()
+  {
+    DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
+    if ((*a)->result_as_longlong())
+      (*a)->cmp_context= INT_RESULT;
+    if ((*b)->result_as_longlong())
+      (*b)->cmp_context= INT_RESULT;
+  }
   friend class Item_func;
 };
 

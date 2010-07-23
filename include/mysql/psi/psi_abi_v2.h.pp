@@ -92,11 +92,36 @@ struct PSI_file_info_v2
 {
   int placeholder;
 };
+struct PSI_mutex_locker_state_v2
+{
+  int placeholder;
+};
+struct PSI_rwlock_locker_state_v2
+{
+  int placeholder;
+};
+struct PSI_cond_locker_state_v2
+{
+  int placeholder;
+};
+struct PSI_file_locker_state_v2
+{
+  int placeholder;
+};
+struct PSI_table_locker_state_v2
+{
+  int placeholder;
+};
 typedef struct PSI_v2 PSI;
 typedef struct PSI_mutex_info_v2 PSI_mutex_info;
 typedef struct PSI_rwlock_info_v2 PSI_rwlock_info;
 typedef struct PSI_cond_info_v2 PSI_cond_info;
 typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
+typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
+typedef struct PSI_rwlock_locker_state_v2 PSI_rwlock_locker_state;
+typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
+typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
+typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

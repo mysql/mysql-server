@@ -297,6 +297,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t0)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `t1`,`ti`
 do release_lock("lock1");
 drop table t0,t2;
 set autocommit=0;
@@ -462,8 +463,7 @@ select get_lock("a",10);
 get_lock("a",10)
 1
 flush logs;
-This does not matter in ROW mode as the rolled back changes do not contain transactional changes as these 
-were previously flushed upon committing/rolling back each statement.
+There is nothing to roll back; transactional changes are removed from the trans cache.
 drop table t1, t2;
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
