@@ -238,7 +238,7 @@ event_scheduler_thread(void *arg)
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("event_scheduler_thread");
-  my_free((char*)arg, MYF(0));
+  my_free(arg);
   if (!res)
     scheduler->run(thd);
 

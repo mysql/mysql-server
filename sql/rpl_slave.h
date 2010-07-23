@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
@@ -188,10 +188,6 @@ int start_slave_thread(
                        volatile uint *slave_running,
                        volatile ulong *slave_run_id,
                        Master_info *mi);
-
-/* If fd is -1, dump to NET */
-int mysql_table_dump(THD* thd, const char* db,
-		     const char* tbl_name, int fd = -1);
 
 /* retrieve table from master and copy to slave*/
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -791,6 +791,19 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
 }
 
 #ifndef EMBEDDED_LIBRARY
+
+/**
+  Check whether this parameter data type is compatible with long data.
+  Used to detect whether a long data stream has been supplied to a
+  incompatible data type.
+*/
+inline bool is_param_long_data_type(Item_param *param)
+{
+  return ((param->param_type >= MYSQL_TYPE_TINY_BLOB) &&
+          (param->param_type <= MYSQL_TYPE_STRING));
+}
+
+
 /**
   Routines to assign parameters from data supplied by the client.
 
@@ -860,6 +873,14 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (!is_param_long_data_type(param))
+      DBUG_RETURN(1);
     res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -898,6 +919,14 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (is_param_long_data_type(param))
+      DBUG_RETURN(1);
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
   }

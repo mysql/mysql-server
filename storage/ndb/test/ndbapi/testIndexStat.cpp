@@ -404,9 +404,9 @@ static void
 freekeys()
 {
   if (g_keys != 0)
-    my_free((char*)g_keys, MYF(0));
+    my_free(g_keys);
   if (g_sortkeys != 0)
-    my_free((char*)g_sortkeys, MYF(0));
+    my_free(g_sortkeys);
   g_keys = 0;
   g_sortkeys = 0;
 }
@@ -896,7 +896,7 @@ static void
 freeranges()
 {
   if (g_ranges != 0)
-    my_free((char*)g_ranges, MYF(0));
+    my_free(g_ranges);
   g_ranges = 0;
 }
 
