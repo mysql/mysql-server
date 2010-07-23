@@ -31,7 +31,7 @@
  * .configure. mbmaxlen_sjis=2
  */
 
-static uchar NEAR ctype_sjis[257] =
+static uchar ctype_sjis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -68,7 +68,7 @@ static uchar NEAR ctype_sjis[257] =
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000
 };
 
-static uchar NEAR to_lower_sjis[]=
+static uchar to_lower_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +104,7 @@ static uchar NEAR to_lower_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR to_upper_sjis[]=
+static uchar to_upper_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +140,7 @@ static uchar NEAR to_upper_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR sort_order_sjis[]=
+static uchar sort_order_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',

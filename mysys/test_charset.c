@@ -80,11 +80,11 @@ int main(int argc, char **argv) {
 #ifdef NOT_USED_ANYMORE
   cs_list = list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
   printf("LIST OF CHARSETS (compiled + *.conf):\n%s\n", cs_list);
-  my_free(cs_list,MYF(0));
+  my_free(cs_list);
 
   cs_list = list_charsets(MYF(MY_CS_INDEX | MY_CS_LOADED));
   printf("LIST OF CHARSETS (index + loaded):\n%s\n", cs_list);
-  my_free(cs_list,MYF(0));
+  my_free(cs_list);
 #endif
 
   return 0;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifndef SQL_CLASS_INCLUDED
@@ -472,15 +472,18 @@ typedef struct system_variables
   my_bool sysdate_is_now;
 
   double long_query_time_double;
+
 } SV;
 
 
-/* per thread status variables */
+/**
+  Per thread status variables.
+  Must be long/ulong up to last_system_status_var so that
+  add_to_status/add_diff_to_status can work.
+*/
 
 typedef struct system_status_var
 {
-  ulonglong bytes_received;
-  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
@@ -536,13 +539,14 @@ typedef struct system_status_var
     Number of statements sent from the client
   */
   ulong questions;
+
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
-    Below 'last_system_status_var' are all variables which doesn't make any
-    sense to add to the /global/ status variable counter.
-    Status variables which it does not make sense to add to
-    global status variable counter
+    Below 'last_system_status_var' are all variables that cannot be handled
+    automatically by add_to_status()/add_diff_to_status().
   */
   double last_query_cost;
 } STATUS_VAR;
@@ -1566,6 +1570,125 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
+  enum enum_stmt_accessed_table
+  {
+    /*
+       If a transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_TRANS_TABLE= 0,
+    /*
+       If a transactional table is about to be updated.
+    */
+    STMT_WRITES_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_NON_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be updated.
+    */
+    STMT_WRITES_NON_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be read. Note
+       that a write implies a read.
+    */
+    STMT_READS_TEMP_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be read. Note
+      that a write implies a read.
+    */
+    STMT_READS_TEMP_NON_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    /*
+      The last element of the enumeration. Please, if necessary add
+      anything before this.
+    */
+    STMT_ACCESS_TABLE_COUNT
+  };
+
+  /**
+    Sets the type of table that is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+  */
+  inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::set_stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+    stmt_accessed_table_flag |= (1U << accessed_table);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Checks if a type of table is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+
+    @return
+      @retval TRUE  if the type of the table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+
+    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
+  }
+
+  /**
+    Checks if a temporary table is about to be accessed while executing a
+    statement.
+
+    @return
+      @retval TRUE  if a temporary table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
+                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
+  /**
+    Checks if a temporary non-transactional table is about to be accessed
+    while executing a statement.
+
+    @return
+      @retval TRUE  if a temporary non-transactional table is about to be
+                    accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_non_trans_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
 private:
   /**
     Indicates the format in which the current statement will be
@@ -1602,6 +1725,12 @@ private:
     stored routine is invoked.  Only THD persists between the calls.
   */
   uint32 binlog_unsafe_warning_flags;
+
+  /**
+    Bit field that determines the type of tables that are about to be
+    be accessed while executing a statement.
+  */
+  uint32 stmt_accessed_table_flag;
 
   void issue_unsafe_warnings();
 
@@ -2021,7 +2150,6 @@ public:
     is set if a statement accesses a temporary table created through
     CREATE TEMPORARY TABLE. 
   */
-  bool       thread_temporary_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
@@ -2336,13 +2464,11 @@ public:
   bool is_connected()
   {
     /*
-      The slave SQL thread and the event worker thread are connected
-      but not using vio. So this function always returns true for
-      them.
+      All system threads (e.g., the slave IO thread) are connected but
+      not using vio. So this function always returns true for all
+      system threads.
     */
-    return system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-      system_thread == SYSTEM_THREAD_EVENT_WORKER ||
-      (vio_ok() ? vio_is_connected(net.vio) : FALSE);
+    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
@@ -2540,7 +2666,7 @@ public:
       memcpy(db, new_db, new_db_len+1);
     else
     {
-      x_free(db);
+      my_free(db);
       if (new_db)
         db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else
@@ -2722,6 +2848,18 @@ public:
   }
   void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
+  void set_current_user_used() { current_user_used= TRUE; }
+  bool is_current_user_used() { return current_user_used; }
+  void clean_current_user_used() { current_user_used= FALSE; }
+  void get_definer(LEX_USER *definer);
+  void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
+  {
+    invoker_user= *user;
+    invoker_host= *host;
+  }
+  LEX_STRING get_invoker_user() { return invoker_user; }
+  LEX_STRING get_invoker_host() { return invoker_host; }
+  bool has_invoker() { return invoker_user.length > 0; }
 private:
 
   /** The current internal error handler for this thread, or NULL. */
@@ -2744,6 +2882,25 @@ private:
   MEM_ROOT main_mem_root;
   Warning_info main_warning_info;
   Diagnostics_area main_da;
+
+  /**
+    It will be set TURE if CURRENT_USER() is called in account management
+    statements or default definer is set in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements.
+
+    Current user will be binlogged into Query_log_event if current_user_used
+    is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
+   */
+  bool current_user_used;
+
+  /**
+    It points to the invoker in the Query_log_event.
+    SQL thread use it as the default definer in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements or current user in account management
+    statements if it is not NULL.
+   */
+  LEX_STRING invoker_user;
+  LEX_STRING invoker_host;
 };
 
 
@@ -3297,6 +3454,9 @@ public:
 
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);
+
+  uint get_size() const { return size; }
+  ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
 
   friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);

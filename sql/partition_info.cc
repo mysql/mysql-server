@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* Some general useful functions */
 
@@ -109,8 +109,8 @@ char *partition_info::create_default_partition_names(uint part_no,
   {
     do
     {
-      my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
-      move_ptr+=MAX_PART_NAME_SIZE;
+      sprintf(move_ptr, "p%u", (start_no + i));
+      move_ptr+= MAX_PART_NAME_SIZE;
     } while (++i < num_parts_arg);
   }
   else
@@ -177,7 +177,7 @@ char *partition_info::create_subpartition_name(uint subpart_no,
 
   if (likely(ptr != NULL))
   {
-    my_sprintf(ptr, (ptr, "%ssp%u", part_name, subpart_no));
+    my_snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   }
   else
   {

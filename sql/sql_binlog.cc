@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,9 +136,13 @@ void mysql_client_binlog_statement(THD* thd)
   if (check_global_access(thd, SUPER_ACL))
     DBUG_VOID_RETURN;
 
-  size_t coded_len= thd->lex->comment.length + 1;
+  size_t coded_len= thd->lex->comment.length;
+  if (!coded_len)
+  {
+    my_error(ER_SYNTAX_ERROR, MYF(0));
+    DBUG_VOID_RETURN;
+  }
   size_t decoded_len= base64_needed_decoded_length(coded_len);
-  DBUG_ASSERT(coded_len > 0);
 
   /*
     Allocation
@@ -218,14 +222,16 @@ void mysql_client_binlog_statement(THD* thd)
       /*
         Checking that the first event in the buffer is not truncated.
       */
-      ulong event_len= uint4korr(bufptr + EVENT_LEN_OFFSET);
-      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%d",
-                          event_len, bytes_decoded));
-      if (bytes_decoded < EVENT_LEN_OFFSET || (uint) bytes_decoded < event_len)
+      ulong event_len;
+      if (bytes_decoded < EVENT_LEN_OFFSET + 4 || 
+          (event_len= uint4korr(bufptr + EVENT_LEN_OFFSET)) > 
+           (uint) bytes_decoded)
       {
         my_error(ER_SYNTAX_ERROR, MYF(0));
         goto end;
       }
+      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%d",
+                          event_len, bytes_decoded));
 
       if (check_event_type(bufptr[EVENT_TYPE_OFFSET], rli))
         goto end;
@@ -248,17 +254,6 @@ void mysql_client_binlog_statement(THD* thd)
       bufptr += event_len;
 
       DBUG_PRINT("info",("ev->get_type_code()=%d", ev->get_type_code()));
-#ifndef HAVE_purify
-      /*
-        This debug printout should not be used for valgrind builds
-        since it will read from unassigned memory.
-      */
-      DBUG_PRINT("info",("bufptr+EVENT_TYPE_OFFSET: 0x%lx",
-                         (long) (bufptr+EVENT_TYPE_OFFSET)));
-      DBUG_PRINT("info", ("bytes_decoded: %d   bufptr: 0x%lx  buf[EVENT_LEN_OFFSET]: %lu",
-                          bytes_decoded, (long) bufptr,
-                          (ulong) uint4korr(bufptr+EVENT_LEN_OFFSET)));
-#endif
       ev->thd= thd;
       /*
         We go directly to the application phase, since we don't need
@@ -300,6 +295,6 @@ void mysql_client_binlog_statement(THD* thd)
 
 end:
   rli->slave_close_thread_tables(thd);
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buf);
   DBUG_VOID_RETURN;
 }
