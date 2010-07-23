@@ -123,8 +123,7 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
-  THR_LOCK_OWNER *first_owner;
-  LINT_INIT(first_owner);
+  THR_LOCK_OWNER *UNINIT_VAR(first_owner);
 
   prev= &list->data;
   if (list->data)
@@ -516,6 +515,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   struct st_lock_list *wait_queue;
   THR_LOCK_DATA *lock_owner;
   struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
   DBUG_ENTER("thr_lock");
 
   data->next=0;
@@ -523,7 +523,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   data->type=lock_type;
   data->owner= owner;                           /* Must be reset ! */
 
-  locker= MYSQL_START_TABLE_WAIT(data->m_psi, PSI_TABLE_LOCK, 0, lock_type);
+  locker= MYSQL_START_TABLE_WAIT(& state, data->m_psi, PSI_TABLE_LOCK, 0, lock_type);
 
   mysql_mutex_lock(&lock->mutex);
   DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%lx  lock: 0x%lx  type: %d",

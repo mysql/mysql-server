@@ -240,17 +240,29 @@ dict_build_table_def_step(
 	ibool		is_path;
 	mtr_t		mtr;
 	ulint		space = 0;
+	ibool		file_per_table;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = node->table;
 
-	dict_hdr_get_new_id(&table->id, NULL,
-			    srv_file_per_table ? &space : NULL);
+	/* Cache the global variable "srv_file_per_table" to
+	a local variable before using it. Please note
+	"srv_file_per_table" is not under dict_sys mutex
+	protection, and could be changed while executing
+	this function. So better to cache the current value
+	to a local variable, and all future reference to
+	"srv_file_per_table" should use this local variable. */
+	file_per_table = srv_file_per_table;
+
+	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
 	thr_get_trx(thr)->table_id = table->id;
 
-	if (srv_file_per_table) {
+	if (file_per_table) {
+		/* Get a new space id if srv_file_per_table is set */
+		dict_hdr_get_new_id(NULL, NULL, &space);
+
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
 			return(DB_ERROR);
 		}

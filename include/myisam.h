@@ -55,8 +55,6 @@ extern "C" {
 #define MI_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 #define MI_NAME_IEXT	".MYI"
 #define MI_NAME_DEXT	".MYD"
-/* Max extra space to use when sorting keys */
-#define MI_MAX_TEMP_LENGTH	2*1024L*1024L*1024L
 
 /* Possible values for myisam_block_size (must be power of 2) */
 #define MI_KEY_BLOCK_LENGTH	1024	/* default key block length */

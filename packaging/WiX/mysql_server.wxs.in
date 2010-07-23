@@ -60,10 +60,10 @@
     <!-- License -->
     <WixVariable
       Id="WixUILicenseRtf"
-      Value="@CMAKE_CURRENT_BINARY_DIR@/COPYING.rtf"/>
+      Value="@COPYING_RTF@"/>
 
     <!-- How to remove the service on uninstall -->
-    <Binary Id='wixca.dll' SourceFile='@CMAKE_CURRENT_BINARY_DIR@/ca/RelWithDebInfo/wixca.dll' />
+    <Binary Id='wixca.dll' SourceFile='@WIXCA_LOCATION@' />
     <CustomAction Id="UnregisterProperty" Property="UnregisterService" Value="[INSTALLDIR]" Return="check" />
     <CustomAction Id="UnregisterPropertySilent" Property="UnregisterServiceSilently" Value="[INSTALLDIR]" Return="check" />
     <CustomAction Id="UnregisterService"
@@ -81,8 +81,8 @@
     <InstallExecuteSequence>
       <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
       <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
-      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And UILevel&gt;2</Custom>
-      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And UILevel&lt;=2</Custom>
+      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And UILevel&gt;4</Custom>
+      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And UILevel&lt;=4</Custom>
     </InstallExecuteSequence>
 
     <!-- Installation root-->

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   TODO:
@@ -1091,7 +1091,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
     select->file= *head->sort.io_cache;
     select->records=(ha_rows) (select->file.end_of_file/
 			       head->file->ref_length);
-    my_free(head->sort.io_cache, MYF(0));
+    my_free(head->sort.io_cache);
     head->sort.io_cache=0;
   }
   DBUG_RETURN(select);
@@ -1216,18 +1216,18 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     }
     delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
-    my_free((char*) column_bitmap.bitmap, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(column_bitmap.bitmap);
   }
   head->column_bitmaps_set(save_read_set, save_write_set);
-  x_free(multi_range);
-  x_free(multi_range_buff);
+  my_free(multi_range);
+  my_free(multi_range_buff);
   DBUG_VOID_RETURN;
 }
 
 
 QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
                                                    TABLE *table)
-  :pk_quick_select(NULL), thd(thd_param)
+  :unique(NULL), pk_quick_select(NULL), thd(thd_param)
 {
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
   index= MAX_KEY;
@@ -1269,6 +1269,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT* quick;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT");
+  delete unique;
   quick_it.rewind();
   while ((quick= quick_it++))
     quick->file= NULL;
@@ -1838,96 +1839,6 @@ SEL_ARG *SEL_ARG::clone_tree(RANGE_OPT_PARAM *param)
   if (root)					// If not OOM
     root->use_count= 0;
   return root;
-}
-
-
-/*
-  Find the best index to retrieve first N records in given order
-
-  SYNOPSIS
-    get_index_for_order()
-      table  Table to be accessed
-      order  Required ordering
-      limit  Number of records that will be retrieved
-
-  DESCRIPTION
-    Find the best index that allows to retrieve first #limit records in the 
-    given order cheaper then one would retrieve them using full table scan.
-
-  IMPLEMENTATION
-    Run through all table indexes and find the shortest index that allows
-    records to be retrieved in given order. We look for the shortest index
-    as we will have fewer index pages to read with it.
-
-    This function is used only by UPDATE/DELETE, so we take into account how
-    the UPDATE/DELETE code will work:
-     * index can only be scanned in forward direction
-     * HA_EXTRA_KEYREAD will not be used
-    Perhaps these assumptions could be relaxed.
-
-  RETURN
-    Number of the index that produces the required ordering in the cheapest way
-    MAX_KEY if no such index was found.
-*/
-
-uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
-{
-  uint idx;
-  uint match_key= MAX_KEY, match_key_len= MAX_KEY_LENGTH + 1;
-  ORDER *ord;
-  
-  for (ord= order; ord; ord= ord->next)
-    if (!ord->asc)
-      return MAX_KEY;
-
-  for (idx= 0; idx < table->s->keys; idx++)
-  {
-    if (!(table->keys_in_use_for_query.is_set(idx)))
-      continue;
-    KEY_PART_INFO *keyinfo= table->key_info[idx].key_part;
-    uint n_parts=  table->key_info[idx].key_parts;
-    uint partno= 0;
-    
-    /* 
-      The below check is sufficient considering we now have either BTREE 
-      indexes (records are returned in order for any index prefix) or HASH 
-      indexes (records are not returned in order for any index prefix).
-    */
-    if (!(table->file->index_flags(idx, 0, 1) & HA_READ_ORDER))
-      continue;
-    for (ord= order; ord && partno < n_parts; ord= ord->next, partno++)
-    {
-      Item *item= order->item[0];
-      if (!(item->type() == Item::FIELD_ITEM &&
-           ((Item_field*)item)->field->eq(keyinfo[partno].field)))
-        break;
-    }
-    
-    if (!ord && table->key_info[idx].key_length < match_key_len)
-    {
-      /* 
-        Ok, the ordering is compatible and this key is shorter then
-        previous match (we want shorter keys as we'll have to read fewer
-        index pages for the same number of records)
-      */
-      match_key= idx;
-      match_key_len= table->key_info[idx].key_length;
-    }
-  }
-
-  if (match_key != MAX_KEY)
-  {
-    /* 
-      Found an index that allows records to be retrieved in the requested 
-      order. Now we'll check if using the index is cheaper then doing a table
-      scan.
-    */
-    double full_scan_time= table->file->scan_time();
-    double index_scan_time= table->file->read_time(match_key, 1, limit);
-    if (index_scan_time > full_scan_time)
-      match_key= MAX_KEY;
-  }
-  return match_key;
 }
 
 
@@ -7806,7 +7717,7 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
 
   if (unlikely(param->thd->killed != 0))
     return HA_POS_ERROR;
-  
+
   keynr=param->real_keynr[idx];
   param->range_count++;
   if (!tmp_min_flag && ! tmp_max_flag &&
@@ -8342,7 +8253,6 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
   QUICK_RANGE_SELECT* cur_quick;
   int result;
-  Unique *unique;
   handler *file= head->file;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
@@ -8361,9 +8271,22 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   if (cur_quick->init() || cur_quick->reset())
     DBUG_RETURN(1);
 
-  unique= new Unique(refpos_order_cmp, (void *)file,
-                     file->ref_length,
-                     thd->variables.sortbuff_size);
+  if (unique == NULL)
+  {
+    DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", abort(); );
+    DBUG_EXECUTE_IF("only_one_Unique_may_be_created", 
+                    DBUG_SET("+d,index_merge_may_not_create_a_Unique"); );
+
+    unique= new Unique(refpos_order_cmp, (void *)file,
+                       file->ref_length,
+                       thd->variables.sortbuff_size);
+  }
+  else
+    unique->reset();
+
+  DBUG_ASSERT(file->ref_length == unique->get_size());
+  DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
+
   if (!unique)
     DBUG_RETURN(1);
   for (;;)
@@ -8378,10 +8301,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (cur_quick->file->inited != handler::NONE) 
         cur_quick->file->ha_index_end();
       if (cur_quick->init() || cur_quick->reset())
-      {
-        delete unique;
         DBUG_RETURN(1);
-      }
     }
 
     if (result)
@@ -8389,17 +8309,13 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (result != HA_ERR_END_OF_FILE)
       {
         cur_quick->range_end();
-        delete unique;
         DBUG_RETURN(result);
       }
       break;
     }
 
     if (thd->killed)
-    {
-      delete unique;
       DBUG_RETURN(1);
-    }
 
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges())
@@ -8408,10 +8324,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     cur_quick->file->position(cur_quick->record);
     result= unique->unique_add((char*)cur_quick->file->ref);
     if (result)
-    {
-      delete unique;
       DBUG_RETURN(1);
-    }
   }
 
   /*
@@ -8420,7 +8333,6 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     sequence.
   */
   result= unique->get(head);
-  delete unique;
   doing_pk_scan= FALSE;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(FALSE);
@@ -8538,6 +8450,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
             if ((error= quick->get_next()))
               DBUG_RETURN(error);
           }
+          quick->file->position(quick->record);
         }
         memcpy(last_rowid, quick->file->ref, head->file->ref_length);
         last_rowid_count= 1;
@@ -8679,7 +8592,7 @@ int QUICK_RANGE_SELECT::reset()
     }
     if (! multi_range_buff)
     {
-      my_free((char*) multi_range, MYF(0));
+      my_free(multi_range);
       multi_range= NULL;
       multi_range_length= 0;
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -8977,7 +8890,6 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   }
   rev_it.rewind();
   q->dont_free=1;				// Don't free shared mem
-  delete q;
 }
 
 
@@ -9064,6 +8976,27 @@ int QUICK_SELECT_DESC::get_next()
     }
     last_range= 0;                              // To next range
   }
+}
+
+
+/**
+  Create a compatible quick select with the result ordered in an opposite way
+
+  @param used_key_parts_arg  Number of used key parts
+
+  @retval NULL in case of errors (OOM etc)
+  @retval pointer to a newly created QUICK_SELECT_DESC if success
+*/
+
+QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg)
+{
+  QUICK_SELECT_DESC *new_quick= new QUICK_SELECT_DESC(this, used_key_parts_arg);
+  if (new_quick == NULL || new_quick->error != 0)
+  {
+    delete new_quick;
+    return NULL;
+  }
+  return new_quick;
 }
 
 
@@ -9640,8 +9573,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
           first Item? If so, then why? What is the array for?
         */
         /* Above we already checked that all group items are fields. */
-        DBUG_ASSERT((*tmp_group->item)->type() == Item::FIELD_ITEM);
-        Item_field *group_field= (Item_field *) (*tmp_group->item);
+        DBUG_ASSERT((*tmp_group->item)->real_item()->type() == Item::FIELD_ITEM);
+        Item_field *group_field= (Item_field *) (*tmp_group->item)->real_item();
         if (group_field->field->eq(cur_part->field))
         {
           cur_group_prefix_len+= cur_part->store_length;
@@ -10495,7 +10428,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
                            ha_rows records_arg, uint key_infix_len_arg,
                            uchar *key_infix_arg, MEM_ROOT *parent_alloc,
                            bool is_index_scan_arg)
-  :join(join_arg), index_info(index_info_arg),
+  :file(table->file), join(join_arg), index_info(index_info_arg),
    group_prefix_len(group_prefix_len_arg),
    group_key_parts(group_key_parts_arg), have_min(have_min_arg),
    have_max(have_max_arg), have_agg_distinct(have_agg_distinct_arg),
@@ -10505,7 +10438,6 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
    is_index_scan(is_index_scan_arg)
 {
   head=       table;
-  file=       head->file;
   index=      use_index;
   record=     head->record[0];
   tmp_record= head->record[1];
@@ -11673,6 +11605,7 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
   /* purecov: end */    
 }
 
+
 void QUICK_INDEX_MERGE_SELECT::dbug_dump(int indent, bool verbose)
 {
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
@@ -11761,7 +11694,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 }
 
 
-#endif /* NOT_USED */
+#endif /* !DBUG_OFF */
 
 /*****************************************************************************
 ** Instantiate templates 
