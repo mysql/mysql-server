@@ -301,11 +301,10 @@ my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
-  char *end_ptr;
-  if (!(res= val_str(&str_value)))
-    return 0;                                   // NULL or EOM
 
-  end_ptr= (char*) res->ptr()+ res->length();
+  if (!(res= val_str(&str_value)))
+    return NULL;
+
   if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)

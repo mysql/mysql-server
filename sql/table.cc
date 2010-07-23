@@ -541,7 +541,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   int error, table_type;
   bool error_given;
   File file;
-  uchar head[64], *disk_buff;
+  uchar head[64];
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
@@ -550,7 +550,6 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   error= 1;
   error_given= 0;
-  disk_buff= NULL;
 
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= mysql_file_open(key_file_frm,
