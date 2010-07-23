@@ -185,7 +185,12 @@ btr_search_sys_create(
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
-	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
+	btr_search_sys->hash_index = ha_create(hash_size, 0,
+					MEM_HEAP_FOR_BTR_SEARCH, 0);
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	btr_search_sys->hash_index->adaptive = TRUE;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 }
 
 /*****************************************************************//**
@@ -1807,7 +1812,8 @@ btr_search_validate(void)
 				hash_block = buf_block_hash_get(
 					buf_pool,
 					buf_block_get_space(block),
-					buf_block_get_page_no(block));
+					buf_block_get_page_no(block),
+					NULL);
 			} else {
 				hash_block = NULL;
 			}

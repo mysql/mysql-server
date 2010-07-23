@@ -322,7 +322,7 @@ buf_read_ahead_linear(
 	fail_count = 0;
 
 	for (i = low; i < high; i++) {
-		bpage = buf_page_hash_get(buf_pool, space, i);
+		bpage = buf_page_hash_get(buf_pool, space, i, NULL);
 
 		if (bpage == NULL || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
@@ -360,7 +360,7 @@ buf_read_ahead_linear(
 	/* If we got this far, we know that enough pages in the area have
 	been accessed in the right order: linear read-ahead can be sensible */
 
-	bpage = buf_page_hash_get(buf_pool, space, offset);
+	bpage = buf_page_hash_get(buf_pool, space, offset, NULL);
 
 	if (bpage == NULL) {
 		buf_pool_mutex_exit(buf_pool);
