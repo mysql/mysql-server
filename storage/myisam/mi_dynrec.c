@@ -283,13 +283,6 @@ int _mi_write_blob_record(MI_INFO *info, const uchar *record)
 	  MI_DYN_DELETE_BLOCK_HEADER+1);
   reclength= (info->s->base.pack_reclength +
 	      _my_calc_total_blob_length(info,record)+ extra);
-#ifdef NOT_USED					/* We now support big rows */
-  if (reclength > MI_DYN_MAX_ROW_LENGTH)
-  {
-    my_errno=HA_ERR_TO_BIG_ROW;
-    return -1;
-  }
-#endif
   if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
@@ -317,13 +310,6 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const uchar *record)
 	  MI_DYN_DELETE_BLOCK_HEADER);
   reclength= (info->s->base.pack_reclength+
 	      _my_calc_total_blob_length(info,record)+ extra);
-#ifdef NOT_USED					/* We now support big rows */
-  if (reclength > MI_DYN_MAX_ROW_LENGTH)
-  {
-    my_errno=HA_ERR_TO_BIG_ROW;
-    return -1;
-  }
-#endif
   if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */

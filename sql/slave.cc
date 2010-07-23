@@ -798,17 +798,6 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 }
 
 
-#ifdef NOT_USED_YET
-static int end_slave_on_walk(Master_info* mi, uchar* /*unused*/)
-{
-  DBUG_ENTER("end_slave_on_walk");
-
-  end_master_info(mi);
-  DBUG_RETURN(0);
-}
-#endif
-
-
 /*
   Release slave threads at time of executing shutdown.
 

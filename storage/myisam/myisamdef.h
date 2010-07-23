@@ -544,10 +544,6 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			   MI_KEY_PARAM *s_temp);
 void _mi_store_var_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			     MI_KEY_PARAM *s_temp);
-#ifdef NOT_USED
-void _mi_store_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
-			 MI_KEY_PARAM *s_temp);
-#endif
 void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			    MI_KEY_PARAM *s_temp);
 

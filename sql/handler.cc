@@ -190,15 +190,6 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 }
 
 
-#ifdef NOT_USED
-static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
-{
-  handlerton *hton= ha_default_handlerton(current_thd);
-  return (hton && hton->create) ? hton->create(hton, table, mem_root) : NULL;
-}
-#endif
-
-
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
   plugin_ref plugin;
