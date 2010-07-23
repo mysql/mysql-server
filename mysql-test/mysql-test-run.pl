@@ -3791,7 +3791,8 @@ sub extract_warning_lines ($$) {
     if ($opt_valgrind_mysqld) {
       # Skip valgrind summary from tests where server has been restarted
       # Should this contain memory leaks, the final report will find it
-      $skip_valgrind= 1 if $line =~ /^==\d+== ERROR SUMMARY:/;
+      # Use a generic pattern for summaries
+      $skip_valgrind= 1 if $line =~ /^==\d+== [A-Z ]+ SUMMARY:/;
       $skip_valgrind= 0 unless $line =~ /^==\d+==/;
       next if $skip_valgrind;
     }
