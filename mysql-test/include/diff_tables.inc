@@ -64,17 +64,13 @@ let $_diff_table=$diff_table_2;
 let $_diff_i=2;
 while ($_diff_i) {
 
-  # Parse out any leading "master:" or "slave:" from the table
-  # specification and connect the appropriate server.
-  let $_diff_conn_master=`SELECT SUBSTR('$_diff_table', 1, 7) = 'master:'`;
-  if ($_diff_conn_master) {
-    let $_diff_table=`SELECT SUBSTR('$_diff_table', 8)`;
-    connection master;
-  }
-  let $_diff_conn_slave=`SELECT SUBSTR('$_diff_table', 1, 6) = 'slave:'`;
-  if ($_diff_conn_slave) {
-    let $_diff_table=`SELECT SUBSTR('$_diff_table', 7)`;
-    connection slave;
+  # Parse out any leading "master:" or "slave:" from the table specification
+# and connect the appropriate server.
+  let $_pos= `SELECT LOCATE(':', '$_diff_table')`;
+  let $_diff_conn=`SELECT SUBSTR('$_diff_table', 1, $_pos-1)`;
+  if (`SELECT 'XX$_diff_conn' <> 'XX'`) {
+    let $_diff_table=`SELECT SUBSTR('$_diff_table', $_pos+1)`;
+    connection $_diff_conn;
   }
 
   # Sanity-check the input.

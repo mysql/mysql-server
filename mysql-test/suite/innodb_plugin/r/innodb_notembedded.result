@@ -1,0 +1,23 @@
+drop table if exists t1;
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+SET GLOBAL log_bin_trust_function_creators = 1;
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+start transaction;
+select f1();
+f1()
+100
+update t1 set col2=0 where col1=1;
+select * from t1;
+col1	col2
+1	100
+rollback;
+rollback;
+drop table t1;
+drop function f1;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
