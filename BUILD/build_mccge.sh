@@ -938,7 +938,7 @@ set_up_ccache()
 set_valgrind_flags()
 {
   if test "x$valgrind_flag" = "xyes" ; then
-    loc_valgrind_flags="-UFORCE_INIT_OF_VARS -DHAVE_purify "
+    loc_valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
     loc_valgrind_flags="$loc_valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
     compiler_flags="$compiler_flags $loc_valgrind_flags"
     with_flags="$with_flags --with-valgrind"
