@@ -134,11 +134,6 @@ my_strntol_mb2_or_mb4(CHARSET_INFO *cs,
   
 bs:
 
-#ifdef NOT_USED  
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
-  
   overflow= 0;
   res= 0;
   save= s;
@@ -250,11 +245,6 @@ my_strntoul_mb2_or_mb4(CHARSET_INFO *cs,
   
 bs:
 
-#ifdef NOT_USED
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
-
   overflow= 0;
   res= 0;
   save= s;
@@ -358,11 +348,6 @@ my_strntoll_mb2_or_mb4(CHARSET_INFO *cs,
   } while (1);
   
 bs:
-
-#ifdef NOT_USED  
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   overflow = 0;
   res = 0;
@@ -474,11 +459,6 @@ my_strntoull_mb2_or_mb4(CHARSET_INFO *cs,
   } while (1);
   
 bs:
-  
-#ifdef NOT_USED
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   overflow = 0;
   res = 0;

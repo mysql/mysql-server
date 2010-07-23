@@ -12426,11 +12426,6 @@ join_ft_read_first(JOIN_TAB *tab)
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 1);
-#if NOT_USED_YET
-  /* as ft-key doesn't use store_key's, see also FT_SELECT::init() */
-  if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
-    return -1;                             
-#endif
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
@@ -12720,22 +12715,6 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     copy_fields(&join->tmp_table_param);
     copy_funcs(join->tmp_table_param.items_to_copy);
-#ifdef TO_BE_DELETED
-    if (!table->uniques)			// If not unique handling
-    {
-      /* Copy null values from group to row */
-      ORDER   *group;
-      for (group=table->group ; group ; group=group->next)
-      {
-	Item *item= *group->item;
-	if (item->maybe_null)
-	{
-	  Field *field=item->get_tmp_table_field();
-	  field->ptr[-1]= (uchar) (field->is_null() ? 1 : 0);
-	}
-      }
-    }
-#endif
     if (!join->having || join->having->val_int())
     {
       int error;
@@ -13942,44 +13921,6 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 err:
   DBUG_RETURN(-1);
 }
-
-#ifdef NOT_YET
-/**
-  Add the HAVING criteria to table->select.
-*/
-
-static bool fix_having(JOIN *join, Item **having)
-{
-  (*having)->update_used_tables();	// Some tables may have been const
-  JOIN_TAB *table=&join->join_tab[join->const_tables];
-  table_map used_tables= join->const_table_map | table->table->map;
-
-  DBUG_EXECUTE("where",print_where(*having,"having", QT_ORDINARY););
-  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
-  if (sort_table_cond)
-  {
-    if (!table->select)
-      if (!(table->select=new SQL_SELECT))
-	return 1;
-    if (!table->select->cond)
-      table->select->cond=sort_table_cond;
-    else					// This should never happen
-      if (!(table->select->cond= new Item_cond_and(table->select->cond,
-						   sort_table_cond)) ||
-	  table->select->cond->fix_fields(join->thd, &table->select->cond))
-	return 1;
-    table->select_cond=table->select->cond;
-    table->select_cond->top_level_item();
-    DBUG_EXECUTE("where",print_where(table->select_cond,
-				     "select and having",
-                                     QT_ORDINARY););
-    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
-    DBUG_EXECUTE("where",
-                 print_where(*having,"having after make_cond", QT_ORDINARY););
-  }
-  return 0;
-}
-#endif
 
 
 /*****************************************************************************
