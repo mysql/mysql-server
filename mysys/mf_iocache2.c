@@ -17,7 +17,6 @@
   More functions to be used with IO_CACHE files
 */
 
-#define MAP_TO_USE_RAID
 #include "mysys_priv.h"
 #include <m_string.h>
 #include <stdarg.h>
