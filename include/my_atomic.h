@@ -155,10 +155,8 @@ make_transparent_unions(ptr)
 #define U_set  set
 #endif /* __GCC__ transparent_union magic */
 
-#ifdef HAVE_INLINE
-
 #define make_atomic_cas(S)                                      \
-STATIC_INLINE int my_atomic_cas ## S(Uv_ ## S U_a,              \
+static inline int my_atomic_cas ## S(Uv_ ## S U_a,              \
                             Uv_ ## S U_cmp, U_ ## S U_set)      \
 {                                                               \
   int8 ret;                                                     \
@@ -167,7 +165,7 @@ STATIC_INLINE int my_atomic_cas ## S(Uv_ ## S U_a,              \
 }
 
 #define make_atomic_add(S)                                      \
-STATIC_INLINE int ## S my_atomic_add ## S(                      \
+static inline int ## S my_atomic_add ## S(                      \
                         Uv_ ## S U_a, U_ ## S U_v)              \
 {                                                               \
   make_atomic_add_body(S);                                      \
@@ -175,7 +173,7 @@ STATIC_INLINE int ## S my_atomic_add ## S(                      \
 }
 
 #define make_atomic_fas(S)                                      \
-STATIC_INLINE int ## S my_atomic_fas ## S(                      \
+static inline int ## S my_atomic_fas ## S(                      \
                          Uv_ ## S U_a, U_ ## S U_v)             \
 {                                                               \
   make_atomic_fas_body(S);                                      \
@@ -183,7 +181,7 @@ STATIC_INLINE int ## S my_atomic_fas ## S(                      \
 }
 
 #define make_atomic_load(S)                                     \
-STATIC_INLINE int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
+static inline int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
 {                                                               \
   int ## S ret;                                                 \
   make_atomic_load_body(S);                                     \
@@ -191,30 +189,11 @@ STATIC_INLINE int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
 }
 
 #define make_atomic_store(S)                                    \
-STATIC_INLINE void my_atomic_store ## S(                        \
+static inline void my_atomic_store ## S(                        \
                      Uv_ ## S U_a, U_ ## S U_v)                 \
 {                                                               \
   make_atomic_store_body(S);                                    \
 }
-
-#else /* no inline functions */
-
-#define make_atomic_add(S)                                      \
-extern int ## S my_atomic_add ## S(Uv_ ## S U_a, U_ ## S U_v);
-
-#define make_atomic_fas(S)                                      \
-extern int ## S my_atomic_fas ## S(Uv_ ## S U_a, U_ ## S U_v);
-
-#define make_atomic_cas(S)                                      \
-extern int my_atomic_cas ## S(Uv_ ## S U_a, Uv_ ## S U_cmp, U_ ## S U_set);
-
-#define make_atomic_load(S)                                     \
-extern int ## S my_atomic_load ## S(Uv_ ## S U_a);
-
-#define make_atomic_store(S)                                    \
-extern void my_atomic_store ## S(Uv_ ## S U_a, U_ ## S U_v);
-
-#endif /* HAVE_INLINE */
 
 #ifdef MY_ATOMIC_HAS_8_16
 make_atomic_cas(8)
