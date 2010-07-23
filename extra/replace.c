@@ -51,7 +51,7 @@
 typedef struct st_pointer_array {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
   uchar *str;					/* Strings is here */
-  int7	*flag;					/* Flag about each var. */
+  uint8	*flag;					/* Flag about each var. */
   uint  array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
@@ -266,7 +266,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
 					       sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     pa->length=0;
     pa->max_length=PS_MALLOC-MALLOC_OVERHEAD;
     pa->array_allocs=1;
@@ -303,7 +303,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     pa->typelib.type_names=new_array;
     old_count=pa->max_count;
     pa->max_count=len/(sizeof(uchar*) + sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     memcpy((uchar*) pa->flag,(char *) (pa->typelib.type_names+old_count),
 	   old_count*sizeof(*pa->flag));
   }

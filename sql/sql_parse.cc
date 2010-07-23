@@ -6064,7 +6064,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 
 void store_position_for_column(const char *name)
 {
-  current_thd->lex->last_field->after=my_const_cast(char*) (name);
+  current_thd->lex->last_field->after=(char*) (name);
 }
 
 bool
