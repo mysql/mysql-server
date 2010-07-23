@@ -95,7 +95,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   #include <pthread.h>
   #include <string.h>
 
-  int main(int argc, char** argv) {
+  int main() {
     pthread_t       x1;
     pthread_t       x2;
     pthread_t       x3;

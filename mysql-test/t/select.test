@@ -4117,4 +4117,38 @@ SELECT * FROM t1 WHERE 102 < c;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug #54459: Assertion failed: param.sort_length, 
+--echo # file .\filesort.cc, line 149 (part II)
+--echo #
+CREATE TABLE t1(a ENUM('') NOT NULL);
+INSERT INTO t1 VALUES (), (), ();
+EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
+--echo #            SELECT from VIEW with GROUP BY
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int DEFAULT NULL,
+  KEY int_key (col_int_key)
+) ;
+
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE VIEW view_t1 AS 
+  SELECT t1.col_int_key AS col_int_key
+  FROM t1;
+
+SELECT col_int_key FROM view_t1 GROUP BY col_int_key;
+
+DROP VIEW view_t1;
+DROP TABLE t1;
+
+--echo # End of test BUG#54515
