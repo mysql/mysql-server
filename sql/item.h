@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -1171,7 +1171,40 @@ public:
     representation is more precise than the string one).
   */
   virtual bool result_as_longlong() { return FALSE; }
-  bool is_datetime();
+  inline bool is_datetime() const
+  {
+    switch (field_type())
+    {
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_TIMESTAMP:
+        return TRUE;
+      default:
+        break;
+    }
+    return FALSE;
+  }
+  /**
+    Check whether this and the given item has compatible comparison context.
+    Used by the equality propagation. See Item_field::equal_fields_propagator.
+
+    @return
+      TRUE  if the context is the same or if fields could be
+            compared as DATETIME values by the Arg_comparator.
+      FALSE otherwise.
+  */
+  inline bool has_compatible_context(Item *item) const
+  {
+    /* Same context. */
+    if (cmp_context == (Item_result)-1 || item->cmp_context == cmp_context)
+      return TRUE;
+    /* DATETIME comparison context. */
+    if (is_datetime())
+      return item->is_datetime() || item->cmp_context == STRING_RESULT;
+    if (item->is_datetime())
+      return is_datetime() || cmp_context == STRING_RESULT;
+    return FALSE;
+  }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
@@ -2791,6 +2824,7 @@ protected:
     cached_field_type= item->field_type();
     cached_result_type= item->result_type();
     unsigned_flag= item->unsigned_flag;
+    fixed= item->fixed;
   }
 
 public:
@@ -3231,6 +3265,7 @@ public:
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
+  virtual void clear() { null_value= TRUE; value_cached= FALSE; }
 };
 
 
@@ -3411,6 +3446,7 @@ public:
   */
   bool cache_value_int();
   bool cache_value();
+  void clear() { Item_cache::clear(); str_value_cached= FALSE; }
 };
 
 

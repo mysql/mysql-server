@@ -223,11 +223,11 @@ int modify_defaults_file(const char *file_location, const char *option,
   if (my_fclose(cnf_file, MYF(MY_WME)))
     DBUG_RETURN(1);
 
-  my_free(file_buffer, MYF(0));
+  my_free(file_buffer);
   DBUG_RETURN(0);
 
 err:
-  my_free(file_buffer, MYF(0));
+  my_free(file_buffer);
 malloc_err:
   my_fclose(cnf_file, MYF(0));
   DBUG_RETURN(1); /* out of resources */

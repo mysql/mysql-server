@@ -357,7 +357,7 @@ float ft_nlq_find_relevance(FT_INFO *handler,
 
 void ft_nlq_close_search(FT_INFO *handler)
 {
-  my_free((uchar*)handler,MYF(0));
+  my_free(handler);
 }
 
 

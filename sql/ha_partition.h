@@ -1,7 +1,7 @@
 #ifndef HA_PARTITION_INCLUDED
 #define HA_PARTITION_INCLUDED
 
-/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifdef __GNUC__
 #pragma interface				/* gcc class implementation */
@@ -36,8 +36,7 @@ enum partition_keywords
                                         HA_CAN_FULLTEXT | \
                                         HA_DUPLICATE_POS | \
                                         HA_CAN_SQL_HANDLER | \
-                                        HA_CAN_INSERT_DELAYED | \
-                                        HA_PRIMARY_KEY_REQUIRED_FOR_POSITION)
+                                        HA_CAN_INSERT_DELAYED)
 class ha_partition :public handler
 {
 private:
@@ -431,6 +430,15 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_end();
 
+  /**
+    @breif
+    Positions an index cursor to the index specified in the hanlde. Fetches the
+    row if available. If the key value is null, begin at first key of the
+    index.
+  */
+  virtual int index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                 key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag);
   /*
     These methods are used to jump to next or previous entry in the index
     scan. There are also methods to jump to first and last entry.
@@ -749,9 +757,6 @@ public:
 
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION:
     Does the storage engine need a PK for position?
-    Used with hidden primary key in InnoDB.
-    Hidden primary keys cannot be supported by partitioning, since the
-    partitioning expressions columns must be a part of the primary key.
     (InnoDB)
 
     HA_FILE_BASED is always set for partition handler since we use a
