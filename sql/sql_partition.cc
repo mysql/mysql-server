@@ -1071,7 +1071,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   partition_info *part_info= table->part_info;
   bool result= TRUE;
   int error;
-  const char *save_where;
   LEX *old_lex= thd->lex;
   LEX lex;
   uint8 saved_full_group_by_flag;
@@ -1083,7 +1082,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
   func_expr->walk(&Item::change_context_processor, 0,
                   (uchar*) &lex.select_lex.context);
-  save_where= thd->where;
   thd->where= "partition function";
   /*
     In execution we must avoid the use of thd->change_item_tree since

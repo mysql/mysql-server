@@ -5820,7 +5820,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
   DBUG_ENTER("update_field_dependencies");
   if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
-    MY_BITMAP *current_bitmap, *other_bitmap;
+    MY_BITMAP *bitmap;
 
     /*
       We always want to register the used keys, as the column bitmap may have
@@ -5831,15 +5831,9 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
     table->merge_keys.merge(field->part_of_key);
 
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
-    {
-      current_bitmap= table->read_set;
-      other_bitmap=   table->write_set;
-    }
+      bitmap= table->read_set;
     else
-    {
-      current_bitmap= table->write_set;
-      other_bitmap=   table->read_set;
-    }
+      bitmap= table->write_set;
 
     /* 
        The test-and-set mechanism in the bitmap is not reliable during
@@ -5848,7 +5842,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
        only those columns that are used in the SET clause. I.e they are being
        set here. See multi_update::prepare()
     */
-    if (bitmap_fast_test_and_set(current_bitmap, field->field_index))
+    if (bitmap_fast_test_and_set(bitmap, field->field_index))
     {
       if (thd->mark_used_columns == MARK_COLUMNS_WRITE)
       {

@@ -3537,11 +3537,8 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   mysql_mutex_lock(&rli->data_lock);
   if (rli->slave_skip_counter)
   {
-    char *pos;
-    pos= strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
-    pos= '\0';
-    pos= strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
-    pos= '\0';
+    strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
+    strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
     saved_log_pos= rli->group_relay_log_pos;
     saved_master_log_pos= rli->group_master_log_pos;
     saved_skip= rli->slave_skip_counter;
@@ -5593,12 +5590,9 @@ bool change_master(THD* thd, Master_info* mi)
   /*
     Before processing the command, save the previous state.
   */
-  char *pos;
-  pos= strmake(saved_host, mi->host, HOSTNAME_LENGTH);
-  pos= '\0';
+  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
   saved_port= mi->port;
-  pos= strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
-  pos= '\0';
+  strmake(saved_log_name, mi->master_log_name, FN_REFLEN - 1);
   saved_log_pos= mi->master_log_pos;
 
   /*
