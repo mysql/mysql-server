@@ -1530,7 +1530,8 @@ public:
   union 
   { 
     /*
-      Used by subquery optimizations, see Item_in_subselect::emb_on_expr_nest.
+      Used by subquery optimizations, see
+      Item_exists_subselect::embedding_join_nest.
     */
     TABLE_LIST *emb_on_expr_nest;
   } thd_marker;
@@ -3409,7 +3410,9 @@ public:
 
   /* Structure used to make index lookups */
   struct st_table_ref *tab_ref;
-  Item *in_equality; /* See create_subq_in_equalities() */
+  Item *in_equality; /* See create_subquery_equalities() */
+  /* True if data types allow the MaterializeScan semijoin strategy */
+  bool sjm_scan_allowed;
 
   Item *join_cond; /* See comments in make_join_select() */
   Copy_field *copy_field; /* Needed for SJ_Materialization scan */

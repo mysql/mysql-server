@@ -86,7 +86,10 @@ public:
   /* subquery is transformed */
   bool changed;
 
-  /* TRUE <=> The underlying SELECT is correlated w.r.t some ancestor select */
+  /**
+    TRUE <=> The underlying SELECT is correlated w.r.t some ancestor select.
+    Note that this field is not maintained in semijoin-transformed subqueries.
+   */
   bool is_correlated; 
 
   enum trans_res {RES_OK, RES_REDUCE, RES_ERROR};
@@ -247,9 +250,43 @@ protected:
   bool value; /* value of this item (boolean: exists/not-exists) */
 
 public:
-  Item_exists_subselect(st_select_lex *select_lex);
-  Item_exists_subselect(): Item_subselect() {}
+  /**
+    The method chosen to execute the predicate, currently used for IN, =ANY
+    and EXISTS predicates.
+  */
+  enum enum_exec_method {
+    EXEC_UNSPECIFIED, /* No execution method specified yet. */
+    EXEC_SEMI_JOIN,   /* Predicate is converted to semi-join nest. */
+    EXEC_EXISTS,      /* IN was converted to correlated EXISTS. */
+    EXEC_MATERIALIZATION /* Predicate executed via subquery materialization. */
+  };
+  enum_exec_method exec_method;
+  /**
+    Priority of this predicate in the convert-to-semi-join-nest process.
+  */
+  int sj_convert_priority;
+  /**
+    Used by subquery optimizations to keep track about where this subquery
+    predicate is located, and whether it is a candidate for transformation.
+      (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
+      join nest pointer - the predicate is an AND-part of ON expression
+                          of a join nest
+      NULL              - for all other locations. It also means that the
+                          predicate is not a candidate for transformation.
+    See also THD::emb_on_expr_nest.
+  */
+  TABLE_LIST *embedding_join_nest;
 
+  Item_exists_subselect(st_select_lex *select_lex);
+  Item_exists_subselect()
+    :Item_subselect(), value(FALSE), exec_method(EXEC_UNSPECIFIED),
+     sj_convert_priority(0), embedding_join_nest(NULL)
+  {}
+  virtual trans_res select_transformer(JOIN *join)
+  {
+    exec_method= EXEC_EXISTS;
+    return RES_OK;
+  }
   subs_type substype() { return EXISTS_SUBS; }
   void reset() 
   {
@@ -312,39 +349,6 @@ public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
   
-  /* Priority of this predicate in the convert-to-semi-join-nest process. */
-  int sj_convert_priority;
-
-  /*
-    Used by subquery optimizations to keep track about in which clause this
-    subquery predicate is located: 
-      (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
-      join nest pointer - the predicate is an AND-part of ON expression
-                          of a join nest   
-      NULL              - for all other locations
-    See also THD::emb_on_expr_nest.
-  */
-  TABLE_LIST *emb_on_expr_nest;
-  /*
-    Types of left_expr and subquery's select list allow to perform subquery
-    materialization. Currently, we set this to FALSE when it as well could
-    be TRUE. This is to be properly addressed with fix for BUG#36752.
-  */
-  bool types_allow_materialization;
-
-  /* 
-    Same as above, but they also allow to scan the materialized table. 
-  */
-  bool sjm_scan_allowed;
-
-  /* The method chosen to execute the IN predicate.  */
-  enum enum_exec_method {
-    NOT_TRANSFORMED, /* No execution method was chosen for this IN. */
-    SEMI_JOIN,   /* IN was converted to semi-join nest and should be removed. */
-    IN_TO_EXISTS, /* IN was converted to correlated EXISTS. */
-    MATERIALIZATION /* IN will be executed via subquery materialization. */
-  };
-  enum_exec_method exec_method;
   Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
 
   /* 
@@ -367,10 +371,10 @@ public:
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
-    :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-    need_expr_cache(TRUE),
-    optimizer(0), abort_on_null(0), pushed_cond_guards(NULL),
-    exec_method(NOT_TRANSFORMED), upper_item(0)
+    :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
+    first_execution(TRUE), need_expr_cache(TRUE), expr(NULL),
+    optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
+    pushed_cond_guards(NULL), upper_item(NULL)
   {}
   void cleanup();
   subs_type substype() { return IN_SUBS; }

@@ -270,7 +270,14 @@ static uint make_join_orderinfo(JOIN *join);
 static int
 join_read_record_no_init(JOIN_TAB *tab);
 static
-bool subquery_types_allow_materialization(Item_in_subselect *in_subs);
+bool subquery_types_allow_materialization(Item_in_subselect *predicate);
+static 
+bool semijoin_types_allow_materialization(TABLE_LIST *sj_nest,
+                                          bool *sjm_scan_allowed);
+static
+bool types_allow_materialization(Item *outer, Item *inner);
+static
+bool resolve_subquery(THD *thd, JOIN *join);
 int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
@@ -588,170 +595,13 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
   
-  /*
-    If 
-      1) this join is inside a subquery (of any type except FROM-clause 
-         subquery) and
-      2) we aren't just normalizing a VIEW
-      3) we aren't in a DESCRIBE
-
-    Then perform early unconditional subquery transformations:
-     - Convert subquery predicate into semi-join, or
-     - Mark the subquery for execution using materialization, or
-     - Perform IN->EXISTS transformation, or
-     - Perform more/less ALL/ANY -> MIN/MAX rewrite
-     - Substitute trivial scalar-context subquery with its value
-
-    TODO: for PS, make the whole block execute only on the first execution
-  */
-  Item_subselect *subselect;
-  if (!thd->lex->view_prepare_mode &&                    // (1)
-      (subselect= select_lex->master_unit()->item) &&    // (2)
-      !(select_options & SELECT_DESCRIBE))
+  if (select_lex->master_unit()->item &&    // This is a subquery
+      !thd->lex->view_prepare_mode &&       // Not normalizing a view
+      !(select_options & SELECT_DESCRIBE))  // Not within a describe
   {
-    Item_in_subselect *in_subs= NULL;
-    if (subselect->substype() == Item_subselect::IN_SUBS)
-      in_subs= (Item_in_subselect*)subselect;
-
-    /* Resolve expressions and perform semantic analysis for IN query */
-    if (in_subs != NULL)
-      /*
-        TODO: Add the condition below to this if statement when we have proper
-        support for is_correlated handling for materialized semijoins.
-        If we were to add this condition now, the fix_fields() call in
-        convert_subq_to_sj() would force the flag is_correlated to be set
-        erroneously for prepared queries.
-
-        thd->stmt_arena->state != Query_arena::PREPARED)
-      */
-    {
-      /*
-        Check if the left and right expressions have the same # of
-        columns, i.e. we don't have a case like 
-          (oe1, oe2) IN (SELECT ie1, ie2, ie3 ...)
-
-        TODO why do we have this duplicated in IN->EXISTS transformers?
-        psergey-todo: fix these: grep for duplicated_subselect_card_check
-      */
-      if (select_lex->item_list.elements != in_subs->left_expr->cols())
-      {
-        my_error(ER_OPERAND_COLUMNS, MYF(0), in_subs->left_expr->cols());
-        DBUG_RETURN(-1);
-      }
-
-      SELECT_LEX *current= thd->lex->current_select;
-      thd->lex->current_select= current->outer_select();
-      char const *save_where= thd->where;
-      thd->where= "IN/ALL/ANY subquery";
-        
-      bool failure= !in_subs->left_expr->fixed &&
-                     in_subs->left_expr->fix_fields(thd, &in_subs->left_expr);
-      thd->lex->current_select= current;
-      thd->where= save_where;
-      if (failure)
-        DBUG_RETURN(-1); /* purecov: deadcode */
-    }
-    DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
-    /*
-      Check if we're in subquery that is a candidate for flattening into a
-      semi-join (which is done in flatten_subqueries()). The
-      requirements are:
-        1. Subquery predicate is an IN/=ANY subq predicate
-        2. Subquery is a single SELECT (not a UNION)
-        3. Subquery does not have GROUP BY or ORDER BY
-        4. Subquery does not use aggregate functions or HAVING
-        5. Subquery predicate is at the AND-top-level of ON/WHERE clause
-        6. We are not in a subquery of a single table UPDATE/DELETE that 
-             doesn't have a JOIN (TODO: We should handle this at some
-             point by switching to multi-table UPDATE/DELETE)
-        7. We're not in a confluent table-less subquery, like "SELECT 1".
-        8. No execution method was already chosen (by a prepared statement)
-        9. Parent select is not a confluent table-less select
-        10. Neither parent nor child select have STRAIGHT_JOIN option.    */
-    if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
-        in_subs &&                                                    // 1
-        !select_lex->is_part_of_union() &&                            // 2
-        !select_lex->group_list.elements && !order &&                 // 3
-        !having && !select_lex->with_sum_func &&                      // 4
-        thd->thd_marker.emb_on_expr_nest &&                           // 5
-        select_lex->outer_select()->join &&                           // 6
-        select_lex->master_unit()->first_select()->leaf_tables &&     // 7
-        in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED && // 8
-        select_lex->outer_select()->leaf_tables &&                    // 9
-        !((select_options | select_lex->outer_select()->join->select_options)
-          & SELECT_STRAIGHT_JOIN))                                    // 10
-    {
-      DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
-
-      (void)subquery_types_allow_materialization(in_subs);
-
-      in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
-
-      /* Register the subquery for further processing in flatten_subqueries() */
-      select_lex->
-        outer_select()->join->sj_subselects.append(thd->mem_root, in_subs);
-      in_subs->expr_join_nest= thd->thd_marker.emb_on_expr_nest;
-    }
-    else
-    {
-      DBUG_PRINT("info", ("Subquery can't be converted to semi-join"));
-      /*
-        Check if the subquery predicate can be executed via materialization.
-        The required conditions are:
-        1. Subquery predicate is an IN/=ANY subq predicate
-        2. Subquery is a single SELECT (not a UNION)
-        3. Subquery is not a table-less query. In this case there is no
-           point in materializing.
-           3A The upper query is not a confluent SELECT ... FROM DUAL. We
-             can't do materialization for SELECT .. FROM DUAL because it
-             does not call setup_subquery_materialization(). We could make 
-             SELECT ... FROM DUAL call that function but that doesn't seem
-             to be the case that is worth handling.
-        4. Subquery predicate is a top-level predicate
-           (this implies it is not negated)
-           TODO: this is a limitation that should be lifted once we
-           implement correct NULL semantics (WL#3830)
-        5. Subquery is non-correlated
-           TODO:
-           This is an overly restrictive condition. It can be extended to:
-           (Subquery is non-correlated ||
-            Subquery is correlated to any query outer to IN predicate ||
-            (Subquery is correlated to the immediate outer query &&
-             Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-             aggregate functions}) && subquery predicate is not under "NOT IN"))
-        6. No execution method was already chosen (by a prepared statement).
-
-        (*) The subquery must be part of a SELECT statement. The current
-             condition also excludes multi-table update statements.
-
-        We have to determine whether we will perform subquery materialization
-        before calling the IN=>EXISTS transformation, so that we know whether to
-        perform the whole transformation or only that part of it which wraps
-        Item_in_subselect in an Item_in_optimizer.
-      */
-      if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION) &&
-          in_subs  &&                                                   // 1
-          !select_lex->is_part_of_union() &&                            // 2
-          select_lex->master_unit()->first_select()->leaf_tables &&     // 3
-          thd->lex->sql_command == SQLCOM_SELECT &&                     // *
-          select_lex->outer_select()->leaf_tables &&                    // 3A
-          subquery_types_allow_materialization(in_subs))
-      {
-        // psergey-todo: duplicated_subselect_card_check: where it's done?
-        if (in_subs->is_top_level_item() &&                             // 4
-            !in_subs->is_correlated &&                                  // 5
-            in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
-          in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
-      }
-
-      Item_subselect::trans_res trans_res;
-      if ((trans_res= subselect->select_transformer(this)) !=
-          Item_subselect::RES_OK)
-      {
-        select_lex->fix_prepare_information(thd, &conds, &having);
-        DBUG_RETURN((trans_res == Item_subselect::RES_ERROR));
-      }
-    }
+    /* Join object is a subquery within an IN/ANY/ALL/EXISTS predicate */
+    if (resolve_subquery(thd, this))
+      DBUG_RETURN(-1);
   }
 
   select_lex->fix_prepare_information(thd, &conds, &having);
@@ -923,21 +773,238 @@ err:
 
 
 /**
-  @brief Check if subquery's compared types allow materialization.
+  @brief Resolve predicate involving subquery
 
-  @param in_subs Subquery predicate, updated as follows:
-    types_allow_materialization TRUE if subquery materialization is allowed.
-    sjm_scan_allowed            If types_allow_materialization is TRUE,
-                                indicates whether it is possible to use subquery
-                                materialization and scan the materialized table.
+  @param thd     Pointer to THD.
+  @param join    Join that is part of a subquery predicate.
 
-  @retval TRUE   If subquery types allow materialization.
-  @retval FALSE  Otherwise.
+  @retval FALSE  Success.
+  @retval TRUE   Error.
+
+  @details
+  Perform early unconditional subquery transformations:
+   - Convert subquery predicate into semi-join, or
+   - Mark the subquery for execution using materialization, or
+   - Perform IN->EXISTS transformation, or
+   - Perform more/less ALL/ANY -> MIN/MAX rewrite
+   - Substitute trivial scalar-context subquery with its value
+
+  @todo for PS, make the whole block execute only on the first execution
+
+*/
+
+static
+bool resolve_subquery(THD *thd, JOIN *join)
+
+{
+  DBUG_ENTER("resolve_subquery");
+
+  SELECT_LEX *select_lex= join->select_lex;
+
+  /*
+    @todo for PS, make the whole block execute only on the first execution.
+    resolve_subquery() is only invoked in the first execution for subqueries
+    that are transformed to semijoin, but for other subqueries, this function
+    is called for every execution. One solution is perhaps to define
+    exec_method in class Item_subselect and exit immediately if unequal to
+    EXEC_UNSPECIFIED.
+  */
+  Item_subselect *subq_predicate= select_lex->master_unit()->item;
+  DBUG_ASSERT(subq_predicate);
+
+  /* in_exists_predicate is non-NULL for IN, =ANY and EXISTS predicates */
+  Item_exists_subselect *in_exists_predicate= 
+    (subq_predicate->substype() == Item_subselect::IN_SUBS ||
+     subq_predicate->substype() == Item_subselect::EXISTS_SUBS) ?
+        (Item_exists_subselect*)subq_predicate :
+        NULL;
+
+  if (subq_predicate->substype() == Item_subselect::IN_SUBS)
+  {
+    Item_in_subselect *in_predicate= (Item_in_subselect *)subq_predicate;
+    /*
+      Check if the left and right expressions have the same # of
+      columns, i.e. we don't have a case like 
+        (oe1, oe2) IN (SELECT ie1, ie2, ie3 ...)
+
+      TODO why do we have this duplicated in IN->EXISTS transformers?
+      psergey-todo: fix these: grep for duplicated_subselect_card_check
+    */
+    if (select_lex->item_list.elements != in_predicate->left_expr->cols())
+    {
+      my_error(ER_OPERAND_COLUMNS, MYF(0), in_predicate->left_expr->cols());
+      DBUG_RETURN(TRUE);
+    }
+
+    SELECT_LEX *current= thd->lex->current_select;
+    thd->lex->current_select= current->outer_select();
+    char const *save_where= thd->where;
+    thd->where= "IN/ALL/ANY subquery";
+        
+    bool result= !in_predicate->left_expr->fixed &&
+                  in_predicate->left_expr->fix_fields(thd,
+                                                     &in_predicate->left_expr);
+    thd->lex->current_select= current;
+    thd->where= save_where;
+    if (result)
+      DBUG_RETURN(TRUE); /* purecov: deadcode */
+  }
+
+  DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
+  /*
+    Check if we're in subquery that is a candidate for flattening into a
+    semi-join (which is done in flatten_subqueries()). The requirements are:
+      1. Subquery predicate is an IN/=ANY subquery predicate
+      2. Subquery is a single SELECT (not a UNION)
+      3. Subquery does not have GROUP BY or ORDER BY
+      4. Subquery does not use aggregate functions or HAVING
+      5. Subquery predicate is at the AND-top-level of ON/WHERE clause
+      6. We are not in a subquery of a single table UPDATE/DELETE that 
+           doesn't have a JOIN (TODO: We should handle this at some
+           point by switching to multi-table UPDATE/DELETE)
+      7. We're not in a confluent table-less subquery, like "SELECT 1".
+      8. No execution method was already chosen (by a prepared statement)
+      9. Parent select is not a confluent table-less select
+      10. Neither parent nor child select have STRAIGHT_JOIN option.
+
+      Please note that subq_predicate and in_exists_predicate points to the
+      same object here, but in_exists_predicate is NULL if the predicate
+      is not IN or EXISTS. Therefore both pointers are needed in the same
+      statement.
+  */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
+      subq_predicate->substype() == Item_subselect::IN_SUBS &&          // 1
+      !select_lex->is_part_of_union() &&                                // 2
+      !select_lex->group_list.elements && !join->order &&               // 3
+      !join->having && !select_lex->with_sum_func &&                    // 4
+      thd->thd_marker.emb_on_expr_nest &&                               // 5
+      select_lex->outer_select()->join &&                               // 6
+      select_lex->master_unit()->first_select()->leaf_tables &&         // 7
+      in_exists_predicate->exec_method == 
+                           Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
+      select_lex->outer_select()->leaf_tables &&                        // 9
+      !((join->select_options |
+         select_lex->outer_select()->join->select_options)
+        & SELECT_STRAIGHT_JOIN))                                        // 10
+  {
+    DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
+
+    /* Notify in the subquery predicate where it belongs in the query graph */
+    in_exists_predicate->embedding_join_nest= thd->thd_marker.emb_on_expr_nest;
+
+    /* Register the subquery for further processing in flatten_subqueries() */
+    select_lex->outer_select()->join->
+      sj_subselects.append(thd->mem_root, in_exists_predicate);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Subquery can't be converted to semi-join"));
+    /*
+      Check if the subquery predicate can be executed via materialization.
+      The required conditions are:
+      1. Subquery predicate is an IN/=ANY subquery predicate
+      2. Subquery is a single SELECT (not a UNION)
+      3. Subquery is not a table-less query. In this case there is no
+         point in materializing.
+        3A The upper query is not a confluent SELECT ... FROM DUAL. We
+           can't do materialization for SELECT .. FROM DUAL because it
+           does not call setup_subquery_materialization(). We could make 
+           SELECT ... FROM DUAL call that function but that doesn't seem
+           to be the case that is worth handling.
+      4. Subquery predicate is a top-level predicate
+         (this implies it is not negated)
+         TODO: this is a limitation that should be lifted once we
+         implement correct NULL semantics (WL#3830)
+      5. Subquery is non-correlated
+         TODO:
+         This is an overly restrictive condition. It can be extended to:
+         (Subquery is non-correlated ||
+          Subquery is correlated to any query outer to IN predicate ||
+          (Subquery is correlated to the immediate outer query &&
+           Subquery !contains {GROUP BY, ORDER BY [LIMIT],
+           aggregate functions}) && subquery predicate is not under "NOT IN"))
+      6. No execution method was already chosen (by a prepared statement).
+      7. Involved expression types allow materialization (temporary only)
+
+      (*) The subquery must be part of a SELECT statement. The current
+           condition also excludes multi-table update statements.
+
+      We have to determine whether we will perform subquery materialization
+      before calling the IN=>EXISTS transformation, so that we know whether to
+      perform the whole transformation or only that part of it which wraps
+      Item_in_subselect in an Item_in_optimizer.
+    */
+    Item_in_subselect *in_predicate= (Item_in_subselect *)subq_predicate;
+
+    if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION)  && 
+        subq_predicate->substype() == Item_subselect::IN_SUBS &&        // 1
+        !select_lex->is_part_of_union() &&                              // 2
+        select_lex->master_unit()->first_select()->leaf_tables &&       // 3
+        thd->lex->sql_command == SQLCOM_SELECT &&                       // *
+        select_lex->outer_select()->leaf_tables &&                      // 3A
+        in_predicate->is_top_level_item() &&                            // 4
+        !in_predicate->is_correlated &&                                 // 5
+        in_predicate->exec_method ==
+                      Item_exists_subselect::EXEC_UNSPECIFIED &&        // 6
+        subquery_types_allow_materialization(in_predicate))             // 7
+      in_predicate->exec_method= Item_exists_subselect::EXEC_MATERIALIZATION;
+
+    if (subq_predicate->select_transformer(join) == Item_subselect::RES_ERROR)
+      DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief Check if subquery predicate's compared types allow materialization.
+
+  @param predicate subquery predicate
+
+  @return TRUE if subquery types allow materialization, FALSE otherwise.
+
+  @details
+    This is a temporary fix for BUG#36752.
+    See bug report for description of restrictions we need to put on the
+    compared expressions.
+*/
+
+static 
+bool subquery_types_allow_materialization(Item_in_subselect *predicate)
+{
+  DBUG_ENTER("subquery_types_allow_materialization");
+
+  DBUG_ASSERT(predicate->left_expr->fixed);
+  DBUG_ASSERT(predicate->left_expr->cols() ==
+              predicate->unit->first_select()->item_list.elements);
+
+  List_iterator<Item> it(predicate->unit->first_select()->item_list);
+  uint elements= predicate->unit->first_select()->item_list.elements;
+  
+  for (uint i= 0; i < elements; i++)
+  {
+    Item *inner= it++;
+    if (!types_allow_materialization(predicate->left_expr->element_index(i),
+                                     inner))
+      DBUG_RETURN(FALSE);
+  }
+  DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
+  @brief Check if semijoin's compared types allow materialization.
+
+  @param sj_nest Semi-join nest containing information about correlated
+                 expressions.
+  @param[out]    sjm_scan_allowed  TRUE if MaterializeScan strategy allowed.
+
+  @return        TRUE if materialization is allowed, FALSE otherwise
 
   @details
     This is a temporary fix for BUG#36752.
     
-    There are two subquery materialization strategies:
+    There are two subquery materialization strategies for semijoin:
 
     1. Materialize and do index lookups in the materialized table. See 
        BUG#36752 for description of restrictions we need to put on the
@@ -973,46 +1040,63 @@ err:
 */
 
 static 
-bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
+bool semijoin_types_allow_materialization(TABLE_LIST *sj_nest,
+                                          bool *sjm_scan_allowed)
 {
-  DBUG_ENTER("subquery_types_allow_materialization");
+  DBUG_ENTER("semijoin_types_allow_materialization");
 
-  DBUG_ASSERT(in_subs->left_expr->fixed);
+  DBUG_ASSERT(sj_nest->nested_join->sj_outer_exprs.elements ==
+              sj_nest->nested_join->sj_inner_exprs.elements);
 
-  List_iterator<Item> it(in_subs->unit->first_select()->item_list);
-  uint elements= in_subs->unit->first_select()->item_list.elements;
+  List_iterator<Item> it1(sj_nest->nested_join->sj_outer_exprs);
+  List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
 
-  in_subs->types_allow_materialization= FALSE;  // Assign default values
-  in_subs->sjm_scan_allowed= FALSE;
-  
+  *sjm_scan_allowed= FALSE;
+
   bool all_are_fields= TRUE;
-  for (uint i= 0; i < elements; i++)
+  Item *outer, *inner;
+  while (outer= it1++, inner= it2++)
   {
-    Item *outer= in_subs->left_expr->element_index(i);
-    Item *inner= it++;
     all_are_fields &= (outer->real_item()->type() == Item::FIELD_ITEM && 
                        inner->real_item()->type() == Item::FIELD_ITEM);
-    if (outer->result_type() != inner->result_type())
+    if (!types_allow_materialization(outer, inner))
       DBUG_RETURN(FALSE);
-    switch (outer->result_type()) {
-    case STRING_RESULT:
-      if (outer->is_datetime() != inner->is_datetime())
-        DBUG_RETURN(FALSE);
-
-      if (!(outer->collation.collation == inner->collation.collation 
-          /*&& outer->max_length <= inner->max_length */))
-        DBUG_RETURN(FALSE);
-    /*case INT_RESULT:
-      if (!(outer->unsigned_flag ^ inner->unsigned_flag))
-        DBUG_RETURN(FALSE); */
-    default:
-      ;/* suitable for materialization */
-    }
   }
-  in_subs->types_allow_materialization= TRUE;
-  in_subs->sjm_scan_allowed= all_are_fields;
-  DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
+  *sjm_scan_allowed= all_are_fields;
+  DBUG_PRINT("info",("semijoin_types_allow_materialization: ok, allowed"));
   DBUG_RETURN(TRUE);
+}
+
+
+/**
+  @brief Check if two items are compatible wrt. materialization.
+
+  @param outer Expression from outer query
+  @param inner Expression from inner query
+
+  @retval TRUE   If subquery types allow materialization.
+  @retval FALSE  Otherwise.
+*/
+
+static bool types_allow_materialization(Item *outer, Item *inner)
+
+{
+  if (outer->result_type() != inner->result_type())
+    return FALSE;
+  switch (outer->result_type()) {
+  case STRING_RESULT:
+    if (outer->is_datetime() != inner->is_datetime())
+      return FALSE;
+    if (!(outer->collation.collation == inner->collation.collation
+        /*&& outer->max_length <= inner->max_length */))
+      return FALSE;
+  /*case INT_RESULT:
+    if (!(outer->unsigned_flag ^ inner->unsigned_flag))
+      return FALSE; */
+  default:
+    ;                 /* suitable for materialization */
+  }
+  return TRUE;
 }
 
 
@@ -3303,9 +3387,14 @@ err:
 }
 
 
-int subq_sj_candidate_cmp(Item_in_subselect* const *el1, 
-                          Item_in_subselect* const *el2)
+int subq_sj_candidate_cmp(Item_exists_subselect* const *el1, 
+                          Item_exists_subselect* const *el2)
 {
+  /*
+    Remove this assert when we support semijoin on non-IN subqueries.
+  */
+  DBUG_ASSERT((*el1)->substype() == Item_subselect::IN_SUBS &&
+              (*el2)->substype() == Item_subselect::IN_SUBS);
   return ((*el1)->sj_convert_priority < (*el2)->sj_convert_priority) ? 1 : 
          ( ((*el1)->sj_convert_priority == (*el2)->sj_convert_priority)? 0 : -1);
 }
@@ -3343,49 +3432,71 @@ void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist)
 }
 
 
-/*
+/**
   Convert a subquery predicate into a TABLE_LIST semi-join nest
 
-  SYNOPSIS
-    convert_subq_to_sj()
-       parent_join  Parent join, the one that has subq_pred in its WHERE/ON 
-                    clause
-       subq_pred    Subquery predicate to be converted
-  
-  DESCRIPTION
-    Convert a subquery predicate into a TABLE_LIST semi-join nest. All the 
-    prerequisites are already checked, so the conversion is always successfull.
+  @param parent_join Parent join, which has subq_pred in its WHERE/ON clause.
+  @param subq_pred   Subquery predicate to be converted.
+                     This is either an IN, =ANY or EXISTS predicate.
 
-    Prepared Statements: the transformation is permanent:
-     - Changes in TABLE_LIST structures are naturally permanent
-     - Item tree changes are performed on statement MEM_ROOT:
-        = we activate statement MEM_ROOT 
-        = this function is called before the first fix_prepare_information
-          call.
+  @retval FALSE OK
+  @retval TRUE  Error
 
-    This is intended because the criteria for subquery-to-sj conversion remain
-    constant for the lifetime of the Prepared Statement.
+  @details
 
-  RETURN
-    FALSE  OK
-    TRUE   Out of memory error
+  The following transformations are performed:
+
+  1. IN/=ANY predicates on the form:
+
+  SELECT ...
+  FROM ot1 ... otN
+  WHERE (oe1, ... oeM) IN (SELECT ie1, ..., ieM)
+                           FROM it1 ... itK
+                          [WHERE inner-cond])
+   [AND outer-cond]
+  [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+
+  are transformed into:
+
+  SELECT ...
+  FROM (ot1 ... otN) SJ (it1 ... itK)
+                     ON (oe1, ... oeM) = (ie1, ..., ieM)
+                        [AND inner-cond]
+  [WHERE outer-cond]
+  [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+
+  Notice that the inner-cond may contain correlated and non-correlated
+  expressions. Further transformations will analyze and break up such
+  expressions.
+
+  Prepared Statements: the transformation is permanent:
+   - Changes in TABLE_LIST structures are naturally permanent
+   - Item tree changes are performed on statement MEM_ROOT:
+      = we activate statement MEM_ROOT 
+      = this function is called before the first fix_prepare_information call.
+
+  This is intended because the criteria for subquery-to-sj conversion remain
+  constant for the lifetime of the Prepared Statement.
 */
 
-bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
+bool convert_subquery_to_semijoin(JOIN *parent_join,
+                                  Item_exists_subselect *subq_pred)
 {
   SELECT_LEX *parent_lex= parent_join->select_lex;
   TABLE_LIST *emb_tbl_nest= NULL;
   List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
   THD *thd= parent_join->thd;
-  DBUG_ENTER("convert_subq_to_sj");
+  DBUG_ENTER("convert_subquery_to_semijoin");
+
+  DBUG_ASSERT(subq_pred->substype() == Item_subselect::IN_SUBS);
 
   /*
     1. Find out where to put the predicate into.
      Note: for "t1 LEFT JOIN t2" this will be t2, a leaf.
   */
-  if ((void*)subq_pred->expr_join_nest != (void*)1)
+  if ((void*)subq_pred->embedding_join_nest != (void*)1)
   {
-    if (subq_pred->expr_join_nest->nested_join)
+    if (subq_pred->embedding_join_nest->nested_join)
     {
       /*
         We're dealing with
@@ -3394,10 +3505,10 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 
         The sj-nest will be inserted into the brackets nest.
       */
-      emb_tbl_nest=  subq_pred->expr_join_nest;
+      emb_tbl_nest=  subq_pred->embedding_join_nest;
       emb_join_list= &emb_tbl_nest->nested_join->join_list;
     }
-    else if (!subq_pred->expr_join_nest->outer_join)
+    else if (!subq_pred->embedding_join_nest->outer_join)
     {
       /*
         We're dealing with
@@ -3407,13 +3518,13 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
         The sj-nest will be tblX's "sibling", i.e. another child of its
         parent. This is ok because tblX is joined as an inner join.
       */
-      emb_tbl_nest= subq_pred->expr_join_nest->embedding;
+      emb_tbl_nest= subq_pred->embedding_join_nest->embedding;
       if (emb_tbl_nest)
         emb_join_list= &emb_tbl_nest->nested_join->join_list;
     }
-    else if (!subq_pred->expr_join_nest->nested_join)
+    else if (!subq_pred->embedding_join_nest->nested_join)
     {
-      TABLE_LIST *outer_tbl= subq_pred->expr_join_nest;      
+      TABLE_LIST *outer_tbl= subq_pred->embedding_join_nest;      
       TABLE_LIST *wrap_nest;
       /*
         We're dealing with
@@ -3427,14 +3538,14 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
                         |<----- wrap_nest ---->|
         
         Q:  other subqueries may be pointing to this element. What to do?
-        A1: simple solution: copy *subq_pred->expr_join_nest= *parent_nest.
+        A1: simple solution: copy *subq_pred->embedding_join_nest= *parent_nest.
             But we'll need to fix other pointers.
         A2: Another way: have TABLE_LIST::next_ptr so the following
             subqueries know the table has been nested.
         A3: changes in the TABLE_LIST::outer_join will make everything work
             automatically.
       */
-      if (!(wrap_nest= alloc_join_nest(parent_join->thd)))
+      if (!(wrap_nest= alloc_join_nest(thd)))
       {
         DBUG_RETURN(TRUE);
       }
@@ -3479,7 +3590,7 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 
   TABLE_LIST *sj_nest;
   NESTED_JOIN *nested_join;
-  if (!(sj_nest= alloc_join_nest(parent_join->thd)))
+  if (!(sj_nest= alloc_join_nest(thd)))
   {
     DBUG_RETURN(TRUE);
   }
@@ -3537,8 +3648,6 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* 3. Remove the original subquery predicate from the WHERE/ON */
 
   // The subqueries were replaced for Item_int(1) earlier
-  subq_pred->exec_method=
-    Item_in_subselect::SEMI_JOIN;         // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
   /* n. Adjust the parent_join->tables counter */
@@ -3555,26 +3664,41 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
          emb= emb->embedding)
       emb->select_lex= parent_join->select_lex;
   }
-  parent_join->tables += subq_lex->join->tables;
+  parent_join->tables+= subq_lex->join->tables;
 
-  /* 
-    Put the subquery's WHERE into semi-join's sj_on_expr
-    Add the subquery-induced equalities too.
-  */
-  SELECT_LEX *save_lex= thd->lex->current_select;
-  thd->lex->current_select=subq_lex;
-  if (!subq_pred->left_expr->fixed &&
-       subq_pred->left_expr->fix_fields(thd, &subq_pred->left_expr))
-    DBUG_RETURN(TRUE);
-  thd->lex->current_select=save_lex;
-
-  sj_nest->nested_join->sj_corr_tables= subq_pred->used_tables();
-  sj_nest->nested_join->sj_depends_on=  subq_pred->used_tables() |
-                                        subq_pred->left_expr->used_tables();
-  sj_nest->sj_on_expr= subq_lex->where;
+  nested_join->sj_outer_exprs.empty();
+  nested_join->sj_inner_exprs.empty();
 
   /*
-    Create the IN-equalities and inject them into semi-join's ON expression.
+    @todo: Add similar conversion for subqueries other than IN.
+  */
+  if (subq_pred->substype() == Item_subselect::IN_SUBS)
+  {
+    Item_in_subselect *in_subq_pred= (Item_in_subselect *)subq_pred;
+
+    /* Left side of IN predicate is already resolved */
+    DBUG_ASSERT(in_subq_pred->left_expr->fixed);
+
+    in_subq_pred->exec_method= Item_exists_subselect::EXEC_SEMI_JOIN;
+    /*
+      sj_corr_tables is supposed to contain non-trivially correlated tables,
+      but here it is set to contain all correlated tables.
+      @todo: Add analysis step that assigns only the set of non-trivially
+      correlated tables to sj_corr_tables.
+    */
+    nested_join->sj_corr_tables= subq_pred->used_tables();
+    /*
+      sj_depends_on contains the set of outer tables referred in the
+      subquery's WHERE clause as well as tables referred in the IN predicate's
+      left-hand side.
+    */
+    nested_join->sj_depends_on=  subq_pred->used_tables() |
+                                 in_subq_pred->left_expr->used_tables();
+    /* Put the subquery's WHERE into semi-join's condition. */
+    sj_nest->sj_on_expr= subq_lex->where;
+
+    /*
+    Create the IN-equalities and inject them into semi-join's ON condition.
     Additionally, for LooseScan strategy
      - Record the number of IN-equalities.
      - Create list of pointers to (oe1, ..., ieN). We'll need the list to
@@ -3587,58 +3711,64 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
        pointers to Item_direct_view_refs are guaranteed to be stable as 
        Item_direct_view_refs doesn't substitute itself with anything in 
        Item_direct_view_ref::fix_fields.
-  */
-  sj_nest->sj_in_exprs= subq_pred->left_expr->cols();
-  sj_nest->nested_join->sj_outer_expr_list.empty();
+    */
 
-  if (subq_pred->left_expr->cols() == 1)
-  {
-    nested_join->sj_outer_expr_list.push_back(subq_pred->left_expr);
-    Item_func_eq *item_eq=
-      new Item_func_eq(subq_pred->left_expr, subq_lex->ref_pointer_array[0]);
-    item_eq->in_equality_no= 0;
-    sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
-  }
-  else
-  {
-    for (uint i= 0; i < subq_pred->left_expr->cols(); i++)
+    for (uint i= 0; i < in_subq_pred->left_expr->cols(); i++)
     {
-      nested_join->sj_outer_expr_list.push_back(subq_pred->left_expr->
-                                                element_index(i));
+      nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
+                                            element_index(i));
+      nested_join->sj_inner_exprs.push_back(subq_lex->ref_pointer_array[i]);
+
       Item_func_eq *item_eq= 
-        new Item_func_eq(subq_pred->left_expr->element_index(i), 
+        new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
                          subq_lex->ref_pointer_array[i]);
+      if (item_eq == NULL)
+        DBUG_RETURN(TRUE);
+
+      /*
+        Mark this item as a subquery equality predicate. Currently, we
+        only check that this field is different from UINT_MAX, so a boolean
+        would do better than an integer.
+        @todo: Convert to bool, or start using it as an integer.
+      */
       item_eq->in_equality_no= i;
       sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
+      if (sj_nest->sj_on_expr == NULL)
+        DBUG_RETURN(TRUE);
     }
+    /* Fix the created equality and AND */
+    sj_nest->sj_on_expr->fix_fields(thd, &sj_nest->sj_on_expr);
   }
-  /* Fix the created equality and AND */
-  sj_nest->sj_on_expr->fix_fields(parent_join->thd, &sj_nest->sj_on_expr);
 
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
   sj_nest->sj_on_expr->fix_after_pullout(parent_lex, &sj_nest->sj_on_expr);
-  fix_list_after_tbl_changes(parent_lex, &sj_nest->nested_join->join_list);
-
+  fix_list_after_tbl_changes(parent_lex, &nested_join->join_list);
 
   /* Unlink the child select_lex so it doesn't show up in EXPLAIN: */
   subq_lex->master_unit()->exclude_level();
 
   //TODO fix QT_
-  DBUG_EXECUTE("where",print_where(sj_nest->sj_on_expr,"SJ-EXPR", QT_ORDINARY););
-  /* Inject sj_on_expr into the parent's WHERE or ON */
+  DBUG_EXECUTE("where",
+               print_where(sj_nest->sj_on_expr,"SJ-EXPR", QT_ORDINARY););
+
   if (emb_tbl_nest)
   {
+    /* Inject sj_on_expr into the parent's ON condition */
     emb_tbl_nest->on_expr= and_items(emb_tbl_nest->on_expr, 
                                      sj_nest->sj_on_expr);
+    if (emb_tbl_nest->on_expr == NULL)
+      DBUG_RETURN(TRUE);
     emb_tbl_nest->on_expr->fix_fields(parent_join->thd, &emb_tbl_nest->on_expr);
   }
   else
   {
-    /* Inject into the WHERE */
+    /* Inject sj_on_expr into the parent's WHERE condition */
     parent_join->conds= and_items(parent_join->conds, sj_nest->sj_on_expr);
+    if (parent_join->conds == NULL)
+      DBUG_RETURN(TRUE);
     parent_join->conds->fix_fields(parent_join->thd, &parent_join->conds);
     parent_join->select_lex->where= parent_join->conds;
   }
@@ -3705,18 +3835,24 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 bool JOIN::flatten_subqueries()
 {
   Query_arena *arena, backup;
-  Item_in_subselect **in_subq;
-  Item_in_subselect **in_subq_end;
+  Item_exists_subselect **subq;
+  Item_exists_subselect **subq_end;
   DBUG_ENTER("JOIN::flatten_subqueries");
 
   if (sj_subselects.elements() == 0)
     DBUG_RETURN(FALSE);
 
   /* First, convert child join's subqueries. We proceed bottom-up here */
-  for (in_subq= sj_subselects.front(), in_subq_end= sj_subselects.back(); 
-       in_subq != in_subq_end; in_subq++)
+  for (subq= sj_subselects.front(), subq_end= sj_subselects.back(); 
+       subq != subq_end;
+       subq++)
   {
-    st_select_lex *child_select= (*in_subq)->get_select_lex();
+    /*
+      Currently, we only support transformation of IN subqueries.
+    */
+    DBUG_ASSERT((*subq)->substype() == Item_subselect::IN_SUBS);
+
+    st_select_lex *child_select= (*subq)->get_select_lex();
     JOIN *child_join= child_select->join;
     child_join->outer_tables = child_join->tables;
 
@@ -3730,8 +3866,8 @@ bool JOIN::flatten_subqueries()
 
     if (child_join->flatten_subqueries())
       DBUG_RETURN(TRUE);
-    (*in_subq)->sj_convert_priority= 
-      (*in_subq)->is_correlated * MAX_TABLES + child_join->outer_tables;
+    (*subq)->sj_convert_priority= 
+      (*subq)->is_correlated * MAX_TABLES + child_join->outer_tables;
   }
   
   // Temporary measure: disable semi-joins when they are together with outer
@@ -3740,7 +3876,7 @@ bool JOIN::flatten_subqueries()
   {
     if (tbl->on_expr || tbl->in_outer_join_nest())
     {
-      in_subq= sj_subselects.front();
+      subq= sj_subselects.front();
       arena= thd->activate_stmt_arena_if_needed(&backup);
       goto skip_conversion;
     }
@@ -3757,68 +3893,69 @@ bool JOIN::flatten_subqueries()
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
-  for (in_subq= sj_subselects.front(); 
-       in_subq != in_subq_end && 
-       tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
-       in_subq++)
+  for (subq= sj_subselects.front(); 
+       subq != subq_end && 
+       tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
+       subq++)
   {
-    Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
-                   &conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-    if (replace_where_subcondition(this, tree, *in_subq, new Item_int(1),
+    Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
+                   &conds : &((*subq)->embedding_join_nest->on_expr);
+    if (replace_where_subcondition(this, tree, *subq, new Item_int(1),
                                    FALSE))
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
  
-  for (in_subq= sj_subselects.front(); 
-       in_subq != in_subq_end && 
-       tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
-       in_subq++)
+  for (subq= sj_subselects.front(); 
+       subq != subq_end && 
+       tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
+       subq++)
   {
-    if (convert_subq_to_sj(this, *in_subq))
+    if (convert_subquery_to_semijoin(this, *subq))
       DBUG_RETURN(TRUE);
   }
 skip_conversion:
   bool converted= FALSE;
   /* 
-    3. Finalize (perform IN->EXISTS rewrite) the subqueries that we didn't
-    convert:
+    3. Finalize the subqueries that we did not convert,
+       ie. perform IN->EXISTS rewrite.
   */
-  for (; in_subq!= in_subq_end; in_subq++)
+  for (; subq!= subq_end; subq++)
   {
-    JOIN *child_join= (*in_subq)->unit->first_select()->join;
+    JOIN *child_join= (*subq)->unit->first_select()->join;
     Item_subselect::trans_res res;
-    (*in_subq)->changed= 0;
-    (*in_subq)->fixed= 0;
+    (*subq)->changed= 0;
+    (*subq)->fixed= 0;
 
     SELECT_LEX *save_select_lex= thd->lex->current_select;
-    thd->lex->current_select= (*in_subq)->unit->first_select();
+    thd->lex->current_select= (*subq)->unit->first_select();
     converted= TRUE;
 
-    res= (*in_subq)->select_transformer(child_join);
+    res= (*subq)->select_transformer(child_join);
 
     thd->lex->current_select= save_select_lex;
 
     if (res == Item_subselect::RES_ERROR)
       DBUG_RETURN(TRUE);
 
-    (*in_subq)->changed= 1;
-    (*in_subq)->fixed= 1;
+    (*subq)->changed= 1;
+    (*subq)->fixed= 1;
 
-    Item *substitute= (*in_subq)->substitution;
-    bool do_fix_fields= !(*in_subq)->substitution->fixed;
-    Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
-                   &conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-    if (replace_where_subcondition(this, tree, *in_subq, substitute, 
+    Item *substitute= (*subq)->substitution;
+    bool do_fix_fields= !(*subq)->substitution->fixed;
+    Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
+                   &conds : &((*subq)->embedding_join_nest->on_expr);
+    if (replace_where_subcondition(this, tree, *subq, substitute, 
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
-    (*in_subq)->substitution= NULL;
+    (*subq)->substitution= NULL;
      
     if (!thd->stmt_arena->is_conventional())
     {
-      tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
-                     &select_lex->prep_where : &((*in_subq)->emb_on_expr_nest->prep_on_expr);
+      tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
+                     &select_lex->prep_where :
+                     &((*subq)->embedding_join_nest->prep_on_expr);
 
-      if (replace_where_subcondition(this, tree, *in_subq, substitute, 
+      if (replace_where_subcondition(this, tree, *subq, substitute, 
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
@@ -3866,7 +4003,8 @@ bool JOIN::setup_subquery_materialization()
           subquery_predicate->substype() == Item_subselect::IN_SUBS)
       {
         Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
-        if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
+        if (in_subs->exec_method ==
+              Item_exists_subselect::EXEC_MATERIALIZATION &&
             in_subs->setup_engine())
           return TRUE;
       }
@@ -4043,7 +4181,6 @@ int pull_out_semijoin_tables(JOIN *join)
               Pulling a table out of uncorrelated subquery in general makes
               makes it correlated. See the NOTE to this function. 
             */
-            sj_nest->sj_subq_pred->is_correlated= TRUE;
             sj_nest->nested_join->sj_corr_tables|= tbl->table->map;
             sj_nest->nested_join->sj_depends_on|= tbl->table->map;
           }
@@ -4747,11 +4884,18 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
     {
       /* semi-join nests with only constant tables are not valid */
       DBUG_ASSERT(sj_nest->sj_inner_tables & ~join->const_table_map);
-
+      /*
+        Try semijoin materialization if the semijoin is classified as
+        non-trivially-correlated.
+      */ 
       sj_nest->sj_mat_info= NULL;
-      if (sj_nest->sj_inner_tables && /* not everything was pulled out */
-          !sj_nest->sj_subq_pred->is_correlated && 
-           sj_nest->sj_subq_pred->types_allow_materialization)
+      if (sj_nest->nested_join->sj_corr_tables)
+        continue;
+      /*
+        Check whether data types allow execution with materialization.
+      */
+      bool sjm_scan_allowed;
+      if (semijoin_types_allow_materialization(sj_nest, &sjm_scan_allowed))
       {
         join->emb_sjm_nest= sj_nest;
         if (choose_plan(join, all_table_map & ~join->const_table_map))
@@ -4768,6 +4912,8 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
           DBUG_RETURN(TRUE); /* purecov: inspected */
         sjm->tables= n_tables;
         sjm->is_used= FALSE;
+        sjm->sjm_scan_allowed= sjm_scan_allowed;
+
         double subjoin_out_rows, subjoin_read_time;
         get_partial_join_cost(join, n_tables,
                               &subjoin_read_time, &subjoin_out_rows);
@@ -5008,49 +5154,41 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
   return first_free;
 }
 
-/*
+
+/**
   Given a field, return its index in semi-join's select list, or UINT_MAX
 
-  DESCRIPTION
-    Given a field, we find its table; then see if the table is within a
-    semi-join nest and if the field was in select list of the subselect.
-    If it was, we return field's index in the select list. The value is used
-    by LooseScan strategy.
+  @param field Field that we are looking up table for
+
+  @retval =UINT_MAX Field is not from a semijoin-transformed subquery
+  @retval <UINT_MAX Index in select list of subquery
+
+  @details
+  Given a field, find its table; then see if the table is within a
+  semi-join nest and if the field was in select list of the subquery
+  (if subquery was part of a quantified comparison predicate), or
+  the field was a result of subquery decorrelation.
+  If it was, then return the field's index in the select list.
+  The value is used by LooseScan strategy.
 */
 
 static uint get_semi_join_select_list_index(Field *field)
 {
-  uint res= UINT_MAX;
   TABLE_LIST *emb_sj_nest;
   if ((emb_sj_nest= field->table->pos_in_table_list->embedding) &&
       emb_sj_nest->sj_on_expr)
   {
-    Item_in_subselect *subq_pred= emb_sj_nest->sj_subq_pred;
-    st_select_lex *subq_lex= subq_pred->unit->first_select();
-    if (subq_pred->left_expr->cols() == 1)
+    List<Item> &items= emb_sj_nest->nested_join->sj_inner_exprs;
+    List_iterator<Item> it(items);
+    for (uint i= 0; i < items.elements; i++)
     {
-      Item *sel_item= subq_lex->ref_pointer_array[0];
+      Item *sel_item= it++;
       if (sel_item->type() == Item::FIELD_ITEM &&
           ((Item_field*)sel_item)->field->eq(field))
-      {
-        res= 0;
-      }
-    }
-    else
-    {
-      for (uint i= 0; i < subq_pred->left_expr->cols(); i++)
-      {
-        Item *sel_item= subq_lex->ref_pointer_array[i];
-        if (sel_item->type() == Item::FIELD_ITEM &&
-            ((Item_field*)sel_item)->field->eq(field))
-        {
-          res= i;
-          break;
-        }
-      }
+        return i;
     }
   }
-  return res;
+  return UINT_MAX;
 }
 
 /**
@@ -6141,7 +6279,7 @@ set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
 ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest, 
                                   table_map remaining_tables)
 {
-  List_iterator<Item> li(sj_nest->nested_join->sj_outer_expr_list);
+  List_iterator<Item> li(sj_nest->nested_join->sj_outer_exprs);
   Item *item;
   uint i= 0;
   ulonglong res= 0;
@@ -6254,10 +6392,10 @@ public:
     */
     best_loose_scan_cost= DBL_MAX;
     if (s->emb_sj_nest && !join->emb_sjm_nest &&                        // (1)
-        s->emb_sj_nest->sj_in_exprs < 64 && 
+        s->emb_sj_nest->nested_join->sj_inner_exprs.elements < 64 && 
         ((remaining_tables & s->emb_sj_nest->sj_inner_tables) ==        // (2)
          s->emb_sj_nest->sj_inner_tables) &&                            // (2)
-        join->cur_sj_inner_tables == 0 &&                                  // (3)
+        join->cur_sj_inner_tables == 0 &&                               // (3)
         !(remaining_tables & 
           s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (4)
         remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on &&// (5)
@@ -6319,12 +6457,13 @@ public:
            (handled_col|bound_col)* (other_col|bound_col)
 
     */
-    if (try_loosescan &&                                       // (1)
-        (handled_sj_equalities | bound_sj_equalities) ==         // (2)
-        PREV_BITS(ulonglong, s->emb_sj_nest->sj_in_exprs) &&     // (2)
-        (PREV_BITS(key_part_map, max_loose_keypart+1) &        // (3)
-         (found_part | loose_scan_keyparts)) ==                // (3)
-         (found_part | loose_scan_keyparts) &&                 // (3)
+    if (try_loosescan &&                                                // (1)
+        (handled_sj_equalities | bound_sj_equalities) ==                // (2)
+        PREV_BITS(ulonglong,
+                s->emb_sj_nest->nested_join->sj_inner_exprs.elements)&& // (2)
+        (PREV_BITS(key_part_map, max_loose_keypart+1) &                 // (3)
+         (found_part | loose_scan_keyparts)) ==                         // (3)
+         (found_part | loose_scan_keyparts) &&                          // (3)
         !key_uses_partial_cols(s->table, key))
     {
       /* Ok, can use the strategy */
@@ -7386,7 +7525,7 @@ semijoin_order_allows_materialization(const JOIN *join,
   */
   if (remaining_tables & emb_sj_nest->nested_join->sj_depends_on)
   {
-    if (emb_sj_nest->sj_subq_pred->sjm_scan_allowed)
+    if (emb_sj_nest->sj_mat_info->sjm_scan_allowed)
       return SJ_OPT_MATERIALIZE_SCAN;
     return SJ_OPT_NONE;
   }
@@ -9322,6 +9461,8 @@ static bool make_join_select(JOIN *join, Item *cond)
       if (pushdown_on_conditions(join, tab))
         DBUG_RETURN(1);
 
+      DBUG_ASSERT(save_used_tables ? tab->emb_sj_nest != NULL : TRUE);
+
       if (save_used_tables && !(used_tables & 
                                 ~(tab->emb_sj_nest->sj_inner_tables |
                                   join->const_table_map | PSEUDO_TABLE_BITS)))
@@ -10226,47 +10367,39 @@ void remove_sj_conds(Item **tree)
 
 
 /*
-  Create subquery IN-equalities assuming use of materialization strategy
+  Create subquery equalities assuming use of materialization strategy
   
-  SYNOPSIS
-    create_subq_in_equalities()
-      thd        Thread handle
-      sjm        Semi-join materialization structure
-      subq_pred  The subquery predicate
+  @param thd       Thread handle
+  @param sj_nest   Semi-join nest
 
-  DESCRIPTION
-    Create subquery IN-equality predicates. That is, for a subquery
-    
-      (oe1, oe2, ...) IN (SELECT ie1, ie2, ... FROM ...)
-    
-    create "oe1=ie1 AND ie1=ie2 AND ..." expression, such that ie1, ie2, ..
-    refer to the columns of the table that's used to materialize the
-    subquery.
+  @retval <>NULL Created condition
+  @retval = NULL Error
 
-  RETURN 
-    Created condition
+  @details
+  Create subquery equality predicates. That is, for a subquery
+    
+    (oe1, oe2, ...) IN (SELECT ie1, ie2, ... FROM ...)
+    
+  create "oe1=ie1 AND oe2=ie2 AND ..." expression, such that ie1, ie2, ..
+  refer to the columns of the table that is used to materialize the subquery.
+  This function will also generate proper equality predicates for
+  trivially-correlated subqueries corresponding to the above IN query.
 */
 
-Item *create_subq_in_equalities(THD *thd, SJ_MATERIALIZATION_INFO *sjm, 
-                                Item_in_subselect *subq_pred)
+Item *create_subquery_equalities(THD *thd, TABLE_LIST *sj_nest)
 {
   Item *res= NULL;
-  if (subq_pred->left_expr->cols() == 1)
-  {
-    if (!(res= new Item_func_eq(subq_pred->left_expr,
-                                new Item_field(sjm->table->field[0]))))
-      return NULL; /* purecov: inspected */
-  }
-  else
+  SJ_MATERIALIZATION_INFO *sjm= sj_nest->sj_mat_info;
+  List_iterator<Item> outer_expr(sj_nest->nested_join->sj_outer_exprs);
+
+  for (uint i= 0; i < sj_nest->nested_join->sj_outer_exprs.elements; i++)
   {
     Item *conj;
-    for (uint i= 0; i < subq_pred->left_expr->cols(); i++)
-    {
-      if (!(conj= new Item_func_eq(subq_pred->left_expr->element_index(i), 
-                                   new Item_field(sjm->table->field[i]))) ||
-          !(res= and_items(res, conj)))
-        return NULL; /* purecov: inspected */
-    }
+    Item *outer= outer_expr++;
+    if (!(conj= new Item_func_eq(outer, new Item_field(sjm->table->field[i]))))
+      return NULL; /* purecov: inspected */
+    if (!(res= and_items(res, conj)))
+      return NULL; /* purecov: inspected */
   }
   if (res->fix_fields(thd, &res))
     return NULL; /* purecov: inspected */
@@ -10303,8 +10436,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
-  List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
-
+  List<Item> &item_list= emb_sj_nest->nested_join->sj_inner_exprs;
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
@@ -10363,10 +10495,11 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     KEY_PART_INFO *cur_key_part= tmp_key->key_part;
     store_key **ref_key= tab_ref->key_copy;
     uchar *cur_ref_buff= tab_ref->key_buff;
-    
+    List_iterator<Item> outer_expr(emb_sj_nest->nested_join->sj_outer_exprs);
+
     for (i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
     {
-      tab_ref->items[i]= emb_sj_nest->sj_subq_pred->left_expr->element_index(i);
+      tab_ref->items[i]= outer_expr++;
       int null_count= test(cur_key_part->field->real_maybe_null());
       *ref_key= new store_key_item(thd, cur_key_part->field,
                                    /* TODO:
@@ -10397,8 +10530,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       if (tab[i].select)
         remove_sj_conds(&tab[i].select->cond);
     }
-    if (!(sjm->in_equality= create_subq_in_equalities(thd, sjm,
-                                                      emb_sj_nest->sj_subq_pred)))
+    if (!(sjm->in_equality= create_subquery_equalities(thd, emb_sj_nest)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
   else
@@ -13356,11 +13488,9 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_FIRSTMATCH))
   {
     const table_map outer_corr_tables=
-      new_join_tab->emb_sj_nest->nested_join->sj_corr_tables |
       new_join_tab->emb_sj_nest->nested_join->sj_depends_on;
     const table_map sj_inner_tables=
       new_join_tab->emb_sj_nest->sj_inner_tables;
-
     /* 
       Enter condition:
        1. The next join tab belongs to semi-join nest
@@ -13455,8 +13585,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       pos->first_loosescan_table= idx;
       pos->loosescan_need_tables=
         new_join_tab->emb_sj_nest->sj_inner_tables | 
-        new_join_tab->emb_sj_nest->nested_join->sj_depends_on |
-        new_join_tab->emb_sj_nest->nested_join->sj_corr_tables;
+        new_join_tab->emb_sj_nest->nested_join->sj_depends_on;
     }
     
     if ((pos->first_loosescan_table != MAX_TABLES) && 
@@ -13506,8 +13635,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
     pos->dups_producing_tables |= emb_sj_nest->sj_inner_tables;
 
     /* Remove the sj_nest if all of its SJ-inner tables are in cur_table_map */
-    if (!(remaining_tables &
-          emb_sj_nest->sj_inner_tables & ~new_join_tab->table->map))
+    if (!(remaining_tables & emb_sj_nest->sj_inner_tables))
       join->cur_sj_inner_tables &= ~emb_sj_nest->sj_inner_tables;
   }
   pos->dups_producing_tables &= ~handled_by_fm_or_ls;
@@ -13654,13 +13782,11 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
         pos->first_dupsweedout_table= idx;
 
       pos->dupsweedout_tables |= nest->sj_inner_tables |
-                                 nest->nested_join->sj_depends_on |
-                                 nest->nested_join->sj_corr_tables;
+                                 nest->nested_join->sj_depends_on;
     }
 
     if (pos->dupsweedout_tables && 
-        !(remaining_tables &
-          ~new_join_tab->table->map & pos->dupsweedout_tables))
+        !(remaining_tables & pos->dupsweedout_tables))
     {
       /*
         Ok, reached a state where we could put a dups weedout point.
@@ -18707,6 +18833,27 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   cond->marker=2;
   return cond;
 }
+
+/**
+  Generate a condition that can be checked after materializing a semi-join nest
+
+  @param root_cond  Root condition, ancestor of the condition being analyzed.
+  @param cond       Condition to analyze.
+  @param tables     Tables in the outer part of the join nest, contains
+                    correlated and non-correlated tables already seen.
+  @param sjm_tables Tables within the semi-join nest (the inner part).
+
+  @retval <>NULL Generated condition
+  @retval = NULL Already checked, or error
+
+  @details
+  A regular semi-join materialization is always non-correlated, ie
+  the subquery is always resolved by performing a lookup generated in
+  create_subquery_equalities, hence this function should never produce
+  any condition for regular semi-join materialization.
+  For a scan semi-join materialization, this function may return a condition
+  to be checked.
+*/
 
 static Item *
 make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
