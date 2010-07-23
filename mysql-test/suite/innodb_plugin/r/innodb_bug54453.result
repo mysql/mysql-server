@@ -1,0 +1,9 @@
+#
+# Bug#54453: Failing assertion: trx->active_trans when renaming a table with active trx
+#
+DROP TABLE IF EXISTS bug54453;
+CREATE TABLE bug54453(a INT) ENGINE=InnoDB;
+ALTER TABLE bug54453 RENAME TO bug54453_2;
+SELECT * FROM bug54453_2;
+a
+DROP TABLE bug54453_2;

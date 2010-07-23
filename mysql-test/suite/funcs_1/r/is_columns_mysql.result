@@ -97,13 +97,13 @@ NULL	mysql	host	Select_priv	3	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum(
 NULL	mysql	host	Show_view_priv	16	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 NULL	mysql	host	Trigger_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 NULL	mysql	host	Update_priv	5	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
-NULL	mysql	ndb_binlog_index	deletes	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-NULL	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references	
+NULL	mysql	ndb_binlog_index	deletes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+NULL	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references	
 NULL	mysql	ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			select,insert,update,references	
-NULL	mysql	ndb_binlog_index	inserts	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-NULL	mysql	ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-NULL	mysql	ndb_binlog_index	schemaops	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-NULL	mysql	ndb_binlog_index	updates	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+NULL	mysql	ndb_binlog_index	inserts	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+NULL	mysql	ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+NULL	mysql	ndb_binlog_index	schemaops	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+NULL	mysql	ndb_binlog_index	updates	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 NULL	mysql	plugin	dl	2		NO	char	128	384	NULL	NULL	utf8	utf8_bin	char(128)			select,insert,update,references	
 NULL	mysql	plugin	name	1		NO	char	64	192	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 NULL	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	longblob			select,insert,update,references	
