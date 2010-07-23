@@ -1138,8 +1138,7 @@ bool Relay_log_info::cached_charset_compare(char *charset) const
 {
   DBUG_ENTER("Relay_log_info::cached_charset_compare");
 
-  if (bcmp((uchar*) cached_charset, (uchar*) charset,
-           sizeof(cached_charset)))
+  if (memcmp(cached_charset, charset, sizeof(cached_charset)))
   {
     memcpy(const_cast<char*>(cached_charset), charset, sizeof(cached_charset));
     DBUG_RETURN(1);
@@ -1251,7 +1250,7 @@ void Relay_log_info::clear_tables_to_lock()
     tables_to_lock=
       static_cast<RPL_TABLE_LIST*>(tables_to_lock->next_global);
     tables_to_lock_count--;
-    my_free(to_free, MYF(MY_WME));
+    my_free(to_free);
   }
   DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
 }

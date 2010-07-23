@@ -82,16 +82,13 @@ public:
   const char *func_name() const { return "sha"; }	
 };
 
-class Item_func_sha2 :public Item_str_func
+class Item_func_sha2 :public Item_str_ascii_func
 {
 public:
-  Item_func_sha2(Item *a, Item *b) :Item_str_func(a, b)
-  {
-    collation.set(&my_charset_bin);
-  }
-  String *val_str(String *);    
-  void fix_length_and_dec();      
-  const char *func_name() const { return "sha2"; }	
+  Item_func_sha2(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "sha2"; }
 };
 
 class Item_func_aes_encrypt :public Item_str_func
