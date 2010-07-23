@@ -83,7 +83,6 @@ ulonglong relay_log_space_limit = 0;
 */
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
-int events_till_abort = -1;
 
 static pthread_key(Master_info*, RPL_MASTER_INFO);
 

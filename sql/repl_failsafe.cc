@@ -55,9 +55,6 @@ const char* rpl_status_type[]=
   "AUTH_MASTER","IDLE_SLAVE","ACTIVE_SLAVE","LOST_SOLDIER","TROOP_SOLDIER",
   "RECOVERY_CAPTAIN","NULL",NullS
 };
-TYPELIB rpl_status_typelib= {array_elements(rpl_status_type)-1,"",
-			     rpl_status_type, NULL};
-
 
 static Slave_log_event* find_slave_event(IO_CACHE* log,
 					 const char* log_file_name,
