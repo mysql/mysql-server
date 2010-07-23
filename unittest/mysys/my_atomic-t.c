@@ -15,13 +15,6 @@
 
 #include "thr_template.c"
 
-/* at least gcc 3.4.5 and 3.4.6 (but not 3.2.3) on RHEL */
-#if __GNUC__ == 3 && __GNUC_MINOR__ == 4
-#define GCC_BUG_WORKAROUND volatile
-#else
-#define GCC_BUG_WORKAROUND
-#endif
-
 volatile uint32 b32;
 volatile int32  c32;
 my_atomic_rwlock_t rwl;
@@ -29,8 +22,8 @@ my_atomic_rwlock_t rwl;
 /* add and sub a random number in a loop. Must get 0 at the end */
 pthread_handler_t test_atomic_add(void *arg)
 {
-  int    m= (*(int *)arg)/2;
-  GCC_BUG_WORKAROUND int32 x;
+  int m= (*(int *)arg)/2;
+  int32 x;
   for (x= ((int)(intptr)(&m)); m ; m--)
   {
     x= (x*m+0x87654321) & INT_MAX32;
@@ -52,8 +45,8 @@ volatile int64 a64;
 /* add and sub a random number in a loop. Must get 0 at the end */
 pthread_handler_t test_atomic_add64(void *arg)
 {
-  int    m= (*(int *)arg)/2;
-  GCC_BUG_WORKAROUND int64 x;
+  int m= (*(int *)arg)/2;
+  int64 x;
   for (x= ((int64)(intptr)(&m)); m ; m--)
   {
     x= (x*m+0xfdecba987654321LL) & INT_MAX64;
@@ -128,8 +121,8 @@ pthread_handler_t test_atomic_fas(void *arg)
 */
 pthread_handler_t test_atomic_cas(void *arg)
 {
-  int    m= (*(int *)arg)/2, ok= 0;
-  GCC_BUG_WORKAROUND int32 x, y;
+  int m= (*(int *)arg)/2, ok= 0;
+  int32 x, y;
   for (x= ((int)(intptr)(&m)); m ; m--)
   {
     my_atomic_rwlock_wrlock(&rwl);
