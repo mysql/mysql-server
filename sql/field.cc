@@ -1277,61 +1277,6 @@ int Field::warn_if_overflow(int op_result)
 }
 
 
-#ifdef NOT_USED
-static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
-{
-  cs= system_charset_info; // QQ move test_if_real into CHARSET_INFO struct
-
-  while (length && my_isspace(cs,*str))
-  {						// Allow start space
-    length--; str++;
-  }
-  if (!length)
-    return 0;
-  if (*str == '+' || *str == '-')
-  {
-    length--; str++;
-    if (!length || !(my_isdigit(cs,*str) || *str == '.'))
-      return 0;
-  }
-  while (length && my_isdigit(cs,*str))
-  {
-    length--; str++;
-  }
-  if (!length)
-    return 1;
-  if (*str == '.')
-  {
-    length--; str++;
-    while (length && my_isdigit(cs,*str))
-    {
-      length--; str++;
-    }
-  }
-  if (!length)
-    return 1;
-  if (*str == 'E' || *str == 'e')
-  {
-    if (length < 3 || (str[1] != '+' && str[1] != '-') || 
-        !my_isdigit(cs,str[2]))
-      return 0;
-    length-=3;
-    str+=3;
-    while (length && my_isdigit(cs,*str))
-    {
-      length--; str++;
-    }
-  }
-  for (; length ; length--, str++)
-  {						// Allow end space
-    if (!my_isspace(cs,*str))
-      return 0;
-  }
-  return 1;
-}
-#endif
-
-
 /**
   Interpret field value as an integer but return the result as a string.
 
