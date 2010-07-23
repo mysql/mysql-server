@@ -114,12 +114,7 @@ extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
 extern	void strappend(char *s,size_t len,pchar fill);
 extern	char *strend(const char *s);
 extern  char *strcend(const char *, pchar);
-extern	char *strfield(char *src,int fields,int chars,int blanks,
-			   int tabch);
 extern	char *strfill(char * s,size_t len,pchar fill);
-extern	size_t strinstr(const char *str,const char *search);
-extern  size_t r_strinstr(const char *str, size_t from, const char *search);
-extern	char *strkey(char *dst,char *head,char *tail,char *flags);
 extern	char *strmake(char *dst,const char *src,size_t length);
 
 #ifndef strmov
@@ -128,35 +123,16 @@ extern	char *strmov(char *dst,const char *src);
 extern	char *strmov_overlapp(char *dst,const char *src);
 #endif
 extern	char *strnmov(char *dst, const char *src, size_t n);
-extern	char *strsuff(const char *src, const char *suffix);
 extern	char *strcont(const char *src, const char *set);
-extern	char *strxcat(char *dst, const char *src, ...);
 extern	char *strxmov(char *dst, const char *src, ...);
-extern	char *strxcpy(char *dst, const char *src, ...);
-extern	char *strxncat(char *dst, size_t len, const char *src, ...);
 extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
-extern	char *strxncpy(char *dst, size_t len, const char *src, ...);
 
 /* Prototypes of normal stringfunctions (with may ours) */
-
-#ifdef WANT_STRING_PROTOTYPES
-extern char *strcat(char *, const char *);
-extern char *strchr(const char *, pchar);
-extern char *strrchr(const char *, pchar);
-extern char *strcpy(char *, const char *);
-extern int strcmp(const char *, const char *);
-#ifndef __GNUC__
-extern size_t strlen(const char *);
-#endif
-#endif
 #ifndef HAVE_STRNLEN
 extern size_t strnlen(const char *s, size_t n);
 #endif
 
 #if !defined(__cplusplus)
-#ifndef HAVE_STRPBRK
-extern char *strpbrk(const char *, const char *);
-#endif
 #ifndef HAVE_STRSTR
 extern char *strstr(const char *, const char *);
 #endif
