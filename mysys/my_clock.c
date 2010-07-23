@@ -15,14 +15,14 @@
 
 #include "my_global.h"
 
-#if !defined(_MSC_VER) && !defined(__BORLANDC__) && !defined(__NETWARE__)
+#if !defined(_MSC_VER) && !defined(__BORLANDC__)
 #include "mysys_priv.h"
 #include <sys/times.h>
 #endif
 
 long my_clock(void)
 {
-#if !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__)
   struct tms tmsbuf;
   (void) times(&tmsbuf);
   return (tmsbuf.tms_utime + tmsbuf.tms_stime);

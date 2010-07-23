@@ -19,10 +19,6 @@
 #pragma implementation
 #endif
 
-#if defined(WIN32) || defined(__WIN__)
-#undef SAFEMALLOC				/* Problems with threads */
-#endif
-
 #include "sp_pcontext.h"
 #include "sp_head.h"
 

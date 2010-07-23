@@ -76,7 +76,7 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   strmake(net->last_error, ei->info, sizeof(net->last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
-  my_free(data, MYF(0));
+  my_free(data);
 }
 
 static my_bool
@@ -207,7 +207,7 @@ static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
   res= ((THD*) mysql->thd)->cur_data;
   ((THD*) mysql->thd)->cur_data= 0;
   mysql->field_alloc= res->alloc;
-  my_free(res,MYF(0));
+  my_free(res);
   mysql->status= MYSQL_STATUS_READY;
   return mysql->fields;
 }
@@ -236,7 +236,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     stmt->fields= mysql->fields;
     stmt->mem_root= res->alloc;
     mysql->fields= NULL;
-    my_free(res,MYF(0));
+    my_free(res);
   }
 
   return 0;
@@ -293,7 +293,7 @@ static my_bool emb_read_query_result(MYSQL *mysql)
     thd->cur_data= res;
   }
   else
-    my_free(res, MYF(0));
+    my_free(res);
 
   return 0;
 }
@@ -335,7 +335,7 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
     return 1;
   }
   stmt->result= *data;
-  my_free((char *) data, MYF(0));
+  my_free(data);
   set_stmt_errmsg(stmt, &stmt->mysql->net);
   return 0;
 }
@@ -522,10 +522,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   mysql_data_home= mysql_real_data_home;
   mysql_data_home_len= mysql_real_data_home_len;
-    
+
   /* Get default temporary directory */
   opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#if defined( __WIN__) || defined(OS2)
+#if defined(__WIN__)
   if (!opt_mysql_tmpdir)
     opt_mysql_tmpdir=getenv("TEMP");
   if (!opt_mysql_tmpdir)
@@ -590,7 +590,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
 void end_embedded_server()
 {
-  my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(copy_arguments_ptr);
   copy_arguments_ptr=0;
   clean_up(0);
 }
