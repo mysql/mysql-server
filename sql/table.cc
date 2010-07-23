@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Some general useful functions */
@@ -33,6 +33,7 @@
 #include "sql_base.h"            // release_table_share
 #include <m_ctype.h>
 #include "my_md5.h"
+#include "sql_select.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -895,7 +896,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (mysql_file_pread(file, buff, n_length, record_offset + share->reclength,
                          MYF(MY_NABP)))
     {
-      my_free(buff, MYF(0));
+      my_free(buff);
       goto err;
     }
     share->connect_string.length= uint2korr(buff);
@@ -904,7 +905,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                   share->connect_string.
                                                   length)))
     {
-      my_free(buff, MYF(0));
+      my_free(buff);
       goto err;
     }
     next_chunk+= share->connect_string.length + 2;
@@ -925,7 +926,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
         /*
@@ -955,7 +956,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                    "--skip-partition");
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
         plugin_unlock(NULL, share->db_plugin);
@@ -971,7 +972,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         error= 8;
         name.str[name.length]=0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        my_free(buff, MYF(0));
+        my_free(buff);
         goto err;
         /* purecov: end */
       }
@@ -988,7 +989,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_str_len + 1)))
         {
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
       }
@@ -996,7 +997,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if (partition_info_str_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff, MYF(0));
+        my_free(buff);
         goto err;
       }
 #endif
@@ -1034,7 +1035,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
         parser_name.str= (char*) next_chunk;
@@ -1045,7 +1046,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
       }
@@ -1057,19 +1058,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
           DBUG_PRINT("error",
                      ("long table comment is not defined in .frm"));
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
       }
       share->comment.length = uint2korr(next_chunk);
       if (! (share->comment.str= strmake_root(&share->mem_root,
              (char*)next_chunk + 2, share->comment.length)))
       {
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
       }
       next_chunk+= 2 + share->comment.length;
     }
-    my_free(buff, MYF(0));
+    my_free(buff);
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -1585,7 +1586,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   else
     share->primary_key= MAX_KEY;
-  x_free((uchar*) disk_buff);
+  my_free(disk_buff);
   disk_buff=0;
   if (new_field_pack_flag <= 1)
   {
@@ -1657,7 +1658,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->error= error;
   share->open_errno= my_errno;
   share->errarg= errarg;
-  x_free((uchar*) disk_buff);
+  my_free(disk_buff);
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
@@ -2009,7 +2010,7 @@ partititon_err:
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
-  my_free((char*) outparam->alias, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((void *) outparam->alias);
   DBUG_RETURN (error);
 }
 
@@ -2031,7 +2032,7 @@ int closefrm(register TABLE *table, bool free_share)
 
   if (table->db_stat)
     error=table->file->close();
-  my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((void *) table->alias);
   table->alias= 0;
   if (table->field)
   {
@@ -2126,14 +2127,14 @@ static ulong get_form_pos(File file, uchar *head)
 
   if (mysql_file_read(file, buf, length+names*4, MYF(MY_NABP)))
   {
-    x_free(buf);
+    my_free(buf);
     DBUG_RETURN(0);
   }
 
   pos= buf+length;
   ret_value= uint4korr(pos);
 
-  my_free(buf, MYF(0));
+  my_free(buf);
 
   DBUG_RETURN(ret_value);
 }
@@ -2150,11 +2151,11 @@ int read_string(File file, uchar**to, size_t length)
 {
   DBUG_ENTER("read_string");
 
-  x_free(*to);
+  my_free(*to);
   if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
       mysql_file_read(file, *to, length, MYF(MY_NABP)))
   {
-    x_free(*to);                              /* purecov: inspected */
+     my_free(*to);                            /* purecov: inspected */
     *to= 0;                                   /* purecov: inspected */
     DBUG_RETURN(1);                           /* purecov: inspected */
   }
@@ -4914,6 +4915,61 @@ void init_mdl_requests(TABLE_LIST *table_list)
                                  table_list->db, table_list->table_name,
                                  table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
                                  MDL_SHARED_WRITE : MDL_SHARED_READ);
+}
+
+
+/**
+  Update TABLE::const_key_parts for single table UPDATE/DELETE query
+
+  @param conds               WHERE clause expression
+
+  @retval TRUE   error (OOM)
+  @retval FALSE  success
+
+  @note
+    Set const_key_parts bits if key fields are equal to constants in
+    the WHERE expression.
+*/
+
+bool TABLE::update_const_key_parts(COND *conds)
+{
+  bzero((char*) const_key_parts, sizeof(key_part_map) * s->keys);
+
+  if (conds == NULL)
+    return FALSE;
+
+  for (uint index= 0; index < s->keys; index++)
+  {
+    KEY_PART_INFO *keyinfo= key_info[index].key_part;
+    KEY_PART_INFO *keyinfo_end= keyinfo + key_info[index].key_parts;
+
+    for (key_part_map part_map= (key_part_map)1; 
+        keyinfo < keyinfo_end;
+        keyinfo++, part_map<<= 1)
+    {
+      if (const_expression_in_where(conds, NULL, keyinfo->field))
+        const_key_parts[index]|= part_map;
+    }
+  }
+  return FALSE;
+}
+
+/**
+  Test if the order list consists of simple field expressions
+
+  @param order                Linked list of ORDER BY arguments
+
+  @return TRUE if @a order is empty or consist of simple field expressions
+*/
+
+bool is_simple_order(ORDER *order)
+{
+  for (ORDER *ord= order; ord; ord= ord->next)
+  {
+    if (ord->item[0]->real_item()->type() != Item::FIELD_ITEM)
+      return FALSE;
+  }
+  return TRUE;
 }
 
 
