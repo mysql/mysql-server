@@ -98,18 +98,10 @@ extern char _dig_vec_lower[];
 #define memcpy_fixed(A,B,C) memcpy((A),(B),(C))
 #endif
 
-#if (!defined(USE_BMOVE512) || defined(HAVE_purify)) && !defined(bmove512)
-#define bmove512(A,B,C) memcpy(A,B,C)
-#endif
-
 	/* Prototypes for string functions */
 
 #if !defined(bfill) && !defined(HAVE_BFILL)
 extern	void bfill(uchar *dst,size_t len,pchar fill);
-#endif
-
-#ifndef bmove512
-extern	void bmove512(uchar *dst,const uchar *src,size_t len);
 #endif
 
 #if !defined(HAVE_BMOVE) && !defined(bmove)
