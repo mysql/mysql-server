@@ -29,11 +29,6 @@
 #endif
 SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 
-#ifndef USE_RAID
-#define my_raid_create(A,B,C,D,E,F,G) my_create(A,B,C,G)
-#define my_raid_delete(A,B,C) my_delete(A,B)
-#endif
-
 static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
@@ -782,7 +777,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 {
   int error,lock_type,recreate;
   int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
-  uint raid_chunks;
   MI_INFO *info;
   File datafile;
   char llbuff[22],llbuff2[22];
@@ -844,7 +838,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
   share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
-  raid_chunks=share->base.raid_chunks;
 
   /*
     Skip the checking of the file if:
@@ -1013,9 +1006,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
-	  error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
-				   raid_chunks,
-				   MYF(0));
+	  error|=change_to_newfile(filename, MI_NAME_DEXT, DATA_TMP_EXT, MYF(0));
 	  if (mi_open_datafile(info,info->s, NULL, -1))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
@@ -1146,12 +1137,10 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
-			       raid_chunks,
 			       ((param->testflag & T_BACKUP_DATA) ?
 				MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
     if (param->out_flag & O_NEW_INDEX)
-      error|=change_to_newfile(filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
-			       MYF(0));
+      error|=change_to_newfile(filename, MI_NAME_IEXT, INDEX_TMP_EXT, MYF(0));
   }
   (void) fflush(stdout); (void) fflush(stderr);
   if (param->error_printed)
@@ -1247,16 +1236,9 @@ static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
 	     share->base.auto_key,
 	     llstr(share->state.auto_increment,llbuff));
     }
-    if (share->base.raid_type)
-    {
-      printf("RAID:                Type:  %u   Chunks: %u  Chunksize: %lu\n",
-	     share->base.raid_type,
-	     share->base.raid_chunks,
-	     share->base.raid_chunksize);
-    }
     if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
       printf("Checksum:  %23s\n",llstr(info->state->checksum,llbuff));
-;
+
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)
       printf("Keys are only flushed at close\n");
 
@@ -1527,14 +1509,11 @@ static int mi_sort_records(MI_CHECK *param,
     goto err;
   }
   fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
-  new_file=my_raid_create(fn_format(param->temp_filename,
-				    param->temp_filename,"",
-				    DATA_TMP_EXT,2+4),
-			  0,param->tmpfile_createflag,
-			  share->base.raid_type,
-			  share->base.raid_chunks,
-			  share->base.raid_chunksize,
-			  MYF(0));
+  new_file= my_create(fn_format(param->temp_filename,
+                                param->temp_filename, "",
+                                DATA_TMP_EXT, 2+4),
+                      0, param->tmpfile_createflag,
+                      MYF(0));
   if (new_file < 0)
   {
     mi_check_print_error(param,"Can't create new tempfile: '%s'",
@@ -1609,8 +1588,7 @@ err:
   {
     (void) end_io_cache(&info->rec_cache);
     (void) my_close(new_file,MYF(MY_WME));
-    (void) my_raid_delete(param->temp_filename, share->base.raid_chunks,
-			  MYF(MY_WME));
+    (void) my_delete(param->temp_filename, MYF(MY_WME));
   }
   if (temp_buff)
   {

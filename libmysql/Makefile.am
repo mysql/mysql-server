@@ -21,8 +21,8 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 target =	libmysqlclient.la
-target_defs =	-DMYSQL_CLIENT_NO_THREADS -DDONT_USE_RAID \
-		-DDISABLE_MYSQL_THREAD_H @LIB_EXTRA_CCFLAGS@
+target_defs =	-DMYSQL_CLIENT_NO_THREADS -DDISABLE_MYSQL_THREAD_H \
+		@LIB_EXTRA_CCFLAGS@
 
 LIBS =		@CLIENT_LIBS@ 
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \

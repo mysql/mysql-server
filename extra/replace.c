@@ -39,7 +39,6 @@
   fill_buffer_retaining() is taken from gnu-grep and modified.
 */
 
-#define DONT_USE_RAID
 #include <my_global.h>
 #include <m_ctype.h>
 #include <my_sys.h>

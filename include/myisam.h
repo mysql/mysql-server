@@ -481,8 +481,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 		      const char * name, int rep_quick);
 int change_to_newfile(const char * filename, const char * old_ext,
-		      const char * new_ext, uint raid_chunks,
-		      myf myflags);
+		      const char * new_ext, myf myflags);
 int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
 	      const char *filetype, const char *filename);
 void lock_memory(MI_CHECK *param);
