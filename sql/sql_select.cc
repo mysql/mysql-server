@@ -1132,7 +1132,7 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having && const_table_map)
+  if (having && const_table_map && !having->with_sum_func)
   {
     having->update_used_tables();
     having= remove_eq_conds(thd, having, &having_value);
@@ -11657,38 +11657,30 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     SQL_SELECT *select=join_tab->select;
     if (rc == NESTED_LOOP_OK)
     {
-      bool consider_record= !join_tab->cache.select || 
-        !join_tab->cache.select->skip_record();
-
-      /*
-        Check for error: skip_record() can execute code by calling
-        Item_subselect::val_*. We need to check for errors (if any)
-        after such call.
-      */
-      if (join->thd->is_error())
+      bool skip_record= FALSE;
+      if (join_tab->cache.select &&
+          join_tab->cache.select->skip_record(join->thd, &skip_record))
       {
         reset_cache_write(&join_tab->cache);
         return NESTED_LOOP_ERROR;
       }
 
-      if (consider_record)  
+      if (!skip_record)
       {
         uint i;
         reset_cache_read(&join_tab->cache);
         for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
         {
           read_cached_record(join_tab);
-          if (!select || !select->skip_record())
+          skip_record= FALSE;
+          if (select && select->skip_record(join->thd, &skip_record))
           {
-            /*
-              Check for error: skip_record() can execute code by calling
-              Item_subselect::val_*. We need to check for errors (if any)
-              after such call.
-              */
-            if (join->thd->is_error())
-              rc= NESTED_LOOP_ERROR;
-            else
-              rc= (join_tab->next_select)(join,join_tab+1,0);
+            reset_cache_write(&join_tab->cache);
+            return NESTED_LOOP_ERROR;
+          }
+          if (!skip_record)
+          {
+            rc= (join_tab->next_select)(join,join_tab+1,0);
             if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
             {
               reset_cache_write(&join_tab->cache);
@@ -13419,6 +13411,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint nr;
     key_map keys;
     uint best_key_parts= 0;
+    uint saved_best_key_parts= 0;
     int best_key_direction= 0;
     ha_rows best_records= 0;
     double read_time;
@@ -13579,6 +13572,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             {
               best_key= nr;
               best_key_parts= keyinfo->key_parts;
+              saved_best_key_parts= used_key_parts;
               best_records= quick_records;
               is_best_covering= is_covering;
               best_key_direction= direction; 
@@ -13665,8 +13659,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           */
         }
       }
-      used_key_parts= best_key_parts;
       order_direction= best_key_direction;
+      /*
+        saved_best_key_parts is actual number of used keyparts found by the
+        test_if_order_by_key function. It could differ from keyinfo->key_parts,
+        thus we have to restore it in case of desc order as it affects
+        QUICK_SELECT_DESC behaviour.
+      */
+      used_key_parts= (order_direction == -1) ?
+        saved_best_key_parts :  best_key_parts;
     }
     else
       DBUG_RETURN(0); 

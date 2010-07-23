@@ -293,8 +293,9 @@ static int myisammrg_parent_open_callback(void *callback_param,
     }
   }
 
-  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", child_l->db_length, child_l->db,
-                      child_l->table_name_length, child_l->table_name));
+  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", (int) child_l->db_length,
+                      child_l->db, (int) child_l->table_name_length,
+                      child_l->table_name));
 
   /* Convert to lowercase if required. */
   if (lower_case_table_names && child_l->table_name_length)
@@ -341,7 +342,7 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   TABLE         *parent;
   TABLE         *child;
   TABLE_LIST    *child_l;
-  MI_INFO       *myisam;
+  MI_INFO       *UNINIT_VAR(myisam);
   DBUG_ENTER("myisammrg_attach_children_callback");
 
   my_errno= 0;
