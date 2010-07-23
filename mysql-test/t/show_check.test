@@ -1279,6 +1279,52 @@ disconnect con1;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#55498 SHOW CREATE TRIGGER takes wrong type of metadata lock.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1;
+
+--echo # Test 1: SHOW CREATE TRIGGER with WRITE locked table.
+
+--echo # Connection con1
+connect (con1, localhost, root);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+# Should not block.
+SHOW CREATE TRIGGER t1_bi;
+
+--echo # Connection con1
+connection con1;
+UNLOCK TABLES;
+
+--echo # Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SHOW CREATE TRIGGER t1_bi;
+
+--echo # Connection con1
+connection con1;
+# Should not block.
+ALTER TABLE t1 CHARACTER SET = utf8;
+
+--echo # Connection default
+connection default;
+COMMIT;
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+disconnect con1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
