@@ -39,7 +39,6 @@ bool flag_events_waits_summary_by_thread_by_event_name= true;
 bool flag_events_waits_summary_by_event_name= true;
 /** Consumer flag for table EVENTS_WAITS_SUMMARY_BY_INSTANCE. */
 bool flag_events_waits_summary_by_instance= true;
-bool flag_events_locks_summary_by_thread_by_event_name= true;
 bool flag_events_locks_summary_by_event_name= true;
 bool flag_events_locks_summary_by_instance= true;
 /** Consumer flag for table FILE_SUMMARY_BY_EVENT_NAME. */
