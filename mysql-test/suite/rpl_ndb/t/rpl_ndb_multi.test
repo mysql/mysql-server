@@ -40,6 +40,7 @@ let $the_file= `SELECT @the_file` ;
 # now connect the slave to the _other_ "master"
 connection slave;
 --replace_result $MASTER_MYPORT1 <MASTER_PORT1>
+--replace_regex /master_log_pos = [0-9]+/master_log_pos = BINLOG_START/
 eval CHANGE MASTER TO
   master_port=$MASTER_MYPORT1,
   master_log_file = '$the_file',

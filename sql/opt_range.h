@@ -555,6 +555,7 @@ public:
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I
 {
+  Unique *unique;
 public:
   QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
   ~QUICK_INDEX_MERGE_SELECT();
@@ -741,7 +742,7 @@ private:
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I
 {
 private:
-  handler *file;         /* The handler used to get data. */
+  handler * const file;   /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
   uchar *record;          /* Buffer where the next record is returned. */
@@ -864,7 +865,11 @@ class SQL_SELECT :public Sql_alloc {
     key_map tmp(key_map::ALL_BITS);
     return test_quick_select(thd, tmp, 0, limit, force_quick_range, FALSE) < 0;
   }
-  inline bool skip_record() { return cond ? cond->val_int() == 0 : 0; }
+  inline bool skip_record(THD *thd, bool *skip_record)
+  {
+    *skip_record= cond ? cond->val_int() == FALSE : FALSE;
+    return thd->is_error();
+  }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
 			ha_rows limit, bool force_quick_range, 
                         bool ordered_output);

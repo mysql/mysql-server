@@ -80,7 +80,7 @@ my_bool	net_flush(NET *net);
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -91,12 +91,12 @@ my_bool	net_flush(NET *net);
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif /*!defined(MSDOS) && !defined(__WIN__) */
+#endif /* !defined(__WIN__) */
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #define perror(A)
 #else
 #include <errno.h>
@@ -126,7 +126,7 @@ static void mysql_close_free_options(MYSQL *mysql);
 static void mysql_close_free(MYSQL *mysql);
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
-#if !(defined(__WIN__) || defined(__NETWARE__))
+#if !defined(__WIN__)
 static int wait_for_data(my_socket fd, uint timeout);
 #endif
 
@@ -148,7 +148,7 @@ char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
   DBUG_ENTER("my_connect");
   DBUG_RETURN(connect(fd, (struct sockaddr*) name, namelen));
 #else
@@ -193,7 +193,7 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
   If not, we will use select()
 */
 
-#if !(defined(__WIN__) || defined(__NETWARE__))
+#if !defined(__WIN__)
 
 static int wait_for_data(my_socket fd, uint timeout)
 {
@@ -316,7 +316,7 @@ static int wait_for_data(my_socket fd, uint timeout)
   DBUG_RETURN(0);					/* ok */
 #endif /* HAVE_POLL */
 }
-#endif /* defined(__WIN__) || defined(__NETWARE__) */
+#endif /* !defined(__WIN__) */
 
 /**
   Set the internal error message to mysql handler

@@ -1951,11 +1951,9 @@ master_def:
            {
              const char format[]= "%d seconds";
              char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
-             my_sprintf(buf, (buf, format, SLAVE_MAX_HEARTBEAT_PERIOD));
+             sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
              my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                      MYF(0),
-                      " is negative or exceeds the maximum ",
-                       buf); 
+                      MYF(0), " is negative or exceeds the maximum ", buf);
               MYSQL_YYABORT;
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)

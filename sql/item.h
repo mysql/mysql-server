@@ -1182,7 +1182,40 @@ public:
     representation is more precise than the string one).
   */
   virtual bool result_as_longlong() { return FALSE; }
-  bool is_datetime();
+  inline bool is_datetime() const
+  {
+    switch (field_type())
+    {
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_TIMESTAMP:
+        return TRUE;
+      default:
+        break;
+    }
+    return FALSE;
+  }
+  /**
+    Check whether this and the given item has compatible comparison context.
+    Used by the equality propagation. See Item_field::equal_fields_propagator.
+
+    @return
+      TRUE  if the context is the same or if fields could be
+            compared as DATETIME values by the Arg_comparator.
+      FALSE otherwise.
+  */
+  inline bool has_compatible_context(Item *item) const
+  {
+    /* Same context. */
+    if (cmp_context == (Item_result)-1 || item->cmp_context == cmp_context)
+      return TRUE;
+    /* DATETIME comparison context. */
+    if (is_datetime())
+      return item->is_datetime() || item->cmp_context == STRING_RESULT;
+    if (item->is_datetime())
+      return is_datetime() || cmp_context == STRING_RESULT;
+    return FALSE;
+  }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
@@ -3313,6 +3346,7 @@ public:
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
   bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
+  virtual void clear() { null_value= TRUE; value_cached= FALSE; }
 };
 
 
@@ -3493,6 +3527,7 @@ public:
   */
   bool cache_value_int();
   bool cache_value();
+  void clear() { Item_cache::clear(); str_value_cached= FALSE; }
 };
 
 

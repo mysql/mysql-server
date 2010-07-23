@@ -762,7 +762,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
       Now they sync is done for next read.
 */
 
-static void adjust_linfo_offsets(my_off_t purge_offset)
+void adjust_linfo_offsets(my_off_t purge_offset)
 {
   THD *tmp;
 
@@ -791,7 +791,7 @@ static void adjust_linfo_offsets(my_off_t purge_offset)
 }
 
 
-static bool log_in_use(const char* log_name)
+bool log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
   THD *tmp;
@@ -806,8 +806,7 @@ static bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      result = !bcmp((uchar*) log_name, (uchar*) linfo->log_file_name,
-                     log_name_len);
+      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
       mysql_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -818,7 +817,7 @@ static bool log_in_use(const char* log_name)
   return result;
 }
 
-static bool purge_error_message(THD* thd, int res)
+bool purge_error_message(THD* thd, int res)
 {
   uint errcode;
 
