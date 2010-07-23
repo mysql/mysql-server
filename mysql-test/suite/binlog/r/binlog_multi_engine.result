@@ -7,8 +7,6 @@ SET SESSION BINLOG_FORMAT=STATEMENT;
 INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 The last event before the COMMIT is use `test`; UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c
 *** Please look in binlog_multi_engine.test if you have a diff here ****
 START TRANSACTION;
@@ -72,6 +70,9 @@ mysqld-bin.000001	#	Table_map	#	#	table_id: # (test.t1n)
 mysqld-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 mysqld-bin.000001	#	Write_rows	#	#	table_id: #
 mysqld-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	#	#	COMMIT
+mysqld-bin.000001	#	Query	#	#	BEGIN
+mysqld-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c
 mysqld-bin.000001	#	Query	#	#	COMMIT
 mysqld-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1m
 mysqld-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
