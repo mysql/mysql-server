@@ -17,6 +17,7 @@
 #define _spatial_h
 
 #include "sql_string.h"                         /* String, LEX_STRING */
+#include <my_compiler.h>
 
 #ifdef HAVE_SPATIAL
 
@@ -229,15 +230,18 @@ public:
   {
     wkb_xdr= 0,    /* Big Endian */
     wkb_ndr= 1     /* Little Endian */
-  };                                    
+  };
+
+  /** Callback which creates Geometry objects on top of a given placement. */
+  typedef Geometry *(*create_geom_t)(char *);
 
   class Class_info
   {
   public:
     LEX_STRING m_name;
     int m_type_id;
-    void (*m_create_func)(void *);
-    Class_info(const char *name, int type_id, void(*create_func)(void *));
+    create_geom_t m_create_func;
+    Class_info(const char *name, int type_id, create_geom_t create_func);
   };
 
   virtual const Class_info *get_class_info() const=0;
@@ -525,10 +529,8 @@ public:
   const Class_info *get_class_info() const;
 };
 
-struct Geometry_buffer
-{
-  Aligned_char_array<sizeof(Gis_point)> buf;
-};
+struct Geometry_buffer : public
+  my_aligned_storage<sizeof(Gis_point), MY_ALIGNOF(Gis_point)> {};
 
 #endif /*HAVE_SPATAIAL*/
 #endif

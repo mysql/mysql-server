@@ -185,7 +185,6 @@ typedef SSIZE_T ssize_t;
 #define SOCKET_SIZE_TYPE int
 #define my_socket_defined
 #define byte_defined
-#define HUGE_PTR
 #define STDCALL __stdcall	    /* Used by libmysql.dll */
 #define isnan(X) _isnan(X)
 #define finite(X) _finite(X)

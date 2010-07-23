@@ -4913,9 +4913,31 @@ WHERE (i1, i2)
 --echo # Handler_read_rnd_next should be one more than baseline 
 --echo # (read record from t1, but do not read from t2)
 SHOW STATUS LIKE '%Handler_read_rnd_next';
-
-
 DROP TABLE t1,t2;
+
+
+
+--echo #
+--echo # Bug #52711: Segfault when doing EXPLAIN SELECT with 
+--echo #  union...order by (select... where...)
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a));
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (1),(2);
+
+--echo # Should not crash
+--disable_result_log
+EXPLAIN
+SELECT * FROM t2 UNION SELECT * FROM t2
+  ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
+
+--echo # Should not crash
+SELECT * FROM t2 UNION SELECT * FROM t2
+  ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
+DROP TABLE t1,t2;
+--enable_result_log
 
 --echo End of 5.1 tests
 

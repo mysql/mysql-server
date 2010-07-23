@@ -143,36 +143,6 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
 }
 
 
-#ifdef __NETWARE__
-
-/* NetWare SSL cleanup */
-void netware_ssl_cleanup()
-{
-  /* free memory from SSL_library_init() */
-  EVP_cleanup();
-
-/* OpenSSL NetWare port specific functions */
-#ifndef HAVE_YASSL
-
-  /* free global X509 method */
-  X509_STORE_method_cleanup();
-
-  /* free the thread_hash error table */
-  ERR_free_state_table();
-#endif
-}
-
-
-/* NetWare SSL initialization */
-static void netware_ssl_init()
-{
-  /* cleanup OpenSSL library */
-  NXVmRegisterExitHandler(netware_ssl_cleanup, NULL);
-}
-
-#endif /* __NETWARE__ */
-
-
 static void check_ssl_init()
 {
   if (!ssl_algorithms_added)
@@ -182,10 +152,6 @@ static void check_ssl_init()
     OpenSSL_add_all_algorithms();
 
   }
-
-#ifdef __NETWARE__
-  netware_ssl_init();
-#endif
 
   if (!ssl_error_strings_loaded)
   {

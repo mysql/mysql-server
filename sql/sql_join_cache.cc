@@ -1816,7 +1816,10 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     */
     if (rc == NESTED_LOOP_OK)
     {
-      bool consider_record= (!select || !select->skip_record());
+      bool skip_record;
+      bool consider_record= (!select || 
+                             (!select->skip_record(join->thd, &skip_record) &&
+                              !skip_record));
       if (select && join->thd->is_error())
       {
         rc= NESTED_LOOP_ERROR;
@@ -1987,8 +1990,10 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
 
 bool JOIN_CACHE::check_match(uchar *rec_ptr)
 {
+  bool skip_record;
   /* Check whether pushdown conditions are satisfied */
-  if (join_tab->select && join_tab->select->skip_record())
+  if (join_tab->select &&
+      (join_tab->select->skip_record(join->thd, &skip_record) || skip_record))
     return FALSE;
 
   if (!((join_tab->first_inner &&
@@ -2025,7 +2030,8 @@ bool JOIN_CACHE::check_match(uchar *rec_ptr)
     */      
     for (JOIN_TAB *tab= first_inner; tab <= join_tab; tab++)
     {
-      if (tab->select && tab->select->skip_record())
+      if (tab->select &&
+          (tab->select->skip_record(join->thd, &skip_record) || skip_record))
         return FALSE;
     }
   }

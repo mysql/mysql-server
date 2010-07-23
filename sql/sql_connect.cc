@@ -1072,10 +1072,6 @@ static void prepare_new_connection_state(THD* thd)
 {
   Security_context *sctx= thd->security_ctx;
 
-#ifdef __NETWARE__
-  netware_reg_user(sctx->ip, sctx->user, "MySQL");
-#endif
-
   if (thd->client_capabilities & CLIENT_COMPRESS)
     thd->net.compress=1;				// Use compression
 

@@ -44,9 +44,6 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
-#ifdef __NETWARE__
-#include <sys/select.h>
-#endif
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER

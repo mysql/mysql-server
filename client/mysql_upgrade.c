@@ -57,8 +57,6 @@ static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
 
 static my_bool opt_write_binlog;
 
-#include <help_start.h>
-
 static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
@@ -138,8 +136,6 @@ static struct my_option my_long_options[]=
    1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-#include <help_end.h>
 
 
 static void free_used_memory(void)
@@ -809,9 +805,6 @@ int main(int argc, char **argv)
   char self_name[FN_REFLEN];
 
   MY_INIT(argv[0]);
-#ifdef __NETWARE__
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-#endif
 
 #if __WIN__
   if (GetModuleFileName(NULL, self_name, FN_REFLEN) == 0)

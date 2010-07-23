@@ -80,7 +80,6 @@
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_filter.h"
-#include "repl_failsafe.h"
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
@@ -2415,14 +2414,9 @@ case SQLCOM_PREPARE:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
-    /* This query don't work now. See comment in repl_failsafe.cc */
-#ifndef WORKING_NEW_MASTER
+    /* This query don't work now.*/
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "SHOW NEW MASTER");
     goto error;
-#else
-    res = show_new_master(thd);
-    break;
-#endif
   }
 
 #ifdef HAVE_REPLICATION
@@ -7660,7 +7654,7 @@ LEX_USER *create_default_definer(THD *thd)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  get_default_definer(thd, definer);
+  thd->get_definer(definer);
 
   return definer;
 }

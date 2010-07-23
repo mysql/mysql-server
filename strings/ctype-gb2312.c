@@ -29,7 +29,7 @@
 
 #ifdef HAVE_CHARSET_gb2312
 
-static uchar NEAR ctype_gb2312[257] =
+static uchar ctype_gb2312[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -50,7 +50,7 @@ static uchar NEAR ctype_gb2312[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-static uchar NEAR to_lower_gb2312[]=
+static uchar to_lower_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -86,7 +86,7 @@ static uchar NEAR to_lower_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_gb2312[]=
+static uchar to_upper_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -122,7 +122,7 @@ static uchar NEAR to_upper_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR sort_order_gb2312[]=
+static uchar sort_order_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
