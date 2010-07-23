@@ -428,11 +428,10 @@ CHARSET_INFO my_charset_latin1=
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     cs_to_uni,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_unicase_default, /* caseinfo     */
+    &my_unicase_default,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -732,11 +731,10 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   to_lower_latin1,
   to_upper_latin1,
   sort_order_latin1_de,
-  NULL,					/* contractions */
-  NULL,					/* sort_order_big*/
+  NULL,					/* uca          */
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
-  my_unicase_default,                   /* caseinfo     */
+  &my_unicase_default,                  /* caseinfo     */
   NULL,					/* state_map    */
   NULL,					/* ident_map    */
   2,					/* strxfrm_multiply */
@@ -767,11 +765,10 @@ CHARSET_INFO my_charset_latin1_bin=
   to_lower_latin1,
   to_upper_latin1,
   NULL,					/* sort_order   */
-  NULL,					/* contractions */
-  NULL,					/* sort_order_big*/
+  NULL,					/* uca          */
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
-  my_unicase_default,                   /* caseinfo     */
+  &my_unicase_default,                  /* caseinfo     */
   NULL,					/* state_map    */
   NULL,					/* ident_map    */
   1,					/* strxfrm_multiply */

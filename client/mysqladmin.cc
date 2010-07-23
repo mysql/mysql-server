@@ -116,10 +116,6 @@ static TYPELIB command_typelib=
 
 static struct my_option my_long_options[] =
 {
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"count", 'c',
    "Number of iterations to make. This works with -i (--sleep) only.",
    &nr_iterations, &nr_iterations, 0, GET_UINT,
@@ -222,11 +218,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   int error = 0;
 
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'c':
     opt_count_iterations= 1;
     break;
@@ -236,7 +227,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start=argument;
-      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password=my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -448,10 +439,10 @@ int main(int argc,char *argv[])
   }                                             /* got connection */
 
   mysql_close(&mysql);
-  my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(user,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password);
+  my_free(user);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
   my_end(my_end_arg);
@@ -1008,8 +999,8 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       /* free up memory from prompted password */
       if (typed_password != argv[1]) 
       {
-        my_free(typed_password,MYF(MY_ALLOW_ZERO_PTR));
-        my_free(verified,MYF(MY_ALLOW_ZERO_PTR));
+        my_free(typed_password);
+        my_free(verified);
       }
       argc--; argv++;
       break;
@@ -1068,13 +1059,11 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
   return 0;
 }
 
-#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s on %s\n",my_progname,ADMIN_VERSION,
 	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -1118,7 +1107,6 @@ static void usage(void)
   version		Get version info from server");
 }
 
-#include <help_end.h>
 
 static int drop_db(MYSQL *mysql, const char *db)
 {

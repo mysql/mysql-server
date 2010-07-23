@@ -19,7 +19,8 @@ a
 1
 [on slave]
 ---- Wait until slave stops with an error ----
-Last_SQL_Error = Error 'Duplicate entry '1' for key 'PRIMARY'' on query. Default database: 'test'. Query: 'INSERT INTO t1 VALUES (1)' (expected "duplicate key" error)
+Last_SQL_Error (expected "duplicate key" error)
+Error 'Duplicate entry '1' for key 'PRIMARY'' on query. Default database: 'test'. Query: 'INSERT INTO t1 VALUES (1)'
 SELECT * FROM t1;
 a
 1

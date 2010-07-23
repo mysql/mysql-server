@@ -216,7 +216,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     rm_temporary_table(table_type, share->path.str);
 
   free_table_share(share);
-  my_free(table, MYF(0));
+  my_free(table);
 
   DBUG_RETURN(error);
 }
