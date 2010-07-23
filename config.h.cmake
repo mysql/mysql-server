@@ -22,11 +22,14 @@
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_AIO_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
+#cmakedefine HAVE_ASM_MSR_H 1
+#cmakedefine HAVE_ASM_TERMBITS_H 1
 #cmakedefine HAVE_BSEARCH 1
 #cmakedefine HAVE_CRYPT_H 1
 #cmakedefine HAVE_CURSES_H 1
 #cmakedefine HAVE_CXXABI_H 1
 #cmakedefine HAVE_NCURSES_H 1
+#cmakedefine HAVE_NDIR_H 1
 #cmakedefine HAVE_DIRENT_H 1
 #cmakedefine HAVE_DLFCN_H 1
 #cmakedefine HAVE_EXECINFO_H 1
@@ -70,6 +73,7 @@
 #cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
+#cmakedefine HAVE_SYS_NDIR_H 1
 #cmakedefine HAVE_SYS_PTE_H 1
 #cmakedefine HAVE_SYS_PTEM_H 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
@@ -87,6 +91,7 @@
 #cmakedefine HAVE_SYS_UN_H 1
 #cmakedefine HAVE_SYS_VADVISE_H 1
 #cmakedefine HAVE_TERM_H 1
+#cmakedefine HAVE_TERMBITS_H 1
 #cmakedefine HAVE_TERMIOS_H 1
 #cmakedefine HAVE_TERMIO_H 1
 #cmakedefine HAVE_TERMCAP_H 1
@@ -98,6 +103,7 @@
 #cmakedefine HAVE_SYS_UTIME_H 1
 #cmakedefine HAVE_SYS_WAIT_H 1
 #cmakedefine HAVE_SYS_PARAM_H 1
+#cmakedefine HAVE_XFS_XFS_H 1
 
 /* Libraries */
 #cmakedefine HAVE_LIBPTHREAD 1
@@ -125,14 +131,15 @@
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
-#cmakedefine HAVE_BCMP 1
 #cmakedefine HAVE_BFILL 1
 #cmakedefine HAVE_BMOVE 1
 #cmakedefine HAVE_BZERO 1
 #cmakedefine HAVE_INDEX 1
+#cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
 #cmakedefine HAVE_CUSERID 1
+#cmakedefine HAVE_CXX_NEW 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_DLERROR 1
 #cmakedefine HAVE_DLOPEN 1
@@ -147,6 +154,7 @@
 #cmakedefine HAVE_FPSETMASK 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
+#cmakedefine HAVE_FTIME 1
 #cmakedefine HAVE_GETADDRINFO 1
 #cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
@@ -176,6 +184,8 @@
 #cmakedefine HAVE_LOG2 1
 #cmakedefine HAVE_LONGJMP 1
 #cmakedefine HAVE_LSTAT 1
+#cmakedefine HAVE_MEMALIGN 1
+/* #cmakedefine HAVE_MLOCK 1 see Bug#54662 */
 #cmakedefine HAVE_NPTL 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_MADVISE 1
@@ -196,6 +206,8 @@
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
+#cmakedefine HAVE_RDTSCLL 1
+#cmakedefine HAVE_READ_REAL_TIME 1
 #cmakedefine HAVE_PTHREAD_ATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETPRIO 1
@@ -240,6 +252,15 @@
 #cmakedefine HAVE_SIGWAIT 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_SNPRINTF 1
+/* Some that currently are not real defines, internal to CMake setup */
+/* #cmakedefine HAVE_FCNTL_NONBLOCK 1 */
+/* #cmakedefine HAVE_FINITE_IN_MATH_H 1 */
+/* #cmakedefine HAVE_SOCKADDR_STORAGE_SS_FAMILY 1 */
+/* #cmakedefine HAVE_SOCKADDR_STORAGE___SS_FAMILY 1 */
+/* #cmakedefine HAVE_SOCKET_SIZE_T_AS_int 1 */
+/* #cmakedefine HAVE_SOCKET_SIZE_T_AS_size_t 1 */
+/* #cmakedefine HAVE_SOCKET_SIZE_T_AS_socklen_t */
+/* #cmakedefine HAVE_SOCKET_TIMEOUT */
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STRERROR 1
 #cmakedefine HAVE_STRCOLL 1
@@ -560,6 +581,23 @@
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
 
+/*
+  Hard coded platform settings
+*/
+
+/* This is ugly, but we need lots of tweaks for HP-UX */
+#cmakedefine HPUX11 1
+#cmakedefine DO_NOT_REMOVE_THREAD_WRAPPERS 1
+#cmakedefine HAVE_BROKEN_PREAD 1
+#cmakedefine HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT 1
+#cmakedefine SNPRINTF_RETURN_TRUNC 1
+#cmakedefine _INCLUDE_LONGLONG 1
+
+/* Mac OS X */
+#cmakedefine SIGNALS_DONT_BREAK_READ 1
+#cmakedefine IGNORE_SIGHUP_SIGQUIT 1
+#cmakedefine _P1003_1B_VISIBLE 1
+#cmakedefine DONT_DECLARE_CXA_PURE_VIRTUAL 1
 
 /*
   Stuff that always need to be defined (compile breaks without it)
