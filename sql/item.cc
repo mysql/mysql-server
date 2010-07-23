@@ -3841,7 +3841,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 {
   Item **group_by_ref= NULL;
   Item **select_ref= NULL;
-  ORDER *group_list= (ORDER*) select->group_list.first;
+  ORDER *group_list= select->group_list.first;
   bool ambiguous_fields= FALSE;
   uint counter;
   enum_resolution_type resolution;

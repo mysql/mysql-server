@@ -144,20 +144,19 @@ void
 st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg) 
 {
   thd_arg->lex->current_select= fake_select_lex;
-  fake_select_lex->table_list.link_in_list((uchar *)&result_table_list,
-					   (uchar **)
-					   &result_table_list.next_local);
+  fake_select_lex->table_list.link_in_list(&result_table_list,
+                                           &result_table_list.next_local);
   fake_select_lex->context.table_list= 
     fake_select_lex->context.first_name_resolution_table= 
     fake_select_lex->get_table_list();
   if (!fake_select_lex->first_execution)
   {
-    for (ORDER *order= (ORDER *) global_parameters->order_list.first;
+    for (ORDER *order= global_parameters->order_list.first;
          order;
          order= order->next)
       order->item= &order->item_ptr;
   }
-  for (ORDER *order= (ORDER *)global_parameters->order_list.first;
+  for (ORDER *order= global_parameters->order_list.first;
        order;
        order=order->next)
   {
@@ -249,18 +248,18 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     can_skip_order_by= is_union_select && !(sl->braces && sl->explicit_limit);
 
     saved_error= join->prepare(&sl->ref_pointer_array,
-                               (TABLE_LIST*) sl->table_list.first,
+                               sl->table_list.first,
                                sl->with_wild,
                                sl->where,
                                (can_skip_order_by ? 0 :
                                 sl->order_list.elements) +
                                sl->group_list.elements,
                                can_skip_order_by ?
-                               (ORDER*) 0 : (ORDER *)sl->order_list.first,
-                               (ORDER*) sl->group_list.first,
+                               NULL : sl->order_list.first,
+                               sl->group_list.first,
                                sl->having,
-                               (is_union_select ? (ORDER*) 0 :
-                                (ORDER*) thd_arg->lex->proc_list.first),
+                               (is_union_select ? NULL :
+                                thd_arg->lex->proc_list.first),
                                sl, this);
     /* There are no * in the statement anymore (for PS) */
     sl->with_wild= 0;
@@ -354,7 +353,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       ORDER *ord;
       Item_func::Functype ft=  Item_func::FT_FUNC;
-      for (ord= (ORDER*)global_parameters->order_list.first; ord; ord= ord->next)
+      for (ord= global_parameters->order_list.first; ord; ord= ord->next)
         if ((*ord->item)->walk (&Item::find_function_processor, FALSE, 
                                 (uchar *) &ft))
         {
@@ -416,12 +415,11 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 	thd_arg->lex->current_select= fake_select_lex;
 	saved_error= fake_select_lex->join->
 	  prepare(&fake_select_lex->ref_pointer_array,
-		  (TABLE_LIST*) fake_select_lex->table_list.first,
+		  fake_select_lex->table_list.first,
 		  0, 0,
 		  fake_select_lex->order_list.elements,
-		  (ORDER*) fake_select_lex->order_list.first,
-		  (ORDER*) NULL, NULL,
-                  (ORDER*) NULL,
+		  fake_select_lex->order_list.first,
+		  NULL, NULL, NULL,
 		  fake_select_lex, this);
 	fake_select_lex->table_list.empty();
       }
@@ -597,8 +595,8 @@ bool st_select_lex_unit::exec()
                               &result_table_list,
                               0, item_list, NULL,
                               global_parameters->order_list.elements,
-                              (ORDER*)global_parameters->order_list.first,
-                              (ORDER*) NULL, NULL, (ORDER*) NULL,
+                              global_parameters->order_list.first,
+                              NULL, NULL, NULL,
                               fake_select_lex->options | SELECT_NO_UNLOCK,
                               result, this, fake_select_lex);
       }
@@ -620,8 +618,8 @@ bool st_select_lex_unit::exec()
                                 &result_table_list,
                                 0, item_list, NULL,
                                 global_parameters->order_list.elements,
-                                (ORDER*)global_parameters->order_list.first,
-                                (ORDER*) NULL, NULL, (ORDER*) NULL,
+                                global_parameters->order_list.first,
+                                NULL, NULL, NULL,
                                 fake_select_lex->options | SELECT_NO_UNLOCK,
                                 result, this, fake_select_lex);
         }
@@ -697,7 +695,7 @@ bool st_select_lex_unit::cleanup()
     if (global_parameters->order_list.elements)
     {
       ORDER *ord;
-      for (ord= (ORDER*)global_parameters->order_list.first; ord; ord= ord->next)
+      for (ord= global_parameters->order_list.first; ord; ord= ord->next)
         (*ord->item)->walk (&Item::cleanup_processor, 0, 0);
     }
   }
