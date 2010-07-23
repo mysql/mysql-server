@@ -198,22 +198,6 @@
 #define likely(x)	__builtin_expect((x),1)
 #define unlikely(x)	__builtin_expect((x),0)
 
-/*
-  now let's figure out if inline functions are supported
-  autoconf defines 'inline' to be empty, if not
-*/
-#define inline_test_1(X)        X ## 1
-#define inline_test_2(X)        inline_test_1(X)
-#if inline_test_2(inline) != 1
-#define HAVE_INLINE
-#else
-#warning No "inline" support in C, all "static inline" functions will be instantiated in every .o file!!!
-#endif
-#undef inline_test_2
-#undef inline_test_1
-/* helper macro for "instantiating" inline functions */
-#define STATIC_INLINE static inline
-
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
 #undef  _GNU_SOURCE
@@ -322,10 +306,6 @@ C_MODE_END
 */
 #undef HAVE_PREAD
 #undef HAVE_PWRITE
-#endif
-#if defined(HAVE_BROKEN_INLINE) && !defined(__cplusplus)
-#undef inline
-#define inline
 #endif
 
 #ifdef UNDEF_HAVE_GETHOSTBYNAME_R		/* For OSF4.x */
