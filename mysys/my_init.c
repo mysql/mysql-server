@@ -33,6 +33,9 @@ static my_bool win32_init_tcp_ip();
 #define my_win_init()
 #endif
 
+#define SCALE_SEC       100
+#define SCALE_USEC      10000
+
 my_bool my_init_done= 0;
 /** True if @c my_basic_init() has been called. */
 my_bool my_basic_init_done= 0;

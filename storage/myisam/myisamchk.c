@@ -27,7 +27,6 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 
 static uint decode_bits;
 static char **default_argv;

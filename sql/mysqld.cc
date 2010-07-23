@@ -1465,9 +1465,7 @@ void clean_up(bool print_message)
   delete rpl_filter;
   end_ssl();
   vio_end();
-#ifdef USE_REGEX
   my_regex_end();
-#endif
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
@@ -1932,7 +1930,7 @@ static void network_init(void)
     (void) setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,
 		      sizeof(arg));
     umask(0);
-    if (bind(unix_sock, my_reinterpret_cast(struct sockaddr *) (&UNIXaddr),
+    if (bind(unix_sock, reinterpret_cast<struct sockaddr *>(&UNIXaddr),
 	     sizeof(UNIXaddr)) < 0)
     {
       sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
@@ -3343,9 +3341,7 @@ static int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
-#ifdef USE_REGEX
   my_regex_init(&my_charset_latin1);
-#endif
   /*
     Process a comma-separated character set list and choose
     the first available character set. This is mostly for

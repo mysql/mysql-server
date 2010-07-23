@@ -230,10 +230,6 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   switch (database_type) {
-#ifndef NO_HASH
-  case DB_TYPE_HASH:
-    return ha_resolve_by_legacy_type(thd, DB_TYPE_HASH);
-#endif
   case DB_TYPE_MRG_ISAM:
     return ha_resolve_by_legacy_type(thd, DB_TYPE_MRG_MYISAM);
   default:
