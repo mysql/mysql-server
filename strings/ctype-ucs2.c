@@ -1620,7 +1620,8 @@ my_like_range_utf16(CHARSET_INFO *cs,
       int chlen;
       *min_str++= (char) (cs->min_sort_char >> 8);
       *min_str++= (char) (cs->min_sort_char & 255);
-      chlen= my_uni_utf16(cs, cs->max_sort_char, max_str, max_end);
+      chlen= my_uni_utf16(cs, cs->max_sort_char, (uchar *) max_str,
+                          (uchar *) max_end);
       if (chlen <= 0)
         goto end;
       max_str+= chlen;
@@ -1640,7 +1641,8 @@ my_like_range_utf16(CHARSET_INFO *cs,
         int chlen;
         *min_str++ = (char) (cs->min_sort_char >> 8);
         *min_str++ = (char) (cs->min_sort_char & 255);
-        chlen= my_uni_utf16(cs, cs->max_sort_char, max_str, max_end);
+        chlen= my_uni_utf16(cs, cs->max_sort_char, (uchar *) max_str,
+                            (uchar *) max_end);
         if (chlen <= 0)
           break;
         max_str+= chlen;
