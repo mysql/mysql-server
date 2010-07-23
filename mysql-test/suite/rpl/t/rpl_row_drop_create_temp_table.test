@@ -1,0 +1,10 @@
+###################################################################################
+# This test cases evaluates the mixture of non-transactional and transcational
+# tables. Specifically when drop temporary tables and create temporary tables
+# are used.
+###################################################################################
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--source include/have_innodb.inc
+
+--source extra/rpl_tests/rpl_drop_create_temp_table.test

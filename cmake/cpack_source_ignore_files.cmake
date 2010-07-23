@@ -36,6 +36,5 @@ include/config\\\\.h$
 include/my_config\\\\.h$
 /autom4te\\\\.cache/
 errmsg\\\\.sys$
-storage/ndb/
 #
 )

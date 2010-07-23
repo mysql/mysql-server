@@ -577,7 +577,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
     }
     else
     {
-      if (bcmp(rec1+seg->start,rec2+seg->start,seg->length))
+      if (memcmp(rec1+seg->start,rec2+seg->start,seg->length))
 	return 1;
     }
   }
@@ -660,7 +660,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
     }
     else
     {
-      if (bcmp(rec+seg->start,key,seg->length))
+      if (memcmp(rec+seg->start,key,seg->length))
 	return 1;
     }
   }

@@ -51,8 +51,8 @@ class My_auto_ptr {
   T * m_obj;
 public:
   My_auto_ptr(T * obj = 0){ m_obj = obj;}
-  void reset(T * obj = 0) { if (m_obj) my_free(m_obj,MYF(0)); m_obj = obj; }
-  ~My_auto_ptr() { if (m_obj) my_free(m_obj,MYF(0));}
+  void reset(T * obj = 0) { if (m_obj) my_free(m_obj); m_obj = obj; }
+  ~My_auto_ptr() { if (m_obj) my_free(m_obj);}
 };
 
 #endif

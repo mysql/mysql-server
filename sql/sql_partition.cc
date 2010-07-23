@@ -2624,7 +2624,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
   {
     if (!use_sql_alloc)
-      my_free(buf, MYF(0));
+      my_free(buf);
     else
       buf= NULL;
   }
