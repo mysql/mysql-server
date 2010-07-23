@@ -1125,22 +1125,6 @@ typedef long long intptr;
 
 #define MY_ERRPTR ((void*)(intptr)1)
 
-#ifdef USE_RAID
-/*
-  The following is done with a if to not get problems with pre-processors
-  with late define evaluation
-*/
-#if SIZEOF_OFF_T == 4
-#define SYSTEM_SIZEOF_OFF_T 4
-#else
-#define SYSTEM_SIZEOF_OFF_T 8
-#endif
-#undef  SIZEOF_OFF_T
-#define SIZEOF_OFF_T	    8
-#else
-#define SYSTEM_SIZEOF_OFF_T SIZEOF_OFF_T
-#endif /* USE_RAID */
-
 #if defined(_WIN32)
 typedef unsigned long long my_off_t;
 typedef unsigned long long os_off_t;
@@ -1698,8 +1682,6 @@ static inline double rint(double x)
 #undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
 #undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
-
-#define DONT_USE_RAID
 
 #endif /* EMBEDDED_LIBRARY */
 
