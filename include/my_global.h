@@ -341,18 +341,6 @@ C_MODE_END
 #error "Please add -fno-exceptions to CXXFLAGS and reconfigure/recompile"
 #endif
 
-
-/* Fix a bug in gcc 2.8.0 on IRIX 6.2 */
-#if SIZEOF_LONG == 4 && defined(__LONG_MAX__) && (__GNUC__ == 2 && __GNUC_MINOR__ == 8)
-#undef __LONG_MAX__             /* Is a longlong value in gcc 2.8.0 ??? */
-#define __LONG_MAX__ 2147483647
-#endif
-
-/* egcs 1.1.2 has a problem with memcpy on Alpha */
-#if defined(__GNUC__) && defined(__alpha__) && ! (__GNUC__ > 2 || (__GNUC__ == 2 &&  __GNUC_MINOR__ >= 95))
-#define BAD_MEMCPY
-#endif
-
 #if defined(_lint) && !defined(lint)
 #define lint
 #endif
@@ -1263,8 +1251,8 @@ do { doubleget_union _tmp; \
                               ((uchar*) &def_temp)[7]=(M)[0];\
                               (V) = def_temp; } while(0)
 #else
-#define float4get(V,M)   memcpy_fixed((uchar*) &V,(uchar*) (M),sizeof(float))
-#define float4store(V,M) memcpy_fixed((uchar*) V,(uchar*) (&M),sizeof(float))
+#define float4get(V,M)   memcpy(&V, (M), sizeof(float))
+#define float4store(V,M) memcpy(V, (&M), sizeof(float))
 
 #if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
 #define doublestore(T,V) do { *(((char*)T)+0)=(char) ((uchar *) &V)[4];\
@@ -1334,12 +1322,12 @@ do { doubleget_union _tmp; \
                              *(((char*)T)+1)=(((A) >> 16));\
                              *(((char*)T)+0)=(((A) >> 24)); } while(0)
 
-#define floatget(V,M)    memcpy_fixed((uchar*) &V,(uchar*) (M),sizeof(float))
-#define floatstore(T,V)  memcpy_fixed((uchar*) (T),(uchar*)(&V),sizeof(float))
-#define doubleget(V,M)	 memcpy_fixed((uchar*) &V,(uchar*) (M),sizeof(double))
-#define doublestore(T,V) memcpy_fixed((uchar*) (T),(uchar*) &V,sizeof(double))
-#define longlongget(V,M) memcpy_fixed((uchar*) &V,(uchar*) (M),sizeof(ulonglong))
-#define longlongstore(T,V) memcpy_fixed((uchar*) (T),(uchar*) &V,sizeof(ulonglong))
+#define floatget(V,M)    memcpy(&V, (M), sizeof(float))
+#define floatstore(T,V)  memcpy((T), (void*) (&V), sizeof(float))
+#define doubleget(V,M)	 memcpy(&V, (M), sizeof(double))
+#define doublestore(T,V) memcpy((T), (void *) &V, sizeof(double))
+#define longlongget(V,M) memcpy(&V, (M), sizeof(ulonglong))
+#define longlongstore(T,V) memcpy((T), &V, sizeof(ulonglong))
 
 #else
 
@@ -1350,15 +1338,15 @@ do { doubleget_union _tmp; \
 #define shortstore(T,V) int2store(T,V)
 #define longstore(T,V)	int4store(T,V)
 #ifndef floatstore
-#define floatstore(T,V)  memcpy_fixed((uchar*) (T),(uchar*) (&V),sizeof(float))
-#define floatget(V,M)    memcpy_fixed((uchar*) &V, (uchar*) (M), sizeof(float))
+#define floatstore(T,V)  memcpy((T), (void *) (&V), sizeof(float))
+#define floatget(V,M)    memcpy(&V, (M), sizeof(float))
 #endif
 #ifndef doubleget
-#define doubleget(V,M)	 memcpy_fixed((uchar*) &V,(uchar*) (M),sizeof(double))
-#define doublestore(T,V) memcpy_fixed((uchar*) (T),(uchar*) &V,sizeof(double))
+#define doubleget(V,M)	 memcpy(&V, (M), sizeof(double))
+#define doublestore(T,V) memcpy((T), (void *) &V, sizeof(double))
 #endif /* doubleget */
-#define longlongget(V,M) memcpy_fixed((uchar*) &V,(uchar*) (M),sizeof(ulonglong))
-#define longlongstore(T,V) memcpy_fixed((uchar*) (T),(uchar*) &V,sizeof(ulonglong))
+#define longlongget(V,M) memcpy(&V, (M), sizeof(ulonglong))
+#define longlongstore(T,V) memcpy((T), &V, sizeof(ulonglong))
 
 #endif /* WORDS_BIGENDIAN */
 
