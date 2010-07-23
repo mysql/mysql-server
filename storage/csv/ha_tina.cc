@@ -807,15 +807,15 @@ int ha_tina::find_current_row(uchar *buf)
         Field_blob *blob= *(Field_blob**) field;
         uchar *src, *tgt;
         uint length, packlength;
-        
+
         packlength= blob->pack_length_no_ptr();
         length= blob->get_length(blob->ptr);
-        memcpy_fixed(&src, blob->ptr + packlength, sizeof(char*));
+        memcpy(&src, blob->ptr + packlength, sizeof(char*));
         if (src)
         {
           tgt= (uchar*) alloc_root(&blobroot, length);
           bmove(tgt, src, length);
-          memcpy_fixed(blob->ptr + packlength, &tgt, sizeof(char*));
+          memcpy(blob->ptr + packlength, &tgt, sizeof(char*));
         }
       }
     }

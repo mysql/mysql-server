@@ -95,9 +95,8 @@ static void copy_events_waits(PFS_events_waits *dest,
   /* Signal readers they are about to read garbage ... */
   dest->m_wait_class= NO_WAIT_CLASS;
   /* ... that this can generate. */
-  memcpy_fixed(dest_body,
-               source_body,
-               sizeof(PFS_events_waits) - sizeof(events_waits_class));
+  memcpy(dest_body, source_body,
+         sizeof(PFS_events_waits) - sizeof(events_waits_class));
   /* Signal readers the record is now clean again. */
   dest->m_wait_class= source->m_wait_class;
 }

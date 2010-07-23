@@ -92,12 +92,6 @@ extern char _dig_vec_lower[];
 #define strmake_overlapp(A,B,C) strmake(A,B,C)
 #endif
 
-#ifdef BAD_MEMCPY			/* Problem with gcc on Alpha */
-#define memcpy_fixed(A,B,C) bmove((A),(B),(C))
-#else
-#define memcpy_fixed(A,B,C) memcpy((A),(B),(C))
-#endif
-
 	/* Prototypes for string functions */
 
 #if !defined(bfill) && !defined(HAVE_BFILL)
