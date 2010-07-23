@@ -6615,11 +6615,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_dec8_swedish_ci,                /* lower         */
   to_upper_dec8_swedish_ci,                /* upper         */
   sort_order_dec8_swedish_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_dec8_swedish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6650,11 +6649,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp850_general_ci,                /* lower         */
   to_upper_cp850_general_ci,                /* upper         */
   sort_order_cp850_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp850_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6685,11 +6683,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin1_german1_ci,                /* lower         */
   to_upper_latin1_german1_ci,                /* upper         */
   sort_order_latin1_german1_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin1_german1_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6720,11 +6717,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_hp8_english_ci,                /* lower         */
   to_upper_hp8_english_ci,                /* upper         */
   sort_order_hp8_english_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_hp8_english_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6755,11 +6751,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_koi8r_general_ci,                /* lower         */
   to_upper_koi8r_general_ci,                /* upper         */
   sort_order_koi8r_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_koi8r_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6790,11 +6785,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin2_general_ci,                /* lower         */
   to_upper_latin2_general_ci,                /* upper         */
   sort_order_latin2_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin2_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6825,11 +6819,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_swe7_swedish_ci,                /* lower         */
   to_upper_swe7_swedish_ci,                /* upper         */
   sort_order_swe7_swedish_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_swe7_swedish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6860,11 +6853,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_ascii_general_ci,                /* lower         */
   to_upper_ascii_general_ci,                /* upper         */
   sort_order_ascii_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_ascii_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6895,11 +6887,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1251_bulgarian_ci,                /* lower         */
   to_upper_cp1251_bulgarian_ci,                /* upper         */
   sort_order_cp1251_bulgarian_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1251_bulgarian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6930,11 +6921,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin1_danish_ci,                /* lower         */
   to_upper_latin1_danish_ci,                /* upper         */
   sort_order_latin1_danish_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin1_danish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -6965,11 +6955,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_hebrew_general_ci,                /* lower         */
   to_upper_hebrew_general_ci,                /* upper         */
   sort_order_hebrew_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_hebrew_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7000,11 +6989,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin7_estonian_cs,                /* lower         */
   to_upper_latin7_estonian_cs,                /* upper         */
   sort_order_latin7_estonian_cs,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin7_estonian_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7035,11 +7023,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin2_hungarian_ci,                /* lower         */
   to_upper_latin2_hungarian_ci,                /* upper         */
   sort_order_latin2_hungarian_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin2_hungarian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7070,11 +7057,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_koi8u_general_ci,                /* lower         */
   to_upper_koi8u_general_ci,                /* upper         */
   sort_order_koi8u_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_koi8u_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7105,11 +7091,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1251_ukrainian_ci,                /* lower         */
   to_upper_cp1251_ukrainian_ci,                /* upper         */
   sort_order_cp1251_ukrainian_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1251_ukrainian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7140,11 +7125,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_greek_general_ci,                /* lower         */
   to_upper_greek_general_ci,                /* upper         */
   sort_order_greek_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_greek_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7175,11 +7159,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1250_general_ci,                /* lower         */
   to_upper_cp1250_general_ci,                /* upper         */
   sort_order_cp1250_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1250_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7210,11 +7193,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin2_croatian_ci,                /* lower         */
   to_upper_latin2_croatian_ci,                /* upper         */
   sort_order_latin2_croatian_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin2_croatian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7245,11 +7227,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1257_lithuanian_ci,                /* lower         */
   to_upper_cp1257_lithuanian_ci,                /* upper         */
   sort_order_cp1257_lithuanian_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1257_lithuanian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7280,11 +7261,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin5_turkish_ci,                /* lower         */
   to_upper_latin5_turkish_ci,                /* upper         */
   sort_order_latin5_turkish_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin5_turkish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7315,11 +7295,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_armscii8_general_ci,                /* lower         */
   to_upper_armscii8_general_ci,                /* upper         */
   sort_order_armscii8_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_armscii8_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7350,11 +7329,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp866_general_ci,                /* lower         */
   to_upper_cp866_general_ci,                /* upper         */
   sort_order_cp866_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp866_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7385,11 +7363,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_keybcs2_general_ci,                /* lower         */
   to_upper_keybcs2_general_ci,                /* upper         */
   sort_order_keybcs2_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_keybcs2_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7420,11 +7397,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_macce_general_ci,                /* lower         */
   to_upper_macce_general_ci,                /* upper         */
   sort_order_macce_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_macce_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7455,11 +7431,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_macroman_general_ci,                /* lower         */
   to_upper_macroman_general_ci,                /* upper         */
   sort_order_macroman_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_macroman_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7490,11 +7465,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp852_general_ci,                /* lower         */
   to_upper_cp852_general_ci,                /* upper         */
   sort_order_cp852_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp852_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7525,11 +7499,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin7_general_ci,                /* lower         */
   to_upper_latin7_general_ci,                /* upper         */
   sort_order_latin7_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin7_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7560,11 +7533,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin7_general_cs,                /* lower         */
   to_upper_latin7_general_cs,                /* upper         */
   sort_order_latin7_general_cs,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin7_general_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7595,11 +7567,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_macce_bin,                /* lower         */
   to_upper_macce_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_macce_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7630,11 +7601,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1250_croatian_ci,                /* lower         */
   to_upper_cp1250_croatian_ci,                /* upper         */
   sort_order_cp1250_croatian_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1250_croatian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7665,11 +7635,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin1_general_ci,                /* lower         */
   to_upper_latin1_general_ci,                /* upper         */
   sort_order_latin1_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin1_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7700,11 +7669,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin1_general_cs,                /* lower         */
   to_upper_latin1_general_cs,                /* upper         */
   sort_order_latin1_general_cs,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin1_general_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7735,11 +7703,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1251_bin,                /* lower         */
   to_upper_cp1251_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1251_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7770,11 +7737,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1251_general_ci,                /* lower         */
   to_upper_cp1251_general_ci,                /* upper         */
   sort_order_cp1251_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1251_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7805,11 +7771,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1251_general_cs,                /* lower         */
   to_upper_cp1251_general_cs,                /* upper         */
   sort_order_cp1251_general_cs,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1251_general_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7840,11 +7805,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_macroman_bin,                /* lower         */
   to_upper_macroman_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_macroman_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7875,11 +7839,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1256_general_ci,                /* lower         */
   to_upper_cp1256_general_ci,                /* upper         */
   sort_order_cp1256_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1256_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7910,11 +7873,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1257_bin,                /* lower         */
   to_upper_cp1257_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1257_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7945,11 +7907,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1257_general_ci,                /* lower         */
   to_upper_cp1257_general_ci,                /* upper         */
   sort_order_cp1257_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1257_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -7980,11 +7941,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_armscii8_bin,                /* lower         */
   to_upper_armscii8_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_armscii8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8015,11 +7975,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_ascii_bin,                /* lower         */
   to_upper_ascii_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_ascii_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8050,11 +8009,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1250_bin,                /* lower         */
   to_upper_cp1250_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1250_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8085,11 +8043,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1256_bin,                /* lower         */
   to_upper_cp1256_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1256_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8120,11 +8077,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp866_bin,                /* lower         */
   to_upper_cp866_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp866_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8155,11 +8111,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_dec8_bin,                /* lower         */
   to_upper_dec8_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_dec8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8190,11 +8145,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_greek_bin,                /* lower         */
   to_upper_greek_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_greek_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8225,11 +8179,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_hebrew_bin,                /* lower         */
   to_upper_hebrew_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_hebrew_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8260,11 +8213,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_hp8_bin,                /* lower         */
   to_upper_hp8_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_hp8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8295,11 +8247,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_keybcs2_bin,                /* lower         */
   to_upper_keybcs2_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_keybcs2_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8330,11 +8281,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_koi8r_bin,                /* lower         */
   to_upper_koi8r_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_koi8r_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8365,11 +8315,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_koi8u_bin,                /* lower         */
   to_upper_koi8u_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_koi8u_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8400,11 +8349,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin2_bin,                /* lower         */
   to_upper_latin2_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin2_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8435,11 +8383,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin5_bin,                /* lower         */
   to_upper_latin5_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin5_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8470,11 +8417,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin7_bin,                /* lower         */
   to_upper_latin7_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin7_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8505,11 +8451,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp850_bin,                /* lower         */
   to_upper_cp850_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp850_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8540,11 +8485,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp852_bin,                /* lower         */
   to_upper_cp852_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp852_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8575,11 +8519,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_swe7_bin,                /* lower         */
   to_upper_swe7_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_swe7_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8610,11 +8553,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_geostd8_general_ci,                /* lower         */
   to_upper_geostd8_general_ci,                /* upper         */
   sort_order_geostd8_general_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_geostd8_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8645,11 +8587,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_geostd8_bin,                /* lower         */
   to_upper_geostd8_bin,                /* upper         */
   NULL,                     /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_geostd8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8680,11 +8621,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_latin1_spanish_ci,                /* lower         */
   to_upper_latin1_spanish_ci,                /* upper         */
   sort_order_latin1_spanish_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_latin1_spanish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8715,11 +8655,10 @@ CHARSET_INFO compiled_charsets[] = {
   to_lower_cp1250_polish_ci,                /* lower         */
   to_upper_cp1250_polish_ci,                /* upper         */
   sort_order_cp1250_polish_ci,            /* sort_order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   to_uni_cp1250_polish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
@@ -8749,11 +8688,10 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* lower         */
   NULL,                       /* upper         */
   NULL,                       /* sort order    */
-  NULL,                       /* contractions  */
-  NULL,                       /* sort_order_big*/
+  NULL,                       /* uca           */
   NULL,                       /* to_uni        */
   NULL,                       /* from_uni      */
-  my_unicase_default,         /* caseinfo      */
+  &my_unicase_default,        /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
