@@ -4077,4 +4077,15 @@ SELECT * FROM t1 WHERE 102 < c;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug #54459: Assertion failed: param.sort_length, 
+--echo # file .\filesort.cc, line 149 (part II)
+--echo #
+CREATE TABLE t1(a ENUM('') NOT NULL);
+INSERT INTO t1 VALUES (), (), ();
+EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests

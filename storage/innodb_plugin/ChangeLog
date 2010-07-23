@@ -35,6 +35,11 @@
 	Fix Bug#54686: "field->col->mtype == type" assertion error at
 	row/row0sel.c
 
+2010-06-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb_bug54044.result, innodb_bug54044.test:
+	Fix Bug#54044 Create temporary tables and using innodb crashes.
+
 2010-06-21	The InnoDB Team
 
 	* dict/dict0load.c, fil/fil0fil.c:

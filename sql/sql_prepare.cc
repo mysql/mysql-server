@@ -702,6 +702,19 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
 }
 
 #ifndef EMBEDDED_LIBRARY
+
+/**
+  Check whether this parameter data type is compatible with long data.
+  Used to detect whether a long data stream has been supplied to a
+  incompatible data type.
+*/
+inline bool is_param_long_data_type(Item_param *param)
+{
+  return ((param->param_type >= MYSQL_TYPE_TINY_BLOB) &&
+          (param->param_type <= MYSQL_TYPE_STRING));
+}
+
+
 /**
   Routines to assign parameters from data supplied by the client.
 
@@ -771,6 +784,14 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (!is_param_long_data_type(param))
+      DBUG_RETURN(1);
     res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -809,6 +830,14 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (is_param_long_data_type(param))
+      DBUG_RETURN(1);
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
   }
@@ -1240,7 +1269,7 @@ static int mysql_test_update(Prepared_statement *stmt,
 
   if (mysql_prepare_update(thd, table_list, &select->where,
                            select->order_list.elements,
-                           (ORDER *) select->order_list.first))
+                           select->order_list.first))
     goto error;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1746,11 +1775,10 @@ error:
 static int mysql_insert_select_prepare_tester(THD *thd)
 {
   SELECT_LEX *first_select= &thd->lex->select_lex;
-  TABLE_LIST *second_table= ((TABLE_LIST*)first_select->table_list.first)->
-    next_local;
+  TABLE_LIST *second_table= first_select->table_list.first->next_local;
 
   /* Skip first table, which is the table we are inserting in */
-  first_select->table_list.first= (uchar *) second_table;
+  first_select->table_list.first= second_table;
   thd->lex->select_lex.context.table_list=
     thd->lex->select_lex.context.first_name_resolution_table= second_table;
 
@@ -1787,7 +1815,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
     return 1;
 
   /* store it, because mysql_insert_select_prepare_tester change it */
-  first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
+  first_local_table= lex->select_lex.table_list.first;
   DBUG_ASSERT(first_local_table != 0);
 
   res=
@@ -1795,7 +1823,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
                                     &mysql_insert_select_prepare_tester,
                                     OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
-  lex->select_lex.table_list.first= (uchar*) first_local_table;
+  lex->select_lex.table_list.first= first_local_table;
   return res;
 }
 
@@ -2339,10 +2367,10 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
-      for (order= (ORDER *)sl->group_list.first; order; order= order->next)
+      for (order= sl->group_list.first; order; order= order->next)
         order->item= &order->item_ptr;
       /* Fix ORDER list */
-      for (order= (ORDER *)sl->order_list.first; order; order= order->next)
+      for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
 
       /* clear the no_error flag for INSERT/UPDATE IGNORE */
@@ -2379,7 +2407,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     (multi-delete).  We do a full clean up, although at the moment all we
     need to clean in the tables of MULTI-DELETE list is 'table' member.
   */
-  for (TABLE_LIST *tables= (TABLE_LIST*) lex->auxiliary_table_list.first;
+  for (TABLE_LIST *tables= lex->auxiliary_table_list.first;
        tables;
        tables= tables->next_global)
   {
@@ -3034,13 +3062,21 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
-  Parser_state parser_state(thd, thd->query(), thd->query_length());
+  Parser_state parser_state;
+  if (parser_state.init(thd, thd->query(), thd->query_length()))
+  {
+    thd->restore_backup_statement(this, &stmt_backup);
+    thd->restore_active_arena(this, &stmt_backup);
+    thd->stmt_arena= old_stmt_arena;
+    DBUG_RETURN(TRUE);
+  }
+
   parser_state.m_lip.stmt_prepare_mode= TRUE;
   lex_start(thd);
 
   error= parse_sql(thd, & parser_state, NULL) ||
-         thd->is_error() ||
-         init_param_array(this);
+    thd->is_error() ||
+    init_param_array(this);
 
   lex->set_trg_event_type_for_tables();
 
