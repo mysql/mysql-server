@@ -126,7 +126,7 @@ static void prepare_hostname_cache_key(const char *ip_string,
   DBUG_ASSERT(ip_string_length < HOST_ENTRY_KEY_SIZE);
 
   memset(ip_key, 0, HOST_ENTRY_KEY_SIZE);
-  memcpy_fixed(ip_key, ip_string, ip_string_length);
+  memcpy(ip_key, ip_string, ip_string_length);
 }
 
 static inline Host_entry *hostname_cache_search(const char *ip_key)
@@ -148,7 +148,7 @@ static bool add_hostname_impl(const char *ip_key, const char *hostname)
 
   char *hostname_copy;
 
-  memcpy_fixed(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
+  memcpy(&entry->ip_key, ip_key, HOST_ENTRY_KEY_SIZE);
 
   if (hostname_size)
   {

@@ -995,7 +995,7 @@ uint _mi_rec_pack(MI_INFO *info, register uchar *to,
 	  char *temp_pos;
 	  size_t tmp_length=length-portable_sizeof_char_ptr;
 	  memcpy((uchar*) to,from,tmp_length);
-	  memcpy_fixed(&temp_pos,from+tmp_length,sizeof(char*));
+	  memcpy(&temp_pos,from+tmp_length,sizeof(char*));
 	  memcpy(to+tmp_length,temp_pos,(size_t) blob->length);
 	  to+=tmp_length+blob->length;
 	}
@@ -1310,9 +1310,9 @@ ulong _mi_rec_unpack(register MI_INFO *info, register uchar *to, uchar *from,
             from_left - size_length < blob_length ||
             from_left - size_length - blob_length < min_pack_length)
           goto err;
-	memcpy((uchar*) to,(uchar*) from,(size_t) size_length);
+	memcpy(to, from, (size_t) size_length);
 	from+=size_length;
-	memcpy_fixed((uchar*) to+size_length,(uchar*) &from,sizeof(char*));
+	memcpy(to+size_length, &from, sizeof(char*));
 	from+=blob_length;
       }
       else

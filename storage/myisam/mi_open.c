@@ -858,7 +858,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
 	key_blocks=state->header.max_block_size_index;
   DBUG_ENTER("mi_state_info_write");
 
-  memcpy_fixed(ptr,&state->header,sizeof(state->header));
+  memcpy(ptr, &state->header, sizeof(state->header));
   ptr+=sizeof(state->header);
 
   /* open_count must be first because of _mi_mark_file_changed ! */
@@ -917,7 +917,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
 uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 {
   uint i,keys,key_parts,key_blocks;
-  memcpy_fixed(&state->header,ptr, sizeof(state->header));
+  memcpy(&state->header, ptr, sizeof(state->header));
   ptr +=sizeof(state->header);
   keys=(uint) state->header.keys;
   key_parts=mi_uint2korr(state->header.key_parts);

@@ -310,7 +310,7 @@ static void print_record(uchar * record, my_off_t offs,const char * tail)
   len=sint4korr(pos);
   pos+=4;
   printf(" len=%d ",len);
-  memcpy_fixed(&ptr,pos,sizeof(char*));
+  memcpy(&ptr, pos, sizeof(char*));
   if (ptr)
     rtree_PrintWKB((uchar*) ptr,SPDIMS);
   else
@@ -328,23 +328,23 @@ static void create_linestring(uchar *record,uint rownr)
    double x[200];
    int i,j;
    int npoints=2;
-   
+
    for(j=0;j<npoints;j++)
      for(i=0;i<SPDIMS;i++)
        x[i+j*SPDIMS]=rownr*j;
-   
+
    bzero((char*) record,MAX_REC_LENGTH);
    *pos=0x01; /* DEL marker */
    pos++;
-   
+
    memset(blob_key,0,sizeof(blob_key));
    tmp=rtree_CreateLineStringWKB(x,SPDIMS,npoints, (uchar*) blob_key);
-   
+
    int4store(pos,tmp);
    pos+=4;
-   
+
    ptr=blob_key;
-   memcpy_fixed(pos,&ptr,sizeof(char*));
+   memcpy(pos, &ptr, sizeof(char*));
 }
 
 
@@ -353,7 +353,7 @@ static void create_key(uchar *key,uint rownr)
    double c=rownr;
    uchar *pos;
    uint i;
-   
+
    bzero(key,MAX_REC_LENGTH);
    for (pos=key, i=0; i<2*SPDIMS; i++)
    {
