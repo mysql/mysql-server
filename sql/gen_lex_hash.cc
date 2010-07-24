@@ -87,7 +87,8 @@ So, we can read full search-structure as 32-bit word
 #include "mysql_version.h"
 #include "lex.h"
 
-const char *default_dbug_option="d:t:o,/tmp/gen_lex_hash.trace";
+static char default_dbug_option[]= "d:t:o,/tmp/gen_lex_hash.trace";
+static char *dbug_option= default_dbug_option;
 
 struct my_option my_long_options[] =
 {
@@ -95,8 +96,8 @@ struct my_option my_long_options[] =
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
-   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", &dbug_option,
+   &dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"help", '?', "Display help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -368,7 +369,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     usage(0);
     exit(0);
   case '#':
-    DBUG_PUSH(argument ? argument : default_dbug_option);
+    DBUG_PUSH(argument ? argument : dbug_option);
     break;
   }
   return 0;
