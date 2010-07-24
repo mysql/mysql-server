@@ -5106,7 +5106,7 @@ static SIMPLE_KEY_CACHE_CB
                                    ulonglong* dirty_part_map)
 {
   uint i= KEYCACHE_BASE_EXPR( file, filepos) % keycache->partitions;
-  *dirty_part_map|= 1<<i; 
+  *dirty_part_map|= 1ULL << i; 
   return keycache->partition_array[i];
 }
 

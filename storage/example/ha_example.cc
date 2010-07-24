@@ -370,13 +370,13 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
 #ifndef DBUG_OFF
   example_table_options_struct *options=
     (example_table_options_struct *)table->s->option_struct;
-#endif
 
   DBUG_ASSERT(options);
   DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
                       "boolparam: %u",
                       (options->strparam ? options->strparam : "<NULL>"),
                       options->ullparam, options->enumparam, options->boolparam));
+#endif
 
   DBUG_RETURN(0);
 }
@@ -922,9 +922,8 @@ int ha_example::create(const char *name, TABLE *table_arg,
                           field_options->compex_param_to_parse_it_in_engine :
                           "<NULL>")));
   }
-
-  DBUG_RETURN(0);
 #endif
+  DBUG_RETURN(0);
 }
 
 
