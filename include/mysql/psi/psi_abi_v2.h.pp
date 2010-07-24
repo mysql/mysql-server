@@ -1,5 +1,6 @@
 #include "mysql/psi/psi.h"
 C_MODE_START
+struct TABLE_SHARE;
 struct PSI_mutex;
 struct PSI_rwlock;
 struct PSI_cond;
@@ -7,6 +8,7 @@ struct PSI_table_share;
 struct PSI_table;
 struct PSI_thread;
 struct PSI_file;
+struct PSI_table_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -52,7 +54,15 @@ enum PSI_file_operation
   PSI_FILE_RENAME= 15,
   PSI_FILE_SYNC= 16
 };
-struct PSI_table_locker;
+enum PSI_table_operation
+{
+  PSI_TABLE_LOCK= 0,
+  PSI_TABLE_EXTERNAL_LOCK= 1,
+  PSI_TABLE_FETCH_ROW= 2,
+  PSI_TABLE_WRITE_ROW= 3,
+  PSI_TABLE_UPDATE_ROW= 4,
+  PSI_TABLE_DELETE_ROW= 5
+};
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;
 typedef unsigned int PSI_cond_key;

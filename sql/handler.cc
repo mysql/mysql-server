@@ -41,6 +41,7 @@
 #include "transaction.h"
 #include <errno.h>
 #include "probes_mysql.h"
+#include <mysql/psi/mysql_table.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -2055,6 +2056,12 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely((error == 0) && (PSI_server != NULL)))
+    PSI_server->drop_table_share(db, strlen(db), alias, strlen(alias));
+#endif
+
   DBUG_RETURN(error);
 }
 
@@ -2139,6 +2146,17 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   }
   else
   {
+    DBUG_ASSERT(m_psi == NULL);
+    DBUG_ASSERT(table_share != NULL);
+#ifdef HAVE_PSI_INTERFACE
+    if (likely(PSI_server != NULL))
+    {    
+      PSI_table_share *share_psi= ha_table_share_psi(table_share);
+      if (likely(share_psi != NULL))
+        m_psi= PSI_server->open_table(share_psi, this);
+    }    
+#endif
+
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
@@ -2147,7 +2165,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
                                           ALIGN_SIZE(ref_length)*2)))
     {
-      close();
+      ha_close();
       error=HA_ERR_OUT_OF_MEM;
     }
     else
@@ -2157,6 +2175,144 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_RETURN(error);
 }
 
+int handler::ha_close(void)
+{
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server && m_psi))
+  {
+    PSI_server->close_table(m_psi);
+    m_psi= NULL; /* instrumentation handle, invalid after close_table() */
+  }
+#endif
+  DBUG_ASSERT(m_psi == NULL);
+  return close();
+}
+
+int handler::ha_rnd_next(uchar *buf)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
+  result= rnd_next(buf);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_rnd_pos(uchar *buf, uchar *pos)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
+  result= rnd_pos(buf, pos);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_read_map(uchar *buf, const uchar *key,
+                               key_part_map keypart_map,
+                               enum ha_rkey_function find_flag)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_read_map(buf, key, keypart_map, find_flag);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                   key_part_map keypart_map,
+                                   enum ha_rkey_function find_flag)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, index, 0);
+  result= index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_next(uchar * buf)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_next(buf);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_prev(uchar * buf)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_prev(buf);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_first(uchar * buf)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_first(buf);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_last(uchar * buf)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_last(buf);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_next_same(buf, key, keylen);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
+                           enum ha_rkey_function find_flag)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_read(buf, key, key_len, find_flag);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
+
+int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
+{
+  int result;
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+  result= index_read_last(buf, key, key_len);
+  MYSQL_END_TABLE_WAIT(locker);
+  return result;
+}
 
 /**
   Read first row (only) from a table.
@@ -2180,14 +2336,14 @@ int handler::read_first_row(uchar * buf, uint primary_key)
       !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
     (void) ha_rnd_init(1);
-    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
+    while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
     (void) ha_rnd_end();
   }
   else
   {
     /* Find the first row through the primary key */
     (void) ha_index_init(primary_key, 0);
-    error=index_first(buf);
+    error= ha_index_first(buf);
     (void) ha_index_end();
   }
   DBUG_RETURN(error);
@@ -2561,7 +2717,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   index_init(table->s->next_number_index, 1);
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
-    error=index_last(table->record[1]);
+    error= ha_index_last(table->record[1]);
     /*
       MySQL implicitely assumes such method does locking (as MySQL decides to
       use nr+increment without checking again with the handler, in
@@ -2575,9 +2731,9 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
     key_copy(key, table->record[0],
              table->key_info + table->s->next_number_index,
              table->s->next_number_key_offset);
-    error= index_read_map(table->record[1], key,
-                          make_prev_keypart_map(table->s->next_number_keypart),
-                          HA_READ_PREFIX_LAST);
+    error= ha_index_read_map(table->record[1], key,
+                             make_prev_keypart_map(table->s->next_number_keypart),
+                             HA_READ_PREFIX_LAST);
     /*
       MySQL needs to call us for next row: assume we are inserting ("a",null)
       here, we return 3, and next this statement will want to insert
@@ -3596,8 +3752,18 @@ int ha_create_table(THD *thd, const char *path,
   DBUG_ENTER("ha_create_table");
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
-  if (open_table_def(thd, &share, 0) ||
-      open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
+  if (open_table_def(thd, &share, 0))
+    goto err;
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server != NULL))
+  {
+    my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+    share.m_psi= PSI_server->get_table_share(temp, &share);
+  }
+#endif
+
+  if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
                             TRUE))
     goto err;
 
@@ -3667,6 +3833,15 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   {
     DBUG_RETURN(3);
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Table discovery is not instrumented.
+    Once discovered, the table will be opened normally,
+    and instrumented normally.
+  */
+#endif
+
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
   {
     free_table_share(&share);
@@ -4220,12 +4395,12 @@ int handler::read_range_first(const key_range *start_key,
   range_key_part= table->key_info[active_index].key_part;
 
   if (!start_key)			// Read first record
-    result= index_first(table->record[0]);
+    result= ha_index_first(table->record[0]);
   else
-    result= index_read_map(table->record[0],
-                           start_key->key,
-                           start_key->keypart_map,
-                           start_key->flag);
+    result= ha_index_read_map(table->record[0],
+                              start_key->key,
+                              start_key->keypart_map,
+                              start_key->flag);
   if (result)
     DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
 		? HA_ERR_END_OF_FILE
@@ -4256,11 +4431,11 @@ int handler::read_range_next()
   if (eq_range)
   {
     /* We trust that index_next_same always gives a row in range */
-    DBUG_RETURN(index_next_same(table->record[0],
-                                end_range->key,
-                                end_range->length));
+    DBUG_RETURN(ha_index_next_same(table->record[0],
+                                   end_range->key,
+                                   end_range->length));
   }
-  result= index_next(table->record[0]);
+  result= ha_index_next(table->record[0]);
   if (result)
     DBUG_RETURN(result);
   DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
@@ -4639,11 +4814,17 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     }
   }
 
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi,
+                                 PSI_TABLE_EXTERNAL_LOCK, MAX_KEY, lock_type);
   /*
     We cache the table flags if the locking succeeded. Otherwise, we
     keep them as they were when they were fetched in ha_open().
   */
   int error= external_lock(thd, lock_type);
+
+  MYSQL_END_TABLE_WAIT(locker);
 
   if (error == 0)
     cached_table_flags= table_flags();
@@ -4699,8 +4880,13 @@ int handler::ha_write_row(uchar *buf)
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_WRITE_ROW, MAX_KEY, 0);
 
   error= write_row(buf);
+
+  MYSQL_END_TABLE_WAIT(locker);
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
@@ -4725,7 +4911,13 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_UPDATE_ROW, MAX_KEY, 0);
+
   error= update_row(old_data, new_data);
+
+  MYSQL_END_TABLE_WAIT(locker);
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
@@ -4742,7 +4934,13 @@ int handler::ha_delete_row(const uchar *buf)
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  struct PSI_table_locker *locker;
+  PSI_table_locker_state state;
+  locker= MYSQL_START_TABLE_WAIT(&state, m_psi, PSI_TABLE_DELETE_ROW, MAX_KEY, 0);
+
   error= delete_row(buf);
+
+  MYSQL_END_TABLE_WAIT(locker);
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
