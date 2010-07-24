@@ -110,7 +110,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
   int error;
   
   if (!ref->key_length)
-    error= table->file->index_first(table->record[0]);
+    error= table->file->ha_index_first(table->record[0]);
   else 
   {
     /*
@@ -132,10 +132,10 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
          Closed interval: Either The MIN argument is non-nullable, or
          we have a >= predicate for the MIN argument.
       */
-      error= table->file->index_read_map(table->record[0],
-                                         ref->key_buff,
-                                         make_prev_keypart_map(ref->key_parts),
-                                         HA_READ_KEY_OR_NEXT);
+      error= table->file->ha_index_read_map(table->record[0],
+                                           ref->key_buff,
+                                           make_prev_keypart_map(ref->key_parts),
+                                           HA_READ_KEY_OR_NEXT);
     else
     {
       /*
@@ -147,10 +147,10 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
         and it would not work.
       */
       DBUG_ASSERT(prefix_len < ref->key_length);
-      error= table->file->index_read_map(table->record[0],
-                                         ref->key_buff,
-                                         make_prev_keypart_map(ref->key_parts),
-                                         HA_READ_AFTER_KEY);
+      error= table->file->ha_index_read_map(table->record[0],
+                                            ref->key_buff,
+                                            make_prev_keypart_map(ref->key_parts),
+                                            HA_READ_AFTER_KEY);
       /* 
          If the found record is outside the group formed by the search
          prefix, or there is no such record at all, check if all
@@ -173,10 +173,10 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len)))
       {
         DBUG_ASSERT(item_field->field->real_maybe_null());
-        error= table->file->index_read_map(table->record[0],
-                                           ref->key_buff,
-                                           make_prev_keypart_map(ref->key_parts),
-                                           HA_READ_KEY_EXACT);
+        error= table->file->ha_index_read_map(table->record[0],
+                                             ref->key_buff,
+                                             make_prev_keypart_map(ref->key_parts),
+                                             HA_READ_KEY_EXACT);
       }
     }
   }
@@ -199,12 +199,12 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
 static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
 {
   return (ref->key_length ?
-          table->file->index_read_map(table->record[0], ref->key_buff,
-                                      make_prev_keypart_map(ref->key_parts),
-                                      range_fl & NEAR_MAX ?
-                                      HA_READ_BEFORE_KEY : 
-                                      HA_READ_PREFIX_LAST_OR_PREV) :
-          table->file->index_last(table->record[0]));
+          table->file->ha_index_read_map(table->record[0], ref->key_buff,
+                                        make_prev_keypart_map(ref->key_parts),
+                                        range_fl & NEAR_MAX ?
+                                        HA_READ_BEFORE_KEY : 
+                                        HA_READ_PREFIX_LAST_OR_PREV) :
+          table->file->ha_index_last(table->record[0]));
 }
 
 
