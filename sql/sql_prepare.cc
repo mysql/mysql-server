@@ -352,8 +352,11 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
                                           &stmt->lex->param_list,
                                           Protocol::SEND_EOF);
   }
-  /* Flag that a response has already been sent */
-  thd->stmt_da->disable_status();
+
+  if (!error)
+    /* Flag that a response has already been sent */
+    thd->stmt_da->disable_status();
+
   DBUG_RETURN(error);
 }
 #else
