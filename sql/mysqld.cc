@@ -3789,7 +3789,7 @@ static int init_server_auto_options()
   const char *groups[]= {"auto", NULL};
   char *uuid= 0;
   my_option auto_options[]= {
-    {"server-uuid", 0, "", (uchar**) &uuid, (uchar **) &uuid,
+    {"server-uuid", 0, "", &uuid, &uuid,
       0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
   };
