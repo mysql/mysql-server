@@ -3059,7 +3059,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  libmysqld/Makefile libmysqld/examples/Makefile dnl
  mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
  sql-bench/Makefile include/mysql_version.h plugin/Makefile win/Makefile dnl
- cmake/Makefile
+ cmake/Makefile packaging/Makefile
  )
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
