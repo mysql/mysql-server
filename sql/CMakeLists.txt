@@ -43,7 +43,7 @@ SET (SQL_SOURCE
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
                ha_partition.cc
-               handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
+               handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
@@ -198,22 +198,15 @@ RUN_BISON(
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash mysys)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
-  COMMAND gen_lex_hash ARGS > lex_hash.h.tmp &&
-  ${CMAKE_COMMAND} -E copy_if_different lex_hash.h.tmp lex_hash.h
-  COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
+  COMMAND gen_lex_hash > lex_hash.h
+)
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
-TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex   
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource
