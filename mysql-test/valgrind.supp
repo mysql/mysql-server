@@ -544,8 +544,6 @@
    Memcheck:Leak
    fun:malloc
    fun:_dl_signal_error
-   fun:_dl_signal_error
-   fun:_dl_lookup_symbol_x
 }
 
 #
