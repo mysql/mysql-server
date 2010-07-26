@@ -11196,8 +11196,8 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
 
 static MYSQL_SYSVAR_ULONG(page_hash_mutexes, srv_n_page_hash_mutexes,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Number of mutexes protecting buffer pool page_hash",
-  NULL, NULL, 256, 1, 1024, 0);
+  "Number of mutexes protecting buffer pool page_hash. Rounded up to the next power of 2",
+  NULL, NULL, 256, 1, MAX_PAGE_HASH_MUTEXES, 0);
 
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
