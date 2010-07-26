@@ -4107,7 +4107,7 @@ lock_release(
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
-	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks), ++count) {
+	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
 			lock_rec_dequeue_from_page(lock);
@@ -4141,8 +4141,11 @@ lock_release(
 
 			count = 0;
 		}
+
+		++count;
 	}
 
+	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_a(ib_vector_size(trx->autoinc_locks) == 0);
 
 	mem_heap_empty(trx->lock.lock_heap);
@@ -4169,13 +4172,15 @@ lock_remove_all_on_table_for_trx(
 						table S and X locks */
 {
 	lock_t*	lock;
-	lock_t*	prev_lock;
 
 	ut_ad(lock_mutex_own());
 
-	lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
+	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
+	     lock != NULL;
+	     /* No op */) {
 
-	while (lock != NULL) {
+		lock_t*	prev_lock;
+
 		prev_lock = UT_LIST_GET_PREV(trx_locks, lock);
 
 		if (lock_get_type_low(lock) == LOCK_REC
