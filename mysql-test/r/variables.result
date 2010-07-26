@@ -21,7 +21,6 @@ set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
 set @my_query_cache_limit         =@@global.query_cache_limit;
 set @my_query_cache_type          =@@global.query_cache_type;
-set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -542,9 +541,6 @@ set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
 set read_rnd_buffer_size=100;
-set global rpl_recovery_rank=100;
-Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
@@ -814,16 +810,16 @@ select @@lc_time_names;
 @@lc_time_names
 en_US
 LC_TIME_NAMES: testing locale with the last ID:
-set lc_time_names=109;
-select @@lc_time_names;
-@@lc_time_names
-el_GR
-LC_TIME_NAMES: testing a number beyond the valid ID range:
 set lc_time_names=110;
-ERROR HY000: Unknown locale: '110'
 select @@lc_time_names;
 @@lc_time_names
-el_GR
+rm_CH
+LC_TIME_NAMES: testing a number beyond the valid ID range:
+set lc_time_names=111;
+ERROR HY000: Unknown locale: '111'
+select @@lc_time_names;
+@@lc_time_names
+rm_CH
 LC_TIME_NAMES: testing that 0 is en_US:
 set lc_time_names=0;
 select @@lc_time_names;
@@ -1063,9 +1059,6 @@ set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;
 set global query_cache_type          =@my_query_cache_type;
-set global rpl_recovery_rank         =@my_rpl_recovery_rank;
-Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;

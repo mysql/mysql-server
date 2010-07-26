@@ -3880,7 +3880,6 @@ btr_blob_free(
 	mtr_commit(mtr);
 
 	buf_pool_mutex_enter(buf_pool);
-	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
 	the same file page. */
@@ -3901,7 +3900,6 @@ btr_blob_free(
 	}
 
 	buf_pool_mutex_exit(buf_pool);
-	mutex_exit(&block->mutex);
 }
 
 /*******************************************************************//**
@@ -4934,7 +4932,7 @@ btr_copy_externally_stored_field(
 
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
-@return	the field copied to heap */
+@return	the field copied to heap, or NULL if the field is incomplete */
 UNIV_INTERN
 byte*
 btr_rec_copy_externally_stored_field(
@@ -4963,6 +4961,18 @@ btr_rec_copy_externally_stored_field(
 	the extern bit is available in those two bytes. */
 
 	data = rec_get_nth_field(rec, offsets, no, &local_len);
+
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	if (UNIV_UNLIKELY
+	    (!memcmp(data + local_len - BTR_EXTERN_FIELD_REF_SIZE,
+		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* The externally stored field was not written yet.
+		This record should only be seen by
+		recv_recovery_rollback_active() or any
+		TRX_ISO_READ_UNCOMMITTED transactions. */
+		return(NULL);
+	}
 
 	return(btr_copy_externally_stored_field(len, data,
 						zip_size, local_len, heap));

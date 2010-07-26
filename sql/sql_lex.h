@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -235,18 +235,21 @@ typedef struct st_lex_master_info
   char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
   float heartbeat_period;
+  int sql_delay;
   ulonglong pos;
   ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+  enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+
+  void set_unspecified();
 } LEX_MASTER_INFO;
 
 
@@ -503,6 +506,7 @@ public:
 					LEX_STRING *alias,
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
+                                        enum_mdl_type mdl_type= MDL_SHARED_READ,
 					List<Index_hint> *hints= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
@@ -635,7 +639,14 @@ public:
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
   Item *prep_having;/* saved HAVING clause for prepared statement processing */
-  /* Saved values of the WHERE and HAVING clauses*/
+  /**
+    Saved values of the WHERE and HAVING clauses. Allowed values are: 
+     - COND_UNDEF if the condition was not specified in the query or if it 
+       has not been optimized yet
+     - COND_TRUE if the condition is always true
+     - COND_FALSE if the condition is impossible
+     - COND_OK otherwise
+  */
   Item::cond_result cond_value, having_value;
   /* point on lex in which it was created, used in view subquery detection */
   LEX *parent_lex;
@@ -800,6 +811,7 @@ public:
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
+                                enum_mdl_type mdl_type= MDL_SHARED_READ,
 				List<Index_hint> *hints= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
@@ -997,7 +1009,7 @@ extern const LEX_STRING null_lex_str;
 extern const LEX_STRING empty_lex_str;
 
 
-struct Sroutine_hash_entry;
+class Sroutine_hash_entry;
 
 /*
   Class representing list of all tables used by statement and other
@@ -1990,7 +2002,7 @@ struct LEX: public Query_tables_list
   bool autocommit;
   bool verbose, no_write_to_binlog;
 
-  bool tx_chain, tx_release;
+  enum enum_yes_no_unknown tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
     When creating a view, we need to just check its syntax omitting
@@ -2267,6 +2279,7 @@ public:
     yacc_yyvs= NULL;
     m_set_signal_info.clear();
     m_lock_type= TL_READ_DEFAULT;
+    m_mdl_type= MDL_SHARED_READ;
   }
 
   ~Yacc_state();
@@ -2278,6 +2291,7 @@ public:
   void reset_before_substatement()
   {
     m_lock_type= TL_READ_DEFAULT;
+    m_mdl_type= MDL_SHARED_READ;
   }
 
   /**
@@ -2316,6 +2330,12 @@ public:
     to get rid of this member eventually.
   */
   thr_lock_type m_lock_type;
+
+  /**
+    The type of requested metadata lock for tables added to
+    the statement table list.
+  */
+  enum_mdl_type m_mdl_type;
 
   /*
     TODO: move more attributes from the LEX structure here.

@@ -404,7 +404,7 @@ IBMDB2I_SHARE *ha_ibmdb2i::get_share(const char *table_name, TABLE *table)
 
 error:
   pthread_mutex_destroy(&share->mutex);
-  my_free((uchar*) share, MYF(0));
+  my_free(share);
   pthread_mutex_unlock(&ibmdb2i_mutex);
 
   return NULL;
@@ -423,7 +423,7 @@ int ha_ibmdb2i::free_share(IBMDB2I_SHARE *share)
     my_hash_delete(&ibmdb2i_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
-    my_free(share, MYF(0));
+    my_free(share);
     pthread_mutex_unlock(&ibmdb2i_mutex);
     return 1;
   }
@@ -571,9 +571,9 @@ ha_ibmdb2i::~ha_ibmdb2i()
   DBUG_ASSERT(activeReferences == 0 || outstanding_start_bulk_insert);
     
   if (indexHandles)
-    my_free(indexHandles, MYF(0));
+    my_free(indexHandles);
   if (indexReadSizeEstimates)
-    my_free(indexReadSizeEstimates, MYF(0));
+    my_free(indexReadSizeEstimates);
   
   cleanupBuffers();
 }

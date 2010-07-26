@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifndef SQL_CLASS_INCLUDED
@@ -472,15 +472,18 @@ typedef struct system_variables
   my_bool sysdate_is_now;
 
   double long_query_time_double;
+
 } SV;
 
 
-/* per thread status variables */
+/**
+  Per thread status variables.
+  Must be long/ulong up to last_system_status_var so that
+  add_to_status/add_diff_to_status can work.
+*/
 
 typedef struct system_status_var
 {
-  ulonglong bytes_received;
-  ulonglong bytes_sent;
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
   ulong created_tmp_disk_tables;
@@ -536,13 +539,14 @@ typedef struct system_status_var
     Number of statements sent from the client
   */
   ulong questions;
+
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
-    Below 'last_system_status_var' are all variables which doesn't make any
-    sense to add to the /global/ status variable counter.
-    Status variables which it does not make sense to add to
-    global status variable counter
+    Below 'last_system_status_var' are all variables that cannot be handled
+    automatically by add_to_status()/add_diff_to_status().
   */
   double last_query_cost;
 } STATUS_VAR;
@@ -1006,7 +1010,6 @@ public:
     of the main statement is called.
   */
   enum enum_locked_tables_mode locked_tables_mode;
-  ulong	version;
   uint current_tablenr;
 
   enum enum_flags {
@@ -1024,15 +1027,6 @@ public:
      call init_open_tables_state().
   */
   Open_tables_state() : state_flags(0U) { }
-
-  /**
-     Prepare Open_tables_state instance for operations dealing with tables.
-  */
-  void init_open_tables_state(THD *thd, ulong version_arg)
-  {
-    reset_open_tables_state(thd);
-    version= version_arg;
-  }
 
   void set_open_tables_state(Open_tables_state *state)
   {
@@ -1225,162 +1219,6 @@ public:
                         MYSQL_ERROR ** cond_hdl);
 
 private:
-};
-
-
-/**
-  An abstract class for a strategy specifying how the prelocking
-  algorithm should extend the prelocking set while processing
-  already existing elements in the set.
-*/
-
-class Prelocking_strategy
-{
-public:
-  virtual ~Prelocking_strategy() { }
-
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking) = 0;
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking) = 0;
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking)= 0;
-};
-
-
-/**
-  A Strategy for prelocking algorithm suitable for DML statements.
-
-  Ensures that all tables used by all statement's SF/SP/triggers and
-  required for foreign key checks are prelocked and SF/SPs used are
-  cached.
-*/
-
-class DML_prelocking_strategy : public Prelocking_strategy
-{
-public:
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
-};
-
-
-/**
-  A strategy for prelocking algorithm to be used for LOCK TABLES
-  statement.
-*/
-
-class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
-{
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-};
-
-
-/**
-  Strategy for prelocking algorithm to be used for ALTER TABLE statements.
-
-  Unlike DML or LOCK TABLES strategy, it doesn't
-  prelock triggers, views or stored routines, since they are not
-  used during ALTER.
-*/
-
-class Alter_table_prelocking_strategy : public Prelocking_strategy
-{
-public:
-
-  Alter_table_prelocking_strategy(Alter_info *alter_info)
-    : m_alter_info(alter_info)
-  {}
-
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
-
-private:
-  Alter_info *m_alter_info;
-};
-
-
-/**
-  A context of open_tables() function, used to recover
-  from a failed open_table() or open_routine() attempt.
-
-  Implemented in sql_base.cc.
-*/
-
-class Open_table_context
-{
-public:
-  enum enum_open_table_action
-  {
-    OT_NO_ACTION= 0,
-    OT_WAIT_MDL_LOCK,
-    OT_WAIT_TDC,
-    OT_DISCOVER,
-    OT_REPAIR
-  };
-  Open_table_context(THD *thd, ulong timeout);
-
-  bool recover_from_failed_open(THD *thd, MDL_request *mdl_request,
-                                TABLE_LIST *table);
-  bool request_backoff_action(enum_open_table_action action_arg);
-
-  void add_request(MDL_request *request)
-  { m_mdl_requests.push_front(request); }
-
-  bool can_recover_from_failed_open() const
-  { return m_action != OT_NO_ACTION; }
-
-  /**
-    When doing a back-off, we close all tables acquired by this
-    statement.  Return an MDL savepoint taken at the beginning of
-    the statement, so that we can rollback to it before waiting on
-    locks.
-  */
-  MDL_ticket *start_of_statement_svp() const
-  {
-    return m_start_of_statement_svp;
-  }
-
-  MDL_request *get_global_mdl_request(THD *thd);
-
-  inline ulong get_timeout() const
-  {
-    return m_timeout;
-  }
-
-private:
-  /** List of requests for all locks taken so far. Used for waiting on locks. */
-  MDL_request_list m_mdl_requests;
-  /** Back off action. */
-  enum enum_open_table_action m_action;
-  MDL_ticket *m_start_of_statement_svp;
-  /**
-    Whether we had any locks when this context was created.
-    If we did, they are from the previous statement of a transaction,
-    and we can't safely do back-off (and release them).
-  */
-  bool m_has_locks;
-  /**
-    Request object for global intention exclusive lock which is acquired during
-    opening tables for statements which take upgradable shared metadata locks.
-  */
-  MDL_request *m_global_mdl_request;
-  /**
-    Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
-    tables or to the "lock_wait_timeout" system variable for regular tables.
-  */
-  uint m_timeout;
 };
 
 
@@ -1732,6 +1570,125 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
+  enum enum_stmt_accessed_table
+  {
+    /*
+       If a transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_TRANS_TABLE= 0,
+    /*
+       If a transactional table is about to be updated.
+    */
+    STMT_WRITES_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_NON_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be updated.
+    */
+    STMT_WRITES_NON_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be read. Note
+       that a write implies a read.
+    */
+    STMT_READS_TEMP_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be read. Note
+      that a write implies a read.
+    */
+    STMT_READS_TEMP_NON_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    /*
+      The last element of the enumeration. Please, if necessary add
+      anything before this.
+    */
+    STMT_ACCESS_TABLE_COUNT
+  };
+
+  /**
+    Sets the type of table that is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+  */
+  inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::set_stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+    stmt_accessed_table_flag |= (1U << accessed_table);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Checks if a type of table is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+
+    @return
+      @retval TRUE  if the type of the table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+
+    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
+  }
+
+  /**
+    Checks if a temporary table is about to be accessed while executing a
+    statement.
+
+    @return
+      @retval TRUE  if a temporary table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
+                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
+  /**
+    Checks if a temporary non-transactional table is about to be accessed
+    while executing a statement.
+
+    @return
+      @retval TRUE  if a temporary non-transactional table is about to be
+                    accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_non_trans_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
 private:
   /**
     Indicates the format in which the current statement will be
@@ -1768,6 +1725,12 @@ private:
     stored routine is invoked.  Only THD persists between the calls.
   */
   uint32 binlog_unsafe_warning_flags;
+
+  /**
+    Bit field that determines the type of tables that are about to be
+    be accessed while executing a statement.
+  */
+  uint32 stmt_accessed_table_flag;
 
   void issue_unsafe_warnings();
 
@@ -2097,8 +2060,31 @@ public:
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
   uint       select_number;             //number of select (used for EXPLAIN)
-  /* variables.transaction_isolation is reset to this after each commit */
-  enum_tx_isolation session_tx_isolation;
+  /*
+    Current or next transaction isolation level.
+    When a connection is established, the value is taken from
+    @@session.tx_isolation (default transaction isolation for
+    the session), which is in turn taken from @@global.tx_isolation
+    (the global value).
+    If there is no transaction started, this variable
+    holds the value of the next transaction's isolation level.
+    When a transaction starts, the value stored in this variable
+    becomes "actual".
+    At transaction commit or rollback, we assign this variable
+    again from @@session.tx_isolation.
+    The only statement that can otherwise change the value
+    of this variable is SET TRANSACTION ISOLATION LEVEL.
+    Its purpose is to effect the isolation level of the next
+    transaction in this session. When this statement is executed,
+    the value in this variable is changed. However, since
+    this statement is only allowed when there is no active
+    transaction, this assignment (naturally) only affects the
+    upcoming transaction.
+    At the end of the current active transaction the value is
+    be reset again from @@session.tx_isolation, as described
+    above.
+  */
+  enum_tx_isolation tx_isolation;
   enum_check_fields count_cuted_fields;
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
@@ -2164,7 +2150,6 @@ public:
     is set if a statement accesses a temporary table created through
     CREATE TEMPORARY TABLE. 
   */
-  bool       thread_temporary_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
@@ -2478,7 +2463,12 @@ public:
   /** Return FALSE if connection to client is broken. */
   bool is_connected()
   {
-    return vio_ok() ? vio_is_connected(net.vio) : FALSE;
+    /*
+      All system threads (e.g., the slave IO thread) are connected but
+      not using vio. So this function always returns true for all
+      system threads.
+    */
+    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
@@ -2676,7 +2666,7 @@ public:
       memcpy(db, new_db, new_db_len+1);
     else
     {
-      x_free(db);
+      my_free(db);
       if (new_db)
         db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else
@@ -2843,6 +2833,12 @@ public:
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
+  void set_open_tables(TABLE *open_tables_arg)
+  {
+    mysql_mutex_lock(&LOCK_thd_data);
+    open_tables= open_tables_arg;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
@@ -2852,6 +2848,18 @@ public:
   }
   void leave_locked_tables_mode();
   int decide_logging_format(TABLE_LIST *tables);
+  void set_current_user_used() { current_user_used= TRUE; }
+  bool is_current_user_used() { return current_user_used; }
+  void clean_current_user_used() { current_user_used= FALSE; }
+  void get_definer(LEX_USER *definer);
+  void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
+  {
+    invoker_user= *user;
+    invoker_host= *host;
+  }
+  LEX_STRING get_invoker_user() { return invoker_user; }
+  LEX_STRING get_invoker_host() { return invoker_host; }
+  bool has_invoker() { return invoker_user.length > 0; }
 private:
 
   /** The current internal error handler for this thread, or NULL. */
@@ -2874,6 +2882,25 @@ private:
   MEM_ROOT main_mem_root;
   Warning_info main_warning_info;
   Diagnostics_area main_da;
+
+  /**
+    It will be set TURE if CURRENT_USER() is called in account management
+    statements or default definer is set in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements.
+
+    Current user will be binlogged into Query_log_event if current_user_used
+    is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
+   */
+  bool current_user_used;
+
+  /**
+    It points to the invoker in the Query_log_event.
+    SQL thread use it as the default definer in CREATE/ALTER SP, SF, Event,
+    TRIGGER or VIEW statements or current user in account management
+    statements if it is not NULL.
+   */
+  LEX_STRING invoker_user;
+  LEX_STRING invoker_host;
 };
 
 
@@ -3427,6 +3454,9 @@ public:
 
   void reset();
   bool walk(tree_walk_action action, void *walk_action_arg);
+
+  uint get_size() const { return size; }
+  ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
 
   friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);

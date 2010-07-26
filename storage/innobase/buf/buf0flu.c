@@ -1300,7 +1300,7 @@ buf_flush_try_neighbors(
 		buf_pool_mutex_enter(buf_pool);
 
 		/* We only want to flush pages from this buffer pool. */
-		bpage = buf_page_hash_get(buf_pool, space, i);
+		bpage = buf_page_hash_get(buf_pool, space, i, NULL);
 
 		if (!bpage) {
 

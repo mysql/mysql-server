@@ -552,15 +552,106 @@ my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
-                                 uchar *dest, size_t dstlen,
-                                 const uchar *src, size_t srclen)
+/*
+  Copy one non-ascii character.
+  "dst" must have enough room for the character.
+  Note, we don't use sort_order[] in this macros.
+  This is correct even for case insensitive collations:
+  - basic Latin letters are processed outside this macros;
+  - for other characters sort_order[x] is equal to x.
+*/
+#define my_strnxfrm_mb_non_ascii_char(cs, dst, src, se)                  \
+{                                                                        \
+  switch (cs->cset->ismbchar(cs, (const char*) src, (const char*) se)) { \
+  case 4:                                                                \
+    *dst++= *src++;                                                      \
+    /* fall through */                                                   \
+  case 3:                                                                \
+    *dst++= *src++;                                                      \
+    /* fall through */                                                   \
+  case 2:                                                                \
+    *dst++= *src++;                                                      \
+    /* fall through */                                                   \
+  case 0:                                                                \
+    *dst++= *src++; /* byte in range 0x80..0xFF which is not MB head */  \
+  }                                                                      \
+}
+
+
+/*
+  For character sets with two or three byte multi-byte
+  characters having multibyte weights *equal* to their codes:
+  cp932, euckr, gb2312, sjis, eucjpms, ujis.
+*/
+size_t
+my_strnxfrm_mb(CHARSET_INFO *cs,
+               uchar *dst, size_t dstlen, uint nweights,
+               const uchar *src, size_t srclen, uint flags)
 {
-  if (dest != src)
-    memcpy(dest, src, min(dstlen, srclen));
-  if (dstlen > srclen)
-    bfill(dest + srclen, dstlen - srclen, ' ');
-  return dstlen;
+  uchar *d0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  const uchar *sort_order= cs->sort_order;
+
+  DBUG_ASSERT(cs->mbmaxlen <= 4);
+
+  /*
+    If "srclen" is smaller than both "dstlen" and "nweights"
+    then we can run a simplified loop -
+    without checking "nweights" and "de".
+  */
+  if (dstlen >= srclen && nweights >= srclen)
+  {
+    if (sort_order)
+    {
+      /* Optimized version for a case insensitive collation */
+      for (; src < se; nweights--)
+      {
+        if (*src < 128) /* quickly catch ASCII characters */
+          *dst++= sort_order[*src++];
+        else
+          my_strnxfrm_mb_non_ascii_char(cs, dst, src, se);
+      }
+    }
+    else
+    {
+      /* Optimized version for a case sensitive collation (no sort_order) */
+      for (; src < se; nweights--)
+      {
+        if (*src < 128) /* quickly catch ASCII characters */
+          *dst++= *src++;
+        else
+          my_strnxfrm_mb_non_ascii_char(cs, dst, src, se);
+      }
+    }
+    goto pad;
+  }
+
+  /*
+    A thourough loop, checking all possible limits:
+    "se", "nweights" and "de".
+  */
+  for (; src < se && nweights && dst < de; nweights--)
+  {
+    int chlen;
+    if (*src < 128 ||
+        !(chlen= cs->cset->ismbchar(cs, (const char*) src, (const char*) se)))
+    {
+      /* Single byte character */
+      *dst++= sort_order ? sort_order[*src++] : *src++;
+    }
+    else
+    {
+      /* Multi-byte character */
+      int len= (dst + chlen <= de) ? chlen : de - dst;
+      memcpy(dst, src, len);
+      dst+= len;
+      src+= len;
+    }
+  }
+
+pad:
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
 
 
@@ -1116,9 +1207,14 @@ size_t my_numcells_mb(CHARSET_INFO *cs, const char *b, const char *e)
   {
     int mb_len;
     uint pg;
-    if ((mb_len= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
+    if ((mb_len= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0 ||
+        wc > 0xFFFF)
     {
-      mb_len= 1; /* Let's think a wrong sequence takes 1 dysplay cell */
+      /*
+        Let's think a wrong sequence takes 1 dysplay cell.
+        Also, consider supplementary characters as taking one cell.
+      */
+      mb_len= 1;
       b++;
       continue;
     }
@@ -1159,7 +1255,7 @@ MY_COLLATION_HANDLER my_collation_mb_bin_handler =
     NULL,		/* init */
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
-    my_strnxfrm_mb_bin,
+    my_strnxfrm_mb,
     my_strnxfrmlen_simple,
     my_like_range_mb,
     my_wildcmp_mb_bin,

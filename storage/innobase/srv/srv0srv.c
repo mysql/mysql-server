@@ -138,6 +138,21 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 UNIV_INTERN my_bool	srv_use_native_aio = TRUE;
 
+#ifdef __WIN__
+/* Windows native condition variables. We use runtime loading / function
+pointers, because they are not available on Windows Server 2003 and
+Windows XP/2000.
+
+We use condition for events on Windows if possible, even if os_event
+resembles Windows kernel event object well API-wise. The reason is
+performance, kernel objects are heavyweights and WaitForSingleObject() is a
+performance killer causing calling thread to context switch. Besides, Innodb
+is preallocating large number (often millions) of os_events. With kernel event
+objects it takes a big chunk out of non-paged pool, which is better suited
+for tasks like IO than for storing idle event objects. */
+UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
+#endif /* __WIN__ */
+
 UNIV_INTERN ulint	srv_n_data_files = 0;
 UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
@@ -192,6 +207,8 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
+/* number of mutexes to protect buf_pool->page_hash */
+UNIV_INTERN ulint	srv_n_page_hash_mutexes = 256;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -2890,6 +2907,8 @@ srv_purge_coordinator_thread(
 	if (srv_n_purge_threads > 1) {
 		srv_wake_worker_threads(srv_n_purge_threads - 1);
 	}
+
+	ut_ad(srv_table_get_nth_slot(slot_no) == slot);
 
 	/* Decrement the active count. */
 	srv_suspend_thread();

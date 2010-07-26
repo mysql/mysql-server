@@ -15,17 +15,15 @@
 
 #ifndef _mysys_err_h
 #define _mysys_err_h
+
 #ifdef	__cplusplus
-
-#include "my_global.h"                          /* NEAR */
-
 extern "C" {
 #endif
 
 #define GLOBERRS (EE_ERROR_LAST - EE_ERROR_FIRST + 1) /* Nr of global errors */
 #define EE(X)    (globerrs[(X) - EE_ERROR_FIRST])
 
-extern const char * NEAR globerrs[];	/* my_error_messages is here */
+extern const char *globerrs[];  /* my_error_messages is here */
 
 /* Error message numbers in global map */
 /*

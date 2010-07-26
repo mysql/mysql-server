@@ -8,8 +8,6 @@ SET SESSION BINLOG_FORMAT=STATEMENT;
 INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 START TRANSACTION;
 INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
