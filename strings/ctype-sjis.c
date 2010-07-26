@@ -304,85 +304,6 @@ static size_t my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-/*
-** Calculate min_str and max_str that ranges a LIKE string.
-** Arguments:
-** ptr		Pointer to LIKE string.
-** ptr_length	Length of LIKE string.
-** escape	Escape character in LIKE.  (Normally '\').
-**		All escape characters should be removed from min_str and max_str
-** res_length	Length of min_str and max_str.
-** min_str	Smallest case sensitive string that ranges LIKE.
-**		Should be space padded to res_length.
-** max_str	Largest case sensitive string that ranges LIKE.
-**		Normally padded with the biggest character sort value.
-**
-** The function should return 0 if ok and 1 if the LIKE string can't be
-** optimized !
-*/
-
-#define max_sort_char ((char) 255)
-
-static my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
-				  const char *ptr,size_t ptr_length,
-				  pbool escape, pbool w_one, pbool w_many,
-				  size_t res_length,
-                                  char *min_str,char *max_str,
-				  size_t *min_length,size_t *max_length)
-{
-  const char *end= ptr + ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-  size_t charlen= res_length / cs->mbmaxlen;
-
-  for ( ; ptr < end && min_str < min_end && charlen > 0 ; charlen--)
-  {
-    if (ismbchar_sjis(cs, ptr, end)) {
-      *min_str++ = *max_str++ = *ptr++;
-      if (min_str < min_end)
-	*min_str++ = *max_str++ = *ptr++;
-      continue;
-    }
-    if (*ptr == escape && ptr+1 < end) {
-      ptr++;				/* Skip escape */
-      if (ismbchar_sjis(cs, ptr, end))
-	*min_str++ = *max_str++ = *ptr++;
-      if (min_str < min_end)
-	*min_str++ = *max_str++ = *ptr++;
-      continue;
-    }
-    if (*ptr == w_one) {		/* '_' in SQL */
-      *min_str++ = '\0';		/* This should be min char */
-      *max_str++ = max_sort_char;
-      ptr++;
-      continue;
-    }
-    if (*ptr == w_many)
-    {						/* '%' in SQL */
-      /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
-      */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      do
-      {
-	*min_str++= 0;
-	*max_str++= max_sort_char;
-      } while (min_str < min_end);
-      return 0;
-    }
-    *min_str++ = *max_str++ = *ptr++;
-  }
-
-  *min_length= *max_length= (size_t) (min_str - min_org);
-  while (min_str != min_end)
-    *min_str++= *max_str++= ' ';              /* Because if key compression */
-  return 0;
-}
-
 /* page 0 0x00A1-0x00DF */
 static uint16 tab_sjis_uni0[]={
 0xFF61,0xFF62,0xFF63,0xFF64,0xFF65,0xFF66,0xFF67,0xFF68,
@@ -4628,7 +4549,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strnncollsp_sjis,
   my_strnxfrm_sjis,
   my_strnxfrmlen_simple,
-  my_like_range_sjis,
+  my_like_range_mb,
   my_wildcmp_mb,	/* wildcmp  */
   my_strcasecmp_8bit,
   my_instr_mb,
@@ -4694,7 +4615,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
@@ -4726,7 +4647,7 @@ CHARSET_INFO my_charset_sjis_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
