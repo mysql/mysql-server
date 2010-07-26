@@ -6438,7 +6438,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xF7FE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
@@ -6471,7 +6471,7 @@ CHARSET_INFO my_charset_gb2312_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xF7FE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
