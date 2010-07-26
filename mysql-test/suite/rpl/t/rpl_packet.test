@@ -1,7 +1,12 @@
+# ==== Purpose ====
 #
 # Check replication protocol packet size handling
-# Bug#19402 SQL close to the size of the max_allowed_packet fails on slave
 #
+# ==== Related bugs ====
+# Bug#19402 SQL close to the size of the max_allowed_packet fails on slave
+# BUG#23755: Replicated event larger that max_allowed_packet infinitely re-transmits
+# BUG#42914: No LAST_IO_ERROR for max_allowed_packet errors
+# BUG#55322: SHOW BINLOG EVENTS increases @@SESSION.MAX_ALLOWED_PACKET
 
 # max-out size db name 
 source include/master-slave.inc;
@@ -118,6 +123,38 @@ let $slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
 --echo Slave_IO_Running = $slave_io_running (expect No)
 let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
 eval SELECT "$last_io_error" AS Last_IO_Error;
+
+# Remove the bad binlog and clear error status on slave.
+STOP SLAVE;
+RESET SLAVE;
+--connection master
+RESET MASTER;
+
+
+#
+# BUG#55322: SHOW BINLOG EVENTS increases @@SESSION.MAX_ALLOWED_PACKET
+#
+# In BUG#55322, @@session.max_allowed_packet increased each time SHOW
+# BINLOG EVENTS was issued. To verify that this bug is fixed, we
+# execute SHOW BINLOG EVENTS twice and check that max_allowed_packet
+# never changes.  We turn off the result log because we don't care
+# about the contents of the binlog.
+
+--disable_result_log
+SET @max_allowed_packet_0= @@session.max_allowed_packet;
+SHOW BINLOG EVENTS;
+SET @max_allowed_packet_1= @@session.max_allowed_packet;
+SHOW BINLOG EVENTS;
+SET @max_allowed_packet_2= @@session.max_allowed_packet;
+--enable_result_log
+if (`SELECT NOT(@max_allowed_packet_0 = @max_allowed_packet_1 AND @max_allowed_packet_1 = @max_allowed_packet_2)`)
+{
+  --echo ERROR: max_allowed_packet changed after executing SHOW BINLOG EVENTS
+  --source include/show_rpl_debug_info.inc
+  SELECT @max_allowed_packet_0, @max_allowed_packet_1, @max_allowed_packet_2;
+  --die @max_allowed_packet changed after executing SHOW BINLOG EVENTS
+}
+
 
 --echo ==== clean up ====
 connection master;
