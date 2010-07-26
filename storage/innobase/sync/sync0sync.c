@@ -1205,6 +1205,13 @@ sync_thread_add_level(
 		}
 		break;
 
+
+	case SYNC_BUF_PAGE_HASH:
+		/* Multiple page_hash mutexes are only allowed during
+		buf_validate and that is where buf_pool mutex is already
+		held. */
+		/* Fall through */
+
 	case SYNC_BUF_BLOCK:
 		/* Either the thread must own the buffer pool mutex
 		(buf_pool_mutex), or it is allowed to latch only ONE

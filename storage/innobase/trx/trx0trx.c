@@ -163,7 +163,8 @@ trx_create(
 	trx->was_chosen_as_deadlock_victim = FALSE;
 	UT_LIST_INIT(trx->wait_thrs);
 
-	trx->lock_heap = mem_heap_create_in_buffer(256);
+	trx->lock_heap = mem_heap_create_typed(256,
+					MEM_HEAP_FOR_LOCK_HEAP);
 	UT_LIST_INIT(trx->trx_locks);
 
 	UT_LIST_INIT(trx->trx_savepoints);
