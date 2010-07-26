@@ -48,6 +48,18 @@ create table newdb.t1 (a int primary key) engine=myisam;
 # Create Ndb table with Blobs
 # Lots of Blobs to increase prob. that Ndb-list-objects returns a
 # Blob part table before the main table.
+#
+--disable_warnings
+#
+# drop table if exists used to avoid 'table already exists' error on
+# embedded where there is only one server (and this problem cannot be
+# tested).
+# Drop of non-existing table generates a warning on non-embedded, so 
+# warnings disabled.
+#
+drop table if exists newdb.t1;
+--enable_warnings
+
 create table newdb.t1 (a int primary key,
                        b1  blob,
                        b2  blob,
