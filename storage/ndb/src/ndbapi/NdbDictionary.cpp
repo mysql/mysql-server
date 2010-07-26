@@ -2065,10 +2065,19 @@ int
 NdbDictionary::Dictionary::createTable(const Table & t)
 {
   int ret;
-  DO_TRANS(
-    ret,
-    m_impl.createTable(NdbTableImpl::getImpl(t))
-  );
+  if (likely(! is_ndb_blob_table(t.getName())))
+  {
+    DO_TRANS(
+      ret,
+      m_impl.createTable(NdbTableImpl::getImpl(t))
+    );
+  }
+  else
+  {
+    /* 4307 : Invalid table name */
+    m_impl.m_error.code = 4307;
+    ret = -1;
+  }
   return ret;
 }
 
@@ -2093,10 +2102,19 @@ int
 NdbDictionary::Dictionary::dropTable(Table & t)
 {
   int ret;
-  DO_TRANS(
-    ret,
-    m_impl.dropTable(NdbTableImpl::getImpl(t))
-  );
+  if (likely(! is_ndb_blob_table(t.getName())))
+  {
+    DO_TRANS(
+      ret,
+      m_impl.dropTable(NdbTableImpl::getImpl(t))
+    );
+  }
+  else
+  {
+    /* 4249 : Invalid table */
+    m_impl.m_error.code = 4249;
+    ret = -1;
+  }
   return ret;
 }
 
@@ -2104,10 +2122,19 @@ int
 NdbDictionary::Dictionary::dropTableGlobal(const Table & t)
 {
   int ret;
-  DO_TRANS(
-    ret,
-    m_impl.dropTableGlobal(NdbTableImpl::getImpl(t))
-  );
+  if (likely(! is_ndb_blob_table(t.getName())))
+  {
+    DO_TRANS(
+      ret,
+      m_impl.dropTableGlobal(NdbTableImpl::getImpl(t))
+    );
+  }
+  else
+  {
+    /* 4249 : Invalid table */
+    m_impl.m_error.code = 4249;
+    ret = -1;
+  }
   return ret;
 }
 
@@ -2115,10 +2142,19 @@ int
 NdbDictionary::Dictionary::dropTable(const char * name)
 {
   int ret;
-  DO_TRANS(
-    ret,
-    m_impl.dropTable(name)
-  );
+  if (likely(! is_ndb_blob_table(name)))
+  {
+    DO_TRANS(
+      ret,
+      m_impl.dropTable(name)
+    );
+  }
+  else
+  {
+    /* 4307 : Invalid table name */
+    m_impl.m_error.code = 4307;
+    ret = -1;
+  }
   return ret;
 }
 
