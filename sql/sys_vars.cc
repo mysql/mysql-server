@@ -942,10 +942,10 @@ static bool update_cached_long_query_time(sys_var *self, THD *thd,
 {
   if (type == OPT_SESSION)
     thd->variables.long_query_time=
-      thd->variables.long_query_time_double * 1e6;
+      double2ulonglong(thd->variables.long_query_time_double * 1e6);
   else
     global_system_variables.long_query_time=
-      global_system_variables.long_query_time_double * 1e6;
+      double2ulonglong(global_system_variables.long_query_time_double * 1e6);
   return false;
 }
 
@@ -1608,7 +1608,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
        "semicolon (;)"
 #else
        "colon (:)"
@@ -2363,7 +2363,7 @@ static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
        SESSION_VAR(select_limit), NO_CMD_LINE,
-       VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
+       VALID_RANGE(0, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
 
 static bool update_timestamp(THD *thd, set_var *var)
 {

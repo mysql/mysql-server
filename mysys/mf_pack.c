@@ -18,13 +18,8 @@
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
-#ifdef VMS
-#include <rms.h>
-#include <iodef.h>
-#include <descrip.h>
-#endif /* VMS */
 
-static char * NEAR_F expand_tilde(char * *path);
+static char * expand_tilde(char **path);
 
 	/* Pack a dirname ; Changes HOME to ~/ and current dev to ./ */
 	/* from is a dirname (from dirname() ?) ending with FN_LIBCHAR */
@@ -52,7 +47,7 @@ void pack_dirname(char * to, const char *from)
     buff_length= strlen(buff);
     d_length= (size_t) (start-to);
     if ((start == to ||
-	 (buff_length == d_length && !bcmp(buff,start,d_length))) &&
+	 (buff_length == d_length && !memcmp(buff,start,d_length))) &&
 	*start != FN_LIBCHAR && *start)
     {						/* Put current dir before */
       bchange((uchar*) to, d_length, (uchar*) buff, buff_length, strlen(to)+1);
@@ -70,7 +65,7 @@ void pack_dirname(char * to, const char *from)
     }
     if (length > 1 && length < d_length)
     {						/* test if /xx/yy -> ~/yy */
-      if (bcmp(to,home_dir,length) == 0 && to[length] == FN_LIBCHAR)
+      if (memcmp(to,home_dir,length) == 0 && to[length] == FN_LIBCHAR)
       {
 	to[0]=FN_HOMELIB;			/* Filename begins with ~ */
 	(void) strmov_overlapp(to+1,to+length);
@@ -80,7 +75,7 @@ void pack_dirname(char * to, const char *from)
     {						/* Test if cwd is ~/... */
       if (length > 1 && length < buff_length)
       {
-	if (bcmp(buff,home_dir,length) == 0 && buff[length] == FN_LIBCHAR)
+	if (memcmp(buff,home_dir,length) == 0 && buff[length] == FN_LIBCHAR)
 	{
 	  buff[0]=FN_HOMELIB;
 	  (void) strmov_overlapp(buff+1,buff+length);
@@ -166,7 +161,7 @@ size_t cleanup_dirname(register char *to, const char *from)
       *pos = FN_LIBCHAR;
     if (*pos == FN_LIBCHAR)
     {
-      if ((size_t) (pos-start) > length && bcmp(pos-length,parent,length) == 0)
+      if ((size_t) (pos-start) > length && memcmp(pos-length,parent,length) == 0)
       {						/* If .../../; skip prev */
 	pos-=length;
 	if (pos != start)
@@ -197,7 +192,7 @@ size_t cleanup_dirname(register char *to, const char *from)
 	  end_parentdir=pos;
 	  while (pos >= start && *pos != FN_LIBCHAR)	/* remove prev dir */
 	    pos--;
-	  if (pos[1] == FN_HOMELIB || bcmp(pos,parent,length) == 0)
+	  if (pos[1] == FN_HOMELIB || memcmp(pos,parent,length) == 0)
 	  {					/* Don't remove ~user/ */
 	    pos=strmov(end_parentdir+1,parent);
 	    *pos=FN_LIBCHAR;
@@ -206,7 +201,7 @@ size_t cleanup_dirname(register char *to, const char *from)
 	}
       }
       else if ((size_t) (pos-start) == length-1 &&
-	       !bcmp(start,parent+1,length-1))
+	       !memcmp(start,parent+1,length-1))
 	start=pos;				/* Starts with "../" */
       else if (pos-start > 0 && pos[-1] == FN_LIBCHAR)
       {
@@ -300,8 +295,7 @@ size_t normalize_dirname(char *to, const char *from)
 
   /*
     Despite the name, this actually converts the name to the system's
-    format (TODO: rip out the non-working VMS stuff and name this
-    properly).
+    format (TODO: name this properly).
   */
   (void) intern_filename(buff, from);
   length= strlen(buff);			/* Fix that '/' is last */
@@ -377,7 +371,7 @@ size_t unpack_dirname(char * to, const char *from)
 	/* Expand tilde to home or user-directory */
 	/* Path is reset to point at FN_LIBCHAR after ~xxx */
 
-static char * NEAR_F expand_tilde(char * *path)
+static char * expand_tilde(char **path)
 {
   if (path[0][0] == FN_LIBCHAR)
     return home_dir;			/* ~/ expanded to home */
@@ -443,73 +437,10 @@ size_t unpack_filename(char * to, const char *from)
 	/* Used before system command's like open(), create() .. */
 	/* Returns used length of to; total length should be FN_REFLEN */
 
-size_t system_filename(char * to, const char *from)
+size_t system_filename(char *to, const char *from)
 {
-#ifndef FN_C_BEFORE_DIR
   return (size_t) (strmake(to,from,FN_REFLEN-1)-to);
-#else	/* VMS */
-
-	/* change 'dev:lib/xxx' to 'dev:[lib]xxx' */
-	/* change 'dev:xxx' to 'dev:xxx' */
-	/* change './xxx' to 'xxx' */
-	/* change './lib/' or lib/ to '[.lib]' */
-	/* change '/x/y/z to '[x.y]x' */
-	/* change 'dev:/x' to 'dev:[000000]x' */
-
-  int libchar_found;
-  size_t length;
-  char * to_pos,from_pos,pos;
-  char buff[FN_REFLEN];
-  DBUG_ENTER("system_filename");
-
-  libchar_found=0;
-  (void) strmov(buff,from);			 /* If to == from */
-  from_pos= buff;
-  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skip device part */
-  {
-    pos++;
-    to_pos=strnmov(to,from_pos,(size_t) (pos-from_pos));
-    from_pos=pos;
-  }
-  else
-    to_pos=to;
-
-  if (from_pos[0] == FN_CURLIB && from_pos[1] == FN_LIBCHAR)
-    from_pos+=2;				/* Skip './' */
-  if (strchr(from_pos,FN_LIBCHAR))
-  {
-    *(to_pos++) = FN_C_BEFORE_DIR;
-    if (strinstr(from_pos,FN_ROOTDIR) == 1)
-    {
-      from_pos+=strlen(FN_ROOTDIR);		/* Actually +1 but... */
-      if (! strchr(from_pos,FN_LIBCHAR))
-      {						/* No dir, use [000000] */
-	to_pos=strmov(to_pos,FN_C_ROOT_DIR);
-	libchar_found++;
-      }
-    }
-    else
-      *(to_pos++)=FN_C_DIR_SEP;			/* '.' gives current dir */
-
-    while ((pos=strchr(from_pos,FN_LIBCHAR)))
-    {
-      if (libchar_found++)
-	*(to_pos++)=FN_C_DIR_SEP;		/* Add '.' between dirs */
-      if (strinstr(from_pos,FN_PARENTDIR) == 1 &&
-	  from_pos+strlen(FN_PARENTDIR) == pos)
-	to_pos=strmov(to_pos,FN_C_PARENT_DIR);	/* Found '../' */
-      else
-	to_pos=strnmov(to_pos,from_pos,(size_t) (pos-from_pos));
-      from_pos=pos+1;
-    }
-    *(to_pos++)=FN_C_AFTER_DIR;
-  }
-  length= (size_t) (strmov(to_pos,from_pos)-to);
-  DBUG_PRINT("exit",("name: '%s'",to));
-  DBUG_RETURN(length);
-#endif
-} /* system_filename */
-
+}
 
 	/* Fix a filename to intern (UNIX format) */
 

@@ -177,9 +177,6 @@ my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
 
 void dynstr_free(DYNAMIC_STRING *str)
 {
-  if (str->str)
-  {
-    my_free(str->str,MYF(MY_WME));
-    str->str=0;
-  }
+  my_free(str->str);
+  str->str= NULL;
 }
