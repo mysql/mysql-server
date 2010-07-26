@@ -30,43 +30,12 @@
     has its first two arguments the other way around you may find this a
     bit easier to get right.
     No value is returned.
-
-    Note: the "b" routines are there to exploit certain VAX order codes,
-    but the MOVC3 instruction will only move 65535 characters.	 The asm
-    code is presented for your interest and amusement.
 */
 
 #include <my_global.h>
 #include "m_string.h"
 
 #if !defined(HAVE_BMOVE) && !defined(bmove)
-
-#if VaxAsm
-
-void bmove(dst, src, len)
-    char *dst, *src;
-    uint len;
-    {
- asm("movc3 12(ap),*8(ap),*4(ap)");
-    }
-
-#else
-#if defined(MC68000) && defined(DS90)
-
-void bmove(dst, src, len)
-char *dst,*src;
-uint len;				/* 0 <= len <= 65535 */
-{
-asm("		movl	12(a7),d0	");
-asm("		subql	#1,d0		");
-asm("		blt	.L5		");
-asm("		movl	4(a7),a1	");
-asm("		movl	8(a7),a0	");
-asm(".L4:	movb	(a0)+,(a1)+	");
-asm("		dbf	d0,.L4		");
-asm(".L5:				");
-}
-#else
 
 void bmove(dst, src, len)
 register char *dst;
@@ -75,6 +44,5 @@ register uint len;
 {
   while (len-- != 0) *dst++ = *src++;
 }
-#endif
-#endif
+
 #endif
