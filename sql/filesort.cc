@@ -1677,7 +1677,7 @@ void change_double_for_sort(double nr,uchar *to)
   else
   {
 #ifdef WORDS_BIGENDIAN
-    memcpy_fixed(tmp,&nr,sizeof(nr));
+    memcpy(tmp, &nr, sizeof(nr));
 #else
     {
       uchar *ptr= (uchar*) &nr;

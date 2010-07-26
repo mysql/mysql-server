@@ -25,9 +25,6 @@ C_MODE_START
 #include <signal.h>
 
 #define MAX_SIGNALS	10		/* Max signals under a dont-allow */
-#define MIN_KEYBLOCK	(min(IO_SIZE,1024))
-#define MAX_KEYBLOCK	8192		/* Max keyblocklength == 8*IO_SIZE */
-#define MAX_BLOCK_TYPES MAX_KEYBLOCK/MIN_KEYBLOCK
 
 struct st_remember {
   int number;
@@ -48,9 +45,6 @@ extern struct st_my_file_info my_file_info_default[MY_NFILE];
 
 extern ulonglong query_performance_frequency, query_performance_offset;
 
-#if defined(THREAD) && !defined(__WIN__)
-extern sigset_t my_signals;		/* signals blocked by mf_brkhant */
-#endif
 C_MODE_END
 
 #endif /* MYSYS_MY_STATIC_INCLUDED */

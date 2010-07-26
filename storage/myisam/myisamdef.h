@@ -26,8 +26,9 @@
 #endif
 #include <mysql/psi/mysql_file.h>
 
-#if defined(my_write) && !defined(MAP_TO_USE_RAID)
-#undef my_write				/* undef map from my_nosys; We need test-if-disk full */
+/* undef map from my_nosys; We need test-if-disk full */
+#if defined(my_write)
+#undef my_write
 #endif
 
 typedef struct st_mi_status_info
@@ -130,9 +131,6 @@ typedef struct st_mi_base_info
   /* Extra allocation when using dynamic record format */
   uint extra_alloc_bytes;
   uint extra_alloc_procent;
-  /* Info about raid */
-  uint raid_type,raid_chunks;
-  ulong raid_chunksize;
   /* The following are from the header */
   uint key_parts,all_key_parts;
 } MI_BASE_INFO;
@@ -549,10 +547,6 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			   MI_KEY_PARAM *s_temp);
 void _mi_store_var_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			     MI_KEY_PARAM *s_temp);
-#ifdef NOT_USED
-void _mi_store_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
-			 MI_KEY_PARAM *s_temp);
-#endif
 void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			    MI_KEY_PARAM *s_temp);
 
