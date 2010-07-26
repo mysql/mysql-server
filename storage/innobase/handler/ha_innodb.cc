@@ -10795,13 +10795,16 @@ innodb_monitor_update(
 {
 	monitor_info_t*	monitor_info;
 	monitor_id_t	monitor_id;
+	ulint		temp_id;
 	ulint		err_monitor = 0;
 
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(monitor_id_t*) save) <= NUM_MONITOR);
 
-	monitor_id = *(const monitor_id_t*) save;
+	temp_id = *(ulint *) save;
+	ut_a(temp_id <= NUM_MONITOR);
+
+	monitor_id = (monitor_id_t) temp_id;
 
 	if (monitor_id == MONITOR_DEFAULT_START) {
 		/* If user set the variable to "default", we will
