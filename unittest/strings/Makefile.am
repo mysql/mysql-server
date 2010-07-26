@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,13 +13,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SUBDIRS      = mytap . mysys examples gunit strings
+AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
+AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
 
-EXTRA_DIST = unit.pl
-CLEANFILES = unit
+LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
+		  $(top_builddir)/mysys/libmysys.a \
+		  $(top_builddir)/dbug/libdbug.a \
+		  $(top_builddir)/strings/libmystrings.a
 
-test:
-	perl unit.pl run .
+noinst_PROGRAMS  = strings-t
 
-test-verbose:
-	HARNESS_VERBOSE=1 perl unit.pl run .
+# Don't update the files from bitkeeper
+%::SCCS/s.%
