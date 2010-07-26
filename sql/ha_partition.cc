@@ -3416,18 +3416,17 @@ ha_rows ha_partition::guess_bulk_insert_rows()
 
   SYNOPSIS
     end_bulk_insert()
-    abort		1 if table will be deleted (error condition)
 
   RETURN VALUE
     >0                      Error code
     0                       Success
 
   Note: end_bulk_insert can be called without start_bulk_insert
-        being called, see bug¤44108.
+        being called, see bug#44108.
 
 */
 
-int ha_partition::end_bulk_insert(bool abort)
+int ha_partition::end_bulk_insert()
 {
   int error= 0;
   uint i;
@@ -3440,7 +3439,7 @@ int ha_partition::end_bulk_insert(bool abort)
   {
     int tmp;
     if (bitmap_is_set(&m_bulk_insert_started, i) &&
-        (tmp= m_file[i]->ha_end_bulk_insert(abort)))
+        (tmp= m_file[i]->ha_end_bulk_insert()))
       error= tmp;
   }
   bitmap_clear_all(&m_bulk_insert_started);

@@ -948,7 +948,7 @@ int Write_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
     fires bug#27077
     todo: explain or fix
   */
-  if ((local_error= table->file->ha_end_bulk_insert(0)))
+  if ((local_error= table->file->ha_end_bulk_insert()))
   {
     table->file->print_error(local_error, MYF(0));
   }
@@ -2644,7 +2644,7 @@ Write_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabili
     fires bug#27077
     todo: explain or fix
   */
-  if ((local_error= m_table->file->ha_end_bulk_insert(0)))
+  if ((local_error= m_table->file->ha_end_bulk_insert()))
   {
     m_table->file->print_error(local_error, MYF(0));
   }

@@ -163,7 +163,7 @@ if [ -f "storage/pbxt/bin/xtstat.exe" ] ; then
   cp storage/pbxt/bin/xtstat.{exe,pdb} $DESTDIR/bin
 fi
 
-cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
+cp server-tools/instance-manager/$TARGET/*.exe           $DESTDIR/bin/
 if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
   cp client/$TARGET/mysql.pdb                            $DESTDIR/bin/
@@ -361,7 +361,7 @@ cp -R mysql-test/{t,r,include,suite,std_data,lib,collections} $DESTDIR/mysql-tes
 
 rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_kill.{dir,vcproj}
 rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_process.{dir,vcproj}
-rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/{Debug,RelWithDebInfo}/*.{ilk,idb,map}
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/{Debug,RelWithDebInfo}/*.{ilk,idb}
 
 
 # Note that this will not copy "extra" if a soft link

@@ -330,7 +330,7 @@ libxtradb_a_CFLAGS=	$(AM_CFLAGS)
 EXTRA_LTLIBRARIES=	ha_xtradb.la
 pkgplugin_LTLIBRARIES=	@plugin_xtradb_shared_target@
 
-ha_xtradb_la_LDFLAGS=	-module -rpath $(pkgplugindir)
+ha_xtradb_la_LDFLAGS=	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 ha_xtradb_la_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_xtradb_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_xtradb_la_SOURCES=	$(libxtradb_a_SOURCES)

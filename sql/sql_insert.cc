@@ -881,7 +881,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       auto_inc values from the delayed_insert thread as they share TABLE.
     */
     table->file->ha_release_auto_increment();
-    if (using_bulk_insert && table->file->ha_end_bulk_insert(0) && !error)
+    if (using_bulk_insert && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -3288,7 +3288,7 @@ bool select_insert::send_eof()
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
-  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert(0) : 0;
+  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert() : 0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3371,7 +3371,7 @@ void select_insert::abort() {
       before.
     */
     if (!thd->prelocked_mode)
-      table->file->ha_end_bulk_insert(0);
+      table->file->ha_end_bulk_insert();
 
     /*
       If at least one row has been inserted/modified and will stay in
