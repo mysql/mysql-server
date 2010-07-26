@@ -7478,15 +7478,14 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 char *re_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL,
-			  epbuf, sizeof(epbuf));
+  size_t len= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }
 
 void init_re_comp(my_regex_t *re, const char* str)
 {
-  int err= my_regcomp(re, str, (REG_EXTENDED | REG_ICASE | REG_NOSUB),
+  int err= my_regcomp(re, str, (MY_REG_EXTENDED | MY_REG_ICASE | MY_REG_NOSUB),
                       &my_charset_latin1);
   if (err)
   {
@@ -7542,7 +7541,7 @@ int match_re(my_regex_t *re, char *str)
 
   if (err == 0)
     return 1;
-  else if (err == REG_NOMATCH)
+  else if (err == MY_REG_NOMATCH)
     return 0;
 
   {
@@ -8943,7 +8942,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   char *buf= *buf_p;
   int len;
   int buf_len, need_buf_len;
-  int cflags= REG_EXTENDED;
+  int cflags= MY_REG_EXTENDED;
   int err_code;
   char *res_p,*str_p,*str_end;
 
@@ -8960,7 +8959,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   SECURE_REG_BUF
 
   if (icase)
-    cflags|= REG_ICASE;
+    cflags|= MY_REG_ICASE;
 
   if ((err_code= my_regcomp(&r,pattern,cflags,&my_charset_latin1)))
   {
@@ -8980,10 +8979,10 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   {
     /* find the match */
     err_code= my_regexec(&r,str_p, r.re_nsub+1, subs,
-                         (str_p == string) ? REG_NOTBOL : 0);
+                         (str_p == string) ? MY_REG_NOTBOL : 0);
 
     /* if regular expression error (eg. bad syntax, or out of memory) */
-    if (err_code && err_code != REG_NOMATCH)
+    if (err_code && err_code != MY_REG_NOMATCH)
     {
       check_regerr(&r,err_code);
       my_regfree(&r);
@@ -9016,7 +9015,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         /* found a valid back_ref (eg. \1)*/
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          regoff_t start_off, end_off;
+          my_regoff_t start_off, end_off;
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
@@ -9059,7 +9058,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          regoff_t start_off, end_off;
+          my_regoff_t start_off, end_off;
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
