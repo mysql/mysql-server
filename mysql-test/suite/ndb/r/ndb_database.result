@@ -19,6 +19,7 @@ drop table `mysqltest.db`.t1;
 drop database `mysqltest.db`;
 create database newdb;
 create table newdb.t1 (a int primary key) engine=myisam;
+drop table if exists newdb.t1;
 create table newdb.t1 (a int primary key,
 b1  blob,
 b2  blob,
