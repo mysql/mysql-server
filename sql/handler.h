@@ -34,10 +34,6 @@
 #include <ft_global.h>
 #include <keycache.h>
 
-#ifndef NO_HASH
-#define NO_HASH				/* Not yet implemented */
-#endif
-
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1

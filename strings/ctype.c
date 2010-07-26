@@ -75,6 +75,7 @@ struct my_cs_file_section_st
 #define	_CS_DIFF2	20
 #define	_CS_DIFF3	21
 #define	_CS_IDENTICAL	22
+#define _CS_UCA_VERSION 23
 
 
 static struct my_cs_file_section_st sec[] =
@@ -110,6 +111,7 @@ static struct my_cs_file_section_st sec[] =
   {_CS_DIFF2,		"charsets/charset/collation/rules/s"},
   {_CS_DIFF3,		"charsets/charset/collation/rules/t"},
   {_CS_IDENTICAL,	"charsets/charset/collation/rules/i"},
+  {_CS_UCA_VERSION,     "charsets/charset/collation/version"},
   {0,	NULL}
 };
 
@@ -126,6 +128,7 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, size_t len)
 
 #define MY_CS_CSDESCR_SIZE	64
 #define MY_CS_TAILORING_SIZE	1024
+#define MY_CS_UCA_VERSION_SIZE  64
 
 typedef struct my_cs_file_info
 {
@@ -239,6 +242,18 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
   case _CS_CSDESCRIPT:
     i->cs.comment=mstr(i->comment,attr,len,MY_CS_CSDESCR_SIZE-1);
     break;
+  case _CS_UCA_VERSION:
+      if (sizeof(i->tailoring) > len + sizeof("[version %.*s]"))
+      {
+        /*
+          We cannot use my_snprintf() here, because ctype.o is
+          used to build conf_to_src, which must require minimun
+          dependency.
+        */
+        sprintf(i->tailoring, "[version %.*s]", (int) len, attr);
+        i->tailoring_length= strlen(i->tailoring);
+      }
+    break;
   case _CS_FLAG:
     if (!strncmp("primary",attr,len))
       i->cs.state|= MY_CS_PRIMARY;
@@ -294,7 +309,8 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 
 
 my_bool my_parse_charset_xml(const char *buf, size_t len,
-                             int (*add_collation)(CHARSET_INFO *cs))
+                             int (*add_collation)(CHARSET_INFO *cs),
+                             char *error, size_t errsize)
 {
   MY_XML_PARSER p;
   struct my_cs_file_info i;
@@ -308,6 +324,18 @@ my_bool my_parse_charset_xml(const char *buf, size_t len,
   my_xml_set_user_data(&p,(void*)&i);
   rc= (my_xml_parse(&p,buf,len) == MY_XML_OK) ? FALSE : TRUE;
   my_xml_parser_free(&p);
+  if (rc != MY_XML_OK)
+  {
+    const char *errstr= my_xml_error_string(&p);
+    if (errsize > 32 + strlen(errstr))
+    {
+      /* We cannot use my_snprintf() here. See previous comment. */
+      sprintf(error, "at line %d pos %d: %s",
+                my_xml_error_lineno(&p)+1,
+                (int) my_xml_error_pos(&p),
+                my_xml_error_string(&p));
+    }
+  }
   return rc;
 }
 

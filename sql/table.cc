@@ -801,7 +801,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   share->key_info= keyinfo;
-  key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
+  key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
@@ -1814,8 +1814,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
       goto err;
     outparam->key_info= key_info;
-    key_part= (my_reinterpret_cast(KEY_PART_INFO*) (key_info+share->keys));
-    
+    key_part= (reinterpret_cast<KEY_PART_INFO*>(key_info+share->keys));
+
     memcpy(key_info, share->key_info, sizeof(*key_info)*share->keys);
     memcpy(key_part, share->key_info[0].key_part, (sizeof(*key_part) *
                                                    share->key_parts));

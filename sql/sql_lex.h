@@ -520,11 +520,11 @@ public:
   st_select_lex* outer_select();
   st_select_lex* first_select()
   {
-    return my_reinterpret_cast(st_select_lex*)(slave);
+    return reinterpret_cast<st_select_lex*>(slave);
   }
   st_select_lex_unit* next_unit()
   {
-    return my_reinterpret_cast(st_select_lex_unit*)(next);
+    return reinterpret_cast<st_select_lex_unit*>(next);
   }
   void exclude_level();
   void exclude_tree();
@@ -928,8 +928,6 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
-extern const LEX_STRING empty_lex_str;
-
 
 class Sroutine_hash_entry;
 

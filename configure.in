@@ -1212,7 +1212,6 @@ case $SYSTEM_TYPE in
     # Fixes for HPUX 11.0 compiler
     if test "$ac_cv_prog_gcc" = "no"
     then
-      CFLAGS="$CFLAGS -DHAVE_BROKEN_INLINE"
 # set working flags first in line, letting override it (i. e. for debug):
       CXXFLAGS="+O2 $CXXFLAGS"
       MAX_C_OPTIMIZE=""
@@ -1999,6 +1998,9 @@ fi
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
+AS_IF([test "x$ac_cv_c_inline" = "xno"],
+ [AC_MSG_WARN([The C compiler does not support inline. Beware that unused
+ functions might not be eliminated the object files.])])
 AC_TYPE_OFF_T
 AC_STRUCT_ST_RDEV
 AC_HEADER_TIME
@@ -3061,7 +3063,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  libmysqld/Makefile libmysqld/examples/Makefile dnl
  mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
  sql-bench/Makefile include/mysql_version.h plugin/Makefile win/Makefile dnl
- cmake/Makefile
+ cmake/Makefile packaging/Makefile
  )
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)

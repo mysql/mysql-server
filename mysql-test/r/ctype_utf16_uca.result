@@ -166,6 +166,7 @@ insert into t1 values (0x01f4),(0x01f5),(0x01f6),(0x01f7);
 insert into t1 values (0x01f8),(0x01f9),(0x01fa),(0x01fb);
 insert into t1 values (0x01fc),(0x01fd),(0x01fe),(0x01ff);
 insert into t1 values ('AA'),('Aa'),('aa'),('aA');
+insert into t1 values ('AE'),('Ae'),('ae'),('aE');
 insert into t1 values ('CH'),('Ch'),('ch'),('cH');
 insert into t1 values ('DZ'),('Dz'),('dz'),('dZ');
 insert into t1 values ('IJ'),('Ij'),('ij'),('iJ');
@@ -181,6 +182,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -285,6 +287,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÂÃàâãĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 Áá
 ǢǣǼǽ
 Bb
@@ -398,6 +401,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -511,6 +515,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÃÄÅàáãäåĀāĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 Ăă
 Ââ
 ÆæǢǣǼǽ
@@ -620,6 +625,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -727,6 +733,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 Ąą
 ÆæǢǣǼǽ
 Bb
@@ -839,6 +846,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÅàáâãåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -951,6 +959,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -1056,6 +1065,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃàáâãĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ǢǣǼǽ
 Bb
 ƀ
@@ -1163,6 +1173,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -1273,6 +1284,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -1382,6 +1394,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃàáâãĀāĂăĄąǍǎǞǟǠǡǺǻ
 aA
+AEAeaEae
 ǢǣǼǽ
 Bb
 ƀ
@@ -1489,6 +1502,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -1596,6 +1610,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÅàáâãåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 Ää
 ÆæǢǣǼǽ
 Bb
@@ -1706,6 +1721,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -1813,6 +1829,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -1920,6 +1937,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -2030,6 +2048,7 @@ group_concat(c1 order by binary c1 separator '')
 ×
 AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
 AAAaaAaa
+AEAeaEae
 ÆæǢǣǼǽ
 Bb
 ƀ
@@ -2105,6 +2124,210 @@ TtŢţŤť
 Ʈ
 UuÙÚÛùúûŨũŪūŬŭŮůŲųƯưǓǔǕǖǗǘǙǚǛǜ
 ÜüŰű
+Ɯ
+Ʊ
+Vv
+Ʋ
+WwŴŵ
+Xx
+YyÝýÿŶŷŸ
+Ƴƴ
+ZzŹźŻżŽž
+ƍ
+Ƶƶ
+ƷǮǯ
+Ƹƹ
+ƺ
+Þþ
+ƿǷ
+ƻ
+Ƨƨ
+Ƽƽ
+Ƅƅ
+ŉ
+ǀ
+ǁ
+ǂ
+ǃ
+select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_german2_ci;
+group_concat(c1 order by binary c1 separator '')
+÷
+×
+AaÀÁÂÃÅàáâãåĀāĂăĄąǍǎǞǟǠǡǺǻ
+AAAaaAaa
+AEAeaEaeÄÆäæ
+ǢǣǼǽ
+Bb
+ƀ
+Ɓ
+Ƃƃ
+CcÇçĆćĈĉĊċČč
+CHChcHch
+Ƈƈ
+DdĎď
+DZDzdZdzǄǅǆǱǲǳ
+Đđ
+Ɖ
+Ɗ
+Ƌƌ
+Ðð
+EeÈÉÊËèéêëĒēĔĕĖėĘęĚě
+Ǝǝ
+Ə
+Ɛ
+Ff
+Ƒƒ
+GgĜĝĞğĠġĢģǦǧǴǵ
+Ǥǥ
+Ɠ
+Ɣ
+Ƣƣ
+HhĤĥ
+ƕǶ
+Ħħ
+IiÌÍÎÏìíîïĨĩĪīĬĭĮįİǏǐ
+IJIjiJijĲĳ
+ı
+Ɨ
+Ɩ
+JjĴĵǰ
+KkĶķǨǩ
+Ƙƙ
+LlĹĺĻļĽľ
+Ŀŀ
+LJLjlJljǇǈǉ
+LLLllLll
+Łł
+ƚ
+ƛ
+Mm
+NnÑñŃńŅņŇňǸǹ
+NJNjnJnjǊǋǌ
+Ɲ
+ƞ
+Ŋŋ
+OoÒÓÔÕòóôõŌōŎŏŐőƠơǑǒǪǫǬǭ
+OEOeoEoeÖöŒœ
+ØøǾǿ
+Ɔ
+Ɵ
+Pp
+Ƥƥ
+Qq
+ĸ
+RrŔŕŖŗŘř
+RRRrrRrr
+Ʀ
+SsŚśŜŝŞşŠšſ
+SSSssSssß
+Ʃ
+ƪ
+TtŢţŤť
+ƾ
+Ŧŧ
+ƫ
+Ƭƭ
+Ʈ
+UuÙÚÛùúûŨũŪūŬŭŮůŰűŲųƯưǓǔǕǖǗǘǙǚǛǜ
+Üü
+Ɯ
+Ʊ
+Vv
+Ʋ
+WwŴŵ
+Xx
+YyÝýÿŶŷŸ
+Ƴƴ
+ZzŹźŻżŽž
+ƍ
+Ƶƶ
+ƷǮǯ
+Ƹƹ
+ƺ
+Þþ
+ƿǷ
+ƻ
+Ƨƨ
+Ƽƽ
+Ƅƅ
+ŉ
+ǀ
+ǁ
+ǂ
+ǃ
+select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_unicode_520_ci;
+group_concat(c1 order by binary c1 separator '')
+÷
+×
+AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻ
+AAAaaAaa
+AEAeaEaeÆæǢǣǼǽ
+Bb
+ƀ
+Ɓ
+Ƃƃ
+CcÇçĆćĈĉĊċČč
+CHChcHch
+Ƈƈ
+DdÐðĎďĐđ
+DZDzdZdzǄǅǆǱǲǳ
+Ɖ
+Ɗ
+Ƌƌ
+EeÈÉÊËèéêëĒēĔĕĖėĘęĚě
+Ǝǝ
+Ə
+Ɛ
+Ff
+Ƒƒ
+GgĜĝĞğĠġĢģǦǧǴǵ
+Ǥǥ
+Ɠ
+Ɣ
+Ƣƣ
+HhĤĥĦħ
+ƕǶ
+IiÌÍÎÏìíîïĨĩĪīĬĭĮįİǏǐ
+IJIjiJijĲĳ
+ı
+Ɨ
+Ɩ
+JjĴĵǰ
+KkĶķǨǩ
+Ƙƙ
+LlĹĺĻļĽľĿŀŁł
+LJLjlJljǇǈǉ
+LLLllLll
+ƚ
+ƛ
+Mm
+NnÑñŃńŅņŇňǸǹ
+NJNjnJnjǊǋǌ
+Ɲ
+ƞ
+Ŋŋ
+OoÒÓÔÕÖØòóôõöøŌōŎŏŐőƠơǑǒǪǫǬǭǾǿ
+OEOeoEoeŒœ
+Ɔ
+Ɵ
+Pp
+Ƥƥ
+Qq
+ĸ
+RrŔŕŖŗŘř
+RRRrrRrr
+Ʀ
+SsŚśŜŝŞşŠšſ
+SSSssSssß
+Ʃ
+ƪ
+TtŢţŤť
+ƾ
+Ŧŧ
+ƫ
+Ƭƭ
+Ʈ
+UuÙÚÛÜùúûüŨũŪūŬŭŮůŰűŲųƯưǓǔǕǖǗǘǙǚǛǜ
 Ɯ
 Ʊ
 Vv
@@ -2803,6 +3026,304 @@ ae	00610065
 æ	00E6
 drop table t1;
 "END ctype_german.inc"
+#
+# WL#2673 Unicode Collation Algorithm new version
+#
+SET NAMES utf8mb4;
+SET collation_connection=utf16_unicode_520_ci;
+CREATE TABLE t1 AS SELECT repeat('a', 10) as c LIMIT 0;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` varchar(10) CHARACTER SET utf16 COLLATE utf16_unicode_520_ci NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES (_utf32 0x0180),(_utf32 0x023A);
+INSERT INTO t1 VALUES (_utf32 0x023B),(_utf32 0x023C);
+INSERT INTO t1 VALUES (_utf32 0x023D),(_utf32 0x023E);
+INSERT INTO t1 VALUES (_utf32 0x0241),(_utf32 0x0242);
+INSERT INTO t1 VALUES (_utf32 0x0243),(_utf32 0x0244);
+INSERT INTO t1 VALUES (_utf32 0x0245),(_utf32 0x0246);
+INSERT INTO t1 VALUES (_utf32 0x0247),(_utf32 0x0248);
+INSERT INTO t1 VALUES (_utf32 0x0249),(_utf32 0x024A);
+INSERT INTO t1 VALUES (_utf32 0x024B),(_utf32 0x024C);
+INSERT INTO t1 VALUES (_utf32 0x024D),(_utf32 0x024E);
+INSERT INTO t1 VALUES (_utf32 0x024F),(_utf32 0x026B);
+INSERT INTO t1 VALUES (_utf32 0x027D),(_utf32 0x0289);
+INSERT INTO t1 VALUES (_utf32 0x028C);
+INSERT INTO t1 VALUES (_utf32 0x037B), (_utf32 0x037C);
+INSERT INTO t1 VALUES (_utf32 0x037D), (_utf32 0x03FD);
+INSERT INTO t1 VALUES (_utf32 0x03FE), (_utf32 0x03FF);
+INSERT INTO t1 VALUES (_utf32 0x04C0), (_utf32 0x04CF);
+INSERT INTO t1 VALUES (_utf32 0x04F6), (_utf32 0x04F7);
+INSERT INTO t1 VALUES (_utf32 0x04FA), (_utf32 0x04FB);
+INSERT INTO t1 VALUES (_utf32 0x04FC), (_utf32 0x04FD);
+INSERT INTO t1 VALUES (_utf32 0x04FE), (_utf32 0x04FF);
+INSERT INTO t1 VALUES (_utf32 0x0510), (_utf32 0x0511);
+INSERT INTO t1 VALUES (_utf32 0x0512), (_utf32 0x0513);
+INSERT INTO t1 VALUES (_utf32 0x10A0), (_utf32 0x10A1);
+INSERT INTO t1 VALUES (_utf32 0x10A2), (_utf32 0x10A3);
+INSERT INTO t1 VALUES (_utf32 0x10A4), (_utf32 0x10A5);
+INSERT INTO t1 VALUES (_utf32 0x10A6), (_utf32 0x10A7);
+INSERT INTO t1 VALUES (_utf32 0x2D00), (_utf32 0x2D01);
+INSERT INTO t1 VALUES (_utf32 0x2D02), (_utf32 0x2D03);
+INSERT INTO t1 VALUES (_utf32 0x2D04), (_utf32 0x2D05);
+INSERT INTO t1 VALUES (_utf32 0x2D06), (_utf32 0x2D07);
+INSERT INTO t1 VALUES (_utf32 0x1D7D);
+INSERT INTO t1 VALUES (_utf32 0x2132),(_utf32 0x214E);
+INSERT INTO t1 VALUES (_utf32 0x2183),(_utf32 0x2184);
+INSERT INTO t1 VALUES (_utf32 0x2C80), (_utf32 0x2C81);
+INSERT INTO t1 VALUES (_utf32 0x2C82), (_utf32 0x2C83);
+INSERT INTO t1 VALUES (_utf32 0x2C84), (_utf32 0x2C85);
+INSERT INTO t1 VALUES (_utf32 0x2C86), (_utf32 0x2C87);
+INSERT INTO t1 VALUES (_utf32 0x2C88), (_utf32 0x2C89);
+INSERT INTO t1 VALUES (_utf32 0x2C8A), (_utf32 0x2C8B);
+INSERT INTO t1 VALUES (_utf32 0x2C8C), (_utf32 0x2C8D);
+INSERT INTO t1 VALUES (_utf32 0x2C8E), (_utf32 0x2C8F);
+INSERT INTO t1 VALUES (_utf32 0x2C60), (_utf32 0x2C61);
+INSERT INTO t1 VALUES (_utf32 0x2C62), (_utf32 0x2C63);
+INSERT INTO t1 VALUES (_utf32 0x2C64), (_utf32 0x2C65);
+INSERT INTO t1 VALUES (_utf32 0x2C66), (_utf32 0x2C67);
+INSERT INTO t1 VALUES (_utf32 0x2C68), (_utf32 0x2C69);
+INSERT INTO t1 VALUES (_utf32 0x2C6A), (_utf32 0x2C6B);
+INSERT INTO t1 VALUES (_utf32 0x2C6C), (_utf32 0x2C75);
+INSERT INTO t1 VALUES (_utf32 0x2C76);
+INSERT INTO t1 VALUES (_utf32 0x2C00), (_utf32 0x2C01);
+INSERT INTO t1 VALUES (_utf32 0x2C02), (_utf32 0x2C03);
+INSERT INTO t1 VALUES (_utf32 0x2C04), (_utf32 0x2C05);
+INSERT INTO t1 VALUES (_utf32 0x2C06), (_utf32 0x2C07);
+INSERT INTO t1 VALUES (_utf32 0x2C30), (_utf32 0x2C31);
+INSERT INTO t1 VALUES (_utf32 0x2C32), (_utf32 0x2C33);
+INSERT INTO t1 VALUES (_utf32 0x2C34), (_utf32 0x2C35);
+INSERT INTO t1 VALUES (_utf32 0x2C36), (_utf32 0x2C37);
+INSERT INTO t1 VALUES (_utf32 0x10400), (_utf32 0x10401);
+INSERT INTO t1 VALUES (_utf32 0x10402), (_utf32 0x10403);
+INSERT INTO t1 VALUES (_utf32 0x10404), (_utf32 0x10405);
+INSERT INTO t1 VALUES (_utf32 0x10406), (_utf32 0x10407);
+INSERT INTO t1 VALUES (_utf32 0x10428), (_utf32 0x10429);
+INSERT INTO t1 VALUES (_utf32 0x1042A), (_utf32 0x1042B);
+INSERT INTO t1 VALUES (_utf32 0x1042C), (_utf32 0x1042D);
+INSERT INTO t1 VALUES (_utf32 0x1042E), (_utf32 0x1042F);
+INSERT INTO t1 VALUES (_utf32 0x0370);
+INSERT INTO t1 VALUES (_utf32 0x0371);
+INSERT INTO t1 VALUES (_utf32 0x0372);
+INSERT INTO t1 VALUES (_utf32 0x0373);
+INSERT INTO t1 VALUES (_utf32 0x0514);
+INSERT INTO t1 VALUES (_utf32 0x0515);
+INSERT INTO t1 VALUES (_utf32 0x0516);
+INSERT INTO t1 VALUES (_utf32 0x0517);
+INSERT INTO t1 VALUES (_utf32 0xA640);
+INSERT INTO t1 VALUES (_utf32 0xA641);
+INSERT INTO t1 VALUES (_utf32 0xA642);
+INSERT INTO t1 VALUES (_utf32 0xA643);
+INSERT INTO t1 VALUES (_utf32 0xA722);
+INSERT INTO t1 VALUES (_utf32 0xA723);
+INSERT INTO t1 VALUES (_utf32 0xA724);
+INSERT INTO t1 VALUES (_utf32 0xA725);
+INSERT INTO t1 VALUES (_utf32 0xA726);
+INSERT INTO t1 VALUES (_utf32 0xA727);
+INSERT INTO t1 VALUES (_utf32 0xA728);
+INSERT INTO t1 VALUES (_utf32 0xA729);
+INSERT INTO t1 VALUES (_utf32 0xA72A);
+INSERT INTO t1 VALUES (_utf32 0xA72B);
+INSERT INTO t1 VALUES (_utf32 0x2CEB);
+INSERT INTO t1 VALUES (_utf32 0x2CEC);
+INSERT INTO t1 VALUES (_utf32 0x2CED);
+INSERT INTO t1 VALUES (_utf32 0x2CEE);
+SELECT hex(c), hex(lower(c)), hex(upper(c)), hex(weight_string(c)), c
+FROM t1 ORDER BY c, BINARY c;
+hex(c)	hex(lower(c))	hex(upper(c))	hex(weight_string(c))	c
+023A	2C65	023A	1214	Ⱥ
+2C65	2C65	023A	1214	ⱥ
+0180	0180	0243	122D	ƀ
+0243	0180	0243	122D	Ƀ
+023B	023C	023B	1242	Ȼ
+023C	023C	023B	1242	ȼ
+2183	2184	2183	124E	Ↄ
+2184	2184	2183	124E	ↄ
+0246	0247	0246	1270	Ɇ
+0247	0247	0246	1270	ɇ
+2132	214E	2132	12AE	Ⅎ
+214E	214E	2132	12AE	ⅎ
+2C67	2C68	2C67	12E3	Ⱨ
+2C68	2C68	2C67	12E3	ⱨ
+2C75	2C76	2C75	12E4	Ⱶ
+2C76	2C76	2C75	12E4	ⱶ
+A726	A727	A726	12E5	Ꜧ
+A727	A727	A726	12E5	ꜧ
+0248	0249	0248	130E	Ɉ
+0249	0249	0248	130E	ɉ
+2C69	2C6A	2C69	1328	Ⱪ
+2C6A	2C6A	2C69	1328	ⱪ
+023D	019A	023D	133B	Ƚ
+2C60	2C61	2C60	133F	Ⱡ
+2C61	2C61	2C60	133F	ⱡ
+026B	026B	2C62	1340	ɫ
+2C62	026B	2C62	1340	Ɫ
+1D7D	1D7D	2C63	13B8	ᵽ
+2C63	1D7D	2C63	13B8	Ᵽ
+024A	024B	024A	13D2	Ɋ
+024B	024B	024A	13D2	ɋ
+024C	024D	024C	13E4	Ɍ
+024D	024D	024C	13E4	ɍ
+027D	027D	2C64	13FC	ɽ
+2C64	027D	2C64	13FC	Ɽ
+A728	A729	A728	143314AD	Ꜩ
+A729	A729	A728	143314AD	ꜩ
+023E	2C66	023E	143C	Ⱦ
+2C66	2C66	023E	143C	ⱦ
+0244	0289	0244	145B	Ʉ
+0289	0289	0244	145B	ʉ
+0245	028C	0245	1489	Ʌ
+028C	028C	0245	1489	ʌ
+024E	024F	024E	14A4	Ɏ
+024F	024F	024E	14A4	ɏ
+2C6B	2C6C	2C6B	14C8	Ⱬ
+2C6C	2C6C	2C6B	14C8	ⱬ
+A72A	A72B	A72A	14F3	Ꜫ
+A72B	A72B	A72A	14F3	ꜫ
+0241	0242	0241	1506	Ɂ
+0242	0242	0241	1506	ɂ
+A722	A723	A722	150E	Ꜣ
+A723	A723	A722	150E	ꜣ
+A724	A725	A724	1518	Ꜥ
+A725	A725	A724	1518	ꜥ
+0370	0371	0370	154F	Ͱ
+0371	0371	0370	154F	ͱ
+037C	037C	03FE	1564	ͼ
+03FE	037C	03FE	1564	Ͼ
+037B	037B	03FD	1565	ͻ
+03FD	037B	03FD	1565	Ͻ
+037D	037D	03FF	1566	ͽ
+03FF	037D	03FF	1566	Ͽ
+0372	0373	0372	156F	Ͳ
+0373	0373	0372	156F	ͳ
+2C80	2C81	2C80	1571	Ⲁ
+2C81	2C81	2C80	1571	ⲁ
+2C82	2C83	2C82	1572	Ⲃ
+2C83	2C83	2C82	1572	ⲃ
+2C84	2C85	2C84	1573	Ⲅ
+2C85	2C85	2C84	1573	ⲅ
+2C86	2C87	2C86	1574	Ⲇ
+2C87	2C87	2C86	1574	ⲇ
+2C88	2C89	2C88	1575	Ⲉ
+2C89	2C89	2C88	1575	ⲉ
+2C8A	2C8B	2C8A	1577	Ⲋ
+2C8B	2C8B	2C8A	1577	ⲋ
+2C8C	2C8D	2C8C	1578	Ⲍ
+2C8D	2C8D	2C8C	1578	ⲍ
+2C8E	2C8F	2C8E	1579	Ⲏ
+2C8F	2C8F	2C8E	1579	ⲏ
+2CEB	2CEC	2CEB	1591	Ⳬ
+2CEC	2CEC	2CEB	1591	ⳬ
+2CED	2CEE	2CED	15A0	Ⳮ
+2CEE	2CEE	2CED	15A0	ⳮ
+04FA	04FB	04FA	15D4	Ӻ
+04FB	04FB	04FA	15D4	ӻ
+04F6	04F7	04F6	15DC	Ӷ
+04F7	04F7	04F6	15DC	ӷ
+A640	A641	A640	1611	Ꙁ
+A641	A641	A640	1611	ꙁ
+0510	0511	0510	1613	Ԑ
+0511	0511	0510	1613	ԑ
+A642	A643	A642	1618	Ꙃ
+A643	A643	A642	1618	ꙃ
+0512	0513	0512	1666	Ԓ
+0513	0513	0512	1666	ԓ
+0514	0515	0514	166E	Ԕ
+0515	0515	0514	166E	ԕ
+0516	0517	0516	16B7	Ԗ
+0517	0517	0516	16B7	ԗ
+04FC	04FD	04FC	16F9	Ӽ
+04FD	04FD	04FC	16F9	ӽ
+04FE	04FF	04FE	16FD	Ӿ
+04FF	04FF	04FE	16FD	ӿ
+04C0	04CF	04C0	17B1	Ӏ
+04CF	04CF	04C0	17B1	ӏ
+2C00	2C30	2C00	17B5	Ⰰ
+2C30	2C30	2C00	17B5	ⰰ
+2C01	2C31	2C01	17B6	Ⰱ
+2C31	2C31	2C01	17B6	ⰱ
+2C02	2C32	2C02	17B7	Ⰲ
+2C32	2C32	2C02	17B7	ⰲ
+2C03	2C33	2C03	17B8	Ⰳ
+2C33	2C33	2C03	17B8	ⰳ
+2C04	2C34	2C04	17B9	Ⰴ
+2C34	2C34	2C04	17B9	ⰴ
+2C05	2C35	2C05	17BA	Ⰵ
+2C35	2C35	2C05	17BA	ⰵ
+2C06	2C36	2C06	17BB	Ⰶ
+2C36	2C36	2C06	17BB	ⰶ
+2C07	2C37	2C07	17BC	Ⰷ
+2C37	2C37	2C07	17BC	ⰷ
+10A0	2D00	10A0	17E5	Ⴀ
+2D00	2D00	10A0	17E5	ⴀ
+10A1	2D01	10A1	17E7	Ⴁ
+2D01	2D01	10A1	17E7	ⴁ
+10A2	2D02	10A2	17E9	Ⴂ
+2D02	2D02	10A2	17E9	ⴂ
+10A3	2D03	10A3	17EB	Ⴃ
+2D03	2D03	10A3	17EB	ⴃ
+10A4	2D04	10A4	17ED	Ⴄ
+2D04	2D04	10A4	17ED	ⴄ
+10A5	2D05	10A5	17EF	Ⴅ
+2D05	2D05	10A5	17EF	ⴅ
+10A6	2D06	10A6	17F1	Ⴆ
+2D06	2D06	10A6	17F1	ⴆ
+10A7	2D07	10A7	17F5	Ⴇ
+2D07	2D07	10A7	17F5	ⴇ
+D801DC00	D801DC28	D801DC00	30D2	𐐀
+D801DC28	D801DC28	D801DC00	30D2	𐐨
+D801DC01	D801DC29	D801DC01	30D3	𐐁
+D801DC29	D801DC29	D801DC01	30D3	𐐩
+D801DC02	D801DC2A	D801DC02	30D4	𐐂
+D801DC2A	D801DC2A	D801DC02	30D4	𐐪
+D801DC03	D801DC2B	D801DC03	30D5	𐐃
+D801DC2B	D801DC2B	D801DC03	30D5	𐐫
+D801DC04	D801DC2C	D801DC04	30D6	𐐄
+D801DC2C	D801DC2C	D801DC04	30D6	𐐬
+D801DC05	D801DC2D	D801DC05	30D7	𐐅
+D801DC2D	D801DC2D	D801DC05	30D7	𐐭
+D801DC06	D801DC2E	D801DC06	30D8	𐐆
+D801DC2E	D801DC2E	D801DC06	30D8	𐐮
+D801DC07	D801DC2F	D801DC07	30D9	𐐇
+D801DC2F	D801DC2F	D801DC07	30D9	𐐯
+INSERT INTO t1 VALUES ('a');
+INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0xFFFF));
+INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0x10FFFF));
+INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0x10400));
+SELECT hex(c), hex(weight_string(c)) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
+hex(c)	hex(weight_string(c))
+0061	120F
+0061D801DC00	120F30D2
+0061FFFF	120FFBC1FFFF
+0061DBFFDFFF	120FFBE1FFFF
+SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDER BY c, BINARY c;
+hex(c)	hex(weight_string(c))	c
+D801DC00	30D2	𐐀
+D801DC28	30D2	𐐨
+SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
+hex(c)	hex(weight_string(c))	c
+D801DC00	30D2	𐐀
+D801DC28	30D2	𐐨
+ALTER TABLE t1 ADD KEY(c);
+EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	42	NULL	2	Using where; Using index
+SELECT hex(c), hex(weight_string(c)) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
+hex(c)	hex(weight_string(c))
+0061	120F
+0061D801DC00	120F30D2
+0061FFFF	120FFBC1FFFF
+0061DBFFDFFF	120FFBE1FFFF
+SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDER BY c, BINARY c;
+hex(c)	hex(weight_string(c))	c
+D801DC00	30D2	𐐀
+D801DC28	30D2	𐐨
+SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
+hex(c)	hex(weight_string(c))	c
+D801DC00	30D2	𐐀
+D801DC28	30D2	𐐨
+DROP TABLE t1;
 #
 # End of 5.6 tests
 #
