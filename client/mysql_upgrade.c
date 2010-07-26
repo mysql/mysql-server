@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "client_priv.h"
 #include <sslopt-vars.h>
@@ -753,17 +753,35 @@ static void print_line(char* line)
 static int run_sql_fix_privilege_tables(void)
 {
   int found_real_errors= 0;
+  const char **query_ptr;
+  DYNAMIC_STRING ds_script;
   DYNAMIC_STRING ds_result;
   DBUG_ENTER("run_sql_fix_privilege_tables");
+
+  if (init_dynamic_string(&ds_script, "", 65536, 1024))
+    die("Out of memory");
 
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
   verbose("Running 'mysql_fix_privilege_tables'...");
-  run_query(mysql_fix_privilege_tables,
+
+  /*
+    Individual queries can not be executed independently by invoking
+    a forked mysql client, because the script uses session variables
+    and prepared statements.
+  */
+  for ( query_ptr= &mysql_fix_privilege_tables[0];
+        *query_ptr != NULL;
+        query_ptr++
+      )
+  {
+    dynstr_append(&ds_script, *query_ptr);
+  }
+
+  run_query(ds_script.str,
             &ds_result, /* Collect result */
             TRUE);
-
   {
     /*
       Scan each line of the result for real errors
@@ -788,6 +806,7 @@ static int run_sql_fix_privilege_tables(void)
   }
 
   dynstr_free(&ds_result);
+  dynstr_free(&ds_script);
   return found_real_errors;
 }
 
