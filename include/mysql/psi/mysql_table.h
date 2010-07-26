@@ -30,35 +30,56 @@
 */
 
 /**
-  @def MYSQL_START_TABLE_WAIT
+  @def MYSQL_TABLE_WAIT_VARIABLES
   Instrumentation helper for table waits.
-  This instrumentation marks the start of a wait event.
-  @param STATE The locker state
-  @param PSI The instrumented table
-  @param OP The table operation to be performed
-  @param INDEX The table index used if any, or MAY_KEY.
-  @param FLAGS Per table operation flags.
+  This instrumentation declares local variables.
+  Do not use a ';' after this macro
+  @param LOCKER the locker
+  @param STATE the locker state
+  @sa MYSQL_START_TABLE_WAIT.
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_INTERFACE
-  #define MYSQL_START_TABLE_WAIT(STATE, PSI, OP, INDEX, FLAGS) \
-    inline_mysql_start_table_wait(STATE, PSI, OP, INDEX, FLAGS, __FILE__, __LINE__)
+  #define MYSQL_TABLE_WAIT_VARIABLES(LOCKER, STATE) \
+    struct PSI_table_locker* LOCKER; \
+    PSI_table_locker_state STATE;
 #else
-  #define MYSQL_START_TABLE_WAIT(STATE, PSI, OP, INDEX, FLAGS) \
-    NULL
+  #define MYSQL_TABLE_WAIT_VARIABLES(LOCKER, STATE)
+#endif
+
+/**
+  @def MYSQL_START_TABLE_WAIT
+  Instrumentation helper for table waits.
+  This instrumentation marks the start of a wait event.
+  @param LOCKER the locker
+  @param STATE the locker state
+  @param PSI the instrumented table
+  @param OP the table operation to be performed
+  @param INDEX the table index used if any, or MAY_KEY.
+  @param FLAGS per table operation flags.
+  @sa MYSQL_END_TABLE_WAIT.
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define MYSQL_START_TABLE_WAIT(LOCKER, STATE, PSI, OP, INDEX, FLAGS) \
+    LOCKER= inline_mysql_start_table_wait(STATE, PSI, \
+                                          OP, INDEX, FLAGS, __FILE__, __LINE__)
+#else
+  #define MYSQL_START_TABLE_WAIT(LOCKER, STATE, PSI, OP, INDEX, FLAGS) \
+    do {} while (0)
 #endif
 
 /**
   @def MYSQL_END_TABLE_WAIT
   Instrumentation helper for table waits.
   This instrumentation marks the end of a wait event.
+  @param LOCKER the locker
   @sa MYSQL_START_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_INTERFACE
-  #define MYSQL_END_TABLE_WAIT(L) \
-    inline_mysql_end_table_wait(L)
+  #define MYSQL_END_TABLE_WAIT(LOCKER) \
+    inline_mysql_end_table_wait(LOCKER)
 #else
-  #define MYSQL_END_TABLE_WAIT(L) \
+  #define MYSQL_END_TABLE_WAIT(LOCKER) \
     do {} while (0)
 #endif
 

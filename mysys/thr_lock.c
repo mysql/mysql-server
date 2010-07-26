@@ -514,8 +514,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   enum enum_thr_lock_result result= THR_LOCK_SUCCESS;
   struct st_lock_list *wait_queue;
   THR_LOCK_DATA *lock_owner;
-  struct PSI_table_locker *locker;
-  PSI_table_locker_state state;
+  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("thr_lock");
 
   data->next=0;
@@ -523,7 +522,8 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   data->type=lock_type;
   data->owner= owner;                           /* Must be reset ! */
 
-  locker= MYSQL_START_TABLE_WAIT(& state, data->m_psi, PSI_TABLE_LOCK, 0, lock_type);
+  MYSQL_START_TABLE_WAIT(locker, &state, data->m_psi,
+                         PSI_TABLE_LOCK, 0, lock_type);
 
   mysql_mutex_lock(&lock->mutex);
   DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%lx  lock: 0x%lx  type: %d",
