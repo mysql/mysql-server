@@ -26,7 +26,6 @@ main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases 
 main.wait_timeout @solaris               # Bug#51244 2010-04-26 alik wait_timeout fails on OpenSolaris
 
 parts.partition_alter4_innodb            # Bug#45299 2010-06-28 alik Test "partition_alter4_innodb" is taking too long, timeout
-perfschema.pfs_upgrade                   # Bug#53102 2010-06-15 alik perfschema.pfs_upgrade fails on sol10 sparc64 max in parallel mode
 
 rpl.rpl_heartbeat_basic                  # BUG#54820 2010-06-26 alik rpl.rpl_heartbeat_basic fails sporadically again
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically

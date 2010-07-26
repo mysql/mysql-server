@@ -350,9 +350,9 @@ TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
 TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
 
 --echo # Clean up
-
---connection default
 --disconnect pfs_user_4
+--source include/wait_until_disconnected.inc
+--connection default
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM pfs_user_4;
 DROP USER pfs_user_4;
 flush privileges;
