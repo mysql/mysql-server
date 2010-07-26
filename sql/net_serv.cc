@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -44,9 +44,6 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
-#ifdef __NETWARE__
-#include <sys/select.h>
-#endif
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -152,7 +149,7 @@ my_bool my_net_init(NET *net, Vio* vio)
 void net_end(NET *net)
 {
   DBUG_ENTER("net_end");
-  my_free(net->buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(net->buff);
   net->buff=0;
   DBUG_VOID_RETURN;
 }
@@ -696,7 +693,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 #endif
 #ifdef HAVE_COMPRESS
   if (net->compress)
-    my_free((char*) packet,MYF(0));
+    my_free((void*) packet);
 #endif
   if (thr_alarm_in_use(&alarmed))
   {

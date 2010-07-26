@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #include "sql_priv.h"
@@ -59,7 +59,7 @@ extern "C" uint32
 
 extern "C" void slave_info_free(void *s)
 {
-  my_free(s, MYF(MY_WME));
+  my_free(s);
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -153,7 +153,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   return res;
 
 err:
-  my_free(si, MYF(MY_WME));
+  my_free(si);
   my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0)); /* purecov: inspected */
 err2:
   return 1;

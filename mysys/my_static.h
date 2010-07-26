@@ -34,26 +34,7 @@ struct st_remember {
   sig_handler (*func)(int number);
 };
 
-/*
-  Structure that stores information of a allocated memory block
-  The data is at &struct_adr+sizeof(ALIGN_SIZE(sizeof(struct irem)))
-  The lspecialvalue is at the previous 4 bytes from this, which may not
-  necessarily be in the struct if the struct size isn't aligned at a 8 byte
-  boundary.
-*/
-
-struct st_irem
-{
-  struct st_irem *next;		/* Linked list of structures	   */
-  struct st_irem *prev;		/* Other link			   */
-  char *filename;		/* File in which memory was new'ed */
-  size_t datasize;		/* Size requested		   */
-  uint32 linenum;		/* Line number in above file	   */
-  uint32 SpecialValue;		/* Underrun marker value	   */
-};
-
-
-extern char	NEAR curr_dir[FN_REFLEN],NEAR home_dir_buff[FN_REFLEN];
+extern char curr_dir[FN_REFLEN], home_dir_buff[FN_REFLEN];
 
 extern volatile int _my_signals;
 extern struct st_remember _my_sig_remember[MAX_SIGNALS];
@@ -62,10 +43,6 @@ extern const char *soundex_map;
 
 extern USED_MEM* my_once_root_block;
 extern uint	 my_once_extra;
-
-extern uchar	*sf_min_adress,*sf_max_adress;
-extern uint	sf_malloc_count;
-extern struct st_irem *sf_malloc_root;
 
 extern struct st_my_file_info my_file_info_default[MY_NFILE];
 

@@ -418,7 +418,7 @@ copy_extra_record_fields(TABLE *table,
 
  DBUG_ASSERT(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
-    bmove_align(table->record[0] + master_reclength,
+    memcpy(table->record[0] + master_reclength,
                 table->record[1] + master_reclength,
                 table->s->reclength - master_reclength);
     
@@ -697,7 +697,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       rnd_pos() returns the record in table->record[0], so we have to
       move it to table->record[1].
      */
-    bmove_align(table->record[1], table->record[0], table->s->reclength);
+    memcpy(table->record[1], table->record[0], table->s->reclength);
     DBUG_RETURN(error);
   }
 
@@ -1017,7 +1017,7 @@ int Delete_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   table->file->ha_index_or_rnd_end();
-  my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
+  my_free(m_memory); // Free for multi_malloc
   m_memory= NULL;
   m_after_image= NULL;
   m_key= NULL;
@@ -1116,7 +1116,7 @@ int Update_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   table->file->ha_index_or_rnd_end();
-  my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_memory);
   m_memory= NULL;
   m_after_image= NULL;
   m_key= NULL;
@@ -1190,7 +1190,7 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
     overwriting the default values that where put there by the
     unpack_row() function.
   */
-  bmove_align(table->record[0], m_after_image, table->s->reclength);
+  memcpy(table->record[0], m_after_image, table->s->reclength);
   copy_extra_record_fields(table, m_master_reclength, m_width);
 
   /*
@@ -1360,7 +1360,7 @@ Old_rows_log_event::~Old_rows_log_event()
   if (m_cols.bitmap == m_bitbuf) // no my_malloc happened
     m_cols.bitmap= 0; // so no my_free in bitmap_free
   bitmap_free(&m_cols); // To pair with bitmap_init().
-  my_free((uchar*)m_rows_buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_rows_buf);
 }
 
 
@@ -2698,7 +2698,7 @@ Delete_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabil
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   m_table->file->ha_index_or_rnd_end();
-  my_free(m_key, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_key);
   m_key= NULL;
 
   return error;
@@ -2797,7 +2797,7 @@ Update_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabil
 {
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   m_table->file->ha_index_or_rnd_end();
-  my_free(m_key, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
+  my_free(m_key); // Free for multi_malloc
   m_key= NULL;
 
   return error;

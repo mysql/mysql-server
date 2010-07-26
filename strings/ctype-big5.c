@@ -47,7 +47,7 @@
 #define big5head(e)	((uchar)(e>>8))
 #define big5tail(e)	((uchar)(e&0xff))
 
-static uchar NEAR ctype_big5[257] =
+static uchar ctype_big5[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -68,7 +68,7 @@ static uchar NEAR ctype_big5[257] =
   3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,
 };
 
-static uchar NEAR to_lower_big5[]=
+static uchar to_lower_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +104,7 @@ static uchar NEAR to_lower_big5[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR to_upper_big5[]=
+static uchar to_upper_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +140,7 @@ static uchar NEAR to_upper_big5[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar NEAR sort_order_big5[]=
+static uchar sort_order_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -177,7 +177,7 @@ static uchar NEAR sort_order_big5[]=
 };
 
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   /* A200-A20F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -370,7 +370,7 @@ static MY_UNICASE_INFO cA2[256]=
 };
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   /* A300-A30F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -563,7 +563,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cC7[256]=
+static MY_UNICASE_CHARACTER cC7[256]=
 {
   /* C700-C70F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -756,7 +756,7 @@ static MY_UNICASE_INFO cC7[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_big5[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_big5[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -790,6 +790,13 @@ static MY_UNICASE_INFO *my_caseinfo_big5[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_big5=
+{
+  0xFFFF,
+  my_caseinfo_pages_big5
 };
 
 
@@ -6962,11 +6969,10 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_big5,   /* caseinfo     */
+    &my_caseinfo_big5,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -6997,11 +7003,10 @@ CHARSET_INFO my_charset_big5_bin=
     to_lower_big5,
     to_upper_big5,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_big5,   /* caseinfo     */
+    &my_caseinfo_big5,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

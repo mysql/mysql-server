@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"                         // SHOW_MY_BOOL
 #include "unireg.h"
@@ -254,10 +254,9 @@ static void plugin_vars_free_values(sys_var *vars);
 static void restore_pluginvar_names(sys_var *first);
 static void plugin_opt_set_limits(struct my_option *,
                                   const struct st_mysql_sys_var *);
-#define my_intern_plugin_lock(A,B) intern_plugin_lock(A,B CALLER_INFO)
-#define my_intern_plugin_lock_ci(A,B) intern_plugin_lock(A,B ORIG_CALLER_INFO)
-static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin
-                                     CALLER_INFO_PROTO);
+#define my_intern_plugin_lock(A,B) intern_plugin_lock(A,B)
+#define my_intern_plugin_lock_ci(A,B) intern_plugin_lock(A,B)
+static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin);
 static void intern_plugin_unlock(LEX *lex, plugin_ref plugin);
 static void reap_plugins(void);
 
@@ -392,9 +391,9 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
   if (p->handle)
     dlclose(p->handle);
 #endif
-  my_free(p->dl.str, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(p->dl.str);
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
-    my_free((uchar*)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(p->plugins);
 }
 
 
@@ -660,7 +659,7 @@ SHOW_COMP_OPTION plugin_status(const char *name, int len, size_t type)
 }
 
 
-static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
+static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
 {
   st_plugin_int *pi= plugin_ref_to_int(rc);
   DBUG_ENTER("intern_plugin_lock");
@@ -682,7 +681,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
       memory manager and/or valgrind to track locked references and
       double unlocks to aid resolving reference counting problems.
     */
-    if (!(plugin= (plugin_ref) my_malloc_ci(sizeof(pi), MYF(MY_WME))))
+    if (!(plugin= (plugin_ref) my_malloc(sizeof(pi), MYF(MY_WME))))
       DBUG_RETURN(NULL);
 
     *plugin= pi;
@@ -699,7 +698,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
 }
 
 
-plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO)
+plugin_ref plugin_lock(THD *thd, plugin_ref *ptr)
 {
   LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc;
@@ -711,8 +710,7 @@ plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO)
 }
 
 
-plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name, int type
-                               CALLER_INFO_PROTO)
+plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name, int type)
 {
   LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc= NULL;
@@ -973,7 +971,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
   if (!pi->plugin_dl)
     DBUG_VOID_RETURN;
 #else
-  my_free((uchar*) plugin, MYF(MY_WME));
+  my_free(plugin);
 #endif
 
   DBUG_PRINT("info",("unlocking plugin, name= %s, ref_count= %d",
@@ -2245,7 +2243,7 @@ static void update_func_str(THD *thd, struct st_mysql_sys_var *var,
   if (var->flags & PLUGIN_VAR_MEMALLOC)
   {
     *(char **)tgt= my_strdup(*(char **) save, MYF(0));
-    my_free(old, MYF(0));
+    my_free(old);
   }
 }
 
@@ -2637,7 +2635,7 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
         flags & PLUGIN_VAR_THDLOCAL && flags & PLUGIN_VAR_MEMALLOC)
     {
       char **ptr= (char**) pivar->real_value_ptr(thd, OPT_SESSION);
-      my_free(*ptr, MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+      my_free(*ptr);
       *ptr= NULL;
     }
   }
@@ -2645,7 +2643,7 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
 
   DBUG_ASSERT(vars->table_plugin == NULL);
 
-  my_free(vars->dynamic_variables_ptr, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(vars->dynamic_variables_ptr);
   vars->dynamic_variables_ptr= NULL;
   vars->dynamic_variables_size= 0;
   vars->dynamic_variables_version= 0;
@@ -2706,7 +2704,7 @@ static void plugin_vars_free_values(sys_var *vars)
       char **valptr= (char**) piv->real_value_ptr(NULL, OPT_GLOBAL);
       DBUG_PRINT("plugin", ("freeing value for: '%s'  addr: 0x%lx",
                             var->name.str, (long) valptr));
-      my_free(*valptr, MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+      my_free(*valptr);
       *valptr= NULL;
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
@@ -176,7 +176,7 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
     return TRUE;
   if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
   {
-    my_free((uchar*) dbname.str, MYF(0));
+    my_free(dbname.str);
     return TRUE;
   }
   return FALSE;
@@ -192,8 +192,8 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
 
 Event_queue_element_for_exec::~Event_queue_element_for_exec()
 {
-  my_free((uchar*) dbname.str, MYF(0));
-  my_free((uchar*) name.str, MYF(0));
+  my_free(dbname.str);
+  my_free(name.str);
 }
 
 

@@ -28,6 +28,6 @@ INCLUDE(CheckCXXCompilerFlag)
 # The following is required to export all symbols 
 # (also with leading underscore)
 STRING(REPLACE  "-bexpall" "-bexpfull" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS
-  ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS}")
+  "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS}")
 STRING(REPLACE  "-bexpall" "-bexpfull" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS
   "${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS}")
