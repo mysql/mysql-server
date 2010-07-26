@@ -452,6 +452,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
+  int old_max_allowed_packet= thd->variables.max_allowed_packet;
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -975,6 +976,7 @@ end:
   mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   mysql_mutex_unlock(&LOCK_thread_count);
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_VOID_RETURN;
 
 err:
@@ -993,6 +995,7 @@ err:
   mysql_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     mysql_file_close(file, MYF(MY_WME));
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
 
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
@@ -1687,6 +1690,7 @@ bool mysql_show_binlog_events(THD* thd)
   IO_CACHE log;
   File file = -1;
   MYSQL_BIN_LOG *binary_log= NULL;
+  int old_max_allowed_packet= thd->variables.max_allowed_packet;
   DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
@@ -1841,6 +1845,7 @@ err:
   mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   mysql_mutex_unlock(&LOCK_thread_count);
+  thd->variables.max_allowed_packet= old_max_allowed_packet;
   DBUG_RETURN(ret);
 }
 
