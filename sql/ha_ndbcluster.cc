@@ -8764,7 +8764,10 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
     DBUG_PRINT("info", ("Found %s/%s in NDB", elmt.database, elmt.name));     
     
     // Add only tables that belongs to db
-    if (my_strcasecmp(system_charset_info, elmt.database, dbname))
+    // Ignore Blob part tables - they are deleted when their table
+    // is deleted.
+    if (my_strcasecmp(system_charset_info, elmt.database, dbname) ||
+        IS_NDB_BLOB_PREFIX(elmt.name))
       continue;
     DBUG_PRINT("info", ("%s must be dropped", elmt.name));     
     drop_list.push_back(thd->strdup(elmt.name));
