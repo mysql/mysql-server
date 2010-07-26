@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,7 +93,6 @@ int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
-int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 

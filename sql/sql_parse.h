@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,7 +79,6 @@ bool check_host_name(LEX_STRING *str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
-bool sqlcom_can_generate_row_events(const THD *thd);
 bool is_update_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
@@ -129,11 +128,6 @@ void init_update_queries(void);
 bool check_simple_select();
 Item *negate_expression(THD *thd, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
-
-bool begin_trans(THD *thd);
-bool end_active_trans(THD *thd);
-int end_trans(THD *thd, enum enum_mysql_completiontype completion);
-
 
 /* Variables */
 
@@ -188,9 +182,8 @@ inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }
-inline bool check_access(THD *thd, ulong access, const char *db,
-                         ulong *save_priv, bool no_grant, bool no_errors,
-                         bool schema_db)
+inline bool check_access(THD *, ulong, const char *, ulong *save_priv,
+                         GRANT_INTERNAL_INFO *, bool, bool)
 {
   if (save_priv)
     *save_priv= GLOBAL_ACLS;

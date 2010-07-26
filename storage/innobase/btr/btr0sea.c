@@ -46,6 +46,7 @@ Created 2/17/1996 Heikki Tuuri
 /** Flag: has the search system been enabled?
 Protected by btr_search_latch and btr_search_enabled_mutex. */
 UNIV_INTERN char		btr_search_enabled	= TRUE;
+UNIV_INTERN ibool		btr_search_fully_disabled = FALSE;
 
 /** Mutex protecting btr_search_enabled */
 static mutex_t			btr_search_enabled_mutex;
@@ -184,7 +185,12 @@ btr_search_sys_create(
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
-	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
+	btr_search_sys->hash_index = ha_create(hash_size, 0,
+					MEM_HEAP_FOR_BTR_SEARCH, 0);
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	btr_search_sys->hash_index->adaptive = TRUE;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 }
 
 /*****************************************************************//**
@@ -213,11 +219,18 @@ btr_search_disable(void)
 	mutex_enter(&btr_search_enabled_mutex);
 	rw_lock_x_lock(&btr_search_latch);
 
+	/* Disable access to hash index, also tell ha_insert_for_fold()
+	stop adding new nodes to hash index, but still allow updating
+	existing nodes */
 	btr_search_enabled = FALSE;
 
 	/* Clear all block->is_hashed flags and remove all entries
 	from btr_search_sys->hash_index. */
 	buf_pool_drop_hash_index();
+
+	/* hash index has been cleaned up, disallow any operation to
+	the hash index */
+	btr_search_fully_disabled = TRUE;
 
 	/* btr_search_enabled_mutex should guarantee this. */
 	ut_ad(!btr_search_enabled);
@@ -237,6 +250,7 @@ btr_search_enable(void)
 	rw_lock_x_lock(&btr_search_latch);
 
 	btr_search_enabled = TRUE;
+	btr_search_fully_disabled = FALSE;
 
 	rw_lock_x_unlock(&btr_search_latch);
 	mutex_exit(&btr_search_enabled_mutex);
@@ -1375,7 +1389,7 @@ btr_search_build_page_hash_index(
 
 	rw_lock_x_lock(&btr_search_latch);
 
-	if (UNIV_UNLIKELY(!btr_search_enabled)) {
+	if (UNIV_UNLIKELY(btr_search_fully_disabled)) {
 		goto exit_func;
 	}
 
@@ -1798,7 +1812,8 @@ btr_search_validate(void)
 				hash_block = buf_block_hash_get(
 					buf_pool,
 					buf_block_get_space(block),
-					buf_block_get_page_no(block));
+					buf_block_get_page_no(block),
+					NULL);
 			} else {
 				hash_block = NULL;
 			}

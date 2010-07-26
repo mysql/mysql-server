@@ -675,12 +675,13 @@ pfs_rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	struct PSI_rwlock_locker* locker = NULL;
+	struct PSI_rwlock_locker*	locker = NULL;
+	PSI_rwlock_locker_state		state;
 
 	/* Record the entry of rw x lock request in performance schema */
 	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
 		locker = PSI_server->get_thread_rwlock_locker(
-			lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
+			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
 
 		if (locker) {
 			PSI_server->start_rwlock_wrwait(locker,
@@ -709,13 +710,14 @@ pfs_rw_lock_x_lock_func_nowait(
 				requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	struct PSI_rwlock_locker* locker = NULL;
+	struct PSI_rwlock_locker*	locker = NULL;
+	PSI_rwlock_locker_state		state;
 	ibool	ret;
 
 	/* Record the entry of rw x lock request in performance schema */
 	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
 		locker = PSI_server->get_thread_rwlock_locker(
-			lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
+			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
 
 		if (locker) {
 			PSI_server->start_rwlock_wrwait(locker,
@@ -764,12 +766,13 @@ pfs_rw_lock_s_lock_func(
 				requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	struct PSI_rwlock_locker* locker = NULL;
+	struct PSI_rwlock_locker*	locker = NULL;
+	PSI_rwlock_locker_state		state;
 
 	/* Instrumented to inform we are aquiring a shared rwlock */
 	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
 		locker = PSI_server->get_thread_rwlock_locker(
-			lock->pfs_psi, PSI_RWLOCK_READLOCK);
+			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
 		if (locker) {
 			PSI_server->start_rwlock_rdwait(locker,
 							file_name, line);
@@ -798,14 +801,14 @@ pfs_rw_lock_s_lock_low(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-
-	struct PSI_rwlock_locker* locker = NULL;
+	struct PSI_rwlock_locker*	locker = NULL;
+	PSI_rwlock_locker_state		state;
 	ibool	ret;
 
 	/* Instrumented to inform we are aquiring a shared rwlock */
 	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
 		locker = PSI_server->get_thread_rwlock_locker(
-			lock->pfs_psi, PSI_RWLOCK_READLOCK);
+			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK);
 		if (locker) {
 			PSI_server->start_rwlock_rdwait(locker,
 							file_name, line);
@@ -838,11 +841,7 @@ pfs_rw_lock_x_unlock_func(
 {
 	/* Inform performance schema we are unlocking the lock */
 	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
-		struct PSI_thread*	thread;
-		thread = PSI_server->get_thread();
-		if (thread) {
-			PSI_server->unlock_rwlock(thread, lock->pfs_psi);
-		}
+		PSI_server->unlock_rwlock(lock->pfs_psi);
 	}
 
 	rw_lock_x_unlock_func(
@@ -869,11 +868,7 @@ pfs_rw_lock_s_unlock_func(
 {
 	/* Inform performance schema we are unlocking the lock */
 	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
-		struct PSI_thread*	thread;
-		thread = PSI_server->get_thread();
-		if (thread) {
-			PSI_server->unlock_rwlock(thread, lock->pfs_psi);
-		}
+		PSI_server->unlock_rwlock(lock->pfs_psi);
 	}
 
 	rw_lock_s_unlock_func(

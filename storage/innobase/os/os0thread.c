@@ -163,16 +163,6 @@ os_thread_create(
 		exit(1);
 	}
 #endif
-#ifdef __NETWARE__
-	ret = pthread_attr_setstacksize(&attr,
-					(size_t) NW_THD_STACKSIZE);
-	if (ret) {
-		fprintf(stderr,
-			"InnoDB: Error: pthread_attr_setstacksize"
-			" returned %d\n", ret);
-		exit(1);
-	}
-#endif
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
 	os_mutex_exit(os_sync_mutex);
@@ -252,7 +242,7 @@ os_thread_yield(void)
 /*=================*/
 {
 #if defined(__WIN__)
-	Sleep(0);
+	SwitchToThread();
 #elif (defined(HAVE_SCHED_YIELD) && defined(HAVE_SCHED_H))
 	sched_yield();
 #elif defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
@@ -275,8 +265,6 @@ os_thread_sleep(
 {
 #ifdef __WIN__
 	Sleep((DWORD) tm / 1000);
-#elif defined(__NETWARE__)
-	delay(tm / 1000);
 #else
 	struct timeval	t;
 

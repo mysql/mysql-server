@@ -44,7 +44,7 @@
 #include "sql_acl.h"                          /* *_ACL */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql_class.h"      /* Key_part_spec, enum_filetype, Diag_condition_item_name */
-#include "slave.h"
+#include "rpl_slave.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"
@@ -696,7 +696,8 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   lex->sql_command= SQLCOM_CREATE_INDEX;
   if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
                                               TL_OPTION_UPDATING,
-                                              TL_WRITE_ALLOW_READ))
+                                              TL_READ_NO_INSERT,
+                                              MDL_SHARED_NO_WRITE))
     return TRUE;
   lex->alter_info.reset();
   lex->alter_info.flags= ALTER_ADD_INDEX;
@@ -765,6 +766,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   enum index_hint_type index_hint;
   enum enum_filetype filetype;
   enum Foreign_key::fk_option m_fk_option;
+  enum enum_yes_no_unknown m_yes_no_unk;
   Diag_condition_item_name diag_condition_item_name;
 }
 
@@ -1066,6 +1068,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
+%token  MASTER_DELAY_SYM
 %token  MASTER_HOST_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
@@ -1224,6 +1227,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RESUME_SYM
 %token  RETURNS_SYM                   /* SQL-2003-R */
 %token  RETURN_SYM                    /* SQL-2003-R */
+%token  REVERSE_SYM
 %token  REVOKE                        /* SQL-2003-R */
 %token  RIGHT                         /* SQL-2003-R */
 %token  ROLLBACK_SYM                  /* SQL-2003-R */
@@ -1369,6 +1373,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
+%token  WEIGHT_STRING_SYM
 %token  WHEN_SYM                      /* SQL-2003-R */
 %token  WHERE                         /* SQL-2003-R */
 %token  WHILE_SYM
@@ -1432,17 +1437,24 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         table_option opt_if_not_exists opt_no_write_to_binlog
         opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
-        start_transaction_opts opt_chain opt_release
+        start_transaction_opts
         union_opt select_derived_init option_type2
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
+
+%type <m_yes_no_unk>
+        opt_chain opt_release
 
 %type <m_fk_option>
         delete_option
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
+        ws_nweights
+        ws_level_flag_desc ws_level_flag_reverse ws_level_flags
+        opt_ws_levels ws_level_list ws_level_list_item ws_level_number
+        ws_level_range ws_level_list_or_range  
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
@@ -1850,11 +1862,13 @@ change:
           {
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
-            bzero((char*) &lex->mi, sizeof(lex->mi));
             /*
-              resetting flags that can left from the previous CHANGE MASTER
+              Clear LEX_MASTER_INFO struct and allocate memory for
+              repl_ignore_server_ids. repl_ignore_server_ids is freed
+              at the end of change_master. So it is guaranteed to be
+              uninitialized before here.
             */
-            lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+            lex->mi.set_unspecified();
             my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
                                   sizeof(::server_id), 16, 16);
           }
@@ -1887,6 +1901,16 @@ master_def:
         | MASTER_CONNECT_RETRY_SYM EQ ulong_num
           {
             Lex->mi.connect_retry = $3;
+          }
+        | MASTER_DELAY_SYM EQ ulong_num
+          {
+            if ($3 > MASTER_DELAY_MAX)
+            {
+              my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
+                       $3, MASTER_DELAY_MAX);
+            }
+            else
+              Lex->mi.sql_delay = $3;
           }
         | MASTER_SSL_SYM EQ ulong_num
           {
@@ -1927,11 +1951,9 @@ master_def:
            {
              const char format[]= "%d seconds";
              char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
-             my_sprintf(buf, (buf, format, SLAVE_MAX_HEARTBEAT_PERIOD));
+             sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
              my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                      MYF(0),
-                      " is negative or exceeds the maximum ",
-                       buf); 
+                      MYF(0), " is negative or exceeds the maximum ", buf);
               MYSQL_YYABORT;
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
@@ -2022,7 +2044,7 @@ create:
             lex->sql_command= SQLCOM_CREATE_TABLE;
             if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
                                                    TL_OPTION_UPDATING,
-                                                   TL_WRITE))
+                                                   TL_WRITE, MDL_EXCLUSIVE))
               MYSQL_YYABORT;
             lex->alter_info.reset();
             lex->col_list.empty();
@@ -4211,7 +4233,8 @@ create2:
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
             src_table= lex->select_lex.add_table_to_list(thd, $2, NULL, 0,
-                                                         TL_READ);
+                                                         TL_READ,
+                                                         MDL_SHARED_READ);
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
@@ -4225,7 +4248,8 @@ create2:
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
             src_table= lex->select_lex.add_table_to_list(thd, $3, NULL, 0,
-                                                         TL_READ);
+                                                         TL_READ,
+                                                         MDL_SHARED_READ);
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
@@ -5868,6 +5892,73 @@ opt_bin_mod:
         | BINARY { Lex->type|= BINCMP_FLAG; }
         ;
 
+ws_nweights:
+        '(' real_ulong_num
+        {
+          if ($2 == 0)
+          {
+            my_parse_error(ER(ER_SYNTAX_ERROR));
+            MYSQL_YYABORT;
+          }
+        }
+        ')'
+        { $$= $2; }
+        ;
+
+ws_level_flag_desc:
+        ASC { $$= 0; }
+        | DESC { $$= 1 << MY_STRXFRM_DESC_SHIFT; }
+        ;
+
+ws_level_flag_reverse:
+        REVERSE_SYM { $$= 1 << MY_STRXFRM_REVERSE_SHIFT; } ;
+
+ws_level_flags:
+        /* empty */ { $$= 0; }
+        | ws_level_flag_desc { $$= $1; }
+        | ws_level_flag_desc ws_level_flag_reverse { $$= $1 | $2; }
+        | ws_level_flag_reverse { $$= $1 ; }
+        ;
+
+ws_level_number:
+        real_ulong_num
+        {
+          $$= $1 < 1 ? 1 : ($1 > MY_STRXFRM_NLEVELS ? MY_STRXFRM_NLEVELS : $1);
+          $$--;
+        }
+        ;
+
+ws_level_list_item:
+        ws_level_number ws_level_flags
+        {
+          $$= (1 | $2) << $1;
+        }
+        ;
+
+ws_level_list:
+        ws_level_list_item { $$= $1; }
+        | ws_level_list ',' ws_level_list_item { $$|= $3; }
+        ;
+
+ws_level_range:
+        ws_level_number '-' ws_level_number
+        {
+          uint start= $1;
+          uint end= $3;
+          for ($$= 0; start <= end; start++)
+            $$|= (1 << start);
+        }
+        ;
+
+ws_level_list_or_range:
+        ws_level_list { $$= $1; }
+        | ws_level_range { $$= $1; }
+        ;
+
+opt_ws_levels:
+        /* empty*/ { $$= 0; }
+        | LEVEL_SYM ws_level_list_or_range { $$= $2; }
+        ;
 
 opt_primary:
           /* empty */
@@ -6152,7 +6243,8 @@ alter:
             lex->duplicates= DUP_ERROR; 
             if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
                                                    TL_OPTION_UPDATING,
-                                                   TL_WRITE_ALLOW_READ))
+                                                   TL_READ_NO_INSERT,
+                                                   MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
             lex->col_list.empty();
             lex->select_lex.init_order();
@@ -6753,7 +6845,7 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
             /* If you change this code don't forget to update SLAVE START too */
           }
           slave_until
@@ -6771,7 +6863,8 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
+            /* If you change this code don't forget to update START SLAVE too */
           }
           slave_until
           {}
@@ -6780,6 +6873,7 @@ slave:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
             lex->type = 0;
+            /* If you change this code don't forget to update STOP SLAVE too */
           }
         ;
 
@@ -6844,6 +6938,8 @@ checksum:
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_CHECKSUM;
+            /* Will be overriden during execution. */
+            YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list opt_checksum_type
           {}
@@ -6863,6 +6959,8 @@ repair:
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
             lex->alter_info.reset();
+            /* Will be overriden during execution. */
+            YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list opt_mi_repair_type
           {}
@@ -6892,6 +6990,8 @@ analyze:
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
             lex->alter_info.reset();
+            /* Will be overriden during execution. */
+            YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list
           {}
@@ -6918,6 +7018,8 @@ check:
             lex->sql_command = SQLCOM_CHECK;
             lex->check_opt.init();
             lex->alter_info.reset();
+            /* Will be overriden during execution. */
+            YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list opt_mi_check_type
           {}
@@ -6950,6 +7052,8 @@ optimize:
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
             lex->alter_info.reset();
+            /* Will be overriden during execution. */
+            YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list
           {}
@@ -6998,9 +7102,9 @@ table_to_table:
             LEX *lex=Lex;
             SELECT_LEX *sl= lex->current_select;
             if (!sl->add_table_to_list(lex->thd, $1,NULL,TL_OPTION_UPDATING,
-                                       TL_IGNORE) ||
+                                       TL_IGNORE, MDL_EXCLUSIVE) ||
                 !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
-                                       TL_IGNORE))
+                                       TL_IGNORE, MDL_EXCLUSIVE))
               MYSQL_YYABORT;
           }
         ;
@@ -7031,7 +7135,8 @@ keycache_list:
 assign_to_keycache:
           table_ident cache_keys_spec
           {
-            if (!Select->add_table_to_list(YYTHD, $1, NULL, 0, TL_READ, 
+            if (!Select->add_table_to_list(YYTHD, $1, NULL, 0, TL_READ,
+                                           MDL_SHARED_READ,
                                            Select->pop_index_hints()))
               MYSQL_YYABORT;
           }
@@ -7041,6 +7146,7 @@ assign_to_keycache_parts:
           table_ident adm_partition cache_keys_spec
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL, 0, TL_READ, 
+                                           MDL_SHARED_READ,
                                            Select->pop_index_hints()))
               MYSQL_YYABORT;
           }
@@ -7076,6 +7182,7 @@ preload_keys:
           table_ident cache_keys_spec opt_ignore_leaves
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL, $3, TL_READ,
+                                           MDL_SHARED_READ,
                                            Select->pop_index_hints()))
               MYSQL_YYABORT;
           }
@@ -7085,6 +7192,7 @@ preload_keys_parts:
           table_ident adm_partition cache_keys_spec opt_ignore_leaves
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL, $4, TL_READ,
+                                           MDL_SHARED_READ,
                                            Select->pop_index_hints()))
               MYSQL_YYABORT;
           }
@@ -8423,6 +8531,12 @@ function_call_conflict:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
+        | REVERSE_SYM '(' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_reverse($3);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
         | TRUNCATE_SYM '(' expr ',' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_round($3,$5,1);
@@ -8444,6 +8558,36 @@ function_call_conflict:
         | WEEK_SYM '(' expr ',' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_week($3,$5);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr opt_ws_levels ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_weight_string($3, 0, 0, $4);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_nweights opt_ws_levels ')'
+          {
+            $$= new (YYTHD->mem_root)
+                Item_func_weight_string($3, 0, $6,
+                                        $7 | MY_STRXFRM_PAD_WITH_SPACE);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr AS BINARY ws_nweights ')'
+          {
+            Item *item= new (YYTHD->mem_root) Item_char_typecast($3, $6, &my_charset_bin);
+            if (item == NULL)
+              MYSQL_YYABORT;
+            $$= new (YYTHD->mem_root)
+                Item_func_weight_string(item, 0, $6, MY_STRXFRM_PAD_WITH_SPACE);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr ',' ulong_num ',' ulong_num ',' ulong_num ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_weight_string($3, $5, $7, $9);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -9216,6 +9360,7 @@ table_factor:
             if (!($$= Select->add_table_to_list(YYTHD, $2, $3,
                                                 Select->get_table_join_options(),
                                                 YYPS->m_lock_type,
+                                                YYPS->m_mdl_type,
                                                 Select->pop_index_hints())))
               MYSQL_YYABORT;
             Select->add_joined_table($$);
@@ -9287,7 +9432,7 @@ table_factor:
                 MYSQL_YYABORT;
               if (!($$= sel->add_table_to_list(lex->thd,
                                                new Table_ident(unit), $5, 0,
-                                               TL_READ)))
+                                               TL_READ, MDL_SHARED_READ)))
 
                 MYSQL_YYABORT;
               sel->add_joined_table($$);
@@ -10122,13 +10267,17 @@ do:
 */
 
 drop:
-          DROP opt_temporary table_or_tables if_exists table_list opt_restrict
+          DROP opt_temporary table_or_tables if_exists
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_DROP_TABLE;
             lex->drop_temporary= $2;
             lex->drop_if_exists= $4;
+            YYPS->m_lock_type= TL_UNLOCK;
+            YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }
+          table_list opt_restrict
+          {}
         | DROP INDEX_SYM ident ON table_ident {}
           {
             LEX *lex=Lex;
@@ -10141,7 +10290,8 @@ drop:
             lex->alter_info.drop_list.push_back(ad);
             if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
                                                         TL_OPTION_UPDATING,
-                                                        TL_WRITE_ALLOW_READ))
+                                                        TL_READ_NO_INSERT,
+                                                        MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
           }
         | DROP DATABASE if_exists ident
@@ -10211,12 +10361,16 @@ drop:
           {
             Lex->sql_command = SQLCOM_DROP_USER;
           }
-        | DROP VIEW_SYM if_exists table_list opt_restrict
+        | DROP VIEW_SYM if_exists
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DROP_VIEW;
             lex->drop_if_exists= $3;
+            YYPS->m_lock_type= TL_UNLOCK;
+            YYPS->m_mdl_type= MDL_EXCLUSIVE;
           }
+          table_list opt_restrict
+          {}
         | DROP EVENT_SYM if_exists sp_name
           {
             Lex->drop_if_exists= $3;
@@ -10257,7 +10411,10 @@ table_list:
 table_name:
           table_ident
           {
-            if (!Select->add_table_to_list(YYTHD, $1, NULL, TL_OPTION_UPDATING))
+            if (!Select->add_table_to_list(YYTHD, $1, NULL,
+                                           TL_OPTION_UPDATING,
+                                           YYPS->m_lock_type,
+                                           YYPS->m_mdl_type))
               MYSQL_YYABORT;
           }
         ;
@@ -10272,7 +10429,8 @@ table_alias_ref:
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                           YYPS->m_lock_type))
+                                           YYPS->m_lock_type,
+                                           YYPS->m_mdl_type))
               MYSQL_YYABORT;
           }
         ;
@@ -10569,6 +10727,8 @@ delete:
             lex->sql_command= SQLCOM_DELETE;
             mysql_init_select(lex);
             YYPS->m_lock_type= TL_WRITE_DEFAULT;
+            YYPS->m_mdl_type= MDL_SHARED_WRITE;
+
             lex->ignore= 0;
             lex->select_lex.init_order();
           }
@@ -10579,9 +10739,11 @@ single_multi:
           FROM table_ident
           {
             if (!Select->add_table_to_list(YYTHD, $2, NULL, TL_OPTION_UPDATING,
-                                           YYPS->m_lock_type))
+                                           YYPS->m_lock_type,
+                                           YYPS->m_mdl_type))
               MYSQL_YYABORT;
             YYPS->m_lock_type= TL_READ_DEFAULT;
+            YYPS->m_mdl_type= MDL_SHARED_READ;
           }
           where_clause opt_order_clause
           delete_limit_clause {}
@@ -10589,6 +10751,7 @@ single_multi:
           {
             mysql_init_multi_delete(Lex);
             YYPS->m_lock_type= TL_READ_DEFAULT;
+            YYPS->m_mdl_type= MDL_SHARED_READ;
           }
           FROM join_table_list where_clause
           {
@@ -10599,6 +10762,7 @@ single_multi:
           {
             mysql_init_multi_delete(Lex);
             YYPS->m_lock_type= TL_READ_DEFAULT;
+            YYPS->m_mdl_type= MDL_SHARED_READ;
           }
           USING join_table_list where_clause
           {
@@ -10622,7 +10786,8 @@ table_wild_one:
                                            ti,
                                            NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                           YYPS->m_lock_type))
+                                           YYPS->m_lock_type,
+                                           YYPS->m_mdl_type))
               MYSQL_YYABORT;
           }
         | ident '.' ident opt_wild
@@ -10634,7 +10799,8 @@ table_wild_one:
                                            ti,
                                            NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                           YYPS->m_lock_type))
+                                           YYPS->m_lock_type,
+                                           YYPS->m_mdl_type))
               MYSQL_YYABORT;
           }
         ;
@@ -10656,7 +10822,7 @@ opt_delete_option:
         ;
 
 truncate:
-          TRUNCATE_SYM opt_table_sym table_name
+          TRUNCATE_SYM opt_table_sym
           {
             LEX* lex= Lex;
             lex->sql_command= SQLCOM_TRUNCATE;
@@ -10664,7 +10830,11 @@ truncate:
             lex->select_lex.options= 0;
             lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
             lex->select_lex.init_order();
+            YYPS->m_lock_type= TL_WRITE;
+            YYPS->m_mdl_type= MDL_SHARED_WRITE;
           }
+          table_name
+          {}
         ;
 
 opt_table_sym:
@@ -11148,7 +11318,15 @@ flush:
 
 flush_options:
           table_or_tables
-          { Lex->type|= REFRESH_TABLES; }
+          {
+            Lex->type|= REFRESH_TABLES;
+            /*
+              Set type of metadata and table locks for
+              FLUSH TABLES table_list WITH READ LOCK.
+            */
+            YYPS->m_lock_type= TL_READ_NO_INSERT;
+            YYPS->m_mdl_type= MDL_EXCLUSIVE;
+          }
           opt_table_list {}
           opt_with_read_lock {}
         | flush_options_list
@@ -11312,7 +11490,7 @@ load:
           {
             LEX *lex=Lex;
             if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
-                                           $4))
+                                           $4, MDL_SHARED_WRITE))
               MYSQL_YYABORT;
             lex->field_list.empty();
             lex->update_list.empty();
@@ -12383,6 +12561,7 @@ keyword_sp:
         | MASTER_PASSWORD_SYM      {}
         | MASTER_SERVER_ID_SYM     {}
         | MASTER_CONNECT_RETRY_SYM {}
+        | MASTER_DELAY_SYM         {}
         | MASTER_SSL_SYM           {}
         | MASTER_SSL_CA_SYM        {}
         | MASTER_SSL_CAPATH_SYM    {}
@@ -12464,6 +12643,7 @@ keyword_sp:
         | RESOURCES                {}
         | RESUME_SYM               {}
         | RETURNS_SYM              {}
+        | REVERSE_SYM              {}
         | ROLLUP_SYM               {}
         | ROUTINE_SYM              {}
         | ROWS_SYM                 {}
@@ -12532,6 +12712,7 @@ keyword_sp:
         | WAIT_SYM                 {}
         | WEEK_SYM                 {}
         | WORK_SYM                 {}
+        | WEIGHT_STRING_SYM        {}
         | X509_SYM                 {}
         | XML_SYM                  {}
         | YEAR_SYM                 {}
@@ -13018,10 +13199,14 @@ table_lock:
           table_ident opt_table_alias lock_option
           {
             thr_lock_type lock_type= (thr_lock_type) $3;
-            if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type))
+            bool lock_for_write= (lock_type >= TL_WRITE_ALLOW_WRITE);
+            if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type,
+                                           (lock_for_write ?
+                                            MDL_SHARED_NO_READ_WRITE :
+                                            MDL_SHARED_READ)))
               MYSQL_YYABORT;
             /* If table is to be write locked, protect from a impending GRL. */
-            if (lock_type >= TL_WRITE_ALLOW_WRITE)
+            if (lock_for_write)
               Lex->protect_against_global_read_lock= TRUE;
           }
         ;
@@ -13557,16 +13742,16 @@ opt_work:
 
 opt_chain:
           /* empty */
-          { $$= (YYTHD->variables.completion_type == 1); }
-        | AND_SYM NO_SYM CHAIN_SYM { $$=0; }
-        | AND_SYM CHAIN_SYM        { $$=1; }
+          { $$= TVL_UNKNOWN; }
+        | AND_SYM NO_SYM CHAIN_SYM { $$= TVL_NO; }
+        | AND_SYM CHAIN_SYM        { $$= TVL_YES; }
         ;
 
 opt_release:
           /* empty */
-          { $$= (YYTHD->variables.completion_type == 2); }
-        | RELEASE_SYM        { $$=1; }
-        | NO_SYM RELEASE_SYM { $$=0; }
+          { $$= TVL_UNKNOWN; }
+        | RELEASE_SYM        { $$= TVL_YES; }
+        | NO_SYM RELEASE_SYM { $$= TVL_NO; }
 ;
 
 opt_savepoint:
@@ -13579,7 +13764,9 @@ commit:
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_COMMIT;
-            lex->tx_chain= $3; 
+            /* Don't allow AND CHAIN RELEASE. */
+            MYSQL_YYABORT_UNLESS($3 != TVL_YES || $4 != TVL_YES);
+            lex->tx_chain= $3;
             lex->tx_release= $4;
           }
         ;
@@ -13589,7 +13776,9 @@ rollback:
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_ROLLBACK;
-            lex->tx_chain= $3; 
+            /* Don't allow AND CHAIN RELEASE. */
+            MYSQL_YYABORT_UNLESS($3 != TVL_YES || $4 != TVL_YES);
+            lex->tx_chain= $3;
             lex->tx_release= $4;
           }
         | ROLLBACK_SYM opt_work
@@ -13776,6 +13965,7 @@ query_expression_option:
             if (check_simple_select())
               MYSQL_YYABORT;
             YYPS->m_lock_type= TL_READ_HIGH_PRIORITY;
+            YYPS->m_mdl_type= MDL_SHARED_READ;
             Select->options|= SELECT_HIGH_PRIORITY;
           }
         | DISTINCT         { Select->options|= SELECT_DISTINCT; }
@@ -13905,7 +14095,10 @@ view_tail:
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_CREATE_VIEW;
             /* first table in list is target VIEW name */
-            if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
+            if (!lex->select_lex.add_table_to_list(thd, $3, NULL,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_IGNORE,
+                                                   MDL_EXCLUSIVE))
               MYSQL_YYABORT;
           }
           view_list_opt AS view_select
@@ -14045,7 +14238,8 @@ trigger_tail:
             if (!lex->select_lex.add_table_to_list(YYTHD, $9,
                                                    (LEX_STRING*) 0,
                                                    TL_OPTION_UPDATING,
-                                                   TL_IGNORE))
+                                                   TL_READ_NO_INSERT,
+                                                   MDL_SHARED_NO_WRITE))
               MYSQL_YYABORT;
           }
         ;

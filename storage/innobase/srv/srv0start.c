@@ -1160,9 +1160,17 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_use_native_aio = FALSE;
 		break;
-	default:
-		/* On Win 2000 and XP use async i/o */
+
+	case OS_WIN2000:
+	case OS_WINXP:
+		/* On 2000 and XP, async IO is available. */
 		srv_use_native_aio = TRUE;
+		break;
+
+	default:
+		/* Vista and later have both async IO and condition variables */
+		srv_use_native_aio = TRUE;
+		srv_use_native_conditions = TRUE;
 		break;
 	}
 
@@ -1231,14 +1239,6 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-#if defined(__NETWARE__)
-
-	/* Create less event semaphores because Win 98/ME had
-	difficulty creating 40000 event semaphores.  Comment from
-	Novell, Inc.: also, these just take a lot of memory on
-	NetWare. */
-	srv_max_n_threads = 1000;
-#else
 	if (srv_buf_pool_size >= 1000 * 1024 * 1024) {
 		/* If buffer pool is less than 1000 MB,
 		assume fewer threads. Also use only one
@@ -1255,7 +1255,7 @@ innobase_start_or_create_for_mysql(void)
 						especially in 64-bit
 						computers */
 	}
-#endif
+
 	err = srv_boot();
 
 	if (err != DB_SUCCESS) {
@@ -1723,18 +1723,6 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	/* Create the thread which watches the timeouts for lock waits */
-	os_thread_create(&lock_wait_timeout_thread, NULL,
-			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
-
-	/* Create the thread which warns of long semaphore waits */
-	os_thread_create(&srv_error_monitor_thread, NULL,
-			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
-
-	/* Create the thread which prints InnoDB monitor info */
-	os_thread_create(&srv_monitor_thread, NULL,
-			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
-
 	if (trx_doublewrite == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 
@@ -1747,7 +1735,28 @@ innobase_start_or_create_for_mysql(void)
 	We create the new segments only if it's a new database or
 	the database was shutdown cleanly. */
 
+	/* Note: When creating the extra rollback segments during an upgrade
+	we violate the latching order, even if the change buffer is empty.
+	We make an exception in sync0sync.c and check srv_is_being_started
+	for that violation. It cannot create a deadlock because we are still
+	running in single threaded mode essentially. Only the IO threads
+	should be running at this stage. */
+
 	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
+
+	/* Create the thread which watches the timeouts for lock waits */
+	os_thread_create(&lock_wait_timeout_thread, NULL,
+			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which warns of long semaphore waits */
+	os_thread_create(&srv_error_monitor_thread, NULL,
+			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which prints InnoDB monitor info */
+	os_thread_create(&srv_monitor_thread, NULL,
+			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+	srv_is_being_started = FALSE;
 
 	err = dict_create_or_check_foreign_constraint_tables();
 
@@ -1961,9 +1970,6 @@ innobase_shutdown_for_mysql(void)
 /*=============================*/
 {
 	ulint	i;
-#ifdef __NETWARE__
-	extern ibool panic_shutdown;
-#endif
 	if (!srv_was_started) {
 		if (srv_is_being_started) {
 			ut_print_timestamp(stderr);
@@ -1992,10 +1998,7 @@ innobase_shutdown_for_mysql(void)
 			"InnoDB will do a crash recovery!\n");
 	}
 
-#ifdef __NETWARE__
-	if (!panic_shutdown)
-#endif
-		logs_empty_and_mark_files_at_shutdown();
+	logs_empty_and_mark_files_at_shutdown();
 
 	if (srv_conc_n_threads != 0) {
 		fprintf(stderr,
@@ -2167,12 +2170,4 @@ innobase_shutdown_for_mysql(void)
 
 	return((int) DB_SUCCESS);
 }
-
-#ifdef __NETWARE__
-void set_panic_flag_for_netware()
-{
-	extern ibool panic_shutdown;
-	panic_shutdown = TRUE;
-}
-#endif /* __NETWARE__ */
 #endif /* !UNIV_HOTBACKUP */

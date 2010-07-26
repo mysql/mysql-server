@@ -38,6 +38,7 @@ int main(int argc, char **argv)
   HA_KEYSEG keyseg[4];
   HP_CREATE_INFO hp_create_info;
   HP_SHARE *tmp_share;
+  my_bool unused;
   MY_INIT(argv[0]);
 
   filename= "test1";
@@ -45,6 +46,11 @@ int main(int argc, char **argv)
 
   bzero(&hp_create_info, sizeof(hp_create_info));
   hp_create_info.max_table_size= 1024L*1024L;
+  hp_create_info.keys= 1;
+  hp_create_info.keydef= keyinfo;
+  hp_create_info.reclength= 30;
+  hp_create_info.max_records= (ulong) flag*100000L;
+  hp_create_info.min_records= 10UL;
 
   keyinfo[0].keysegs=1;
   keyinfo[0].seg=keyseg;
@@ -55,13 +61,12 @@ int main(int argc, char **argv)
   keyinfo[0].seg[0].charset= &my_charset_latin1;
   keyinfo[0].seg[0].null_bit= 0;
   keyinfo[0].flag = HA_NOSAME;
-  
+
   deleted=0;
   bzero((uchar*) flags,sizeof(flags));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000L,10L,
-		  &hp_create_info, &tmp_share) ||
+  if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||
       !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");

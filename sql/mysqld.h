@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,6 +150,10 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
+/*Move UUID_LENGTH from item_strfunc.h*/
+#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+extern char server_uuid[UUID_LENGTH+1];
+extern const char *server_uuid_ptr;
 extern const double log_10[309];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
@@ -179,7 +183,7 @@ extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
-extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
+extern ulong thread_cache_size, thread_pool_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern ulong server_id, concurrency;
@@ -236,7 +240,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager, key_LOCK_mapped_file,
   key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
-  key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_server_started, key_LOCK_status,
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
@@ -255,7 +259,7 @@ extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 
 extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
-  key_COND_refresh, key_COND_rpl_status, key_COND_server_started,
+  key_COND_refresh, key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,

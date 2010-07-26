@@ -128,9 +128,11 @@ trx_create(
 	trx->detailed_error[0] = '\0';
 
 	trx->sess = sess;
+
 	trx->lock.que_state = TRX_QUE_RUNNING;
 
-	trx->lock.lock_heap = mem_heap_create_in_buffer(256);
+	trx->lock.lock_heap = mem_heap_create_typed(
+		256, MEM_HEAP_FOR_LOCK_HEAP);
 
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
@@ -1512,7 +1514,7 @@ trx_get_trx_by_xid(
 
 		/* Compare two X/Open XA transaction id's: their
 		length should be the same and binary comparison
-		of gtrid_lenght+bqual_length bytes should be
+		of gtrid_length+bqual_length bytes should be
 		the same */
 
 		if (xid->gtrid_length == trx->xid.gtrid_length

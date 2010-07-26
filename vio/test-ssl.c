@@ -14,7 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#if defined(HAVE_OPENSSL) && !defined(__NETWARE__)
+#if defined(HAVE_OPENSSL)
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
@@ -106,8 +106,8 @@ main(int argc, char**	argv)
 
   child_pid = fork();
   if (child_pid==-1) {
-    my_free((uchar*)ssl_acceptor,MYF(0));
-    my_free((uchar*)ssl_connector,MYF(0));
+    my_free(ssl_acceptor);
+    my_free(ssl_connector);
     fatal_error("fork");
   }
   if (child_pid==0)
@@ -116,28 +116,28 @@ main(int argc, char**	argv)
     char	xbuf[100];
     int	r = vio_read(client_vio,xbuf, sizeof(xbuf));
     if (r<=0) {
-      my_free((uchar*)ssl_acceptor,MYF(0));
-      my_free((uchar*)ssl_connector,MYF(0));
+      my_free(ssl_acceptor);
+      my_free(ssl_connector);
       fatal_error("client:SSL_read");
     }
     xbuf[r] = 0;
     printf("client:got %s\n", xbuf);
-    my_free((uchar*)client_vio,MYF(0));
-    my_free((uchar*)ssl_acceptor,MYF(0));
-    my_free((uchar*)ssl_connector,MYF(0));
+    my_free(client_vio);
+    my_free(ssl_acceptor);
+    my_free(ssl_connector);
   }
   else
   {
     const char*	s = "Huhuhuh";
     int		r = vio_write(server_vio,(uchar*)s, strlen(s));
     if (r<=0) {
-      my_free((uchar*)ssl_acceptor,MYF(0));
-      my_free((uchar*)ssl_connector,MYF(0));
+      my_free(ssl_acceptor);
+      my_free(ssl_connector);
       fatal_error("server:SSL_write");
     }
-    my_free((uchar*)server_vio,MYF(0));
-    my_free((uchar*)ssl_acceptor,MYF(0));
-    my_free((uchar*)ssl_connector,MYF(0));
+    my_free(server_vio);
+    my_free(ssl_acceptor);
+    my_free(ssl_connector);
   }
   return 0;
 }

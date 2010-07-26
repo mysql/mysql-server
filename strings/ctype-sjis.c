@@ -31,7 +31,7 @@
  * .configure. mbmaxlen_sjis=2
  */
 
-static uchar NEAR ctype_sjis[257] =
+static uchar ctype_sjis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -68,7 +68,7 @@ static uchar NEAR ctype_sjis[257] =
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000
 };
 
-static uchar NEAR to_lower_sjis[]=
+static uchar to_lower_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +104,7 @@ static uchar NEAR to_lower_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR to_upper_sjis[]=
+static uchar to_upper_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +140,7 @@ static uchar NEAR to_upper_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR sort_order_sjis[]=
+static uchar sort_order_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -1152,30 +1152,6 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
     }
   }
   return res;
-}
-
-
-
-static size_t my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
-                               uchar *dest, size_t len,
-                               const uchar *src, size_t srclen)
-{
-  uchar *d_end = dest + len;
-  uchar *s_end = (uchar*) src + srclen;
-  while (dest < d_end && src < s_end)
-  {
-    if (ismbchar_sjis(cs,(char*) src, (char*) s_end))
-    {
-      *dest++ = *src++;
-      if (dest < d_end && src < s_end)
-	*dest++ = *src++;
-    }
-    else
-      *dest++ = sort_order_sjis[(uchar)*src++];
-  }
-  if (len > srclen)
-    bfill(dest, len - srclen, ' ');
-  return len;
 }
 
 
@@ -34229,7 +34205,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   NULL,			/* init */
   my_strnncoll_sjis,
   my_strnncollsp_sjis,
-  my_strnxfrm_sjis,
+  my_strnxfrm_mb,
   my_strnxfrmlen_simple,
   my_like_range_sjis,
   my_wildcmp_mb,	/* wildcmp  */
@@ -34300,6 +34276,8 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -34332,6 +34310,8 @@ CHARSET_INFO my_charset_sjis_bin=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

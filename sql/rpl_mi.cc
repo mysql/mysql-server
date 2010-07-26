@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,38 +10,34 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <my_global.h> // For HAVE_REPLICATION
 #include "sql_priv.h"
 #include <my_dir.h>
 #include "unireg.h"                             // REQUIRED by other includes
 #include "rpl_mi.h"
-#include "slave.h"                              // SLAVE_MAX_HEARTBEAT_PERIOD
+#include "rpl_slave.h"                          // SLAVE_MAX_HEARTBEAT_PERIOD
 
 #ifdef HAVE_REPLICATION
 
 #define DEFAULT_CONNECT_RETRY 60
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
-int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
-int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), 
    rli(is_slave_recovery), port(MYSQL_PORT),
    connect_retry(DEFAULT_CONNECT_RETRY), inited(0), abort_slave(0),
-   slave_running(0), slave_run_id(0), sync_counter(0),
-   heartbeat_period(0), received_heartbeats(0), master_id(0)
+   slave_running(0), slave_run_id(0), clock_diff_with_master(0), 
+   sync_counter(0), heartbeat_period(0), received_heartbeats(0), 
+   master_id(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
+  master_uuid[0]=0;
 
   my_init_dynamic_array(&ignore_server_ids, sizeof(::server_id), 16, 16);
   bzero((char*) &file, sizeof(file));
@@ -135,8 +131,10 @@ enum {
   LINE_FOR_MASTER_BIND = 17,
   /* 6.0 added value of master_ignore_server_id */
   LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 18,
+  /* 6.0 added value of master_uuid */
+  LINE_FOR_MASTER_UUID= 19,
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_UUID
 };
 
 int init_master_info(Master_info* mi, const char* master_info_fname,
@@ -163,7 +161,29 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
     */
     if (thread_mask & SLAVE_SQL)
     {
+      bool hot_log= FALSE;
+      /* 
+         my_b_seek does an implicit flush_io_cache, so we need to:
+
+         1. check if this log is active (hot)
+         2. if it is we keep log_lock until the seek ends, otherwise 
+            release it right away.
+
+         If we did not take log_lock, SQL thread might race with IO
+         thread for the IO_CACHE mutex.
+
+       */
+      mysql_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
+      mysql_mutex_lock(log_lock);
+      hot_log= mi->rli.relay_log.is_active(mi->rli.linfo.log_file_name);
+
+      if (!hot_log)
+        mysql_mutex_unlock(log_lock);
+
       my_b_seek(mi->rli.cur_log, (my_off_t) 0);
+
+      if (hot_log)
+        mysql_mutex_unlock(log_lock);
     }
     DBUG_RETURN(0);
   }
@@ -348,6 +368,10 @@ file '%s')", mi->info_file_name);
         sql_print_error("Failed to initialize master info ignore_server_ids");
         goto errwithmsg;
       }
+
+      if (lines >= LINE_FOR_MASTER_UUID &&
+          init_strvar_from_file(mi->master_uuid, sizeof(mi->master_uuid), &mi->file, 0))
+        goto errwithmsg;
     }
 
 #ifndef HAVE_OPENSSL
@@ -457,16 +481,13 @@ int flush_master_info(Master_info* mi,
                          (1 + mi->ignore_server_ids.elements), MYF(MY_WME));
     if (!ignore_server_ids_buf)
       DBUG_RETURN(1);
-    for (ulong i= 0, cur_len= my_sprintf(ignore_server_ids_buf,
-                                         (ignore_server_ids_buf, "%u",
-                                          mi->ignore_server_ids.elements));
-         i < mi->ignore_server_ids.elements; i++)
+    ulong cur_len= sprintf(ignore_server_ids_buf, "%u",
+                           mi->ignore_server_ids.elements);
+    for (ulong i= 0; i < mi->ignore_server_ids.elements; i++)
     {
       ulong s_id;
       get_dynamic(&mi->ignore_server_ids, (uchar*) &s_id, i);
-      cur_len +=my_sprintf(ignore_server_ids_buf + cur_len,
-                           (ignore_server_ids_buf + cur_len,
-                            " %lu", s_id));
+      cur_len+= sprintf(ignore_server_ids_buf + cur_len, " %lu", s_id);
     }
   }
 
@@ -487,18 +508,18 @@ int flush_master_info(Master_info* mi,
      of file we don't care about this garbage.
   */
   char heartbeat_buf[sizeof(mi->heartbeat_period) * 4]; // buffer to suffice always
-  my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
+  sprintf(heartbeat_buf, "%.3f", mi->heartbeat_period);
   my_b_seek(file, 0L);
   my_b_printf(file,
-              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n%s\n",
               LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
-              heartbeat_buf, "", ignore_server_ids_buf);
-  my_free(ignore_server_ids_buf, MYF(0));
+              heartbeat_buf, "", ignore_server_ids_buf, mi->master_uuid);
+  my_free(ignore_server_ids_buf);
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 
       ++(mi->sync_counter) >= sync_masterinfo_period)

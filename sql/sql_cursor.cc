@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation                         /* gcc class implementation */
 #endif
@@ -357,7 +358,7 @@ void
 Sensitive_cursor::reset_thd(THD *thd)
 {
   thd->derived_tables= 0;
-  thd->open_tables= 0;
+  thd->set_open_tables(NULL);
   thd->lock= 0;
   thd->free_list= 0;
   thd->change_list.empty();
@@ -436,7 +437,7 @@ Sensitive_cursor::fetch(ulong num_rows)
               thd->lock == 0);
 
   thd->derived_tables= derived_tables;
-  thd->open_tables= open_tables;
+  thd->set_open_tables(open_tables);
   thd->lock= lock;
   thd->set_query_id(query_id);
   change_list.move_elements_to(&thd->change_list);
@@ -519,14 +520,14 @@ Sensitive_cursor::close()
     TABLE *tmp_derived_tables= thd->derived_tables;
     MYSQL_LOCK *tmp_lock= thd->lock;
 
-    thd->open_tables= open_tables;
+    thd->set_open_tables(open_tables);
     thd->derived_tables= derived_tables;
     thd->lock= lock;
 
     /* Is expected to at least close tables and empty thd->change_list */
     stmt_arena->cleanup_stmt();
 
-    thd->open_tables= tmp_derived_tables;
+    thd->set_open_tables(tmp_derived_tables);
     thd->derived_tables= tmp_derived_tables;
     thd->lock= tmp_lock;
   }

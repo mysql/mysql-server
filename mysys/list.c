@@ -61,8 +61,8 @@ void list_free(LIST *root, uint free_data)
   {
     next=root->next;
     if (free_data)
-      my_free((uchar*) root->data,MYF(0));
-    my_free((uchar*) root,MYF(0));
+      my_free(root->data);
+    my_free(root);
     root=next;
   }
 }
