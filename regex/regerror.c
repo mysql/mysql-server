@@ -7,46 +7,46 @@
 #include "regerror.ih"
 
 /*
- = #define	REG_NOMATCH	 1
- = #define	REG_BADPAT	 2
- = #define	REG_ECOLLATE	 3
- = #define	REG_ECTYPE	 4
- = #define	REG_EESCAPE	 5
- = #define	REG_ESUBREG	 6
- = #define	REG_EBRACK	 7
- = #define	REG_EPAREN	 8
- = #define	REG_EBRACE	 9
- = #define	REG_BADBR	10
- = #define	REG_ERANGE	11
- = #define	REG_ESPACE	12
- = #define	REG_BADRPT	13
- = #define	REG_EMPTY	14
- = #define	REG_ASSERT	15
- = #define	REG_INVARG	16
- = #define	REG_ATOI	255	// convert name to number (!)
- = #define	REG_ITOA	0400	// convert number to name (!)
+ = #define	MY_REG_NOMATCH	 1
+ = #define	MY_REG_BADPAT	 2
+ = #define	MY_REG_ECOLLATE	 3
+ = #define	MY_REG_ECTYPE	 4
+ = #define	MY_REG_EESCAPE	 5
+ = #define	MY_REG_ESUBREG	 6
+ = #define	MY_REG_EBRACK	 7
+ = #define	MY_REG_EPAREN	 8
+ = #define	MY_REG_EBRACE	 9
+ = #define	MY_REG_BADBR	10
+ = #define	MY_REG_ERANGE	11
+ = #define	MY_REG_ESPACE	12
+ = #define	MY_REG_BADRPT	13
+ = #define	MY_REG_EMPTY	14
+ = #define	MY_REG_ASSERT	15
+ = #define	MY_REG_INVARG	16
+ = #define	MY_REG_ATOI	255	// convert name to number (!)
+ = #define	MY_REG_ITOA	0400	// convert number to name (!)
  */
 static struct rerr {
 	int code;
 	const char *name;
         const char *explain;
 } rerrs[] = {
-	{REG_NOMATCH,	"REG_NOMATCH",	"regexec() failed to match"},
-	{REG_BADPAT,	"REG_BADPAT",	"invalid regular expression"},
-	{REG_ECOLLATE,	"REG_ECOLLATE",	"invalid collating element"},
-	{REG_ECTYPE,	"REG_ECTYPE",	"invalid character class"},
-	{REG_EESCAPE,	"REG_EESCAPE",	"trailing backslash (\\)"},
-	{REG_ESUBREG,	"REG_ESUBREG",	"invalid backreference number"},
-	{REG_EBRACK,	"REG_EBRACK",	"brackets ([ ]) not balanced"},
-	{REG_EPAREN,	"REG_EPAREN",	"parentheses not balanced"},
-	{REG_EBRACE,	"REG_EBRACE",	"braces not balanced"},
-	{REG_BADBR,	"REG_BADBR",	"invalid repetition count(s)"},
-	{REG_ERANGE,	"REG_ERANGE",	"invalid character range"},
-	{REG_ESPACE,	"REG_ESPACE",	"out of memory"},
-	{REG_BADRPT,	"REG_BADRPT",	"repetition-operator operand invalid"},
-	{REG_EMPTY,	"REG_EMPTY",	"empty (sub)expression"},
-	{REG_ASSERT,	"REG_ASSERT",	"\"can't happen\" -- you found a bug"},
-	{REG_INVARG,	"REG_INVARG",	"invalid argument to regex routine"},
+	{MY_REG_NOMATCH,	"MY_REG_NOMATCH",	"regexec() failed to match"},
+	{MY_REG_BADPAT,	"MY_REG_BADPAT",	"invalid regular expression"},
+	{MY_REG_ECOLLATE,	"MY_REG_ECOLLATE",	"invalid collating element"},
+	{MY_REG_ECTYPE,	"MY_REG_ECTYPE",	"invalid character class"},
+	{MY_REG_EESCAPE,	"MY_REG_EESCAPE",	"trailing backslash (\\)"},
+	{MY_REG_ESUBREG,	"MY_REG_ESUBREG",	"invalid backreference number"},
+	{MY_REG_EBRACK,	"MY_REG_EBRACK",	"brackets ([ ]) not balanced"},
+	{MY_REG_EPAREN,	"MY_REG_EPAREN",	"parentheses not balanced"},
+	{MY_REG_EBRACE,	"MY_REG_EBRACE",	"braces not balanced"},
+	{MY_REG_BADBR,	"MY_REG_BADBR",	"invalid repetition count(s)"},
+	{MY_REG_ERANGE,	"MY_REG_ERANGE",	"invalid character range"},
+	{MY_REG_ESPACE,	"MY_REG_ESPACE",	"out of memory"},
+	{MY_REG_BADRPT,	"MY_REG_BADRPT",	"repetition-operator operand invalid"},
+	{MY_REG_EMPTY,	"MY_REG_EMPTY",	"empty (sub)expression"},
+	{MY_REG_ASSERT,	"MY_REG_ASSERT",	"\"can't happen\" -- you found a bug"},
+	{MY_REG_INVARG,	"MY_REG_INVARG",	"invalid argument to regex routine"},
 	{0,		"",		"*** unknown regexp error code ***"},
 };
 
@@ -60,22 +60,22 @@ my_regerror(int errcode, const my_regex_t *preg, char *errbuf, size_t errbuf_siz
 {
 	register struct rerr *r;
 	register size_t len;
-	register int target = errcode &~ REG_ITOA;
+	register int target = errcode &~ MY_REG_ITOA;
 	register char *s;
 	char convbuf[50];
 
-	if (errcode == REG_ATOI)
+	if (errcode == MY_REG_ATOI)
 		s = regatoi(preg, convbuf);
 	else {
 		for (r = rerrs; r->code != 0; r++)
 			if (r->code == target)
 				break;
 
-		if (errcode&REG_ITOA) {
+		if (errcode&MY_REG_ITOA) {
 			if (r->code != 0)
 				(void) strcpy(convbuf, r->name);
 			else
-				sprintf(convbuf, "REG_0x%x", target);
+				sprintf(convbuf, "MY_REG_0x%x", target);
 			assert(strlen(convbuf) < sizeof(convbuf));
 			s = convbuf;
 		} else
@@ -96,7 +96,7 @@ my_regerror(int errcode, const my_regex_t *preg, char *errbuf, size_t errbuf_siz
 }
 
 /*
- - regatoi - internal routine to implement REG_ATOI
+ - regatoi - internal routine to implement MY_REG_ATOI
  == static char *regatoi(const regex_t *preg, char *localbuf);
  */
 static char *
