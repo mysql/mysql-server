@@ -101,9 +101,8 @@ NOTE: If this function returns BUF_LRU_FREED, it will temporarily
 release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
-The caller must hold buf_pool->mutex and buf_page_get_mutex(bpage) and
-release these two mutexes after the call.  No other
-buf_page_get_mutex() may be held when calling this function.
+The caller must hold buf_pool->mutex and must not hold any
+buf_page_get_mutex() when calling this function.
 @return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
 BUF_LRU_NOT_FREED otherwise. */
 UNIV_INTERN
