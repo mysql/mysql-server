@@ -1370,3 +1370,16 @@ CREATE TABLE t1 (id int);
 INSERT INTO t1 VALUES (1), (2);
 ALTER TABLE t1 ADD COLUMN (f1 INT), ADD COLUMN (f2 INT), ADD KEY f2k(f2);
 DROP TABLE t1;
+#
+# Test for bug #53820 "ALTER a MEDIUMINT column table causes full
+#                      table copy".
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT, b MEDIUMINT);
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+# The below ALTER should not copy table and so no rows should
+# be shown as affected.
+ALTER TABLE t1 CHANGE a id INT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
