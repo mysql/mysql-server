@@ -66,6 +66,9 @@ Created 11/5/1995 Heikki Tuuri
 #define MAX_BUFFER_POOLS 64		/*!< The maximum number of buffer
 					pools that can be defined */
 
+#define MAX_PAGE_HASH_MUTEXES	1024	/*!< The maximum number of
+					page_hash mutexes */
+
 #define BUF_POOL_WATCH_SIZE 1		/*!< Maximum number of concurrent
 					buffer pool watches */
 
