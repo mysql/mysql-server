@@ -1649,22 +1649,58 @@ int
 NdbDictionary::Dictionary::createTable(const Table & t)
 {
   DBUG_ENTER("NdbDictionary::Dictionary::createTable");
-  DBUG_RETURN(m_impl.createTable(NdbTableImpl::getImpl(t)));
+  if (likely(! is_ndb_blob_table(t.getName())))
+  {
+    DBUG_RETURN(m_impl.createTable(NdbTableImpl::getImpl(t)));
+  }
+  else
+  {
+    /* 4307 : Invalid table name */
+    m_impl.m_error.code = 4307;
+    DBUG_RETURN(-1);
+  }
 }
 
 int
 NdbDictionary::Dictionary::dropTable(Table & t){
-  return m_impl.dropTable(NdbTableImpl::getImpl(t));
+  if (likely(! is_ndb_blob_table(t.getName())))
+  {
+    return m_impl.dropTable(NdbTableImpl::getImpl(t));
+  }
+  else
+  {
+    /* 4249 : Invalid table */
+    m_impl.m_error.code = 4249;
+    return -1;
+  }
 }
 
 int
 NdbDictionary::Dictionary::dropTableGlobal(const Table & t){
-  return m_impl.dropTableGlobal(NdbTableImpl::getImpl(t));
+  if (likely(! is_ndb_blob_table(t.getName())))
+  {
+    return m_impl.dropTableGlobal(NdbTableImpl::getImpl(t));
+  }
+  else
+  {
+    /* 4249 : Invalid table */
+    m_impl.m_error.code = 4249;
+    return -1;
+  }
 }
 
 int
 NdbDictionary::Dictionary::dropTable(const char * name){
-  return m_impl.dropTable(name);
+  if (likely(! is_ndb_blob_table(name)))
+  {
+    return m_impl.dropTable(name);
+  }
+  else
+  {
+    /* 4307 : Invalid table name */
+    m_impl.m_error.code = 4307;
+    return -1;
+  }
 }
 
 bool
