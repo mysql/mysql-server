@@ -1,4 +1,4 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,15 +10,19 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <mysql_priv.h>
+#include <my_global.h>
+#include <my_pthread.h>
 #include <pfs_server.h>
 #include <pfs_instr_class.h>
 #include <pfs_instr.h>
 #include <pfs_global.h>
 #include <tap.h>
+
+#include <string.h>
+#include <memory.h>
 
 #include "stub_print_error.h"
 
@@ -936,9 +940,13 @@ void test_locker_disabled()
   ok(file_A1 != NULL, "instrumented");
 
   PSI_mutex_locker *mutex_locker;
+  PSI_mutex_locker_state mutex_state;
   PSI_rwlock_locker *rwlock_locker;
+  PSI_rwlock_locker_state rwlock_state;
   PSI_cond_locker *cond_locker;
+  PSI_cond_locker_state cond_state;
   PSI_file_locker *file_locker;
+  PSI_file_locker_state file_state;
 
   /* Pretend thread T-1 is disabled */
   /* ------------------------------ */
@@ -950,17 +958,17 @@ void test_locker_disabled()
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
 
-  mutex_locker= psi->get_thread_mutex_locker(mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");
-  rwlock_locker= psi->get_thread_rwlock_locker(rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
   ok(rwlock_locker == NULL, "no locker");
-  cond_locker= psi->get_thread_cond_locker(cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
   ok(cond_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_name_locker(file_key_A, PSI_FILE_OPEN, "xxx", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_stream_locker(file_A1, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_stream_locker(&file_state, file_A1, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
 
   /* Pretend the consumer is disabled */
@@ -973,17 +981,17 @@ void test_locker_disabled()
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
 
-  mutex_locker= psi->get_thread_mutex_locker(mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");
-  rwlock_locker= psi->get_thread_rwlock_locker(rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
   ok(rwlock_locker == NULL, "no locker");
-  cond_locker= psi->get_thread_cond_locker(cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
   ok(cond_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_name_locker(file_key_A, PSI_FILE_OPEN, "xxx", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_stream_locker(file_A1, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_stream_locker(&file_state, file_A1, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
 
   /* Pretend the instrument is disabled */
@@ -996,17 +1004,17 @@ void test_locker_disabled()
   cond_class_A->m_enabled= false;
   file_class_A->m_enabled= false;
 
-  mutex_locker= psi->get_thread_mutex_locker(mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");
-  rwlock_locker= psi->get_thread_rwlock_locker(rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
   ok(rwlock_locker == NULL, "no locker");
-  cond_locker= psi->get_thread_cond_locker(cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
   ok(cond_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_name_locker(file_key_A, PSI_FILE_OPEN, "xxx", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_stream_locker(file_A1, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_stream_locker(&file_state, file_A1, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
 
   /* Pretend everything is enabled */
@@ -1019,27 +1027,27 @@ void test_locker_disabled()
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
 
-  mutex_locker= psi->get_thread_mutex_locker(mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker != NULL, "locker");
   psi->start_mutex_wait(mutex_locker, __FILE__, __LINE__);
   psi->end_mutex_wait(mutex_locker, 0);
-  rwlock_locker= psi->get_thread_rwlock_locker(rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
   ok(rwlock_locker != NULL, "locker");
   psi->start_rwlock_rdwait(rwlock_locker, __FILE__, __LINE__);
   psi->end_rwlock_rdwait(rwlock_locker, 0);
-  cond_locker= psi->get_thread_cond_locker(cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
   ok(cond_locker != NULL, "locker");
   psi->start_cond_wait(cond_locker, __FILE__, __LINE__);
   psi->end_cond_wait(cond_locker, 0);
-  file_locker= psi->get_thread_file_name_locker(file_key_A, PSI_FILE_OPEN, "xxx", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker != NULL, "locker");
   psi->start_file_open_wait(file_locker, __FILE__, __LINE__);
   psi->end_file_open_wait(file_locker);
-  file_locker= psi->get_thread_file_stream_locker(file_A1, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_stream_locker(&file_state, file_A1, PSI_FILE_READ);
   ok(file_locker != NULL, "locker");
   psi->start_file_wait(file_locker, 10, __FILE__, __LINE__);
   psi->end_file_wait(file_locker, 10);
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker != NULL, "locker");
   psi->start_file_wait(file_locker, 10, __FILE__, __LINE__);
   psi->end_file_wait(file_locker, 10);
@@ -1054,17 +1062,17 @@ void test_locker_disabled()
   cond_class_A->m_enabled= true;
   file_class_A->m_enabled= true;
 
-  mutex_locker= psi->get_thread_mutex_locker(mutex_A1, PSI_MUTEX_LOCK);
+  mutex_locker= psi->get_thread_mutex_locker(&mutex_state, mutex_A1, PSI_MUTEX_LOCK);
   ok(mutex_locker == NULL, "no locker");
-  rwlock_locker= psi->get_thread_rwlock_locker(rwlock_A1, PSI_RWLOCK_READLOCK);
+  rwlock_locker= psi->get_thread_rwlock_locker(&rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK);
   ok(rwlock_locker == NULL, "no locker");
-  cond_locker= psi->get_thread_cond_locker(cond_A1, mutex_A1, PSI_COND_WAIT);
+  cond_locker= psi->get_thread_cond_locker(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT);
   ok(cond_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_name_locker(file_key_A, PSI_FILE_OPEN, "xxx", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_stream_locker(file_A1, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_stream_locker(&file_state, file_A1, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker == NULL, "no locker");
 
   shutdown_performance_schema();
@@ -1097,6 +1105,7 @@ void test_file_instrumentation_leak()
 
   PFS_file_class *file_class_A;
   PFS_file_class *file_class_B;
+  PSI_file_locker_state file_state;
   PSI_thread *thread_1;
 
   /* Preparation */
@@ -1125,24 +1134,24 @@ void test_file_instrumentation_leak()
 
   /* Simulate OPEN + READ of 100 bytes + CLOSE on descriptor 12 */
 
-  file_locker= psi->get_thread_file_name_locker(file_key_A, PSI_FILE_OPEN, "AAA", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "AAA", NULL);
   ok(file_locker != NULL, "locker");
   psi->start_file_open_wait(file_locker, __FILE__, __LINE__);
   psi->end_file_open_wait_and_bind_to_descriptor(file_locker, 12);
 
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_READ);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_READ);
   ok(file_locker != NULL, "locker");
   psi->start_file_wait(file_locker, 100, __FILE__, __LINE__);
   psi->end_file_wait(file_locker, 100);
 
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_CLOSE);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_CLOSE);
   ok(file_locker != NULL, "locker");
   psi->start_file_wait(file_locker, 0, __FILE__, __LINE__);
   psi->end_file_wait(file_locker, 0);
 
   /* Simulate uninstrumented-OPEN + WRITE on descriptor 24 */
 
-  file_locker= psi->get_thread_file_descriptor_locker((File) 24, PSI_FILE_WRITE);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 24, PSI_FILE_WRITE);
   ok(file_locker == NULL, "no locker, since the open was not instrumented");
 
   /*
@@ -1150,7 +1159,7 @@ void test_file_instrumentation_leak()
     the instrumentation should not leak (don't charge the file io on unknown B to "AAA")
   */
 
-  file_locker= psi->get_thread_file_descriptor_locker((File) 12, PSI_FILE_WRITE);
+  file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_WRITE);
   ok(file_locker == NULL, "no locker, no leak");
 
   shutdown_performance_schema();

@@ -17,8 +17,9 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "probes_mysql.h"
+#include "sql_class.h"                          // SSV
 #include <myisam.h>
 
 #include "ha_archive.h"
@@ -386,7 +387,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     {
       *rc= my_errno ? my_errno : -1;
       mysql_mutex_unlock(&archive_mutex);
-      my_free(share, MYF(0));
+      my_free(share);
       DBUG_RETURN(NULL);
     }
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
@@ -446,7 +447,7 @@ int ha_archive::free_share()
       if (azclose(&(share->archive_write)))
         rc= 1;
     }
-    my_free((uchar*) share, MYF(0));
+    my_free(share);
   }
   mysql_mutex_unlock(&archive_mutex);
 
@@ -705,7 +706,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
         {
           my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
           azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
-          my_free((uchar*)frm_ptr, MYF(0));
+          my_free(frm_ptr);
         }
       }
       my_close(frm_file, MYF(0));
@@ -858,7 +859,9 @@ int ha_archive::write_row(uchar *buf)
   {
     KEY *mkey= &table->s->key_info[0]; // We only support one key right now
     update_auto_increment();
-    temp_auto= table->next_number_field->val_int();
+    temp_auto= (((Field_num*) table->next_number_field)->unsigned_flag ||
+                table->next_number_field->val_int() > 0 ?
+                table->next_number_field->val_int() : 0);
 
     /*
       We don't support decremening auto_increment. They make the performance
@@ -931,8 +934,7 @@ int ha_archive::write_row(uchar *buf)
   rc= real_write_row(buf,  &(share->archive_write));
 error:
   mysql_mutex_unlock(&share->mutex);
-  if (read_buf)
-    my_free((uchar*) read_buf, MYF(0));
+  my_free(read_buf);
 
   DBUG_RETURN(rc);
 }
@@ -1324,13 +1326,12 @@ end:
 
 /*
   This method repairs the meta file. It does this by walking the datafile and 
-  rewriting the meta file. Currently it does this by calling optimize with
-  the extended flag.
+  rewriting the meta file. If EXTENDED repair is requested, we attempt to
+  recover as much data as possible.
 */
 int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::repair");
-  check_opt->flags= T_EXTEND;
   int rc= optimize(thd, check_opt);
 
   if (rc)
@@ -1424,7 +1425,14 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_PRINT("ha_archive", ("recovered %llu archive rows", 
                         (unsigned long long)share->rows_recorded));
 
-    if (rc && rc != HA_ERR_END_OF_FILE)
+    /*
+      If REPAIR ... EXTENDED is requested, try to recover as much data
+      from data file as possible. In this case if we failed to read a
+      record, we assume EOF. This allows massive data loss, but we can
+      hardly do more with broken zlib stream. And this is the only way
+      to restore at least what is still recoverable.
+    */
+    if (rc && rc != HA_ERR_END_OF_FILE && !(check_opt->flags & T_EXTEND))
       goto error;
   } 
 
@@ -1689,7 +1697,7 @@ archive_record_buffer *ha_archive::create_record_buffer(unsigned int length)
   if (!(r->buffer= (uchar*) my_malloc(r->length,
                                     MYF(MY_WME))))
   {
-    my_free((char*) r, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(r);
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
 
@@ -1699,8 +1707,8 @@ archive_record_buffer *ha_archive::create_record_buffer(unsigned int length)
 void ha_archive::destroy_record_buffer(archive_record_buffer *r) 
 {
   DBUG_ENTER("ha_archive::destroy_record_buffer");
-  my_free((char*) r->buffer, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) r, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(r->buffer);
+  my_free(r);
   DBUG_VOID_RETURN;
 }
 

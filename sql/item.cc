@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,14 +10,16 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -25,6 +27,19 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_select.h"
+#include "sql_show.h"                           // append_identifier
+#include "sql_view.h"                           // VIEW_ANY_SQL
+#include "sql_time.h"                  // str_to_datetime_with_warn,
+                                       // make_truncated_value_warning
+#include "sql_acl.h"                   // get_column_grant,
+                                       // SELECT_ACL, UPDATE_ACL,
+                                       // INSERT_ACL,
+                                       // check_grant_column
+#include "sql_base.h"                  // enum_resolution_type,
+                                       // REPORT_EXCEPT_NOT_FOUND,
+                                       // find_item_in_list,
+                                       // RESOLVED_AGAINST_ALIAS, ...
+#include "log_event.h"                 // append_query_string
 
 const String my_null_string("NULL", 4, default_charset_info);
 
@@ -584,6 +599,18 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
    field_name(field_name_arg),
    alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
    cached_table(0), depended_from(0)
+{
+  name = (char*) field_name_arg;
+}
+
+
+Item_ident::Item_ident(TABLE_LIST *view_arg, const char *field_name_arg)
+  :orig_db_name(NullS), orig_table_name(view_arg->table_name),
+   orig_field_name(field_name_arg), context(&view_arg->view->select_lex.context),
+   db_name(NullS), table_name(view_arg->alias),
+   field_name(field_name_arg),
+   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_table(NULL), depended_from(NULL)
 {
   name = (char*) field_name_arg;
 }
@@ -1159,7 +1186,9 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
                            enum_field_types sp_var_type,
                            uint pos_in_q, uint len_in_q)
   :Item_sp_variable(sp_var_name.str, sp_var_name.length),
-   m_var_idx(sp_var_idx), pos_in_query(pos_in_q), len_in_query(len_in_q)
+   m_var_idx(sp_var_idx),
+   limit_clause_param(FALSE),
+   pos_in_query(pos_in_q), len_in_query(len_in_q)
 {
   maybe_null= TRUE;
 
@@ -1767,9 +1796,36 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
                                   &dummy_offset))
       continue;
 
+    /*
+      No needs to add converter if an "arg" is NUMERIC or DATETIME
+      value (which is pure ASCII) and at the same time target DTCollation
+      is ASCII-compatible. For example, no needs to rewrite:
+        SELECT * FROM t1 WHERE datetime_field = '2010-01-01';
+      to
+        SELECT * FROM t1 WHERE CONVERT(datetime_field USING cs) = '2010-01-01';
+      
+      TODO: avoid conversion of any values with
+      repertoire ASCII and 7bit-ASCII-compatible,
+      not only numeric/datetime origin.
+    */
+    if ((*arg)->collation.derivation == DERIVATION_NUMERIC &&
+        (*arg)->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        !((*arg)->collation.collation->state & MY_CS_NONASCII) &&
+        !(coll.collation->state & MY_CS_NONASCII))
+      continue;
+
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
+    {
+      /*
+        We should disable const subselect item evaluation because
+        subselect transformation does not happen in view_prepare_mode
+        and thus val_...() methods can not be called for const items.
+      */
+      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
+                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
+      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
+    }
 
     if (!conv)
     {
@@ -3378,9 +3434,9 @@ Item_param::set_param_type_and_swap_value(Item_param *src)
 bool
 Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
 {
-  Item *value= *it;
+  Item *arg= *it;
 
-  if (value->is_null())
+  if (arg->is_null())
   {
     set_null();
     return FALSE;
@@ -3388,12 +3444,12 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
 
   null_value= FALSE;
 
-  switch (value->result_type()) {
+  switch (arg->result_type()) {
   case STRING_RESULT:
   {
     char str_buffer[STRING_BUFFER_USUAL_SIZE];
     String sv_buffer(str_buffer, sizeof(str_buffer), &my_charset_bin);
-    String *sv= value->val_str(&sv_buffer);
+    String *sv= arg->val_str(&sv_buffer);
 
     if (!sv)
       return TRUE;
@@ -3410,19 +3466,19 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
   }
 
   case REAL_RESULT:
-    set_double(value->val_real());
+    set_double(arg->val_real());
       param_type= MYSQL_TYPE_DOUBLE;
     break;
 
   case INT_RESULT:
-    set_int(value->val_int(), value->max_length);
+    set_int(arg->val_int(), arg->max_length);
     param_type= MYSQL_TYPE_LONG;
     break;
 
   case DECIMAL_RESULT:
   {
     my_decimal dv_buf;
-    my_decimal *dv= value->val_decimal(&dv_buf);
+    my_decimal *dv= arg->val_decimal(&dv_buf);
 
     if (!dv)
       return TRUE;
@@ -3442,8 +3498,8 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
     return FALSE;
   }
 
-  item_result_type= value->result_type();
-  item_type= value->type();
+  item_result_type= arg->result_type();
+  item_type= arg->type();
   return FALSE;
 }
 
@@ -3738,7 +3794,7 @@ void Item_copy_decimal::copy()
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
-    memcpy (&cached_value, nr, sizeof (my_decimal)); 
+    my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
 }
 
@@ -4055,7 +4111,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 {
   Item **group_by_ref= NULL;
   Item **select_ref= NULL;
-  ORDER *group_list= (ORDER*) select->group_list.first;
+  ORDER *group_list= select->group_list.first;
   bool ambiguous_fields= FALSE;
   uint counter;
   enum_resolution_type resolution;
@@ -4344,8 +4400,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                            context->first_name_resolution_table,
                            context->last_name_resolution_table,
                            reference, REPORT_ALL_ERRORS,
-                           !any_privileges &&
-                           TRUE, TRUE);
+                           !any_privileges, TRUE);
     }
     return -1;
   }
@@ -4710,6 +4765,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  item_equal= NULL;
   null_value= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -4858,11 +4914,8 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
     e.g. <bin_col> = <int_col> AND <bin_col> = <hex_string>) since
     Items don't know the context they are in and there are functions like 
     IF (<hex_string>, 'yes', 'no').
-    The same problem occurs when comparing a DATE/TIME field with a
-    DATE/TIME represented as an int and as a string.
   */
-  if (!item ||
-      (cmp_context != (Item_result)-1 && item->cmp_context != cmp_context))
+  if (!item || !has_compatible_context(item))
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
@@ -4926,8 +4979,7 @@ Item *Item_field::replace_equal_field(uchar *arg)
     Item *const_item= item_equal->get_const();
     if (const_item)
     {
-      if (cmp_context != (Item_result)-1 &&
-          const_item->cmp_context != cmp_context)
+      if (!has_compatible_context(const_item))
         return this;
       return const_item;
     }
@@ -4994,21 +5046,6 @@ enum_field_types Item::field_type() const
     DBUG_ASSERT(0);
     return MYSQL_TYPE_VARCHAR;
   }
-}
-
-
-bool Item::is_datetime()
-{
-  switch (field_type())
-  {
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      return TRUE;
-    default:
-      break;
-  }
-  return FALSE;
 }
 
 
@@ -5282,14 +5319,22 @@ int Item_field::save_in_field(Field *to, bool no_conversions)
   if (result_field->is_null())
   {
     null_value=1;
-    res= set_field_to_null_with_conversions(to, no_conversions);
+    return set_field_to_null_with_conversions(to, no_conversions);
   }
-  else
+  to->set_notnull();
+
+  /*
+    If we're setting the same field as the one we're reading from there's 
+    nothing to do. This can happen in 'SET x = x' type of scenarios.
+  */  
+  if (to == result_field)
   {
-    to->set_notnull();
-    res= field_conv(to,result_field);
     null_value=0;
+    return 0;
   }
+
+  res= field_conv(to,result_field);
+  null_value=0;
   return res;
 }
 
@@ -5375,7 +5420,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
   {
     double nr= val_real();
     if (null_value)
-      return set_field_to_null(field);
+      return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
     error=field->store(nr);
   }
@@ -5575,13 +5620,25 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+Item_hex_string::Item_hex_string()
+{
+  hex_string_init("", 0);
+}
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
+{
+  hex_string_init(str, str_length);
+}
+
+void Item_hex_string::hex_string_init(const char *str, uint str_length)
 {
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
+  {
+    str_value.set("", 0, &my_charset_bin);
     return;
+  }
   str_value.set(ptr,max_length,&my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
@@ -5990,9 +6047,14 @@ void Item_field::print(String *str, enum_query_type query_type)
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
     field->val_str(&tmp);
-    str->append('\'');
-    str->append(tmp);
-    str->append('\'');
+    if (field->is_null())
+      str->append("NULL");
+    else
+    {
+      str->append('\'');
+      str->append(tmp);
+      str->append('\'');
+    }
     return;
   }
   Item_ident::print(str, query_type);
@@ -6009,6 +6071,20 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   alias_name_used= alias_name_used_arg;
   /*
     This constructor used to create some internals references over fixed items
+  */
+  if (ref && *ref && (*ref)->fixed)
+    set_properties();
+}
+
+
+Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
+                   const char *field_name_arg, bool alias_name_used_arg)
+  :Item_ident(view_arg, field_name_arg),
+   result_field(NULL), ref(item)
+{
+  alias_name_used= alias_name_used_arg;
+  /*
+    This constructor is used to create some internal references over fixed items
   */
   if (ref && *ref && (*ref)->fixed)
     set_properties();
@@ -7335,7 +7411,7 @@ void Item_cache_int::store(Item *item, longlong val_arg)
 String *Item_cache_int::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return NULL;
   str->set(value, default_charset());
   return str;
@@ -7345,7 +7421,7 @@ String *Item_cache_int::val_str(String *str)
 my_decimal *Item_cache_int::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return NULL;
   int2my_decimal(E_DEC_FATAL_ERROR, value, unsigned_flag, decimal_val);
   return decimal_val;
@@ -7354,7 +7430,7 @@ my_decimal *Item_cache_int::val_decimal(my_decimal *decimal_val)
 double Item_cache_int::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0.0;
   return (double) value;
 }
@@ -7362,7 +7438,7 @@ double Item_cache_int::val_real()
 longlong Item_cache_int::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0;
   return value;
 }
@@ -7373,6 +7449,8 @@ bool  Item_cache_datetime::cache_value_int()
     return FALSE;
 
   value_cached= TRUE;
+  // Mark cached string value obsolete
+  str_value_cached= FALSE;
   /* Assume here that the underlying item will do correct conversion.*/
   int_value= example->val_int_result();
   null_value= example->null_value;
@@ -7385,7 +7463,13 @@ bool  Item_cache_datetime::cache_value()
 {
   if (!example)
     return FALSE;
+
+  if (cmp_context == INT_RESULT)
+    return cache_value_int();
+
   str_value_cached= TRUE;
+  // Mark cached int value obsolete
+  value_cached= FALSE;
   /* Assume here that the underlying item will do correct conversion.*/
   String *res= example->str_result(&str_value);
   if (res && res != &str_value)
@@ -7409,8 +7493,47 @@ void Item_cache_datetime::store(Item *item, longlong val_arg)
 String *Item_cache_datetime::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!str_value_cached && !cache_value())
-    return NULL;
+  if (!str_value_cached)
+  {
+    /*
+      When it's possible the Item_cache_datetime uses INT datetime
+      representation due to speed reasons. But still, it always has the STRING
+      result type and thus it can be asked to return a string value. 
+      It is possible that at this time cached item doesn't contain correct
+      string value, thus we have to convert cached int value to string and
+      return it.
+    */
+    if (value_cached)
+    {
+      MYSQL_TIME ltime;
+      if (str_value.alloc(MAX_DATE_STRING_REP_LENGTH))
+        return NULL;
+      if (cached_field_type == MYSQL_TYPE_TIME)
+      {
+        ulonglong time= int_value;
+        DBUG_ASSERT(time < TIME_MAX_VALUE);
+        set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
+        ltime.second= time % 100;
+        time/= 100;
+        ltime.minute= time % 100;
+        time/= 100;
+        ltime.hour= time % 100;
+      }
+      else
+      {
+        int was_cut;
+        longlong res;
+        res= number_to_datetime(val_int(), &ltime, TIME_FUZZY_DATE, &was_cut);
+        if (res == -1)
+          return NULL;
+      }
+      str_value.length(my_TIME_to_str(&ltime,
+                                      const_cast<char*>(str_value.ptr())));
+      str_value_cached= TRUE;
+    }
+    else if (!cache_value())
+      return NULL;
+  }
   return &str_value;
 }
 
@@ -7418,7 +7541,7 @@ String *Item_cache_datetime::val_str(String *str)
 my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value_int())
+  if (!has_value())
     return NULL;
   int2my_decimal(E_DEC_FATAL_ERROR, int_value, unsigned_flag, decimal_val);
   return decimal_val;
@@ -7454,7 +7577,7 @@ bool Item_cache_real::cache_value()
 double Item_cache_real::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0.0;
   return value;
 }
@@ -7462,7 +7585,7 @@ double Item_cache_real::val_real()
 longlong Item_cache_real::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0;
   return (longlong) rint(value);
 }
@@ -7471,7 +7594,7 @@ longlong Item_cache_real::val_int()
 String* Item_cache_real::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return NULL;
   str->set_real(value, decimals, default_charset());
   return str;
@@ -7481,7 +7604,7 @@ String* Item_cache_real::val_str(String *str)
 my_decimal *Item_cache_real::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return NULL;
   double2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
   return decimal_val;
@@ -7503,8 +7626,8 @@ double Item_cache_decimal::val_real()
 {
   DBUG_ASSERT(fixed);
   double res;
-  if (!value_cached && !cache_value())
-    return NULL;
+  if (!has_value())
+    return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &res);
   return res;
 }
@@ -7513,7 +7636,7 @@ longlong Item_cache_decimal::val_int()
 {
   DBUG_ASSERT(fixed);
   longlong res;
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, &decimal_value, unsigned_flag, &res);
   return res;
@@ -7522,7 +7645,7 @@ longlong Item_cache_decimal::val_int()
 String* Item_cache_decimal::val_str(String *str)
 {
   DBUG_ASSERT(fixed);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, &decimal_value, decimals, FALSE,
                    &decimal_value);
@@ -7533,7 +7656,7 @@ String* Item_cache_decimal::val_str(String *str)
 my_decimal *Item_cache_decimal::val_decimal(my_decimal *val)
 {
   DBUG_ASSERT(fixed);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return NULL;
   return &decimal_value;
 }
@@ -7569,7 +7692,7 @@ double Item_cache_str::val_real()
   DBUG_ASSERT(fixed == 1);
   int err_not_used;
   char *end_not_used;
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0.0;
   if (value)
     return my_strntod(value->charset(), (char*) value->ptr(),
@@ -7582,7 +7705,7 @@ longlong Item_cache_str::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0;
   if (value)
     return my_strntoll(value->charset(), value->ptr(),
@@ -7595,7 +7718,7 @@ longlong Item_cache_str::val_int()
 String* Item_cache_str::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0;
   return value;
 }
@@ -7604,7 +7727,7 @@ String* Item_cache_str::val_str(String *str)
 my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return NULL;
   if (value)
     string2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
@@ -7616,7 +7739,7 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 
 int Item_cache_str::save_in_field(Field *field, bool no_conversions)
 {
-  if (!value_cached && !cache_value())
+  if (!has_value())
     return 0;
   int res= Item_cache::save_in_field(field, no_conversions);
   return (is_varbinary && field->type() == MYSQL_TYPE_STRING &&

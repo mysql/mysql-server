@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,11 +10,11 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"         // REQUIRED: for other includes
 #include "sql_show.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
@@ -22,11 +22,19 @@
 #ifdef HAVE_NDB_BINLOG
 #include "rpl_injector.h"
 #include "rpl_filter.h"
-#include "slave.h"
+#include "rpl_slave.h"
 #include "ha_ndbcluster_binlog.h"
 #include "NdbDictionary.hpp"
 #include "ndb_cluster_connection.hpp"
 #include <util/NdbAutoPtr.hpp>
+
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_table.h"                         // build_table_filename
+#include "table.h"                             // open_table_from_share
+#include "discover.h"                          // readfrm, writefrm
+#include "lock.h"                              // MYSQL_LOCK_IGNORE_FLUSH,
+                                               // mysql_unlock_tables
+#include "sql_parse.h"                         // mysql_parse
 
 #ifdef ndb_dynamite
 #undef assert
@@ -254,7 +262,6 @@ static void run_query(THD *thd, char *buf, char *end,
   ulonglong save_thd_options= thd->variables.option_bits;
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->variables.option_bits));
   NET save_thd_net= thd->net;
-  const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->set_query(buf, (uint) (end - buf));
@@ -268,7 +275,11 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_ASSERT(!thd->in_sub_stmt);
   DBUG_ASSERT(!thd->locked_tables_mode);
 
-  mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
+  {
+    Parser_state parser_state;
+    if (!parser_state.init(thd, thd->query(), thd->query_length()))
+      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+  }
 
   if (no_print_error && thd->is_slave_error)
   {
@@ -1008,7 +1019,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
                                  ptrdiff);
     if (ret != 0)
     {
-      my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(blobs_buffer);
       DBUG_PRINT("info", ("blob read error"));
       DBUG_ASSERT(FALSE);
     }
@@ -1059,7 +1070,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
   field++;
   s->type= ((Field_long *)*field)->val_int();
   /* free blobs buffer */
-  my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(blobs_buffer);
   dbug_tmp_restore_column_map(table->read_set, old_map);
 }
 
@@ -1727,7 +1738,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
           old->getObjectVersion() != altered_table->getObjectVersion())
         dict->putTable(altered_table);
       
-      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(data);
       data= NULL;
       if ((error= unpackfrm(&data, &length,
                             (const uchar*) altered_table->getFrmData())) ||
@@ -1760,8 +1771,8 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
 
       mysql_mutex_unlock(&LOCK_open);
     }
-    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(data);
+    my_free(pack_data);
   }
 
   // If only frm was changed continue replicating
@@ -3495,8 +3506,8 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
 
   if (share->flags & NSF_BLOB_FLAG)
   {
-    my_free(blobs_buffer[0], MYF(MY_ALLOW_ZERO_PTR));
-    my_free(blobs_buffer[1], MYF(MY_ALLOW_ZERO_PTR));
+    my_free(blobs_buffer[0]);
+    my_free(blobs_buffer[1]);
   }
 
   return 0;
@@ -3568,7 +3579,7 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     ndb_schema_object->key_length= length;
     if (my_hash_insert(&ndb_schema_objects, (uchar*) ndb_schema_object))
     {
-      my_free((uchar*) ndb_schema_object, 0);
+      my_free(ndb_schema_object);
       break;
     }
     mysql_mutex_init(key_ndb_schema_object_mutex, &ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
@@ -3600,7 +3611,7 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
     my_hash_delete(&ndb_schema_objects, (uchar*) *ndb_schema_object);
     mysql_mutex_destroy(&(*ndb_schema_object)->mutex);
-    my_free((uchar*) *ndb_schema_object, MYF(0));
+    my_free(*ndb_schema_object);
     *ndb_schema_object= 0;
   }
   else
@@ -3667,7 +3678,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd->init_for_queries();
   thd->command= COM_DAEMON;
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
-  thd->version= refresh_version;
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
   my_net_init(&thd->net, 0);
@@ -3954,9 +3964,9 @@ restart:
          !ndb_binlog_running))
       break; /* Shutting down server */
 
-    if (ndb_binlog_index && ndb_binlog_index->s->version < refresh_version)
+    if (ndb_binlog_index && ndb_binlog_index->s->needs_reopen())
     {
-      if (ndb_binlog_index->s->version < refresh_version)
+      if (ndb_binlog_index->s->needs_reopen())
       {
         close_thread_tables(thd);
         ndb_binlog_index= 0;

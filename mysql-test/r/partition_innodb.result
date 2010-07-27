@@ -1,4 +1,73 @@
-drop table if exists t1;
+drop table if exists t1, t2;
+#
+# Bug#51830: Incorrect partition pruning on range partition (regression)
+#
+CREATE TABLE t1 (a INT NOT NULL)
+ENGINE = InnoDB
+PARTITION BY RANGE(a)
+(PARTITION p10 VALUES LESS THAN (10),
+PARTITION p30 VALUES LESS THAN (30),
+PARTITION p50 VALUES LESS THAN (50),
+PARTITION p70 VALUES LESS THAN (70),
+PARTITION p90 VALUES LESS THAN (90));
+INSERT INTO t1 VALUES (10),(30),(50);
+INSERT INTO t1 VALUES (70);
+INSERT INTO t1 VALUES (80);
+INSERT INTO t1 VALUES (89);
+INSERT INTO t1 VALUES (90);
+ERROR HY000: Table has no partition for value 90
+INSERT INTO t1 VALUES (100);
+ERROR HY000: Table has no partition for value 100
+insert INTO t1 VALUES (110);
+ERROR HY000: Table has no partition for value 110
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	5	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	5	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	5	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	7	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	7	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+DROP TABLE t1;
+#
+# Bug#50104: Partitioned table with just 1 partion works with fk
+#
+CREATE TABLE t2 (
+id INT,
+PRIMARY KEY (id)
+) ENGINE=InnoDB ;
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+parent_id INT DEFAULT NULL,
+PRIMARY KEY (id),
+KEY parent_id (parent_id)
+) ENGINE=InnoDB;
+ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 1;
+ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
+ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
+ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 2;
+ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
+ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
+DROP TABLE t1, t2;
 create table t1 (a varchar(5), b int signed, c varchar(10), d datetime)
 partition by range columns(b,c)
 subpartition by hash(to_seconds(d))
@@ -197,12 +266,12 @@ engine = x
 partition by key (a);
 Warnings:
 Warning	1286	Unknown storage engine 'x'
-Warning	1266	Using storage engine MyISAM for table 't1'
+Warning	1266	Using storage engine InnoDB for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a) */
 drop table t1;
 create table t1 (a int)
@@ -303,4 +372,22 @@ drop table t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB
 PARTITION BY list(a) (PARTITION p1 VALUES IN (1));
 CREATE INDEX i1 ON t1 (a);
+DROP TABLE t1;
+#
+# Bug#54783: optimize table crashes with invalid timestamp default value and NO_ZERO_DATE
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT '0000-00-00 00:00:00')
+ENGINE=INNODB PARTITION BY LINEAR HASH (a) PARTITIONS 1;
+SET @old_mode = @@sql_mode;
+SET SESSION sql_mode = 'NO_ZERO_DATE';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	error	Invalid default value for 'b'
+test.t1	optimize	status	Operation failed
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Error	1067	Invalid default value for 'b'
+SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;

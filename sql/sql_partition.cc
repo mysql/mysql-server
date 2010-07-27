@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This file is a container for general functionality related
@@ -46,11 +46,25 @@
 /* Some general useful functions */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_partition.h"
+#include "key.h"                            // key_restore
+#include "sql_parse.h"                      // parse_sql
+#include "sql_cache.h"                      // query_cache_invalidate3
+#include "lock.h"                           // mysql_lock_remove
+#include "sql_show.h"                       // append_identifier
 #include <errno.h>
 #include <m_ctype.h>
 #include "my_md5.h"
 #include "transaction.h"
+
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_table.h"                  // build_table_filename,
+                                        // build_table_shadow_filename,
+                                        // table_to_filename
+#include "opt_range.h"                  // store_key_image_to_rec
+#include "sql_analyse.h"                // append_escaped
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -2610,7 +2624,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
   {
     if (!use_sql_alloc)
-      my_free(buf, MYF(0));
+      my_free(buf);
     else
       buf= NULL;
   }
@@ -3082,7 +3096,7 @@ int get_partition_id_list_col(partition_info *part_info,
     }
     else
     {
-      *part_id= (uint32)list_col_array[list_index].partition_id;
+      *part_id= (uint32)list_col_array[list_index*num_columns].partition_id;
       DBUG_RETURN(0);
     }
   }
@@ -3359,6 +3373,7 @@ int get_partition_id_range(partition_info *part_info,
   *func_value= part_func_value;
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
+  /* Search for the partition containing part_func_value */
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id) / 2;
@@ -3498,11 +3513,17 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   part_end_val= range_array[loc_part_id];
   if (left_endpoint)
   {
+    DBUG_ASSERT(part_func_value > part_end_val ?
+                (loc_part_id == max_partition &&
+                 !part_info->defined_max_value) :
+                1);
     /*
       In case of PARTITION p VALUES LESS THAN MAXVALUE
-      the maximum value is in the current partition.
+      the maximum value is in the current (last) partition.
+      If value is equal or greater than the endpoint,
+      the range starts from the next partition.
     */
-    if (part_func_value == part_end_val &&
+    if (part_func_value >= part_end_val &&
         (loc_part_id < max_partition || !part_info->defined_max_value))
       loc_part_id++;
   }
@@ -4165,7 +4186,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
 
 bool mysql_unpack_partition(THD *thd,
                             const char *part_buf, uint part_info_len,
-                            const char *part_state, uint part_state_len,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type,
                             bool *work_part_info_used)
@@ -4179,7 +4199,9 @@ bool mysql_unpack_partition(THD *thd,
 
   thd->variables.character_set_client= system_charset_info;
 
-  Parser_state parser_state(thd, part_buf, part_info_len);
+  Parser_state parser_state;
+  if (parser_state.init(thd, part_buf, part_info_len))
+    goto end;
 
   if (init_lex_with_single_table(thd, table, &lex))
     goto end;
@@ -4201,8 +4223,6 @@ bool mysql_unpack_partition(THD *thd,
     goto end;
   }
   part_info= lex.part_info;
-  part_info->part_state= part_state;
-  part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
@@ -4536,6 +4556,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
+  /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
+  if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
+  {
+    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   /*
     We are going to manipulate the partition info on the table object
     so we need to ensure that the table instance is removed from the
@@ -4560,7 +4586,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     partition_info *tab_part_info= table->part_info;
     partition_info *alt_part_info= thd->work_part_info;
     uint flags= 0;
-    bool is_last_partition_reorged;
+    bool is_last_partition_reorged= FALSE;
     part_elem_value *tab_max_elem_val= NULL;
     part_elem_value *alt_max_elem_val= NULL;
     longlong tab_max_range= 0, alt_max_range= 0;
@@ -6256,54 +6282,6 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
     sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
 }
 
-/*
-  Unlock and close table before renaming and dropping partitions
-  SYNOPSIS
-    alter_close_tables()
-    lpt                        Struct carrying parameters
-  RETURN VALUES
-    0
-*/
-
-static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  TABLE_SHARE *share= lpt->table->s;
-  THD *thd= lpt->thd;
-  TABLE *table;
-  DBUG_ENTER("alter_close_tables");
-  /*
-    We must keep LOCK_open while manipulating with thd->open_tables.
-    Another thread may be working on it.
-  */
-  mysql_mutex_lock(&LOCK_open);
-  /*
-    We can safely remove locks for all tables with the same name:
-    later they will all be closed anyway in
-    alter_partition_lock_handling().
-  */
-  for (table= thd->open_tables; table ; table= table->next)
-  {
-    if (!strcmp(table->s->table_name.str, share->table_name.str) &&
-	!strcmp(table->s->db.str, share->db.str))
-    {
-      mysql_lock_remove(thd, thd->lock, table);
-      table->file->close();
-      table->db_stat= 0;                        // Mark file closed
-      /*
-        Ensure that we won't end up with a crippled table instance
-        in the table cache if an error occurs before we reach
-        alter_partition_lock_handling() and the table is closed
-        by close_thread_tables() instead.
-      */
-      tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
-                       table->s->db.str,
-                       table->s->table_name.str);
-    }
-  }
-  mysql_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(0);
-}
-
 
 /*
   Handle errors for ALTER TABLE for partitioning
@@ -6602,9 +6580,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_4") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -6670,9 +6646,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        abort_and_upgrade_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_add_partition_4") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -6755,9 +6729,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_5") ||
-        alter_close_tables(lpt) ||
+        abort_and_upgrade_lock_and_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -7674,7 +7646,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
   DESCRIPTION
     This implementation of PARTITION_ITERATOR::get_next() is special for 
     LIST partitioning: it enumerates partition ids in
-    part_info->list_array[i] (list_col_array[i] for COLUMNS LIST
+    part_info->list_array[i] (list_col_array[i*cols] for COLUMNS LIST
     partitioning) where i runs over [min_idx, max_idx] interval.
     The function conforms to partition_iter_func type.
 
@@ -7700,9 +7672,12 @@ uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
   {
     partition_info *part_info= part_iter->part_info;
     uint32 num_part= part_iter->part_nums.cur++;
-    return part_info->column_list ?
-           part_info->list_col_array[num_part].partition_id :
-           part_info->list_array[num_part].partition_id;
+    if (part_info->column_list)
+    {
+      uint num_columns= part_info->part_field_list.elements;
+      return part_info->list_col_array[num_part*num_columns].partition_id;
+    }
+    return part_info->list_array[num_part].partition_id;
   }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -25,7 +25,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "sql_select.h"
 
 /**
@@ -576,24 +576,27 @@ Item *Item_sum::set_arg(uint i, THD *thd, Item *new_val)
 
 int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
-  if (aggr)
+  /*
+    Dependent subselects may be executed multiple times, making
+    set_aggregator to be called multiple times. The aggregator type
+    will be the same, but it needs to be reset so that it is
+    reevaluated with the new dependent data.
+    This function may also be called multiple times during query optimization.
+    In this case, the type may change, so we delete the old aggregator,
+    and create a new one.
+  */
+  if (aggr && aggregator == aggr->Aggrtype())
   {
-    /* 
-      Dependent subselects may be executed multiple times, making
-      set_aggregator to be called multiple times. The aggregator type
-      will be the same, but it needs to be reset so that it is
-      reevaluated with the new dependent data.
-    */
-    DBUG_ASSERT(aggregator == aggr->Aggrtype());
     aggr->clear();
     return FALSE;
   }
+
+  delete aggr;
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
     aggr= new Aggregator_distinct(this);
     break;
-
   case Aggregator::SIMPLE_AGGREGATOR:
     aggr= new Aggregator_simple(this);
     break;
@@ -1176,7 +1179,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   default:
     DBUG_ASSERT(0);
   };
-  setup(args[0], NULL);
+  setup_hybrid(args[0], NULL);
   /* MIN/MAX can return NULL for empty set indepedent of the used column */
   maybe_null= 1;
   unsigned_flag=item->unsigned_flag;
@@ -1210,12 +1213,11 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     of the original MIN/MAX object and it is saved in this object's cache.
 */
 
-void Item_sum_hybrid::setup(Item *item, Item *value_arg)
+void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
-  if (value_arg)
-    value->store(value_arg);
+  value->store(value_arg);
   cmp= new Arg_comparator();
   cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
   collation.set(item->collation);
@@ -1903,7 +1905,7 @@ void Item_sum_variance::update_field()
 
 void Item_sum_hybrid::clear()
 {
-  value->null_value= 1;
+  value->clear();
   null_value= 1;
 }
 
@@ -1972,7 +1974,7 @@ void Item_sum_hybrid::no_rows_in_result()
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
   Item_sum_min *item= new (thd->mem_root) Item_sum_min(thd, this);
-  item->setup(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 
@@ -1995,7 +1997,7 @@ bool Item_sum_min::add()
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
   Item_sum_max *item= new (thd->mem_root) Item_sum_max(thd, this);
-  item->setup(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 
@@ -2827,6 +2829,7 @@ String *Item_sum_udf_str::val_str(String *str)
   @retval  1 : key1 > key2 
 */
 
+extern "C"
 int group_concat_key_cmp_with_distinct(void* arg, const void* key1, 
                                        const void* key2)
 {
@@ -2861,6 +2864,7 @@ int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
   function of sort for syntax: GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
+extern "C"
 int group_concat_key_cmp_with_order(void* arg, const void* key1, 
                                     const void* key2)
 {
@@ -2905,13 +2909,16 @@ int group_concat_key_cmp_with_order(void* arg, const void* key1,
   Append data from current leaf to item->result.
 */
 
-int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
-                  Item_func_group_concat *item)
+extern "C"
+int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
+                  void* item_arg)
 {
+  Item_func_group_concat *item= (Item_func_group_concat *) item_arg;
   TABLE *table= item->table;
   String tmp((char *)table->record[1], table->s->reclength,
              default_charset_info);
   String tmp2;
+  uchar *key= (uchar *) key_arg;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
   uint old_length= result->length();
@@ -2990,7 +2997,7 @@ int dump_leaf_key(uchar* key, element_count count __attribute__((unused)),
 Item_func_group_concat::
 Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
-                       SQL_LIST *order_list, String *separator_arg)
+                       SQL_I_List<ORDER> *order_list, String *separator_arg)
   :tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
    order(0), context(context_arg),
@@ -3034,7 +3041,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= (ORDER*) order_list->first;
+    for (ORDER *order_item= order_list->first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3385,8 +3392,7 @@ String* Item_func_group_concat::val_str(String* str)
     return 0;
   if (no_appended && tree)
     /* Tree is used for sorting as in ORDER BY */
-    tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
-              left_root_right);
+    tree_walk(tree, &dump_leaf_key, this, left_root_right);
   return &result;
 }
 
@@ -3411,7 +3417,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     {
       if (i)
         str->append(',');
-      (*order[i]->item)->print(str, query_type);
+      pargs[i + arg_count_field]->print(str, query_type);
       if (order[i]->asc)
         str->append(STRING_WITH_LEN(" ASC"));
       else

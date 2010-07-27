@@ -17,8 +17,10 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include <mysql/psi/mysql_file.h>
 #include "transparent_file.h"
+#include "my_sys.h"          // MY_WME, MY_ALLOW_ZERO_PTR, MY_SEEK_SET
 
 Transparent_file::Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
 { 
@@ -27,7 +29,7 @@ Transparent_file::Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
 
 Transparent_file::~Transparent_file()
 { 
-  my_free((uchar*)buff, MYF(MY_ALLOW_ZERO_PTR)); 
+  my_free(buff);
 }
 
 void Transparent_file::init_buff(File filedes_arg)

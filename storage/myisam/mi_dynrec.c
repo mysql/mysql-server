@@ -44,7 +44,7 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 #undef my_alloca
 #undef my_afree
 #define my_alloca(A) my_malloc((A),MYF(0))
-#define my_afree(A) my_free((A),MYF(0))
+#define my_afree(A) my_free((A))
 #endif
 
 	/* Interface function from MI_INFO */
@@ -97,6 +97,34 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
   madvise((char*) info->s->file_map, size, MADV_RANDOM);
 #endif
   info->s->mmaped_length= size;
+  info->s->file_read= mi_mmap_pread;
+  info->s->file_write= mi_mmap_pwrite;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Destroy mmaped area for MyISAM handler
+
+  SYNOPSIS
+    mi_munmap_file()
+    info                  MyISAM handler
+
+  RETURN
+    0  ok
+   !0  error.
+*/
+
+int mi_munmap_file(MI_INFO *info)
+{
+  int ret;
+  DBUG_ENTER("mi_unmap_file");
+  if ((ret= my_munmap(info->s->file_map, info->s->mmaped_length)))
+    DBUG_RETURN(ret);
+  info->s->file_read= mi_nommap_pread;
+  info->s->file_write= mi_nommap_pwrite;
+  info->s->file_map= 0;
+  info->s->mmaped_length= 0;
   DBUG_RETURN(0);
 }
 
@@ -115,8 +143,7 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
 {
   if (info->s->file_map)
   {
-    (void) (my_munmap((char*) info->s->file_map,
-                   (size_t) info->s->mmaped_length));
+    mi_munmap_file(info);
     mi_dynmap_file(info, size);
   }
 }
@@ -256,13 +283,6 @@ int _mi_write_blob_record(MI_INFO *info, const uchar *record)
 	  MI_DYN_DELETE_BLOCK_HEADER+1);
   reclength= (info->s->base.pack_reclength +
 	      _my_calc_total_blob_length(info,record)+ extra);
-#ifdef NOT_USED					/* We now support big rows */
-  if (reclength > MI_DYN_MAX_ROW_LENGTH)
-  {
-    my_errno=HA_ERR_TO_BIG_ROW;
-    return -1;
-  }
-#endif
   if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
@@ -290,13 +310,6 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const uchar *record)
 	  MI_DYN_DELETE_BLOCK_HEADER);
   reclength= (info->s->base.pack_reclength+
 	      _my_calc_total_blob_length(info,record)+ extra);
-#ifdef NOT_USED					/* We now support big rows */
-  if (reclength > MI_DYN_MAX_ROW_LENGTH)
-  {
-    my_errno=HA_ERR_TO_BIG_ROW;
-    return -1;
-  }
-#endif
   if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
@@ -982,7 +995,7 @@ uint _mi_rec_pack(MI_INFO *info, register uchar *to,
 	  char *temp_pos;
 	  size_t tmp_length=length-portable_sizeof_char_ptr;
 	  memcpy((uchar*) to,from,tmp_length);
-	  memcpy_fixed(&temp_pos,from+tmp_length,sizeof(char*));
+	  memcpy(&temp_pos,from+tmp_length,sizeof(char*));
 	  memcpy(to+tmp_length,temp_pos,(size_t) blob->length);
 	  to+=tmp_length+blob->length;
 	}
@@ -1297,9 +1310,9 @@ ulong _mi_rec_unpack(register MI_INFO *info, register uchar *to, uchar *from,
             from_left - size_length < blob_length ||
             from_left - size_length - blob_length < min_pack_length)
           goto err;
-	memcpy((uchar*) to,(uchar*) from,(size_t) size_length);
+	memcpy(to, from, (size_t) size_length);
 	from+=size_length;
-	memcpy_fixed((uchar*) to+size_length,(uchar*) &from,sizeof(char*));
+	memcpy(to+size_length, &from, sizeof(char*));
 	from+=blob_length;
       }
       else
@@ -1548,7 +1561,7 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
     error=mi_unique_comp(def, record, old_record, def->null_are_equal);
   if (info->s->base.blobs)
   {
-    my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
     info->rec_buff=rec_buff;
   }
   my_afree(old_record);

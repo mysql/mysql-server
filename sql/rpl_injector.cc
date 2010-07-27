@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "mysql_priv.h" 
+#include "sql_priv.h" 
+#include "unireg.h"                             // REQUIRED by later includes
 #include "rpl_injector.h"
 #include "transaction.h"
+#include "sql_parse.h"                          // begin_trans, end_trans, COMMIT
+#include "sql_base.h"                           // close_thread_tables
+#include "log_event.h"                          // Incident_log_event
+#include "binlog.h"                             // mysql_bin_log
 
 /*
   injector::transaction - member definitions
@@ -54,7 +59,7 @@ injector::transaction::~transaction()
   */
   *the_memory= '\0';
 
-  my_free(the_memory, MYF(0));
+  my_free(the_memory);
 }
 
 /**

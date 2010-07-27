@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* classes for sum functions */
@@ -24,6 +24,7 @@
 #endif
 
 #include <my_tree.h>
+#include "sql_udf.h"                            /* udf_handler */
 
 class Item_sum;
 class Aggregator_distinct;
@@ -302,6 +303,8 @@ class st_select_lex;
 
 class Item_sum :public Item_result_field
 {
+  friend class Aggregator_distinct;
+
 protected:
   /**
     Aggregator class instance. Not set initially. Allocated only after
@@ -440,10 +443,9 @@ public:
   */
   virtual void no_rows_in_result()
   {
-    if (!aggr)
-      set_aggregator(with_distinct ?
-                     Aggregator::DISTINCT_AGGREGATOR :
-                     Aggregator::SIMPLE_AGGREGATOR);
+    set_aggregator(with_distinct ?
+                   Aggregator::DISTINCT_AGGREGATOR :
+                   Aggregator::SIMPLE_AGGREGATOR);
     reset();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
@@ -494,11 +496,10 @@ public:
     quick_group= with_distinct ? 0 : 1;
   }
 
-  /**
+  /*
     Set the type of aggregation : DISTINCT or not.
 
-    Called when the final determination is done about the aggregation
-    type and the object is about to be used.
+    May be called multiple times.
   */
 
   int set_aggregator(Aggregator::Aggregator_type aggregator);
@@ -987,7 +988,7 @@ protected:
     was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
-  void setup(Item *item, Item *value_arg);
+  void setup_hybrid(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();
@@ -1007,6 +1008,11 @@ protected:
   void no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
+  /*
+    MIN/MAX uses Item_cache_datetime for storing DATETIME values, thus
+    in this case a correct INT value can be provided.
+  */
+  bool result_as_longlong() { return args[0]->result_as_longlong(); }
 };
 
 
@@ -1316,6 +1322,16 @@ public:
 
 #endif /* HAVE_DLOPEN */
 
+C_MODE_START
+int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
+                                       const void* key2);
+int group_concat_key_cmp_with_order(void* arg, const void* key1,
+                                    const void* key2);
+int dump_leaf_key(void* key_arg,
+                  element_count count __attribute__((unused)),
+                  void* item_arg);
+C_MODE_END
+
 class Item_func_group_concat : public Item_sum
 {
   TMP_TABLE_PARAM *tmp_table_param;
@@ -1355,14 +1371,14 @@ class Item_func_group_concat : public Item_sum
                                                 const void* key2);
   friend int group_concat_key_cmp_with_order(void* arg, const void* key1,
 					     const void* key2);
-  friend int dump_leaf_key(uchar* key,
+  friend int dump_leaf_key(void* key_arg,
                            element_count count __attribute__((unused)),
-			   Item_func_group_concat *group_concat_item);
+			   void* item_arg);
 
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
-                         SQL_LIST *is_order, String *is_separator);
+                         SQL_I_List<ORDER> *is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat();

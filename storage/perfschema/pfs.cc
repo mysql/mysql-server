@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs.cc
@@ -806,6 +806,10 @@ static int build_prefix(const LEX_STRING *prefix, const char *category,
   }                                                                   \
   return;
 
+/* Use C linkage for the interface functions. */
+
+C_MODE_START
+
 static void register_mutex_v1(const char *category,
                               PSI_mutex_info_v1 *info,
                               int count)
@@ -1005,7 +1009,7 @@ void* pfs_spawn_thread(void *arg)
   */
   user_start_routine= typed_arg->m_user_start_routine;
   user_arg= typed_arg->m_user_arg;
-  my_free(typed_arg, MYF(0));
+  my_free(typed_arg);
 
   /* Then, execute the user code for this thread. */
   (*user_start_routine)(user_arg);
@@ -1033,7 +1037,7 @@ static int spawn_thread_v1(PSI_thread_key key,
 
   int result= pthread_create(thread, attr, pfs_spawn_thread, psi_arg);
   if (unlikely(result != 0))
-    my_free(psi_arg, MYF(0));
+    my_free(psi_arg);
   return result;
 }
 
@@ -1089,7 +1093,8 @@ static void delete_thread_v1(PSI_thread *thread)
 }
 
 static PSI_mutex_locker*
-get_thread_mutex_locker_v1(PSI_mutex *mutex, PSI_mutex_operation op)
+get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
+                           PSI_mutex *mutex, PSI_mutex_operation op)
 {
   PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex*> (mutex);
   DBUG_ASSERT((int) op >= 0);
@@ -1134,7 +1139,8 @@ get_thread_mutex_locker_v1(PSI_mutex *mutex, PSI_mutex_operation op)
 }
 
 static PSI_rwlock_locker*
-get_thread_rwlock_locker_v1(PSI_rwlock *rwlock, PSI_rwlock_operation op)
+get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
+                            PSI_rwlock *rwlock, PSI_rwlock_operation op)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
   DBUG_ASSERT(static_cast<int> (op) >= 0);
@@ -1180,7 +1186,8 @@ get_thread_rwlock_locker_v1(PSI_rwlock *rwlock, PSI_rwlock_operation op)
 }
 
 static PSI_cond_locker*
-get_thread_cond_locker_v1(PSI_cond *cond, PSI_mutex * /* unused: mutex */,
+get_thread_cond_locker_v1(PSI_cond_locker_state *state,
+                          PSI_cond *cond, PSI_mutex * /* unused: mutex */,
                           PSI_cond_operation op)
 {
   /*
@@ -1238,7 +1245,8 @@ get_thread_cond_locker_v1(PSI_cond *cond, PSI_mutex * /* unused: mutex */,
 }
 
 static PSI_table_locker*
-get_thread_table_locker_v1(PSI_table *table)
+get_thread_table_locker_v1(PSI_table_locker_state *state,
+                           PSI_table *table)
 {
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
   DBUG_ASSERT(pfs_table != NULL);
@@ -1280,7 +1288,8 @@ get_thread_table_locker_v1(PSI_table *table)
 }
 
 static PSI_file_locker*
-get_thread_file_name_locker_v1(PSI_file_key key,
+get_thread_file_name_locker_v1(PSI_file_locker_state *state,
+                               PSI_file_key key,
                                PSI_file_operation op,
                                const char *name, const void *identity)
 {
@@ -1337,7 +1346,8 @@ get_thread_file_name_locker_v1(PSI_file_key key,
 }
 
 static PSI_file_locker*
-get_thread_file_stream_locker_v1(PSI_file *file, PSI_file_operation op)
+get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
+                                 PSI_file *file, PSI_file_operation op)
 {
   PFS_file *pfs_file= reinterpret_cast<PFS_file*> (file);
 
@@ -1388,7 +1398,8 @@ get_thread_file_stream_locker_v1(PSI_file *file, PSI_file_operation op)
 }
 
 static PSI_file_locker*
-get_thread_file_descriptor_locker_v1(File file, PSI_file_operation op)
+get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
+                                     File file, PSI_file_operation op)
 {
   int index= static_cast<int> (file);
 
@@ -1458,7 +1469,7 @@ get_thread_file_descriptor_locker_v1(File file, PSI_file_operation op)
   return NULL;
 }
 
-static void unlock_mutex_v1(PSI_thread * thread, PSI_mutex *mutex)
+static void unlock_mutex_v1(PSI_mutex *mutex)
 {
   PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex*> (mutex);
   DBUG_ASSERT(pfs_mutex != NULL);
@@ -1497,7 +1508,7 @@ static void unlock_mutex_v1(PSI_thread * thread, PSI_mutex *mutex)
 #endif
 }
 
-static void unlock_rwlock_v1(PSI_thread *thread, PSI_rwlock *rwlock)
+static void unlock_rwlock_v1(PSI_rwlock *rwlock)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
   DBUG_ASSERT(pfs_rwlock != NULL);
@@ -1573,7 +1584,7 @@ static void unlock_rwlock_v1(PSI_thread *thread, PSI_rwlock *rwlock)
 #endif
 }
 
-static void signal_cond_v1(PSI_thread *thread, PSI_cond* cond)
+static void signal_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
   DBUG_ASSERT(pfs_cond != NULL);
@@ -1581,7 +1592,7 @@ static void signal_cond_v1(PSI_thread *thread, PSI_cond* cond)
   pfs_cond->m_cond_stat.m_signal_count++;
 }
 
-static void broadcast_cond_v1(PSI_thread *thread, PSI_cond* cond)
+static void broadcast_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
   DBUG_ASSERT(pfs_cond != NULL);
@@ -2054,8 +2065,9 @@ static void* get_interface(int version)
   }
 }
 
+C_MODE_END
+
 struct PSI_bootstrap PFS_bootstrap=
 {
   get_interface
 };
-

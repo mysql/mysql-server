@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,11 +10,13 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef PFS_INSTR_CLASS_H
 #define PFS_INSTR_CLASS_H
+
+#include "mysql_com.h"                          /* NAME_LEN */
 
 /**
   @file storage/perfschema/pfs_instr_class.h
@@ -36,7 +38,7 @@
 */
 #define PFS_MAX_FULL_PREFIX_NAME_LENGTH 32
 
-#include <mysql_priv.h>
+#include <my_global.h>
 #include <mysql/psi/psi.h>
 #include "pfs_lock.h"
 #include "pfs_stat.h"

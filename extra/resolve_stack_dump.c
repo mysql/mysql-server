@@ -17,7 +17,6 @@
    versions into symbolic names. By Sasha Pachev <sasha@mysql.com>
  */
 
-#define DONT_USE_RAID
 #include <my_global.h>
 #include <m_ctype.h>
 #include <my_sys.h>
@@ -53,10 +52,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"symbols-file", 's', "Use specified symbols file.", (uchar**) &sym_fname,
-   (uchar**) &sym_fname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"symbols-file", 's', "Use specified symbols file.", &sym_fname,
+   &sym_fname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"numeric-dump-file", 'n', "Read the dump from specified file.",
-   (uchar**) &dump_fname, (uchar**) &dump_fname, 0, GET_STR, REQUIRED_ARG,
+   &dump_fname, &dump_fname, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -64,8 +63,6 @@ static struct my_option my_long_options[] =
 
 static void verify_sort();
 
-
-#include <help_start.h>
 
 static void print_version(void)
 {
@@ -89,8 +86,6 @@ The symbols-file should include the output from:  'nm --numeric-sort mysqld'.\n\
 The numeric-dump-file should contain a numeric stack trace from mysqld.\n\
 If the numeric-dump-file is not given, the stack trace is read from stdin.\n");
 }
-
-#include <help_end.h>
 
 
 static void die(const char* fmt, ...)

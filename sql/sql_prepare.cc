@@ -1,4 +1,4 @@
-/* Copyright (C) 1995-2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -83,10 +83,24 @@ When one supplies long data for a placeholder:
     at statement execute.
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
 #include "sql_prepare.h"
+#include "sql_parse.h" // insert_precheck, update_precheck, delete_precheck
+#include "sql_base.h"  // close_thread_tables
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_view.h"                          // create_view_precheck
+#include "sql_delete.h"                        // mysql_prepare_delete
 #include "sql_select.h" // for JOIN
+#include "sql_insert.h" // upgrade_lock_type_for_insert, mysql_prepare_insert
+#include "sql_update.h" // mysql_prepare_update
+#include "sql_db.h"     // mysql_opt_change_db, mysql_change_db
+#include "sql_acl.h"    // *_ACL
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived
 #include "sql_cursor.h"
 #include "sp_head.h"
 #include "sp.h"
@@ -98,6 +112,7 @@ When one supplies long data for a placeholder:
 #else
 #include <mysql_com.h>
 #endif
+#include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 
 /**
   A result class used to send cursor rows using the binary protocol.
@@ -776,6 +791,19 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
 }
 
 #ifndef EMBEDDED_LIBRARY
+
+/**
+  Check whether this parameter data type is compatible with long data.
+  Used to detect whether a long data stream has been supplied to a
+  incompatible data type.
+*/
+inline bool is_param_long_data_type(Item_param *param)
+{
+  return ((param->param_type >= MYSQL_TYPE_TINY_BLOB) &&
+          (param->param_type <= MYSQL_TYPE_STRING));
+}
+
+
 /**
   Routines to assign parameters from data supplied by the client.
 
@@ -845,6 +873,14 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (!is_param_long_data_type(param))
+      DBUG_RETURN(1);
     res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -883,6 +919,14 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
           DBUG_RETURN(1);
       }
     }
+    /*
+      A long data stream was supplied for this parameter marker.
+      This was done after prepare, prior to providing a placeholder
+      type (the types are supplied at execute). Check that the
+      supplied type of placeholder can accept a data stream.
+    */
+    else if (is_param_long_data_type(param))
+      DBUG_RETURN(1);
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
   }
@@ -1315,7 +1359,7 @@ static int mysql_test_update(Prepared_statement *stmt,
 
   if (mysql_prepare_update(thd, table_list, &select->where,
                            select->order_list.elements,
-                           (ORDER *) select->order_list.first))
+                           select->order_list.first))
     goto error;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1675,7 +1719,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
      for the prepare phase.
    */
   create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-  create_table->lock_strategy= TABLE_LIST::SHARED_MDL;
+  create_table->lock_strategy= TABLE_LIST::OTLS_NONE;
 
   if (select_lex->item_list.elements)
   {
@@ -1693,7 +1737,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
     res= select_like_stmt_test(stmt, 0, 0);
 
-    lex->link_first_table_back(create_table, &link_to_local);
+    lex->link_first_table_back(create_table, link_to_local);
   }
   else
   {
@@ -1830,11 +1874,10 @@ error:
 static int mysql_insert_select_prepare_tester(THD *thd)
 {
   SELECT_LEX *first_select= &thd->lex->select_lex;
-  TABLE_LIST *second_table= ((TABLE_LIST*)first_select->table_list.first)->
-    next_local;
+  TABLE_LIST *second_table= first_select->table_list.first->next_local;
 
   /* Skip first table, which is the table we are inserting in */
-  first_select->table_list.first= (uchar *) second_table;
+  first_select->table_list.first= second_table;
   thd->lex->select_lex.context.table_list=
     thd->lex->select_lex.context.first_name_resolution_table= second_table;
 
@@ -1871,7 +1914,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
     return 1;
 
   /* store it, because mysql_insert_select_prepare_tester change it */
-  first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
+  first_local_table= lex->select_lex.table_list.first;
   DBUG_ASSERT(first_local_table != 0);
 
   res=
@@ -1879,7 +1922,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
                                     &mysql_insert_select_prepare_tester,
                                     OPTION_SETUP_TABLES_DONE);
   /* revert changes  made by mysql_insert_select_prepare_tester */
-  lex->select_lex.table_list.first= (uchar*) first_local_table;
+  lex->select_lex.table_list.first= first_local_table;
   return res;
 }
 
@@ -2389,10 +2432,10 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
-      for (order= (ORDER *)sl->group_list.first; order; order= order->next)
+      for (order= sl->group_list.first; order; order= order->next)
         order->item= &order->item_ptr;
       /* Fix ORDER list */
-      for (order= (ORDER *)sl->order_list.first; order; order= order->next)
+      for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
 
       /* clear the no_error flag for INSERT/UPDATE IGNORE */
@@ -2436,7 +2479,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     (multi-delete).  We do a full clean up, although at the moment all we
     need to clean in the tables of MULTI-DELETE list is 'table' member.
   */
-  for (TABLE_LIST *tables= (TABLE_LIST*) lex->auxiliary_table_list.first;
+  for (TABLE_LIST *tables= lex->auxiliary_table_list.first;
        tables;
        tables= tables->next_global)
   {
@@ -2930,7 +2973,9 @@ Execute_sql_statement::execute_server_code(THD *thd)
   if (alloc_query(thd, m_sql_text.str, m_sql_text.length))
     return TRUE;
 
-  Parser_state parser_state(thd, thd->query(), thd->query_length());
+  Parser_state parser_state;
+  if (parser_state.init(thd, thd->query(), thd->query_length()))
+    return TRUE;
 
   parser_state.m_lip.multi_statements= FALSE;
   lex_start(thd);
@@ -3170,14 +3215,23 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
-  Parser_state parser_state(thd, thd->query(), thd->query_length());
+  Parser_state parser_state;
+  if (parser_state.init(thd, thd->query(), thd->query_length()))
+  {
+    thd->restore_backup_statement(this, &stmt_backup);
+    thd->restore_active_arena(this, &stmt_backup);
+    thd->stmt_arena= old_stmt_arena;
+    DBUG_RETURN(TRUE);
+  }
+
   parser_state.m_lip.stmt_prepare_mode= TRUE;
   parser_state.m_lip.multi_statements= FALSE;
+
   lex_start(thd);
 
   error= parse_sql(thd, & parser_state, NULL) ||
-         thd->is_error() ||
-         init_param_array(this);
+    thd->is_error() ||
+    init_param_array(this);
 
   lex->set_trg_event_type_for_tables();
 
@@ -3231,7 +3285,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     locks have already been released and our savepoint points
     to ticket which has been released as well.
   */
-  if (thd->in_multi_stmt_transaction())
+  if (thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;

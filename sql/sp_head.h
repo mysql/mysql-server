@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
@@ -20,6 +20,15 @@
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
+
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_class.h"                          // THD, set_var.h: THD
+#include "set_var.h"                            // Item
 
 #include <stddef.h>
 
@@ -295,10 +304,6 @@ public:
   set_stmt_end(THD *thd);
 
   virtual ~sp_head();
-
-  /// Free memory
-  void
-  destroy();
 
   bool
   execute_trigger(THD *thd,
@@ -1337,7 +1342,9 @@ set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
-		       thr_lock_type locktype);
+                       thr_lock_type locktype,
+                       enum_mdl_type mdl_type);
+
 Item *
 sp_prepare_func_item(THD* thd, Item **it_addr);
 

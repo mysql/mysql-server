@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Function items used by mysql */
@@ -1498,7 +1498,8 @@ class Item_user_var_as_out_param :public Item
   LEX_STRING name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(LEX_STRING a) : name(a) {}
+  Item_user_var_as_out_param(LEX_STRING a) : name(a)
+  { set_name(a.str, 0, system_charset_info); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const { return STRING_ITEM;}
   double val_real();
@@ -1796,5 +1797,15 @@ public:
   { max_length= 21; unsigned_flag=1; }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
+
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+                     LEX_STRING component);
+extern bool check_reserved_words(LEX_STRING *name);
+extern enum_field_types agg_field_type(Item **items, uint nitems);
+double my_double_round(double value, longlong dec, bool dec_unsigned,
+                       bool truncate);
+bool eval_const_cond(COND *cond);
+
+extern bool volatile  mqh_used;
 
 #endif /* ITEM_FUNC_INCLUDED */

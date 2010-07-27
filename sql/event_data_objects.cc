@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,15 +10,27 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_parse.h"                          // parse_sql
+#include "strfunc.h"                           // find_string_in_array
+#include "sql_db.h"                        // get_default_db_collation
+#include "sql_time.h"                      // interval_type_to_name,
+                                           // date_add_interval,
+                                           // calc_time_diff
+#include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
+#include "sql_acl.h"    // EVENT_ACL, SUPER_ACL
+#include "sp.h"         // load_charset, load_collation
 #include "events.h"
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "sp_head.h"
+#include "sql_show.h"                // append_definer, append_identifier
 
 /**
   @addtogroup Event_Scheduler
@@ -164,7 +176,7 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
     return TRUE;
   if (!(name.str= my_strndup(n.str, name.length= n.length, MYF(MY_WME))))
   {
-    my_free((uchar*) dbname.str, MYF(0));
+    my_free(dbname.str);
     return TRUE;
   }
   return FALSE;
@@ -180,8 +192,8 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
 
 Event_queue_element_for_exec::~Event_queue_element_for_exec()
 {
-  my_free((uchar*) dbname.str, MYF(0));
-  my_free((uchar*) name.str, MYF(0));
+  my_free(dbname.str);
+  my_free(name.str);
 }
 
 
@@ -1435,7 +1447,10 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
   {
-    Parser_state parser_state(thd, thd->query(), thd->query_length());
+    Parser_state parser_state;
+    if (parser_state.init(thd, thd->query(), thd->query_length()))
+      goto end;
+
     lex_start(thd);
 
     if (parse_sql(thd, & parser_state, creation_ctx))

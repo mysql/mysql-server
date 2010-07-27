@@ -16,6 +16,7 @@
 
 
 #include "semisync_slave.h"
+#include <mysql.h>
 
 ReplSemiSyncSlave repl_semisync;
 
@@ -27,6 +28,8 @@ ReplSemiSyncSlave repl_semisync;
   checked in repl_semi_slave_queue_event.
 */
 bool semi_sync_need_reply= false;
+
+C_MODE_START
 
 int repl_semi_reset_slave(Binlog_relay_IO_param *param)
 {
@@ -123,6 +126,7 @@ int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
   return repl_semisync.slaveStop(param);
 }
 
+C_MODE_END
 
 static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD thd,
 					    SYS_VAR *var,

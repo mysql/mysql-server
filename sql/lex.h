@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* This file includes all reserved words and functions */
@@ -316,6 +316,7 @@ static SYMBOL symbols[] = {
   { "LOW_PRIORITY",	SYM(LOW_PRIORITY)},
   { "MASTER",           SYM(MASTER_SYM)},
   { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM)},
+  { "MASTER_DELAY",     SYM(MASTER_DELAY_SYM)},
   { "MASTER_HOST",           SYM(MASTER_HOST_SYM)},
   { "MASTER_LOG_FILE",           SYM(MASTER_LOG_FILE_SYM)},
   { "MASTER_LOG_POS",           SYM(MASTER_LOG_POS_SYM)},
@@ -462,6 +463,7 @@ static SYMBOL symbols[] = {
   { "RESUME",           SYM(RESUME_SYM)},
   { "RETURN",           SYM(RETURN_SYM)},
   { "RETURNS",		SYM(RETURNS_SYM)},
+  { "REVERSE",		SYM(REVERSE_SYM)},
   { "REVOKE",		SYM(REVOKE)},
   { "RIGHT",		SYM(RIGHT)},
   { "RLIKE",		SYM(REGEXP)},	/* Like in mSQL2 */
@@ -602,6 +604,7 @@ static SYMBOL symbols[] = {
   { "WAIT",		SYM(WAIT_SYM)},
   { "WARNINGS",		SYM(WARNINGS)},
   { "WEEK",		SYM(WEEK_SYM)},
+  { "WEIGHT_STRING",	SYM(WEIGHT_STRING_SYM)},
   { "WHEN",		SYM(WHEN_SYM)},
   { "WHERE",		SYM(WHERE)},
   { "WHILE",            SYM(WHILE_SYM)},

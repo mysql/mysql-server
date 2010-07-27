@@ -997,13 +997,15 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   if (n1 <= 0)
     return -1;
   // strxfrm to binary
-  int n2 = (*cs->coll->strnxfrm)(cs, xsp, sizeof(xsp), nsp, n1);
+  int n2 = (*cs->coll->strnxfrm)(cs, xsp, sizeof(xsp), sizeof(xsp),
+                                 nsp, n1, MY_STRXFRM_PAD_WITH_SPACE);
   if (n2 <= 0)
     return -1;
   // XXX bug workaround - strnxfrm may not write full string
   memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
-  int n3 = (*cs->coll->strnxfrm)(cs, dst, dstLen, src, srcLen);
+  int n3 = (*cs->coll->strnxfrm)(cs, dst, dstLen, dstLen,
+                                 src, srcLen, MY_STRXFRM_PAD_WITH_SPACE);
   // pad with strxfrm-ed space chars
   int n4 = n3;
   while (n4 < (int)dstLen) {

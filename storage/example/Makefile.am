@@ -35,14 +35,14 @@ noinst_HEADERS =	ha_example.h
 EXTRA_LTLIBRARIES =	ha_example.la
 pkgplugin_LTLIBRARIES =	@plugin_example_shared_target@
 ha_example_la_LDFLAGS =	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
-ha_example_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_example_la_CXXFLAGS=	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_example_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_example_la_SOURCES =	ha_example.cc
 
 
 EXTRA_LIBRARIES =	libexample.a
 noinst_LIBRARIES =	@plugin_example_static_target@
-libexample_a_CXXFLAGS =	$(AM_CFLAGS)
+libexample_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libexample_a_CFLAGS =	$(AM_CFLAGS)
 libexample_a_SOURCES=	ha_example.cc
 
@@ -65,7 +65,7 @@ DTRACEPROVIDER = probes_mysql.d
 ha_example_la_DEPENDENCIES = probes_sh_mysql.o $(DTRACESHAREDDEPS) dtrace_providers
 
 CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers $(DTRACESHAREDFILES)
-DTRACEFILES = libexample_a-ha_example.c
+DTRACEFILES = libexample_a-ha_example.o
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
@@ -83,6 +83,3 @@ probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
 
 endif
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

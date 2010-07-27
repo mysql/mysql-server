@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -25,8 +25,21 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
-#include "slave.h"				// for wait_for_master_pos
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"
+#include "rpl_slave.h"				// for wait_for_master_pos
+#include "sql_show.h"                           // append_identifier
+#include "strfunc.h"                            // find_type
+#include "sql_parse.h"                          // is_update_query
+#include "sql_acl.h"                            // EXECUTE_ACL
+#include "mysqld.h"                             // LOCK_uuid_generator
 #include "rpl_mi.h"
 #include <m_ctype.h>
 #include <hash.h>
@@ -38,6 +51,7 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 #include "set_var.h"
+#include "debug_sync.h"
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -1928,6 +1942,8 @@ double Item_func_pow::val_real()
 double Item_func_acos::val_real()
 {
   DBUG_ASSERT(fixed == 1);
+  /* One can use this to defer SELECT processing. */
+  DEBUG_SYNC(current_thd, "before_acos_function");
   // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
   volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
@@ -3544,7 +3560,7 @@ public:
     {
       if (my_hash_insert(&hash_user_locks,(uchar*) this))
       {
-	my_free(key,MYF(0));
+	my_free(key);
 	key=0;
       }
     }
@@ -3554,7 +3570,7 @@ public:
     if (key)
     {
       my_hash_delete(&hash_user_locks,(uchar*) this);
-      my_free(key, MYF(0));
+      my_free(key);
     }
     mysql_cond_destroy(&cond);
   }
@@ -3656,80 +3672,6 @@ longlong Item_master_pos_wait::val_int()
   return event_count;
 }
 
-#ifdef EXTRA_DEBUG
-void debug_sync_point(const char* lock_name, uint lock_timeout)
-{
-  THD* thd=current_thd;
-  User_level_lock* ull;
-  struct timespec abstime;
-  size_t lock_name_len;
-  lock_name_len= strlen(lock_name);
-  mysql_mutex_lock(&LOCK_user_locks);
-
-  if (thd->ull)
-  {
-    item_user_lock_release(thd->ull);
-    thd->ull=0;
-  }
-
-  /*
-    If the lock has not been aquired by some client, we do not want to
-    create an entry for it, since we immediately release the lock. In
-    this case, we will not be waiting, but rather, just waste CPU and
-    memory on the whole deal
-  */
-  if (!(ull= ((User_level_lock*) my_hash_search(&hash_user_locks,
-                                                (uchar*) lock_name,
-                                                lock_name_len))))
-  {
-    mysql_mutex_unlock(&LOCK_user_locks);
-    return;
-  }
-  ull->count++;
-
-  /*
-    Structure is now initialized.  Try to get the lock.
-    Set up control struct to allow others to abort locks
-  */
-  thd_proc_info(thd, "User lock");
-  thd->mysys_var->current_mutex= &LOCK_user_locks;
-  thd->mysys_var->current_cond=  &ull->cond;
-
-  set_timespec(abstime,lock_timeout);
-  while (ull->locked && !thd->killed)
-  {
-    int error= mysql_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
-      break;
-  }
-
-  if (ull->locked)
-  {
-    if (!--ull->count)
-      delete ull;				// Should never happen
-  }
-  else
-  {
-    ull->locked=1;
-    ull->set_thread(thd);
-    thd->ull=ull;
-  }
-  mysql_mutex_unlock(&LOCK_user_locks);
-  mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd_proc_info(thd, 0);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond=  0;
-  mysql_mutex_unlock(&thd->mysys_var->mutex);
-  mysql_mutex_lock(&LOCK_user_locks);
-  if (thd->ull)
-  {
-    item_user_lock_release(thd->ull);
-    thd->ull=0;
-  }
-  mysql_mutex_unlock(&LOCK_user_locks);
-}
-
-#endif
 
 
 /**
@@ -4137,7 +4079,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     memcpy(entry->name.str, name.str, name.length+1);
     if (my_hash_insert(hash,(uchar*) entry))
     {
-      my_free((char*) entry,MYF(0));
+      my_free(entry);
       return 0;
     }
   }
@@ -4275,7 +4217,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
   {
     char *pos= (char*) entry+ ALIGN_SIZE(sizeof(user_var_entry));
     if (entry->value && entry->value != pos)
-      my_free(entry->value,MYF(0));
+      my_free(entry->value);
     entry->value= 0;
     entry->length= 0;
   }
@@ -4290,7 +4232,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       if (entry->value != pos)
       {
 	if (entry->value)
-	  my_free(entry->value,MYF(0));
+	  my_free(entry->value);
 	entry->value=pos;
       }
     }
@@ -5127,6 +5069,7 @@ bool Item_func_get_user_var::set_value(THD *thd,
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(thd->lex->exchange);
   if (Item::fix_fields(thd, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return TRUE;
@@ -5136,7 +5079,9 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  entry->collation.set(thd->variables.collation_database);
+  entry->collation.set(thd->lex->exchange->cs ? 
+                       thd->lex->exchange->cs :
+                       thd->variables.collation_database);
   entry->update_query_id= thd->query_id;
   return FALSE;
 }
@@ -6091,7 +6036,7 @@ longlong Item_func_row_count::val_int()
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
 
-  return thd->row_count_func;
+  return thd->get_row_count_func();
 }
 
 

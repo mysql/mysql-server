@@ -1,7 +1,7 @@
 #ifndef DEBUG_SYNC_INCLUDED
 #define DEBUG_SYNC_INCLUDED
 
-/* Copyright (C) 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -50,6 +50,7 @@ extern void debug_sync_end(void);
 extern void debug_sync_init_thread(THD *thd);
 extern void debug_sync_end_thread(THD *thd);
 extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
+extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);
 
 #else /* defined(ENABLED_DEBUG_SYNC) */
 

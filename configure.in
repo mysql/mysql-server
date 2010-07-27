@@ -1,7 +1,7 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 2008-2009 Sun Microsystems, Inc
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,14 +19,14 @@ dnl Process this file with autoconf to produce a configure script.
 # Minimum Autoconf version required.
 AC_PREREQ(2.59)
 
-# Various people throughout the community may parse configure.in to
-# get the MySQL version from the source branch.  If the formatting
-# of this line is going to be changed, please announce the change to
-# internals@lists.mysql.com in advance of pushing the change.
-#
-# Remember to also update version.c in ndb.
-# When changing major version number please also check switch statement
-# in client/mysqlbinlog.cc:check_master_version().
+dnl Various people throughout the community may parse configure.in to
+dnl get the MySQL version from the source branch.  If the formatting
+dnl of this line is going to be changed, please announce the change to
+dnl internals@lists.mysql.com in advance of pushing the change.
+dnl
+dnl When changing the major version number please also check the switch
+dnl statement in mysqlbinlog::check_master_version().  You may also need
+dnl to update version.c in ndb.
 AC_INIT([MySQL Server], [5.6.99-m4], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -79,12 +79,14 @@ MYSQL_TCP_PORT_DEFAULT=3306
 MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 
 dnl Include m4 
+sinclude(config/ac-macros/maintainer.m4)
 sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/plugins.m4)
 sinclude(config/ac-macros/dtrace.m4)
+sinclude(config/ac-macros/gtest.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
@@ -117,6 +119,8 @@ AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
+# Whether the maintainer mode should be enabled.
+MY_MAINTAINER_MODE
 
 # Canonicalize the configuration name.
 
@@ -225,14 +229,7 @@ AC_PROG_CXX
 AC_PROG_CPP
 
 # Print version of CC and CXX compiler (if they support --version)
-case $SYSTEM_TYPE in
-  *netware*)
-CC_VERSION=`$CC -version | grep -i version`
-    ;;
-  *)
 CC_VERSION=`$CC --version | sed 1q`
-    ;;
-esac
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C Compiler version")
@@ -289,40 +286,6 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
-
-#check the return type of sprintf
-AC_MSG_CHECKING("return type of sprintf")
-AC_TRY_RUN([
-  int main()
-    {
-      char* s = "hello";
-      char buf[6];
-      if((int)sprintf(buf, s) == strlen(s))
-	return 0;
-      
-      return -1;
-     }
-   ],
-   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
-   AC_MSG_RESULT("int")],
-   [AC_TRY_RUN([
- int main()
-   {
-     char* s = "hello";
-     char buf[6];
-     if((char*)sprintf(buf,s) == buf + strlen(s))
-       return 0;
-     return -1;
-   }           ],
-               [AC_DEFINE(SPRINTF_RETURNS_PTR, [1], [Broken sprintf])
-                AC_MSG_RESULT("ptr")],
-               [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
-                AC_MSG_RESULT("garbage")]
-   )],
-   # Cross compile, assume POSIX
-   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
-    AC_MSG_RESULT("int (we assume)")]
-)
 
 AC_PATH_PROG(uname_prog, uname, no)
 
@@ -407,6 +370,7 @@ AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
 AC_SUBST(CXXFLAGS)
+AC_SUBST(CXXFLAGS_OVERRIDE)
 AC_SUBST(ASFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
@@ -422,6 +386,7 @@ then
   # regarding offset() usage in C++ which are done in a safe manner in the
   # server
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+  CXXFLAGS_OVERRIDE="-fimplicit-templates -fexceptions -frtti"
   AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
     [1], [Defined by configure. Use explicit template instantiation.])
 fi
@@ -457,15 +422,10 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
-case $SYSTEM_TYPE in
-  *netware*) ;;
-  *)
-    # If ln -f does not exists use -s (AFS systems)
-    if test -n "$LN_CP_F"; then
-      LN_CP_F="$LN_CP_F -s"
-    fi
-    ;;
-esac
+# If ln -f does not exists use -s (AFS systems)
+if test -n "$LN_CP_F"; then
+  LN_CP_F="$LN_CP_F -s"
+fi
 
 AC_PATH_PROG(MV, mv, mv)
 AC_PATH_PROG(RM, rm, rm)
@@ -505,7 +465,16 @@ if test "$GCC" != "yes" || expr "$CC" : ".*icc.*"
 then
   ABI_CHECK=""
 else
-  ABI_CHECK="abi_check"
+  # Workaround GCC >= 4.5 - See Bug#52514
+  case `$CC -dumpversion` in
+    [[4-9]].[[5-9]]*)
+      AC_MSG_WARN([ABI check disabled (GCC >= 4.5)])
+      ABI_CHECK=""
+      ;;
+    *)
+      ABI_CHECK="abi_check"
+      ;;
+  esac
 fi
 
 AC_SUBST(ABI_CHECK)
@@ -548,9 +517,6 @@ else
       ;;
     *cygwin*)
       FIND_PROC="$PS -e | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
-      ;;
-    *netware*)
-      FIND_PROC=
       ;;
     *)
       AC_MSG_ERROR([Could not find the right ps and/or grep switches. Which OS is this?  See the Installation chapter in the Reference Manual.])
@@ -843,8 +809,8 @@ AC_TYPE_SIZE_T
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
- memory.h pwd.h select.h poll.h \
+AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h fpu_control.h \
+ ieeefp.h limits.h memory.h pwd.h select.h poll.h \
  stdlib.h stddef.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
@@ -1010,6 +976,66 @@ if test x"$disable_ipv6" = xyes -o x"$have_in6_types" = xno; then
 else
   AC_DEFINE([HAVE_IPV6], [1], [Define if IPv6 networking support is present])
   AC_MSG_RESULT([yes])
+fi
+
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in::sin_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in::sin_len is available],
+  mysql_cv_have_sockaddr_in_sin_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in *) 0)->sin_len)],
+    mysql_cv_have_sockaddr_in_sin_len=yes,
+    mysql_cv_have_sockaddr_in_sin_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN_SIN_LEN],
+    [1],
+    [If sockaddr_in::sin_len is available])
+fi
+
+#--------------------------------------------------------------------------
+# Check if struct sockaddr_in6::sin6_len is available
+#--------------------------------------------------------------------------
+
+AC_CACHE_CHECK(
+  [if sockaddr_in6::sin6_len is available],
+  mysql_cv_have_sockaddr_in6_sin6_len,
+  AC_TRY_COMPILE(
+    [
+      #ifdef WIN32
+        #include <winsock2.h>
+      #else
+        #include <sys/types.h>
+        #include <netinet/in.h>
+        #include <sys/socket.h>
+      #endif
+
+      #ifdef HAVE_NETINET_IN6_H
+        #include <netinet/in6.h>
+      #endif
+    ],
+    [unsigned int i = sizeof(((struct sockaddr_in6 *) 0)->sin6_len)],
+    mysql_cv_have_sockaddr_in6_sin6_len=yes,
+    mysql_cv_have_sockaddr_in6_sin6_len=no))
+
+if test "$mysql_cv_have_sockaddr_in_sin6_len" = "yes"; then
+  AC_DEFINE(
+    [HAVE_SOCKADDR_IN6_SIN6_LEN],
+    [1],
+    [If sockaddr_in6::sin6_len is available])
 fi
 
 #--------------------------------------------------------------------
@@ -1186,7 +1212,6 @@ case $SYSTEM_TYPE in
     # Fixes for HPUX 11.0 compiler
     if test "$ac_cv_prog_gcc" = "no"
     then
-      CFLAGS="$CFLAGS -DHAVE_BROKEN_INLINE"
 # set working flags first in line, letting override it (i. e. for debug):
       CXXFLAGS="+O2 $CXXFLAGS"
       MAX_C_OPTIMIZE=""
@@ -1235,14 +1260,20 @@ case $SYSTEM_TYPE in
     fi
     ;;
   *freebsd*|*dragonfly*)
-    AC_MSG_WARN([Adding fix for interrupted reads])
+    dnl These dependencies have not really been checked for some time
     OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
-    if test "$OSVERSION" -gt "480100" && \
+    if test "$OSVERSION" -gt "600000"
+    then
+       # Post user-level threads, MYSQLD_NET_RETRY_COUNT is not needed any more
+       :
+    elif test "$OSVERSION" -gt "480100" && \
        test "$OSVERSION" -lt "500000" || \
        test "$OSVERSION" -gt "500109"
     then
+       AC_MSG_WARN([Adding fix for interrupted reads])
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
     else
+       AC_MSG_WARN([Adding fix for interrupted reads and broken realpath])
        CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
        CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
     fi
@@ -1286,98 +1317,6 @@ dnl Is this the right match for DEC OSF on alpha?
       CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
       # fix to handle include of <stdint.h> correctly on OSF1 with cxx compiler
       CXXFLAGS="$CXXFLAGS -I/usr/include/cxx -I/usr/include/cxx_cname -I/usr/include -I/usr/include.dtk"
-    ;;
-  *netware*)
-    # No need for curses library so set it to null
-    with_named_curses=""
-
-    # No thread library - in LibC
-    with_named_thread=""
-    
-    #
-    # Edit Makefile.in files.
-    #
-    echo -n "configuring Makefile.in files for NetWare... "
-    for file in sql/Makefile.in extra/Makefile.in client/Makefile.in
-    do
-    # echo "#### $file ####"
-      filedir="`dirname $file`"
-      filebase="`basename $file`"
-      filesed=$filedir/$filebase.sed
-      #
-      # Backup and always use original file
-      #
-      if test -f $file.bk
-      then
-        cp -fp $file.bk $file
-      else
-        cp -fp $file $file.bk
-      fi
-      case $file in
-        sql/Makefile.in)
-          # Use gen_lex_hash.linux instead of gen_lex_hash
-          # Add library dependencies to mysqld_DEPENDENCIES
-          lib_DEPENDENCIES="\$(pstack_libs) \$(openssl_libs) \$(yassl_libs)"
-          cat > $filesed << EOF
-s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
-s%\(mysqld_DEPENDENCIES = \)%\1$lib_DEPENDENCIES %
-EOF
-          ;;
-        extra/Makefile.in)
-          cat > $filesed << EOF
-s,\(extra/comp_err\)\$(EXEEXT),\1.linux,
-EOF
-          ;;
-        libmysql/Makefile.in)
-          cat > $filesed << EOF
-s,libyassl.la,.libs/libyassl.a,
-s,libtaocrypt.la,.libs/libtaocrypt.a,
-EOF
-          ;;
-        libmysql_r/Makefile.in)
-          cat > $filesed << EOF
-s,libyassl.la,.libs/libyassl.a,
-s,libtaocrypt.la,.libs/libtaocrypt.a,
-EOF
-          ;;
-        client/Makefile.in)
-          #
-          cat > $filesed << EOF
-s,libmysqlclient.la,.libs/libmysqlclient.a,
-EOF
-          ;;
-      esac
-      if `sed -f $filesed $file > $file.nw`;\
-      then
-        mv -f $file.nw $file
-        rm -f $filesed
-      else
-        exit 1
-      fi
-      # wait for file system changes to complete
-      sleep 1
-    done
-    echo "done"
-
-    #
-    # Make sure the following files are writable.
-    #
-    # When the files are retrieved from some source code control systems they are read-only.
-    #
-    echo -n "making sure specific build files are writable... "
-    for file in \
-        Docs/manual.chm \
-        Docs/mysql.info \
-        Docs/INSTALL-BINARY \
-        INSTALL-SOURCE \
-        COPYING
-    do
-      if test -e $file; then
-        chmod +w $file
-      fi
-    done
-    echo "done"
-
     ;;
 esac
 
@@ -1751,12 +1690,7 @@ esac
 
 
 # System characteristics
-case $SYSTEM_TYPE in
-  *netware*) ;;
-  *)
 AC_SYS_RESTARTABLE_SYSCALLS
-    ;;
-esac
 
 # Build optimized or debug version ?
 # First check for gcc and g++
@@ -1796,17 +1730,6 @@ else
   esac
 fi
 
-case $SYSTEM_TYPE in
-  *netware*)
-    DEBUG_CFLAGS="-g -DDEBUG -sym internal,codeview4"
-    DEBUG_CXXFLAGS="-g -DDEBUG -sym internal,codeview4"
-    DEBUG_OPTIMIZE_CC="-DDEBUG"
-    DEBUG_OPTIMIZE_CXX="-DDEBUG"
-    OPTIMIZE_CFLAGS="-O3 -DNDEBUG"
-    OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
-    ;;
-esac
-
 # If the user specified CFLAGS, we won't add any optimizations
 if test -n "$SAVE_CFLAGS"
 then
@@ -1835,13 +1758,24 @@ elif test "$with_debug" = "full"
 then
   # Full debug. Very slow in some cases
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
-  CFLAGS="$DEBUG_CFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+  CFLAGS="$DEBUG_CFLAGS -DSAFE_MUTEX $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX $CXXFLAGS"
 else
   # Optimized version. No debug
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
   CFLAGS="$OPTIMIZE_CFLAGS $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
+fi
+
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
 fi
 
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.
@@ -2064,6 +1998,9 @@ fi
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
+AS_IF([test "x$ac_cv_c_inline" = "xno"],
+ [AC_MSG_WARN([The C compiler does not support inline. Beware that unused
+ functions might not be eliminated the object files.])])
 AC_TYPE_OFF_T
 AC_STRUCT_ST_RDEV
 AC_HEADER_TIME
@@ -2143,18 +2080,13 @@ MYSQL_TZNAME
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
-case $SYSTEM_TYPE in
-  *netware*) ;;
-  *)
-    MYSQL_CHECK_LONGLONG_TO_FLOAT
-    if test "$ac_cv_conv_longlong_to_float" != "yes"
-    then
-      AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
- If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-    again])
-    fi
-    ;;
-esac
+MYSQL_CHECK_LONGLONG_TO_FLOAT
+if test "$ac_cv_conv_longlong_to_float" != "yes"
+then
+  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
+                If you are using gcc 2.8.# you should upgrade to egcs 1.0.3
+                or newer and try again])
+fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
 AC_CHECK_TYPES([size_t], [], [], [#include <stdio.h>])
 AC_CHECK_TYPES([u_int32_t])
@@ -2262,7 +2194,7 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
-AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
+AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
@@ -2697,6 +2629,7 @@ MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
 MYSQL_CHECK_VIO
 MYSQL_CHECK_SSL
+MYSQL_CHECK_GTEST([1.5.0])
 
 #--------------------------------------------------------------------
 # Declare our plugin modules
@@ -2852,66 +2785,58 @@ readline_h_ln_cmd=""
 readline_link=""
 want_to_use_readline="no"
 
-case $SYSTEM_TYPE in
-  *netware*)
-    # For NetWare, do not need readline
-    echo "Skipping readline"
-    ;;
-  *)
-    if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
+if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
+then
+    readline_topdir="cmd-line-utils"
+    readline_basedir="libedit"
+    readline_dir="$readline_topdir/$readline_basedir"
+    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
+    compile_libedit=yes
+    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
+    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
+elif test "$with_readline" = "yes"
+then
+    readline_topdir="cmd-line-utils"
+    readline_basedir="readline"
+    readline_dir="$readline_topdir/$readline_basedir"
+    readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
+    compile_readline=yes
+    want_to_use_readline="yes"
+    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
+else
+    # Use system readline library
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
+    MYSQL_CHECK_LIBEDIT_INTERFACE
+    MYSQL_CHECK_NEW_RL_INTERFACE
+    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+    AC_LANG_RESTORE
+    if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "$srcdir/cmd-line-utils/readline"]
     then
-	readline_topdir="cmd-line-utils"
-	readline_basedir="libedit"
-	readline_dir="$readline_topdir/$readline_basedir"
-	readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
-	compile_libedit=yes
-	AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
-	AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
-    elif test "$with_readline" = "yes"
+        # Use the new readline interface, but only if the package includes a bundled libreadline
+        # this way we avoid linking commercial source with GPL readline
+        readline_link="-lreadline"
+        want_to_use_readline="yes"
+    elif [test "$mysql_cv_libedit_interface" = "yes"]
     then
-	readline_topdir="cmd-line-utils"
-	readline_basedir="readline"
-	readline_dir="$readline_topdir/$readline_basedir"
-	readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-	readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
-	compile_readline=yes
-	want_to_use_readline="yes"
-	AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
+        # Use libedit
+        readline_link="-ledit"
     else
-	# Use system readline library
-	AC_LANG_SAVE
-	AC_LANG_CPLUSPLUS
-	MYSQL_CHECK_LIBEDIT_INTERFACE
-	MYSQL_CHECK_NEW_RL_INTERFACE
-	MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
-	AC_LANG_RESTORE
-	if [test "$mysql_cv_new_rl_interface" = "yes"] && [test -d "$srcdir/cmd-line-utils/readline"]
-	then
-	    # Use the new readline interface, but only if the package includes a bundled libreadline
-	    # this way we avoid linking commercial source with GPL readline
-	    readline_link="-lreadline"
-	    want_to_use_readline="yes"
-	elif [test "$mysql_cv_libedit_interface" = "yes"]
-	then
-	    # Use libedit
-	    readline_link="-ledit"
-	else
-	   AC_MSG_ERROR([Could not find system readline or libedit libraries
-	      Use --with-readline or --with-libedit to use the bundled
-	      versions of libedit or readline])
-	fi
+        AC_MSG_ERROR([Could not find system readline or libedit libraries
+          Use --with-readline or --with-libedit to use the bundled
+          versions of libedit or readline])
     fi
+fi
 
-    # if there is no readline, but we want to build with readline, we fail
-    if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
-    then
-	AC_MSG_ERROR([This commercially licensed MySQL source package can't
-	      be built with libreadline. Please use --with-libedit to use
-	      the bundled version of libedit instead.])
-    fi
-    ;;
-esac
+# if there is no readline, but we want to build with readline, we fail
+if [test "$want_to_use_readline" = "yes"] && [test ! -d "$srcdir/cmd-line-utils/readline"]
+then
+    AC_MSG_ERROR([This commercially licensed MySQL source package can't
+          be built with libreadline. Please use --with-libedit to use
+          the bundled version of libedit instead.])
+fi
 
 AC_SUBST(readline_dir)
 AC_SUBST(readline_topdir)
@@ -3001,15 +2926,6 @@ AC_SUBST(NON_THREADED_LIBS)
 AC_SUBST(STATIC_NSS_FLAGS)
 AC_SUBST(sql_client_dirs)
 
-# If configuring for NetWare, build the netware directory
-netware_dir=
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
-then
-  netware_dir="netware"
-fi
-AC_SUBST(netware_dir)
-AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
-
 if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
@@ -3062,19 +2978,17 @@ do
 done
 AC_SUBST(sql_union_dirs)
 
+#
+# Setup maintainer mode options by the end to not disturb
+# system and other checks.
+#
+MY_MAINTAINER_MODE_SETUP
+
 # Some usefull subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
 
 # Set configuration options for make_binary_distribution
-case $SYSTEM_TYPE in
-  *netware*)
-    MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --no-strip"
-    ;;
-  *)
-    : # no change for other platforms yet
-    ;;
-esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 #--------------------------------------------------------------------
@@ -3121,6 +3035,7 @@ esac
 
 AC_SUBST([RDTSC_SPARC_ASSEMBLY])
 
+
 #--------------------------------------------------------------------
 # Output results
 #--------------------------------------------------------------------
@@ -3133,6 +3048,7 @@ if test -d "$srcdir/cmd-line-utils/readline" ; then
 fi
 
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
+ unittest/gunit/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
@@ -3146,9 +3062,8 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
  libmysqld/Makefile libmysqld/examples/Makefile dnl
  mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
- netware/Makefile sql-bench/Makefile dnl
- include/mysql_version.h plugin/Makefile win/Makefile
- cmake/Makefile
+ sql-bench/Makefile include/mysql_version.h plugin/Makefile win/Makefile dnl
+ cmake/Makefile packaging/Makefile
  )
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)

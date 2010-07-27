@@ -1,7 +1,7 @@
 #ifndef HA_PARTITION_INCLUDED
 #define HA_PARTITION_INCLUDED
 
-/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +13,15 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifdef __GNUC__
 #pragma interface				/* gcc class implementation */
 #endif
+
+#include "sql_partition.h"      /* part_id_range, partition_element */
+#include "queues.h"             /* QUEUE */
 
 enum partition_keywords
 { 
@@ -26,31 +29,6 @@ enum partition_keywords
   PKW_COLUMNS
 };
 
-/*
-  PARTITION_SHARE is a structure that will be shared amoung all open handlers
-  The partition implements the minimum of what you will probably need.
-*/
-
-#ifdef NOT_USED
-typedef struct st_partition_share
-{
-  char *table_name;
-  uint table_name_length, use_count;
-  mysql_mutex_t mutex;
-  THR_LOCK lock;
-} PARTITION_SHARE;
-#endif
-
-/**
-  Partition specific ha_data struct.
-  @todo: move all partition specific data from TABLE_SHARE here.
-*/
-typedef struct st_ha_data_partition
-{
-  ulonglong next_auto_inc_val;                 /**< first non reserved value */
-  bool auto_inc_initialized;
-  pthread_mutex_t mutex;
-} HA_DATA_PARTITION;
 
 #define PARTITION_BYTES_IN_POS 2
 #define PARTITION_ENABLED_TABLE_FLAGS (HA_FILE_BASED | HA_REC_NOT_IN_SEQ)
@@ -58,8 +36,7 @@ typedef struct st_ha_data_partition
                                         HA_CAN_FULLTEXT | \
                                         HA_DUPLICATE_POS | \
                                         HA_CAN_SQL_HANDLER | \
-                                        HA_CAN_INSERT_DELAYED | \
-                                        HA_PRIMARY_KEY_REQUIRED_FOR_POSITION)
+                                        HA_CAN_INSERT_DELAYED)
 class ha_partition :public handler
 {
 private:
@@ -166,9 +143,6 @@ private:
     Variables for lock structures.
   */
   THR_LOCK_DATA lock;                   /* MySQL lock */
-#ifdef NOT_USED
-  PARTITION_SHARE *share;               /* Shared lock info */
-#endif
 
   /* 
     TRUE <=> this object was created with ha_partition::clone and doesn't
@@ -453,6 +427,15 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_end();
 
+  /**
+    @breif
+    Positions an index cursor to the index specified in the hanlde. Fetches the
+    row if available. If the key value is null, begin at first key of the
+    index.
+  */
+  virtual int index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                 key_part_map keypart_map,
+                                 enum ha_rkey_function find_flag);
   /*
     These methods are used to jump to next or previous entry in the index
     scan. There are also methods to jump to first and last entry.
@@ -519,7 +502,7 @@ public:
     -------------------------------------------------------------------------
   */
   virtual int info(uint);
-  void get_dynamic_partition_info(PARTITION_INFO *stat_info,
+  void get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                   uint part_id);
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
@@ -771,9 +754,6 @@ public:
 
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION:
     Does the storage engine need a PK for position?
-    Used with hidden primary key in InnoDB.
-    Hidden primary keys cannot be supported by partitioning, since the
-    partitioning expressions columns must be a part of the primary key.
     (InnoDB)
 
     HA_FILE_BASED is always set for partition handler since we use a
@@ -941,16 +921,16 @@ private:
     /* lock already taken */
     if (auto_increment_safe_stmt_log_lock)
       return;
-    DBUG_ASSERT(table_share->ha_data && !auto_increment_lock);
+    DBUG_ASSERT(table_share->ha_part_data && !auto_increment_lock);
     if(table_share->tmp_table == NO_TMP_TABLE)
     {
       auto_increment_lock= TRUE;
-      mysql_mutex_lock(&table_share->LOCK_ha_data);
+      mysql_mutex_lock(&table_share->ha_part_data->LOCK_auto_inc);
     }
   }
   virtual void unlock_auto_increment()
   {
-    DBUG_ASSERT(table_share->ha_data);
+    DBUG_ASSERT(table_share->ha_part_data);
     /*
       If auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
       It will be set to false and thus unlocked at the end of the statement by
@@ -958,20 +938,19 @@ private:
     */
     if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
     {
-      mysql_mutex_unlock(&table_share->LOCK_ha_data);
+      mysql_mutex_unlock(&table_share->ha_part_data->LOCK_auto_inc);
       auto_increment_lock= FALSE;
     }
   }
   virtual void set_auto_increment_if_higher(Field *field)
   {
-    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     ulonglong nr= (((Field_num*) field)->unsigned_flag ||
                    field->val_int() > 0) ? field->val_int() : 0;
     lock_auto_increment();
-    DBUG_ASSERT(ha_data->auto_inc_initialized == TRUE);
+    DBUG_ASSERT(table_share->ha_part_data->auto_inc_initialized == TRUE);
     /* must check when the mutex is taken */
-    if (nr >= ha_data->next_auto_inc_val)
-      ha_data->next_auto_inc_val= nr + 1;
+    if (nr >= table_share->ha_part_data->next_auto_inc_val)
+      table_share->ha_part_data->next_auto_inc_val= nr + 1;
     unlock_auto_increment();
   }
 

@@ -19,9 +19,10 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "probes_mysql.h"
-#include <mysql/plugin.h>
+#include "key.h"                                // key_copy
+#include "sql_plugin.h"
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
@@ -29,6 +30,8 @@
 #include <stdarg.h>
 #include "myisamdef.h"
 #include "rt_index.h"
+#include "sql_table.h"                          // tablename_to_filename
+#include "sql_class.h"                          // THD
 
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
@@ -76,7 +79,7 @@ static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
   "The buffer that is allocated when sorting the index when doing "
   "a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE", NULL, NULL,
-  8192*1024, 4, ULONG_MAX, 1);
+  8192*1024, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), ULONG_MAX, 1);
 
 static MYSQL_SYSVAR_BOOL(use_mmap, opt_myisam_use_mmap, PLUGIN_VAR_NOCMDARG,
   "Use memory mapping for reading and writing MyISAM tables", NULL, NULL, FALSE);
@@ -753,7 +756,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     recinfo must be freed.
   */
   if (recinfo)
-    my_free((uchar*) recinfo, MYF(0));
+    my_free(recinfo);
   return my_errno;
 }
 
@@ -1346,9 +1349,17 @@ int ha_myisam::enable_indexes(uint mode)
     {
       sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
                         my_errno, param.db_name, param.table_name);
-      /* Repairing by sort failed. Now try standard repair method. */
-      param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
-      error= (repair(thd,param,0) != HA_ADMIN_OK);
+      /*
+        Repairing by sort failed. Now try standard repair method.
+        Still we want to fix only index file. If data file corruption
+        was detected (T_RETRY_WITHOUT_QUICK), we shouldn't do much here.
+        Let implicit repair do this job.
+      */
+      if (!(param.testflag & T_RETRY_WITHOUT_QUICK))
+      {
+        param.testflag&= ~T_REP_BY_SORT;
+        error= (repair(thd,param,0) != HA_ADMIN_OK);
+      }
       /*
         If the standard repair succeeded, clear all error messages which
         might have been set by the first repair. They can still be seen
@@ -1872,7 +1883,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
                    records, recinfo,
                    0, (MI_UNIQUEDEF*) 0,
                    &create_info, create_flags);
-  my_free((uchar*) recinfo, MYF(0));
+  my_free(recinfo);
   DBUG_RETURN(error);
 }
 
@@ -2058,7 +2069,7 @@ mysql_declare_plugin(myisam)
   &myisam_storage_engine,
   "MyISAM",
   "MySQL AB",
-  "Default engine as of MySQL 3.23 with great performance",
+  "MyISAM storage engine",
   PLUGIN_LICENSE_GPL,
   myisam_init, /* Plugin Init */
   NULL, /* Plugin Deinit */

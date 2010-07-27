@@ -71,4 +71,34 @@ insert into t1 values("··ËË");
 select a from t1 where a like "abcdefgh·";
 drop table t1;
 
+set names cp1250 collate cp1250_czech_cs;
+--source include/ctype_pad_space.inc
+--source include/ctype_filesort.inc
+
 # End of 4.1 tests
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+--echo #
+--echo # Note:
+--echo # cp1250_czech_cs does not support WEIGHT_STRING in full extent
+--echo #
+
+set names cp1250 collate cp1250_czech_cs;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_chde.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_l2.inc
+--source include/weight_string_l12.inc
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

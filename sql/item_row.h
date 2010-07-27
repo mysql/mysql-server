@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,13 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 class Item_row: public Item
 {
   Item **items;
-  table_map used_tables_cache;
+  table_map used_tables_cache, not_null_tables_cache;
   uint arg_count;
   bool const_item_cache;
   bool with_null;
@@ -29,6 +29,7 @@ public:
     Item(),
     items(item->items),
     used_tables_cache(item->used_tables_cache),
+    not_null_tables_cache(0),
     arg_count(item->arg_count),
     const_item_cache(item->const_item_cache),
     with_null(0)
@@ -68,6 +69,7 @@ public:
   bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }
   void update_used_tables();
+  table_map not_null_tables() const { return not_null_tables_cache; }
   virtual void print(String *str, enum_query_type query_type);
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);

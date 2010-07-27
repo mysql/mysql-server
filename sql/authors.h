@@ -1,7 +1,8 @@
 #ifndef AUTHORS_INCLUDED
 #define AUTHORS_INCLUDED
 
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,6 +81,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Eric Herman", "Amsterdam, Netherlands", "Bug fixing - federated" },
   { "Andrey Hristov", "Walldorf, Germany", "Event scheduler (5.1)" },
   { "Alexander (Alexi) Ivanov", "St. Petersburg, Russia", "Replication" },
+  { "Mattias Jonsson", "Uppsala, Sweden", "Partitioning" },
   { "Alexander (Salle) Keremidarski", "Sofia, Bulgaria",
     "Bug fixing" },
   { "Mats Kindahl", "Storvreta, Sweden", "Replication" },

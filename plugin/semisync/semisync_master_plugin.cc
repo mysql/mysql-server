@@ -16,8 +16,11 @@
 
 
 #include "semisync_master.h"
+#include "sql_class.h"                          // THD
 
 ReplSemiSyncMaster repl_semisync;
+
+C_MODE_START
 
 int repl_semi_report_binlog_update(Binlog_storage_param *param,
 				   const char *log_file,
@@ -143,6 +146,8 @@ int repl_semi_reset_master(Binlog_transmit_param *param)
     return 1;
   return 0;
 }
+
+C_MODE_END
 
 /*
   semisync system variables

@@ -55,6 +55,7 @@ MACRO(GET_MYSQL_VERSION)
   ENDIF()
   
   SET(VERSION ${VERSION_STRING})
+  STRING(REPLACE "-" "_" MYSQL_U_SCORE_VERSION "${VERSION_STRING}")
   
   # Remove trailing (non-numeric) part of the version string
   STRING(REGEX REPLACE "[^\\.0-9].*" "" VERSION_STRING ${VERSION_STRING})
@@ -106,6 +107,7 @@ ENDIF()
 IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
   SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-${VERSION}")
 ENDIF()
+SET(CPACK_PACKAGE_CONTACT "MySQL Build Team <build@mysql.com>")
 SET(CPACK_PACKAGE_VENDOR "Sun Microsystems, Inc")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
 INCLUDE(cpack_source_ignore_files)
@@ -114,13 +116,22 @@ INCLUDE(cpack_source_ignore_files)
 SET(PRODUCTNAME "MySQL Server")
 SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
 
+# Windows 'date' command has unpredictable output, so cannot rely on it to
+# set MYSQL_COPYRIGHT_YEAR - if someone finds a portable way to do so then
+# it might be useful
+#IF (WIN32)
+#  EXECUTE_PROCESS(COMMAND "date" "/T" OUTPUT_VARIABLE TMP_DATE)
+#  STRING(REGEX REPLACE "(..)/(..)/..(..).*" "\\3\\2\\1" MYSQL_COPYRIGHT_YEAR ${TMP_DATE})
+IF(UNIX)
+  EXECUTE_PROCESS(COMMAND "date" "+%Y" OUTPUT_VARIABLE MYSQL_COPYRIGHT_YEAR OUTPUT_STRIP_TRAILING_WHITESPACE)
+ENDIF()
+
 # Add version information to the exe and dll files
 # Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
 # for more info.
 IF(MSVC)
-  GET_TARGET_PROPERTY(location gen_versioninfo LOCATION)
-  IF(NOT location)
     GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+	
     SET(FILETYPE VFT_APP)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in 
     ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
@@ -128,31 +139,14 @@ IF(MSVC)
     SET(FILETYPE VFT_DLL)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in  
       ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
-
-    ADD_CUSTOM_COMMAND(
-      OUTPUT ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
-       ${CMAKE_BINARY_DIR}/versioninfo_dll.res
-    COMMAND ${CMAKE_RC_COMPILER} versioninfo_exe.rc
-    COMMAND ${CMAKE_RC_COMPILER} versioninfo_dll.rc
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-   )
-   ADD_CUSTOM_TARGET(gen_versioninfo
-      DEPENDS 
-     ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
-     ${CMAKE_BINARY_DIR}/versioninfo_dll.res
-   )
-  ENDIF()
-  
-  FUNCTION(ADD_VERSION_INFO target)
-    GET_TARGET_PROPERTY(target_type ${target} TYPE)
-    ADD_DEPENDENCIES(${target} gen_versioninfo)
-    IF(target_type MATCHES "SHARED" OR target_type MATCHES "MODULE")
-       SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
-        "\"${CMAKE_BINARY_DIR}/versioninfo_dll.res\"")
-    ELSEIF(target_type MATCHES "EXE")
-      SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
-      "${target_link_flags} \"${CMAKE_BINARY_DIR}/versioninfo_exe.res\"")
+	  
+  FUNCTION(ADD_VERSION_INFO target target_type sources_var)
+    IF("${target_type}" MATCHES "SHARED" OR "${target_type}" MATCHES "MODULE")
+      SET(rcfile ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
+    ELSEIF("${target_type}" MATCHES "EXE")
+      SET(rcfile ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
     ENDIF()
+    SET(${sources_var} ${${sources_var}} ${rcfile} PARENT_SCOPE)
   ENDFUNCTION()
 ELSE()
   FUNCTION(ADD_VERSION_INFO)

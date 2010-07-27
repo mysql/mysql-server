@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -28,9 +28,16 @@
 #ifndef my_decimal_h
 #define my_decimal_h
 
+#if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
+#include "sql_string.h"                         /* String */
+#endif
+
 C_MODE_START
 #include <decimal.h>
 C_MODE_END
+
+class String;
+typedef struct st_mysql_time MYSQL_TIME;
 
 #define DECIMAL_LONGLONG_DIGITS 22
 #define DECIMAL_LONG_DIGITS 10
@@ -132,6 +139,12 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 #else
 #define dbug_decimal_as_string(A) NULL
 #endif
+
+bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
+                     uint fixed_dec, char filler, String *str,
+                     CHARSET_INFO *cs);
+
+extern my_decimal decimal_zero;
 
 #ifndef MYSQL_CLIENT
 int decimal_operation_results(int result);
@@ -289,7 +302,14 @@ int my_decimal_ceiling(uint mask, const my_decimal *from, my_decimal *to)
 }
 
 
+inline bool str_set_decimal(const my_decimal *val, String *str,
+                            CHARSET_INFO *cs)
+{
+  return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
+}
+
 #ifndef MYSQL_CLIENT
+class String;
 int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 		      uint fixed_dec, char filler, String *str);
 #endif

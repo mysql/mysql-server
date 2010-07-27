@@ -15,7 +15,7 @@ Usage: $0 [-h|-n] [configure-options]
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
   --with-debug=full       Build with full debug.
-  --warning-mode=[old|pedantic]
+  --warning-mode=[old|pedantic|maintainer]
                           Influences the debug flags. Old is default.
   --prefix=path           Build with prefix 'path'.
 
@@ -62,6 +62,7 @@ just_print=
 just_configure=
 full_debug=
 warning_mode=
+maintainer_mode=
 
 parse_options "$@"
 
@@ -88,25 +89,7 @@ AM_MAKEFLAGS="-j 6"
 # Ex --with-ssl=/usr
 SSL_LIBRARY=--with-ssl
 
-if [ "x$warning_mode" != "xpedantic" ]; then
-# Both C and C++ warnings
-  warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
-  warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
-  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
-
-# For more warnings, uncomment the following line
-# warnings="$global_warnings -Wshadow"
-
-# C warnings
-  c_warnings="$warnings -Wunused-parameter"
-# C++ warnings
-  cxx_warnings="$warnings"
-# cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
-  cxx_warnings="$cxx_warnings -Wreorder"
-  cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
-# Added unless --with-debug=full
-  debug_extra_cflags="-O0 -g3 -gdwarf-2" #1 -Wuninitialized"
-else
+if [ "x$warning_mode" = "xpedantic" ]; then
   warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
   c_warnings="$warnings"
   cxx_warnings="$warnings -std=c++98"
@@ -115,16 +98,40 @@ else
   debug_extra_cflags="-O0"
 # Reset CPU flags (-mtune), they don't work in -pedantic mode
   check_cpu_cflags=""
+elif [ "x$warning_mode" = "xmaintainer" ]; then
+  c_warnings="-Wall -Wextra"
+  cxx_warnings="$c_warnings -Wno-unused-parameter"
+  maintainer_mode="--enable-mysql-maintainer-mode"
+  debug_extra_cflags="-g3"
+else
+# Both C and C++ warnings
+  warnings="-Wall -Wextra -Wunused -Wwrite-strings"
+
+# For more warnings, uncomment the following line
+# warnings="$warnings -Wshadow"
+
+# C warnings
+  c_warnings="$warnings"
+# C++ warnings
+  cxx_warnings="$warnings -Wno-unused-parameter"
+# cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
+  cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
+# Added unless --with-debug=full
+  debug_extra_cflags="-O0 -g3 -gdwarf-2"
 fi
 
 # Set flags for various build configurations.
 # Used in -valgrind builds
-valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
+# Override -DFORCE_INIT_OF_VARS from debug_cflags. It enables the macro
+# LINT_INIT(), which is only useful for silencing spurious warnings
+# of static analysis tools. We want LINT_INIT() to be a no-op in Valgrind.
+valgrind_flags="-UFORCE_INIT_OF_VARS -DHAVE_purify "
 valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
+valgrind_configs="--with-valgrind"
 #
 # Used in -debug builds
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
-debug_cflags="$debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
+debug_cflags="$debug_cflags -DSAFE_MUTEX"
 error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
@@ -146,7 +153,7 @@ fi
 base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
-base_configs="$base_configs --with-big-tables"
+base_configs="$base_configs --with-big-tables $maintainer_mode"
 
 if test -d "$path/../cmd-line-utils/readline"
 then

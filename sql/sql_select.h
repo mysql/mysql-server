@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -30,6 +30,10 @@
 
 #include "procedure.h"
 #include <myisam.h>
+#include "sql_array.h"                        /* Array */
+#include "records.h"                          /* READ_RECORD */
+#include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
+
 
 typedef struct keyuse_t {
   TABLE *table;
@@ -189,7 +193,7 @@ typedef struct st_join_table {
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
   double	worst_seeks;
   key_map	const_keys;			/**< Keys with constant part */
-  key_map	checked_keys;			/**< Keys checked in find_best */
+  key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
 
@@ -347,9 +351,6 @@ public:
   /** second copy of sumfuncs (for queries with 2 temporary tables */
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Procedure *procedure;
-  Item	    *having;
-  Item      *tmp_having; ///< To store having when processed temporary table
-  Item      *having_history; ///< Store having for explain
   ulonglong  select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
@@ -416,7 +417,6 @@ public:
 
   bool need_tmp, hidden_group_fields;
   DYNAMIC_ARRAY keyuse;
-  Item::cond_result cond_value, having_value;
   List<Item> all_fields; ///< to store all fields that used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
@@ -427,8 +427,28 @@ public:
   int error;
 
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
-  COND *conds;                            // ---"---
-  Item *conds_history;                    // store WHERE for explain
+  /** 
+    JOIN::having is initially equal to select_lex->having, but may
+    later be changed by optimizations performed by JOIN.
+    The relationship between the JOIN::having condition and the
+    associated variable select_lex->having_value is so that
+    having_value can be:
+     - COND_UNDEF if a having clause was not specified in the query or
+       if it has not been optimized yet
+     - COND_TRUE if the having clause is always true, in which case
+       JOIN::having is set to NULL.
+     - COND_FALSE if the having clause is impossible, in which case
+       JOIN::having is set to NULL
+     - COND_OK otherwise, meaning that the having clause needs to be
+       further evaluated
+    All of the above also applies to the conds/select_lex->cond_value
+    pair.
+  */
+  COND       *conds;                      ///< The where clause item tree
+  Item       *having;                     ///< The having clause item tree
+  Item       *conds_history;              ///< store WHERE for explain
+  Item       *having_history;             ///< Store having for explain
+  Item       *tmp_having; ///< To store having when processed temporary table
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
@@ -571,7 +591,7 @@ public:
   bool send_row_on_empty_set()
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    !group_list && having_value != Item::COND_FALSE);
+	    !group_list && select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
   bool is_top_level_join() const
@@ -596,7 +616,6 @@ typedef struct st_select_check {
 } SELECT_CHECK;
 
 extern const char *join_type_str[];
-void TEST_join(JOIN *join);
 
 /* Extern functions in sql_select.cc */
 bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
@@ -779,6 +798,9 @@ protected:
     if (!inited)
     {
       inited=1;
+      TABLE *table= to_field->table;
+      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
+                                                       table->write_set);
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
@@ -790,6 +812,7 @@ protected:
         */
       if (!err && to_field->table->in_use->is_error())
         err= 1; /* STORE_KEY_FATAL */
+      dbug_tmp_restore_column_map(table->write_set, old_map);
     }
     null_key= to_field->is_null() || item->null_value;
     return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
@@ -801,10 +824,62 @@ bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
+int get_quick_record(SQL_SELECT *select);
+SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
+                                  SORT_FIELD *sortorder);
+int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+		List<Item> &fields, List <Item> &all_fields, ORDER *order);
+int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+		List<Item> &fields, List<Item> &all_fields, ORDER *order,
+		bool *hidden_group_fields);
+bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
+                   Item **ref_pointer_array, ORDER *group_list= NULL);
+
+bool handle_select(THD *thd, LEX *lex, select_result *result,
+                   ulong setup_tables_done_option);
+bool mysql_select(THD *thd, Item ***rref_pointer_array,
+                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
+                  COND *conds, uint og_num, ORDER *order, ORDER *group,
+                  Item *having, ORDER *proc_param, ulonglong select_type, 
+                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  SELECT_LEX *select_lex);
+void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
+                         select_result *result);
+Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
+			Item ***copy_func, Field **from_field,
+                        Field **def_field,
+			bool group, bool modify_item,
+			bool table_cant_handle_bit_fields,
+                        bool make_copy_field,
+                        uint convert_blob_length);
+
+/*
+  General routine to change field->ptr of a NULL-terminated array of Field
+  objects. Useful when needed to call val_int, val_str or similar and the
+  field data is not in table->record[0] but in some other structure.
+  set_key_field_ptr changes all fields of an index using a key_info object.
+  All methods presume that there is at least one field to change.
+*/
+
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
+
 
 inline bool optimizer_flag(THD *thd, uint flag)
 { 
   return (thd->variables.optimizer_switch & flag);
 }
+
+uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
+                         ha_rows limit, bool *need_sort, bool *reverse);
+ORDER *simple_remove_const(ORDER *order, COND *where);
+bool const_expression_in_where(COND *cond, Item *comp_item,
+                               Field *comp_field= NULL,
+                               Item **const_item= NULL);
+
+bool open_tmp_table(TABLE *table);
+bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo, MI_COLUMNDEF **recinfo,
+                             MI_COLUMNDEF *start_recinfo,
+                             ulonglong options, my_bool big_tables);
 
 #endif /* SQL_SELECT_INCLUDED */

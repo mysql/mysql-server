@@ -57,14 +57,12 @@ mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ \
 				$(LDADD) $(CXXLDFLAGS)
 mysqladmin_SOURCES =		mysqladmin.cc
 
-mysqlbinlog_SOURCES =		mysqlbinlog.cc \
-				$(top_srcdir)/mysys/mf_tempdir.c \
-				$(top_srcdir)/mysys/my_new.cc \
-				$(top_srcdir)/mysys/my_bit.c \
-				$(top_srcdir)/mysys/my_bitmap.c \
-				$(top_srcdir)/mysys/my_vle.c \
-				$(top_srcdir)/mysys/base64.c
-mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
+mysqlbinlog_SOURCES =		mysqlbinlog.cc 
+mysqlbinlog_CXXFLAGS=           -DTHREAD -UMYSQL_CLIENT_NO_THREADS
+mysqlbinlog_LDADD =             $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+                                @CLIENT_EXTRA_LDFLAGS@ \
+                                $(LIBMYSQLCLIENT_LA) \
+				$(top_builddir)/mysys/libmysyslt.la   
 
 mysqldump_SOURCES=              mysqldump.c \
 				my_user.c \
@@ -75,7 +73,7 @@ mysqlimport_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a
+				$(top_builddir)/mysys/libmysyslt.la
 
 mysqlshow_SOURCES=		mysqlshow.c
 
@@ -84,14 +82,14 @@ mysqlslap_CFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a
+				$(top_builddir)/mysys/libmysyslt.la
 
 mysqltest_SOURCES=		mysqltest.cc
 mysqltest_CXXFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a \
+				$(top_builddir)/mysys/libmysyslt.la \
 				$(top_builddir)/regex/libregex.a \
 				$(CLIENT_THREAD_LIBS)
 
@@ -103,13 +101,13 @@ DEFS =			-DMYSQL_CLIENT_NO_THREADS \
 			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
 			-DMYSQL_DATADIR="\"$(localstatedir)\""
 
-sql_src=log_event.h mysql_priv.h rpl_constants.h \
+sql_src=log_event.h sql_priv.h rpl_constants.h \
 	rpl_tblmap.h rpl_tblmap.cc \
 	log_event.cc my_decimal.h my_decimal.cc \
 	log_event_old.h log_event_old.cc \
 	rpl_record_old.h rpl_record_old.cc \
 	rpl_utility.h rpl_utility.cc \
-	transaction.h
+	transaction.h sql_const.h
 strings_src=decimal.c dtoa.c
 
 link_sources:
@@ -124,6 +122,3 @@ link_sources:
 	rm -f $(srcdir)/my_user.c; \
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
 	echo timestamp > link_sources;
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

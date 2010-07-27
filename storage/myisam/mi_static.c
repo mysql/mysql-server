@@ -23,9 +23,9 @@
 #endif
 
 LIST	*myisam_open_list=0;
-uchar	NEAR myisam_file_magic[]=
+uchar	myisam_file_magic[]=
 { (uchar) 254, (uchar) 254,'\007', '\001', };
-uchar	NEAR myisam_pack_file_magic[]=
+uchar	myisam_pack_file_magic[]=
 { (uchar) 254, (uchar) 254,'\010', '\002', };
 char * myisam_log_filename=(char*) "myisam.log";
 File	myisam_log_file= -1;
@@ -38,7 +38,6 @@ uint myisam_concurrent_insert= 2;
 uint myisam_concurrent_insert= 0;
 #endif
 ulonglong myisam_max_temp_length= MAX_FILE_SIZE;
-ulong    myisam_bulk_insert_tree_size=8192*1024;
 ulong    myisam_data_pointer_size=4;
 ulonglong    myisam_mmap_size= SIZE_T_MAX, myisam_mmap_used= 0;
 
@@ -55,7 +54,7 @@ int (*myisam_test_invalid_symlink)(const char *filename)= always_valid;
   Position is , == , >= , <= , > , <
 */
 
-uint NEAR myisam_read_vec[]=
+uint myisam_read_vec[]=
 {
   SEARCH_FIND, SEARCH_FIND | SEARCH_BIGGER, SEARCH_FIND | SEARCH_SMALLER,
   SEARCH_NO_FIND | SEARCH_BIGGER, SEARCH_NO_FIND | SEARCH_SMALLER,
@@ -63,7 +62,7 @@ uint NEAR myisam_read_vec[]=
   MBR_CONTAIN, MBR_INTERSECT, MBR_WITHIN, MBR_DISJOINT, MBR_EQUAL
 };
 
-uint NEAR myisam_readnext_vec[]=
+uint myisam_readnext_vec[]=
 {
   SEARCH_BIGGER, SEARCH_BIGGER, SEARCH_SMALLER, SEARCH_BIGGER, SEARCH_SMALLER,
   SEARCH_BIGGER, SEARCH_SMALLER, SEARCH_SMALLER

@@ -25,3 +25,5 @@ drop table test.ghost;
 select * from performance_schema.FILE_INSTANCES
 where file_name like "%ghost%";
 FILE_NAME	EVENT_NAME	OPEN_COUNT
+select * from performance_schema.no_such_table;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist

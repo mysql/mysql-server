@@ -20,11 +20,13 @@
 
 #define MYSQL_SERVER
 #define HAVE_REPLICATION
-#include <mysql_priv.h>
+#include <sql_priv.h>
+#include "unireg.h"
 #include <my_global.h>
 #include <my_pthread.h>
 #include <mysql/plugin.h>
 #include <replication.h>
+#include "log.h"                                /* sql_print_information */
 
 typedef struct st_mysql_show_var SHOW_VAR;
 typedef struct st_mysql_sys_var SYS_VAR;

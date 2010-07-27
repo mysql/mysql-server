@@ -22,7 +22,6 @@
 
 #include <my_global.h>
 #include <m_string.h>
-#undef SAFEMALLOC				// Speed things up
 #include <my_sys.h>
 #include "completion_hash.h"
 
@@ -213,7 +212,7 @@ void completion_hash_clean(HashTable *ht)
 void completion_hash_free(HashTable *ht)
 {
   completion_hash_clean(ht);
-  my_free(ht->arBuckets, MYF(0));
+  my_free(ht->arBuckets);
 }
 
 

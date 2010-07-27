@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,10 +10,10 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "sql_audit.h"
 
 extern int initialize_audit_plugin(st_plugin_int *plugin);
@@ -65,6 +65,7 @@ static void general_class_handler(THD *thd, uint event_subtype, va_list ap)
 {
   mysql_event_general event;
   event.event_class= MYSQL_AUDIT_GENERAL_CLASS;
+  event.event_subclass= event_subtype;
   event.general_error_code= va_arg(ap, int);
   event.general_thread_id= thd ? thd->thread_id : 0;
   event.general_time= va_arg(ap, time_t);

@@ -50,16 +50,21 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
   DBUG_PRINT("my",("buf: 0x%lx  size: %u  MyFlags %d",
                    (long) buf, (uint) size, MyFlags));
 
+  if (size < 1)
+    DBUG_RETURN(-1);
+
   if (curr_dir[0])				/* Current pos is saved here */
     (void) strmake(buf,&curr_dir[0],size-1);
   else
   {
 #if defined(HAVE_GETCWD)
+    if (size < 2)
+      DBUG_RETURN(-1);
     if (!getcwd(buf,(uint) (size-2)) && MyFlags & MY_WME)
     {
       my_errno=errno;
       my_error(EE_GETWD,MYF(ME_BELL+ME_WAITTANG),errno);
-      return(-1);
+      DBUG_RETURN(-1);
     }
 #elif defined(HAVE_GETWD)
     {
@@ -67,14 +72,6 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
       getwd(pathname);
       strmake(buf,pathname,size-1);
     }
-#elif defined(VMS)
-    if (!getcwd(buf,size-2,1) && MyFlags & MY_WME)
-    {
-      my_errno=errno;
-      my_error(EE_GETWD,MYF(ME_BELL+ME_WAITTANG),errno);
-      return(-1);
-    }
-    intern_filename(buf,buf);
 #else
 #error "No way to get current directory"
 #endif
@@ -96,27 +93,12 @@ int my_setwd(const char *dir, myf MyFlags)
   int res;
   size_t length;
   char *start, *pos;
-#if defined(VMS)
-  char buff[FN_REFLEN];
-#endif
   DBUG_ENTER("my_setwd");
   DBUG_PRINT("my",("dir: '%s'  MyFlags %d", dir, MyFlags));
 
   start=(char *) dir;
   if (! dir[0] || (dir[0] == FN_LIBCHAR && dir[1] == 0))
     dir=FN_ROOTDIR;
-#ifdef VMS
-  {
-    pos=strmov(buff,dir);
-    if (pos[-1] != FN_LIBCHAR)
-    {
-      pos[0]=FN_LIBCHAR;		/* Mark as directory */
-      pos[1]=0;
-    }
-    system_filename(buff,buff);		/* Change to VMS format */
-    dir=buff;
-  }
-#endif /* VMS */
   if ((res=chdir((char*) dir)) != 0)
   {
     my_errno=errno;

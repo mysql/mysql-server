@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -19,12 +19,28 @@
   Multi-table updates were introduced by Sinisa & Monty
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_update.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_base.h"                       // close_tables_for_reopen
+#include "sql_parse.h"                          // cleanup_items
+#include "sql_partition.h"                   // partition_key_modified
 #include "sql_select.h"
+#include "sql_view.h"                           // check_key_in_view
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "probes_mysql.h"
 #include "debug_sync.h"
+#include "key.h"                                // is_key_used
+#include "sql_acl.h"                            // *_ACL, check_grant
+#include "records.h"                            // init_read_record,
+                                                // end_read_record
+#include "filesort.h"                           // filesort
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived,
+                         // mysql_derived_filling
 
 /* Return 0 if row hasn't changed */
 
@@ -187,12 +203,13 @@ int mysql_update(THD *thd,
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
-  bool		used_key_is_modified, transactional_table, will_batch;
+  bool          used_key_is_modified= FALSE, transactional_table, will_batch;
   bool		can_compare_record;
   int           res;
   int		error, loc_error;
-  uint		used_index= MAX_KEY, dup_key_found;
+  uint          used_index, dup_key_found;
   bool          need_sort= TRUE;
+  bool          reverse= FALSE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -206,7 +223,6 @@ int mysql_update(THD *thd,
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
-  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_update");
 
   if (open_tables(thd, &table_list, &table_count, 0))
@@ -349,11 +365,7 @@ int mysql_update(THD *thd,
     my_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
-  if (!select && limit != HA_POS_ERROR)
-  {
-    if ((used_index= get_index_for_order(table, order, limit)) != MAX_KEY)
-      need_sort= FALSE;
-  }
+
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -369,23 +381,19 @@ int mysql_update(THD *thd,
 
   table->mark_columns_needed_for_update();
 
-  /* Check if we are modifying a key that we are used to search with */
-  
-  if (select && select->quick)
-  {
-    used_index= select->quick->index;
-    used_key_is_modified= (!select->quick->unique_key_range() &&
-                          select->quick->is_keys_used(table->write_set));
+  table->update_const_key_parts(conds);
+  order= simple_remove_const(order, conds);
+        
+  used_index= get_index_for_order(order, table, select, limit,
+                                  &need_sort, &reverse);
+  if (need_sort)
+  { // Assign table scan index to check below for modified key fields:
+    used_index= table->file->key_used_on_scan;
   }
-  else
-  {
-    used_key_is_modified= 0;
-    if (used_index == MAX_KEY)                  // no index for sort order
-      used_index= table->file->key_used_on_scan;
-    if (used_index != MAX_KEY)
-      used_key_is_modified= is_key_used(table, used_index, table->write_set);
+  if (used_index != MAX_KEY)
+  { // Check if we are modifying a key that we are used to search with:
+    used_key_is_modified= is_key_used(table, used_index, table->write_set);
   }
-
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (used_key_is_modified || order ||
@@ -399,13 +407,13 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->mark_columns_used_by_index(used_index);
+      table->add_read_columns_used_by_index(used_index);
     else
     {
       table->use_all_columns();
     }
 
-    /* note: We avoid sorting avoid if we sort on the used index */
+    /* note: We avoid sorting if we sort on the used index */
     if (order && (need_sort || used_key_is_modified))
     {
       /*
@@ -427,6 +435,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -466,14 +475,22 @@ int mysql_update(THD *thd,
       if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
-        init_read_record_idx(&info, thd, table, 1, used_index);
+        init_read_record_idx(&info, thd, table, 1, used_index, reverse);
 
       thd_proc_info(thd, "Searching rows for update");
       ha_rows tmp_limit= limit;
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
-	if (!(select && select->skip_record()))
+        thd->examined_row_count++;
+        bool skip_record= FALSE;
+        if (select && select->skip_record(thd, &skip_record))
+        {
+          error= 1;
+          table->file->unlock_row();
+          break;
+        }
+        if (!skip_record)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -579,7 +596,9 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
-    if (!(select && select->skip_record()))
+    thd->examined_row_count++;
+    bool skip_record;
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
@@ -834,9 +853,8 @@ int mysql_update(THD *thd,
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->warning_info->statement_warn_count());
-    thd->row_count_func=
-      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-    my_ok(thd, (ulong) thd->row_count_func, id, buff);
+    my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+          id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -962,7 +980,6 @@ int mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
-  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
@@ -1046,7 +1063,7 @@ int mysql_multi_update_prepare(THD *thd)
         be write-locked (for example, trigger to be invoked might try
         to update this table).
       */
-      tl->lock_type= read_lock_type_for_table(thd, table);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
@@ -1273,7 +1290,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
-  SQL_LIST update;
+  SQL_I_List<TABLE_LIST> update;
   table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
@@ -1324,6 +1341,16 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      /*
+        If a timestamp field settable on UPDATE is present then to avoid wrong
+        update force the table handler to retrieve write-only fields to be able
+        to compare records and detect data change.
+        */
+      if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+          table->timestamp_field &&
+          (table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_UPDATE ||
+           table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+        bitmap_union(table->read_set, table->write_set);
     }
   }
   
@@ -1344,11 +1371,11 @@ int multi_update::prepare(List<Item> &not_used_values,
     leaf_table_count++;
     if (tables_to_update & table->map)
     {
-      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
+      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((uchar*) tl, (uchar**) &tl->next_local);
+      update.link_in_list(tl, &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
@@ -1369,7 +1396,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
 
   table_count=  update.elements;
-  update_tables= (TABLE_LIST*) update.first;
+  update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
@@ -2137,8 +2164,7 @@ bool multi_update::send_eof()
     thd->first_successful_insert_id_in_prev_stmt : 0;
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
               (ulong) found, (ulong) updated, (ulong) thd->cuted_fields);
-  thd->row_count_func=
-    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+          id, buff);
   DBUG_RETURN(FALSE);
 }

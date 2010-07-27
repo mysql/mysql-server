@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -28,8 +28,16 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"
 #include "sql_select.h"
+#include "sql_parse.h"                          // check_stack_overrun
 
 inline Item * and_items(Item* cond, Item *item)
 {
@@ -121,6 +129,21 @@ void Item_subselect::cleanup()
   value_assigned= 0;
   DBUG_VOID_RETURN;
 }
+
+
+/*
+   We cannot use generic Item::safe_charset_converter() because
+   Subselect transformation does not happen in view_prepare_mode
+   and thus we can not evaluate val_...() for const items.
+*/
+
+Item *Item_subselect::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_func_conv_charset *conv=
+    new Item_func_conv_charset(this, tocs, thd->lex->view_prepare_mode ? 0 : 1);
+  return conv->safe ? conv : NULL;
+}
+
 
 void Item_singlerow_subselect::cleanup()
 {
@@ -229,12 +252,12 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
         if (item->walk(processor, walk_subquery, argument))
           return 1;
       }
-      for (order= (ORDER*) lex->order_list.first ; order; order= order->next)
+      for (order= lex->order_list.first ; order; order= order->next)
       {
         if ((*order->item)->walk(processor, walk_subquery, argument))
           return 1;
       }
-      for (order= (ORDER*) lex->group_list.first ; order; order= order->next)
+      for (order= lex->group_list.first ; order; order= order->next)
       {
         if ((*order->item)->walk(processor, walk_subquery, argument))
           return 1;
@@ -249,9 +272,13 @@ bool Item_subselect::exec()
 {
   int res;
 
-  if (thd->is_error())
-  /* Do not execute subselect in case of a fatal error */
+  /*
+    Do not execute subselect in case of a fatal error
+    or if the query has been killed.
+  */
+  if (thd->is_error() || thd->killed)
     return 1;
+
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
@@ -1757,15 +1784,15 @@ int subselect_single_select_engine::prepare()
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
   if (join->prepare(&select_lex->ref_pointer_array,
-		    (TABLE_LIST*) select_lex->table_list.first,
+		    select_lex->table_list.first,
 		    select_lex->with_wild,
 		    select_lex->where,
 		    select_lex->order_list.elements +
 		    select_lex->group_list.elements,
-		    (ORDER*) select_lex->order_list.first,
-		    (ORDER*) select_lex->group_list.first,
+		    select_lex->order_list.first,
+		    select_lex->group_list.first,
 		    select_lex->having,
-		    (ORDER*) 0, select_lex,
+		    NULL, select_lex,
 		    select_lex->master_unit()))
     return 1;
   thd->lex->current_select= save_select;
@@ -2428,14 +2455,13 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 
 table_map subselect_single_select_engine::upper_select_const_tables()
 {
-  return calc_const_tables((TABLE_LIST *) select_lex->outer_select()->
-			   leaf_tables);
+  return calc_const_tables(select_lex->outer_select()->leaf_tables);
 }
 
 
 table_map subselect_union_engine::upper_select_const_tables()
 {
-  return calc_const_tables((TABLE_LIST *) unit->outer_select()->leaf_tables);
+  return calc_const_tables(unit->outer_select()->leaf_tables);
 }
 
 

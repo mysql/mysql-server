@@ -17,6 +17,9 @@
 
 #ifndef _keycache_h
 #define _keycache_h
+
+#include "my_sys.h"                             /* flush_type */
+
 C_MODE_START
 
 /* declare structures that is used by st_key_cache */

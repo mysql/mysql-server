@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -80,7 +80,8 @@ combination of types */
 /** File format */
 /* @{ */
 #define DICT_TF_FORMAT_SHIFT		5	/* file format */
-#define DICT_TF_FORMAT_MASK		(127 << DICT_TF_FORMAT_SHIFT)
+#define DICT_TF_FORMAT_MASK		\
+((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
 #define DICT_TF_FORMAT_51		0	/*!< InnoDB/MySQL up to 5.1 */
 #define DICT_TF_FORMAT_ZIP		1	/*!< InnoDB plugin for 5.1:
 						compressed tables,
@@ -88,12 +89,33 @@ combination of types */
 /** Maximum supported file format */
 #define DICT_TF_FORMAT_MAX		DICT_TF_FORMAT_ZIP
 
+/** Minimum supported file format */
+#define DICT_TF_FORMAT_MIN		DICT_TF_FORMAT_51
+
+/* @} */
 #define DICT_TF_BITS			6	/*!< number of flag bits */
 #if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= DICT_TF_FORMAT_MAX
 # error "DICT_TF_BITS is insufficient for DICT_TF_FORMAT_MAX"
 #endif
 /* @} */
+
+/** @brief Additional table flags.
+
+These flags will be stored in SYS_TABLES.MIX_LEN.  All unused flags
+will be written as 0.  The column may contain garbage for tables
+created with old versions of InnoDB that only implemented
+ROW_FORMAT=REDUNDANT. */
+/* @{ */
+#define DICT_TF2_SHIFT			DICT_TF_BITS
+						/*!< Shift value for
+						table->flags. */
+#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
+						CREATE TEMPORARY TABLE. */
+#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 1)
+						/*!< Total number of bits
+						in table->flags. */
 /* @} */
+
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -128,6 +150,36 @@ dict_mem_table_add_col(
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
 	ulint		len);	/*!< in: precision */
+/**********************************************************************//**
+This function poplulates a dict_col_t memory structure with
+supplied information. */
+UNIV_INLINE
+void
+dict_mem_fill_column_struct(
+/*========================*/
+	dict_col_t*	column,		/*!< out: column struct to be
+					filled */
+	ulint		col_pos,	/*!< in: column position */
+	ulint		mtype,		/*!< in: main data type */
+	ulint		prtype,		/*!< in: precise type */
+	ulint		col_len);	/*!< in: column lenght */
+/**********************************************************************//**
+This function poplulates a dict_index_t index memory structure with
+supplied information. */
+UNIV_INLINE
+void
+dict_mem_fill_index_struct(
+/*=======================*/
+	dict_index_t*	index,		/*!< out: index to be filled */
+	mem_heap_t*	heap,		/*!< in: memory heap */
+	const char*	table_name,	/*!< in: table name */
+	const char*	index_name,	/*!< in: index name */
+	ulint		space,		/*!< in: space where the index tree is
+					placed, ignored if the index is of
+					the clustered type */
+	ulint		type,		/*!< in: DICT_UNIQUE,
+					DICT_CLUSTERED, ... ORed */
+	ulint		n_fields);	/*!< in: number of fields */
 /**********************************************************************//**
 Creates an index memory object.
 @return	own: index object */
@@ -374,7 +426,7 @@ struct dict_table_struct{
 	unsigned	space:32;
 				/*!< space where the clustered index of the
 				table is placed */
-	unsigned	flags:DICT_TF_BITS;/*!< DICT_TF_COMPACT, ... */
+	unsigned	flags:DICT_TF2_BITS;/*!< DICT_TF_COMPACT, ... */
 	unsigned	ibd_file_missing:1;
 				/*!< TRUE if this is in a single-table
 				tablespace and the .ibd file is missing; then

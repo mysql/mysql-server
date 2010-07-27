@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   Description of the query cache:
@@ -327,7 +327,13 @@ TODO list:
       (This could be done with almost no speed penalty)
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_cache.h"
+#include "sql_parse.h"                          // check_table_access
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h"                            // SELECT_ACL
+#include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -1171,7 +1177,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_ASSERT(flags.protocol_type != (unsigned int) Protocol::PROTOCOL_LOCAL);
     flags.more_results_exists= test(thd->server_status &
                                     SERVER_MORE_RESULTS_EXISTS);
-    flags.in_trans= test(thd->server_status & SERVER_STATUS_IN_TRANS);
+    flags.in_trans= thd->in_active_multi_stmt_transaction();
     flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
     flags.pkt_nr= net->pkt_nr;
     flags.character_set_client_num=
@@ -1464,7 +1470,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.protocol_type= (unsigned int) thd->protocol->type();
   flags.more_results_exists= test(thd->server_status &
                                   SERVER_MORE_RESULTS_EXISTS);
-  flags.in_trans= test(thd->server_status & SERVER_STATUS_IN_TRANS);
+  flags.in_trans= thd->in_active_multi_stmt_transaction();
   flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
   flags.pkt_nr= thd->net.pkt_nr;
   flags.character_set_client_num= thd->variables.character_set_client->number;
@@ -1535,7 +1541,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
   DBUG_PRINT("qcache", ("Query have result 0x%lx", (ulong) query));
 
-  if (thd->in_multi_stmt_transaction() &&
+  if (thd->in_multi_stmt_transaction_mode() &&
       (query->tables_type() & HA_CACHE_TBL_TRANSACT))
   {
     DBUG_PRINT("qcache",
@@ -1692,7 +1698,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  using_transactions= using_transactions && thd->in_multi_stmt_transaction();
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
   for (; tables_used; tables_used= tables_used->next_local)
   {
     DBUG_ASSERT(!using_transactions || tables_used->table!=0);
@@ -1776,7 +1782,7 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  using_transactions= using_transactions && thd->in_multi_stmt_transaction();
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
   if (using_transactions && 
       (table->file->table_cache_type() == HA_CACHE_TBL_TRANSACT))
     thd->add_changed_table(table);
@@ -1794,7 +1800,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
   if (is_disabled())
    DBUG_VOID_RETURN;
 
-  using_transactions= using_transactions && thd->in_multi_stmt_transaction();
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
   if (using_transactions) // used for innodb => has_transactions() is TRUE
     thd->add_changed_table(key, key_length);
   else
@@ -2217,7 +2223,7 @@ void Query_cache::free_cache()
 {
   DBUG_ENTER("Query_cache::free_cache");
 
-  my_free((uchar*) cache, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(cache);
   make_disabled();
   my_hash_free(&queries);
   my_hash_free(&tables);
@@ -3566,7 +3572,7 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
                                                 tables_type)))
       DBUG_RETURN(0);
 
-    if (thd->in_multi_stmt_transaction() &&
+    if (thd->in_multi_stmt_transaction_mode() &&
 	((*tables_type)&HA_CACHE_TBL_TRANSACT))
     {
       DBUG_PRINT("qcache", ("not in autocommin mode"));

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,17 +10,13 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
 
-  This file is the net layer API for the MySQL client/server protocol,
-  which is a tightly coupled, proprietary protocol owned by MySQL AB.
-  @note
-  Any re-implementations of this protocol must also be under GPL
-  unless one has got an license from MySQL AB stating otherwise.
+  This file is the net layer API for the MySQL client/server protocol.
 
   Write and read of logical packets to/from socket.
 
@@ -39,7 +35,6 @@
  */
 #include <my_global.h>
 #include <mysql.h>
-#include <mysql_embed.h>
 #include <mysql_com.h>
 #include <mysqld_error.h>
 #include <my_sys.h>
@@ -49,9 +44,6 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
-#ifdef __NETWARE__
-#include <sys/select.h>
-#endif
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -88,7 +80,7 @@ void sql_print_error(const char *format,...);
 #ifdef MYSQL_SERVER
 /*
   The following variables/functions should really not be declared
-  extern, but as it's hard to include mysql_priv.h here, we have to
+  extern, but as it's hard to include sql_priv.h here, we have to
   live with this for a while.
 */
 extern uint test_flags;
@@ -134,6 +126,9 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
   net->unused= 0;
+#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+  net->skip_big_packet= FALSE;
+#endif
 
   if (vio != 0)					/* If real connection */
   {
@@ -154,7 +149,7 @@ my_bool my_net_init(NET *net, Vio* vio)
 void net_end(NET *net)
 {
   DBUG_ENTER("net_end");
-  my_free(net->buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(net->buff);
   net->buff=0;
   DBUG_VOID_RETURN;
 }
@@ -698,7 +693,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 #endif
 #ifdef HAVE_COMPRESS
   if (net->compress)
-    my_free((char*) packet,MYF(0));
+    my_free((void*) packet);
 #endif
   if (thr_alarm_in_use(&alarmed))
   {
@@ -922,7 +917,13 @@ my_real_read(NET *net, size_t *complen)
 		       ("Packets out of order (Found: %d, expected %u)",
 			(int) net->buff[net->where_b + 3],
 			net->pkt_nr));
-#ifdef EXTRA_DEBUG
+            /* 
+              We don't make noise server side, since the client is expected
+              to break the protocol for e.g. --send LOAD DATA .. LOCAL where
+              the server expects the client to send a file, but the client
+              may reply with a new command instead.
+            */
+#if defined (EXTRA_DEBUG) && !defined (MYSQL_SERVER)
             fflush(stdout);
 	    fprintf(stderr,"Error: Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],
@@ -968,6 +969,7 @@ my_real_read(NET *net, size_t *complen)
 	  {
 #if defined(MYSQL_SERVER) && !defined(NO_ALARM)
 	    if (!net->compress &&
+                net->skip_big_packet &&
 		!my_net_skip_rest(net, (uint32) len, &alarmed, &alarm_buff))
 	      net->error= 3;		/* Successfully skiped packet */
 #endif

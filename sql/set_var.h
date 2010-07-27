@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -30,6 +30,10 @@ class sys_var;
 class set_var;
 class sys_var_pluginvar;
 class PolyLock;
+class Item_func_set_user_var;
+
+// This include needs to be here since item.h requires enum_var_type :-P
+#include "item.h"                          /* Item */
 
 extern TYPELIB bool_typelib;
 
@@ -165,6 +169,9 @@ protected:
   { return ((uchar*)&global_system_variables) + offset; }
 };
 
+#include "binlog.h"                           /* binlog_format_typelib */
+#include "sql_plugin.h"                    /* SHOW_HA_ROWS, SHOW_MY_BOOL */
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -276,6 +283,18 @@ public:
   int check(THD *thd);
   int update(THD *thd);
 };
+
+
+/* optional things, have_* variables */
+extern SHOW_COMP_OPTION have_csv, have_innodb;
+extern SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
+extern SHOW_COMP_OPTION have_profiling;
+
+extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_query_cache;
+extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
+extern SHOW_COMP_OPTION have_crypt;
+extern SHOW_COMP_OPTION have_compress;
 
 /*
   Prototypes for helper functions

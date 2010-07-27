@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,20 +11,36 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function with list databases, tables or fields */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"                         // For select_describe
+#include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
-#include "repl_failsafe.h"
+#include "sql_table.h"                        // filename_to_tablename,
+                                              // primary_key_name,
+                                              // build_table_filename
+#include "sql_view.h"                           // mysql_frm_type
+#include "sql_parse.h"             // check_access, check_table_access
+#include "sql_partition.h"         // partition_element
+#include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
+#include "sql_time.h"   // interval_type_to_name
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h"     // TABLE_ACLS, check_grant, DB_ACLS, acl_get,
+                         // check_grant_db
+#include "filesort.h"    // filesort_free_buffers
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_pcontext.h"
 #include "set_var.h"
 #include "sql_trigger.h"
+#include "sql_derived.h"
 #include "authors.h"
 #include "contributors.h"
 #include "sql_partition.h"
@@ -33,6 +49,9 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
+#include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
+#include "debug_sync.h"
+#include "datadict.h"   // dd_frm_type()
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -641,7 +660,9 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
-    bool error= open_normal_and_derived_tables(thd, table_list, 0);
+    bool error=
+      open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
     thd->pop_internal_handler();
     if (error && (thd->killed || thd->is_error()))
       DBUG_RETURN(TRUE);
@@ -815,7 +836,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+  if (open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
     DBUG_VOID_RETURN;
   table= table_list->table;
   mysql_handle_single_derived(thd->lex, table_list, &mysql_derived_create);
@@ -1332,7 +1354,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
       packet->append(for_str, strlen(for_str));
       packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
-      my_free(for_str, MYF(0));
+      my_free(for_str);
     }
 
     /*
@@ -1474,7 +1496,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
        table->part_info->set_show_version_string(packet);
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
-       my_free(part_syntax, MYF(0));
+       my_free(part_syntax);
     }
   }
 #endif
@@ -1894,6 +1916,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         mysql_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
+      /* Lock THD mutex that protects its data when looking at it. */
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if (tmp->query())
       {
         table->field[7]->store(tmp->query(),
@@ -1901,6 +1925,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                    tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       if (schema_table_store_record(thd, table))
       {
@@ -1920,10 +1945,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
 
 static DYNAMIC_ARRAY all_status_vars;
 static bool status_vars_inited= 0;
+
+C_MODE_START
 static int show_var_cmp(const void *var1, const void *var2)
 {
   return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
 }
+C_MODE_END
 
 /*
   deletes all the SHOW_UNDEF elements from the array and calls
@@ -2101,8 +2129,8 @@ static bool show_status_array(THD *thd, const char *wild,
                               bool ucase_names,
                               COND *cond)
 {
-  MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
-  char * const buff= (char *) &buff_data;
+  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(long)> buffer;
+  char * const buff= buffer.data;
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
@@ -2338,7 +2366,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
   Table_ident *table_ident;
   table_ident= new Table_ident(thd, *db_name, *table_name, 1);
   sel->init_query();
-  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
+  if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
 }
@@ -2599,36 +2627,54 @@ bool get_lookup_field_values(THD *thd, COND *cond, TABLE_LIST *tables,
 {
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  bool rc= 0;
+
   bzero((char*) lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
   switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     if (wild)
     {
-      lookup_field_values->db_value.str= (char*) wild;
-      lookup_field_values->db_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->db_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_db_value= 1;
     }
-    return 0;
+    break;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
-    lookup_field_values->db_value.str= lex->select_lex.db;
-    lookup_field_values->db_value.length=strlen(lex->select_lex.db);
+    thd->make_lex_string(&lookup_field_values->db_value, 
+                         lex->select_lex.db, strlen(lex->select_lex.db), 0);
     if (wild)
     {
-      lookup_field_values->table_value.str= (char*)wild;
-      lookup_field_values->table_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->table_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_table_value= 1;
     }
-    return 0;
+    break;
   default:
     /*
       The "default" is for queries over I_S.
       All previous cases handle SHOW commands.
     */
-    return calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    rc= calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    break;
   }
+
+  if (lower_case_table_names && !rc)
+  {
+    /* 
+      We can safely do in-place upgrades here since all of the above cases
+      are allocating a new memory buffer for these strings.
+    */  
+    if (lookup_field_values->db_value.str && lookup_field_values->db_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->db_value.str);
+    if (lookup_field_values->table_value.str && 
+        lookup_field_values->table_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->table_value.str);
+  }
+
+  return rc;
 }
 
 
@@ -2830,9 +2876,15 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   {
     if (with_i_schema)
     {
-      if (find_schema_table(thd, lookup_field_vals->table_value.str))
+      LEX_STRING *name;
+      ST_SCHEMA_TABLE *schema_table=
+        find_schema_table(thd, lookup_field_vals->table_value.str);
+      if (schema_table && !schema_table->hidden)
       {
-        if (table_names->push_back(&lookup_field_vals->table_value))
+        if (!(name= 
+              thd->make_lex_string(NULL, schema_table->table_name,
+                                   strlen(schema_table->table_name), TRUE)) ||
+            table_names->push_back(name))
           return 1;
       }
     }
@@ -2912,8 +2964,7 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
   bool res;
   LEX_STRING tmp_lex_string, tmp_lex_string1, *db_name, *table_name;
   enum_sql_command save_sql_command= lex->sql_command;
-  TABLE_LIST *show_table_list= (TABLE_LIST*) tables->schema_select_lex->
-    table_list.first;
+  TABLE_LIST *show_table_list= tables->schema_select_lex->table_list.first;
   TABLE *table= tables->table;
   int error= 1;
   DBUG_ENTER("fill_schema_show");
@@ -2940,6 +2991,9 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                         MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
   lex->sql_command= save_sql_command;
   tables->schema_select_lex->handle_derived(lex, &mysql_derived_create);
+
+  DEBUG_SYNC(thd, "after_open_table_ignore_flush");
+
   /*
     get_all_tables() returns 1 on failure and 0 on success thus
     return only these and not the result code of ::process_table()
@@ -2999,7 +3053,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     char path[FN_REFLEN + 1];
     (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                 table_name->str, reg_ext, 0);
-    switch (mysql_frm_type(thd, path, &not_used)) {
+    switch (dd_frm_type(thd, path, &not_used)) {
     case FRMTYPE_ERROR:
       table->field[3]->store(STRING_WITH_LEN("ERROR"),
                              system_charset_info);
@@ -3107,15 +3161,27 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   bool error;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                           MDL_SHARED_HIGH_PRIO);
-  while (!(error=
-           thd->mdl_context.try_acquire_lock(&table->mdl_request)) &&
-         !table->mdl_request.ticket && !can_deadlock)
+
+  if (can_deadlock)
   {
-    if ((error=
-         thd->mdl_context.wait_for_lock(&table->mdl_request,
-                                        thd->variables.lock_wait_timeout)))
-      break;
+    /*
+      When .FRM is being open in order to get data for an I_S table,
+      we might have some tables not only open but also locked.
+      E.g. this happens when a SHOW or I_S statement is run
+      under LOCK TABLES or inside a stored function.
+      By waiting for the conflicting metadata lock to go away we
+      might create a deadlock which won't entirely belong to the
+      MDL subsystem and thus won't be detectable by this subsystem's
+      deadlock detector. To avoid such situation, when there are
+      other locked tables, we prefer not to wait on a conflicting
+      lock.
+    */
+    error= thd->mdl_context.try_acquire_lock(&table->mdl_request);
   }
+  else
+    error= thd->mdl_context.acquire_lock(&table->mdl_request,
+                                         thd->variables.lock_wait_timeout);
+
   return error;
 }
 
@@ -3273,12 +3339,17 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     goto end_share;
   }
 
+  if (!open_table_from_share(thd, share, table_name->str, 0,
+                             (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
+                             thd->open_options, &tbl, FALSE))
   {
     tbl.s= share;
     table_list.table= &tbl;
     table_list.view= (LEX*) share->is_view;
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
+    free_root(&tbl.mem_root, MYF(0));
+    my_free((void *) tbl.alias);
   }
 
 end_share:
@@ -3322,7 +3393,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
   SELECT_LEX *old_all_select_lex= lex->all_selects_list;
-  enum_sql_command save_sql_command= lex->sql_command;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
@@ -3358,6 +3428,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   lex->view_prepare_mode= TRUE;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
+  /*
+    Restore Query_tables_list::sql_command value, which was reset
+    above, as ST_SCHEMA_TABLE::process_table() functions often rely
+    that this value reflects which SHOW statement is executed.
+  */
+  lex->sql_command= query_tables_list_backup.sql_command;
 
   /*
     We should not introduce deadlocks even if we already have some
@@ -3389,6 +3465,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     error= 0;
     goto err;
   }
+
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              STR_OR_NIL(lookup_field_vals.db_value.str),
                              STR_OR_NIL(lookup_field_vals.table_value.str)));
@@ -3510,17 +3587,18 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               goto err;
             if (make_table_list(thd, &sel, db_name, table_name))
               goto err;
-            TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
+            TABLE_LIST *show_table_list= sel.table_list.first;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
             res= open_normal_and_derived_tables(thd, show_table_list,
                    (MYSQL_OPEN_IGNORE_FLUSH |
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                     (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
-            lex->sql_command= save_sql_command;
+            lex->sql_command= query_tables_list_backup.sql_command;
             sel.handle_derived(lex, &mysql_derived_create);
             /*
               XXX:  show_table_list has a flag i_is_requested,
@@ -3580,7 +3658,6 @@ err:
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
   lex->view_prepare_mode= save_view_prepare_mode;
-  lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
 }
 
@@ -3728,7 +3805,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (share->db_type() == partition_hton &&
-        share->partition_info_len)
+        share->partition_info_str_len)
     {
       tmp_db_type= share->default_part_db_type;
       is_partitioned= TRUE;
@@ -3948,9 +4025,12 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_LONGLONG:
   case MYSQL_TYPE_INT24:
     field_length= field->max_display_length() - 1;
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    field_length= field->max_display_length() - 
+      ((field->flags & UNSIGNED_FLAG) ? 0 : 1);
     break;
   case MYSQL_TYPE_BIT:
     field_length= field->max_display_length();
@@ -4002,7 +4082,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   TABLE *show_table;
-  TABLE_SHARE *show_table_share;
   Field **ptr, *field, *timestamp_field;
   int count;
   DBUG_ENTER("get_schema_column_record");
@@ -4025,37 +4104,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   }
 
   show_table= tables->table;
-  show_table_share= show_table->s;
   count= 0;
-
-  if (tables->view || tables->schema_table)
-  {
-    ptr= show_table->field;
-    timestamp_field= show_table->timestamp_field;
-    show_table->use_all_columns();               // Required for default
-  }
-  else
-  {
-    ptr= show_table_share->field;
-    timestamp_field= show_table_share->timestamp_field;
-    /*
-      read_set may be inited in case of
-      temporary table
-    */
-    if (!show_table->read_set)
-    {
-      /* to satisfy 'field->val_str' ASSERTs */
-      uchar *bitmaps;
-      uint bitmap_size= show_table_share->column_bitmap_size;
-      if (!(bitmaps= (uchar*) alloc_root(thd->mem_root, bitmap_size)))
-        DBUG_RETURN(0);
-      bitmap_init(&show_table->def_read_set,
-                  (my_bitmap_map*) bitmaps, show_table_share->fields, FALSE);
-      bitmap_set_all(&show_table->def_read_set);
-      show_table->read_set= &show_table->def_read_set;
-    }
-    bitmap_set_all(show_table->read_set);
-  }
+  ptr= show_table->field;
+  timestamp_field= show_table->timestamp_field;
+  show_table->use_all_columns();               // Required for default
+  restore_record(show_table, s->default_values);
 
   for (; (field= *ptr) ; ptr++)
   {
@@ -4064,9 +4117,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     String type(tmp,sizeof(tmp), system_charset_info);
     char *end;
 
-    /* to satisfy 'field->val_str' ASSERTs */
-    field->table= show_table;
-    show_table->in_use= thd;
+    DEBUG_SYNC(thd, "get_schema_column");
 
     if (wild && wild[0] &&
         wild_case_compare(system_charset_info, field->field_name,wild))
@@ -4325,6 +4376,15 @@ int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+static inline void copy_field_as_string(Field *to_field, Field *from_field)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp_str(buff, sizeof(buff), system_charset_info);
+  from_field->val_str(&tmp_str);
+  to_field->store(tmp_str.ptr(), tmp_str.length(), system_charset_info);
+}
+
+
 /**
   @brief Store record into I_S.PARAMETERS table
 
@@ -4491,18 +4551,26 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
 bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                        const char *wild, bool full_access, const char *sp_user)
 {
-  String tmp_string;
-  String sp_db, sp_name, definer;
   MYSQL_TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DB], &sp_db);
-  get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_NAME], &sp_name);
-  get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DEFINER],&definer);
+  char sp_db_buff[NAME_LEN + 1], sp_name_buff[NAME_LEN + 1],
+    definer_buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 2],
+    returns_buff[MAX_FIELD_WIDTH];
+
+  String sp_db(sp_db_buff, sizeof(sp_db_buff), cs);
+  String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
+  String definer(definer_buff, sizeof(definer_buff), cs);
+  String returns(returns_buff, sizeof(returns_buff), cs);
+
+  proc_table->field[MYSQL_PROC_FIELD_DB]->val_str(&sp_db);
+  proc_table->field[MYSQL_PROC_FIELD_NAME]->val_str(&sp_name);
+  proc_table->field[MYSQL_PROC_FIELD_DEFINER]->val_str(&definer);
+
   if (!full_access)
-    full_access= !strcmp(sp_user, definer.ptr());
-  if (!full_access && 
-      check_some_routine_access(thd, sp_db.ptr(), sp_name.ptr(),
+    full_access= !strcmp(sp_user, definer.c_ptr_safe());
+  if (!full_access &&
+      check_some_routine_access(thd, sp_db.c_ptr_safe(), sp_name.c_ptr_safe(),
                                 proc_table->field[MYSQL_PROC_MYSQL_TYPE]->
                                 val_int() == TYPE_ENUM_PROCEDURE))
     return 0;
@@ -4516,32 +4584,30 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
+    if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
     {
       int enum_idx= (int) proc_table->field[MYSQL_PROC_FIELD_ACCESS]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME],
-                &tmp_string);
-      table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
+
+      copy_field_as_string(table->field[0],
+                           proc_table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]);
       table->field[1]->store(STRING_WITH_LEN("def"), cs);
       table->field[2]->store(sp_db.ptr(), sp_db.length(), cs);
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_MYSQL_TYPE],
-                &tmp_string);
-      table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[4],
+                           proc_table->field[MYSQL_PROC_MYSQL_TYPE]);
+
       if (proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() ==
           TYPE_ENUM_FUNCTION)
       {
         sp_head *sp;
         bool free_sp_head;
-        get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_RETURNS],
-                  &tmp_string);
-
+        proc_table->field[MYSQL_PROC_FIELD_RETURNS]->val_str(&returns);
         sp= sp_load_for_information_schema(thd, proc_table, &sp_db, &sp_name,
                                            (ulong) proc_table->
                                            field[MYSQL_PROC_FIELD_SQL_MODE]->
                                            val_int(),
                                            TYPE_ENUM_FUNCTION,
-                                           tmp_string.c_ptr_safe(),
+                                           returns.c_ptr_safe(),
                                            "", &free_sp_head);
 
         if (sp)
@@ -4572,24 +4638,19 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 
       if (full_access)
       {
-        get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_BODY_UTF8],
-                  &tmp_string);
-        table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        copy_field_as_string(table->field[14],
+                             proc_table->field[MYSQL_PROC_FIELD_BODY_UTF8]);
         table->field[14]->set_notnull();
       }
       table->field[13]->store(STRING_WITH_LEN("SQL"), cs);
       table->field[17]->store(STRING_WITH_LEN("SQL"), cs);
-
-
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC],
-                &tmp_string);
-      table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[18],
+                           proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC]);
       table->field[19]->store(sp_data_access_name[enum_idx].str, 
                               sp_data_access_name[enum_idx].length , cs);
+      copy_field_as_string(table->field[21],
+                           proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]);
 
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE],
-                &tmp_string);
-      table->field[21]->store(tmp_string.ptr(), tmp_string.length(), cs);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_CREATED])->
         get_time(&time);
@@ -4598,29 +4659,20 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_MODIFIED])->
         get_time(&time);
       table->field[23]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      copy_field_as_string(table->field[24],
+                           proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]);
+      copy_field_as_string(table->field[25],
+                           proc_table->field[MYSQL_PROC_FIELD_COMMENT]);
 
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_SQL_MODE],
-                &tmp_string);
-      table->field[24]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_COMMENT],
-                &tmp_string);
-      table->field[25]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->field[26]->store(definer.ptr(), definer.length(), cs);
-
-      get_field(thd->mem_root,
-                proc_table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT],
-                &tmp_string);
-      table->field[27]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root,
-                proc_table->field[ MYSQL_PROC_FIELD_COLLATION_CONNECTION],
-                &tmp_string);
-      table->field[28]->store(tmp_string.ptr(), tmp_string.length(), cs);
-
-      get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DB_COLLATION],
-                &tmp_string);
-      table->field[29]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      copy_field_as_string(table->field[27],
+                           proc_table->
+                           field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]);
+      copy_field_as_string(table->field[28],
+                           proc_table->
+                           field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]);
+      copy_field_as_string(table->field[29],
+			   proc_table->field[MYSQL_PROC_FIELD_DB_COLLATION]);
 
       return schema_table_store_record(thd, table);
     }
@@ -5216,7 +5268,8 @@ static int get_schema_key_column_usage_record(THD *thd,
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-static void collect_partition_expr(List<char> &field_list, String *str)
+static void collect_partition_expr(THD *thd, List<char> &field_list,
+                                   String *str)
 {
   List_iterator<char> part_it(field_list);
   ulong no_fields= field_list.elements;
@@ -5224,7 +5277,7 @@ static void collect_partition_expr(List<char> &field_list, String *str)
   str->length(0);
   while ((field_str= part_it++))
   {
-    str->append(field_str);
+    append_identifier(thd, str, field_str, strlen(field_str));
     if (--no_fields != 0)
       str->append(",");
   }
@@ -5291,7 +5344,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 {
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
-  PARTITION_INFO stat_info;
+  PARTITION_STATS stat_info;
   MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -5353,7 +5406,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
       if(ts)
       {
         table->field[24]->store(ts, strlen(ts), cs);
-        my_free(ts, MYF(0));
+        my_free(ts);
       }
       else
         table->field[24]->set_null();
@@ -5491,7 +5544,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
     }
     else if (part_info->list_of_part_fields)
     {
-      collect_partition_expr(part_info->part_field_list, &tmp_str);
+      collect_partition_expr(thd, part_info->part_field_list, &tmp_str);
       table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
     }
     table->field[9]->set_notnull();
@@ -5520,7 +5573,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
       }
       else if (part_info->list_of_subpart_fields)
       {
-        collect_partition_expr(part_info->subpart_field_list, &tmp_str);
+        collect_partition_expr(thd, part_info->subpart_field_list, &tmp_str);
         table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
       }
       table->field[10]->set_notnull();
@@ -5650,52 +5703,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-#ifdef NOT_USED
-static interval_type get_real_interval_type(interval_type i_type)
-{
-  switch (i_type) {
-  case INTERVAL_YEAR:
-    return INTERVAL_YEAR;
-
-  case INTERVAL_QUARTER:
-  case INTERVAL_YEAR_MONTH:
-  case INTERVAL_MONTH:
-    return INTERVAL_MONTH;
-
-  case INTERVAL_WEEK:
-  case INTERVAL_DAY:
-    return INTERVAL_DAY;
-
-  case INTERVAL_DAY_HOUR:
-  case INTERVAL_HOUR:
-    return INTERVAL_HOUR;
-
-  case INTERVAL_DAY_MINUTE:
-  case INTERVAL_HOUR_MINUTE:
-  case INTERVAL_MINUTE:
-    return INTERVAL_MINUTE;
-
-  case INTERVAL_DAY_SECOND:
-  case INTERVAL_HOUR_SECOND:
-  case INTERVAL_MINUTE_SECOND:
-  case INTERVAL_SECOND:
-    return INTERVAL_SECOND;
-
-  case INTERVAL_DAY_MICROSECOND:
-  case INTERVAL_HOUR_MICROSECOND:
-  case INTERVAL_MINUTE_MICROSECOND:
-  case INTERVAL_SECOND_MICROSECOND:
-  case INTERVAL_MICROSECOND:
-    return INTERVAL_MICROSECOND;
-  case INTERVAL_LAST:
-    DBUG_ASSERT(0);
-  }
-  DBUG_ASSERT(0);
-  return INTERVAL_SECOND;
-}
-
-#endif
-
 #ifdef HAVE_EVENT_SCHEDULER
 /*
   Loads an event from mysql.event and copies it's data to a row of
@@ -5725,7 +5732,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   if (et.load_from_row(thd, event_table))
   {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias);
+    my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
     DBUG_RETURN(1);
   }
 
@@ -6560,7 +6567,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                        strlen(schema_table->table_name), 0);
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
-                              0, 0, TL_READ))
+                              0, 0, TL_READ, MDL_SHARED_READ))
   {
     DBUG_RETURN(1);
   }
@@ -7448,7 +7455,7 @@ int initialize_schema_table(st_plugin_int *plugin)
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
       plugin->data= NULL;
-      my_free(schema_table, MYF(0));
+      my_free(schema_table);
       DBUG_RETURN(1);
     }
     
@@ -7471,7 +7478,7 @@ int finalize_schema_table(st_plugin_int *plugin)
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
     }
-    my_free(schema_table, MYF(0));
+    my_free(schema_table);
   }
   DBUG_RETURN(0);
 }

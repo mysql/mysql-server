@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,10 +10,10 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "sp_head.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
@@ -75,10 +75,6 @@ const LEX_STRING Diag_statement_item_names[]=
   { C_STRING_WITH_LEN("TRANSACTION_ACTIVE") }
 };
 
-Set_signal_information::Set_signal_information()
-{
-  clear();
-}
 
 Set_signal_information::Set_signal_information(
   const Set_signal_information& set)
@@ -458,8 +454,20 @@ bool Signal_statement::execute(THD *thd)
 
   DBUG_ENTER("Signal_statement::execute");
 
+  /*
+    WL#2110 SIGNAL specification says:
+
+      When SIGNAL is executed, it has five effects, in the following order:
+
+        (1) First, the diagnostics area is completely cleared. So if the
+        SIGNAL is in a DECLARE HANDLER then any pending errors or warnings
+        are gone. So is 'row count'.
+
+    This has roots in the SQL standard specification for SIGNAL.
+  */
+
   thd->stmt_da->reset_diagnostics_area();
-  thd->row_count_func= 0;
+  thd->set_row_count_func(0);
   thd->warning_info->clear_warning_info(thd->query_id);
 
   result= raise_condition(thd, &cond);

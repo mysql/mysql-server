@@ -18,9 +18,6 @@
 #include "myrg_def.h"
 #include <stddef.h>
 #include <errno.h>
-#ifdef VMS
-#include "mrg_static.c"
-#endif
 
 /*
 	open a MyISAM MERGE table
@@ -186,7 +183,7 @@ err:
   case 3:
     while (files)
       (void) mi_close(m_info->open_tables[--files].table);
-    my_free((char*) m_info,MYF(0));
+    my_free(m_info);
     /* Fall through */
   case 2:
     end_io_cache(&file);
@@ -315,14 +312,6 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
     if (!child_name_buff[0] || (child_name_buff[0] == '#'))
       continue;
 
-    if (!has_path(child_name_buff))
-    {
-      (void) strmake(parent_name_buff + dir_length, child_name_buff,
-                   sizeof(parent_name_buff) - 1 - dir_length);
-      (void) cleanup_dirname(child_name_buff, parent_name_buff);
-    }
-    else
-      fn_format(child_name_buff, child_name_buff, "", "", 0);
     DBUG_PRINT("info", ("child: '%s'", child_name_buff));
 
     /* Callback registers child with handler table. */
@@ -347,7 +336,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   save_errno= my_errno;
   switch (errpos) {
   case 3:
-    my_free((char*) m_info, MYF(0));
+    my_free(m_info);
     /* Fall through */
   case 2:
     end_io_cache(&file_cache);
@@ -430,7 +419,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       key_parts= myisam->s->base.key_parts;
       if (*need_compat_check && m_info->rec_per_key_part)
       {
-        my_free((char *) m_info->rec_per_key_part, MYF(0));
+        my_free(m_info->rec_per_key_part);
         m_info->rec_per_key_part= NULL;
       }
       if (!m_info->rec_per_key_part)
@@ -499,7 +488,7 @@ err:
   save_errno= my_errno;
   switch (errpos) {
   case 1:
-    my_free((char*) m_info->rec_per_key_part, MYF(0));
+    my_free(m_info->rec_per_key_part);
     m_info->rec_per_key_part= NULL;
   }
   mysql_mutex_unlock(&m_info->mutex);

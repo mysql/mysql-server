@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* HANDLER ... commands - direct access to ISAM */
@@ -51,7 +51,13 @@
   cursor points at the first record).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_handler.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_base.h"                           // close_thread_tables
+#include "lock.h"            // broadcast_refresh, mysql_unlock_tables
+#include "key.h"                                // key_copy
+#include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
 #include <assert.h>
 
@@ -103,7 +109,7 @@ static char *mysql_ha_hash_get_key(TABLE_LIST *tables, size_t *key_len_p,
 
 static void mysql_ha_hash_free(TABLE_LIST *tables)
 {
-  my_free((char*) tables, MYF(0));
+  my_free(tables);
 }
 
 /**
@@ -125,13 +131,11 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     /* Non temporary table. */
     tables->table->file->ha_index_or_rnd_end();
     tables->table->open_by_handler= 0;
-    mysql_mutex_lock(&LOCK_open);
     if (close_thread_table(thd, &tables->table))
     {
       /* Tell threads waiting for refresh that something has happened */
       broadcast_refresh();
     }
-    mysql_mutex_unlock(&LOCK_open);
     thd->mdl_context.release_lock(tables->mdl_request.ticket);
   }
   else if (tables->table)
@@ -255,7 +259,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
     {
-      my_free((char*) hash_tables, MYF(0));
+      my_free(hash_tables);
       DBUG_PRINT("exit",("ERROR"));
       DBUG_RETURN(TRUE);
     }
@@ -272,7 +276,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     See open_table() back-off comments for more details.
   */
   backup_open_tables= thd->open_tables;
-  thd->open_tables= NULL;
+  thd->set_open_tables(NULL);
   mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /*
@@ -306,7 +310,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   if (error)
   {
     close_thread_tables(thd);
-    thd->open_tables= backup_open_tables;
+    thd->set_open_tables(backup_open_tables);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     if (!reopen)
       my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
@@ -319,7 +323,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(TRUE);
   }
-  thd->open_tables= backup_open_tables;
+  thd->set_open_tables(backup_open_tables);
   if (hash_tables->mdl_request.ticket)
   {
     thd->mdl_context.
@@ -553,7 +557,7 @@ retry:
     mysql_lock_tables() needs thd->open_tables to be set correctly to
     be able to handle aborts properly.
   */
-  thd->open_tables= hash_tables->table;
+  thd->set_open_tables(hash_tables->table);
 
 
   sql_handler_lock_error.init();
@@ -569,7 +573,7 @@ retry:
   */
   DBUG_ASSERT(hash_tables->table == thd->open_tables);
   /* Restore previous context. */
-  thd->open_tables= backup_open_tables;
+  thd->set_open_tables(backup_open_tables);
 
   if (sql_handler_lock_error.need_reopen())
   {
@@ -601,6 +605,14 @@ retry:
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), keyname, tables->alias);
       goto err;
     }
+    /* Check if the same index involved. */
+    if ((uint) keyno != table->file->get_index())
+    {
+      if (mode == RNEXT)
+        mode= RFIRST;
+      else if (mode == RPREV)
+        mode= RLAST;
+    }
   }
 
   if (insert_fields(thd, &thd->lex->select_lex.context,
@@ -623,9 +635,16 @@ retry:
     case RNEXT:
       if (table->file->inited != handler::NONE)
       {
-        error=keyname ?
-	  table->file->index_next(table->record[0]) :
-	  table->file->rnd_next(table->record[0]);
+        if (keyname)
+        {
+          /* Check if we read from the same index. */
+          DBUG_ASSERT((uint) keyno == table->file->get_index());
+          error= table->file->index_next(table->record[0]);
+        }
+        else
+        {
+          error= table->file->rnd_next(table->record[0]);
+        }
         break;
       }
       /* else fall through */
@@ -646,6 +665,8 @@ retry:
       break;
     case RPREV:
       DBUG_ASSERT(keyname != 0);
+      /* Check if we read from the same index. */
+      DBUG_ASSERT((uint) keyno == table->file->get_index());
       if (table->file->inited != handler::NONE)
       {
         error=table->file->index_prev(table->record[0]);
@@ -824,6 +845,35 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
   */
   if (! thd->handler_tables_hash.records)
     thd->mdl_context.set_needs_thr_lock_abort(FALSE);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Close cursors of matching tables from the HANDLER's hash table.
+
+  @param thd Thread identifier.
+  @param tables The list of tables to flush.
+*/
+
+void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables)
+{
+  DBUG_ENTER("mysql_ha_flush_tables");
+
+  for (TABLE_LIST *table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+  {
+    TABLE_LIST *hash_tables= mysql_ha_find(thd, table_list);
+    /* Close all aliases of the same table. */
+    while (hash_tables)
+    {
+      TABLE_LIST *next_local= hash_tables->next_local;
+      if (hash_tables->table)
+        mysql_ha_close_table(thd, hash_tables);
+      hash_tables= next_local;
+    }
+  }
 
   DBUG_VOID_RETURN;
 }

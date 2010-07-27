@@ -20,6 +20,9 @@
 
 #ifndef _m_string_h
 #define _m_string_h
+
+#include "my_global.h"                          /* HAVE_* */
+
 #ifndef __USE_GNU
 #define __USE_GNU				/* We want to use stpcpy */
 #endif
@@ -32,10 +35,6 @@
 
 /* need by my_vsnprintf */
 #include <stdarg.h> 
-
-#ifdef _AIX
-#undef HAVE_BCMP
-#endif
 
 /*  This is needed for the definitions of bzero... on solaris */
 #if defined(HAVE_STRINGS_H)
@@ -60,14 +59,10 @@
 /* Unixware 7 */
 #if !defined(HAVE_BFILL)
 # define bfill(A,B,C)           memset((A),(C),(B))
-# define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
-#if !defined(HAVE_BCMP)
-# define bcopy(s, d, n)		memcpy((d), (s), (n))
-# define bcmp(A,B,C)		memcmp((A),(B),(C))
-# define bzero(A,B)		memset((A),0,(B))
-# define bmove_align(A,B,C)     memcpy((A),(B),(C))
+#if !defined(bzero) && !defined(HAVE_BZERO)
+# define bzero(A,B)             memset((A),0,(B))
 #endif
 
 #if defined(__cplusplus)
@@ -89,48 +84,18 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 #endif
 
 /* Declared in int2str() */
-extern char NEAR _dig_vec_upper[];
-extern char NEAR _dig_vec_lower[];
+extern char _dig_vec_upper[];
+extern char _dig_vec_lower[];
 
 #ifndef strmov
 #define strmov_overlapp(A,B) strmov(A,B)
 #define strmake_overlapp(A,B,C) strmake(A,B,C)
 #endif
 
-#ifdef BAD_MEMCPY			/* Problem with gcc on Alpha */
-#define memcpy_fixed(A,B,C) bmove((A),(B),(C))
-#else
-#define memcpy_fixed(A,B,C) memcpy((A),(B),(C))
-#endif
-
-#if (!defined(USE_BMOVE512) || defined(HAVE_purify)) && !defined(bmove512)
-#define bmove512(A,B,C) memcpy(A,B,C)
-#endif
-
 	/* Prototypes for string functions */
 
 #if !defined(bfill) && !defined(HAVE_BFILL)
 extern	void bfill(uchar *dst,size_t len,pchar fill);
-#endif
-
-#if !defined(bzero) && !defined(HAVE_BZERO)
-extern	void bzero(uchar * dst,size_t len);
-#endif
-
-#if !defined(bcmp) && !defined(HAVE_BCMP)
-extern	size_t bcmp(const uchar *s1,const uchar *s2,size_t len);
-#endif
-#ifdef HAVE_purify
-extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
-#undef bcmp
-#define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#define bzero_if_purify(A,B) bzero(A,B)
-#else
-#define bzero_if_purify(A,B)
-#endif /* HAVE_purify */
-
-#ifndef bmove512
-extern	void bmove512(uchar *dst,const uchar *src,size_t len);
 #endif
 
 #if !defined(HAVE_BMOVE) && !defined(bmove)
@@ -143,12 +108,7 @@ extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
 extern	void strappend(char *s,size_t len,pchar fill);
 extern	char *strend(const char *s);
 extern  char *strcend(const char *, pchar);
-extern	char *strfield(char *src,int fields,int chars,int blanks,
-			   int tabch);
 extern	char *strfill(char * s,size_t len,pchar fill);
-extern	size_t strinstr(const char *str,const char *search);
-extern  size_t r_strinstr(const char *str, size_t from, const char *search);
-extern	char *strkey(char *dst,char *head,char *tail,char *flags);
 extern	char *strmake(char *dst,const char *src,size_t length);
 
 #ifndef strmov
@@ -156,36 +116,17 @@ extern	char *strmov(char *dst,const char *src);
 #else
 extern	char *strmov_overlapp(char *dst,const char *src);
 #endif
-extern	char *strnmov(char *dst,const char *src,size_t n);
-extern	char *strsuff(const char *src,const char *suffix);
-extern	char *strcont(const char *src,const char *set);
-extern	char *strxcat _VARARGS((char *dst,const char *src, ...));
-extern	char *strxmov _VARARGS((char *dst,const char *src, ...));
-extern	char *strxcpy _VARARGS((char *dst,const char *src, ...));
-extern	char *strxncat _VARARGS((char *dst,size_t len, const char *src, ...));
-extern	char *strxnmov _VARARGS((char *dst,size_t len, const char *src, ...));
-extern	char *strxncpy _VARARGS((char *dst,size_t len, const char *src, ...));
+extern	char *strnmov(char *dst, const char *src, size_t n);
+extern	char *strcont(const char *src, const char *set);
+extern	char *strxmov(char *dst, const char *src, ...);
+extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
 
 /* Prototypes of normal stringfunctions (with may ours) */
-
-#ifdef WANT_STRING_PROTOTYPES
-extern char *strcat(char *, const char *);
-extern char *strchr(const char *, pchar);
-extern char *strrchr(const char *, pchar);
-extern char *strcpy(char *, const char *);
-extern int strcmp(const char *, const char *);
-#ifndef __GNUC__
-extern size_t strlen(const char *);
-#endif
-#endif
 #ifndef HAVE_STRNLEN
 extern size_t strnlen(const char *s, size_t n);
 #endif
 
 #if !defined(__cplusplus)
-#ifndef HAVE_STRPBRK
-extern char *strpbrk(const char *, const char *);
-#endif
 #ifndef HAVE_STRSTR
 extern char *strstr(const char *, const char *);
 #endif
@@ -265,13 +206,6 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
-
-/* my_vsnprintf.c */
-
-extern size_t my_vsnprintf(char *str, size_t n,
-                           const char *format, va_list ap);
-extern size_t my_snprintf(char *to, size_t n, const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 3, 4);
 
 #if defined(__cplusplus)
 }
@@ -363,6 +297,12 @@ static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
   while (end > ptr && end[-1] == 0x20)
     end--;
   return (end);
+}
+
+static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
+{
+  lex_str->str= (char *) c_str;
+  lex_str->length= strlen(c_str);
 }
 
 #endif

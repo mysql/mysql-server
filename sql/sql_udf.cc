@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* This implements 'user defined functions' */
 
@@ -31,8 +31,14 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_parse.h"                        // check_identifier_name
+#include "sql_table.h"                        // write_bin_log
+#include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 #ifdef HAVE_DLOPEN
 extern "C"
@@ -242,7 +248,7 @@ void udf_init()
   if (error > 0)
     sql_print_error("Got unknown error: %d", my_errno);
   end_read_record(&read_record_info);
-  new_thd->version--;				// Force close to free memory
+  table->m_needs_reopen= TRUE;                  // Force close to free memory
 
 end:
   close_thread_tables(new_thd);

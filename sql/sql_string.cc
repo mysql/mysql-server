@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
@@ -24,13 +24,6 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <mysql_com.h>
-/*
-  The following extern declarations are ok as these are interface functions
-  required by the string function
-*/
-
-extern uchar* sql_alloc(unsigned size);
-extern void sql_element_free(void *ptr);
 
 #include "sql_string.h"
 
@@ -404,6 +397,16 @@ bool String::append(const char *s)
   return append(s, (uint) strlen(s));
 }
 
+
+
+bool String::append_ulonglong(ulonglong val)
+{
+  if (realloc(str_length+MAX_BIGINT_WIDTH+2))
+    return TRUE;
+  char *end= (char*) longlong10_to_str(val, (char*) Ptr + str_length, 10);
+  str_length= end - Ptr;
+  return FALSE;
+}
 
 /*
   Append a string in the given charset to the string

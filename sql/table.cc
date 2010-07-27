@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,17 +10,32 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Some general useful functions */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "table.h"
+#include "frm_crypt.h"           // get_crypt_for_frm
+#include "key.h"                                // find_ref_key
+#include "sql_table.h"                          // build_table_filename,
+                                                // primary_key_name
 #include "sql_trigger.h"
+#include "sql_parse.h"                          // free_items
+#include "strfunc.h"                            // unhex_type2
+#include "sql_partition.h"       // mysql_unpack_partition,
+                                 // fix_partition_func, partition_info
+#include "sql_acl.h"             // *_ACL, acl_getroot_no_password
+#include "sql_base.h"            // release_table_share
+#include "sql_derived.h"
 #include <m_ctype.h>
 #include "my_md5.h"
 #include "my_bit.h"
+#include "sql_select.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -48,6 +63,8 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
 inline bool is_system_table_name(const char *name, uint length);
+
+static ulong get_form_pos(File file, uchar *head);
 
 /**************************************************************************
   Object_creation_ctx implementation.
@@ -299,13 +316,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->version=       refresh_version;
 
     /*
-      This constant is used to mark that no table map version has been
-      assigned.  No arithmetic is done on the value: it will be
-      overwritten with a value taken from MYSQL_BIN_LOG.
-    */
-    share->table_map_version= ~(ulonglong)0;
-
-    /*
       Since alloc_table_share() can be called without any locking (for
       example, ha_create_table... functions), we do not assign a table
       map id here.  Instead we assign a value that is not used
@@ -371,11 +381,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   share->path.length= share->normalized_path.length= strlen(path);
   share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
 
-  /*
-    Temporary tables are not replicated, but we set up these fields
-    anyway to be able to catch errors.
-   */
-  share->table_map_version= ~(ulonglong)0;
   share->cached_row_logging_check= -1;
 
   /*
@@ -488,6 +493,26 @@ inline bool is_system_table_name(const char *name, uint length)
 }
 
 
+/**
+  Check if a string contains path elements
+*/  
+
+static inline bool has_disabled_path_chars(const char *str)
+{
+  for (; *str; str++)
+    switch (*str)
+    {
+      case FN_EXTCHAR:
+      case '/':
+      case '\\':
+      case '~':
+      case '@':
+        return TRUE;
+    }
+  return FALSE;
+}
+
+
 /*
   Read table definition from a binary / text based .frm file
   
@@ -544,7 +569,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         This kind of tables must have been opened only by the
         mysql_file_open() above.
     */
-    if (strchr(share->table_name.str, '@') ||
+    if (has_disabled_path_chars(share->table_name.str) ||
+        has_disabled_path_chars(share->db.str) ||
         !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
                  MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
         !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
@@ -681,7 +707,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   disk_buff= 0;
 
   error= 3;
-  if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
+  /* Position of the form in the form file. */
+  if (!(pos= get_form_pos(file, head)))
     goto err;                                   /* purecov: inspected */
 
   mysql_file_seek(file,pos,MY_SEEK_SET,MYF(0));
@@ -772,7 +799,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   share->key_info= keyinfo;
-  key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
+  key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
@@ -871,7 +898,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (mysql_file_pread(file, buff, n_length, record_offset + share->reclength,
                          MYF(MY_NABP)))
     {
-      my_free(buff, MYF(0));
+      my_free(buff);
       goto err;
     }
     share->connect_string.length= uint2korr(buff);
@@ -880,7 +907,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                   share->connect_string.
                                                   length)))
     {
-      my_free(buff, MYF(0));
+      my_free(buff);
       goto err;
     }
     next_chunk+= share->connect_string.length + 2;
@@ -901,7 +928,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
         /*
@@ -931,7 +958,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                    "--skip-partition");
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
         plugin_unlock(NULL, share->db_plugin);
@@ -947,7 +974,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         error= 8;
         name.str[name.length]=0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        my_free(buff, MYF(0));
+        my_free(buff);
         goto err;
         /* purecov: end */
       }
@@ -955,28 +982,28 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     if (next_chunk + 5 < buff_end)
     {
-      uint32 partition_info_len = uint4korr(next_chunk);
+      uint32 partition_info_str_len = uint4korr(next_chunk);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if ((share->partition_info_buffer_size=
-             share->partition_info_len= partition_info_len))
+             share->partition_info_str_len= partition_info_str_len))
       {
-        if (!(share->partition_info= (char*)
+        if (!(share->partition_info_str= (char*)
               memdup_root(&share->mem_root, next_chunk + 4,
-                          partition_info_len + 1)))
+                          partition_info_str_len + 1)))
         {
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
       }
 #else
-      if (partition_info_len)
+      if (partition_info_str_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff, MYF(0));
+        my_free(buff);
         goto err;
       }
 #endif
-      next_chunk+= 5 + partition_info_len;
+      next_chunk+= 5 + partition_info_str_len;
     }
 #if MYSQL_VERSION_ID < 50200
     if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
@@ -1010,7 +1037,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
         parser_name.str= (char*) next_chunk;
@@ -1021,7 +1048,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
         }
       }
@@ -1033,19 +1060,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
           DBUG_PRINT("error",
                      ("long table comment is not defined in .frm"));
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
       }
       share->comment.length = uint2korr(next_chunk);
       if (! (share->comment.str= strmake_root(&share->mem_root,
              (char*)next_chunk + 2, share->comment.length)))
       {
-          my_free(buff, MYF(0));
+          my_free(buff);
           goto err;
       }
       next_chunk+= 2 + share->comment.length;
     }
-    my_free(buff, MYF(0));
+    my_free(buff);
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -1561,7 +1588,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   else
     share->primary_key= MAX_KEY;
-  x_free((uchar*) disk_buff);
+  my_free(disk_buff);
   disk_buff=0;
   if (new_field_pack_flag <= 1)
   {
@@ -1633,12 +1660,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->error= error;
   share->open_errno= my_errno;
   share->errarg= errarg;
-  x_free((uchar*) disk_buff);
+  my_free(disk_buff);
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
   if (share->ha_data_destroy)
     share->ha_data_destroy(share->ha_data);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (share->ha_part_data_destroy)
+    share->ha_part_data_destroy(share->ha_part_data);
+#endif
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -1793,8 +1824,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
       goto err;
     outparam->key_info= key_info;
-    key_part= (my_reinterpret_cast(KEY_PART_INFO*) (key_info+share->keys));
-    
+    key_part= (reinterpret_cast<KEY_PART_INFO*>(key_info+share->keys));
+
     memcpy(key_info, share->key_info, sizeof(*key_info)*share->keys);
     memcpy(key_part, share->key_info[0].key_part, (sizeof(*key_part) *
                                                    share->key_parts));
@@ -1830,7 +1861,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (share->partition_info_len && outparam->file)
+  if (share->partition_info_str_len && outparam->file)
   {
   /*
     In this execution we must avoid calling thd->change_item_tree since
@@ -1851,10 +1882,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     bool tmp;
     bool work_part_info_used;
 
-    tmp= mysql_unpack_partition(thd, share->partition_info,
-                                share->partition_info_len,
-                                share->part_state,
-                                share->part_state_len,
+    tmp= mysql_unpack_partition(thd, share->partition_info_str,
+                                share->partition_info_str_len,
                                 outparam, is_create_table,
                                 share->default_part_db_type,
                                 &work_part_info_used);
@@ -1983,7 +2012,7 @@ partititon_err:
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
-  my_free((char*) outparam->alias, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((void *) outparam->alias);
   DBUG_RETURN (error);
 }
 
@@ -2005,7 +2034,7 @@ int closefrm(register TABLE *table, bool free_share)
 
   if (table->db_stat)
     error=table->file->close();
-  my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((void *) table->alias);
   table->alias= 0;
   if (table->field)
   {
@@ -2069,52 +2098,46 @@ void free_field_buffers_larger_than(TABLE *table, uint32 size)
   }
 }
 
-	/* Find where a form starts */
-	/* if formname is NullS then only formnames is read */
+/**
+  Find where a form starts.
 
-ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
+  @param head The start of the form file.
+
+  @remark If formname is NULL then only formnames is read.
+
+  @retval The form position.
+*/
+
+static ulong get_form_pos(File file, uchar *head)
 {
-  uint a_length,names,length;
-  uchar *pos,*buf;
+  uchar *pos, *buf;
+  uint names, length;
   ulong ret_value=0;
   DBUG_ENTER("get_form_pos");
 
-  names=uint2korr(head+8);
-  a_length=(names+2)*sizeof(char *);		/* Room for two extra */
+  names= uint2korr(head+8);
 
-  if (!save_names)
-    a_length=0;
-  else
-    save_names->type_names=0;			/* Clear if error */
+  if (!(names= uint2korr(head+8)))
+    DBUG_RETURN(0);
 
-  if (names)
+  length= uint2korr(head+4);
+
+  mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
+
+  if (!(buf= (uchar*) my_malloc(length+names*4, MYF(MY_WME))))
+    DBUG_RETURN(0);
+
+  if (mysql_file_read(file, buf, length+names*4, MYF(MY_NABP)))
   {
-    length=uint2korr(head+4);
-    mysql_file_seek(file, 64L, MY_SEEK_SET, MYF(0));
-    if (!(buf= (uchar*) my_malloc((size_t) length+a_length+names*4,
-				  MYF(MY_WME))) ||
-        mysql_file_read(file, buf+a_length, (size_t) (length+names*4),
-                        MYF(MY_NABP)))
-    {						/* purecov: inspected */
-      x_free((uchar*) buf);			/* purecov: inspected */
-      DBUG_RETURN(0L);				/* purecov: inspected */
-    }
-    pos= buf+a_length+length;
-    ret_value=uint4korr(pos);
+    my_free(buf);
+    DBUG_RETURN(0);
   }
-  if (! save_names)
-  {
-    if (names)
-      my_free((uchar*) buf,MYF(0));
-  }
-  else if (!names)
-    bzero((char*) save_names,sizeof(save_names));
-  else
-  {
-    char *str;
-    str=(char *) (buf+a_length);
-    fix_type_pointers((const char ***) &buf,save_names,1,&str);
-  }
+
+  pos= buf+length;
+  ret_value= uint4korr(pos);
+
+  my_free(buf);
+
   DBUG_RETURN(ret_value);
 }
 
@@ -2130,11 +2153,11 @@ int read_string(File file, uchar**to, size_t length)
 {
   DBUG_ENTER("read_string");
 
-  x_free(*to);
+  my_free(*to);
   if (!(*to= (uchar*) my_malloc(length+1,MYF(MY_WME))) ||
       mysql_file_read(file, *to, length, MYF(MY_NABP)))
   {
-    x_free(*to);                              /* purecov: inspected */
+     my_free(*to);                            /* purecov: inspected */
     *to= 0;                                   /* purecov: inspected */
     DBUG_RETURN(1);                           /* purecov: inspected */
   }
@@ -2726,35 +2749,21 @@ bool check_db_name(LEX_STRING *org_name)
 {
   char *name= org_name->str;
   uint name_length= org_name->length;
+  bool check_for_path_chars;
 
   if (!name_length || name_length > NAME_LEN)
     return 1;
 
+  if ((check_for_path_chars= check_mysql50_prefix(name)))
+  {
+    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+    name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
+  }
+
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-#if defined(USE_MB) && defined(USE_MB_IDENT)
-  if (use_mb(system_charset_info))
-  {
-    name_length= 0;
-    bool last_char_is_space= TRUE;
-    char *end= name + org_name->length;
-    while (name < end)
-    {
-      int len;
-      last_char_is_space= my_isspace(system_charset_info, *name);
-      len= my_ismbchar(system_charset_info, name, end);
-      if (!len)
-        len= 1;
-      name+= len;
-      name_length++;
-    }
-    return (last_char_is_space || name_length > NAME_CHAR_LEN);
-  }
-  else
-#endif
-    return ((org_name->str[org_name->length - 1] != ' ') ||
-            (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
+  return check_table_name(name, name_length, check_for_path_chars);
 }
 
 
@@ -2764,10 +2773,10 @@ bool check_db_name(LEX_STRING *org_name)
   returns 1 on error
 */
 
-
-bool check_table_name(const char *name, uint length)
+bool check_table_name(const char *name, size_t length, bool check_for_path_chars)
 {
-  uint name_length= 0;  // name length in symbols
+  // name length in symbols
+  size_t name_length= 0;
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
@@ -2793,22 +2802,26 @@ bool check_table_name(const char *name, uint length)
       }
     }
 #endif
+    if (check_for_path_chars &&
+        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
+      return 1;
     name++;
     name_length++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-  return (last_char_is_space || name_length > NAME_CHAR_LEN) ;
+  return last_char_is_space || (name_length > NAME_CHAR_LEN);
 #else
-  return 0;
+  return FALSE;
 #endif
 }
 
 
 bool check_column_name(const char *name)
 {
-  uint name_length= 0;  // name length in symbols
+  // name length in symbols
+  size_t name_length= 0;
   bool last_char_is_space= TRUE;
-  
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -2833,7 +2846,7 @@ bool check_column_name(const char *name)
     name_length++;
   }
   /* Error if empty or too long column name */
-  return last_char_is_space || (uint) name_length > NAME_CHAR_LEN;
+  return last_char_is_space || (name_length > NAME_CHAR_LEN);
 }
 
 
@@ -2883,8 +2896,9 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
-      report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
+      report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
+                   table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
     }
@@ -3500,7 +3514,7 @@ void TABLE_LIST::cleanup()
       List_iterator <DERIVED_KEY_MAP> ki(derived_keymap_list);
       DERIVED_KEY_MAP *entry;
       while ((entry= ki++))
-        my_free(entry, MYF(0));
+        my_free(entry);
       derived_keymap_list.empty();
     }
     /*
@@ -3510,8 +3524,8 @@ void TABLE_LIST::cleanup()
     */
     if (table && table->s->keys)
     {
-      my_free(table->key_info[0].key_part, MYF(0));
-      my_free(table->key_info, MYF(0));
+      my_free(table->key_info[0].key_part);
+      my_free(table->key_info);
       table->key_info= table->s->key_info= 0;
       table->s->keys= 0;
       table->s->key_parts= 0;
@@ -4103,9 +4117,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->alias,
-                                       name);
+  Item *item= new Item_direct_view_ref(view, field_ref, name);
   DBUG_RETURN(item);
 }
 
@@ -4464,6 +4476,27 @@ void TABLE::mark_columns_used_by_index(uint index)
 
 
 /*
+  Add fields used by a specified index to the table's read_set.
+
+  NOTE:
+    The original state can be restored with
+    restore_column_maps_after_mark_index().
+*/
+
+void TABLE::add_read_columns_used_by_index(uint index)
+{
+  MY_BITMAP *bitmap= &tmp_set;
+  DBUG_ENTER("TABLE::add_read_columns_used_by_index");
+
+  set_keyread(TRUE);
+  bitmap_copy(bitmap, read_set);
+  mark_columns_used_by_index_no_reset(index, bitmap);
+  column_bitmaps_set(bitmap, write_set);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Restore to use normal column maps after key read
 
   NOTES
@@ -4803,11 +4836,11 @@ void TABLE::use_index(int key_to_save)
   for (; i < (int)s->keys; i++)
   {
     if (i != key_to_save)
-      my_free(key_info[i].key_part, MYF(0));
+      my_free(key_info[i].key_part);
   }
   if (key_to_save < 0)
   {
-    my_free(key_info, MYF(0));
+    my_free(key_info);
     key_info= s->key_info= 0;
     s->key_parts= 0;
     s->keys= 0;
@@ -4874,13 +4907,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
          parent_embedding->nested_join->join_list.head() == embedded);
 
   mdl_request.ticket= NULL;
-  /*
-    Since we manipulate with the metadata lock type in open_table(),
-    we need to reset it to the parser default, to restore things back
-    to first-execution state.
-  */
-  mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ);
 }
 
 /*
@@ -5376,6 +5402,61 @@ bool TABLE_LIST::handle_derived(LEX *lex,
 st_select_lex_unit *TABLE_LIST::get_unit()
 {
   return (view ? &view->unit : derived);
+}
+
+
+/**
+  Update TABLE::const_key_parts for single table UPDATE/DELETE query
+
+  @param conds               WHERE clause expression
+
+  @retval TRUE   error (OOM)
+  @retval FALSE  success
+
+  @note
+    Set const_key_parts bits if key fields are equal to constants in
+    the WHERE expression.
+*/
+
+bool TABLE::update_const_key_parts(COND *conds)
+{
+  bzero((char*) const_key_parts, sizeof(key_part_map) * s->keys);
+
+  if (conds == NULL)
+    return FALSE;
+
+  for (uint index= 0; index < s->keys; index++)
+  {
+    KEY_PART_INFO *keyinfo= key_info[index].key_part;
+    KEY_PART_INFO *keyinfo_end= keyinfo + key_info[index].key_parts;
+
+    for (key_part_map part_map= (key_part_map)1; 
+        keyinfo < keyinfo_end;
+        keyinfo++, part_map<<= 1)
+    {
+      if (const_expression_in_where(conds, NULL, keyinfo->field))
+        const_key_parts[index]|= part_map;
+    }
+  }
+  return FALSE;
+}
+
+/**
+  Test if the order list consists of simple field expressions
+
+  @param order                Linked list of ORDER BY arguments
+
+  @return TRUE if @a order is empty or consist of simple field expressions
+*/
+
+bool is_simple_order(ORDER *order)
+{
+  for (ORDER *ord= order; ord; ord= ord->next)
+  {
+    if (ord->item[0]->real_item()->type() != Item::FIELD_ITEM)
+      return FALSE;
+  }
+  return TRUE;
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -28,7 +28,28 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"
+#include "sql_locale.h"          // MY_LOCALE my_locale_en_US
+#include "strfunc.h"             // check_word
+#include "sql_time.h"            // make_truncated_value_warning,
+                                 // make_time, get_date_from_daynr,
+                                 // calc_weekday, calc_week,
+                                 // convert_month_to_period,
+                                 // convert_period_to_month,
+                                 // TIME_to_timestamp, make_date,
+                                 // calc_time_diff,
+                                 // calc_time_from_sec,
+                                 // known_date_time_format,
+                                 // get_date_time_format_str
+#include "tztime.h"              // struct Time_zone
+#include "sql_class.h"           // THD
 #include <m_ctype.h>
 #include <time.h>
 
@@ -754,13 +775,11 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 	str->append(hours_i < 12 ? "AM" : "PM",2);
 	break;
       case 'r':
-	length= my_sprintf(intbuff, 
-		   (intbuff, 
-		    ((l_time->hour % 24) < 12) ?
-                    "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
-		    (l_time->hour+11)%12+1,
-		    l_time->minute,
-		    l_time->second));
+	length= sprintf(intbuff, ((l_time->hour % 24) < 12) ?
+                        "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
+		        (l_time->hour+11)%12+1,
+		        l_time->minute,
+		        l_time->second);
 	str->append(intbuff, length);
 	break;
       case 'S':
@@ -769,12 +788,8 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
       case 'T':
-	length= my_sprintf(intbuff, 
-		   (intbuff, 
-		    "%02d:%02d:%02d", 
-		    l_time->hour, 
-		    l_time->minute,
-		    l_time->second));
+	length= sprintf(intbuff,  "%02d:%02d:%02d",
+                        l_time->hour, l_time->minute, l_time->second);
 	str->append(intbuff, length);
 	break;
       case 'U':
@@ -3036,12 +3051,12 @@ String *Item_func_maketime::val_str(String *str)
     char buf[28];
     char *ptr= longlong10_to_str(hour, buf, args[0]->unsigned_flag ? 10 : -10);
     int len = (int)(ptr - buf) +
-      my_sprintf(ptr, (ptr, ":%02u:%02u", (uint)minute, (uint)second));
+      sprintf(ptr, ":%02u:%02u", (uint) minute, (uint) second);
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  buf, len, MYSQL_TIMESTAMP_TIME,
                                  NullS);
   }
-  
+
   if (make_time_with_warn((DATE_TIME_FORMAT *) 0, &ltime, str))
   {
     null_value= 1;

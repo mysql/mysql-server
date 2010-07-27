@@ -15,8 +15,6 @@
 
 /* Wait until a program dies */
 
-#ifndef __NETWARE__
-
 #include <my_global.h>
 #include <m_string.h>
 #include <my_sys.h>
@@ -38,7 +36,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"verbose", 'v',
    "Be more verbose. Give a warning, if kill can't handle signal 0.", 
-   (uchar**) &verbose, (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -103,15 +101,3 @@ void usage(void)
   my_print_help(my_long_options);
   exit(-1);
 }
-
-#else
-
-#include <stdio.h>
-
-main()
-{
-	fprintf(stderr,"This tool has not been ported to NetWare\n");
-	return 0;
-}
-
-#endif /* __NETWARE__ */

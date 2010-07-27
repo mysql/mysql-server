@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,15 +10,14 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs_engine_table.cc
   Performance schema tables (implementation).
 */
 
-#include "mysql_priv.h"
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
@@ -36,6 +35,10 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+#include "pfs_global.h"
+
+#include "sql_base.h"                           // close_thread_tables
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /**
   @addtogroup Performance_schema_engine
@@ -105,7 +108,12 @@ void PFS_check_intact::report_error(uint code, const char *fmt, ...)
   my_vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
 
-  my_message(code, buff, MYF(0));
+  /*
+    This is an install/upgrade issue:
+    - do not report it in the user connection, there is none in main(),
+    - report it in the server error log.
+  */
+  sql_print_error("%s", buff);
 }
 
 /**
@@ -136,6 +144,9 @@ void PFS_engine_table_share::check_one_table(THD *thd)
       m_checked= true;
     close_thread_tables(thd);
   }
+  else
+    sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
+                    PERFORMANCE_SCHEMA_str.str, m_name.str);
 
   lex_end(&dummy_lex);
   thd->lex= old_lex;
@@ -324,10 +335,10 @@ ulonglong PFS_engine_table::get_field_enum(Field *f)
   return f2->val_int();
 }
 
-int PFS_readonly_table::update_row_values(TABLE *,
-                                          const unsigned char *,
-                                          unsigned char *,
-                                          Field **)
+int PFS_engine_table::update_row_values(TABLE *,
+                                        const unsigned char *,
+                                        unsigned char *,
+                                        Field **)
 {
   my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   return HA_ERR_WRONG_COMMAND;
@@ -463,7 +474,22 @@ PFS_unknown_acl pfs_unknown_acl;
 ACL_internal_access_result
 PFS_unknown_acl::check(ulong want_access, ulong *save_priv) const
 {
-  return ACL_INTERNAL_ACCESS_DENIED;
+  const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
+    | CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL
+    | CREATE_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
+
+  if (unlikely(want_access & always_forbidden))
+    return ACL_INTERNAL_ACCESS_DENIED;
+
+  /*
+    There is no point in hidding (by enforcing ACCESS_DENIED for SELECT_ACL
+    on performance_schema.*) tables that do not exist anyway.
+    When SELECT_ACL is granted on performance_schema.* or *.*,
+    SELECT * from performance_schema.wrong_table
+    will fail with a more understandable ER_NO_SUCH_TABLE error,
+    instead of ER_TABLEACCESS_DENIED_ERROR.
+  */
+  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
 /**
@@ -675,6 +701,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
     case 40:
       name= "(PFS_FILE_HANDLE).MEMORY";
       size= file_handle_max * sizeof(PFS_file*);
+      total_memory+= size;
       break;
     case 41:
       name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_SIZE";
@@ -689,13 +716,41 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= thread_max * instr_class_per_thread * sizeof(PFS_single_stat_chain);
       total_memory+= size;
       break;
+    case 44:
+      name= "(PFS_TABLE_SHARE).ROW_SIZE";
+      size= sizeof(PFS_table_share);
+      break;
+    case 45:
+      name= "(PFS_TABLE_SHARE).ROW_COUNT";
+      size= table_share_max;
+      break;
+    case 46:
+      name= "(PFS_TABLE_SHARE).MEMORY";
+      size= table_share_max * sizeof(PFS_table_share);
+      total_memory+= size;
+      break;
+    case 47:
+      name= "(PFS_TABLE).ROW_SIZE";
+      size= sizeof(PFS_table);
+      break;
+    case 48:
+      name= "(PFS_TABLE).ROW_COUNT";
+      size= table_max;
+      break;
+    case 49:
+      name= "(PFS_TABLE).MEMORY";
+      size= table_max * sizeof(PFS_table);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 44:
+    case 50:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
+      /* This will fail if something is not advertised here */
+      DBUG_ASSERT(size == pfs_allocated_memory);
       break;
     default:
       goto end;

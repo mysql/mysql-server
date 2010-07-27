@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,13 +10,16 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Functions to handle keys and fields in forms */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                     // REQUIRED: by includes later
+#include "key.h"                                // key_rec_cmp
+#include "field.h"                              // Field
 
 /*
   Search after a key that starts with 'field'
@@ -351,6 +354,16 @@ void key_unpack(String *to,TABLE *table,uint idx)
     {
       CHARSET_INFO *cs= field->charset();
       field->val_str(&tmp);
+      /*
+        For BINARY(N) strip trailing zeroes to make
+        the error message nice-looking
+      */
+      if (field->binary() &&  field->type() == MYSQL_TYPE_STRING && tmp.length())
+      {
+        const char *tmp_end= tmp.ptr() + tmp.length();
+        while (tmp_end > tmp.ptr() && !*--tmp_end);
+        tmp.length(tmp_end - tmp.ptr() + 1);
+      }
       if (cs->mbmaxlen > 1 &&
           table->field[key_part->fieldnr - 1]->field_length !=
           key_part->length)

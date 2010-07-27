@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   The beginnings of locale(7) support.
@@ -20,7 +20,11 @@
   !! This file is built from my_locale.pl !!
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_locale.h"
+#include "sql_class.h"                          // THD
+#include "my_sys.h"                             // MY_*, NullS, NULL
 
 
 enum err_msgs_index
@@ -3243,6 +3247,75 @@ MY_LOCALE my_locale_el_GR
 );
 /***** LOCALE END el_GR *****/
 
+
+/***** LOCALE BEGIN rm_CH: Romansh - Switzerland *****/
+static const char *my_locale_month_names_rm_CH[13]=
+{
+  "schaner", "favrer", "mars",      "avrigl",  "matg",     "zercladur",
+  "fanadur", "avust",  "settember", "october", "november", "december", NullS
+};
+
+static const char *my_locale_ab_month_names_rm_CH[13]=
+{
+  "schan", "favr",  "mars", "avr", "matg", "zercl",
+  "fan",   "avust", "sett", "oct", "nov",  "dec", NullS
+};
+
+static const char *my_locale_day_names_rm_CH[8]=
+{
+  "glindesdi", "mardi", "mesemna", "gievgia",
+  "venderdi",  "sonda", "dumengia", NullS
+};
+
+static const char *my_locale_ab_day_names_rm_CH[8]=
+{
+  "gli", "ma", "me", "gie", "ve", "so", "du", NullS
+};
+
+static TYPELIB my_locale_typelib_month_names_rm_CH=
+{
+  array_elements(my_locale_month_names_rm_CH) - 1,
+  "", my_locale_month_names_rm_CH, NULL
+};
+
+static TYPELIB my_locale_typelib_ab_month_names_rm_CH=
+{
+  array_elements(my_locale_ab_month_names_rm_CH) - 1,
+  "", my_locale_ab_month_names_rm_CH, NULL
+};
+
+static TYPELIB my_locale_typelib_day_names_rm_CH=
+{
+  array_elements(my_locale_day_names_rm_CH) - 1,
+   "", my_locale_day_names_rm_CH, NULL
+};
+
+static TYPELIB my_locale_typelib_ab_day_names_rm_CH=
+{
+  array_elements(my_locale_ab_day_names_rm_CH) - 1,
+  "", my_locale_ab_day_names_rm_CH, NULL
+};
+
+MY_LOCALE my_locale_rm_CH
+(
+  110,
+  "rm_CH",
+  "Romansh - Switzerland",
+  FALSE,
+  &my_locale_typelib_month_names_rm_CH,
+  &my_locale_typelib_ab_month_names_rm_CH,
+  &my_locale_typelib_day_names_rm_CH,
+  &my_locale_typelib_ab_day_names_rm_CH,
+  9,          /* max mon name length */ 
+  9,          /* max day name length */
+  ',',        /* decimal point rm_CH */
+  '\'',       /* thousands_sep rm_CH */
+  "\x03\x03", /* grouping      rm_CH */
+  &global_errmsgs[en_US]
+);
+/***** LOCALE END rm_CH *****/
+
+
 /*
   The list of all locales.
   Note, locales must be ordered according to their
@@ -3361,6 +3434,7 @@ MY_LOCALE *my_locales[]=
     &my_locale_sv_FI,
     &my_locale_zh_HK,
     &my_locale_el_GR,
+    &my_locale_rm_CH,
     NULL 
   };
 
@@ -3438,6 +3512,6 @@ void cleanup_errmsgs()
 {
   for (MY_LOCALE_ERRMSGS *msgs= global_errmsgs; msgs->language; msgs++)
   {
-    my_free(msgs->errmsgs, MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+    my_free(msgs->errmsgs);
   }
 }

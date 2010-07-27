@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* classes to use when handling where clause */
@@ -22,6 +22,20 @@
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
+
+#include "thr_malloc.h"                         /* sql_memdup */
+#include "records.h"                            /* READ_RECORD */
+#include "queues.h"                             /* QUEUE */
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"                            /* Item */
+
+class JOIN;
+class Item_sum;
 
 typedef struct st_key_part {
   uint16           key,part;
@@ -65,6 +79,85 @@ class QUICK_RANGE :public Sql_alloc {
       dummy=0;
 #endif
     }
+
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the minimum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+
+     @param prefix_length The length of the search key prefix to be used for
+     lookup.
+     
+     @param keypart_map A set (bitmap) of keyparts to be used.
+  */
+  void make_min_endpoint(key_range *kr, uint prefix_length, 
+                         key_part_map keypart_map) {
+    make_min_endpoint(kr);
+    kr->length= min(kr->length, prefix_length);
+    kr->keypart_map&= keypart_map;
+  }
+  
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the minimum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+  */
+  void make_min_endpoint(key_range *kr) {
+    kr->key= (const uchar*)min_key;
+    kr->length= min_length;
+    kr->keypart_map= min_keypart_map;
+    kr->flag= ((flag & NEAR_MIN) ? HA_READ_AFTER_KEY :
+               (flag & EQ_RANGE) ? HA_READ_KEY_EXACT : HA_READ_KEY_OR_NEXT);
+  }
+
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the maximum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+
+     @param prefix_length The length of the search key prefix to be used for
+     lookup.
+     
+     @param keypart_map A set (bitmap) of keyparts to be used.
+  */
+  void make_max_endpoint(key_range *kr, uint prefix_length, 
+                         key_part_map keypart_map) {
+    make_max_endpoint(kr);
+    kr->length= min(kr->length, prefix_length);
+    kr->keypart_map&= keypart_map;
+  }
+
+  /**
+     Initalizes a key_range object for communication with storage engine. 
+
+     This function facilitates communication with the Storage Engine API by
+     translating the maximum endpoint of the interval represented by this
+     QUICK_RANGE into an index range endpoint specifier for the engine.
+
+     @param Pointer to an uninitialized key_range C struct.
+  */
+  void make_max_endpoint(key_range *kr) {
+    kr->key= (const uchar*)max_key;
+    kr->length= max_length;
+    kr->keypart_map= max_keypart_map;
+    /*
+      We use READ_AFTER_KEY here because if we are reading on a key
+      prefix we want to find all keys with this prefix
+    */
+    kr->flag= (flag & NEAR_MAX ? HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
+  }
 };
 
 
@@ -259,6 +352,11 @@ public:
   */
   virtual void dbug_dump(int indent, bool verbose)= 0;
 #endif
+
+  /*
+    Returns a QUICK_SELECT with reverse order of to the index.
+  */
+  virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
 };
 
 
@@ -331,7 +429,7 @@ public:
   int reset(void);
   int get_next();
   void range_end();
-  int get_next_prefix(uint prefix_length, key_part_map keypart_map,
+  int get_next_prefix(uint prefix_length, uint group_key_parts, 
                       uchar *cur_prefix);
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
@@ -344,6 +442,7 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
 };
@@ -421,6 +520,7 @@ public:
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I
 {
+  Unique *unique;
 public:
   QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
   ~QUICK_INDEX_MERGE_SELECT();
@@ -564,7 +664,6 @@ public:
   bool have_prev_rowid; /* true if prev_rowid has valid data */
   uint rowid_length;    /* table rowid length */
 private:
-  static int queue_cmp(void *arg, uchar *val1, uchar *val2);
   bool scans_inited; 
 };
 
@@ -605,13 +704,13 @@ private:
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I
 {
 private:
-  handler *file;         /* The handler used to get data. */
+  handler * const file;   /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
   uchar *record;          /* Buffer where the next record is returned. */
   uchar *tmp_record;      /* Temporary storage for next_min(), next_max(). */
   uchar *group_prefix;    /* Key prefix consisting of the GROUP fields. */
-  uint group_prefix_len; /* Length of the group prefix. */
+  const uint group_prefix_len; /* Length of the group prefix. */
   uint group_key_parts;  /* A number of keyparts in the group prefix */
   uchar *last_prefix;     /* Prefix of the last group for detecting EOF. */
   bool have_min;         /* Specify whether we are computing */
@@ -690,6 +789,10 @@ public:
   int get_next();
   bool reverse_sorted() { return 1; }
   int get_type() { return QS_TYPE_RANGE_DESC; }
+  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg)
+  {
+    return this; // is already reverse sorted
+  }
 private:
   bool range_reads_after_key(QUICK_RANGE *range);
   int reset(void) { rev_it.rewind(); return QUICK_RANGE_SELECT::reset(); }
@@ -715,13 +818,18 @@ class SQL_SELECT :public Sql_alloc {
   SQL_SELECT();
   ~SQL_SELECT();
   void cleanup();
+  void set_quick(QUICK_SELECT_I *new_quick) { delete quick; quick= new_quick; }
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   {
     key_map tmp;
     tmp.set_all();
     return test_quick_select(thd, tmp, 0, limit, force_quick_range) < 0;
   }
-  inline bool skip_record() { return cond ? cond->val_int() == 0 : 0; }
+  inline bool skip_record(THD *thd, bool *skip_record)
+  {
+    *skip_record= cond ? cond->val_int() == FALSE : FALSE;
+    return thd->is_error();
+  }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
 			ha_rows limit, bool force_quick_range);
 };
@@ -741,11 +849,15 @@ public:
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              struct st_table_ref *ref,
                                              ha_rows records);
-uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
+SQL_SELECT *make_select(TABLE *head, table_map const_tables,
+			table_map read_tables, COND *conds,
+                        bool allow_null_cond,  int *error);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 #endif
+
+extern String null_string;
 
 #endif

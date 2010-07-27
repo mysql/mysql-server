@@ -10,15 +10,15 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation                         // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "transaction.h"
 #include "rpl_handler.h"
 
@@ -96,7 +96,18 @@ bool trans_begin(THD *thd, uint flags)
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
-  if (trans_commit_implicit(thd))
+  if (thd->in_multi_stmt_transaction_mode() ||
+      (thd->variables.option_bits & OPTION_TABLE_LOCK))
+  {
+    thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    res= test(ha_commit_trans(thd, TRUE));
+  }
+
+  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
+  thd->transaction.all.modified_non_trans_table= FALSE;
+
+  if (res)
     DBUG_RETURN(TRUE);
 
   /*
@@ -169,7 +180,7 @@ bool trans_commit_implicit(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  if (thd->in_multi_stmt_transaction() ||
+  if (thd->in_multi_stmt_transaction_mode() ||
       (thd->variables.option_bits & OPTION_TABLE_LOCK))
   {
     /* Safety if one did "drop table" on locked tables */
@@ -181,6 +192,14 @@ bool trans_commit_implicit(THD *thd)
 
   thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
+
+  /*
+    Upon implicit commit, reset the current transaction
+    isolation level. We do not care about
+    @@session.completion_type since it's documented
+    to not have any effect on implicit commit.
+  */
+  thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
 
   DBUG_RETURN(res);
 }
@@ -234,7 +253,11 @@ bool trans_commit_stmt(THD *thd)
   DBUG_ENTER("trans_commit_stmt");
   int res= FALSE;
   if (thd->transaction.stmt.ha_list)
+  {
     res= ha_commit_trans(thd, FALSE);
+    if (! thd->in_active_multi_stmt_transaction())
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+  }
 
   if (res)
     /*
@@ -265,6 +288,8 @@ bool trans_rollback_stmt(THD *thd)
     ha_rollback_trans(thd, FALSE);
     if (thd->transaction_rollback_request && !thd->in_sub_stmt)
       ha_rollback_trans(thd, TRUE);
+    if (! thd->in_active_multi_stmt_transaction())
+      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
   }
 
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
@@ -305,7 +330,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   SAVEPOINT **sv, *newsv;
   DBUG_ENTER("trans_savepoint");
 
-  if (!(thd->in_multi_stmt_transaction() || thd->in_sub_stmt) ||
+  if (!(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt) ||
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
@@ -394,9 +419,13 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   thd->transaction.savepoints= sv;
 
   /*
-    Release metadata locks that were acquired during this savepoint unit.
+    Release metadata locks that were acquired during this savepoint unit
+    unless binlogging is on. Releasing locks with binlogging on can break
+    replication as it allows other connections to drop these tables before
+    rollback to savepoint is written to the binlog.
   */
-  if (!res)
+  bool binlog_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
+  if (!res && !binlog_on)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
   DBUG_RETURN(test(res));
@@ -467,7 +496,7 @@ bool trans_xa_start(THD *thd)
     my_error(ER_XAER_INVAL, MYF(0));
   else if (xa_state != XA_NOTR)
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
-  else if (thd->locked_tables_mode || thd->active_transaction())
+  else if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
     my_error(ER_XAER_OUTSIDE, MYF(0));
   else if (xid_cache_search(thd->lex->xid))
     my_error(ER_XAER_DUPID, MYF(0));

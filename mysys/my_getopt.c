@@ -22,21 +22,21 @@
 #include <errno.h>
 #include <m_string.h>
 
-typedef void (*init_func_p)(const struct my_option *option, uchar **variable,
+typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
 
 static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
 
-static int findopt(char *, uint, const struct my_option **, char **);
+static int findopt(char *, uint, const struct my_option **, const char **);
 my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *, init_func_p);
-static void init_one_value(const struct my_option *, uchar **, longlong);
-static void fini_one_value(const struct my_option *, uchar **, longlong);
-static int setval(const struct my_option *, uchar **, char *, my_bool);
+static void init_one_value(const struct my_option *, void *, longlong);
+static void fini_one_value(const struct my_option *, void *, longlong);
+static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
 /*
@@ -83,10 +83,9 @@ static void default_reporter(enum loglevel level,
   fflush(stderr);
 }
 
-static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *, int *);
+static my_getopt_value getopt_get_addr;
 
-void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
-						    const struct my_option *, int *))
+void my_getopt_register_get_addr(my_getopt_value func_addr)
 {
   getopt_get_addr= func_addr;
 }
@@ -114,10 +113,10 @@ int handle_options(int *argc, char ***argv,
   uint opt_found, argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
-  char **pos, **pos_end, *optend, *UNINIT_VAR(prev_found),
-       *opt_str, key_name[FN_REFLEN];
+  char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
+  const char *UNINIT_VAR(prev_found);
   const struct my_option *optp;
-  uchar* *value;
+  void *value;
   int error, i;
   my_bool is_cmdline_arg= 1;
 
@@ -186,7 +185,6 @@ int handle_options(int *argc, char ***argv,
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option
 	*/
-        LINT_INIT(prev_found);
 	optp= longopts;
 	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
 	{
@@ -333,7 +331,7 @@ int handle_options(int *argc, char ***argv,
           optp->value;
         if (error)
           return error;
-  
+
 	if (optp->arg_type == NO_ARG)
 	{
 	  if (optend && (optp->var_type & GET_TYPE_MASK) != GET_BOOL)
@@ -546,7 +544,7 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   Will set the option value to given value
 */
 
-static int setval(const struct my_option *opts, uchar **value, char *argument,
+static int setval(const struct my_option *opts, void *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0, res= 0;
@@ -597,8 +595,7 @@ static int setval(const struct my_option *opts, uchar **value, char *argument,
     case GET_STR_ALLOC:
       if (argument == enabled_my_option)
         break; /* string options don't use this default of "1" */
-      if ((*((char**) value)))
-	my_free((*(char**) value), MYF(MY_WME | MY_FAE));
+      my_free(*((char**) value));
       if (!(*((char**) value)= my_strdup(argument, MYF(MY_WME))))
       {
         res= EXIT_OUT_OF_MEMORY;
@@ -697,10 +694,10 @@ ret:
 
 static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
-		   char **ffname)
+		   const char **ffname)
 {
   uint count;
-  struct my_option *opt= (struct my_option *) *opt_res;
+  const struct my_option *opt= *opt_res;
 
   for (count= 0; opt->name; opt++)
   {
@@ -711,8 +708,9 @@ static int findopt(char *optpat, uint length,
 	return 1;
       if (!count)
       {
+        /* We only need to know one prev */
 	count= 1;
-	*ffname= (char *) opt->name;	/* We only need to know one prev */
+	*ffname= opt->name;
       }
       else if (strcmp(*ffname, opt->name))
       {
@@ -1000,7 +998,7 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
     value		Pointer to variable
 */
 
-static void init_one_value(const struct my_option *option, uchar* *variable,
+static void init_one_value(const struct my_option *option, void *variable,
 			   longlong value)
 {
   DBUG_ENTER("init_one_value");
@@ -1034,7 +1032,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
-    *((double*) variable)=  (double) value;
+    *((double*) variable)= ulonglong2double(value);
     break;
   case GET_STR:
     /*
@@ -1055,8 +1053,9 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     */
     if ((char*) (intptr) value)
     {
-      my_free((*(char**) variable), MYF(MY_ALLOW_ZERO_PTR));
-      *((char**) variable)= my_strdup((char*) (intptr) value, MYF(MY_WME));
+      char **pstr= (char **) variable;
+      my_free(*pstr);
+      *pstr= my_strdup((char*) (intptr) value, MYF(MY_WME));
     }
     break;
   default: /* dummy default to avoid compiler warnings */
@@ -1075,13 +1074,13 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     value		Pointer to variable
 */
 
-static void fini_one_value(const struct my_option *option, uchar* *variable,
+static void fini_one_value(const struct my_option *option, void *variable,
 			   longlong value __attribute__ ((unused)))
 {
   DBUG_ENTER("fini_one_value");
   switch ((option->var_type & GET_TYPE_MASK)) {
   case GET_STR_ALLOC:
-    my_free((*(char**) variable), MYF(MY_ALLOW_ZERO_PTR));
+    my_free(*((char**) variable));
     *((char**) variable)= NULL;
     break;
   default: /* dummy default to avoid compiler warnings */
@@ -1116,7 +1115,7 @@ static void init_variables(const struct my_option *options,
   DBUG_ENTER("init_variables");
   for (; options->name; options++)
   {
-    uchar **value;
+    void *value;
     DBUG_PRINT("options", ("name: '%s'", options->name));
     /*
       We must set u_max_value first as for some variables
@@ -1147,8 +1146,6 @@ static uint print_name(const struct my_option *optp)
 
   Print help for all options and variables.
 */
-
-#include <help_start.h>
 
 void my_print_help(const struct my_option *options)
 {
@@ -1261,7 +1258,7 @@ void my_print_variables(const struct my_option *options)
   
   for (optp= options; optp->name; optp++)
   {
-    uchar **value= (optp->var_type & GET_ASK_ADDR ?
+    void *value= (optp->var_type & GET_ASK_ADDR ?
 		  (*getopt_get_addr)("", 0, optp, 0) : optp->value);
     if (value)
     {
@@ -1331,5 +1328,3 @@ void my_print_variables(const struct my_option *options)
     }
   }
 }
-
-#include <help_end.h>

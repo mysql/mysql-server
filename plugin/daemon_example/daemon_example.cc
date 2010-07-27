@@ -13,13 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <mysql_priv.h>
+#include <my_global.h>
+#include <sql_priv.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql_version.h>
 #include <mysql/plugin.h>
-#include <my_global.h>
 #include <my_dir.h>
+#include "my_pthread.h"                         // pthread_handler_t
+#include "my_sys.h"                             // my_write, my_malloc
+#include "m_string.h"                           // strlen
+#include "sql_plugin.h"                         // st_plugin_int
 
 /*
   Disable __attribute__() on non-gcc compilers.
@@ -171,7 +175,7 @@ static int daemon_example_plugin_deinit(void *p)
   my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
   my_close(con->heartbeat_file, MYF(0));
 
-  my_free((char *)con, MYF(0));
+  my_free(con);
 
   DBUG_RETURN(0);
 }

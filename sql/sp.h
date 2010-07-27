@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +11,31 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef _SP_H_
 #define _SP_H_
+
+#include "sql_string.h"                         // LEX_STRING
+
+class Field;
+class Open_tables_backup;
+class Open_tables_state;
+class Query_arena;
+class Query_tables_list;
+class Sroutine_hash_entry;
+class THD;
+class sp_cache;
+class sp_head;
+class sp_name;
+struct st_sp_chistics;
+struct LEX;
+struct TABLE;
+struct TABLE_LIST;
+typedef struct st_hash HASH;
+template <typename T> class SQL_I_List;
+
 
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
@@ -145,7 +165,8 @@ bool sp_update_sp_used_routines(HASH *dst, HASH *src);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   HASH *src, TABLE_LIST *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                                  SQL_LIST *src, TABLE_LIST *belong_to_view);
+                                  SQL_I_List<Sroutine_hash_entry> *src,
+                                  TABLE_LIST *belong_to_view);
 
 extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first);
@@ -161,5 +182,15 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
                                String *name, ulong sql_mode, int type,
                                const char *returns, const char *params,
                                bool *free_sp_head);
+
+bool load_charset(MEM_ROOT *mem_root,
+                  Field *field,
+                  CHARSET_INFO *dflt_cs,
+                  CHARSET_INFO **cs);
+
+bool load_collation(MEM_ROOT *mem_root,
+                    Field *field,
+                    CHARSET_INFO *dflt_cl,
+                    CHARSET_INFO **cl);
 
 #endif /* _SP_H_ */

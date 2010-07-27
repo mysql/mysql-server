@@ -36,9 +36,9 @@ extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
 
 extern TYPELIB sql_protocol_typelib;
 
-my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
+my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
                               my_ulonglong cur_set, my_ulonglong default_set,
-                              const char *str, uint length,
-                              char **err_pos, uint *err_len);
+                              const char *str, unsigned int length,
+                              char **err_pos, unsigned int *err_len);
 
 #endif /* _typelib_h */

@@ -1,12 +1,12 @@
+-- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
-call mtr.add_suppression("InnoDB: invalid innodb_file_format_check value");
-
-let $format=`select @@innodb_file_format`;
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+let $innodb_file_format_orig=`select @@innodb_file_format`;
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 
 select @@innodb_file_format;
 select @@innodb_file_format_check;
+select @@innodb_file_format_max;
 set global innodb_file_format=antelope;
 set global innodb_file_format=barracuda;
 --error ER_WRONG_VALUE_FOR_VAR
@@ -19,24 +19,24 @@ set global innodb_file_format=on;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=off;
 select @@innodb_file_format;
-set global innodb_file_format_check=antelope;
-set global innodb_file_format_check=barracuda;
+set global innodb_file_format_max=antelope;
+set global innodb_file_format_max=barracuda;
 --error ER_WRONG_VALUE_FOR_VAR
-set global innodb_file_format_check=cheetah;
-select @@innodb_file_format_check;
-set global innodb_file_format_check=default;
-select @@innodb_file_format_check;
+set global innodb_file_format_max=cheetah;
+select @@innodb_file_format_max;
+set global innodb_file_format_max=default;
+select @@innodb_file_format_max;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=on;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=off;
-select @@innodb_file_format_check;
+select @@innodb_file_format_max;
+set global innodb_file_format_max=antelope;
 
-#
-# restore environment to the state it was before this test execution
-#
+# innodb_file_format_check is read only variable, can be
+# set as server startup parameter
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_file_format_check=off;
 
--- disable_query_log
-eval set global innodb_file_format=$format;
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;
--- enable_query_log
+eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;

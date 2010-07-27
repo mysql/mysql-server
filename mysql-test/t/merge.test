@@ -7,6 +7,8 @@ drop table if exists t1,t2,t3,t4,t5,t6;
 drop database if exists mysqltest;
 --enable_warnings
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 create table t1 (a int not null primary key auto_increment, message char(20));
 create table t2 (a int not null primary key auto_increment, message char(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
@@ -124,7 +126,6 @@ drop table t3,t2,t1;
 # Test table without unions
 #
 create table t1 (a int not null, key(a)) engine=merge;
---error 1030
 select * from t1;
 drop table t1;
 
@@ -456,7 +457,7 @@ CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
---error 1168
+--error ER_WRONG_MRG_TABLE
 SELECT * FROM t2;
 DROP TABLE t2;
 
@@ -548,11 +549,11 @@ drop table t1;
 #             CREATE TABLE fails
 #
 CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
---error 1168
+--error ER_WRONG_MRG_TABLE
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t1(a INT);
---error 1168
+--error ER_WRONG_MRG_TABLE
 SELECT * FROM tm1;
 CHECK TABLE tm1;
 CREATE TABLE t2(a BLOB);
@@ -612,6 +613,14 @@ ALTER TABLE m1 UNION=(t1);
 ALTER TABLE m1 UNION=();
 SHOW CREATE TABLE m1;
 DROP TABLE t1, m1;
+
+#
+# BUG#35274 - merge table doesn't need any base tables, gives error 124 when
+#             key accessed
+#
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
+SELECT MAX(a) FROM t1;
+DROP TABLE t1;
 
 #
 # BUG#32047 - 'Spurious' errors while opening MERGE tables
@@ -878,6 +887,9 @@ CREATE TABLE t4 LIKE t3;
 SHOW CREATE TABLE t4;
 --error ER_TABLE_NOT_LOCKED
 INSERT INTO t4 VALUES (4);
+--echo # Temporary tables can be created in spite of LOCK TABLES.
+--echo # If the temporary MERGE table uses the locked children only,
+--echo # it can even be used.
 CREATE TEMPORARY TABLE t4 LIKE t3;
 --error ER_WRONG_MRG_TABLE
 SHOW CREATE TABLE t4;
@@ -904,7 +916,7 @@ DROP TABLE t4;
 --echo # 2. Normal rename.
 SELECT * FROM t3 ORDER BY c1;
 RENAME TABLE t2 TO t5;
---error 1168
+--error ER_WRONG_MRG_TABLE
 SELECT * FROM t3 ORDER BY c1;
 RENAME TABLE t5 TO t2;
 SELECT * FROM t3 ORDER BY c1;
@@ -922,7 +934,7 @@ UNLOCK TABLES;
 --echo #
 --echo # 4. Alter table rename.
 ALTER TABLE t2 RENAME TO t5;
---error 1168
+--error ER_WRONG_MRG_TABLE
 SELECT * FROM t3 ORDER BY c1;
 ALTER TABLE t5 RENAME TO t2;
 SELECT * FROM t3 ORDER BY c1;
@@ -1161,6 +1173,7 @@ SELECT @a;
 SELECT * FROM t4 ORDER BY c1;
 DELETE FROM t4 WHERE c1 = 33;
 DROP TRIGGER t3_ai;
+UNLOCK TABLES;
 --echo #
 --echo # Trigger with table use on child
 DELETE FROM t4 WHERE c1 = 4;
@@ -1264,11 +1277,12 @@ DROP TABLE t1, t2, t3;
 
 #
 # Bug#25038 - Waiting TRUNCATE
+# Truncate failed with error message when table was in use by MERGE.
 #
 # Show that truncate of child table after use of parent table works.
-CREATE TABLE t1 (c1 INT) ENGINE= MyISAM; 
-CREATE TABLE t2 (c1 INT) ENGINE= MyISAM; 
-CREATE TABLE t3 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1, t2); 
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM; 
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM; 
+CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2); 
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
 SELECT * FROM t3;
@@ -1419,7 +1433,6 @@ OPTIMIZE TABLE t1;
 FLUSH TABLES m1, t1;
 UNLOCK TABLES;
 DROP TABLE t1, m1;
-
 
 #
 # Bug#35068 - Assertion fails when reading from i_s.tables
@@ -1647,6 +1660,76 @@ SHOW CREATE TRIGGER tr1;
 DROP TRIGGER tr1;
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # BUG#48265 - MRG_MYISAM problem (works in 5.0.85, does't work in 5.1.40)
+--echo #
+CREATE DATABASE `test/1`;
+
+CREATE TABLE `test/1`.`t/1`(a INT);
+CREATE TABLE m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM m1;
+SHOW CREATE TABLE m1;
+DROP TABLE m1;
+
+CREATE TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM `test/1`.m1;
+SHOW CREATE TABLE `test/1`.m1;
+DROP TABLE `test/1`.m1;
+DROP TABLE `test/1`.`t/1`;
+
+CREATE TEMPORARY TABLE `test/1`.`t/1`(a INT);
+CREATE TEMPORARY TABLE m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM m1;
+SHOW CREATE TABLE m1;
+DROP TABLE m1;
+
+CREATE TEMPORARY TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM `test/1`.m1;
+SHOW CREATE TABLE `test/1`.m1;
+DROP TABLE `test/1`.m1;
+DROP TABLE `test/1`.`t/1`;
+
+DROP DATABASE `test/1`;
+
+# Test compatibility. Use '@' instead of '/' (was not allowed in 5.0)
+
+CREATE TABLE `t@1`(a INT);
+copy_file std_data/bug48265.frm $MYSQLD_DATADIR/test/m1.frm;
+write_file $MYSQLD_DATADIR/test/m1.MRG;
+t@1
+EOF
+SELECT * FROM m1;
+SHOW CREATE TABLE m1;
+DROP TABLE `t@1`;
+
+CREATE DATABASE `test@1`;
+CREATE TABLE `test@1`.`t@1`(a INT);
+FLUSH TABLE m1;
+remove_file $MYSQLD_DATADIR/test/m1.MRG;
+write_file $MYSQLD_DATADIR/test/m1.MRG;
+./test@1/t@1
+EOF
+SELECT * FROM m1;
+SHOW CREATE TABLE m1;
+DROP TABLE m1;
+DROP TABLE `test@1`.`t@1`;
+DROP DATABASE `test@1`;
+
+--echo #
+--echo # Bug#51494c rash with join, explain and 'sounds like' operator
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=MYISAM;
+INSERT INTO t1 VALUES(1);
+
+CREATE TABLE t2 (b INT NOT NULL,c INT,d INT,e BLOB NOT NULL,
+KEY idx0 (d, c)) ENGINE=MERGE;
+
+EXPLAIN SELECT * FROM t1 NATURAL RIGHT JOIN
+t2 WHERE b SOUNDS LIKE e AND d = 1;
+
+DROP TABLE t2, t1;
+
 --echo End of 5.1 tests
 
 --echo #
@@ -1737,7 +1820,7 @@ CREATE TABLE m1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,mysql_test1.t2)
 INSERT INTO t1 VALUES (1);
 INSERT INTO mysql_test1.t2 VALUES (2);
 SELECT * FROM m1;
-#--copy_file $MYSQLTEST_VARDIR/master-data/test/m1.MRG /tmp/mysql-test-m1.MRG
+#--copy_file $MYSQLTEST_DATADIR/test/m1.MRG /tmp/mysql-test-m1.MRG
 DROP TABLE t1, mysql_test1.t2, m1;
 DROP DATABASE mysql_test1;
 #
@@ -2026,6 +2109,14 @@ DROP FUNCTION f1;
 DROP TABLE tm1, t1, t2, t3, t4, t5;
 
 --echo #
+--echo # Bug#47633 - assert in ha_myisammrg::info during OPTIMIZE
+--echo #
+CREATE TEMPORARY TABLE t1 (c1 INT);
+ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists,t1);
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug47098 assert in MDL_context::destroy on HANDLER
 --echo #          <damaged merge table> OPEN
 --echo #
@@ -2106,6 +2197,33 @@ ALTER TABLE m1 ADD INDEX (c1);
 
 UNLOCK TABLES;
 DROP TABLE m1, t1;
+
+--echo #
+--echo # If children are to be altered, they need an explicit lock.
+--echo #
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
+LOCK TABLE m1 WRITE;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+ALTER TABLE t1 ADD INDEX (c1);
+LOCK TABLE m1 WRITE, t1 WRITE;
+ALTER TABLE t1 ADD INDEX (c1);
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+
+--echo #
+--echo # Test for bug #37371 "CREATE TABLE LIKE merge loses UNION parameter"
+--echo #
+--disable_warnings
+drop tables if exists t1, m1, m2;
+--enable_warnings
+create table t1 (i int) engine=myisam;
+create table m1 (i int) engine=mrg_myisam union=(t1) insert_method=first;
+create table m2 like m1;
+--echo # Table definitions should match
+show create table m1;
+show create table m2;
+drop tables m1, m2, t1;
 
 
 --echo End of 6.0 tests

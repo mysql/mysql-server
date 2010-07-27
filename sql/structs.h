@@ -1,7 +1,7 @@
 #ifndef STRUCTS_INCLUDED
 #define STRUCTS_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,22 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
 
 
 /* The old structures from unireg */
 
+#include "sql_plugin.h"                         /* plugin_ref */
+#include "sql_const.h"                          /* MAX_REFLENGTH */
+#include "my_time.h"                   /* enum_mysql_timestamp_type */
+#include "thr_lock.h"                  /* thr_lock_type */
+#include "my_base.h"                   /* ha_rows, ha_key_alg */
+
 struct TABLE;
 class Field;
+
 class THD;
 
 typedef struct st_date_time_format {
@@ -350,8 +358,33 @@ public:
     return tmp;
   }
   ~Discrete_intervals_list() { empty(); };
-  bool append(ulonglong start, ulonglong val, ulonglong incr);
-  bool append(Discrete_interval *interval);
+  bool append(ulonglong start, ulonglong val, ulonglong incr)
+  {
+    DBUG_ENTER("Discrete_intervals_list::append");
+    /* first, see if this can be merged with previous */
+    if ((head == NULL) || tail->merge_if_contiguous(start, val, incr))
+    {
+      /* it cannot, so need to add a new interval */
+      Discrete_interval *new_interval= new Discrete_interval(start, val, incr);
+      DBUG_RETURN(append(new_interval));
+    }
+    DBUG_RETURN(0);
+  }
+  
+  bool append(Discrete_interval *new_interval)
+  {
+    DBUG_ENTER("Discrete_intervals_list::append");
+    if (unlikely(new_interval == NULL))
+      DBUG_RETURN(1);
+    DBUG_PRINT("info",("adding new auto_increment interval"));
+    if (head == NULL)
+      head= current= new_interval;
+    else
+      tail->next= new_interval;
+    tail= new_interval;
+    elements++;
+    DBUG_RETURN(0);
+  }
   ulonglong minimum()     const { return (head ? head->minimum() : 0); };
   ulonglong maximum()     const { return (head ? tail->maximum() : 0); };
   uint      nb_elements() const { return elements; }

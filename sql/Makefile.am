@@ -39,7 +39,9 @@ DTRACEFILES =           filesort.o \
                         sql_connect.o \
                         sql_cursor.o \
                         sql_delete.o \
+                        sql_truncate.o \
                         sql_insert.o \
+                        datadict.o \
                         sql_parse.o \
                         sql_prepare.o \
                         sql_select.o \
@@ -56,24 +58,31 @@ DTRACEFILES_DEPEND =    filesort.o \
                         sql_connect.o \
                         sql_cursor.o \
                         sql_delete.o \
+                        sql_truncate.o \
                         sql_insert.o \
+                        datadict.o \
                         sql_parse.o \
                         sql_prepare.o \
                         sql_select.o \
                         sql_update.o
 
+RPL_LIBS = 		libbinlog.la librpl.la libmaster.la libslave.la
+pkglib_LTLIBRARIES=	$(RPL_LIBS)
 
 noinst_LTLIBRARIES=	libndb.la \
 			udf_example.la
 
 SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/mysys/libmysyswrap.la \
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
 			$(top_builddir)/regex/libregex.a \
-			$(top_builddir)/strings/libmystrings.a
-mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
+			$(top_builddir)/strings/libmystringslt.la
+mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la \
+			$(RPL_LIBS)
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
 mysqld_LDADD =		libndb.la \
+			$(RPL_LIBS) \
 			@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
 			@mysql_plugin_libs@ \
@@ -84,22 +93,30 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h sql_plugin_services.h \
 			item_create.h item_subselect.h item_row.h \
-			mysql_priv.h item_geofunc.h sql_bitmap.h \
+			thr_malloc.h \
+			sql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
-			sql_map.h sql_string.h unireg.h \
+			sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
-			sql_profile.h \
+			sql_profile.h mysqld.h sql_help.h frm_crypt.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
 			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_partition.h rpl_constants.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
-			rpl_reporting.h \
+			rpl_reporting.h sql_locale.h sql_parse.h \
 			log.h sql_show.h rpl_rli.h rpl_mi.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
-			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
-			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
-			log_event.h rpl_record.h \
+			lex.h lex_symbol.h sql_acl.h sql_crypt.h sql_base.h \
+			sql_table.h key.h lock.h thr_malloc.h strfunc.h \
+			sql_delete.h sql_insert.h sql_update.h sql_db.h \
+			sql_connect.h sql_rename.h sql_time.h sql_tablespace.h \
+			hostname.h sql_test.h records.h filesort.h \
+			sql_derived.h sql_load.h sql_handler.h init.h \
+			derror.h sql_union.h des_key_file.h sql_binlog.h \
+			discover.h sql_manager.h sql_do.h \
+			rpl_slave.h rpl_master.h  rpl_filter.h rpl_injector.h \
+			log_event.h rpl_record.h sql_const.h \
 			log_event_old.h rpl_record_old.h \
 			sql_sort.h sql_cache.h set_var.h sys_vars_shared.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
@@ -114,55 +131,57 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_audit.h \
 			contributors.h sql_servers.h sql_signal.h records.h \
 			sql_prepare.h rpl_handler.h replication.h mdl.h \
-			sql_plist.h transaction.h sys_vars.h
+			sql_plist.h transaction.h sys_vars.h sql_truncate.h \
+			datadict.h
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
+			sql_alloc_error_handler.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
 			item_row.cc item_geofunc.cc item_xmlfunc.cc \
 			field.cc strfunc.cc key.cc sql_class.cc sql_list.cc \
 			net_serv.cc protocol.cc sql_state.c \
-			lock.cc my_lock.c \
-			sql_string.cc sql_manager.cc sql_map.cc \
+			lock.cc sql_string.cc sql_manager.cc \
 			main.cc mysqld.cc password.c hash_filo.cc hostname.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
 			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
-			sql_profile.cc \
+			datadict.cc sql_profile.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
-			procedure.cc sql_test.cc \
+			procedure.cc sql_test.cc sql_truncate.cc \
 			log.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
-			log_event.cc rpl_record.cc \
-			log_event_old.cc rpl_record_old.cc \
-			discover.cc time.cc opt_range.cc opt_sum.cc \
+			discover.cc sql_time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_partition.cc \
 			debug_sync.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
-			slave.cc sql_repl.cc rpl_filter.cc rpl_tblmap.cc \
-			rpl_utility.cc rpl_injector.cc rpl_rli.cc rpl_mi.cc \
-			rpl_reporting.cc \
                         sql_union.cc sql_derived.cc \
-			sql_client.cc \
-			repl_failsafe.h repl_failsafe.cc \
-			sql_olap.cc sql_view.cc \
+			sql_client.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
 			tztime.cc my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
                         event_scheduler.cc event_data_objects.cc \
                         event_queue.cc event_db_repository.cc events.cc \
-			sql_plugin.cc sql_binlog.cc \
+			sql_plugin.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc event_parse_data.cc sql_signal.cc \
-			rpl_handler.cc mdl.cc transaction.cc sql_audit.cc 
+			mdl.cc transaction.cc sql_audit.cc  \
+			sha2.cc
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
+
+libbinlog_la_SOURCES =	log_event.cc log_event_old.cc binlog.cc \
+			rpl_filter.cc rpl_record.cc rpl_record_old.cc \
+			rpl_utility.cc sql_binlog.cc rpl_injector.cc
+librpl_la_SOURCES    =  rpl_handler.cc rpl_tblmap.cc
+libmaster_la_SOURCES =	rpl_master.cc
+libslave_la_SOURCES = 	rpl_slave.cc rpl_reporting.cc rpl_rli.cc rpl_mi.cc
 
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
@@ -263,6 +282,3 @@ probes_libndb.o: probes_mysql.d libndb_la-ha_ndbcluster.lo
 	fi
 
 endif
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

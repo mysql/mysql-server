@@ -34,7 +34,7 @@ char * my_load_path(char * to, const char *path,
 
   if ((path[0] == FN_HOMELIB && path[1] == FN_LIBCHAR) ||
       test_if_hard_path(path))
-    (void) strmov(buff,path);
+    (void) strnmov(buff, path, FN_REFLEN);
   else if ((is_cur=(path[0] == FN_CURLIB && path[1] == FN_LIBCHAR)) ||
 	   (is_prefix(path,FN_PARENTDIR)) ||
 	   ! own_path_prefix)
@@ -42,13 +42,14 @@ char * my_load_path(char * to, const char *path,
     if (is_cur)
       is_cur=2;					/* Remove current dir */
     if (! my_getwd(buff,(uint) (FN_REFLEN-strlen(path)+is_cur),MYF(0)))
-      (void) strcat(buff,path+is_cur);
+      (void) strncat(buff, path+is_cur, FN_REFLEN-1);
     else
-      (void) strmov(buff,path);			/* Return org file name */
+      (void) strnmov(buff, path, FN_REFLEN);			/* Return org file name */
   }
   else
-    (void) strxmov(buff,own_path_prefix,path,NullS);
-  strmov(to,buff);
+    (void) strxnmov(buff, FN_REFLEN, own_path_prefix, path, NullS);
+  strnmov(to, buff, FN_REFLEN);
+  to[FN_REFLEN-1]= '\0';
   DBUG_PRINT("exit",("to: %s",to));
   DBUG_RETURN(to);
 } /* my_load_path */

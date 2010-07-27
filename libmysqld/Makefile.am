@@ -29,7 +29,8 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DPLUGINDIR="\"$(pkgplugindir)\"" \
-			-DDISABLE_DTRACE
+			-DDISABLE_DTRACE \
+			@DEFS@
 INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_builddir)/sql -I$(top_srcdir)/sql \
 			-I$(top_srcdir)/sql/examples \
@@ -55,21 +56,23 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
 	item_geofunc.cc item_subselect.cc item_row.cc\
 	item_xmlfunc.cc \
+	sha2.cc des_key_file.cc \
 	key.cc lock.cc log.cc sql_state.c \
 	log_event.cc rpl_record.cc rpl_utility.cc \
 	log_event_old.cc rpl_record_old.cc \
 	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc discover.cc sql_locale.cc \
-	sql_profile.cc \
+	sql_profile.cc sql_truncate.cc datadict.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
-	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
+	sql_lex.cc sql_list.cc sql_manager.cc \
 	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc sys_vars.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
-	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
+	sql_alloc_error_handler.cc \
+	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc sql_time.cc \
 	unireg.cc uniques.cc sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
@@ -78,7 +81,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	debug_sync.cc sql_tablespace.cc transaction.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
-	rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc
+	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
 nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)
@@ -94,9 +97,9 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/mysys/libmysys.a \
-		$(top_builddir)/strings/libmystrings.a \
-		$(top_builddir)/dbug/libdbug.a \
+		$(top_builddir)/mysys/.libs/libmysys.a \
+		$(top_builddir)/strings/.libs/libmystrings.a \
+		$(top_builddir)/dbug/.libs/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
                 @NDB_SCI_LIBS@ \
 		@mysql_plugin_libs@ \
@@ -155,27 +158,22 @@ if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
 else
 	-rm -f libmysqld.a
-	if test "$(host_os)" = "netware" ; \
-		then \
-		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
-		else \
-		  current_dir=`pwd`; \
-		  rm -rf tmp; mkdir tmp; \
-		  (for arc in $(INC_LIB) ./libmysqld_int.a; do \
-		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
-		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
-		    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
-		      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
-		      mkdir $$artmp; cd $$artmp > /dev/null; \
-		      $(AR) x ../../$$arc; \
-		      cd $$current_dir > /dev/null; \
-		      ls $$artmp/* | grep -v SYMDEF; \
-		      continue 2; fi; done; \
-		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
-		  $(AR) r libmysqld.a $(storageobjects); \
-		  $(RANLIB) libmysqld.a	; \
-		  rm -rf tmp; \
-		fi
+	current_dir=`pwd`; \
+	rm -rf tmp; mkdir tmp; \
+	(for arc in $(INC_LIB) ./libmysqld_int.a; do \
+	  arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
+	  artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
+	    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
+	      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
+	        mkdir $$artmp; cd $$artmp > /dev/null; \
+	        $(AR) x ../../$$arc; \
+	        cd $$current_dir > /dev/null; \
+	        ls $$artmp/* | grep -v SYMDEF; \
+	        continue 2; fi; done; \
+	done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a; \
+	$(AR) r libmysqld.a $(storageobjects); \
+	$(RANLIB) libmysqld.a ; \
+	rm -rf tmp
 endif
 
 ## XXX: any time the client interface changes, we'll need to bump
@@ -232,6 +230,3 @@ link_sources:
 clean-local:
 	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) $(storagesources) | sed "s;\.lo;.c;g"`; \
 	rm -f client_settings.h
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

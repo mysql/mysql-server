@@ -1,4 +1,4 @@
-/* Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,15 +10,24 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_base.h"                           // close_thread_tables
 #include "event_db_repository.h"
+#include "key.h"                                // key_copy
+#include "sql_db.h"                        // get_default_db_collation
+#include "sql_time.h"                      // interval_type_to_name
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h" // SUPER_ACL, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields
+#include "records.h"          // init_read_record, end_read_record
 #include "sp_head.h"
 #include "event_data_objects.h"
 #include "events.h"
 #include "sql_show.h"
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /**
   @addtogroup Event_Scheduler
@@ -211,7 +220,8 @@ mysql_event_fill_row(THD *thd,
       Safety: this can only happen if someone started the server
       and then altered mysql.event.
     */
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias,
+    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
+             table->s->db.str, table->s->table_name.str,
              (int) ET_FIELD_COUNT, table->s->fields);
     DBUG_RETURN(TRUE);
   }
@@ -406,7 +416,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
       key_info->key_part[0].field != event_table->field[ET_FIELD_DB])
   {
     /* Corrupted table: no index or index on a wrong column */
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+    my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
     ret= 1;
     goto end;
   }
@@ -1015,7 +1025,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
     if ((ret= find_named_event(dbname, name, table)))
       my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
     else if ((ret= etn->load_from_row(thd, table)))
-      my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+      my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
 
     close_thread_tables(thd);
   }

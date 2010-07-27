@@ -411,7 +411,7 @@ static void create_record(uchar *record,uint rownr)
     tmp=strlen((char*) blob_key);
     int4store(pos,tmp);
     ptr=blob_key;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));
+    memcpy(pos+4, &ptr, sizeof(char*));
     pos+=recinfo[1].length;
   }
   else if (recinfo[1].type == FIELD_VARCHAR)
@@ -439,7 +439,7 @@ static void create_record(uchar *record,uint rownr)
     tmp=strlen((char*) blob_record);
     int4store(pos,tmp);
     ptr=blob_record;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));
+    memcpy(pos+4, &ptr, sizeof(char*));
   }
   else if (recinfo[2].type == FIELD_VARCHAR)
   {
@@ -468,10 +468,10 @@ static void update_record(uchar *record)
     uchar *column,*ptr;
     int length;
     length=uint4korr(pos);			/* Long blob */
-    memcpy_fixed(&column,pos+4,sizeof(char*));
+    memcpy(&column, pos+4, sizeof(char*));
     memcpy(blob_key,column,length);		/* Move old key */
     ptr=blob_key;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));	/* Store pointer to new key */
+    memcpy(pos+4, &ptr, sizeof(char*));	/* Store pointer to new key */
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
       default_charset_info->cset->casedn(default_charset_info,
                                          (char*) blob_key, length,
@@ -501,13 +501,13 @@ static void update_record(uchar *record)
     uchar *column;
     int length;
     length=uint4korr(pos);
-    memcpy_fixed(&column,pos+4,sizeof(char*));
+    memcpy(&column, pos+4, sizeof(char*));
     memcpy(blob_record,column,length);
     bfill(blob_record+length,20,'.');	/* Make it larger */
     length+=20;
     int4store(pos,length);
     column= blob_record;
-    memcpy_fixed(pos+4,&column,sizeof(char*));
+    memcpy(pos+4, &column, sizeof(char*));
   }
   else if (recinfo[2].type == FIELD_VARCHAR)
   {
@@ -536,21 +536,21 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Undocumented",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"delete_rows", 'd', "Undocumented", (uchar**) &remove_count,
-   (uchar**) &remove_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"delete_rows", 'd', "Undocumented", &remove_count,
+   &remove_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
   {"help", '?', "Display help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"insert_rows", 'i', "Undocumented", (uchar**) &insert_count,
-   (uchar**) &insert_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"insert_rows", 'i', "Undocumented", &insert_count,
+   &insert_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
   {"key_alpha", 'a', "Use a key of type HA_KEYTYPE_TEXT",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key_binary_pack", 'B', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"key_blob", 'b', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_cache", 'K', "Undocumented", (uchar**) &key_cacheing,
-   (uchar**) &key_cacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"key_length", 'k', "Undocumented", (uchar**) &key_length, (uchar**) &key_length,
+  {"key_cache", 'K', "Undocumented", &key_cacheing,
+   &key_cacheing, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_length", 'k', "Undocumented", &key_length, &key_length,
    0, GET_UINT, REQUIRED_ARG, 6, 0, 0, 0, 0, 0},
   {"key_multiple", 'm', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -561,21 +561,21 @@ static struct my_option my_long_options[] =
   {"key_varchar", 'w', "Test VARCHAR keys",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"null_fields", 'N', "Define fields with NULL",
-   (uchar**) &null_fields, (uchar**) &null_fields, 0, GET_BOOL, NO_ARG,
+   &null_fields, &null_fields, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"row_fixed_size", 'S', "Undocumented",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"row_pointer_size", 'R', "Undocumented", (uchar**) &rec_pointer_size,
-   (uchar**) &rec_pointer_size, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"row_pointer_size", 'R', "Undocumented", &rec_pointer_size,
+   &rec_pointer_size, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Undocumented",
-   (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip_update", 'U', "Undocumented", (uchar**) &skip_update,
-   (uchar**) &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"unique", 'C', "Undocumented", (uchar**) &opt_unique, (uchar**) &opt_unique, 0,
+   &silent, &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip_update", 'U', "Undocumented", &skip_update,
+   &skip_update, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"unique", 'C', "Undocumented", &opt_unique, &opt_unique, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"update_rows", 'u', "Undocumented", (uchar**) &update_count,
-   (uchar**) &update_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Be more verbose", (uchar**) &verbose, (uchar**) &verbose, 0,
+  {"update_rows", 'u', "Undocumented", &update_count,
+   &update_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Be more verbose", &verbose, &verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version number and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
