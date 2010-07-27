@@ -30,9 +30,11 @@ handlerton *binlog_hton;
 
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
+#ifndef EMBEDDED_LIBRARY
 static bool purge_error_message(THD* thd, int res);
 static void adjust_linfo_offsets(my_off_t purge_offset);
 static bool log_in_use(const char* log_name);
+#endif /* EMBEDDED_LIBRARY*/
 
 static int binlog_init(void *p);
 static int binlog_close_connection(handlerton *hton, THD *thd);
@@ -741,6 +743,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 /*
   Adjust the position pointer in the binary log file for all running slaves
 
@@ -829,6 +832,7 @@ bool purge_error_message(THD* thd, int res)
   my_ok(thd);
   return FALSE;
 }
+#endif /* EMBEDDED_LIBRARY */
 
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
