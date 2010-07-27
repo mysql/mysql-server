@@ -33,7 +33,7 @@
 
 #include "sql_priv.h"
 #include "unireg.h"
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "sql_parse.h"                        // check_identifier_name
 #include "sql_table.h"                        // write_bin_log
 #include "records.h"          // init_read_record, end_read_record
@@ -251,7 +251,7 @@ void udf_init()
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 
 end:
-  close_thread_tables(new_thd);
+  close_mysql_tables(new_thd);
   delete new_thd;
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD,  0);

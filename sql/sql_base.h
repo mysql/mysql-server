@@ -240,6 +240,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
                                  Open_tables_backup *backup);
 void close_system_tables(THD *thd, Open_tables_backup *backup);
+void close_mysql_tables(THD *thd);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
 void close_log_table(THD *thd, Open_tables_backup *backup);

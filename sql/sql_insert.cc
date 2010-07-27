@@ -1862,7 +1862,10 @@ public:
     while ((row=rows.get()))
       delete row;
     if (table)
+    {
       close_thread_tables(&thd);
+      thd.mdl_context.release_transactional_locks();
+    }
     mysql_mutex_lock(&LOCK_thread_count);
     mysql_mutex_destroy(&mutex);
     mysql_cond_destroy(&cond);
@@ -2414,6 +2417,8 @@ bool Delayed_insert::open_and_lock_table()
   }
   if (!(table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
   {
+    /* To rollback InnoDB statement transaction. */
+    trans_rollback_stmt(&thd);
     my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
              table_list.table_name);
     return TRUE;
@@ -2480,12 +2485,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
       goto err;
     }
 
-    /*
-      Open table requires an initialized lex in case the table is
-      partitioned. The .frm file contains a partial SQL string which is
-      parsed using a lex, that depends on initialized thd->lex.
-    */
-    lex_start(thd);
     thd->lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
     /*
       Statement-based replication of INSERT DELAYED has problems with RAND()
@@ -2619,28 +2618,11 @@ pthread_handler_t handle_delayed_insert(void *arg)
     }
 
   err:
-    /*
-      mysql_lock_tables() can potentially start a transaction and write
-      a table map. In the event of an error, that transaction has to be
-      rolled back.  We only need to roll back a potential statement
-      transaction, since real transactions are rolled back in
-      close_thread_tables().
-
-      TODO: This is not true any more, table maps are generated on the
-      first call to ha_*_row() instead. Remove code that are used to
-      cover for the case outlined above.
-     */
-    trans_rollback_stmt(thd);
-
     DBUG_LEAVE;
   }
 
-  /*
-    di should be unlinked from the thread handler list and have no active
-    clients
-  */
-
   close_thread_tables(thd);			// Free the table
+  thd->mdl_context.release_transactional_locks();
   di->table=0;
   thd->killed= THD::KILL_CONNECTION;	        // If error
   mysql_cond_broadcast(&di->cond_client);       // Safety
@@ -2648,6 +2630,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
   mysql_mutex_lock(&LOCK_delayed_create);       // Because of delayed_get_table
   mysql_mutex_lock(&LOCK_delayed_insert);
+  /*
+    di should be unlinked from the thread handler list and have no active
+    clients
+  */
   delete di;
   mysql_mutex_unlock(&LOCK_delayed_insert);
   mysql_mutex_unlock(&LOCK_delayed_create);

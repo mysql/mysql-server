@@ -59,7 +59,7 @@
 #include "my_md5.h"
 #include "transaction.h"
 
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                   // close_all_tables_for_name
 #include "sql_table.h"                  // build_table_filename,
                                         // build_table_shadow_filename,
                                         // table_to_filename
@@ -6758,7 +6758,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                  table_list, FALSE, NULL,
                                  written_bin_log));
 err:
-  close_thread_tables(thd);
   DBUG_RETURN(TRUE);
 }
 #endif

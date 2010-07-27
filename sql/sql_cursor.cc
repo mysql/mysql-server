@@ -22,6 +22,7 @@
 #include "sql_select.h"
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command
+#include "sql_base.h"
 
 /****************************************************************************
   Declarations.
@@ -523,6 +524,7 @@ Sensitive_cursor::close()
     thd->derived_tables= derived_tables;
     thd->lock= lock;
 
+    close_thread_tables(thd);
     /* Is expected to at least close tables and empty thd->change_list */
     stmt_arena->cleanup_stmt();
 

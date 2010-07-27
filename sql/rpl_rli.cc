@@ -1257,7 +1257,23 @@ void Relay_log_info::clear_tables_to_lock()
 
 void Relay_log_info::slave_close_thread_tables(THD *thd)
 {
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
+
   close_thread_tables(thd);
+  /*
+    - If inside a multi-statement transaction,
+    defer the release of metadata locks until the current
+    transaction is either committed or rolled back. This prevents
+    other statements from modifying the table for the entire
+    duration of this transaction.  This provides commit ordering
+    and guarantees serializability across multiple transactions.
+    - If in autocommit mode, or outside a transactional context,
+    automatically release metadata locks of the current statement.
+  */
+  if (! thd->in_multi_stmt_transaction_mode())
+    thd->mdl_context.release_transactional_locks();
   clear_tables_to_lock();
 }
 #endif
