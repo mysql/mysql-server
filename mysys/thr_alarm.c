@@ -903,11 +903,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   sigaddset(&set,THR_SERVER_ALARM);
   sigdelset(&set, thr_client_alarm);
   (void) pthread_sigmask(SIG_SETMASK,&set,NULL);
-#ifdef NOT_USED
-  sigemptyset(&set);
-  sigaddset(&set, thr_client_alarm);
-  pthread_sigmask(SIG_UNBLOCK, &set, (sigset_t*) 0);
-#endif
 
   pthread_attr_init(&thr_attr);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);

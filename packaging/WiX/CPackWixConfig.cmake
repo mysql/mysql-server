@@ -1,10 +1,12 @@
 
 IF(ESSENTIALS)
- MESSAGE("Essentials!")
  SET(CPACK_COMPONENTS_USED "Server;Client;DataFiles")
  SET(CPACK_WIX_UI "WixUI_InstallDir")
- MATH(EXPR bits ${CMAKE_SIZEOF_VOID_P}*8)
- SET(CPACK_PACKAGE_FILE_NAME  "mysql-essentials-${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH}-win${bits}")
+ IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
+  SET(CPACK_PACKAGE_FILE_NAME  "mysql-essential-${VERSION}-winx64")
+ ELSE()
+  SET(CPACK_PACKAGE_FILE_NAME  "mysql-essential-${VERSION}-win32")
+ ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
     "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
@@ -57,6 +59,7 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  SET(CPACK_COMPONENT_DATAFILES_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_DATAFILES_DISPLAY_NAME "Server data files")
  SET(CPACK_COMPONENT_DATAFILES_DESCRIPTION "Server data files" )
+ SET(CPACK_COMPONENT_DATAFILES_HIDDEN 1)
  
  
 #Feature "Devel"

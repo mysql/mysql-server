@@ -1010,6 +1010,11 @@ protected:
   void no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
+  /*
+    MIN/MAX uses Item_cache_datetime for storing DATETIME values, thus
+    in this case a correct INT value can be provided.
+  */
+  bool result_as_longlong() { return args[0]->result_as_longlong(); }
 };
 
 

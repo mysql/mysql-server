@@ -31,14 +31,14 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "loop", 'l', "loops",
-    (gptr*) &_loop, (gptr*) &_loop, 0,
+     &_loop,  &_loop, 0,
     GET_INT, REQUIRED_ARG, _loop, 0, 0, 0, 0, 0 }, 
   { "sleep", 's', "Sleep (ms) between connection attempt",
-    (gptr*) &_sleep, (gptr*) &_sleep, 0,
+     &_sleep,  &_sleep, 0,
     GET_INT, REQUIRED_ARG, _sleep, 0, 0, 0, 0, 0 }, 
   { "drop", 'd', 
     "Drop event operations before disconnect (0 = no, 1 = yes, else rand",
-    (gptr*) &_drop, (gptr*) &_drop, 0,
+     &_drop,  &_drop, 0,
     GET_INT, REQUIRED_ARG, _drop, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
