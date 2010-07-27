@@ -24,13 +24,14 @@ Rpl_info::Rpl_info(const char* type,
                    PSI_mutex_key *param_key_info_start_cond,
                    PSI_mutex_key *param_key_info_stop_cond)
   :Slave_reporting_capability(type),
-  info_thd(0), inited(0), abort_slave(0),
-  slave_running(0), slave_run_id(0), handler(0),
   key_info_run_lock(param_key_info_run_lock),
   key_info_data_lock(param_key_info_data_lock),
   key_info_data_cond(param_key_info_data_cond),
   key_info_start_cond(param_key_info_start_cond),
-  key_info_stop_cond(param_key_info_stop_cond)
+  key_info_stop_cond(param_key_info_stop_cond),
+  info_thd(0), inited(0), abort_slave(0),
+  slave_running(0), slave_run_id(0),
+  handler(0)
 {
   mysql_mutex_init(*key_info_run_lock, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(*key_info_data_lock,
