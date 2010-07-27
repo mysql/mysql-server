@@ -205,6 +205,20 @@ a
 insert into t2 (a) values (3);
 # --> connection default;
 unlock tables;
+#
+# Check that "flush tables <list> with read lock" is
+# compatible with active "flush tables with read lock".
+# Vice versa is not true as tables read-locked by
+# "flush tables <list> with read lock" can't be flushed.
+flush tables with read lock;
+# --> connection con1;
+flush table t1 with read lock;
+select * from t1;
+a
+1
+unlock tables;
+# --> connection default;
+unlock tables;
 # --> connection con1
 drop table t1, t2, t3;
 #

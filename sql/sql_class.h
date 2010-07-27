@@ -2302,6 +2302,12 @@ public:
   {
     const char* old_msg = proc_info;
     mysql_mutex_assert_owner(mutex);
+    /*
+      This method should not be called with LOCK_open mutex as an
+      argument. Otherwise deadlocks can arise in MDL deadlock detector.
+      @sa TABLE_SHARE::find_deadlock().
+    */
+    DBUG_ASSERT(mutex != &LOCK_open);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;

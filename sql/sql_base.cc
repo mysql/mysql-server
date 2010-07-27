@@ -146,9 +146,6 @@ static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
 static void free_cache_entry(TABLE *entry);
-static bool tdc_wait_for_old_versions(THD *thd,
-                                      MDL_request_list *mdl_requests,
-                                      ulong timeout);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 
@@ -315,7 +312,7 @@ void table_def_start_shutdown(void)
   {
     mysql_mutex_lock(&LOCK_open);
     /* Free all cached but unused TABLEs and TABLE_SHAREs first. */
-    close_cached_tables(NULL, NULL, TRUE, FALSE);
+    close_cached_tables(NULL, NULL, TRUE, FALSE, LONG_TIMEOUT);
     /*
       Ensure that TABLE and TABLE_SHARE objects which are created for
       tables that are open during process of plugins' shutdown are
@@ -928,6 +925,7 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
   @param tables List of tables to remove from the cache
   @param have_lock If LOCK_open is locked
   @param wait_for_refresh Wait for a impending flush
+  @param timeout Timeout for waiting for flush to be completed.
 
   @note THD can be NULL, but then wait_for_refresh must be FALSE
         and tables must be NULL.
@@ -941,10 +939,11 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
 */
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh)
+                         bool wait_for_refresh, ulong timeout)
 {
   bool result= FALSE;
   bool found= TRUE;
+  struct timespec abstime;
   DBUG_ENTER("close_cached_tables");
   DBUG_ASSERT(thd || (!wait_for_refresh && !tables));
 
@@ -952,7 +951,16 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     mysql_mutex_lock(&LOCK_open);
   if (!tables)
   {
-    refresh_version++;				// Force close of open tables
+    /*
+      Force close of all open tables.
+
+      Note that code in TABLE_SHARE::wait_until_flushed() assumes that
+      incrementing of refresh_version and removal of unused tables and
+      shares from TDC happens atomically under protection of LOCK_open,
+      or putting it another way that TDC does not contain old shares
+      which don't have any tables used.
+    */
+    refresh_version++;
     DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
                           refresh_version));
     kill_delayed_threads();
@@ -995,6 +1003,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   /* Code below assume that LOCK_open is released. */
   DBUG_ASSERT(!have_lock);
 
+  set_timespec(abstime, timeout);
+
   if (thd->locked_tables_mode)
   {
     /*
@@ -1034,6 +1044,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
   while (found && ! thd->killed)
   {
+    TABLE_SHARE *share;
     found= FALSE;
     /*
       To a self-deadlock or deadlocks with other FLUSH threads
@@ -1044,13 +1055,11 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
     mysql_mutex_lock(&LOCK_open);
 
-    thd->enter_cond(&COND_refresh, &LOCK_open, "Flushing tables");
-
     if (!tables)
     {
       for (uint idx=0 ; idx < table_def_cache.records ; idx++)
       {
-        TABLE_SHARE *share=(TABLE_SHARE*) my_hash_element(&table_def_cache,
+        share= (TABLE_SHARE*) my_hash_element(&table_def_cache,
                                                           idx);
         if (share->needs_reopen())
         {
@@ -1063,7 +1072,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     {
       for (TABLE_LIST *table= tables; table; table= table->next_local)
       {
-        TABLE_SHARE *share= get_cached_table_share(table->db, table->table_name);
+        share= get_cached_table_share(table->db, table->table_name);
         if (share && share->needs_reopen())
         {
 	  found= TRUE;
@@ -1074,11 +1083,17 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
     if (found)
     {
-      DBUG_PRINT("signal", ("Waiting for COND_refresh"));
-      mysql_cond_wait(&COND_refresh, &LOCK_open);
+      /* The below method will unlock LOCK_open and frees share's memory. */
+      if (share->wait_until_flushed(&thd->mdl_context, &abstime,
+                                    MDL_DEADLOCK_WEIGHT_DDL))
+      {
+        mysql_mutex_unlock(&LOCK_open);
+        result= TRUE;
+        goto err_with_reopen;
+      }
     }
 
-    thd->exit_cond(NULL);
+    mysql_mutex_unlock(&LOCK_open);
   }
 
 err_with_reopen:
@@ -1149,7 +1164,7 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
   }
 
   if (tables)
-    result= close_cached_tables(thd, tables, TRUE, FALSE);
+    result= close_cached_tables(thd, tables, TRUE, FALSE, LONG_TIMEOUT);
 
   if (!have_lock)
     mysql_mutex_unlock(&LOCK_open);
@@ -2347,7 +2362,7 @@ bool MDL_deadlock_handler::handle_condition(THD *,
   {
     /* Disable the handler to avoid infinite recursion. */
     m_is_active= TRUE;
-    (void) m_ot_ctx->request_backoff_action(Open_table_context::OT_MDL_CONFLICT,
+    (void) m_ot_ctx->request_backoff_action(Open_table_context::OT_CONFLICT,
                                             NULL);
     m_is_active= FALSE;
     /*
@@ -2394,6 +2409,8 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
                         uint flags,
                         MDL_ticket **mdl_ticket)
 {
+  MDL_request mdl_request_shared;
+
   if (flags & (MYSQL_OPEN_FORCE_SHARED_MDL |
                MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
@@ -2419,15 +2436,11 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
     DBUG_ASSERT(!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) ||
                 !(flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL));
 
-    mdl_request= new (thd->mem_root) MDL_request(mdl_request);
-    if (mdl_request == NULL)
-      return TRUE;
-
-    mdl_request->set_type((flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
-                          MDL_SHARED : MDL_SHARED_HIGH_PRIO);
+    mdl_request_shared.init(&mdl_request->key,
+                            (flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
+                            MDL_SHARED : MDL_SHARED_HIGH_PRIO);
+    mdl_request= &mdl_request_shared;
   }
-
-  ot_ctx->add_request(mdl_request);
 
   if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
   {
@@ -2487,6 +2500,38 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
       return TRUE;
   }
   *mdl_ticket= mdl_request->ticket;
+  return FALSE;
+}
+
+
+/**
+  Check if table's share requires flush and if yes wait until it
+  will be flushed.
+
+  @param thd             Thread context.
+  @param table_list      Table which share should be checked.
+  @param timeout         Timeout for waiting.
+  @param deadlock_weight Weight of this wait for deadlock detector.
+
+  @retval FALSE - Success. Share is up to date or has been flushed.
+  @retval TRUE - Error (OOM, thread was killed, wait resulted in
+                 deadlock or timeout).
+*/
+
+static bool tdc_wait_for_old_version(THD *thd, TABLE_LIST *table_list,
+                                     ulong timeout, uint deadlock_weight)
+{
+  TABLE_SHARE *share;
+
+  if ((share= get_cached_table_share(table_list->db,
+                                     table_list->table_name)) &&
+      share->needs_reopen())
+  {
+    struct timespec abstime;
+    set_timespec(abstime, timeout);
+    return share->wait_until_flushed(&thd->mdl_context, &abstime,
+                                     deadlock_weight);
+  }
   return FALSE;
 }
 
@@ -2580,8 +2625,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
     if (thd->open_tables && thd->open_tables->s->version != refresh_version)
     {
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
-                                            NULL);
+      (void)ot_ctx->request_backoff_action(Open_table_context::OT_REOPEN_TABLES,
+                                           NULL);
       DBUG_RETURN(TRUE);
     }
   }
@@ -2794,6 +2839,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   mysql_mutex_lock(&LOCK_open);
 
+retry_share:
+
   if (!(share= get_table_share_with_create(thd, table_list, key,
                                            key_length, OPEN_VIEW,
                                            &error,
@@ -2849,31 +2896,50 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
     goto err_unlock;
 
-  /*
-    If the version changes while we're opening the tables,
-    we have to back off, close all the tables opened-so-far,
-    and try to reopen them. Note: refresh_version is currently
-    changed only during FLUSH TABLES.
-  */
-  if (share->needs_reopen() ||
-      (thd->open_tables && thd->open_tables->s->version != share->version))
+  if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
   {
-    if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
+    if (share->needs_reopen())
     {
-       /*
-         We already have an MDL lock. But we have encountered an old
-         version of table in the table definition cache which is possible
-         when someone changes the table version directly in the cache
-         without acquiring a metadata lock (e.g. this can happen during
-         "rolling" FLUSH TABLE(S)).
-         Note, that to avoid a "busywait" in this case, we have to wait
-         separately in the caller for old table versions to go away
-         (see tdc_wait_for_old_versions()).
-       */
+      /*
+        We already have an MDL lock. But we have encountered an old
+        version of table in the table definition cache which is possible
+        when someone changes the table version directly in the cache
+        without acquiring a metadata lock (e.g. this can happen during
+        "rolling" FLUSH TABLE(S)).
+        Release our reference to share, wait until old version of
+        share goes away and then try to get new version of table share.
+      */
+      MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+      bool wait_result;
+
+      release_table_share(share);
+
+      thd->push_internal_handler(&mdl_deadlock_handler);
+      wait_result= tdc_wait_for_old_version(thd, table_list,
+                                            ot_ctx->get_timeout(),
+                                            mdl_ticket->get_deadlock_weight());
+      thd->pop_internal_handler();
+
+      if (wait_result)
+      {
+        mysql_mutex_unlock(&LOCK_open);
+        DBUG_RETURN(TRUE);
+      }
+      goto retry_share;
+    }
+
+    if (thd->open_tables && thd->open_tables->s->version != share->version)
+    {
+      /*
+        If the version changes while we're opening the tables,
+        we have to back off, close all the tables opened-so-far,
+        and try to reopen them. Note: refresh_version is currently
+        changed only during FLUSH TABLES.
+      */
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
-      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC,
-                                            NULL);
+      (void)ot_ctx->request_backoff_action(Open_table_context::OT_REOPEN_TABLES,
+                                           NULL);
       DBUG_RETURN(TRUE);
     }
   }
@@ -3831,7 +3897,7 @@ request_backoff_action(enum_open_table_action action_arg,
       Since there is no way to detect such a deadlock, we prevent
       it by reporting an error.
   */
-  if (m_has_locks)
+  if (action_arg != OT_REOPEN_TABLES && m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     return TRUE;
@@ -3877,11 +3943,9 @@ recover_from_failed_open(THD *thd)
   /* Execute the action. */
   switch (m_action)
   {
-    case OT_MDL_CONFLICT:
+    case OT_CONFLICT:
       break;
-    case OT_WAIT_TDC:
-      result= tdc_wait_for_old_versions(thd, &m_mdl_requests, get_timeout());
-      DBUG_ASSERT(thd->mysys_var->current_mutex == NULL);
+    case OT_REOPEN_TABLES:
       break;
     case OT_DISCOVER:
       {
@@ -3921,8 +3985,6 @@ recover_from_failed_open(THD *thd)
     default:
       DBUG_ASSERT(0);
   }
-  /* Remove all old requests, they will be re-added. */
-  m_mdl_requests.empty();
   /*
     Reset the pointers to conflicting MDL request and the
     TABLE_LIST element, set when we need auto-discovery or repair,
@@ -4043,8 +4105,6 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
           mdl_type != MDL_key::PROCEDURE)
       {
-        ot_ctx->add_request(&rt->mdl_request);
-
         /*
           Since we acquire only shared lock on routines we don't
           need to care about global intention exclusive locks.
@@ -4721,6 +4781,8 @@ restart:
         }
         goto err;
       }
+
+      DEBUG_SYNC(thd, "open_tables_after_open_and_process_table");
     }
 
     /*
@@ -8595,17 +8657,6 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
     }
     mysql_mutex_unlock(&in_use->LOCK_thd_data);
   }
-  /*
-    Wake up threads waiting in tdc_wait_for_old_versions().
-    Normally such threads would already get blocked
-    in MDL subsystem, when trying to acquire a shared lock.
-    But in case a thread has an open HANDLER statement,
-    (and thus already grabbed a metadata lock), it gets
-    blocked only too late -- at the table cache level.
-    Starting from 5.5, this could also easily happen in
-    a multi-statement transaction.
-  */
-  broadcast_refresh();
   return signalled;
 }
 
@@ -8680,6 +8731,13 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       /*
         Set share's version to zero in order to ensure that it gets
         automatically deleted once it is no longer referenced.
+
+        Note that code in TABLE_SHARE::wait_until_flushed() assumes
+        that marking share as old and removal of its unused tables
+        and of the share itself from TDC happens atomically under
+        protection of LOCK_open, or, putting it another way, that
+        TDC does not contain old shares which don't have any tables
+        used.
       */
       share->version= 0;
 
@@ -8689,84 +8747,6 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
     else
       (void) my_hash_delete(&table_def_cache, (uchar*) share);
   }
-}
-
-
-/**
-   Wait until there are no old versions of tables in the table
-   definition cache for the metadata locks that we try to acquire.
-
-   @param thd      Thread context
-   @param context  Metadata locking context with locks.
-   @param timeout  Seconds to wait before reporting ER_LOCK_WAIT_TIMEOUT.
-*/
-
-static bool
-tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests,
-                          ulong timeout)
-{
-  TABLE_SHARE *share;
-  const char *old_msg;
-  MDL_request *mdl_request;
-  struct timespec abstime;
-  set_timespec(abstime, timeout);
-  int wait_result= 0;
-
-  while (!thd->killed)
-  {
-    /*
-      We have to get rid of HANDLERs which are open by this thread
-      and have old TABLE versions. Otherwise we might get a deadlock
-      in situation when we are waiting for an old TABLE object which
-      corresponds to a HANDLER open by another session. And this
-      other session waits for our HANDLER object to get closed.
-
-      TODO: We should also investigate in which situations we have
-            to broadcast on COND_refresh because of this.
-    */
-    mysql_ha_flush(thd);
-
-    mysql_mutex_lock(&LOCK_open);
-
-    MDL_request_list::Iterator it(*mdl_requests);
-    while ((mdl_request= it++))
-    {
-      /* Skip requests on non-TDC objects. */
-      if (mdl_request->key.mdl_namespace() != MDL_key::TABLE)
-        continue;
-
-      if ((share= get_cached_table_share(mdl_request->key.db_name(),
-                                         mdl_request->key.name())) &&
-          share->needs_reopen())
-        break;
-    }
-    if (!mdl_request)
-    {
-      /*
-        Reset wait_result here in case this was the final check
-        after getting a timeout from mysql_cond_timedwait().
-      */
-      wait_result= 0;
-      mysql_mutex_unlock(&LOCK_open);
-      break;
-    }
-    if (wait_result == ETIMEDOUT || wait_result == ETIME)
-    {
-      /*
-        Test for timeout here instead of right after mysql_cond_timedwait().
-        This allows for a final iteration and a final check before reporting
-        ER_LOCK_WAIT_TIMEOUT.
-      */
-      mysql_mutex_unlock(&LOCK_open);
-      my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
-      break;
-    }
-    old_msg= thd->enter_cond(&COND_refresh, &LOCK_open, "Waiting for table");
-    wait_result= mysql_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
-    /* LOCK_open mutex is unlocked by THD::exit_cond() as side-effect. */
-    thd->exit_cond(old_msg);
-  }
-  return thd->killed || wait_result == ETIMEDOUT || wait_result == ETIME;
 }
 
 

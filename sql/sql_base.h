@@ -250,7 +250,7 @@ TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
 void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh);
+                         bool wait_for_refresh, ulong timeout);
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);
@@ -454,8 +454,8 @@ public:
   enum enum_open_table_action
   {
     OT_NO_ACTION= 0,
-    OT_MDL_CONFLICT,
-    OT_WAIT_TDC,
+    OT_CONFLICT,
+    OT_REOPEN_TABLES,
     OT_DISCOVER,
     OT_REPAIR
   };
@@ -464,9 +464,6 @@ public:
   bool recover_from_failed_open(THD *thd);
   bool request_backoff_action(enum_open_table_action action_arg,
                               TABLE_LIST *table);
-
-  void add_request(MDL_request *request)
-  { m_mdl_requests.push_front(request); }
 
   bool can_recover_from_failed_open() const
   { return m_action != OT_NO_ACTION; }
@@ -489,8 +486,6 @@ public:
 
   uint get_flags() const { return m_flags; }
 private:
-  /** List of requests for all locks taken so far. Used for waiting on locks. */
-  MDL_request_list m_mdl_requests;
   /**
     For OT_DISCOVER and OT_REPAIR actions, the table list element for
     the table which definition should be re-discovered or which

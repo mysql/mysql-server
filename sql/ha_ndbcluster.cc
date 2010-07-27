@@ -679,7 +679,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
-    close_cached_tables(thd, &table_list, FALSE, FALSE);
+    close_cached_tables(thd, &table_list, FALSE, FALSE, LONG_TIMEOUT);
     break;
   }
   default:
@@ -8452,7 +8452,7 @@ int handle_trailing_share(NDB_SHARE *share)
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   mysql_mutex_assert_owner(&LOCK_open);
-  close_cached_tables(thd, &table_list, TRUE, FALSE);
+  close_cached_tables(thd, &table_list, TRUE, FALSE, LONG_TIMEOUT);
 
   mysql_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */

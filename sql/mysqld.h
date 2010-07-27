@@ -255,7 +255,7 @@ extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 
 extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
-  key_COND_refresh, key_COND_rpl_status, key_COND_server_started,
+  key_COND_rpl_status, key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
@@ -339,7 +339,7 @@ extern mysql_cond_t COND_server_started;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_thread_count;
-extern mysql_cond_t COND_refresh, COND_manager;
+extern mysql_cond_t COND_manager;
 extern mysql_cond_t COND_global_read_lock;
 extern int32 thread_running;
 extern my_atomic_rwlock_t thread_running_lock;
