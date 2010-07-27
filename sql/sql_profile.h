@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,11 +10,17 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
+
+class Item;
+struct TABLE_LIST;
+class THD;
+typedef struct st_field_info ST_FIELD_INFO;
+typedef struct st_schema_table ST_SCHEMA_TABLE;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];
 int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
@@ -34,7 +40,8 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
 #if defined(ENABLED_PROFILING)
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -75,7 +82,7 @@ public:
     for (i= first; i != NULL; i= after_i)
     {
       after_i= i->next;
-      my_free((char *) i, MYF(0));
+      my_free(i);
     }
     elements= 0;
   }
@@ -122,7 +129,7 @@ public:
       last= NULL;
     first= first->next;
 
-    my_free((char *)old_item, MYF(0));
+    my_free(old_item);
     elements--;
 
     return ret;

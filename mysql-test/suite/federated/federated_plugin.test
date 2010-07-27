@@ -1,0 +1,24 @@
+--source include/not_windows.inc
+--source include/have_federated_plugin.inc
+
+--skip federated plugin is disabled
+
+CREATE TABLE t1(a int) ENGINE=FEDERATED;
+DROP TABLE t1;
+
+INSTALL PLUGIN federated SONAME 'ha_federated.so';
+--error 1125
+INSTALL PLUGIN FEDERATED SONAME 'ha_federated.so';
+
+UNINSTALL PLUGIN federated;
+
+INSTALL PLUGIN federated SONAME 'ha_federated.so';
+
+CREATE TABLE t1(a int) ENGINE=FEDERATED;
+
+DROP TABLE t1;
+
+UNINSTALL PLUGIN federated;
+--error ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN federated;
+

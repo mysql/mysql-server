@@ -54,25 +54,21 @@ static struct my_option my_long_options[] =
 {
   {"all-databases", 'A',
    "Check all the databases. This is the same as --databases with all databases selected.",
-   (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &opt_alldbs, &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"analyze", 'a', "Analyze given tables.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"all-in-1", '1',
    "Instead of issuing one query for each table, use one query per database, naming all tables in the database in a comma-separated list.",
-   (uchar**) &opt_all_in_1, (uchar**) &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_all_in_1, &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"auto-repair", OPT_AUTO_REPAIR,
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
-   (uchar**) &opt_auto_repair, (uchar**) &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
+   &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", (uchar**) &charsets_dir,
-   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", &charsets_dir,
+   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"check-only-changed", 'C',
@@ -82,11 +78,11 @@ static struct my_option my_long_options[] =
    "Check tables for version-dependent changes. May be used with --auto-repair to correct tables requiring version-dependent updates.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
-   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"databases", 'B',
    "Check several databases. Note the difference in usage; in this case no tables are given. All name arguments are regarded as database names.",
-   (uchar**) &opt_databases, (uchar**) &opt_databases, 0, GET_BOOL, NO_ARG,
+   &opt_databases, &opt_databases, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
@@ -96,40 +92,41 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
-   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", (uchar**) &default_charset,
-   (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Set the default character set.", &default_charset,
+   &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fast",'F', "Check only tables that haven't been closed properly.",
-   (uchar**) &opt_fast, (uchar**) &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"fix-db-names", OPT_FIX_DB_NAMES, "Fix database names.",
-    (uchar**) &opt_fix_db_names, (uchar**) &opt_fix_db_names,
+    &opt_fix_db_names, &opt_fix_db_names,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fix-table-names", OPT_FIX_TABLE_NAMES, "Fix table names.",
-    (uchar**) &opt_fix_table_names, (uchar**) &opt_fix_table_names,
+    &opt_fix_table_names, &opt_fix_table_names,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Continue even if we get an SQL error.",
-   (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
+   &ignore_errors, &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"extended", 'e',
    "If you are using this option with CHECK TABLE, it will ensure that the table is 100 percent consistent, but will take a long time. If you are using this option with REPAIR TABLE, it will force using old slow repair with keycache method, instead of much faster repair by sorting.",
-   (uchar**) &opt_extended, (uchar**) &opt_extended, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_extended, &opt_extended, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host",'h', "Connect to host.", (uchar**) &current_host,
-   (uchar**) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"host",'h', "Connect to host.", &current_host,
+   &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
-   "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Use --skip-write-binlog when commands should not be sent to replication slaves.",
-   (uchar**) &opt_write_binlog, (uchar**) &opt_write_binlog, 0, GET_BOOL, NO_ARG,
+   "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Use --skip-write-binlog "
+   "when commands should not be sent to replication slaves.",
+   &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -146,38 +143,37 @@ static struct my_option my_long_options[] =
    "/etc/services, "
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-   (uchar**) &opt_mysql_port,
-   (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
+   &opt_mysql_port, &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "If you are using this option with CHECK TABLE, it prevents the check from scanning the rows to check for wrong links. This is the fastest check. If you are using this option with REPAIR TABLE, it will try to repair only the index tree. This is the fastest repair method for a table.",
-   (uchar**) &opt_quick, (uchar**) &opt_quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   &opt_quick, &opt_quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"repair", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
+   "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"silent", 's', "Print only error messages.", (uchar**) &opt_silent,
-   (uchar**) &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Print only error messages.", &opt_silent,
+   &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
-   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
+   &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"use-frm", OPT_FRM,
    "When used with REPAIR, get table structure from .frm file, so the table can be repaired even if .MYI header is corrupted.",
-   (uchar**) &opt_frm, (uchar**) &opt_frm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   &opt_frm, &opt_frm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user", 'u', "User for login if not current user.", (uchar**) &current_user,
-   (uchar**) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", &current_user,
+   &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v', "Print info about the various stages.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -208,13 +204,11 @@ static uint fixed_name_length(const char *name);
 static char *fix_table_name(char *dest, char *src);
 int what_to_do = 0;
 
-#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, CHECK_VERSION,
    MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -245,18 +239,12 @@ static void usage(void)
   my_print_variables(my_long_options);
 } /* usage */
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
   case 'a':
     what_to_do = DO_ANALYZE;
     break;
@@ -291,7 +279,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (argument)
     {
       char *start = argument;
-      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_password);
       opt_password = my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
@@ -470,7 +458,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     }
     *--end = 0;
     handle_request_for_tables(table_names_comma_sep + 1, (uint) (tot_length - 1));
-    my_free(table_names_comma_sep, MYF(0));
+    my_free(table_names_comma_sep);
   }
   else
     for (; tables > 0; tables--, table_names++)
@@ -569,7 +557,7 @@ static int process_all_tables_in_db(char *database)
     *--end = 0;
     if (tot_length)
       handle_request_for_tables(tables + 1, tot_length - 1);
-    my_free(tables, MYF(0));
+    my_free(tables);
   }
   else
   {
@@ -708,8 +696,7 @@ static int handle_request_for_tables(char *tables, uint length)
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
-    query_length= my_sprintf(query,
-			     (query, "%s TABLE %s %s", op, tables, options));
+    query_length= sprintf(query, "%s TABLE %s %s", op, tables, options);
   }
   else
   {
@@ -727,7 +714,7 @@ static int handle_request_for_tables(char *tables, uint length)
     return 1;
   }
   print_result();
-  my_free(query, MYF(0));
+  my_free(query);
   return 0;
 }
 
@@ -899,9 +886,9 @@ int main(int argc, char **argv)
   dbDisconnect(current_host);
   if (opt_auto_repair)
     delete_dynamic(&tables4repair);
-  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_password);
 #ifdef HAVE_SMEM
-  my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(shared_memory_base_name);
 #endif
   my_end(my_end_arg);
   return(first_error!=0);

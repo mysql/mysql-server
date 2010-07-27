@@ -77,7 +77,7 @@ INSTALL(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
   ${FIX_PRIVILEGES_SQL}
-  DESTINATION ${INSTALL_MYSQLSHAREDIR}
+  DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
 )
 
 # TCMalloc hacks
@@ -90,13 +90,17 @@ IF(MALLOC_LIB)
 ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  # No multiconfig build - use CMAKE_C_FLAGS
-  SET(CFLAGS "@CMAKE_C_FLAGS@")
-  SET(CXXFLAGS "@CMAKE_CXX_FLAGS@")
+  # Strip maintainer mode options if necessary
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
+    SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
+    SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
+  ENDFOREACH()
 ELSE()
-  # Multiconfig build - use CMAKE_C_FLAGS_RELWITHDEBINFO
-  SET(CFLAGS "@CMAKE_C_FLAGS_RELWITHDEBINFO@")
-  SET(CXXFLAGS "@CMAKE_CXX_FLAGS_RELWITHDEBINFO@")
+  # Strip maintainer mode options if necessary
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
 
 IF(UNIX)
@@ -134,10 +138,46 @@ ELSE()
   SET(CHECK_PID "kill -s SIGCONT $PID  > /dev/null 2> /dev/null")
 ENDIF()
 
+SET(HOSTNAME "hostname")
+
+# Required for mysqlbug until autotools are deprecated, once done remove these
+# and expand default cmake variables
+SET(CC ${CMAKE_C_COMPILER})
+SET(CXX ${CMAKE_CXX_COMPILER})
+SET(SAVE_CC ${CMAKE_C_COMPILER})
+SET(SAVE_CXX ${CMAKE_CXX_COMPILER})
+SET(SAVE_CFLAGS ${CFLAGS})
+SET(SAVE_CXXFLAGS ${CXXFLAGS})
+# XXX no cmake equivalent for this, just make one up
+SET(CONFIGURE_LINE "Built using CMake")
+
+# Also required for mysqlbug, autoconf only supports --version so for now we
+# just explicitly require GNU
+IF(CMAKE_COMPILER_IS_GNUCC)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} --version
+    COMMAND sed 1q
+    OUTPUT_VARIABLE CC_VERSION)
+ELSE()
+  SET(CC_VERSION "")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} --version
+    COMMAND sed 1q
+    OUTPUT_VARIABLE CXX_VERSION)
+ELSE()
+  SET(CXX_VERSION "")
+ENDIF()
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
+  ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
+INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/mysqlbug
+  DESTINATION ${INSTALL_BINDIR}
+  COMPONENT Server
+  )
+
 ENDIF(UNIX)
-
-
-
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
 # i.e. makes access relative the current directory. This matches
@@ -172,12 +212,10 @@ ELSE()
  SET(EXT ".pl")
 ENDIF()
 
-INSTALL(FILES
+INSTALL_SCRIPT(
  "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT}"
   DESTINATION ${DEST}
-  PERMISSIONS OWNER_READ OWNER_WRITE 
-  OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
-  WORLD_READ WORLD_EXECUTE 
+  COMPONENT Server
   )
 
 
@@ -195,9 +233,9 @@ SET(localstatedir ${MYSQL_DATADIR})
 
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  SET(TARGET_LINUX 1)
+  SET(TARGET_LINUX "true")
 ELSE()
-  SET(TARGET_LINUX 0)
+  SET(TARGET_LINUX "false")
 ENDIF()
 
 # Use cmake variables to inspect dependencies for 
@@ -252,6 +290,7 @@ IF(MSVC)
 ENDIF()
 
 SET(NON_THREADED_LIBS ${CLIENT_LIBS})
+SET(mysql_config_COMPONENT COMPONENT Development)
 
 IF(WIN32)
   # On Windows, some .sh and some .pl.in files are configured 
@@ -261,35 +300,26 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config mysql_secure_installation)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow 
+  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
     mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
+    IF(NOT ${file}_COMPONENT)
+      SET(${file}_COMPONENT Server_Scripts)
+    ENDIF()
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.pl.in
       ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
-	 
-    INSTALL(FILES
-      ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl
-      DESTINATION scripts
-      PERMISSIONS OWNER_READ OWNER_WRITE 
-      OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
-      WORLD_READ WORLD_EXECUTE 
-      )
+    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT ${${file}_COMPONENT})
   ENDFOREACH()
 
   FOREACH(file ${SH_FILES})
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh
        ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
-    INSTALL(FILES
-      ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl
-      DESTINATION scripts
-      PERMISSIONS OWNER_READ OWNER_WRITE 
-      OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
-      WORLD_READ WORLD_EXECUTE
-      )
+    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT ${${file}_COMPONENT})
   ENDFOREACH()
 ELSE()
   # On Unix, most of the files end up in the bin directory
+  SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
     msql2mysql
     mysql_config
@@ -298,14 +328,12 @@ ELSE()
     mysql_secure_installation
     mysql_zap
     mysqlaccess
-    mysqlbug
+    mysqlaccess.conf
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi
-    mysqlaccess
-    mysqlaccess.conf
     mysqld_safe
   )
   FOREACH(file ${BIN_SCRIPTS})
@@ -319,13 +347,14 @@ ELSE()
       MESSAGE(FATAL_ERROR "Can not find ${file}.sh or ${file} in "
         "${CMAKE_CURRENT_SOURCE_DIR}" )
     ENDIF()
-   INSTALL(FILES 
-    ${CMAKE_CURRENT_BINARY_DIR}/${file}
-    DESTINATION ${INSTALL_BINDIR}
-    PERMISSIONS OWNER_READ OWNER_WRITE 
-    OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
-    WORLD_READ WORLD_EXECUTE 
-   )
+    IF(NOT ${file}_COMPONENT)
+      SET(${file}_COMPONENT Server)
+    ENDIF()
+    INSTALL_SCRIPT(
+      ${CMAKE_CURRENT_BINARY_DIR}/${file} 
+      DESTINATION ${INSTALL_BINDIR}
+      COMPONENT ${${file}_COMPONENT}
+     )
   ENDFOREACH()
 ENDIF()
 
@@ -340,7 +369,8 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_FLAGS MATCHES "-static")
      ERROR_QUIET
   )
   IF(${RESULT} EQUAL 0 AND EXISTS ${LIBGCC_LOCATION})
-    INSTALL(FILES "${LIBGCC_LOCATION}" DESTINATION ${INSTALL_LIBDIR})
+    INSTALL(FILES "${LIBGCC_LOCATION}" DESTINATION ${INSTALL_LIBDIR}
+    COMPONENT Development)
   ENDIF()
 ENDIF()
 

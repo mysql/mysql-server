@@ -1010,9 +1010,10 @@ set_ccache_usage()
 set_valgrind_flags()
 {
   if test "x$valgrind_flag" = "xyes" ; then
-    loc_valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify "
+    loc_valgrind_flags="-UFORCE_INIT_OF_VARS -DHAVE_purify "
     loc_valgrind_flags="$loc_valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
     compiler_flags="$compiler_flags $loc_valgrind_flags"
+    with_flags="$with_flags --with-valgrind"
   fi
 }
 
@@ -1065,7 +1066,6 @@ set_with_debug_flags()
   if test "x$with_debug_flag" = "xyes" ; then
     if test "x$developer_flag" = "xyes" ; then
       loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
-      loc_debug_flags="$loc_debug_flags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC"
       compiler_flags="$compiler_flags $loc_debug_flags"
     fi
   fi

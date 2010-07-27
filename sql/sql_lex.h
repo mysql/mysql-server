@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -19,6 +19,11 @@
 
 #ifndef SQL_LEX_INCLUDED
 #define SQL_LEX_INCLUDED
+
+#include "violite.h"                            /* SSL_type */
+#include "sql_trigger.h"
+#include "item.h"               /* From item_subselect.h: subselect_union_engine */
+#include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
 
 /* YACC and LEX Definitions */
 
@@ -35,6 +40,12 @@ class partition_info;
 class Event_parse_data;
 class set_var_base;
 class sys_var;
+class Item_func_match;
+class Alter_drop;
+class Alter_column;
+class Key;
+class File_parser;
+class Key_part_spec;
 
 /**
   used by the parser to store internal variable name
@@ -55,6 +66,7 @@ struct sys_var_with_base
 #else
 #include "lex_symbol.h"
 #if MYSQL_LEX
+#include "item_func.h"            /* Cast_target used in sql_yacc.h */
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
 #else
@@ -193,6 +205,12 @@ enum enum_drop_mode
   DROP_RESTRICT // RESTRICT option
 };
 
+/* Options to add_table_to_list() */
+#define TL_OPTION_UPDATING	1
+#define TL_OPTION_FORCE_INDEX	2
+#define TL_OPTION_IGNORE_LEAVES 4
+#define TL_OPTION_ALIAS         8
+
 typedef List<Item> List_item;
 
 /* SERVERS CACHE CHANGES */
@@ -217,18 +235,21 @@ typedef struct st_lex_master_info
   char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
   float heartbeat_period;
+  int sql_delay;
   ulonglong pos;
   ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+  enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+
+  void set_unspecified();
 } LEX_MASTER_INFO;
 
 
@@ -485,6 +506,7 @@ public:
 					LEX_STRING *alias,
 					ulong table_options,
 					thr_lock_type flags= TL_UNLOCK,
+                                        enum_mdl_type mdl_type= MDL_SHARED_READ,
 					List<Index_hint> *hints= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
@@ -577,11 +599,11 @@ public:
   st_select_lex* outer_select();
   st_select_lex* first_select()
   {
-    return my_reinterpret_cast(st_select_lex*)(slave);
+    return reinterpret_cast<st_select_lex*>(slave);
   }
   st_select_lex_unit* next_unit()
   {
-    return my_reinterpret_cast(st_select_lex_unit*)(next);
+    return reinterpret_cast<st_select_lex_unit*>(next);
   }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
@@ -625,14 +647,21 @@ public:
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
   Item *prep_having;/* saved HAVING clause for prepared statement processing */
-  /* Saved values of the WHERE and HAVING clauses*/
+  /**
+    Saved values of the WHERE and HAVING clauses. Allowed values are: 
+     - COND_UNDEF if the condition was not specified in the query or if it 
+       has not been optimized yet
+     - COND_TRUE if the condition is always true
+     - COND_FALSE if the condition is impossible
+     - COND_OK otherwise
+  */
   Item::cond_result cond_value, having_value;
   /* point on lex in which it was created, used in view subquery detection */
   LEX *parent_lex;
   enum olap_type olap;
   /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
-  SQL_LIST	      table_list;
-  SQL_LIST	      group_list; /* GROUP BY clause. */
+  SQL_I_List<TABLE_LIST>  table_list;
+  SQL_I_List<ORDER>       group_list; /* GROUP BY clause. */
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list;
   bool	              is_item_list_lookup;
@@ -654,8 +683,8 @@ public:
   TABLE_LIST *leaf_tables;
   const char *type;               /* type of select for EXPLAIN          */
 
-  SQL_LIST order_list;                /* ORDER clause */
-  SQL_LIST *gorder_list;
+  SQL_I_List<ORDER> order_list;   /* ORDER clause */
+  SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
@@ -730,14 +759,6 @@ public:
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
 
-  /**
-    Per sub-query locking strategy.
-    Note: This variable might interfer with the corresponding statement-level
-    variable Lex::lock_option because on how different parser rules depend
-    on eachother.
-  */
-  thr_lock_type lock_option;
-
   /* 
     This is a copy of the original JOIN USING list that comes from
     the parser. The parser :
@@ -798,6 +819,7 @@ public:
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
+                                enum_mdl_type mdl_type= MDL_SHARED_READ,
 				List<Index_hint> *hints= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
@@ -813,7 +835,7 @@ public:
   {
     order_list.elements= 0;
     order_list.first= 0;
-    order_list.next= (uchar**) &order_list.first;
+    order_list.next= &order_list.first;
   }
   /*
     This method created for reiniting LEX in mysql_admin_table() and can be
@@ -993,12 +1015,15 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
-extern const LEX_STRING empty_lex_str;
 
+class Sroutine_hash_entry;
 
 /*
-  Class representing list of all tables used by statement.
-  It also contains information about stored functions used by statement
+  Class representing list of all tables used by statement and other
+  information which is necessary for opening and locking its tables,
+  like SQL command for this statement.
+
+  Also contains information about stored functions used by statement
   since during its execution we may have to add all tables used by its
   stored functions/triggers to this list in order to pre-open and lock
   them.
@@ -1010,6 +1035,13 @@ extern const LEX_STRING empty_lex_str;
 class Query_tables_list
 {
 public:
+  /**
+    SQL command for this statement. Part of this class since the
+    process of opening and locking tables for the statement needs
+    this information to determine correct type of lock for some of
+    the tables.
+  */
+  enum_sql_command sql_command;
   /* Global list of all tables used by this statement */
   TABLE_LIST *query_tables;
   /* Pointer to next_global member of last element in the previous list. */
@@ -1036,9 +1068,9 @@ public:
     We use these two members for restoring of 'sroutines_list' to the state
     in which it was right after query parsing.
   */
-  SQL_LIST sroutines_list;
-  uchar    **sroutines_list_own_last;
-  uint     sroutines_list_own_elements;
+  SQL_I_List<Sroutine_hash_entry> sroutines_list;
+  Sroutine_hash_entry **sroutines_list_own_last;
+  uint sroutines_list_own_elements;
 
   /*
     These constructor and destructor serve for creation/destruction
@@ -1152,6 +1184,18 @@ public:
       reads or writes inside a transaction.
     */
     BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS,
+
+    /**
+      Mixing self-logging and non-self-logging engines in a statement
+      is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
+
+    /**
+      Statements that read from both transactional and non-transactional
+      tables and write to any of them are unsafe.
+    */
+    BINLOG_STMT_UNSAFE_MIXED_STATEMENT,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
@@ -1354,8 +1398,23 @@ enum enum_comment_state
 class Lex_input_stream
 {
 public:
-  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
-  ~Lex_input_stream();
+  Lex_input_stream()
+  {
+  }
+
+  ~Lex_input_stream()
+  {
+  }
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length);
+
+  void reset(const char *buff, unsigned int length);
 
   /**
     Set the echo mode.
@@ -1877,7 +1936,8 @@ struct LEX: public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_LIST	      proc_list, auxiliary_table_list, save_list;
+  SQL_I_List<ORDER> proc_list;
+  SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
@@ -1898,7 +1958,6 @@ struct LEX: public Query_tables_list
     the variable can contain 0 or 1 for each nest level.
   */
   nesting_map allow_sum_func;
-  enum_sql_command sql_command;
 
   Sql_statement *m_stmt;
 
@@ -1910,7 +1969,6 @@ struct LEX: public Query_tables_list
   */
   bool expr_allows_subselect;
 
-  thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
@@ -1951,7 +2009,7 @@ struct LEX: public Query_tables_list
   bool autocommit;
   bool verbose, no_write_to_binlog;
 
-  bool tx_chain, tx_release;
+  enum enum_yes_no_unknown tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
     When creating a view, we need to just check its syntax omitting
@@ -2010,7 +2068,7 @@ struct LEX: public Query_tables_list
     fields to TABLE object at table open (altough for latter pointer to table
     being opened is probably enough).
   */
-  SQL_LIST trg_table_fields;
+  SQL_I_List<Item_trigger_field> trg_table_fields;
 
   /*
     stmt_definition_begin is intended to point to the next word after
@@ -2018,6 +2076,7 @@ struct LEX: public Query_tables_list
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+      - CREATE EVENT (points to "EVENT")
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
@@ -2186,8 +2245,8 @@ struct LEX: public Query_tables_list
 class Set_signal_information
 {
 public:
-  /** Constructor. */
-  Set_signal_information();
+  /** Empty default constructor, use clear() */
+ Set_signal_information() {} 
 
   /** Copy constructor. */
   Set_signal_information(const Set_signal_information& set);
@@ -2200,7 +2259,7 @@ public:
   void clear();
 
   /**
-    For each contition item assignment, m_item[] contains the parsed tree
+    For each condition item assignment, m_item[] contains the parsed tree
     that represents the expression assigned, if any.
     m_item[] is an array indexed by Diag_condition_item_name.
   */
@@ -2217,10 +2276,30 @@ class Yacc_state
 {
 public:
   Yacc_state()
-    : yacc_yyss(NULL), yacc_yyvs(NULL)
-  {}
+  {
+    reset();
+  }
+
+  void reset()
+  {
+    yacc_yyss= NULL;
+    yacc_yyvs= NULL;
+    m_set_signal_info.clear();
+    m_lock_type= TL_READ_DEFAULT;
+    m_mdl_type= MDL_SHARED_READ;
+  }
 
   ~Yacc_state();
+
+  /**
+    Reset part of the state which needs resetting before parsing
+    substatement.
+  */
+  void reset_before_substatement()
+  {
+    m_lock_type= TL_READ_DEFAULT;
+    m_mdl_type= MDL_SHARED_READ;
+  }
 
   /**
     Bison internal state stack, yyss, when dynamically allocated using
@@ -2240,6 +2319,31 @@ public:
   */
   Set_signal_information m_set_signal_info;
 
+  /**
+    Type of lock to be used for tables being added to the statement's
+    table list in table_factor, table_alias_ref, single_multi and
+    table_wild_one rules.
+    Statements which use these rules but require lock type different
+    from one specified by this member have to override it by using
+    st_select_lex::set_lock_for_tables() method.
+
+    The default value of this member is TL_READ_DEFAULT. The only two
+    cases in which we change it are:
+    - When parsing SELECT HIGH_PRIORITY.
+    - Rule for DELETE. In which we use this member to pass information
+      about type of lock from delete to single_multi part of rule.
+
+    We should try to avoid introducing new use cases as we would like
+    to get rid of this member eventually.
+  */
+  thr_lock_type m_lock_type;
+
+  /**
+    The type of requested metadata lock for tables added to
+    the statement table list.
+  */
+  enum_mdl_type m_mdl_type;
+
   /*
     TODO: move more attributes from the LEX structure here.
   */
@@ -2254,15 +2358,32 @@ public:
 class Parser_state
 {
 public:
-  Parser_state(THD *thd, const char* buff, unsigned int length)
-    : m_lip(thd, buff, length), m_yacc()
+  Parser_state()
+    : m_yacc()
   {}
+
+  /**
+     Object initializer. Must be called before usage.
+
+     @retval FALSE OK
+     @retval TRUE  Error
+  */
+  bool init(THD *thd, const char *buff, unsigned int length)
+  {
+    return m_lip.init(thd, buff, length);
+  }
 
   ~Parser_state()
   {}
 
   Lex_input_stream m_lip;
   Yacc_state m_yacc;
+
+  void reset(const char *found_semicolon, unsigned int length)
+  {
+    m_lip.reset(found_semicolon, length);
+    m_yacc.reset();
+  }
 };
 
 
@@ -2297,6 +2418,7 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 */
 
 void my_missing_function_error(const LEX_STRING &token, const char *name);
+bool is_keyword(const char *name, uint len);
 
 #endif /* MYSQL_SERVER */
 #endif /* SQL_LEX_INCLUDED */

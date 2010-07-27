@@ -15,13 +15,13 @@
 
 /*
   A better inplementation of the UNIX ctype(3) library.
-  Notes:   my_global.h should be included before ctype.h
 */
 
 #ifndef _m_ctype_h
 #define _m_ctype_h
 
 #include <my_attribute.h>
+#include "my_global.h"                          /* uint16, uchar */
 
 #ifdef	__cplusplus
 extern "C" {
@@ -56,16 +56,63 @@ extern "C" {
 
 
 
-typedef struct unicase_info_st
+typedef struct unicase_info_char_st
 {
   uint32 toupper;
   uint32 tolower;
   uint32 sort;
+} MY_UNICASE_CHARACTER;
+
+
+typedef struct unicase_info_st
+{
+  my_wc_t maxchar;
+  MY_UNICASE_CHARACTER **page;
 } MY_UNICASE_INFO;
 
 
-extern MY_UNICASE_INFO *my_unicase_default[256];
-extern MY_UNICASE_INFO *my_unicase_turkish[256];
+extern MY_UNICASE_INFO my_unicase_default;
+extern MY_UNICASE_INFO my_unicase_turkish;
+extern MY_UNICASE_INFO my_unicase_unicode520;
+
+#define MY_UCA_MAX_CONTRACTION 4
+#define MY_UCA_MAX_WEIGHT_SIZE 8
+
+typedef struct my_contraction_t
+{
+  my_wc_t ch[MY_UCA_MAX_CONTRACTION];   /* Character sequence              */
+  uint16 weight[MY_UCA_MAX_WEIGHT_SIZE];/* Its weight string, 0-terminated */
+} MY_CONTRACTION;
+
+
+
+typedef struct my_contraction_list_t
+{
+  size_t nitems;         /* Number of items in the list                  */
+  MY_CONTRACTION *item;  /* List of contractions                         */
+  char *flags;           /* Character flags, e.g. "is contraction head") */
+} MY_CONTRACTIONS;
+
+
+
+typedef struct uca_info_st
+{
+  my_wc_t maxchar;
+  uchar   *lengths;
+  uint16  **weights;
+  MY_CONTRACTIONS contractions;
+} MY_UCA_INFO;
+
+
+
+my_bool my_uca_have_contractions(MY_UCA_INFO *uca);
+my_bool my_uca_can_be_contraction_head(MY_UCA_INFO *uca, my_wc_t wc);
+my_bool my_uca_can_be_contraction_tail(MY_UCA_INFO *uca, my_wc_t wc);
+uint16 *my_uca_contraction2_weight(MY_UCA_INFO *uca, my_wc_t wc1, my_wc_t wc2);
+
+
+extern MY_UCA_INFO my_uca_v400;
+
 
 typedef struct uni_ctype_st
 {
@@ -114,6 +161,39 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_REPERTOIRE_EXTENDED   2 /* Extended characters:  U+0080..U+FFFF */
 #define MY_REPERTOIRE_UNICODE30  3 /* ASCII | EXTENDED:     U+0000..U+FFFF */
 
+/* Flags for strxfrm */
+#define MY_STRXFRM_LEVEL1          0x00000001 /* for primary weights   */
+#define MY_STRXFRM_LEVEL2          0x00000002 /* for secondary weights */
+#define MY_STRXFRM_LEVEL3          0x00000004 /* for tertiary weights  */
+#define MY_STRXFRM_LEVEL4          0x00000008 /* fourth level weights  */
+#define MY_STRXFRM_LEVEL5          0x00000010 /* fifth level weights   */
+#define MY_STRXFRM_LEVEL6          0x00000020 /* sixth level weights   */
+#define MY_STRXFRM_LEVEL_ALL       0x0000003F /* Bit OR for the above six */
+#define MY_STRXFRM_NLEVELS         6          /* Number of possible levels*/
+
+#define MY_STRXFRM_PAD_WITH_SPACE  0x00000040 /* if pad result with spaces */
+#define MY_STRXFRM_PAD_TO_MAXLEN   0x00000080 /* if pad tail(for filesort) */
+
+#define MY_STRXFRM_DESC_LEVEL1     0x00000100 /* if desc order for level1 */
+#define MY_STRXFRM_DESC_LEVEL2     0x00000200 /* if desc order for level2 */
+#define MY_STRXFRM_DESC_LEVEL3     0x00000300 /* if desc order for level3 */
+#define MY_STRXFRM_DESC_LEVEL4     0x00000800 /* if desc order for level4 */
+#define MY_STRXFRM_DESC_LEVEL5     0x00001000 /* if desc order for level5 */
+#define MY_STRXFRM_DESC_LEVEL6     0x00002000 /* if desc order for level6 */
+#define MY_STRXFRM_DESC_SHIFT      8
+
+#define MY_STRXFRM_UNUSED_00004000 0x00004000 /* for future extensions     */
+#define MY_STRXFRM_UNUSED_00008000 0x00008000 /* for future extensions     */
+
+#define MY_STRXFRM_REVERSE_LEVEL1  0x00010000 /* if reverse order for level1 */
+#define MY_STRXFRM_REVERSE_LEVEL2  0x00020000 /* if reverse order for level2 */
+#define MY_STRXFRM_REVERSE_LEVEL3  0x00040000 /* if reverse order for level3 */
+#define MY_STRXFRM_REVERSE_LEVEL4  0x00080000 /* if reverse order for level4 */
+#define MY_STRXFRM_REVERSE_LEVEL5  0x00100000 /* if reverse order for level5 */
+#define MY_STRXFRM_REVERSE_LEVEL6  0x00200000 /* if reverse order for level6 */
+#define MY_STRXFRM_REVERSE_SHIFT   16
+
+
 typedef struct my_uni_idx_st
 {
   uint16 from;
@@ -150,16 +230,18 @@ struct charset_info_st;
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 typedef struct my_collation_handler_st
 {
-  my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t));
+  my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t),
+                  char *error, size_t errsize);
   /* Collation routines */
   int     (*strnncoll)(struct charset_info_st *,
 		       const uchar *, size_t, const uchar *, size_t, my_bool);
   int     (*strnncollsp)(struct charset_info_st *,
                          const uchar *, size_t, const uchar *, size_t,
                          my_bool diff_if_only_endspace_difference);
-  size_t     (*strnxfrm)(struct charset_info_st *,
-                         uchar *, size_t, const uchar *, size_t);
-  size_t    (*strnxfrmlen)(struct charset_info_st *, size_t); 
+  size_t  (*strnxfrm)(struct charset_info_st *,
+                      uchar *dst, size_t dstlen, uint nweights,
+                      const uchar *src, size_t srclen, uint flags);
+  size_t    (*strnxfrmlen)(struct charset_info_st *, size_t);
   my_bool (*like_range)(struct charset_info_st *,
 			const char *s, size_t s_length,
 			pchar w_prefix, pchar w_one, pchar w_many, 
@@ -201,7 +283,8 @@ typedef size_t (*my_charset_conv_case)(struct charset_info_st *,
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct my_charset_handler_st
 {
-  my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t));
+  my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t),
+                  char *error, size_t errsize);
   /* Multibyte routines */
   uint    (*ismbchar)(struct charset_info_st *, const char *, const char *);
   uint    (*mbcharlen)(struct charset_info_st *, uint c);
@@ -265,6 +348,12 @@ extern MY_CHARSET_HANDLER my_charset_8bit_handler;
 extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 
 
+/*
+  We define this CHARSET_INFO_DEFINED here to prevent a repeat of the
+  typedef in hash.c, which will cause a compiler error.
+*/
+#define CHARSET_INFO_DEFINED
+
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct charset_info_st
 {
@@ -280,11 +369,10 @@ typedef struct charset_info_st
   uchar    *to_lower;
   uchar    *to_upper;
   uchar    *sort_order;
-  uint16   *contractions;
-  uint16   **sort_order_big;
+  MY_UCA_INFO *uca;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
-  MY_UNICASE_INFO **caseinfo;
+  MY_UNICASE_INFO *caseinfo;
   uchar     *state_map;
   uchar     *ident_map;
   uint      strxfrm_multiply;
@@ -292,10 +380,12 @@ typedef struct charset_info_st
   uchar     casedn_multiply;
   uint      mbminlen;
   uint      mbmaxlen;
-  uint16    min_sort_char;
-  uint16    max_sort_char; /* For LIKE optimization */
+  my_wc_t   min_sort_char;
+  my_wc_t   max_sort_char; /* For LIKE optimization */
   uchar     pad_char;
   my_bool   escape_with_backslash_is_dangerous;
+  uchar     levels_for_compare;
+  uchar     levels_for_order;
   
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
@@ -351,8 +441,9 @@ extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
 
 
 /* declarations for simple charsets */
-extern size_t my_strnxfrm_simple(CHARSET_INFO *, uchar *, size_t,
-                                 const uchar *, size_t); 
+extern size_t my_strnxfrm_simple(CHARSET_INFO *,
+                                 uchar *dst, size_t dstlen, uint nweights,
+                                 const uchar *src, size_t srclen, uint flags);
 size_t  my_strnxfrmlen_simple(CHARSET_INFO *, size_t); 
 extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, size_t,
 				const uchar *, size_t, my_bool);
@@ -529,18 +620,23 @@ int my_strcasecmp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
                          const uchar *key, size_t len,ulong *nr1, ulong *nr2);
 
+size_t my_strnxfrm_mb(CHARSET_INFO *,
+                      uchar *dst, size_t dstlen, uint nweights,
+                      const uchar *src, size_t srclen, uint flags);
+
 size_t my_strnxfrm_unicode(CHARSET_INFO *,
-                           uchar *dst, size_t dstlen,
-                           const uchar *src, size_t srclen);
+                           uchar *dst, size_t dstlen, uint nweights,
+                           const uchar *src, size_t srclen, uint flags);
 
 int my_wildcmp_unicode(CHARSET_INFO *cs,
                        const char *str, const char *str_end,
                        const char *wildstr, const char *wildend,
                        int escape, int w_one, int w_many,
-                       MY_UNICASE_INFO **weights);
+                       MY_UNICASE_INFO *weights);
 
 extern my_bool my_parse_charset_xml(const char *bug, size_t len,
-				    int (*add)(CHARSET_INFO *cs));
+                                    int (*add)(CHARSET_INFO *cs),
+                                    char *error, size_t errsize);
 extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
                        pchar c);
 
@@ -552,6 +648,14 @@ uint my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong len);
 my_bool my_charset_is_ascii_based(CHARSET_INFO *cs);
 my_bool my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs);
 uint my_charset_repertoire(CHARSET_INFO *cs);
+
+
+uint my_strxfrm_flag_normalize(uint flags, uint nlevels);
+void my_strxfrm_desc_and_reverse(uchar *str, uchar *strend,
+                                 uint flags, uint level);
+size_t my_strxfrm_pad_desc_and_reverse(CHARSET_INFO *cs,
+                                       uchar *str, uchar *frmend, uchar *strend,
+                                       uint nweights, uint flags, uint level);
 
 my_bool my_charset_is_ascii_compatible(CHARSET_INFO *cs);
 
@@ -592,7 +696,8 @@ extern size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
 
 #define my_binary_compare(s)	      ((s)->state  & MY_CS_BINSORT)
 #define use_strnxfrm(s)               ((s)->state  & MY_CS_STRNXFRM)
-#define my_strnxfrm(s, a, b, c, d)    ((s)->coll->strnxfrm((s), (a), (b), (c), (d)))
+#define my_strnxfrm(cs, d, dl, s, sl) \
+   ((cs)->coll->strnxfrm((cs), (d), (dl), (dl), (s), (sl), MY_STRXFRM_PAD_WITH_SPACE))
 #define my_strnncoll(s, a, b, c, d) ((s)->coll->strnncoll((s), (a), (b), (c), (d), 0))
 #define my_like_range(s, a, b, c, d, e, f, g, h, i, j) \
    ((s)->coll->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h), (i), (j)))

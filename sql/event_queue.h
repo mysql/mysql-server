@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
 
@@ -29,6 +29,10 @@
 extern PSI_mutex_key key_LOCK_event_queue;
 extern PSI_cond_key key_COND_queue_state;
 #endif /* HAVE_PSI_INTERFACE */
+
+#include "queues.h"                             // QUEUE
+#include "sql_string.h"                         /* LEX_STRING */
+#include "my_time.h"                    /* my_time_t, interval_type */
 
 class Event_basic;
 class Event_queue_element;

@@ -10,14 +10,18 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_class.h"                          // sql_lex.h: SQLCOM_END
+#include "sql_lex.h"
+#include "sql_parse.h"                          // add_to_list
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
@@ -37,7 +41,6 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str= {NULL, 0};
-const LEX_STRING empty_lex_str= { (char*) "", 0 };
 /**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
@@ -52,7 +55,9 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_UDF,
   ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
-  ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
+  ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
+  ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT
 };
 
 
@@ -136,42 +141,77 @@ st_parsing_options::reset()
   allows_derived= TRUE;
 }
 
-Lex_input_stream::Lex_input_stream(THD *thd,
-                                   const char* buffer,
-                                   unsigned int length)
-: m_thd(thd),
-  yylineno(1),
-  yytoklen(0),
-  yylval(NULL),
-  lookahead_token(-1),
-  lookahead_yylval(NULL),
-  m_ptr(buffer),
-  m_tok_start(NULL),
-  m_tok_end(NULL),
-  m_end_of_query(buffer + length),
-  m_tok_start_prev(NULL),
-  m_buf(buffer),
-  m_buf_length(length),
-  m_echo(TRUE),
-  m_cpp_tok_start(NULL),
-  m_cpp_tok_start_prev(NULL),
-  m_cpp_tok_end(NULL),
-  m_body_utf8(NULL),
-  m_cpp_utf8_processed_ptr(NULL),
-  next_state(MY_LEX_START),
-  found_semicolon(NULL),
-  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
-  stmt_prepare_mode(FALSE),
-  multi_statements(TRUE),
-  in_comment(NO_COMMENT),
-  m_underscore_cs(NULL)
+
+/**
+  Perform initialization of Lex_input_stream instance.
+
+  Basically, a buffer for pre-processed query. This buffer should be large
+  enough to keep multi-statement query. The allocation is done once in
+  Lex_input_stream::init() in order to prevent memory pollution when
+  the server is processing large multi-statement queries.
+*/
+
+bool Lex_input_stream::init(THD *thd,
+			    const char* buff,
+			    unsigned int length)
 {
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   m_cpp_buf= (char*) thd->alloc(length + 1);
+
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("-d,bug42064_simulate_oom");); 
+
+  if (m_cpp_buf == NULL)
+    return TRUE;
+
+  m_thd= thd;
+  reset(buff, length);
+
+  return FALSE;
+}
+
+
+/**
+  Prepare Lex_input_stream instance state for use for handling next SQL statement.
+
+  It should be called between two statements in a multi-statement query.
+  The operation resets the input stream to the beginning-of-parse state,
+  but does not reallocate m_cpp_buf.
+*/
+
+void
+Lex_input_stream::reset(const char *buffer, unsigned int length)
+{
+  yylineno= 1;
+  yytoklen= 0;
+  yylval= NULL;
+  lookahead_token= -1;
+  lookahead_yylval= NULL;
+  m_ptr= buffer;
+  m_tok_start= NULL;
+  m_tok_end= NULL;
+  m_end_of_query= buffer + length;
+  m_tok_start_prev= NULL;
+  m_buf= buffer;
+  m_buf_length= length;
+  m_echo= TRUE;
+  m_cpp_tok_start= NULL;
+  m_cpp_tok_start_prev= NULL;
+  m_cpp_tok_end= NULL;
+  m_body_utf8= NULL;
+  m_cpp_utf8_processed_ptr= NULL;
+  next_state= MY_LEX_START;
+  found_semicolon= NULL;
+  ignore_space= test(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
+  stmt_prepare_mode= FALSE;
+  multi_statements= TRUE;
+  in_comment=NO_COMMENT;
+  m_underscore_cs= NULL;
   m_cpp_ptr= m_cpp_buf;
 }
 
-Lex_input_stream::~Lex_input_stream()
-{}
 
 /**
   The operation is called from the parser in order to
@@ -344,7 +384,6 @@ void lex_start(THD *thd)
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
   lex->derived_tables= 0;
-  lex->lock_option= TL_READ;
   lex->safe_to_cache_query= 1;
   lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
@@ -357,7 +396,6 @@ void lex_start(THD *thd)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
-  lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
@@ -404,8 +442,11 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
-                     lex->plugins.elements);
+  if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
+                       lex->plugins.elements);
+  }
   reset_dynamic(&lex->plugins);
 
   DBUG_VOID_RETURN;
@@ -415,8 +456,8 @@ Yacc_state::~Yacc_state()
 {
   if (yacc_yyss)
   {
-    my_free(yacc_yyss, MYF(0));
-    my_free(yacc_yyvs, MYF(0));
+    my_free(yacc_yyss);
+    my_free(yacc_yyvs);
   }
 }
 
@@ -1703,7 +1744,6 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
-  lock_option= TL_READ_DEFAULT;
 }
 
 void st_select_lex::init_select()
@@ -1724,7 +1764,7 @@ void st_select_lex::init_select()
   linkage= UNSPECIFIED_TYPE;
   order_list.elements= 0;
   order_list.first= 0;
-  order_list.next= (uchar**) &order_list.first;
+  order_list.next= &order_list.first;
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -1949,6 +1989,7 @@ TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
+                                                  enum_mdl_type mdl_type,
 						  List<Index_hint> *hints,
                                                   LEX_STRING *option)
 {
@@ -2046,7 +2087,7 @@ uint st_select_lex::get_in_sum_expr()
 
 TABLE_LIST* st_select_lex::get_table_list()
 {
-  return (TABLE_LIST*) table_list.first;
+  return table_list.first;
 }
 
 List<Item>* st_select_lex::get_item_list()
@@ -2103,9 +2144,8 @@ void st_select_lex_unit::print(String *str, enum_query_type query_type)
     if (fake_select_lex->order_list.elements)
     {
       str->append(STRING_WITH_LEN(" order by "));
-      fake_select_lex->print_order(
-        str,
-        (ORDER *) fake_select_lex->order_list.first,
+      fake_select_lex->print_order(str,
+        fake_select_lex->order_list.first,
         query_type);
     }
     fake_select_lex->print_limit(thd, str, query_type);
@@ -2189,6 +2229,7 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
   */
   if (thd->lex->sphead)
   {
+    thd->lex->sphead->restore_thd_mem_root(thd);
     delete thd->lex->sphead;
     thd->lex->sphead= NULL;
   }
@@ -2214,6 +2255,7 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
 
 void Query_tables_list::reset_query_tables_list(bool init)
 {
+  sql_command= SQLCOM_END;
   if (!init && query_tables)
   {
     TABLE_LIST *table= query_tables;
@@ -2276,8 +2318,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0),
-   sql_command(SQLCOM_END), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
@@ -2749,7 +2790,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
     {
       select_lex.context.table_list= 
         select_lex.context.first_name_resolution_table= first->next_local;
-      select_lex.table_list.first= (uchar*) (first->next_local);
+      select_lex.table_list.first= first->next_local;
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
@@ -2781,7 +2822,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
 
 void LEX::first_lists_tables_same()
 {
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
+  TABLE_LIST *first_table= select_lex.table_list.first;
   if (query_tables != first_table && first_table != 0)
   {
     TABLE_LIST *next;
@@ -2828,9 +2869,9 @@ void LEX::link_first_table_back(TABLE_LIST *first,
 
     if (link_to_local)
     {
-      first->next_local= (TABLE_LIST*) select_lex.table_list.first;
+      first->next_local= select_lex.table_list.first;
       select_lex.context.table_list= first;
-      select_lex.table_list.first= (uchar*) first;
+      select_lex.table_list.first= first;
       select_lex.table_list.elements++;	//safety
     }
   }
@@ -2996,7 +3037,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       prep_having= *having_conds;
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
-    fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
+    fix_prepare_info_in_table_list(thd, table_list.first);
   }
 }
 
@@ -3119,3 +3160,12 @@ bool LEX::is_partition_management() const
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
 
+
+/**
+  Set all fields to their "unspecified" value.
+*/
+void st_lex_master_info::set_unspecified()
+{
+  bzero((char*) this, sizeof(*this));
+  sql_delay= -1;
+}

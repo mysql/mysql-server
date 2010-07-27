@@ -36,19 +36,9 @@
  * .configure. strxfrm_multiply_win1250ch=2
  */
 
-#define REAL_MYSQL
-#ifdef REAL_MYSQL
-
 #include "my_global.h"
 #include "m_string.h"
 #include "m_ctype.h"
-
-#else
-
-#include <stdio.h>
-#define uchar unsigned char
-
-#endif
 
 #ifdef HAVE_CHARSET_cp1250
 
@@ -152,7 +142,7 @@ static MY_UNI_IDX idx_uni_cp1250[]={
 };
 
 
-static uchar NEAR ctype_win1250ch[] = {
+static uchar ctype_win1250ch[] = {
 0x00,
 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
 0x20, 0x28, 0x28, 0x28, 0x28, 0x28, 0x20, 0x20,
@@ -188,7 +178,7 @@ static uchar NEAR ctype_win1250ch[] = {
 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x10
 };
 
-static uchar NEAR to_lower_win1250ch[] = {
+static uchar to_lower_win1250ch[] = {
 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -223,7 +213,7 @@ static uchar NEAR to_lower_win1250ch[] = {
 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-static uchar NEAR to_upper_win1250ch[] = {
+static uchar to_upper_win1250ch[] = {
 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -260,7 +250,7 @@ static uchar NEAR to_upper_win1250ch[] = {
 
 
 
-static uchar NEAR sort_order_win1250ch[] = {
+static uchar sort_order_win1250ch[] = {
 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -279,7 +269,7 @@ static uchar NEAR sort_order_win1250ch[] = {
 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255
 };
 
-static uchar NEAR _sort_order_win1250ch1[] = {
+static uchar _sort_order_win1250ch1[] = {
 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
@@ -339,7 +329,7 @@ static uchar NEAR _sort_order_win1250ch1[] = {
 0xb8, 0xbd, 0xbd, 0xbd, 0xbd, 0xc1, 0xbc, 0xf5
 };
 
-static uchar NEAR _sort_order_win1250ch2[] = {
+static uchar _sort_order_win1250ch2[] = {
 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11,
 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
@@ -488,9 +478,11 @@ int my_strnncollsp_win1250ch(CHARSET_INFO * cs,
 }
 
 
-static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
-                                    uchar *dest, size_t len, 
-                                    const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
+                      uchar *dest, size_t len,
+                      uint nweights_arg __attribute__((unused)),
+                      const uchar *src, size_t srclen, uint flags)
 {
   int value;
   const uchar *p;
@@ -498,22 +490,29 @@ static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
   size_t totlen = 0;
   p = src;
 
-  do {
+  if (!(flags & 0x0F)) /* All levels by default */                              
+    flags|= 0x0F;
+
+  for (;;)
+  {
     NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
-    if (totlen <= len)
-      dest[totlen] = value;
-    totlen++;
-  } while (value) ;
-  if (len > totlen)
-    bfill(dest + totlen, len - totlen, ' ');
-  return len;
+    if (!value)
+      break;
+    if (totlen <= len && ((1 << pass) & flags))
+      dest[totlen++] = value;
+  }
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
+  {
+    bfill(dest + totlen, len - totlen, 0x00);
+    totlen= len;
+  }
+  return totlen;
 }
 
 #undef IS_END
 
-#ifdef REAL_MYSQL
 
-static uchar NEAR like_range_prefix_min_win1250ch[]=
+static uchar like_range_prefix_min_win1250ch[]=
 {
   0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
   0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -557,7 +556,7 @@ static uchar NEAR like_range_prefix_min_win1250ch[]=
   For all other characters:   prefix_max[i]    == i
 */
 
-static uchar NEAR like_range_prefix_max_win1250ch[]=
+static uchar like_range_prefix_max_win1250ch[]=
 {
   0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
   0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -689,11 +688,10 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   to_lower_win1250ch,
   to_upper_win1250ch,
   sort_order_win1250ch,
-  NULL,				/* contractions */
-  NULL,				/* sort_order_big*/
+  NULL,				/* uca          */
   tab_cp1250_uni,		/* tab_to_uni   */
   idx_uni_cp1250,		/* tab_from_uni */
-  my_unicase_default,           /* caseinfo     */
+  &my_unicase_default,          /* caseinfo     */
   NULL,				/* state_map    */
   NULL,				/* ident_map    */
   2,				/* strxfrm_multiply */
@@ -705,11 +703,11 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   0,				/* max_sort_char */
   ' ',                          /* pad char      */
   0,                            /* escape_with_backslash_is_dangerous */
+  2,                            /* levels_for_compare */
+  2,                            /* levels_for_order   */
   &my_charset_8bit_handler,
   &my_collation_czech_ci_handler
 };
 
-
-#endif /* REAL_MYSQL */
 
 #endif /* HAVE_CHARSET_cp1250 */

@@ -1,5 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB,
-   Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,14 +10,15 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
 #include "sql_list.h" /* Sql_alloc, MEM_ROOT */
 #include "m_string.h" /* LEX_STRING */
+#include "sql_string.h"                        /* String */
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 
 class THD;

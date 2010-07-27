@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,13 +10,13 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 
 #include "rpl_mi.h"
-#include "sql_repl.h"
 #include "log_event.h"
 #include "rpl_filter.h"
 #include <my_dir.h>
@@ -88,25 +88,43 @@ int get_user_var_str(const char *name, char *value,
 
 int delegates_init()
 {
-  static unsigned long trans_mem[sizeof(Trans_delegate) / sizeof(unsigned long) + 1];
-  static unsigned long storage_mem[sizeof(Binlog_storage_delegate) / sizeof(unsigned long) + 1];
+  static my_aligned_storage<sizeof(Trans_delegate), MY_ALIGNOF(long)> trans_mem;
+  static my_aligned_storage<sizeof(Binlog_storage_delegate),
+                            MY_ALIGNOF(long)> storage_mem;
 #ifdef HAVE_REPLICATION
-  static unsigned long transmit_mem[sizeof(Binlog_transmit_delegate) / sizeof(unsigned long) + 1];
-  static unsigned long relay_io_mem[sizeof(Binlog_relay_IO_delegate)/ sizeof(unsigned long) + 1];
+  static my_aligned_storage<sizeof(Binlog_transmit_delegate),
+                            MY_ALIGNOF(long)> transmit_mem;
+  static my_aligned_storage<sizeof(Binlog_relay_IO_delegate),
+                            MY_ALIGNOF(long)> relay_io_mem;
 #endif
-  
-  if (!(transaction_delegate= new (trans_mem) Trans_delegate)
-      || (!transaction_delegate->is_inited())
-      || !(binlog_storage_delegate= new (storage_mem) Binlog_storage_delegate)
-      || (!binlog_storage_delegate->is_inited())
-#ifdef HAVE_REPLICATION
-      || !(binlog_transmit_delegate= new (transmit_mem) Binlog_transmit_delegate)
-      || (!binlog_transmit_delegate->is_inited())
-      || !(binlog_relay_io_delegate= new (relay_io_mem) Binlog_relay_IO_delegate)
-      || (!binlog_relay_io_delegate->is_inited())
-#endif /* HAVE_REPLICATION */
-      )
+
+  void *place_trans_mem= trans_mem.data;
+  void *place_storage_mem= storage_mem.data;
+
+  transaction_delegate= new (place_trans_mem) Trans_delegate;
+
+  if (!transaction_delegate->is_inited())
     return 1;
+
+  binlog_storage_delegate= new (place_storage_mem) Binlog_storage_delegate;
+
+  if (!binlog_storage_delegate->is_inited())
+    return 1;
+
+#ifdef HAVE_REPLICATION
+  void *place_transmit_mem= transmit_mem.data;
+  void *place_relay_io_mem= relay_io_mem.data;
+
+  binlog_transmit_delegate= new (place_transmit_mem) Binlog_transmit_delegate;
+
+  if (!binlog_transmit_delegate->is_inited())
+    return 1;
+
+  binlog_relay_io_delegate= new (place_relay_io_mem) Binlog_relay_IO_delegate;
+
+  if (!binlog_relay_io_delegate->is_inited())
+    return 1;
+#endif
 
   if (pthread_key_create(&RPL_TRANS_BINLOG_INFO, NULL))
     return 1;
@@ -209,7 +227,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   if (is_real_trans && log_info)
   {
     my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info, MYF(0));
+    my_free(log_info);
   }
   return ret;
 }
@@ -237,7 +255,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
   if (is_real_trans && log_info)
   {
     my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info, MYF(0));
+    my_free(log_info);
   }
   return ret;
 }

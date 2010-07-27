@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,13 +10,24 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sp.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_parse.h"                          // parse_sql
+#include "key.h"                                // key_copy
+#include "sql_show.h"             // append_definer, append_identifier
+#include "sql_db.h" // get_default_db_collation, mysql_opt_change_db,
+                    // mysql_change_db, check_db_dir_existence,
+                    // load_db_opt_by_name
+#include "sql_table.h"                          // write_bin_log
+#include "sql_acl.h"                       // SUPER_ACL
 #include "sp_head.h"
 #include "sp_cache.h"
+#include "lock.h"                               // lock_routine_name
 
 #include <my_user.h>
 
@@ -363,7 +374,7 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
   if (code)
     my_message(code, buf, MYF(0));
   else
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "proc");
+    my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "proc");
 
   if (m_print_once)
   {
@@ -709,11 +720,18 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   Silence_deprecated_warning warning_handler;
+  Parser_state parser_state;
 
   thd->variables.sql_mode= sql_mode;
   thd->variables.select_limit= HA_POS_ERROR;
 
-  Parser_state parser_state(thd, defstr->c_ptr(), defstr->length());
+  if (parser_state.init(thd, defstr->c_ptr(), defstr->length()))
+  {
+    thd->variables.sql_mode= old_sql_mode;
+    thd->variables.select_limit= old_select_limit;
+    return NULL;
+  }
+
   lex_start(thd);
   thd->push_internal_handler(&warning_handler);
   thd->spcont= 0;
@@ -920,6 +938,11 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
 
+  /* Grab an exclusive MDL lock. */
+  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
+                        sp->m_db.str, sp->m_name.str))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
 
@@ -930,11 +953,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   */
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
-
-  /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        sp->m_db.str, sp->m_name.str))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   saved_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_WARN;
@@ -1179,6 +1197,14 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
 
+  /* Grab an exclusive MDL lock. */
+  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
+                        name->m_db.str, name->m_name.str))
+    DBUG_RETURN(SP_DELETE_ROW_FAILED);
+
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -1187,13 +1213,6 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        name->m_db.str, name->m_name.str))
-    DBUG_RETURN(SP_DELETE_ROW_FAILED);
-
-  if (!(table= open_proc_table_for_update(thd)))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     if (table->file->ha_delete_row(table->record[0]))
@@ -1265,6 +1284,9 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
                         name->m_db.str, name->m_name.str))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication. The flag will be reset at the end of the
@@ -1273,8 +1295,6 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  if (!(table= open_proc_table_for_update(thd)))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     if (type == TYPE_ENUM_FUNCTION && ! trust_function_creators &&
@@ -1703,7 +1723,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     rn->mdl_request.init(key, MDL_SHARED);
     if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
       return FALSE;
-    prelocking_ctx->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
+    prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
     rn->m_sp_cache_version= 0;
     return TRUE;
@@ -1753,8 +1773,7 @@ void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
 {
   Sroutine_hash_entry *not_own_rt, *next_rt;
-  for (not_own_rt= 
-         *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last;
+  for (not_own_rt= *prelocking_ctx->sroutines_list_own_last;
        not_own_rt; not_own_rt= next_rt)
   {
     /*
@@ -1765,7 +1784,7 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
     my_hash_delete(&prelocking_ctx->sroutines, (uchar *)not_own_rt);
   }
 
-  *(Sroutine_hash_entry **)prelocking_ctx->sroutines_list_own_last= NULL;
+  *prelocking_ctx->sroutines_list_own_last= NULL;
   prelocking_ctx->sroutines_list.next= prelocking_ctx->sroutines_list_own_last;
   prelocking_ctx->sroutines_list.elements= 
                     prelocking_ctx->sroutines_list_own_elements;
@@ -1850,10 +1869,10 @@ sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                                  SQL_LIST *src, TABLE_LIST *belong_to_view)
+                                  SQL_I_List<Sroutine_hash_entry> *src,
+                                  TABLE_LIST *belong_to_view)
 {
-  for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
-       rt; rt= rt->next)
+  for (Sroutine_hash_entry *rt= src->first; rt; rt= rt->next)
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
                               &rt->mdl_request.key, belong_to_view);
 }
@@ -1879,8 +1898,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
     in sroutines_list has an MDL lock unless it's a top-level call, or a
     trigger, but triggers can't occur here (see the preceding assert).
   */
-  DBUG_ASSERT(rt->mdl_request.ticket ||
-              rt == (Sroutine_hash_entry*) thd->lex->sroutines_list.first);
+  DBUG_ASSERT(rt->mdl_request.ticket || rt == thd->lex->sroutines_list.first);
 
   return sp_cache_routine(thd, type, &name, lookup_only, sp);
 }

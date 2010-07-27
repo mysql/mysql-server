@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -25,9 +25,11 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include <m_ctype.h>
 #include "sql_select.h"
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_time.h"                  // make_truncated_value_warning
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong
@@ -874,8 +876,10 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
     for the current thread but it still may change during the execution.
   */
-  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
-      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
+  if (item->const_item() && cache_arg &&
+      item->type() != Item::CACHE_ITEM &&
+      (item->type() != Item::FUNC_ITEM ||
+       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
     Item_cache_int *cache= new Item_cache_int();
     /* Mark the cache as non-const to prevent re-caching. */
@@ -935,6 +939,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     get_value_a_func= &get_datetime_value;
     get_value_b_func= &get_datetime_value;
     cmp_collation.set(&my_charset_numeric);
+    set_cmp_context_for_datetime();
     return 0;
   }
   else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
@@ -947,6 +952,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     func= &Arg_comparator::compare_datetime;
     get_value_a_func= &get_time_value;
     get_value_b_func= &get_time_value;
+    set_cmp_context_for_datetime();
     return 0;
   }
   else if (type == STRING_RESULT &&
@@ -1003,6 +1009,7 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
 
   is_nulls_eq= is_owner_equal_func();
   func= &Arg_comparator::compare_datetime;
+  set_cmp_context_for_datetime();
 
   return TRUE;
 }
@@ -1024,12 +1031,12 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
   @return cache item or original value.
 */
 
-Item** Arg_comparator::cache_converted_constant(THD *thd, Item **value,
+Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item **cache_item,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd->is_context_analysis_only() &&
+  if (!thd_arg->is_context_analysis_only() &&
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
@@ -1056,6 +1063,7 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
   func= &Arg_comparator::compare_datetime;
   get_value_a_func= &get_datetime_value;
   get_value_b_func= &get_datetime_value;
+  set_cmp_context_for_datetime();
 }
 
 
@@ -1142,8 +1150,10 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
     for the current thread but it still may change during the execution.
   */
-  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
-      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
+  if (item->const_item() && cache_arg &&
+      item->type() != Item::CACHE_ITEM &&
+      (item->type() != Item::FUNC_ITEM ||
+       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
     Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
@@ -1192,12 +1202,21 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
   /*
     Coerce value to the 19XX form in order to correctly compare
     YEAR(2) & YEAR(4) types.
+    Here we are converting all item values but YEAR(4) fields since
+      1) YEAR(4) already has a regular YYYY form and
+      2) we don't want to convert zero/bad YEAR(4) values to the
+         value of 2000.
   */
-  if (value < 70)
-    value+= 100;
-  if (value <= 1900)
-    value+= 1900;
-
+  Item *real_item= item->real_item();
+  if (!(real_item->type() == Item::FIELD_ITEM &&
+        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
+        ((Item_field *)real_item)->field->field_length == 4))
+  {
+    if (value < 70)
+      value+= 100;
+    if (value <= 1900)
+      value+= 1900;
+  }
   /* Convert year to DATETIME of form YYYY-00-00 00:00:00 (YYYY0000000000). */
   value*= 10000000000LL;
 
@@ -1370,12 +1389,12 @@ int Arg_comparator::compare_real()
 
 int Arg_comparator::compare_decimal()
 {
-  my_decimal value1;
-  my_decimal *val1= (*a)->val_decimal(&value1);
+  my_decimal decimal1;
+  my_decimal *val1= (*a)->val_decimal(&decimal1);
   if (!(*a)->null_value)
   {
-    my_decimal value2;
-    my_decimal *val2= (*b)->val_decimal(&value2);
+    my_decimal decimal2;
+    my_decimal *val2= (*b)->val_decimal(&decimal2);
     if (!(*b)->null_value)
     {
       if (set_null)
@@ -1399,9 +1418,9 @@ int Arg_comparator::compare_e_real()
 
 int Arg_comparator::compare_e_decimal()
 {
-  my_decimal value1, value2;
-  my_decimal *val1= (*a)->val_decimal(&value1);
-  my_decimal *val2= (*b)->val_decimal(&value2);
+  my_decimal decimal1, decimal2;
+  my_decimal *val1= (*a)->val_decimal(&decimal1);
+  my_decimal *val2= (*b)->val_decimal(&decimal2);
   if ((*a)->null_value || (*b)->null_value)
     return test((*a)->null_value && (*b)->null_value);
   return test(my_decimal_cmp(val1, val2) == 0);
@@ -2766,6 +2785,8 @@ Item *Item_func_case::find_item(String *str)
     /* Compare every WHEN argument with it and return the first match */
     for (uint i=0 ; i < ncases ; i+=2)
     {
+      if (args[i]->real_item()->type() == NULL_ITEM)
+        continue;
       cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
@@ -3996,9 +4017,17 @@ longlong Item_func_in::val_int()
     return (longlong) (!null_value && tmp != negated);
   }
 
+  if ((null_value= args[0]->real_item()->type() == NULL_ITEM))
+    return 0;
+
   have_null= 0;
   for (uint i= 1 ; i < arg_count ; i++)
   {
+    if (args[i]->real_item()->type() == NULL_ITEM)
+    {
+      have_null= TRUE;
+      continue;
+    }
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
@@ -4560,13 +4589,14 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   if (args[1]->const_item())
   {
     String* res2= args[1]->val_str((String *)&cmp.value2);
+    const char *ptr2;
 
-    if (!res2)
+    if (!res2 || !(ptr2= res2->ptr()))
       return OPTIMIZE_NONE;
 
-    if (*res2->ptr() != wild_many)
+    if (*ptr2 != wild_many)
     {
-      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
 	return OPTIMIZE_OP;
     }
   }
@@ -4689,8 +4719,6 @@ void Item_func_like::cleanup()
   canDoTurboBM= FALSE;
   Item_bool_func2::cleanup();
 }
-
-#ifdef USE_REGEX
 
 /**
   @brief Compile regular expression.
@@ -4841,9 +4869,6 @@ void Item_func_regex::cleanup()
   }
   DBUG_VOID_RETURN;
 }
-
-
-#endif /* USE_REGEX */
 
 
 #ifdef LIKE_CMP_TOUPPER
@@ -5403,13 +5428,13 @@ void Item_equal::merge(Item_equal *item)
   members follow in a wrong order they are swapped. This is performed
   again and again until we get all members in a right order.
 
-  @param cmp          function to compare field item
+  @param compare      function to compare field item
   @param arg          context extra parameter for the cmp function
 */
 
-void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
+void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  fields.sort((Node_cmp_func)cmp, arg);
+  fields.sort((Node_cmp_func)compare, arg);
 }
 
 
@@ -5429,7 +5454,21 @@ void Item_equal::update_const()
   Item *item;
   while ((item= it++))
   {
-    if (item->const_item())
+    if (item->const_item() &&
+        /*
+          Don't propagate constant status of outer-joined column.
+          Such a constant status here is a result of:
+            a) empty outer-joined table: in this case such a column has a
+               value of NULL; but at the same time other arguments of
+               Item_equal don't have to be NULLs and the value of the whole
+               multiple equivalence expression doesn't have to be NULL or FALSE
+               because of the outer join nature;
+          or
+            b) outer-joined table contains only 1 row: the result of
+               this column is equal to a row field value *or* NULL.
+          Both values are inacceptable as Item_equal constants.
+        */
+        !item->is_outer_field())
     {
       it.remove();
       add(item);
@@ -5468,7 +5507,8 @@ void Item_equal::update_used_tables()
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
-    const_item_cache&= item->const_item();
+    /* see commentary at Item_equal::update_const() */
+    const_item_cache&= item->const_item() && !item->is_outer_field();
   }
 }
 

@@ -15,7 +15,6 @@
 
 #include <my_global.h>
 #include <mysql.h>
-#include <mysql_embed.h>
 #include <mysqld_error.h>
 #include <my_pthread.h>
 #include "embedded_priv.h"
@@ -33,7 +32,7 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -55,7 +54,7 @@
 extern ulong net_buffer_length;
 extern ulong max_allowed_packet;
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #define ERRNO WSAGetLastError()
 #define perror(A)
 #else
@@ -120,8 +119,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 			       (mysql->options.my_cnf_file ?
 				mysql->options.my_cnf_file : "my"),
 			       mysql->options.my_cnf_group);
-    my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->options.my_cnf_file);
+    my_free(mysql->options.my_cnf_group);
     mysql->options.my_cnf_file=mysql->options.my_cnf_group=0;
   }
 

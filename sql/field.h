@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Because of the function new_field() all field classes that have static
@@ -25,13 +25,45 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "mysqld.h"                             /* system_charset_info */
+#include "table.h"                              /* TABLE */
+#include "sql_string.h"                         /* String */
+#include "my_decimal.h"                         /* my_decimal */
+#include "sql_error.h"                          /* MYSQL_ERROR */
+
 #define DATETIME_DEC                     6
-const uint32 max_field_size= (uint32) 4294967295U;
 
 class Send_field;
 class Protocol;
 class Create_field;
 class Relay_log_info;
+class Field;
+
+enum enum_check_fields
+{
+  CHECK_FIELD_IGNORE,
+  CHECK_FIELD_WARN,
+  CHECK_FIELD_ERROR_FOR_NULL
+};
+
+
+enum Derivation
+{
+  DERIVATION_IGNORABLE= 6,
+  DERIVATION_NUMERIC= 5,
+  DERIVATION_COERCIBLE= 4,
+  DERIVATION_SYSCONST= 3,
+  DERIVATION_IMPLICIT= 2,
+  DERIVATION_NONE= 1,
+  DERIVATION_EXPLICIT= 0
+};
+
+#define STORAGE_TYPE_MASK 7
+#define COLUMN_FORMAT_MASK 7
+#define COLUMN_FORMAT_SHIFT 3
+
+#define my_charset_numeric      my_charset_latin1
+#define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
 struct st_cache_field;
 int field_conv(Field *to,Field *from);
@@ -57,7 +89,11 @@ public:
   static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
-  uchar		*null_ptr;		// Byte where null_bit is
+  /**
+     Byte where the @c NULL bit is stored inside a record. If this Field is a
+     @c NOT @c NULL field, this member is @c NULL.
+  */
+  uchar		*null_ptr;
   /*
     Note that you can use table->in_use as replacement for current_thd member 
     only inside of val_*() and store() members (e.g. you can't use it in cons)
@@ -254,6 +290,9 @@ public:
   inline void set_notnull(my_ptrdiff_t row_offset= 0)
     { if (null_ptr) null_ptr[row_offset]&= (uchar) ~null_bit; }
   inline bool maybe_null(void) { return null_ptr != 0 || table->maybe_null; }
+  /**
+     Signals that this field is NULL-able.
+  */
   inline bool real_maybe_null(void) { return null_ptr != 0; }
 
   enum {
@@ -459,7 +498,7 @@ public:
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
   /* The max. number of characters */
-  inline uint32 char_length() const
+  virtual uint32 char_length()
   {
     return field_length / charset()->mbmaxlen;
   }
@@ -645,6 +684,10 @@ public:
   int  store_decimal(const my_decimal *);
   int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   uint size_of() const { return sizeof(*this); }
+  uint repertoire(void) const
+  {
+    return my_charset_repertoire(field_charset);
+  }
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset_arg) { field_charset= charset_arg; }
   enum Derivation derivation(void) const { return field_derivation; }
@@ -1719,22 +1762,22 @@ public:
   void put_length(uchar *pos, uint32 length);
   inline void get_ptr(uchar **str)
     {
-      memcpy_fixed((uchar*) str,ptr+packlength,sizeof(uchar*));
+      memcpy(str, ptr+packlength, sizeof(uchar*));
     }
   inline void get_ptr(uchar **str, uint row_offset)
     {
-      memcpy_fixed((uchar*) str,ptr+packlength+row_offset,sizeof(char*));
+      memcpy(str, ptr+packlength+row_offset, sizeof(char*));
     }
   inline void set_ptr(uchar *length, uchar *data)
     {
       memcpy(ptr,length,packlength);
-      memcpy_fixed(ptr+packlength,&data,sizeof(char*));
+      memcpy(ptr+packlength, &data,sizeof(char*));
     }
   void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
     {
       uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
       store_length(ptr_ofs, packlength, length);
-      memcpy_fixed(ptr_ofs+packlength,&data,sizeof(char*));
+      memcpy(ptr_ofs+packlength, &data, sizeof(char*));
     }
   inline void set_ptr(uint32 length, uchar *data)
     {
@@ -1753,7 +1796,7 @@ public:
       return 1;
     }
     tmp=(uchar*) value.ptr();
-    memcpy_fixed(ptr+packlength,&tmp,sizeof(char*));
+    memcpy(ptr+packlength, &tmp, sizeof(char*));
     return 0;
   }
   virtual uchar *pack(uchar *to, const uchar *from,
@@ -1769,6 +1812,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
+  uint32 char_length();
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }

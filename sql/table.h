@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,21 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
+#include "sql_list.h"                           /* Sql_alloc */
 #include "mdl.h"
+#include "datadict.h"
+
+#ifndef MYSQL_CLIENT
+
+#include "hash.h"                               /* HASH */
+#include "handler.h"                /* row_type, ha_choice, handler */
+#include "mysql_com.h"              /* enum_field_types */
+#include "thr_lock.h"                  /* thr_lock_type */
 
 /* Structs that defines the TABLE */
 
@@ -30,10 +40,143 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
+struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
+struct TABLE_LIST;
+class Field;
+
+/*
+  Used to identify NESTED_JOIN structures within a join (applicable only to
+  structures that have not been simplified away and embed more the one
+  element)
+*/
+typedef ulonglong nested_join_map;
+
+
+#define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
+#define tmp_file_prefix_length 4
+#define TMP_TABLE_KEY_EXTRA 8
+
+/**
+  Enumerate possible types of a table from re-execution
+  standpoint.
+  TABLE_LIST class has a member of this type.
+  At prepared statement prepare, this member is assigned a value
+  as of the current state of the database. Before (re-)execution
+  of a prepared statement, we check that the value recorded at
+  prepare matches the type of the object we obtained from the
+  table definition cache.
+
+  @sa check_and_update_table_version()
+  @sa Execute_observer
+  @sa Prepared_statement::reprepare()
+*/
+
+enum enum_table_ref_type
+{
+  /** Initial value set by the parser */
+  TABLE_REF_NULL= 0,
+  TABLE_REF_VIEW,
+  TABLE_REF_BASE_TABLE,
+  TABLE_REF_I_S_TABLE,
+  TABLE_REF_TMP_TABLE
+};
+
+
+/**
+  Opening modes for open_temporary_table and open_table_from_share
+*/
+
+enum open_table_mode
+{
+  OTM_OPEN= 0,
+  OTM_CREATE= 1,
+  OTM_ALTER= 2
+};
+
 
 /*************************************************************************/
+
+/**
+ Object_creation_ctx -- interface for creation context of database objects
+ (views, stored routines, events, triggers). Creation context -- is a set
+ of attributes, that should be fixed at the creation time and then be used
+ each time the object is parsed or executed.
+*/
+
+class Object_creation_ctx
+{
+public:
+  Object_creation_ctx *set_n_backup(THD *thd);
+
+  void restore_env(THD *thd, Object_creation_ctx *backup_ctx);
+
+protected:
+  Object_creation_ctx() {}
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const = 0;
+
+  virtual void change_env(THD *thd) const = 0;
+
+public:
+  virtual ~Object_creation_ctx()
+  { }
+};
+
+/*************************************************************************/
+
+/**
+ Default_object_creation_ctx -- default implementation of
+ Object_creation_ctx.
+*/
+
+class Default_object_creation_ctx : public Object_creation_ctx
+{
+public:
+  CHARSET_INFO *get_client_cs()
+  {
+    return m_client_cs;
+  }
+
+  CHARSET_INFO *get_connection_cl()
+  {
+    return m_connection_cl;
+  }
+
+protected:
+  Default_object_creation_ctx(THD *thd);
+
+  Default_object_creation_ctx(CHARSET_INFO *client_cs,
+                              CHARSET_INFO *connection_cl);
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const;
+
+  virtual void change_env(THD *thd) const;
+
+protected:
+  /**
+    client_cs stores the value of character_set_client session variable.
+    The only character set attribute is used.
+
+    Client character set is included into query context, because we save
+    query in the original character set, which is client character set. So,
+    in order to parse the query properly we have to switch client character
+    set on parsing.
+  */
+  CHARSET_INFO *m_client_cs;
+
+  /**
+    connection_cl stores the value of collation_connection session
+    variable. Both character set and collation attributes are used.
+
+    Connection collation is included into query context, becase it defines
+    the character set and collation of text literals in internal
+    representation of query (item-objects).
+  */
+  CHARSET_INFO *m_connection_cl;
+};
+
 
 /**
  View_creation_ctx -- creation context of view objects.
@@ -163,23 +306,6 @@ enum tmp_table_type
   NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
 };
-
-/** Event on which trigger is invoked. */
-enum trg_event_type
-{
-  TRG_EVENT_INSERT= 0,
-  TRG_EVENT_UPDATE= 1,
-  TRG_EVENT_DELETE= 2,
-  TRG_EVENT_MAX
-};
-
-enum frm_type_enum
-{
-  FRMTYPE_ERROR= 0,
-  FRMTYPE_TABLE,
-  FRMTYPE_VIEW
-};
-
 enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
 typedef struct st_filesort_info
@@ -355,6 +481,19 @@ typedef struct st_table_field_def
 } TABLE_FIELD_DEF;
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  Partition specific ha_data struct.
+*/
+typedef struct st_ha_data_partition
+{
+  bool auto_inc_initialized;
+  mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
+  ulonglong next_auto_inc_val;                 /**< first non reserved value */
+} HA_DATA_PARTITION;
+#endif
+
+
 class Table_check_intact
 {
 protected:
@@ -434,9 +573,7 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
-  ulong   raid_chunksize;
   ulong   version, mysql_version;
-  ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
   plugin_ref db_plugin;			/* storage engine plugin */
@@ -447,11 +584,8 @@ struct TABLE_SHARE
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
-  enum enum_ha_unused unused1;
-  enum enum_ha_unused unused2;
 
   uint ref_count;                       /* How many TABLE objects uses this */
-  uint open_count;			/* Number of tables in open list */
   uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
@@ -467,7 +601,6 @@ struct TABLE_SHARE
   uint db_create_options;		/* Create options from database */
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
-  uint raid_type, raid_chunks;
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
   /* Index of auto-updated TIMESTAMP field in field array */
   uint primary_key;
@@ -484,7 +617,6 @@ struct TABLE_SHARE
   bool crashed;
   bool is_view;
   ulong table_map_id;                   /* for row-based replication */
-  ulonglong table_map_version;
 
   /*
     Cache for row-based replication table share checks that does not
@@ -495,13 +627,11 @@ struct TABLE_SHARE
   int cached_row_logging_check;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  /** @todo: Move into *ha_data for partitioning */
+  /* filled in when reading from frm */
   bool auto_partitioned;
-  const char *partition_info;
-  uint  partition_info_len;
+  const char *partition_info_str;
+  uint  partition_info_str_len;
   uint  partition_info_buffer_size;
-  const char *part_state;
-  uint part_state_len;
   handlerton *default_part_db_type;
 #endif
 
@@ -520,6 +650,14 @@ struct TABLE_SHARE
   /** place to store storage engine specific data */
   void *ha_data;
   void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /** place to store partition specific data, LOCK_ha_data hold while init. */
+  HA_DATA_PARTITION *ha_part_data;
+  /* Destructor for ha_part_data */
+  void (*ha_part_data_destroy)(HA_DATA_PARTITION *);
+#endif
+
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
@@ -596,7 +734,7 @@ struct TABLE_SHARE
   /*
     Must all TABLEs be reopened?
   */
-  inline bool needs_reopen()
+  inline bool needs_reopen() const
   {
     return version != refresh_version;
   }
@@ -919,6 +1057,7 @@ public:
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
+  void add_read_columns_used_by_index(uint index);
   void restore_column_maps_after_mark_index();
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(void);
@@ -970,6 +1109,8 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
+
+  bool update_const_key_parts(COND *conds);
 };
 
 
@@ -1232,7 +1373,7 @@ struct TABLE_LIST
   }
 
   /*
-    List of tables local to a subquery (used by SQL_LIST). Considers
+    List of tables local to a subquery (used by SQL_I_List). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
     in st_select_lex::add_table_to_list() -> table_list.link_in_list().
   */
@@ -1469,20 +1610,21 @@ struct TABLE_LIST
     OPEN_STUB
   } open_strategy;
   /**
-    Indicates the locking strategy for the object being opened:
-    whether the associated metadata lock is shared or exclusive.
+    Indicates the locking strategy for the object being opened.
   */
   enum
   {
-    /* Take a shared metadata lock before the object is opened. */
-    SHARED_MDL= 0,
     /*
-       Take a exclusive metadata lock before the object is opened.
-       If opening is successful, downgrade to a shared lock.
+      Take metadata lock specified by 'mdl_request' member before
+      the object is opened. Do nothing after that.
     */
-    EXCLUSIVE_DOWNGRADABLE_MDL,
-    /* Take a exclusive metadata lock before the object is opened. */
-    EXCLUSIVE_MDL
+    OTLS_NONE= 0,
+    /*
+      Take (exclusive) metadata lock specified by 'mdl_request' member
+      before object is opened. If opening is successful, downgrade to
+      a shared lock.
+    */
+    OTLS_DOWNGRADE_IF_EXISTS
   } lock_strategy;
   /* For transactional locking. */
   int           lock_timeout;           /* NOWAIT or WAIT [X]               */
@@ -1798,7 +1940,11 @@ typedef struct st_nested_join
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
   table_map         used_tables;     /* bitmap of tables in the nested join */
   table_map         not_null_tables; /* tables that rejects nulls           */
-  struct st_join_table *first_nested;/* the first nested table in the plan  */
+  /**
+    Used for pointing out the first table in the plan being covered by this
+    join nest. It is used exclusively within make_outerjoin_info().
+   */
+  struct st_join_table *first_nested;
   /* 
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
@@ -1808,6 +1954,15 @@ typedef struct st_nested_join
   */
   uint              counter;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /**
+     True if this join nest node is completely covered by the query execution
+     plan. This means two things.
+
+     1. All tables on its @c join_list are covered by the plan.
+
+     2. All child join nest nodes are fully covered.
+   */
+  bool is_fully_covered() const { return join_list.elements == counter; }
 } NESTED_JOIN;
 
 
@@ -1895,5 +2050,85 @@ size_t max_row_length(TABLE *table, const uchar *data);
 
 
 void init_mdl_requests(TABLE_LIST *table_list);
+
+int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
+                          uint db_stat, uint prgflag, uint ha_open_flags,
+                          TABLE *outparam, bool is_create_table);
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+                               uint key_length);
+void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
+                          uint key_length,
+                          const char *table_name, const char *path);
+void free_table_share(TABLE_SHARE *share);
+int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
+void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
+void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
+bool check_and_convert_db_name(LEX_STRING *db, bool preserve_lettercase);
+bool check_db_name(LEX_STRING *db);
+bool check_column_name(const char *name);
+bool check_table_name(const char *name, size_t length, bool check_for_path_chars);
+int rename_file_ext(const char * from,const char * to,const char * ext);
+char *get_field(MEM_ROOT *mem, Field *field);
+bool get_field(MEM_ROOT *mem, Field *field, class String *res);
+
+int closefrm(TABLE *table, bool free_share);
+int read_string(File file, uchar* *to, size_t length);
+void free_blobs(TABLE *table);
+void free_field_buffers_larger_than(TABLE *table, uint32 size);
+int set_zone(int nr,int min_zone,int max_zone);
+ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
+ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
+		     const char *newname);
+ulong next_io_size(ulong pos);
+void append_unescaped(String *res, const char *pos, uint length);
+File create_frm(THD *thd, const char *name, const char *db,
+                const char *table, uint reclength, uchar *fileinfo,
+  		HA_CREATE_INFO *create_info, uint keys, KEY *key_info);
+char *fn_rext(char *name);
+
+/* performance schema */
+extern LEX_STRING PERFORMANCE_SCHEMA_DB_NAME;
+
+extern LEX_STRING GENERAL_LOG_NAME;
+extern LEX_STRING SLOW_LOG_NAME;
+
+/* information schema */
+extern LEX_STRING INFORMATION_SCHEMA_NAME;
+extern LEX_STRING MYSQL_SCHEMA_NAME;
+
+inline bool is_infoschema_db(const char *name, size_t len)
+{
+  return (INFORMATION_SCHEMA_NAME.length == len &&
+          !my_strcasecmp(system_charset_info,
+                         INFORMATION_SCHEMA_NAME.str, name));
+}
+
+inline bool is_infoschema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        INFORMATION_SCHEMA_NAME.str, name);
+}
+
+TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
+
+/**
+  return true if the table was created explicitly.
+*/
+inline bool is_user_table(TABLE * table)
+{
+  const char *name= table->s->table_name.str;
+  return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
+}
+
+inline void mark_as_null_row(TABLE *table)
+{
+  table->null_row=1;
+  table->status|=STATUS_NULL_ROW;
+  bfill(table->null_flags,table->s->null_bytes,255);
+}
+
+bool is_simple_order(ORDER *order);
+
+#endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */

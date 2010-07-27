@@ -45,7 +45,7 @@ extern void _db_enter_(const char *_func_, const char *_file_, uint _line_,
                        struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_pargs_(uint _line_,const char *keyword);
-extern  void _db_doprnt_ _VARARGS((const char *format,...))
+extern  void _db_doprnt_(const char *format,...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 extern  void _db_dump_(uint _line_,const char *keyword,
                        const unsigned char *memory, size_t length);
@@ -145,7 +145,23 @@ extern  const char* _db_get_func_(void);
 #define DBUG_CRASH_VOID_RETURN          do { return; } while(0)
 
 #endif
-#ifdef  __cplusplus
+
+#ifdef EXTRA_DEBUG
+/**
+  Sync points allow us to force the server to reach a certain line of code
+  and block there until the client tells the server it is ok to go on.
+  The client tells the server to block with SELECT GET_LOCK()
+  and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
+  concurrency problems
+*/
+#define DBUG_SYNC_POINT(lock_name,lock_timeout) \
+ debug_sync_point(lock_name,lock_timeout)
+void debug_sync_point(const char* lock_name, uint lock_timeout);
+#else
+#define DBUG_SYNC_POINT(lock_name,lock_timeout)
+#endif /* EXTRA_DEBUG */
+
+#ifdef	__cplusplus
 }
 #endif
 #endif

@@ -28,7 +28,6 @@ INCLUDES=		-I$(top_srcdir)/include -I$(top_builddir)/include \
 
 DEFS=			@DEFS@
 
-
 noinst_HEADERS=		\
 			handler/ha_innodb.h	\
 			handler/i_s.h		\
@@ -118,6 +117,7 @@ noinst_HEADERS=		\
 			include/mtr0types.h	\
 			include/mysql_addons.h	\
 			include/os0file.h	\
+			include/os0file.ic	\
 			include/os0proc.h	\
 			include/os0proc.ic	\
 			include/os0sync.h	\
@@ -174,7 +174,6 @@ noinst_HEADERS=		\
 			include/row0upd.ic	\
 			include/row0vers.h	\
 			include/row0vers.ic	\
-			include/srv0que.h	\
 			include/srv0srv.h	\
 			include/srv0srv.ic	\
 			include/srv0start.h	\
@@ -217,6 +216,7 @@ noinst_HEADERS=		\
 			include/ut0lst.h	\
 			include/ut0mem.h	\
 			include/ut0mem.ic	\
+			include/ut0rbt.h	\
 			include/ut0rnd.h	\
 			include/ut0rnd.ic	\
 			include/ut0sort.h	\
@@ -298,7 +298,6 @@ libinnobase_a_SOURCES=	\
 			row/row0undo.c			\
 			row/row0upd.c			\
 			row/row0vers.c			\
-			srv/srv0que.c			\
 			srv/srv0srv.c			\
 			srv/srv0start.c			\
 			sync/sync0arr.c			\
@@ -318,25 +317,23 @@ libinnobase_a_SOURCES=	\
 			ut/ut0dbg.c			\
 			ut/ut0list.c			\
 			ut/ut0mem.c			\
+			ut/ut0rbt.c			\
 			ut/ut0rnd.c			\
 			ut/ut0ut.c			\
 			ut/ut0vec.c			\
 			ut/ut0wqueue.c
 
-libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
+libinnobase_a_CXXFLAGS=	$(AM_CXXFLAGS)
 libinnobase_a_CFLAGS=	$(AM_CFLAGS)
 
 EXTRA_LTLIBRARIES=	ha_innodb.la
 pkgplugin_LTLIBRARIES=	@plugin_innobase_shared_target@
 
 ha_innodb_la_LDFLAGS=	-module -rpath $(pkgplugindir)
-ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_innodb_la_CXXFLAGS=	$(AM_CXXFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_la_SOURCES=	$(libinnobase_a_SOURCES)
 
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
 			pars/pars0grm.y pars/pars0lex.l
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

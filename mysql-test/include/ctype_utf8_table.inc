@@ -1,6 +1,8 @@
 CREATE TABLE t1 (a CHAR(1)) CHARACTER SET utf8;
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
 INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+
+--disable_warnings
 #
 # Populate tables head and tail with values '00'-'FF'
 #
@@ -40,5 +42,6 @@ AND (middle BETWEEN '80' AND 'BF')
 AND (tail BETWEEN '80' AND 'BF')
 AND NOT (head='E0' AND middle BETWEEN '80' AND '9F')
 ORDER BY head, middle, tail;
+--disable_warnings
 
 SELECT count(*) FROM t1;

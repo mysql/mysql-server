@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /** @file handler.cc
 
@@ -23,8 +23,19 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "rpl_handler.h"
+#include "sql_cache.h"                   // query_cache, query_cache_*
+#include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
+#include "sql_table.h"                   // build_table_filename
+#include "lock.h"               // wait_if_global_read_lock,
+                                // start_waiting_global_read_lock
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_acl.h"            // SUPER_ACL
+#include "sql_base.h"           // free_io_cache
+#include "discover.h"           // writefrm
+#include "log_event.h"          // *_rows_log_event
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include "transaction.h"
@@ -46,7 +57,8 @@ static handlerton *installed_htons[128];
 
 #define BITMAP_STACKBUF_SIZE (128/8)
 
-KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
+KEY_CREATE_INFO default_key_create_info=
+  { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0} };
 
 /* number of entries in handlertons[] */
 ulong total_ha= 0;
@@ -162,7 +174,7 @@ redo:
 }
 
 
-plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
+plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 {
   if (hton)
   {
@@ -176,15 +188,6 @@ plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
   }
   return NULL;
 }
-
-
-#ifdef NOT_USED
-static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
-{
-  handlerton *hton= ha_default_handlerton(current_thd);
-  return (hton && hton->create) ? hton->create(hton, table, mem_root) : NULL;
-}
-#endif
 
 
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
@@ -227,10 +230,6 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   switch (database_type) {
-#ifndef NO_HASH
-  case DB_TYPE_HASH:
-    return ha_resolve_by_legacy_type(thd, DB_TYPE_HASH);
-#endif
   case DB_TYPE_MRG_ISAM:
     return ha_resolve_by_legacy_type(thd, DB_TYPE_MRG_MYISAM);
   default:
@@ -287,13 +286,14 @@ handler *get_ha_partition(partition_info *part_info)
 #endif
 
 
-const char **handler_errmsgs;
+static const char **handler_errmsgs;
 
-
-const char **get_handler_errmsgs()
+C_MODE_START
+static const char **get_handler_errmsgs()
 {
   return handler_errmsgs;
 }
+C_MODE_END
 
 
 /**
@@ -379,7 +379,7 @@ static int ha_finish_errors(void)
   /* Allocate a pointer array for the error message strings. */
   if (! (errmsgs= my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST)))
     return 1;
-  my_free((uchar*) errmsgs, MYF(0));
+  my_free(errmsgs);
   return 0;
 }
 
@@ -434,7 +434,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     hton2plugin[hton->slot]= NULL;
   }
 
-  my_free((uchar*)hton, MYF(0));
+  my_free(hton);
 
  end:
   DBUG_RETURN(0);
@@ -567,7 +567,7 @@ err_deinit:
     (void) plugin->plugin->deinit(NULL);
           
 err:
-  my_free((uchar*) hton, MYF(0));
+  my_free(hton);
 err_no_hton_memory:
   plugin->data= NULL;
   DBUG_RETURN(1);
@@ -630,9 +630,13 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
     there's no need to rollback here as all transactions must
     be rolled back already
   */
-  if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
-      thd_get_ha_data(thd, hton))
-    hton->close_connection(hton, thd);
+  if (hton->state == SHOW_OPTION_YES && thd_get_ha_data(thd, hton))
+  {
+    if (hton->close_connection)
+      hton->close_connection(hton, thd);
+    /* make sure ha_data is reset and ha_data_lock is released */
+    thd_set_ha_data(thd, hton, NULL);
+  }
   return FALSE;
 }
 
@@ -1233,7 +1237,14 @@ end:
 /**
   @note
   This function does not care about global read lock. A caller should.
+
+  @param[in]  all  Is set in case of explicit commit
+                   (COMMIT statement), or implicit commit
+                   issued by DDL. Is not set when called
+                   at the end of statement, even if
+                   autocommit=1.
 */
+
 int ha_commit_one_phase(THD *thd, bool all)
 {
   int error=0;
@@ -1241,9 +1252,15 @@ int ha_commit_one_phase(THD *thd, bool all)
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
-    transation is not 'real': even though it's possible to commit it,
+    transaction is not 'real': even though it's possible to commit it,
     the changes are not durable as they might be rolled back if the
     enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT/BEGIN statement, or implicit
+    commit issued by DDL (all == TRUE), or if we're running
+    in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() can be called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
   */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
@@ -1272,7 +1289,6 @@ int ha_commit_one_phase(THD *thd, bool all)
       if (thd->transaction.changed_tables)
         query_cache.invalidate(thd->transaction.changed_tables);
 #endif
-      thd->variables.tx_isolation=thd->session_tx_isolation;
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
@@ -1291,9 +1307,15 @@ int ha_rollback_trans(THD *thd, bool all)
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
-    transation is not 'real': even though it's possible to commit it,
+    transaction is not 'real': even though it's possible to commit it,
     the changes are not durable as they might be rolled back if the
     enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT or BEGIN statement, or implicit
+    commit issued by DDL (in these cases all == TRUE),
+    or if we're running in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() is called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
   */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   DBUG_ENTER("ha_rollback_trans");
@@ -1343,10 +1365,8 @@ int ha_rollback_trans(THD *thd, bool all)
     if (is_real_trans && thd->transaction_rollback_request &&
         thd->transaction.xid_state.xa_state != XA_NOTR)
       thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
-    if (all)
-      thd->variables.tx_isolation=thd->session_tx_isolation;
   }
-  /* Always cleanup. Even if there nht==0. There may be savepoints. */
+  /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
     thd->transaction.cleanup();
   if (all)
@@ -1597,7 +1617,7 @@ int ha_recover(HASH *commit_list)
   plugin_foreach(NULL, xarecover_handlerton, 
                  MYSQL_STORAGE_ENGINE_PLUGIN, &info);
 
-  my_free((uchar*)info.list, MYF(0));
+  my_free(info.list);
   if (info.found_foreign_xids)
     sql_print_warning("Found %d prepared XA transactions", 
                       info.found_foreign_xids);
@@ -3517,7 +3537,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 }
 
 
-void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                          uint part_id)
 {
   info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
@@ -3625,7 +3645,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
-  my_free(frmblob, MYF(0));
+  my_free(frmblob);
   if (error)
     DBUG_RETURN(2);
 
@@ -4832,7 +4852,7 @@ int fl_log_iterator_next(struct handler_iterator *iterator,
 
 void fl_log_iterator_destroy(struct handler_iterator *iterator)
 {
-  my_free((uchar*)iterator->buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(iterator->buffer);
 }
 
 

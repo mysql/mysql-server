@@ -13,16 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _my_dir_h
-#define _my_dir_h
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #ifndef MY_DIR_H
 #define MY_DIR_H
 
+#include "my_global.h"
+
 #include <sys/stat.h>
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 	/* Defines for my_dir and my_stat */
 
@@ -101,9 +101,9 @@ extern void my_dirend(MY_DIR *buffer);
 extern MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags);
 extern int my_fstat(int filenr, MY_STAT *stat_area, myf MyFlags);
 
-#endif /* MY_DIR_H */
-
 #ifdef	__cplusplus
 }
 #endif
-#endif
+
+#endif /* MY_DIR_H */
+

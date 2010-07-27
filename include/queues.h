@@ -22,6 +22,9 @@
 
 #ifndef _queues_h
 #define _queues_h
+
+#include "my_global.h"                          /* uchar */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

@@ -171,8 +171,6 @@ The following options may be given as the first argument:
  Disable initialization of builtin InnoDB plugin
  --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
- --init-rpl-role=name 
- Set the replication role.
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
  --interactive-timeout=# 
@@ -396,10 +394,7 @@ The following options may be given as the first argument:
  a query. Values smaller than the number of tables in a
  relation result in faster optimization, but may produce
  very bad query plans. If set to 0, the system will
- automatically pick a reasonable value; if set to 63, the
- optimizer will switch to the original find_best search.
- NOTE: The value 63 and its associated behaviour is
- deprecated
+ automatically pick a reasonable value
  --optimizer-switch=name 
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
@@ -530,7 +525,7 @@ The following options may be given as the first argument:
  Tells the slave thread to not replicate to the specified
  table. To specify more than one table to ignore, use the
  directive multiple times, once for each table. This will
- work for cross-datbase updates, in contrast to
+ work for cross-database updates, in contrast to
  replicate-ignore-db.
  --replicate-rewrite-db=name 
  Updates to a database with a different name than the
@@ -578,8 +573,6 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
- --rpl-recovery-rank=# 
- Unused, will be removed
  --safe-mode         Skip some optimize stages (for testing).
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
@@ -746,7 +739,7 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
-default-storage-engine MyISAM
+default-storage-engine InnoDB
 default-time-zone (No default value)
 default-week-format 0
 delay-key-write ON
@@ -773,7 +766,6 @@ help TRUE
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
-init-rpl-role MASTER
 init-slave 
 interactive-timeout 28800
 join-buffer-size 131072
@@ -894,13 +886,13 @@ report-host (No default value)
 report-password (No default value)
 report-port 3306
 report-user (No default value)
-rpl-recovery-rank 0
 safe-user-create FALSE
 secure-auth FALSE
 secure-file-priv (No default value)
 server-id 0
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
+skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE

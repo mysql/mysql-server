@@ -60,18 +60,18 @@ static struct my_option my_long_options[] =
   {"info", 'I', "Synonym for --help.",  0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  {"ndb", 257, "Ndbcluster storage engine specific error codes.",  (uchar**) &ndb_code,
-   (uchar**) &ndb_code, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"ndb", 257, "Ndbcluster storage engine specific error codes.", &ndb_code,
+   &ndb_code, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #ifdef HAVE_SYS_ERRLIST
   {"all", 'a', "Print all the error messages and the number.",
-   (uchar**) &print_all_codes, (uchar**) &print_all_codes, 0, GET_BOOL, NO_ARG,
+   &print_all_codes, &print_all_codes, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
   {"silent", 's', "Only print the error message.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Print error code and message (default).", (uchar**) &verbose,
-   (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print error code and message (default).", &verbose,
+   &verbose, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"version", 'V', "Displays version information and exits.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -102,8 +102,6 @@ static HA_ERRORS ha_errlist[]=
 };
 
 
-#include <help_start.h>
-
 static void print_version(void)
 {
   printf("%s Ver %s, for %s (%s)\n",my_progname,PERROR_VERSION,
@@ -121,8 +119,6 @@ static void usage(void)
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
-
-#include <help_end.h>
 
 
 static my_bool
@@ -269,7 +265,7 @@ int main(int argc,char *argv[])
     HA_ERRORS *ha_err_ptr;
     for (code=1 ; code < sys_nerr ; code++)
     {
-      if (sys_errlist[code][0])
+      if (sys_errlist[code] && sys_errlist[code][0])
       {						/* Skip if no error-text */
 	printf("%3d = %s\n",code,sys_errlist[code]);
       }
@@ -281,7 +277,7 @@ int main(int argc,char *argv[])
 #endif
   {
     /*
-      On some system, like NETWARE, strerror(unknown_error) returns a
+      On some system, like Linux, strerror(unknown_error) returns a
       string 'Unknown Error'.  To avoid printing it we try to find the
       error string by asking for an impossible big error message.
 

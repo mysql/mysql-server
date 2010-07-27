@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -24,7 +24,10 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "protocol.h"
+#include "sql_class.h"                          // THD
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
@@ -207,7 +210,7 @@ net_send_ok(THD *thd,
   NET *net= &thd->net;
   uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
   bool error= FALSE;
-  DBUG_ENTER("my_ok");
+  DBUG_ENTER("net_send_ok");
 
   if (! net->vio)	// hack for re-parsing queries
   {
@@ -648,8 +651,7 @@ void Protocol::init(THD *thd_arg)
 
 void Protocol::end_partial_result_set(THD *thd_arg)
 {
-  net_send_eof(thd_arg, thd_arg->server_status,
-               0 /* no warnings, we're inside SP */);
+  net_send_eof(thd_arg, thd_arg->server_status, 0 /* no warnings, we're inside SP */);
 }
 
 
@@ -745,8 +747,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       else
       {
         /* With conversion */
-        ulonglong max_length;
-        uint32 field_length;
+        uint32 field_length, max_length;
         int2store(pos, thd_charset->number);
         /*
           For TEXT/BLOB columns, field_length describes the maximum data
@@ -769,9 +770,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
                      field.type <= MYSQL_TYPE_BLOB) ?
                      field.length / item->collation.collation->mbminlen :
                      field.length / item->collation.collation->mbmaxlen;
-        max_length*= thd_charset->mbmaxlen;
-        field_length= (max_length > UINT_MAX32) ? 
-          UINT_MAX32 : (uint32) max_length;
+        field_length= char_to_byte_length_safe(max_length,
+                                               thd_charset->mbmaxlen);
         int4store(pos + 2, field_length);
       }
       pos[6]= field.type;
@@ -790,31 +790,14 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 	  local_packet->realloc(local_packet->length()+10))
 	goto err;
       pos= (char*) local_packet->ptr()+local_packet->length();
-
-#ifdef TO_BE_DELETED_IN_6
-      if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
-      {
-	pos[0]=3;
-	int3store(pos+1,field.length);
-	pos[4]=1;
-	pos[5]=field.type;
-	pos[6]=2;
-	pos[7]= (char) field.flags;
-	pos[8]= (char) field.decimals;
-	pos+= 9;
-      }
-      else
-#endif
-      {
-	pos[0]=3;
-	int3store(pos+1,field.length);
-	pos[4]=1;
-	pos[5]=field.type;
-	pos[6]=3;
-	int2store(pos+7,field.flags);
-	pos[9]= (char) field.decimals;
-	pos+= 10;
-      }
+      pos[0]=3;
+      int3store(pos+1,field.length);
+      pos[4]=1;
+      pos[5]=field.type;
+      pos[6]=3;
+      int2store(pos+7,field.flags);
+      pos[9]= (char) field.decimals;
+      pos+= 10;
     }
     local_packet->length((uint) (pos - local_packet->ptr()));
     if (flags & SEND_DEFAULTS)
@@ -1012,8 +995,8 @@ bool Protocol_text::store(const char *from, size_t length,
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
-  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %*.s",
-                      field_pos, field_count, (int) length, from));
+  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %s", field_pos,
+                      field_count, (length == 0? "" : from)));
   DBUG_ASSERT(field_pos < field_count);
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
@@ -1166,16 +1149,12 @@ bool Protocol_text::store(MYSQL_TIME *tm)
 #endif
   char buff[40];
   uint length;
-  length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-			   (int) tm->year,
-			   (int) tm->month,
-			   (int) tm->day,
-			   (int) tm->hour,
-			   (int) tm->minute,
-			   (int) tm->second));
+  length= sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
+                  (int) tm->year, (int) tm->month,
+                  (int) tm->day, (int) tm->hour,
+                  (int) tm->minute, (int) tm->second);
   if (tm->second_part)
-    length+= my_sprintf(buff+length,(buff+length, ".%06d",
-                                     (int)tm->second_part));
+    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1209,13 +1188,11 @@ bool Protocol_text::store_time(MYSQL_TIME *tm)
   char buff[40];
   uint length;
   uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= my_sprintf(buff,(buff, "%s%02ld:%02d:%02d",
-			   tm->neg ? "-" : "",
-			   (long) day*24L+(long) tm->hour,
-			   (int) tm->minute,
-			   (int) tm->second));
+  length= sprintf(buff, "%s%02ld:%02d:%02d", tm->neg ? "-" : "",
+                  (long) day*24L+(long) tm->hour, (int) tm->minute,
+                  (int) tm->second);
   if (tm->second_part)
-    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
+    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
   return net_store_data((uchar*) buff, length);
 }
 

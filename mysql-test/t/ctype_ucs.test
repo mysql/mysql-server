@@ -84,49 +84,7 @@ drop table t2;
 
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
-
-create table t1 (a varchar(10) character set ucs2, key(a));
-insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
-explain select * from t1 where a like 'abc%';
-explain select * from t1 where a like concat('abc','%');
-select * from t1 where a like "abc%";
-select * from t1 where a like concat("abc","%");
-select * from t1 where a like "ABC%";
-select * from t1 where a like "test%";
-select * from t1 where a like "te_t";
-select * from t1 where a like "%a%";
-select * from t1 where a like "%abcd%";
-select * from t1 where a like "%abc\d%";
-drop table t1;
-
-#
-# More LIKE test: bug#2619
-#
-select 'AA' like 'AA'; 
-select 'AA' like 'A%A';
-select 'AA' like 'A%%A';
-select 'AA' like 'AA%';
-select 'AA' like '%AA%';
-select 'AA' like '%A';
-select 'AA' like '%AA';
-select 'AA' like 'A%A%';
-select 'AA' like '_%_%';
-select 'AA' like '%A%A';
-select 'AAA'like 'A%A%A';
-
-select 'AZ' like 'AZ'; 
-select 'AZ' like 'A%Z';
-select 'AZ' like 'A%%Z';
-select 'AZ' like 'AZ%';
-select 'AZ' like '%AZ%';
-select 'AZ' like '%Z';
-select 'AZ' like '%AZ';
-select 'AZ' like 'A%Z%';
-select 'AZ' like '_%_%';
-select 'AZ' like '%A%Z';
-select 'AZ' like 'A_';
-select 'AZ' like '_Z';
-select 'AMZ'like 'A%M%Z';
+--source include/ctype_like.inc
 
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('ÆÙ×Á'),('æÙ×Á'),('Æù×Á'),('ÆÙ÷Á'),('ÆÙ×á'),('æù÷á');
@@ -732,6 +690,15 @@ SELECT HEX(MONTHNAME(19700101));
 SELECT HEX(DAYNAME(19700101));
 SET character_set_connection=latin1;
 
+--echo #
+--echo # Bug#52120 create view cause Assertion failed: 0, file .\item_subselect.cc, line 817
+--echo #
+CREATE TABLE t1 (a CHAR(1) CHARSET ascii, b CHAR(1) CHARSET latin1);
+CREATE VIEW v1 AS SELECT 1 from t1
+WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 
@@ -746,4 +713,57 @@ SET NAMES latin1;
 
 --echo #
 --echo # End of 5.5 tests
+--echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set collation_connection=ucs2_general_ci;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+
+set collation_connection=ucs2_bin;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+
+--echo #
+--echo # Bug #36418 Character sets: crash if char(256 using utf32)
+--echo #
+select hex(char(0x01 using ucs2));
+select hex(char(0x0102 using ucs2));
+select hex(char(0x010203 using ucs2));
+select hex(char(0x01020304 using ucs2));
+
+--echo #
+--echo # Bug#10094 Displays wrong error message for UNIQUE key index on CHAR(255) Unicode datatype
+--echo #
+CREATE TABLE t1 (f1 CHAR(255) unicode);
+INSERT INTO t1 values ('abc'),('bcd'),('abc');
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD UNIQUE Index_1 (f1);
+DROP TABLE t1;
+
+--echo #
+--echo # Test how character set works with date/time
+--echo #
+SET collation_connection=ucs2_general_ci;
+--source include/ctype_datetime.inc
+SET NAMES latin1;
+
+--echo #
+--echo # WL#4013 Unicode german2 collation
+--echo #
+SET collation_connection=ucs2_german2_ci;
+--source include/ctype_german.inc
+
+--echo #
+--echo # End of 5.6 tests
 --echo #

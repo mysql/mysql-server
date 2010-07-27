@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB, 2008 - 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   == Debug Sync Facility ==
@@ -321,12 +321,13 @@
 
 /*
   Due to weaknesses in our include files, we need to include
-  mysql_priv.h here. To have THD declared, we need to include
+  sql_priv.h here. To have THD declared, we need to include
   sql_class.h. This includes log_event.h, which in turn requires
-  declarations from mysql_priv.h (e.g. OPTION_AUTO_IS_NULL).
-  mysql_priv.h includes almost everything, so is sufficient here.
+  declarations from sql_priv.h (e.g. OPTION_AUTO_IS_NULL).
+  sql_priv.h includes almost everything, so is sufficient here.
 */
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_parse.h"
 
 /*
   Action to perform at a synchronization point.
@@ -386,6 +387,13 @@ static st_debug_sync_globals debug_sync_global; /* All globals in one object */
 */
 extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
+/**
+  Callbacks from C files.
+*/
+C_MODE_START
+static void debug_sync_C_callback(const char *, size_t);
+static int debug_sync_qsort_cmp(const void *, const void *);
+C_MODE_END
 
 /**
   Callback for debug sync, to be used by C files. See thr_lock.c for example.
@@ -394,7 +402,7 @@ extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
     We cannot place a sync point directly in C files (like those in mysys or
     certain storage engines written mostly in C like MyISAM or Maria). Because
-    they are C code and do not include mysql_priv.h. So they do not know the
+    they are C code and do not include sql_priv.h. So they do not know the
     macro DEBUG_SYNC(thd, sync_point_name). The macro needs a 'thd' argument.
     Hence it cannot be used in files outside of the sql/ directory.
 
@@ -421,8 +429,8 @@ extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 static void debug_sync_C_callback(const char *sync_point_name,
                                   size_t name_len)
 {
-  if (unlikely(opt_debug_sync_timeout))                            
-    debug_sync(current_thd, sync_point_name, name_len);   
+  if (unlikely(opt_debug_sync_timeout))
+    debug_sync(current_thd, sync_point_name, name_len);
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -618,7 +626,7 @@ void debug_sync_end_thread(THD *thd)
         action->wait_for.free();
         action->sync_point.free();
       }
-      my_free(ds_control->ds_action, MYF(0));
+      my_free(ds_control->ds_action);
     }
 
     /* Statistics. */
@@ -629,7 +637,7 @@ void debug_sync_end_thread(THD *thd)
       debug_sync_global.dsp_max_active=    ds_control->dsp_max_active;
     mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
-    my_free(ds_control, MYF(0));
+    my_free(ds_control);
     thd->debug_sync_control= NULL;
   }
 
@@ -1866,5 +1874,43 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
 
   DBUG_VOID_RETURN;
 }
+
+/**
+  Define debug sync action.
+
+  @param[in]        thd             thread handle
+  @param[in]        action_str      action string
+
+  @return           status
+    @retval         FALSE           ok
+    @retval         TRUE            error
+
+  @description
+    The function is similar to @c debug_sync_eval_action but is
+    to be called immediately from the server code rather than 
+    to be triggered by setting a value to DEBUG_SYNC system variable.
+
+  @note
+    The input string is copied prior to be fed to
+    @c debug_sync_eval_action to let the latter modify it.
+
+    Caution.
+    The function allocates in THD::mem_root and therefore
+    is not recommended to be deployed inside big loops.    
+*/
+
+bool debug_sync_set_action(THD *thd, const char *action_str, size_t len)
+{
+  bool                  rc;
+  char *value;
+  DBUG_ENTER("debug_sync_set_action");
+  DBUG_ASSERT(thd);
+  DBUG_ASSERT(action_str);
+  
+  value= strmake_root(thd->mem_root, action_str, len);
+  rc= debug_sync_eval_action(thd, value);
+  DBUG_RETURN(rc);
+}
+
 
 #endif /* defined(ENABLED_DEBUG_SYNC) */

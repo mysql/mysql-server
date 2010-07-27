@@ -234,10 +234,6 @@ elsif (defined($tgt_name) && ($tgt_name =~ m:/: || $tgt_name eq '.')) {
 elsif ( $opt{suffix} ) {
     print "Using copy suffix '$opt{suffix}'\n" unless $opt{quiet};
 }
-elsif ( ($^O =~ m/^(NetWare)$/) && defined($tgt_name) && ($tgt_name =~ m:\\: || $tgt_name eq '.'))  
-{
-	$tgt_dirname = $tgt_name;
-}
 else
 {
   $tgt_name="" if (!defined($tgt_name));
@@ -269,6 +265,14 @@ my $num_files = 0;
 foreach my $rdb ( @db_desc ) {
     my $db = $rdb->{src};
     my @dbh_tables = get_list_of_tables( $db );
+
+    ## filter out certain system non-lockable tables. 
+    ## keep in sync with mysqldump.
+    if ($db =~ m/^mysql$/i)
+    {
+      @dbh_tables = grep 
+        { !/^(apply_status|schema|general_log|slow_log)$/ } @dbh_tables
+    }
 
     ## generate regex for tables/files
     my $t_regex;
@@ -415,11 +419,8 @@ foreach my $rdb ( @db_desc ) {
     else {
         mkdir($tgt_dirpath, 0750) or die "Can't create '$tgt_dirpath': $!\n"
             unless -d $tgt_dirpath;
-        if ($^O !~ m/^(NetWare)$/)  
-        {
-            my @f_info= stat "$datadir/$rdb->{src}";
-            chown $f_info[4], $f_info[5], $tgt_dirpath;
-        }
+        my @f_info= stat "$datadir/$rdb->{src}";
+        chown $f_info[4], $f_info[5], $tgt_dirpath;
     }
 }
 
@@ -590,14 +591,7 @@ sub copy_files {
     my @cmd;
     print "Copying ".@$files." files...\n" unless $opt{quiet};
 
-    if ($^O =~ m/^(NetWare)$/)  # on NetWare call PERL copy (slower)
-    {
-      foreach my $file ( @$files )
-      {
-        copy($file, $target."/".basename($file));
-      }
-    }
-    elsif ($method =~ /^s?cp\b/)  # cp or scp with optional flags
+    if ($method =~ /^s?cp\b/)  # cp or scp with optional flags
     {
 	my $cp = $method;
 	# add option to preserve mod time etc of copied files

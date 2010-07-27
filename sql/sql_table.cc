@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,22 +10,49 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* drop and alter of tables */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "debug_sync.h"
+#include "sql_table.h"
+#include "sql_rename.h" // do_rename
+#include "sql_parse.h"                        // test_if_data_home_dir
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_base.h"                          // open_temporary_table
+#include "lock.h"       // wait_if_global_read_lock, lock_table_names,
+                        // start_waiting_global_read_lock,
+                        // unlock_table_names, mysql_unlock_tables
+#include "strfunc.h"    // find_type2, find_set
+#include "sql_view.h" // view_checksum 
+#include "sql_truncate.h"                       // regenerate_locked_table 
+#include "sql_partition.h"                      // mem_alloc_error,
+                                                // generate_partition_syntax,
+                                                // partition_info
+#include "sql_db.h" // load_db_opt_by_name, lock_db_cache, creating_database
+#include "sql_time.h"                  // make_truncated_value_warning
+#include "records.h"             // init_read_record, end_read_record
+#include "filesort.h"            // filesort_free_buffers
+#include "sql_select.h"                // setup_order,
+                                       // make_unireg_sortorder
+#include "sql_handler.h"               // mysql_ha_rm_tables
+#include "discover.h"                  // readfrm
+#include "my_pthread.h"                // pthread_mutex_t
+#include "log_event.h"                 // Query_log_event
 #include <hash.h>
 #include <myisam.h>
 #include <my_dir.h>
 #include "sp_head.h"
 #include "sp.h"
 #include "sql_trigger.h"
+#include "sql_parse.h"
 #include "sql_show.h"
 #include "transaction.h"
 #include "keycaches.h"
+#include "datadict.h"  // dd_frm_type()
 
 #ifdef __WIN__
 #include <io.h>
@@ -57,19 +84,6 @@ static bool
 mysql_prepare_alter_table(THD *thd, TABLE *table,
                           HA_CREATE_INFO *create_info,
                           Alter_info *alter_info);
-
-#ifndef DBUG_OFF
-
-/* Wait until we get a 'mysql_kill' signal */
-
-static void wait_for_kill_signal(THD *thd)
-{
-  while (thd->killed == 0)
-    sleep(1);
-  // Reset signal and continue as if nothing happend
-  thd->killed= THD::NOT_KILLED;
-}
-#endif
 
 
 /**
@@ -400,6 +414,25 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 
 /**
+  Check if given string begins with "#mysql50#" prefix
+  
+  @param   name          string to check cut 
+  
+  @retval
+    FALSE  no prefix found
+  @retval
+    TRUE   prefix found
+*/
+
+bool check_mysql50_prefix(const char *name)
+{
+  return (name[0] == '#' && 
+         !strncmp(name, MYSQL50_TABLE_NAME_PREFIX,
+                  MYSQL50_TABLE_NAME_PREFIX_LENGTH));
+}
+
+
+/**
   Check if given string begins with "#mysql50#" prefix, cut it if so.
   
   @param   from          string to check and cut 
@@ -414,9 +447,7 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length)
 {
-  if (from[0] == '#' && 
-      !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-               MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+  if (check_mysql50_prefix(from))
     return (uint) (strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
                            to_length - 1) - to);
   return 0;
@@ -443,7 +474,21 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   DBUG_PRINT("enter", ("from '%s'", from));
 
   if ((length= check_n_cut_mysql50_prefix(from, to, to_length)))
+  {
+    /*
+      Check if the name supplied is a valid mysql 5.0 name and 
+      make the name a zero length string if it's not.
+      Note that just returning zero length is not enough : 
+      a lot of places don't check the return value and expect 
+      a zero terminated string.
+    */  
+    if (check_table_name(to, length, TRUE))
+    {
+      to[0]= 0;
+      length= 0;
+    }
     DBUG_RETURN(length);
+  }
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&
@@ -1489,13 +1534,13 @@ void release_ddl_log()
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
-    my_free(used_list, MYF(0));
+    my_free(used_list);
     used_list= tmp;
   }
   while (free_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
-    my_free(free_list, MYF(0));
+    my_free(free_list);
     free_list= tmp;
   }
   close_ddl_log();
@@ -1651,8 +1696,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     if (readfrm(shadow_path, &data, &length) ||
         packfrm(data, length, &lpt->pack_frm_data, &lpt->pack_frm_len))
     {
-      my_free(data, MYF(MY_ALLOW_ZERO_PTR));
-      my_free(lpt->pack_frm_data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(data);
+      my_free(lpt->pack_frm_data);
       mem_alloc_error(length);
       error= 1;
       goto end;
@@ -1725,11 +1770,12 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           error= 1;
           goto err;
         }
-        share->partition_info= tmp_part_syntax_str;
+        share->partition_info_str= tmp_part_syntax_str;
       }
       else
-        memcpy((char*) share->partition_info, part_syntax_buf, syntax_len + 1);
-      share->partition_info_len= part_info->part_info_len= syntax_len;
+        memcpy((char*) share->partition_info_str, part_syntax_buf,
+               syntax_len + 1);
+      share->partition_info_str_len= part_info->part_info_len= syntax_len;
       part_info->part_info_string= part_syntax_buf;
     }
 #endif
@@ -1872,8 +1918,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool dont_log_query)
 {
   TABLE_LIST *table;
-  char path[FN_REFLEN + 1], *alias;
-  uint path_length;
+  char path[FN_REFLEN + 1], *alias= NULL;
+  uint path_length= 0;
   String wrong_tables;
   int error= 0;
   int non_temp_tables_count= 0;
@@ -1881,9 +1927,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_query;
   String built_tmp_query;
   DBUG_ENTER("mysql_rm_table_part2");
-
-  LINT_INIT(alias);
-  LINT_INIT(path_length);
 
   if (thd->is_current_stmt_binlog_format_row() && !dont_log_query)
   {
@@ -1972,8 +2015,13 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     case  0:
       // removed temporary table
       tmp_table_deleted= 1;
-      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-          thd->is_current_stmt_binlog_format_row())
+      /*
+        One needs to always log any temporary table drop if the current
+        statement logging format is set to row. This happens because one
+        might have created a temporary table while the statement logging
+        format was statement and then switched to mixed or row format.
+      */
+      if (thd->is_current_stmt_binlog_format_row())
       {
         if (built_tmp_query.is_empty()) 
         {
@@ -2065,7 +2113,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         ((access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
          (!drop_view &&
-          mysql_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
+          dd_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
     {
       // Table was not found on disk and table can't be created from engine
       if (if_exists)
@@ -2085,7 +2133,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
       if (frm_db_type == DB_TYPE_UNKNOWN)
       {
-        mysql_frm_type(thd, path, &frm_db_type);
+        dd_frm_type(thd, path, &frm_db_type);
         DBUG_PRINT("info", ("frm_db_type %d from %s", frm_db_type, path));
       }
       table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
@@ -2154,7 +2202,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (some_tables_deleted || tmp_table_deleted || !error)
   {
     query_cache_invalidate3(thd, tables, 0);
-    if (!dont_log_query)
+    if (!dont_log_query && mysql_bin_log.is_open())
     {
       if (!thd->is_current_stmt_binlog_format_row() ||
           (non_temp_tables_count > 0 && !tmp_table_deleted))
@@ -2165,7 +2213,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
           deleted one or more non-temporary tables (and no temporary
           tables).  In this case, we can write the original query into
           the binary log.
-         */
+        */
         error |= write_bin_log(thd, !error, thd->query(), thd->query_length());
       }
       else if (thd->is_current_stmt_binlog_format_row() &&
@@ -2192,11 +2240,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         }
 
         /*
-          One needs to always log any temporary table drop, if:
-            1. thread logging format is mixed mode; AND
-            2. current statement logging format is set to row.
+          One needs to always log any temporary table drop if the current
+          statement logging format is set to row. This happens because one
+          might have created a temporary table while the statement logging
+          format was statement and then switched to mixed or row format.
         */
-        if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED)
+        if (thd->is_current_stmt_binlog_format_row())
         {
           /*
             In this case we have deleted some temporary tables but we are using
@@ -2207,8 +2256,14 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
           */
           built_tmp_query.chop();                  // Chop of the last comma
           built_tmp_query.append(" /* generated by server */");
-          error|= write_bin_log(thd, !error, built_tmp_query.ptr(), built_tmp_query.length(),
-                                thd->in_multi_stmt_transaction());
+          /*
+            We cannot call the write_bin_log as we do not care about any errors
+            in the master as the statement is always DROP TEMPORARY TABLE IF EXISTS
+            and as such there will be no errors in the slave.
+          */
+          error|= thd->binlog_query(THD::STMT_QUERY_TYPE, built_tmp_query.ptr(),
+                                    built_tmp_query.length(), FALSE, FALSE, FALSE,
+                                    0);
         }
       }
 
@@ -3723,43 +3778,6 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   (void) prepare_blob_field(thd, sql_field);
 }
 
-
-/*
-  Write CREATE TABLE binlog
-
-  SYNOPSIS
-    write_create_table_bin_log()
-    thd               Thread object
-    create_info       Create information
-    internal_tmp_table  Set to 1 if this is an internal temporary table
-
-  DESCRIPTION
-    This function only is called in mysql_create_table_no_lock and
-    mysql_create_table
-
-  RETURN VALUES
-    NONE
- */
-static inline int write_create_table_bin_log(THD *thd,
-                                             const HA_CREATE_INFO *create_info,
-                                             bool internal_tmp_table)
-{
-  /*
-    Don't write statement if:
-    - It is an internal temporary table,
-    - Row-based logging is used and it we are creating a temporary table, or
-    - The binary log is not open.
-    Otherwise, the statement shall be binlogged.
-   */
-  if (!internal_tmp_table &&
-      (!thd->is_current_stmt_binlog_format_row() ||
-       (thd->is_current_stmt_binlog_format_row() &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    return write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-  return 0;
-}
-
-
 /*
   Create a table
 
@@ -4424,10 +4442,10 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   char from[FN_REFLEN],tmp[FN_REFLEN+32];
   const char **ext;
   MY_STAT stat_info;
-  Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+  Open_table_context ot_ctx(thd, (MYSQL_OPEN_IGNORE_FLUSH |
+                                  MYSQL_OPEN_HAS_MDL_LOCK |
+                                  MYSQL_LOCK_IGNORE_TIMEOUT));
   DBUG_ENTER("prepare_for_repair");
-  uint reopen_for_repair_flags= (MYSQL_OPEN_IGNORE_FLUSH |
-                                 MYSQL_OPEN_HAS_MDL_LOCK);
 
   if (!(check_opt->sql_flags & TT_USEFRM))
     DBUG_RETURN(0);
@@ -4556,12 +4574,18 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed renaming data file");
     goto end;
   }
-  if (mysql_truncate(thd, table_list, 1))
+  if (dd_recreate_table(thd, table_list->db, table_list->table_name))
   {
     error= send_check_errmsg(thd, table_list, "repair",
 			     "Failed generating table from .frm file");
     goto end;
   }
+  /*
+    'FALSE' for 'using_transactions' means don't postpone
+    invalidation till the end of a transaction, but do it
+    immediately.
+  */
+  query_cache_invalidate3(thd, table_list, FALSE);
   if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     error= send_check_errmsg(thd, table_list, "repair",
@@ -4576,8 +4600,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (open_table(thd, table_list, thd->mem_root,
-                 &ot_ctx_unused, reopen_for_repair_flags))
+  if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
   {
     error= send_check_errmsg(thd, table_list, "repair",
                              "Failed to open partially repaired table");
@@ -4655,6 +4678,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
+    /*
+      To make code safe for re-execution we need to reset type of MDL
+      request as code below may change it.
+      To allow concurrent execution of read-only operations we acquire
+      weak metadata lock for them.
+    */
+    table->mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                                MDL_SHARED_NO_READ_WRITE : MDL_SHARED_READ);
     /* open only one table from local list of command */
     {
       TABLE_LIST *save_next_global, *save_next_local;
@@ -4662,7 +4693,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= 0;
       save_next_local= table->next_local;
       table->next_local= 0;
-      select->table_list.first= (uchar*)table;
+      select->table_list.first= table;
       /*
         Time zone tables and SP tables can be add to lex->query_tables list,
         so it have to be prepared.
@@ -4676,8 +4707,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
-      open_error= open_and_lock_tables(thd, table, TRUE,
-                                       MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+      open_error= open_and_lock_tables(thd, table, TRUE, 0);
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
@@ -4807,6 +4837,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       /* purecov: begin inspected */
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       size_t length;
+      enum_sql_command save_sql_command= lex->sql_command;
       DBUG_PRINT("admin", ("sending error message"));
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
@@ -4820,6 +4851,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(FALSE);
+      /*
+        Restore Query_tables_list::sql_command value to make statement
+        safe for re-execution.
+      */
+      lex->sql_command= save_sql_command;
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
@@ -4828,18 +4864,31 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       /* purecov: end */
     }
 
-    /* Close all instances of the table to allow repair to rename files */
-    if (lock_type == TL_WRITE && table->table->s->version)
+    /*
+      Close all instances of the table to allow MyISAM "repair"
+      to rename files.
+      @todo: This code does not close all instances of the table.
+      It only closes instances in other connections, but if this
+      connection has LOCK TABLE t1 a READ, t1 b WRITE,
+      both t1 instances will be kept open.
+      There is no need to execute this branch for InnoDB, which does
+      repair by recreate. There is no need to do it for OPTIMIZE,
+      which doesn't move files around.
+      Hence, this code should be moved to prepare_for_repair(),
+      and executed only for MyISAM engine.
+    */
+    if (lock_type == TL_WRITE && !table->table->s->tmp_table)
     {
       if (wait_while_table_is_used(thd, table->table,
                                    HA_EXTRA_PREPARE_FOR_RENAME))
         goto err;
-      DBUG_EXECUTE_IF("wait_in_mysql_admin_table",
-                      wait_for_kill_signal(thd);
-                      if (thd->killed)
-                        goto err;);
+      DEBUG_SYNC(thd, "after_admin_flush");
       /* Flush entries in the query cache involving this table. */
       query_cache_invalidate3(thd, table->table, 0);
+      /*
+        XXX: hack: switch off open_for_modify to skip the
+        flush that is made later in the execution flow. 
+      */
       open_for_modify= 0;
     }
 
@@ -4881,6 +4930,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
         if (thd->stmt_da->is_ok())
           thd->stmt_da->reset_diagnostics_area();
+        table->table= NULL;
+        result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
         goto send_result;
       }
     }
@@ -5011,16 +5062,24 @@ send_result_message:
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
+      table->table= NULL;
       thd->mdl_context.release_transactional_locks();
       if (!result_code) // recreation went ok
       {
         /* Clear the ticket released in close_thread_tables(). */
         table->mdl_request.ticket= NULL;
-        if ((table->table= open_ltable(thd, table, lock_type, 0)) &&
-            ((result_code= table->table->file->ha_analyze(thd, check_opt)) > 0))
-          result_code= 0; // analyze went ok
-        if (result_code)  // analyze failed
-          table->table->file->print_error(result_code, MYF(0));
+        DEBUG_SYNC(thd, "ha_admin_open_ltable");
+        table->mdl_request.set_type(MDL_SHARED_WRITE);
+        if ((table->table= open_ltable(thd, table, lock_type, 0)))
+        {
+          result_code= table->table->file->ha_analyze(thd, check_opt);
+          if (result_code == HA_ADMIN_ALREADY_DONE)
+            result_code= HA_ADMIN_OK;
+          else if (result_code)  // analyze failed
+            table->table->file->print_error(result_code, MYF(0));
+        }
+        else
+          result_code= -1; // open failed
       }
       /* Start a new row for the final status row */
       protocol->prepare_for_resend();
@@ -5092,20 +5151,25 @@ send_result_message:
     }
     if (table->table)
     {
-      if (fatal_error)
-        table->table->s->version=0;               // Force close of table
-      else if (open_for_modify)
+      if (table->table->s->tmp_table)
       {
-        if (table->table->s->tmp_table)
+        /*
+          If the table was not opened successfully, do not try to get
+          status information. (Bug#47633)
+        */
+        if (open_for_modify && !open_error)
           table->table->file->info(HA_STATUS_CONST);
-        else
-        {
-          TABLE_LIST *save_next_global= table->next_global;
-          table->next_global= 0;
-          close_cached_tables(thd, table, FALSE, FALSE);
-          table->next_global= save_next_global;
-        }
-        /* May be something modified consequently we have to invalidate cache */
+      }
+      else if (open_for_modify || fatal_error)
+      {
+        mysql_mutex_lock(&LOCK_open);
+        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
+                         table->db, table->table_name);
+        mysql_mutex_unlock(&LOCK_open);
+        /*
+          May be something modified. Consequently, we have to
+          invalidate the query cache.
+        */
         query_cache_invalidate3(thd, table->table, 0);
       }
     }
@@ -5346,7 +5410,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
 
         /*
           The condition avoids a crash as described in BUG#48506. Other
@@ -5361,8 +5425,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             to work. The table will be closed by close_thread_table() at
             the end of this branch.
           */
-          if (open_table(thd, table, thd->mem_root, &ot_ctx_unused,
-                         MYSQL_OPEN_REOPEN))
+          if (open_table(thd, table, thd->mem_root, &ot_ctx))
             goto err;
 
           int result __attribute__((unused))=
@@ -5374,14 +5437,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             goto err;
 
           DBUG_ASSERT(thd->open_tables == table->table);
-          mysql_mutex_lock(&LOCK_open);
           /*
             When opening the table, we ignored the locked tables
             (MYSQL_OPEN_GET_NEW_TABLE). Now we can close the table without
             risking to close some locked table.
           */
           close_thread_table(thd, &thd->open_tables);
-          mysql_mutex_unlock(&LOCK_open);
         }
       }
       else                                      // Case 1
@@ -5448,6 +5509,7 @@ mysql_discard_or_import_tablespace(THD *thd,
    not complain when we lock the table
  */
   thd->tablespace_op= TRUE;
+  table_list->mdl_request.set_type(MDL_SHARED_WRITE);
   if (!(table=open_ltable(thd, table_list, TL_WRITE, 0)))
   {
     thd->tablespace_op=FALSE;
@@ -5488,6 +5550,45 @@ err:
   table->file->print_error(error, MYF(0));
 
   DBUG_RETURN(-1);
+}
+
+/**
+  @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
+ 
+  @details Checks if any index is being modified (present as both DROP INDEX 
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+    online ALTER TABLE.
+  
+  @param table       The table being altered
+  @param alter_info  The ALTER TABLE structure
+  @return presence of index being altered  
+  @retval FALSE  No such index
+  @retval TRUE   Have at least 1 index modified
+*/
+
+static bool
+is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+{
+  List_iterator<Key> key_it(alter_info->key_list);
+  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
+  Key *key;
+
+  while ((key= key_it++))
+  {
+    if (key->name.str)
+    {
+      Alter_drop *drop;
+
+      drop_it.rewind();
+      while ((drop= drop_it++))
+      {
+        if (drop->type == Alter_drop::KEY &&
+            !my_strcasecmp(system_charset_info, key->name.str, drop->name))
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
 }
 
 
@@ -5578,6 +5679,7 @@ compare_tables(TABLE *table,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
+
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
                                  &tmp_alter_info,
@@ -6385,8 +6487,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
-  legacy_db_type table_type;
-  frm_type_enum frm_type;
   enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
@@ -6466,85 +6566,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* Conditionally writes to binlog. */
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
 						   alter_info->tablespace_op));
-  strxnmov(new_name_buff, sizeof (new_name_buff) - 1, mysql_data_home, "/", db, 
-           "/", table_name, reg_ext, NullS);
-  (void) unpack_filename(new_name_buff, new_name_buff);
-  /*
-    If this is just a rename of a view, short cut to the
-    following scenario: 1) lock LOCK_open 2) do a RENAME
-    2) unlock LOCK_open.
-    This is a copy-paste added to make sure
-    ALTER (sic:) TABLE .. RENAME works for views. ALTER VIEW is handled
-    as an independent branch in mysql_execute_command. The need
-    for a copy-paste arose because the main code flow of ALTER TABLE
-    ... RENAME tries to use open_ltable, which does not work for views
-    (open_ltable was never modified to merge table lists of child tables
-    into the main table list, like open_tables does).
-    This code is wrong and will be removed, please do not copy.
-  */
-  frm_type= mysql_frm_type(thd, new_name_buff, &table_type);
-  /* Rename a view */
-  /* Sic: there is a race here */
-  if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))
-  {
-    /*
-      The following branch handles "ALTER VIEW v1 /no arguments/;"
-      This feature is not documented one. 
-      However, before "OPTIMIZE TABLE t1;" was implemented, 
-      ALTER TABLE with no alter_specifications was used to force-rebuild
-      the table. That's why this grammar is allowed. That's why we ignore
-      it for views. So just do nothing in such a case.
-    */
-    if (!new_name)
-    {
-      my_ok(thd);
-      DBUG_RETURN(FALSE);
-    }
-
-    /*
-      Avoid problems with a rename on a table that we have locked or
-      if the user is trying to to do this in a transcation context
-    */
-
-    if (thd->locked_tables_mode || thd->active_transaction())
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      DBUG_RETURN(TRUE);
-    }
-
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-      DBUG_RETURN(TRUE);
-    if (lock_table_names(thd, table_list))
-    {
-      error= 1;
-      goto view_err;
-    }
-
-    mysql_mutex_lock(&LOCK_open);
-
-    if (!do_rename(thd, table_list, new_db, new_name, new_name, 1))
-    {
-      if (mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        Query_log_event qinfo(thd, thd->query(), thd->query_length(),
-                              FALSE, TRUE, FALSE, 0);
-        if ((error= mysql_bin_log.write(&qinfo)))
-          goto view_err_unlock;
-      }
-      my_ok(thd);
-    }
-
-view_err_unlock:
-    mysql_mutex_unlock(&LOCK_open);
-    unlock_table_names(thd);
-
-view_err:
-    thd->global_read_lock.start_waiting_global_read_lock(thd);
-    DBUG_RETURN(error);
-  }
-
 
   /*
     Code below can handle only base tables so ensure that we won't open a view.
@@ -6555,8 +6576,7 @@ view_err:
 
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
 
-  error= open_and_lock_tables(thd, table_list, FALSE,
-                              MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+  error= open_and_lock_tables(thd, table_list, FALSE, 0,
                               &alter_prelocking_strategy);
 
   if (error)
@@ -6858,10 +6878,14 @@ view_err:
   */
   new_db_type= create_info->db_type;
 
+  if (is_index_maintenance_unique (table, alter_info))
+    need_copy_table= ALTER_TABLE_DATA_CHANGED;
+
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
-
-  need_copy_table= alter_info->change_level;
+  
+  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+    need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
@@ -6884,7 +6908,14 @@ view_err:
                        &index_add_buffer, &index_add_count,
                        &candidate_key_count))
       goto err;
-
+   
+    DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
+      if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
+        goto err; });
+    DBUG_EXECUTE_IF("alter_table_only_index_change", {
+      if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
+        goto err; });
+   
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
   }
@@ -7148,14 +7179,14 @@ view_err:
   {
     if (table->s->tmp_table)
     {
-      Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+      Open_table_context ot_ctx(thd, (MYSQL_OPEN_IGNORE_FLUSH |
+                                      MYSQL_LOCK_IGNORE_TIMEOUT));
       TABLE_LIST tbl;
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
       /* Table is in thd->temporary_tables */
-      (void) open_table(thd, &tbl, thd->mem_root, &ot_ctx_unused,
-                        MYSQL_OPEN_IGNORE_FLUSH);
+      (void) open_table(thd, &tbl, thd->mem_root, &ot_ctx);
       new_table= tbl.table;
     }
     else
@@ -7308,12 +7339,22 @@ view_err:
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
     /* Close lock if this is a transactional table */
-    if (thd->lock &&
-        ! (thd->locked_tables_mode == LTM_LOCK_TABLES ||
-           thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
+    if (thd->lock)
     {
-      mysql_unlock_tables(thd, thd->lock);
-      thd->lock=0;
+      if (thd->locked_tables_mode != LTM_LOCK_TABLES &&
+          thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES)
+      {
+        mysql_unlock_tables(thd, thd->lock);
+        thd->lock=0;
+      }
+      else
+      {
+        /*
+          If LOCK TABLES list is not empty and contains this table,
+          unlock the table and remove the table from this list.
+        */
+        mysql_lock_remove(thd, thd->lock, table);
+      }
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd, table, 1, 1);
@@ -7434,7 +7475,7 @@ view_err:
       To do this we need to obtain a handler object for it.
       NO need to tamper with MERGE tables. The real open is done later.
     */
-    Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
+    Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
     TABLE *t_table;
     if (new_name != table_name || new_db != db)
     {
@@ -7454,8 +7495,7 @@ view_err:
       */
       table_list->mdl_request.ticket= mdl_ticket;
     }
-    if (open_table(thd, table_list, thd->mem_root,
-                   &ot_ctx_unused, MYSQL_OPEN_REOPEN))
+    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
     {
       goto err_with_mdl;
     }
@@ -7466,9 +7506,7 @@ view_err:
                                                create_info);
 
     DBUG_ASSERT(thd->open_tables == t_table);
-    mysql_mutex_lock(&LOCK_open);
     close_thread_table(thd, &thd->open_tables);
-    mysql_mutex_unlock(&LOCK_open);
     table_list->table= 0;
 
     if (error)
@@ -7506,7 +7544,7 @@ view_err:
     if (t_table)
     {
       intern_close_table(t_table);
-      my_free(t_table, MYF(0));
+      my_free(t_table);
     }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",
@@ -7847,6 +7885,10 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   table_list->table= NULL;
   /* Same applies to MDL ticket. */
   table_list->mdl_request.ticket= NULL;
+  /* Set lock type which is appropriate for ALTER TABLE. */
+  table_list->lock_type= TL_READ_NO_INSERT;
+  /* Same applies to MDL request. */
+  table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
   bzero((char*) &create_info, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;
@@ -7950,22 +7992,28 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
-        enum_field_types field_type= f->type();
-        /*
-          BLOB and VARCHAR have pointers in their field, we must convert
-          to string; GEOMETRY is implemented on top of BLOB.
-        */
-        if ((field_type == MYSQL_TYPE_BLOB) ||
-            (field_type == MYSQL_TYPE_VARCHAR) ||
-            (field_type == MYSQL_TYPE_GEOMETRY))
-	      {
-		String tmp;
-		f->val_str(&tmp);
-		row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(), tmp.length());
+
+             /*
+               BLOB and VARCHAR have pointers in their field, we must convert
+               to string; GEOMETRY is implemented on top of BLOB.
+               BIT may store its data among NULL bits, convert as well.
+             */
+              switch (f->type()) {
+                case MYSQL_TYPE_BLOB:
+                case MYSQL_TYPE_VARCHAR:
+                case MYSQL_TYPE_GEOMETRY:
+                case MYSQL_TYPE_BIT:
+                {
+                  String tmp;
+                  f->val_str(&tmp);
+                  row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(),
+                           tmp.length());
+                  break;
+                }
+                default:
+                  row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                  break;
 	      }
-	      else
-		row_crc= my_checksum(row_crc, f->ptr,
-				     f->pack_length());
 	    }
 
 	    crc+= row_crc;

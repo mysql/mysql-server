@@ -184,12 +184,22 @@ typedef struct st_heap_info
 
 typedef struct st_heap_create_info
 {
+  HP_KEYDEF *keydef;
+  ulong max_records;
+  ulong min_records;
   uint auto_key;                        /* keynr [1 - maxkey] for auto key */
   uint auto_key_type;
+  uint keys;
+  uint reclength;
   ulonglong max_table_size;
   ulonglong auto_increment;
   my_bool with_auto_increment;
   my_bool internal_table;
+  /*
+    TRUE if heap_create should 'pin' the created share by setting
+    open_count to 1. Is only looked at if not internal_table.
+  */
+  my_bool pin_share;
 } HP_CREATE_INFO;
 
 	/* Prototypes for heap-functions */
@@ -197,6 +207,7 @@ typedef struct st_heap_create_info
 extern HP_INFO *heap_open(const char *name, int mode);
 extern HP_INFO *heap_open_from_share(HP_SHARE *share, int mode);
 extern HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode);
+extern void heap_release_share(HP_SHARE *share, my_bool internal_table);
 extern int heap_close(HP_INFO *info);
 extern int heap_write(HP_INFO *info,const uchar *buff);
 extern int heap_update(HP_INFO *info,const uchar *old,const uchar *newdata);
@@ -205,9 +216,9 @@ extern int heap_scan_init(HP_INFO *info);
 extern int heap_scan(register HP_INFO *info, uchar *record);
 extern int heap_delete(HP_INFO *info,const uchar *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
-extern int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
-		       uint reclength, ulong max_records, ulong min_records,
-		       HP_CREATE_INFO *create_info, HP_SHARE **share);
+extern int heap_create(const char *name,
+                       HP_CREATE_INFO *create_info, HP_SHARE **share,
+                       my_bool *created_new_share);
 extern int heap_delete_table(const char *name);
 extern void heap_drop_table(HP_INFO *info);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);

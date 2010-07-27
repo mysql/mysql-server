@@ -1,0 +1,22 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+change master to master_host='127.0.0.1',master_user='root',
+master_password='',master_port=MASTER_PORT;
+start slave;
+stop slave;
+change master to master_host='127.0.0.1',master_user='root',
+master_password='',master_port=SLAVE_PORT;
+start slave;
+
+let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%0%0%None%' ;
+
+--source include/wait_slave_status.inc
+flush logs;
+Relay_Log_File	mysqld-relay-bin.000003
+Checking that both slave threads are running.
+STOP SLAVE;

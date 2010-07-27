@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
       ptr= (char *)my_malloc(sizeof(char) * reader_handle.frm_length, MYF(0));
       azread_frm(&reader_handle, ptr);
       azwrite_frm(&writer_handle, ptr, reader_handle.frm_length);
-      my_free(ptr, MYF(0));
+      my_free(ptr);
     }
 
     if (reader_handle.comment_length)
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
       ptr= (char *)my_malloc(sizeof(char) * reader_handle.comment_length, MYF(0));
       azread_comment(&reader_handle, ptr);
       azwrite_comment(&writer_handle, ptr, reader_handle.comment_length);
-      my_free(ptr, MYF(0));
+      my_free(ptr);
     }
 
     while ((read= azread(&reader_handle, (uchar *)size_buffer, 
@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
     azread_frm(&reader_handle, ptr);
     my_write(frm_file, (uchar*) ptr, reader_handle.frm_length, MYF(0));
     my_close(frm_file, MYF(0));
-    my_free(ptr, MYF(0));
+    my_free(ptr);
   }
 
 end:
@@ -355,15 +355,14 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-auto-increment", 'A',
    "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.",
-   (uchar**) &new_auto_increment,
-   (uchar**) &new_auto_increment,
+   &new_auto_increment, &new_auto_increment,
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make archive_reader very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files.",
-   (uchar**) &opt_tmpdir,
+   &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V',
    "Print version and exit.",

@@ -10,17 +10,19 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/pfs_instr.cc
   Performance schema instruments (implementation).
 */
 
+#include <string.h>
+
 #include "my_global.h"
-#include "mysql_priv.h"
 #include "my_sys.h"
+#include "pfs.h"
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
@@ -132,6 +134,10 @@ static PFS_events_waits *thread_history_array= NULL;
 static LF_HASH filename_hash;
 /** True if filename_hash is initialized. */
 static bool filename_hash_inited= false;
+C_MODE_START
+/** Get hash table key for instrumented files. */
+static uchar *filename_hash_get_key(const uchar *, size_t *, my_bool);
+C_MODE_END
 
 /**
   Initialize all the instruments instance buffers.
@@ -405,6 +411,8 @@ void cleanup_instruments(void)
   thread_instr_class_waits_array= NULL;
 }
 
+extern "C"
+{
 static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
                                     my_bool)
 {
@@ -418,6 +426,7 @@ static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
   *length= file->m_filename_length;
   result= file->m_filename;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+}
 }
 
 /**
@@ -445,6 +454,75 @@ void cleanup_file_hash(void)
   }
 }
 
+void PFS_scan::init(uint random, uint max_size)
+{
+  m_pass= 0;
+
+  if (max_size == 0)
+  {
+    /* Degenerated case, no buffer */
+    m_pass_max= 0;
+    return;
+  }
+
+  DBUG_ASSERT(random < max_size);
+
+  if (PFS_MAX_ALLOC_RETRY < max_size)
+  {
+    /*
+      The buffer is big compared to PFS_MAX_ALLOC_RETRY,
+      scan it only partially.
+    */
+    if (random + PFS_MAX_ALLOC_RETRY < max_size)
+    {
+      /*
+        Pass 1: [random, random + PFS_MAX_ALLOC_RETRY - 1]
+        Pass 2: not used.
+      */
+      m_pass_max= 1;
+      m_first[0]= random;
+      m_last[0]= random + PFS_MAX_ALLOC_RETRY;
+      m_first[1]= 0;
+      m_last[1]= 0;
+    }
+    else
+    {
+      /*
+        Pass 1: [random, max_size - 1]
+        Pass 2: [0, ...]
+        The combined length of pass 1 and 2 is PFS_MAX_ALLOC_RETRY.
+      */
+      m_pass_max= 2;
+      m_first[0]= random;
+      m_last[0]= max_size;
+      m_first[1]= 0;
+      m_last[1]= PFS_MAX_ALLOC_RETRY - (max_size - random);
+    }
+  }
+  else
+  {
+    /*
+      The buffer is small compared to PFS_MAX_ALLOC_RETRY,
+      scan it in full in two passes.
+      Pass 1: [random, max_size - 1]
+      Pass 2: [0, random - 1]
+    */
+    m_pass_max= 2;
+    m_first[0]= random;
+    m_last[0]= max_size;
+    m_first[1]= 0;
+    m_last[1]= random;
+  }
+
+  DBUG_ASSERT(m_first[0] < max_size);
+  DBUG_ASSERT(m_first[1] < max_size);
+  DBUG_ASSERT(m_last[1] <= max_size);
+  DBUG_ASSERT(m_last[1] <= max_size);
+  /* The combined length of all passes should not exceed PFS_MAX_ALLOC_RETRY. */
+  DBUG_ASSERT((m_last[0] - m_first[0]) +
+              (m_last[1] - m_first[1]) <= PFS_MAX_ALLOC_RETRY);
+}
+
 /**
   Create instrumentation for a mutex instance.
   @param klass                        the mutex class
@@ -453,17 +531,15 @@ void cleanup_file_hash(void)
 */
 PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
 {
-  int pass;
-  uint i= randomized_index(identity, mutex_max);
+  PFS_scan scan;
+  uint random= randomized_index(identity, mutex_max);
 
-  /*
-    Pass 1: [random, mutex_max - 1]
-    Pass 2: [0, mutex_max - 1]
-  */
-  for (pass= 1; pass <= 2; i=0, pass++)
+  for (scan.init(random, mutex_max);
+       scan.has_pass();
+       scan.next_pass())
   {
-    PFS_mutex *pfs= mutex_array + i;
-    PFS_mutex *pfs_last= mutex_array + mutex_max;
+    PFS_mutex *pfs= mutex_array + scan.first();
+    PFS_mutex *pfs_last= mutex_array + scan.last();
     for ( ; pfs < pfs_last; pfs++)
     {
       if (pfs->m_lock.is_free())
@@ -511,17 +587,15 @@ void destroy_mutex(PFS_mutex *pfs)
 */
 PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
 {
-  int pass;
-  uint i= randomized_index(identity, rwlock_max);
+  PFS_scan scan;
+  uint random= randomized_index(identity, rwlock_max);
 
-  /*
-    Pass 1: [random, rwlock_max - 1]
-    Pass 2: [0, rwlock_max - 1]
-  */
-  for (pass= 1; pass <= 2; i=0, pass++)
+  for (scan.init(random, rwlock_max);
+       scan.has_pass();
+       scan.next_pass())
   {
-    PFS_rwlock *pfs= rwlock_array + i;
-    PFS_rwlock *pfs_last= rwlock_array + rwlock_max;
+    PFS_rwlock *pfs= rwlock_array + scan.first();
+    PFS_rwlock *pfs_last= rwlock_array + scan.last();
     for ( ; pfs < pfs_last; pfs++)
     {
       if (pfs->m_lock.is_free())
@@ -575,17 +649,15 @@ void destroy_rwlock(PFS_rwlock *pfs)
 */
 PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
 {
-  int pass;
-  uint i= randomized_index(identity, cond_max);
+  PFS_scan scan;
+  uint random= randomized_index(identity, cond_max);
 
-  /*
-    Pass 1: [random, cond_max - 1]
-    Pass 2: [0, cond_max - 1]
-  */
-  for (pass= 1; pass <= 2; i=0, pass++)
+  for (scan.init(random, cond_max);
+       scan.has_pass();
+       scan.next_pass())
   {
-    PFS_cond *pfs= cond_array + i;
-    PFS_cond *pfs_last= cond_array + cond_max;
+    PFS_cond *pfs= cond_array + scan.first();
+    PFS_cond *pfs_last= cond_array + scan.last();
     for ( ; pfs < pfs_last; pfs++)
     {
       if (pfs->m_lock.is_free())
@@ -633,17 +705,15 @@ void destroy_cond(PFS_cond *pfs)
 PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
                           ulong thread_id)
 {
-  int pass;
-  uint i= randomized_index(identity, thread_max);
+  PFS_scan scan;
+  uint random= randomized_index(identity, thread_max);
 
-  /*
-    Pass 1: [random, thread_max - 1]
-    Pass 2: [0, thread_max - 1]
-  */
-  for (pass= 1; pass <= 2; i=0, pass++)
+  for (scan.init(random, thread_max);
+       scan.has_pass();
+       scan.next_pass())
   {
-    PFS_thread *pfs= thread_array + i;
-    PFS_thread *pfs_last= thread_array + thread_max;
+    PFS_thread *pfs= thread_array + scan.first();
+    PFS_thread *pfs_last= thread_array + scan.last();
     for ( ; pfs < pfs_last; pfs++)
     {
       if (pfs->m_lock.is_free())
@@ -727,7 +797,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
                     const char *filename, uint len)
 {
   PFS_file *pfs;
-  int pass;
+  PFS_scan scan;
 
   if (! filename_hash_inited)
   {
@@ -759,7 +829,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
       - it fits into pfs->m_filename
       - it is safe to use mysys apis to normalize the file name.
     */
-    memcpy(safe_buffer, filename, FN_REFLEN - 2);
+    memcpy(safe_buffer, filename, FN_REFLEN - 1);
     safe_buffer[FN_REFLEN - 1]= 0;
     safe_filename= safe_buffer;
   }
@@ -816,9 +886,12 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 
   /* Append the unresolved file name to the resolved path */
   char *ptr= buffer + strlen(buffer);
-  *ptr++= FN_LIBCHAR;
-  ptr= strmov(ptr, safe_filename + dirlen);
-  *ptr= '\0';
+  char *buf_end= &buffer[sizeof(buffer)-1];
+  if (buf_end > ptr)
+    *ptr++= FN_LIBCHAR;
+  if (buf_end > ptr)
+    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  *buf_end= '\0';
 
   normalized_filename= buffer;
   normalized_length= strlen(normalized_filename);
@@ -839,17 +912,14 @@ search:
   }
 
   /* filename is not constant, just using it for noise on create */
-  uint i= randomized_index(filename, file_max);
+  uint random= randomized_index(filename, file_max);
 
-  /*
-    Pass 1: [random, file_max - 1]
-    Pass 2: [0, file_max - 1]
-  */
-  for (pass= 1; pass <= 2; i=0, pass++)
+  for (scan.init(random, file_max);
+       scan.has_pass();
+       scan.next_pass())
   {
-    pfs= file_array + i;
-    PFS_file *pfs_last= file_array + file_max;
-
+    pfs= file_array + scan.first();
+    PFS_file *pfs_last= file_array + scan.last();
     for ( ; pfs < pfs_last; pfs++)
     {
       if (pfs->m_lock.is_free())
@@ -934,17 +1004,15 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
 */
 PFS_table* create_table(PFS_table_share *share, const void *identity)
 {
-  int pass;
-  uint i= randomized_index(identity, table_max);
+  PFS_scan scan;
+  uint random= randomized_index(identity, table_max);
 
-  /*
-    Pass 1: [random, table_max - 1]
-    Pass 2: [0, table_max - 1]
-  */
-  for (pass= 1; pass <= 2; i=0, pass++)
+  for (scan.init(random, table_max);
+       scan.has_pass();
+       scan.next_pass())
   {
-    PFS_table *pfs= table_array + i;
-    PFS_table *pfs_last= table_array + table_max;
+    PFS_table *pfs= table_array + scan.first();
+    PFS_table *pfs_last= table_array + scan.last();
     for ( ; pfs < pfs_last; pfs++)
     {
       if (pfs->m_lock.is_free())

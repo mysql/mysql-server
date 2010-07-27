@@ -1,0 +1,50 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (1),(2),(3),(4);
+drop table t1;
+create table t2(n int not null auto_increment primary key);
+insert into t2 values (1),(2);
+insert into t2 values (3),(4);
+drop table t2;
+start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
+select * from t1;
+n
+1
+2
+3
+4
+start slave until master_log_file='master-no-such-bin.000001', master_log_pos=MASTER_LOG_POS;
+select * from t1;
+n
+1
+2
+3
+4
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=RELAY_LOG_POS;
+select * from t2;
+n
+1
+2
+start slave;
+stop slave;
+start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
+start slave until master_log_file='master-bin', master_log_pos=MASTER_LOG_POS;
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS, relay_log_pos=RELAY_LOG_POS;
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+start slave until master_log_file='master-bin.000001';
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+start slave until relay_log_file='slave-relay-bin.000002';
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=MASTER_LOG_POS;
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+start slave sql_thread;
+start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
+Warnings:
+Note	1254	Slave is already running

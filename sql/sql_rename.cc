@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,16 +10,26 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   Atomic rename of table;  RENAME TABLE t1 to t2, tmp to t1 [,...]
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_rename.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_table.h"                         // build_table_filename
+#include "sql_view.h"             // mysql_frm_type, mysql_rename_view
 #include "sql_trigger.h"
-
+#include "lock.h"       // wait_if_global_read_lock, lock_table_names,
+                        // unlock_table_names,
+                        // start_waiting_global_read_lock
+#include "sql_base.h"   // tdc_remove_table
+#include "sql_handler.h"                        // mysql_ha_rm_tables
+#include "datadict.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -45,7 +55,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     if the user is trying to to do this in a transcation context
   */
 
-  if (thd->locked_tables_mode || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -274,7 +284,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   build_table_filename(name, sizeof(name) - 1,
                        ren_table->db, old_alias, reg_ext, 0);
 
-  frm_type= mysql_frm_type(thd, name, &table_type);
+  frm_type= dd_frm_type(thd, name, &table_type);
   switch (frm_type)
   {
     case FRMTYPE_TABLE:

@@ -43,9 +43,6 @@ libsignaldataprint_la_SOURCES = \
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: libsignaldataprint.dsp
 
 libsignaldataprint.dsp: Makefile \

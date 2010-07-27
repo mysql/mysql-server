@@ -99,31 +99,29 @@ static struct my_option my_long_options[]=
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (uchar**) & default_dbug_option,
-   (uchar**) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", &default_dbug_option,
+   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-info", 'T', "Print some debug info at exit.", (uchar**) & info_flag,
-   (uchar**) & info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", &info_flag,
+   &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Prints version", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"charset", 'C', "Charset dir", (uchar**) & charsets_dir,
-   (uchar**) & charsets_dir,
+  {"charset", 'C', "Charset dir", &charsets_dir, &charsets_dir,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"in_file", 'F', "Input file", (uchar**) & TXTFILE, (uchar**) & TXTFILE,
+  {"in_file", 'F', "Input file", &TXTFILE, &TXTFILE,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"out_dir", 'D', "Output base directory", (uchar**) & DATADIRECTORY,
-   (uchar**) & DATADIRECTORY,
+  {"out_dir", 'D', "Output base directory", &DATADIRECTORY, &DATADIRECTORY,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"out_file", 'O', "Output filename (errmsg.sys)", (uchar**) & OUTFILE,
-   (uchar**) & OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"header_file", 'H', "mysqld_error.h file ", (uchar**) & HEADERFILE,
-   (uchar**) & HEADERFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"name_file", 'N', "mysqld_ername.h file ", (uchar**) & NAMEFILE,
-   (uchar**) & NAMEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"state_file", 'S', "sql_state.h file", (uchar**) & STATEFILE,
-   (uchar**) & STATEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"out_file", 'O', "Output filename (errmsg.sys)", &OUTFILE,
+   &OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"header_file", 'H', "mysqld_error.h file ", &HEADERFILE,
+   &HEADERFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"name_file", 'N', "mysqld_ername.h file ", &NAMEFILE,
+   &NAMEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"state_file", 'S', "sql_state.h file", &STATEFILE,
+   &STATEFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -389,15 +387,15 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
   struct errors *tmp_error, *next_error;
   uint count, i;
 
-  my_free((uchar*) default_language, MYF(0));
+  my_free((void*) default_language);
 
   for (tmp_lang= lang_head; tmp_lang; tmp_lang= next_language)
   {
     next_language= tmp_lang->next_lang;
-    my_free(tmp_lang->lang_short_name, MYF(0));
-    my_free(tmp_lang->lang_long_name, MYF(0));
-    my_free(tmp_lang->charset, MYF(0));
-    my_free((uchar*) tmp_lang, MYF(0));
+    my_free(tmp_lang->lang_short_name);
+    my_free(tmp_lang->lang_long_name);
+    my_free(tmp_lang->charset);
+    my_free(tmp_lang);
   }
 
   for (tmp_error= error_head; tmp_error; tmp_error= next_error)
@@ -408,17 +406,17 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
     {
       struct message *tmp;
       tmp= dynamic_element(&tmp_error->msg, i, struct message*);
-      my_free((uchar*) tmp->lang_short_name, MYF(0));
-      my_free((uchar*) tmp->text, MYF(0));
+      my_free(tmp->lang_short_name);
+      my_free(tmp->text);
     }
 
     delete_dynamic(&tmp_error->msg);
     if (tmp_error->sql_code1[0])
-      my_free((uchar*) tmp_error->sql_code1, MYF(0));
+      my_free((void*) tmp_error->sql_code1);
     if (tmp_error->sql_code2[0])
-      my_free((uchar*) tmp_error->sql_code2, MYF(0));
-    my_free((uchar*) tmp_error->er_name, MYF(0));
-    my_free((uchar*) tmp_error, MYF(0));
+      my_free((void*) tmp_error->sql_code2);
+    my_free((void*) tmp_error->er_name);
+    my_free(tmp_error);
   }
 }
 
@@ -561,7 +559,7 @@ static uint parse_error_offset(char *str)
 
   end= 0;
   ioffset= (uint) my_strtoll10(soffset, &end, &error);
-  my_free((uchar*) soffset, MYF(0));
+  my_free(soffset);
   DBUG_RETURN(ioffset);
 }
 
@@ -667,9 +665,9 @@ static struct message *find_message(struct errors *err, const char *lang,
 static ha_checksum checksum_format_specifier(const char* msg)
 {
   ha_checksum chksum= 0;
-  const char* p= msg;
-  const char* start= 0;
-  int num_format_specifiers= 0;
+  const uchar* p= (const uchar*) msg;
+  const uchar* start= NULL;
+  uint32 num_format_specifiers= 0;
   while (*p)
   {
 
@@ -686,7 +684,7 @@ static ha_checksum checksum_format_specifier(const char* msg)
       case 'u':
       case 'x':
       case 's':
-        chksum= my_checksum(chksum, start, (uint) (p + 1 - start));
+        chksum= my_checksum(chksum, (uchar*) start, (uint) (p + 1 - start));
         start= 0; /* Not in format specifier anymore */
         break;
 

@@ -1,0 +1,51 @@
+# test verifies that REVOKE must not be replicated when 
+# slave server starts with --replicate-wild-ignore-table=mysql.% 
+# the option is set in rpl_ignore_revoke-slave.opt
+# The first part of BUG#9483 for GRANT is checked by
+# existed specific rpl_ignore_grant test case (BUG#980)
+
+
+source include/master-slave.inc;
+
+###  CLEAN-UP: create an account and manually duplicate it on the slave
+
+connection master;
+grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
+revoke select on *.* from 'user_foo'@'%';
+select select_priv from mysql.user where user='user_foo' /* master:must be N */;
+
+sync_slave_with_master;
+#connection slave;
+grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
+revoke select on *.* from 'user_foo'@'%';
+select select_priv from mysql.user where user='user_foo' /* slave:must be N */;
+
+
+### TEST
+
+#connection slave;
+grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
+select select_priv from mysql.user where user='user_foo' /* slave:must be Y */;
+
+connection master;
+revoke select on *.* from 'user_foo';
+select select_priv from mysql.user where user='user_foo' /* master:must be N */;
+
+sync_slave_with_master;
+#connection slave;
+select select_priv from mysql.user where user='user_foo' /* slave:must get Y */;
+
+### CLEAN-UP
+
+connection slave;
+--disable_abort_on_error
+revoke select on *.* FROM 'user_foo';
+--enable_abort_on_error
+
+connection master;
+delete from mysql.user where user="user_foo";
+sync_slave_with_master;
+
+# Since changes to mysql.* are ignored, the revoke need to
+# be done on slave as well
+delete from mysql.user where user="user_foo";

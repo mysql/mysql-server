@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -24,13 +24,26 @@
   in the relevant fields. Empty strings comes last.
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_acl.h"         // MYSQL_DB_FIELD_COUNT, ACL_ACCESS
+#include "sql_base.h"                           // close_thread_tables
+#include "key.h"             // key_copy, key_cmp_if_same, key_restore
+#include "sql_show.h"        // append_identifier
+#include "sql_table.h"                         // build_table_filename
 #include "hash_filo.h"
+#include "sql_parse.h"                          // check_access
+#include "sql_view.h"                           // VIEW_ANY_ACL
+#include "records.h"              // READ_RECORD, read_record_info,
+                                  // init_read_record, end_read_record
+#include "rpl_filter.h"           // rpl_filter
 #include <m_ctype.h>
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
 #include "transaction.h"
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "records.h"             // init_read_record, end_read_record
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -197,6 +210,7 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
+static inline void get_grantor(THD *thd, char* grantor);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -916,7 +930,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   if (acl_user)
   {
     /* OK. User found and password checked continue validation */
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     Vio *vio=thd->net.vio;
     SSL *ssl= (SSL*) vio->ssl_arg;
     X509 *cert;
@@ -933,7 +947,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     case SSL_TYPE_NONE:				// SSL is not required
       user_access= acl_user->access;
       break;
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     case SSL_TYPE_ANY:				// Any kind of SSL is ok
       if (vio_type(vio) == VIO_TYPE_SSL)
 	user_access= acl_user->access;
@@ -1630,12 +1644,10 @@ bool change_password(THD *thd, const char *host, const char *user,
   result= 0;
   if (mysql_bin_log.is_open())
   {
-    query_length=
-      my_sprintf(buff,
-                 (buff,"SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
-                  acl_user->user ? acl_user->user : "",
-                  acl_user->host.hostname ? acl_user->host.hostname : "",
-                  new_password));
+    query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
+                          acl_user->user ? acl_user->user : "",
+                          acl_user->host.hostname ? acl_user->host.hostname : "",
+                          new_password);
     thd->clear_error();
     result= thd->binlog_query(THD::STMT_QUERY_TYPE, buff, query_length,
                               FALSE, FALSE, FALSE, 0);
@@ -2742,6 +2754,20 @@ end:
   DBUG_RETURN(result);
 }
 
+static inline void get_grantor(THD *thd, char *grantor)
+{
+  const char *user= thd->security_ctx->user;
+  const char *host= thd->security_ctx->host_or_ip;
+
+#if defined(HAVE_REPLICATION)
+  if (thd->slave_thread && thd->has_invoker())
+  {
+    user= thd->get_invoker_user().str;
+    host= thd->get_invoker_host().str;
+  }
+#endif
+  strxmov(grantor, user, "@", host, NullS);
+}
 
 static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       TABLE *table, const LEX_USER &combo,
@@ -2756,9 +2782,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   uchar user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     The following should always succeed as new users are created before
     this function is called!
@@ -2888,9 +2912,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
-  strxmov(grantor, thd->security_ctx->user, "@",
-          thd->security_ctx->host_or_ip, NullS);
-
+  get_grantor(thd, grantor);
   /*
     New users are created before this function is called.
 
@@ -3018,6 +3040,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool create_new_users=0;
   char *db_name, *table_name;
   bool save_binlog_row_based;
+  bool should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_table_grant");
 
   if (!initialized)
@@ -3146,6 +3169,12 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   */
   Query_tables_list backup;
   thd->lex->reset_n_backup_query_tables_list(&backup);
+  /*
+    Restore Query_tables_list::sql_command value, which was reset
+    above, as the code writing query to the binary log assumes that
+    this value corresponds to the statement being executed.
+  */
+  thd->lex->sql_command= backup.sql_command;
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
@@ -3184,6 +3213,15 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       result= TRUE;				// Remember error
       continue;					// Add next user
     }
+
+    /*
+      Some operations below can fail and are not undone.
+      As such, we play it safe and log the statement with
+      an error to give a chance to the slave to replay this
+      statement and fail as well, hoping that it will also
+      get the same side effects.
+     */
+    should_write_to_binlog= TRUE;
 
     db_name= table_list->get_db_name();
     table_name= table_list->get_table_name();
@@ -3267,11 +3305,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (!result) /* success */
-  {
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-  }
-
+  if (should_write_to_binlog)
+    result= result |
+            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
   mysql_rwlock_unlock(&LOCK_grant);
 
   if (!result) /* success */
@@ -3311,7 +3347,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
   char *db_name, *table_name;
-  bool save_binlog_row_based;
+  bool save_binlog_row_based, should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_routine_grant");
 
   if (!initialized)
@@ -3446,11 +3482,17 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= TRUE;
       continue;
     }
+
+    /*
+      Even if there is an error, we should write to binary log.
+     */
+    should_write_to_binlog= TRUE;
+
   }
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (write_to_binlog)
+  if (write_to_binlog && should_write_to_binlog)
   {
     if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
       result= TRUE;
@@ -3476,6 +3518,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool create_new_users=0;
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
+  bool should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
@@ -3584,13 +3627,17 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 	result= -1;
       }
     }
+
+    /*
+      Even if there is an error, we should write to binary log.
+     */
+    should_write_to_binlog= TRUE;
   }
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (!result)
-  {
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-  }
+  if (should_write_to_binlog)
+    result= result |
+            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5124,7 +5171,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 {
   uint pos;
   char *start=to;
-  DBUG_ASSERT(max_length >= 30);		// For end ',' removal
+  DBUG_ASSERT(max_length >= 30);                // For end ', ' removal
 
   if (access)
   {
@@ -5135,10 +5182,12 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 	  command_lengths[pos] + (uint) (to-start) < max_length)
       {
 	to= strmov(to, command_array[pos]);
-	*to++=',';
+        *to++= ',';
+        *to++= ' ';
       }
     }
-    to--;					// Remove end ','
+    to--;                                       // Remove end ' '
+    to--;                                       // Remove end ','
   }
   *to=0;
 }
@@ -6105,7 +6154,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   int result;
   ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
-  bool save_binlog_row_based;
+  bool save_binlog_row_based, should_write_to_binlog= FALSE;
   DBUG_ENTER("mysql_revoke_all");
 
   /*
@@ -6149,6 +6198,11 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       result= -1;
       continue;
     }
+
+    /*
+      Even if there is an error, we should write to binary log.
+     */
+    should_write_to_binlog= TRUE;
 
     /* Remove db access privileges */
     /*
@@ -6267,21 +6321,24 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   mysql_mutex_unlock(&acl_cache->lock);
 
-  int binlog_error=
-    write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  if (result)
+    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+
+  if (should_write_to_binlog)
+  {
+    result= result |
+      write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  }
 
   mysql_rwlock_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  /* error for writing binary log has already been reported */
-  if (result && !binlog_error)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
-  DBUG_RETURN(result || binlog_error);
+  DBUG_RETURN(result);
 }
 
 

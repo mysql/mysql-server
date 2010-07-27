@@ -1,0 +1,20 @@
+--source include/not_embedded.inc
+--source include/have_example_plugin.inc
+
+--echo #
+--echo # Bug#51770: UNINSTALL PLUGIN requires no privileges
+--echo #
+
+GRANT INSERT ON mysql.plugin TO bug51770@localhost;
+connect(con1,localhost,bug51770,,);
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+--error ER_TABLEACCESS_DENIED_ERROR
+UNINSTALL PLUGIN example;
+connection default;
+GRANT DELETE ON mysql.plugin TO bug51770@localhost;
+connection con1;
+UNINSTALL PLUGIN example;
+disconnect con1;
+connection default;
+DROP USER bug51770@localhost;

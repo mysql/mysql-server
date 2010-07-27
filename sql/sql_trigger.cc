@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,16 +10,28 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "sql_parse.h"                          // parse_sql
 #include "parse_file.h"
 #include "sp.h"
+#include "sql_base.h"                          // find_temporary_table
+#include "lock.h"                    // wait_if_global_read_lock,
+                                     // start_waiting_global_read_lock
+#include "sql_show.h"                // append_definer, append_identifier
+#include "sql_table.h"                        // build_table_filename,
+                                              // check_n_cut_mysql50_prefix
+#include "sql_db.h"                        // get_default_db_collation
+#include "sql_acl.h"                       // *_ACL, is_acl_user
+#include "sql_handler.h"                        // mysql_ha_rm_tables
 
 /*************************************************************************/
 
@@ -399,6 +411,13 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       destructive changes necessary to open the trigger's table.
     */
     thd->lex->reset_n_backup_query_tables_list(&backup);
+    /*
+      Restore Query_tables_list::sql_command, which was
+      reset above, as the code that writes the query to the
+      binary log assumes that this value corresponds to the
+      statement that is being executed.
+    */
+    thd->lex->sql_command= backup.sql_command;
 
     if (add_table_for_trigger(thd, thd->lex->spname, if_exists, & tables))
       goto end;
@@ -470,8 +489,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   else
   {
     tables->table= open_n_lock_single_table(thd, tables,
-                                            TL_WRITE_ALLOW_READ,
-                                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL);
+                                            TL_READ_NO_INSERT, 0);
     if (! tables->table)
       goto end;
     tables->table->use_all_columns();
@@ -663,7 +681,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   old_field= new_field= table->field;
 
-  for (trg_field= (Item_trigger_field *)(lex->trg_table_fields.first);
+  for (trg_field= lex->trg_table_fields.first;
        trg_field; trg_field= trg_field->next_trg_field)
   {
     /*
@@ -1308,9 +1326,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
-        Parser_state parser_state(thd,
-                                  trg_create_str->str,
-                                  trg_create_str->length);
+        Parser_state parser_state;
+        if (parser_state.init(thd, trg_create_str->str, trg_create_str->length))
+          goto err_with_lex_cleanup;
 
         Trigger_creation_ctx *creation_ctx=
           Trigger_creation_ctx::create(thd,
@@ -1424,7 +1442,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         */
         triggers->trigger_fields[lex.trg_chistics.event]
                                 [lex.trg_chistics.action_time]=
-          (Item_trigger_field *)(lex.trg_table_fields.first);
+          lex.trg_table_fields.first;
         /*
           Also let us bind these objects to Field objects in table being
           opened.
@@ -1434,8 +1452,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           SELECT)...
           Anyway some things can be checked only during trigger execution.
         */
-        for (Item_trigger_field *trg_field=
-               (Item_trigger_field *)(lex.trg_table_fields.first);
+        for (Item_trigger_field *trg_field= lex.trg_table_fields.first;
              trg_field;
              trg_field= trg_field->next_trg_field)
         {
@@ -1648,7 +1665,8 @@ bool add_table_for_trigger(THD *thd,
     DBUG_RETURN(TRUE);
 
   *table= sp_add_to_query_tables(thd, lex, trg_name->m_db.str,
-                                 tbl_name.str, TL_IGNORE);
+                                 tbl_name.str, TL_IGNORE,
+                                 MDL_SHARED_NO_WRITE);
 
   DBUG_RETURN(*table ? FALSE : TRUE);
 }

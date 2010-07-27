@@ -41,6 +41,12 @@ our $opt_with_ndbcluster_only;
 our $defaults_file;
 our $defaults_extra_file;
 our $quick_collect;
+# Set to 1 if you want the tests to override
+# default storage engine settings, and use MyISAM
+# as default.  (temporary option used in connection
+# with the change of default storage engine to InnoDB)
+our $default_myisam= 1;
+ 
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -98,10 +104,11 @@ sub init_pattern {
 #
 ##############################################################################
 
-sub collect_test_cases ($$$) {
+sub collect_test_cases ($$$$) {
   my $opt_reorder= shift; # True if we're reordering tests
   my $suites= shift; # Semicolon separated list of test suites
   my $opt_cases= shift;
+  my $opt_skip_test_list= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
 
   $do_test_reg= init_pattern($do_test, "--do-test");
@@ -125,7 +132,7 @@ sub collect_test_cases ($$$) {
   {
     foreach my $suite (split(",", $suites))
     {
-      push(@$cases, collect_one_suite($suite, $opt_cases));
+      push(@$cases, collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
       last if $some_test_found;
     }
   }
@@ -250,6 +257,7 @@ sub collect_one_suite($)
 {
   my $suite= shift;  # Test suite name
   my $opt_cases= shift;
+  my $opt_skip_test_list= shift;
   my @cases; # Array of hash
 
   mtr_verbose("Collecting: $suite");
@@ -311,18 +319,23 @@ sub collect_one_suite($)
   # Build a hash of disabled testcases for this suite
   # ----------------------------------------------------------------------
   my %disabled;
-  if ( open(DISABLED, "$testdir/disabled.def" ) )
-  {
-    while ( <DISABLED> )
+  my @disabled_collection= @{$opt_skip_test_list} if defined @{$opt_skip_test_list};
+  unshift (@disabled_collection, "$testdir/disabled.def");
+  for my $skip (@disabled_collection)
+    {
+      if ( open(DISABLED, $skip ) )
       {
-        chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+        while ( <DISABLED> )
           {
-            $disabled{$1}= $2;
+            chomp;
+            if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+              {
+                $disabled{$1}= $2 if not exists $disabled{$1};
+              }
           }
+        close DISABLED;
       }
-    close DISABLED;
-  }
+    }
 
   # Read suite.opt file
   my $suite_opt_file=  "$testdir/suite.opt";
@@ -591,6 +604,9 @@ sub optimize_cases {
       my $default_engine=
 	mtr_match_prefix($opt, "--default-storage-engine=");
 
+      # Allow use of uppercase, convert to all lower case
+      $default_engine =~ tr/A-Z/a-z/;
+
       if (defined $default_engine){
 
 	#print " $tinfo->{name}\n";
@@ -769,11 +785,13 @@ sub collect_one_test_case {
   # Check for disabled tests
   # ----------------------------------------------------------------------
   my $marked_as_disabled= 0;
-  if ( $disabled->{$tname} )
+  if ( $disabled->{$tname} or $disabled->{"$suitename.$tname"} )
   {
     # Test was marked as disabled in suites disabled.def file
     $marked_as_disabled= 1;
-    $tinfo->{'comment'}= $disabled->{$tname};
+    # Test name may have been disabled with or without suite name part
+    $tinfo->{'comment'}= $disabled->{$tname} || 
+                         $disabled->{"$suitename.$tname"};
   }
 
   my $disabled_file= "$testdir/$tname.disabled";
@@ -946,10 +964,12 @@ sub collect_one_test_case {
       return $tinfo unless $do_innodb_plugin;
     }
   }
-  else
+  elsif ($default_myisam)
   {
-    push(@{$tinfo->{'master_opt'}}, "--loose-skip-innodb");
-    push(@{$tinfo->{'slave_opt'}}, "--loose-skip-innodb");
+    # This is a temporary fix to allow non-innodb tests to run even if
+    # the default storage engine is innodb.
+    push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
+    push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
   }
 
   if ( $tinfo->{'need_binlog'} )

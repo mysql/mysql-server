@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
@@ -19,6 +19,9 @@
 #include "rpl_tblmap.h"
 #include "rpl_reporting.h"
 #include "rpl_utility.h"
+#include "log.h"                         /* LOG_INFO */
+#include "binlog.h"                      /* MYSQL_BIN_LOG */
+#include "sql_class.h"                   /* THD */
 
 struct RPL_TABLE_LIST;
 class Master_info;
@@ -65,11 +68,17 @@ public:
   };
 
   /*
-    If flag set, then rli does not store its state in any info file.
-    This is the case only when we execute BINLOG SQL commands inside
-    a client, non-replication thread.
+    The SQL thread owns one Relay_log_info, and each client that has
+    executed a BINLOG statement owns one Relay_log_info. This function
+    returns zero for the Relay_log_info object that belongs to the SQL
+    thread and nonzero for Relay_log_info objects that belong to
+    clients.
   */
-  bool no_storage;
+  inline bool belongs_to_client()
+  {
+    DBUG_ASSERT(sql_thd);
+    return !sql_thd->slave_thread;
+  }
 
   /*
     If true, events with the same server id should be replicated. This
@@ -161,6 +170,11 @@ public:
     relay log and finishing (commiting) on another relay log. Case which can
     happen when, for example, the relay log gets rotated because of
     max_binlog_size.
+
+    Note: group_relay_log_name, group_relay_log_pos must only be
+    written from the thread owning the Relay_log_info (SQL thread if
+    !belongs_to_client(); client thread executing BINLOG statement if
+    belongs_to_client()).
   */
   char group_relay_log_name[FN_REFLEN];
   ulonglong group_relay_log_pos;
@@ -168,16 +182,17 @@ public:
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
-#ifdef HAVE_purify
-  bool is_fake; /* Mark that this is a fake relay log info structure */
-#endif
-
   /* 
      Original log name and position of the group we're currently executing
      (whose coordinates are group_relay_log_name/pos in the relay log)
      in the master's binlog. These concern the *group*, because in the master's
      binlog the log_pos that comes with each event is the position of the
      beginning of the group.
+
+    Note: group_master_log_name, group_master_log_pos must only be
+    written from the thread owning the Relay_log_info (SQL thread if
+    !belongs_to_client(); client thread executing BINLOG statement if
+    belongs_to_client()).
   */
   char group_master_log_name[FN_REFLEN];
   volatile my_off_t group_master_log_pos;
@@ -206,6 +221,15 @@ public:
   time_t last_master_timestamp;
 
   void clear_until_condition();
+  /**
+    Reset the delay.
+    This is used by RESET SLAVE to clear the delay.
+  */
+  void clear_sql_delay()
+  {
+    sql_delay= 0;
+  }
+
 
   /*
     Needed for problems when slave stops and we want to restart it
@@ -316,7 +340,7 @@ public:
   }
 
   void inc_group_relay_log_pos(ulonglong log_pos,
-			       bool skip_lock=0);
+                               bool skip_lock= 0);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
@@ -383,14 +407,8 @@ public:
     Master log position of the event. The position is recorded in the
     relay log info and used to produce information for <code>SHOW
     SLAVE STATUS</code>.
-
-    @param event_creation_time
-    Timestamp for the creation of the event on the master side. The
-    time stamp is recorded in the relay log info and used to compute
-    the <code>Seconds_behind_master</code> field.
   */
-  void stmt_done(my_off_t event_log_pos,
-                 time_t event_creation_time);
+  void stmt_done(my_off_t event_log_pos);
 
 
   /**
@@ -440,13 +458,93 @@ public:
       (m_flags & (1UL << IN_STMT));
   }
 
+  /**
+    Text used in THD::proc_info when the slave SQL thread is delaying.
+  */
+  static const char *const state_delaying_string;
+
+  bool flush();
+
+  /**
+    Reads the relay_log.info file.
+  */
+  int init(const char* info_filename);
+
+  /**
+    Indicate that a delay starts.
+
+    This does not actually sleep; it only sets the state of this
+    Relay_log_info object to delaying so that the correct state can be
+    reported by SHOW SLAVE STATUS and SHOW PROCESSLIST.
+
+    Requires rli->data_lock.
+
+    @param delay_end The time when the delay shall end.
+  */
+  void start_sql_delay(time_t delay_end)
+  {
+    mysql_mutex_assert_owner(&data_lock);
+    sql_delay_end= delay_end;
+    thd_proc_info(sql_thd, state_delaying_string);
+  }
+
+  int32 get_sql_delay() { return sql_delay; }
+  void set_sql_delay(time_t _sql_delay) { sql_delay= _sql_delay; }
+  time_t get_sql_delay_end() { return sql_delay_end; }
+
 private:
+
+  /**
+    Delay slave SQL thread by this amount, compared to master (in
+    seconds). This is set with CHANGE MASTER TO MASTER_DELAY=X.
+
+    Guarded by data_lock.  Initialized by the client thread executing
+    START SLAVE.  Written by client threads executing CHANGE MASTER TO
+    MASTER_DELAY=X.  Read by SQL thread and by client threads
+    executing SHOW SLAVE STATUS.  Note: must not be written while the
+    slave SQL thread is running, since the SQL thread reads it without
+    a lock when executing flush_relay_log_info().
+  */
+  int sql_delay;
+
+  /**
+    During a delay, specifies the point in time when the delay ends.
+
+    This is used for the SQL_Remaining_Delay column in SHOW SLAVE STATUS.
+
+    Guarded by data_lock. Written by the sql thread.  Read by client
+    threads executing SHOW SLAVE STATUS.
+  */
+  time_t sql_delay_end;
+
+  /*
+    Before the MASTER_DELAY parameter was added (WL#344),
+    relay_log.info had 4 lines. Now it has 5 lines.
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_DELAY= 5;
+
   uint32 m_flags;
 };
 
 
-// Defined in rpl_rli.cc
-int init_relay_log_info(Relay_log_info* rli, const char* info_fname);
+/**
+  Reads the relay_log.info file.
 
+  @todo This is a wrapper around Relay_log_info::init(). It's only
+  kept for historical reasons. It would be good if we removed this
+  function and replaced all calls to it by calls to
+  Relay_log_info::init(). /SVEN
+*/
+int init_relay_log_info(Relay_log_info* rli, const char* info_fname);
+bool flush_relay_log_info(Relay_log_info* rli);
+void end_relay_log_info(Relay_log_info* rli);
+int init_relay_log_pos(Relay_log_info* rli,const char* log,ulonglong pos,
+		       bool need_data_lock, const char** errmsg,
+                       bool look_for_description_event);
+
+int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
+		     const char** errmsg);
+void rotate_relay_log(Master_info* mi);
+bool mysql_show_relaylog_events(THD* thd);
 
 #endif /* RPL_RLI_H */

@@ -17,6 +17,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "thr_lock.h"                           /* THR_LOCK */
+#include "handler.h"                            /* handler */
+#include "table.h"                              /* TABLE_SHARE */
+
 /*
   Shared structure for correct LOCK operation
 */

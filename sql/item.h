@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,35 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "sql_priv.h"                /* STRING_BUFFER_USUAL_SIZE */
+#include "unireg.h"
+#include "sql_const.h"                 /* RAND_TABLE_BIT, MAX_FIELD_NAME */
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "thr_malloc.h"                         /* sql_calloc */
+#include "field.h"                              /* Derivation */
+
 class Protocol;
 struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
+class user_var_entry;
+
+
+static inline uint32
+char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
+{
+   ulonglong tmp= ((ulonglong) char_length_arg) * mbmaxlen_arg;
+   return (tmp > UINT_MAX32) ? (uint32) UINT_MAX32 : (uint32) tmp;
+}
+
 
 /*
    "Declared Type Collation"
@@ -1154,7 +1171,40 @@ public:
     representation is more precise than the string one).
   */
   virtual bool result_as_longlong() { return FALSE; }
-  bool is_datetime();
+  inline bool is_datetime() const
+  {
+    switch (field_type())
+    {
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_TIMESTAMP:
+        return TRUE;
+      default:
+        break;
+    }
+    return FALSE;
+  }
+  /**
+    Check whether this and the given item has compatible comparison context.
+    Used by the equality propagation. See Item_field::equal_fields_propagator.
+
+    @return
+      TRUE  if the context is the same or if fields could be
+            compared as DATETIME values by the Arg_comparator.
+      FALSE otherwise.
+  */
+  inline bool has_compatible_context(Item *item) const
+  {
+    /* Same context. */
+    if (cmp_context == (Item_result)-1 || item->cmp_context == cmp_context)
+      return TRUE;
+    /* DATETIME comparison context. */
+    if (is_datetime())
+      return item->is_datetime() || item->cmp_context == STRING_RESULT;
+    if (item->is_datetime())
+      return is_datetime() || cmp_context == STRING_RESULT;
+    return FALSE;
+  }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
@@ -1163,16 +1213,23 @@ public:
   { return max_length / collation.collation->mbmaxlen; }
   void fix_length_and_charset(uint32 max_char_length_arg, CHARSET_INFO *cs)
   {
-    max_length= max_char_length_arg * cs->mbmaxlen;
+    max_length= char_to_byte_length_safe(max_char_length_arg, cs->mbmaxlen);
     collation.collation= cs;
   }
   void fix_char_length(uint32 max_char_length_arg)
-  { max_length= max_char_length_arg * collation.collation->mbmaxlen; }
+  {
+    max_length= char_to_byte_length_safe(max_char_length_arg,
+                                         collation.collation->mbmaxlen);
+  }
   void fix_length_and_charset_datetime(uint32 max_char_length_arg)
   {
     collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
     fix_char_length(max_char_length_arg);
   }
+  /*
+    Return TRUE if the item points to a column of an outer-joined table.
+  */
+  virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
 };
 
 
@@ -1294,6 +1351,13 @@ class Item_splocal :public Item_sp_variable,
   Item_result m_result_type;
   enum_field_types m_field_type;
 public:
+  /*
+    Is this variable a parameter in LIMIT clause. 
+    Used only during NAME_CONST substitution, to not append
+    NAME_CONST to the resulting query and thus not break
+    the slave.
+  */
+  bool limit_clause_param;
   /* 
     Position of this reference to SP variable in the statement (the
     statement itself is in sp_instr_stmt::m_query).
@@ -1543,6 +1607,7 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
+  Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
@@ -1678,6 +1743,11 @@ public:
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
   virtual void print(String *str, enum_query_type query_type);
+  bool is_outer_field() const
+  {
+    DBUG_ASSERT(fixed);
+    return field->table->pos_in_table_list->outer_join;
+  }
   Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
@@ -2286,7 +2356,7 @@ public:
 class Item_hex_string: public Item_basic_constant
 {
 public:
-  Item_hex_string() {}
+  Item_hex_string();
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
@@ -2306,6 +2376,8 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+private:
+  void hex_string_init(const char *str, uint str_length);
 };
 
 
@@ -2386,6 +2458,8 @@ public:
   Item_ref(Name_resolution_context *context_arg, Item **item,
            const char *table_name_arg, const char *field_name_arg,
            bool alias_name_used_arg= FALSE);
+  Item_ref(TABLE_LIST *view_arg, Item **item,
+           const char *field_name_arg, bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -2481,7 +2555,18 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
-  bool basic_const_item() { return (*ref)->basic_const_item(); }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(fixed);
+    return (*ref)->get_time(ltime);
+  }
+  virtual bool basic_const_item() const { return (*ref)->basic_const_item(); }
+  bool is_outer_field() const
+  {
+    DBUG_ASSERT(fixed);
+    DBUG_ASSERT(ref);
+    return (*ref)->is_outer_field();
+  }
 
 };
 
@@ -2502,6 +2587,12 @@ public:
   {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+  Item_direct_ref(TABLE_LIST *view_arg, Item **item,
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(view_arg, item, field_name_arg,
+              alias_name_used_arg)
+  {}
 
   double val_real();
   longlong val_int();
@@ -2527,6 +2618,10 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item) {}
+  Item_direct_view_ref(TABLE_LIST *view_arg, Item **item,
+                       const char *field_name_arg)
+    :Item_direct_ref(view_arg, item, field_name_arg)
+  {}
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -2671,6 +2766,7 @@ public:
 #include "item_timefunc.h"
 #include "item_subselect.h"
 #include "item_xmlfunc.h"
+#include "item_create.h"
 #endif
 
 /**
@@ -2728,6 +2824,7 @@ protected:
     cached_field_type= item->field_type();
     cached_result_type= item->result_type();
     unsigned_flag= item->unsigned_flag;
+    fixed= item->fixed;
   }
 
 public:
@@ -3003,18 +3100,6 @@ public:
 };
 
 
-/*
-  We need this two enums here instead of sql_lex.h because
-  at least one of them is used by Item_trigger_field interface.
-
-  Time when trigger is invoked (i.e. before or after row actually
-  inserted/updated/deleted).
-*/
-enum trg_action_time_type
-{
-  TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1, TRG_ACTION_MAX
-};
-
 class Table_triggers_list;
 
 /*
@@ -3167,10 +3252,20 @@ public:
   {
     return this == item;
   }
+  /**
+     Check if saved item has a non-NULL value.
+     Will cache value of saved item if not already done. 
+     @return TRUE if cached value is non-NULL.
+   */
+  bool has_value()
+  {
+    return (value_cached || cache_value()) && !null_value;
+  }
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
+  virtual void clear() { null_value= TRUE; value_cached= FALSE; }
 };
 
 
@@ -3184,6 +3279,7 @@ public:
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
+  virtual void store(Item *item){ Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
@@ -3333,6 +3429,7 @@ public:
     cmp_context= STRING_RESULT;
   }
 
+  virtual void store(Item *item) { Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
@@ -3349,6 +3446,7 @@ public:
   */
   bool cache_value_int();
   bool cache_value();
+  void clear() { Item_cache::clear(); str_value_cached= FALSE; }
 };
 
 
@@ -3399,4 +3497,7 @@ extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
+
+extern const String my_null_string;
+
 #endif /* ITEM_INCLUDED */

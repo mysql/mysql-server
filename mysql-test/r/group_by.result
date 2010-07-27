@@ -1743,7 +1743,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a` AS `a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a` AS `a`) + 0)
+Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a`) + 0)
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1751,7 +1751,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a` AS `a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a` AS `a`))
+Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a`))
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
@@ -1791,4 +1791,53 @@ aa	b	COUNT(         b)
 1	10	1
 DROP TABLE t1, t2;
 #
+# Bug#52051: Aggregate functions incorrectly returns NULL from outer
+# join query
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+MIN(t2.a)
+1
+EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
+MAX(t2.a)
+2
+DROP TABLE t1, t2;
+#
 # End of 5.1 tests
+#
+# Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00
+#
+CREATE TABLE t1 (f1 int, f2 DATE);
+INSERT INTO t1 VALUES (1,'2004-04-19'), (1,'0000-00-00'), (1,'2004-04-18'),
+(2,'2004-05-19'), (2,'0001-01-01'), (3,'2004-04-10');
+SELECT MIN(f2),MAX(f2) FROM t1;
+MIN(f2)	MAX(f2)
+0000-00-00	2004-05-19
+SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
+f1	MIN(f2)	MAX(f2)
+1	0000-00-00	2004-04-19
+2	0001-01-01	2004-05-19
+3	2004-04-10	2004-04-10
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 int, f2 time);
+INSERT INTO t1 VALUES (1,'01:27:35'), (1,'06:11:01'), (2,'19:53:05'),
+(2,'21:44:25'), (3,'10:55:12'), (3,'05:45:11'), (4,'00:25:00');
+SELECT MIN(f2),MAX(f2) FROM t1;
+MIN(f2)	MAX(f2)
+00:25:00	21:44:25
+SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
+f1	MIN(f2)	MAX(f2)
+1	01:27:35	06:11:01
+2	19:53:05	21:44:25
+3	05:45:11	10:55:12
+4	00:25:00	00:25:00
+DROP TABLE t1;
+#End of test#49771

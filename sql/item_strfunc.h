@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* This file defines all string functions */
@@ -22,6 +22,8 @@
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
+
+class MY_LOCALE;
 
 class Item_str_func :public Item_func
 {
@@ -78,6 +80,15 @@ public:
   String *val_str_ascii(String *);    
   void fix_length_and_dec();      
   const char *func_name() const { return "sha"; }	
+};
+
+class Item_func_sha2 :public Item_str_ascii_func
+{
+public:
+  Item_func_sha2(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "sha2"; }
 };
 
 class Item_func_aes_encrypt :public Item_str_func
@@ -721,8 +732,9 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 + 2;
+    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
     collation.set(args[0]->collation);
-    max_length= args[0]->max_length * 2 + 2;
   }
 };
 
@@ -816,6 +828,26 @@ public:
   table_map not_null_tables() const { return 0; }
 };
 
+class Item_func_weight_string :public Item_str_func
+{
+  String tmp_value;
+  uint flags;
+  uint nweights;
+  uint result_length;
+public:
+  Item_func_weight_string(Item *a, uint result_length_arg,
+                          uint nweights_arg, uint flags_arg)
+  :Item_str_func(a)
+  {
+    nweights= nweights_arg;
+    flags= flags_arg;
+    result_length= result_length_arg;
+  }
+  const char *func_name() const { return "weight_string"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
 class Item_func_crc32 :public Item_int_func
 {
   String value;
@@ -862,7 +894,6 @@ public:
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
 };
 
-#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
 class Item_func_uuid: public Item_str_func
 {
 public:
@@ -876,5 +907,7 @@ public:
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
 };
+
+extern String my_empty_string;
 
 #endif /* ITEM_STRFUNC_INCLUDED */

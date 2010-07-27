@@ -27,17 +27,34 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars.h"
 
 #include "events.h"
 #include <thr_alarm.h>
-#include "slave.h"
+#include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "transaction.h"
+#include "mysqld.h"
+#include "lock.h"
+#include "sql_time.h"                       // known_date_time_formats
+#include "sql_acl.h" // SUPER_ACL,
+                     // mysql_user_table_is_in_short_password_format
+#include "derror.h"  // read_texts
+#include "sql_base.h"                           // close_cached_tables
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+/*
+  This forward declaration is needed because including sql_base.h
+  causes further includes.  [TODO] Eliminate this forward declaration
+  and include a file with the prototype instead.
+*/
+extern void close_thread_tables(THD *thd);
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -241,6 +258,12 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 }
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
+  if (check_has_super(self, thd, var))
+    return true;
+
+  if (var->type == OPT_GLOBAL)
+    return false;
+
   /*
      If RBR and open temporary tables, their CREATE TABLE may not be in the
      binlog, so we can't toggle to SBR in this connection.
@@ -272,17 +295,11 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   /*
     Make the session variable 'binlog_format' read-only inside a transaction.
   */
-  if (thd->active_transaction() && (var->type == OPT_SESSION))
+  if (thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return true;
   }
-
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_format == var->save_result.ulonglong_value))
-    return false;
 
   return false;
 }
@@ -312,15 +329,12 @@ static Sys_var_enum Sys_binlog_format(
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {
-   /*
-     Makes the session variable 'binlog_direct_non_transactional_updates'
-     read-only inside a transaction.
-   */
-   if (thd->active_transaction() && (var->type == OPT_SESSION))
-   {
-     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
-     return 1;
-   }
+  if (check_has_super(self, thd, var))
+    return true;
+
+  if (var->type == OPT_GLOBAL)
+    return false;
+
    /*
      Makes the session variable 'binlog_direct_non_transactional_updates'
      read-only if within a procedure, trigger or function.
@@ -328,15 +342,17 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
    if (thd->in_sub_stmt)
    {
      my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
-     return 1;
+     return true;
    }
-
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_direct_non_trans_update ==
-       static_cast<my_bool>(var->save_result.ulonglong_value)))
-    return false;
+   /*
+     Makes the session variable 'binlog_direct_non_transactional_updates'
+     read-only inside a transaction.
+   */
+   if (thd->in_active_multi_stmt_transaction())
+   {
+     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
+     return true;
+   }
 
   return false;
 }
@@ -780,7 +796,11 @@ static Sys_var_lexstring Sys_init_connect(
 static Sys_var_charptr Sys_init_file(
        "init_file", "Read SQL commands from this file at startup",
        READ_ONLY GLOBAL_VAR(opt_init_file),
-       IF_DISABLE_GRANT_OPTIONS(NO_CMD_LINE, CMD_LINE(REQUIRED_ARG)),
+#ifdef DISABLE_GRANT_OPTIONS
+       NO_CMD_LINE,
+#else
+       CMD_LINE(REQUIRED_ARG),
+#endif
        IN_FS_CHARSET, DEFAULT(0));
 
 static PolyLock_rwlock PLock_sys_init_slave(&LOCK_sys_init_slave);
@@ -859,7 +879,7 @@ static Sys_var_uint Sys_large_page_size(
 
 static Sys_var_mybool Sys_large_pages(
        "large_pages", "Enable support for large pages",
-       READ_ONLY GLOBAL_VAR(opt_large_files),
+       READ_ONLY GLOBAL_VAR(opt_large_pages),
        IF_WIN(NO_CMD_LINE, CMD_LINE(OPT_ARG)), DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_language(
@@ -926,10 +946,10 @@ static bool update_cached_long_query_time(sys_var *self, THD *thd,
 {
   if (type == OPT_SESSION)
     thd->variables.long_query_time=
-      thd->variables.long_query_time_double * 1e6;
+      double2ulonglong(thd->variables.long_query_time_double * 1e6);
   else
     global_system_variables.long_query_time=
-      global_system_variables.long_query_time_double * 1e6;
+      double2ulonglong(global_system_variables.long_query_time_double * 1e6);
   return false;
 }
 
@@ -1314,17 +1334,6 @@ static Sys_var_ulong Sys_optimizer_prune_level(
        SESSION_VAR(optimizer_prune_level), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1), DEFAULT(1), BLOCK_SIZE(1));
 
-/** Warns about deprecated value 63 */
-static bool fix_optimizer_search_depth(sys_var *self, THD *thd,
-                                       enum_var_type type)
-{
-  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
-  if (sv->optimizer_search_depth == MAX_TABLES+2)
-    WARN_DEPRECATED(thd, 6, 0, "optimizer-search-depth=63",
-                    "a search depth less than 63");
-  return false;
-}
-
 static Sys_var_ulong Sys_optimizer_search_depth(
        "optimizer_search_depth",
        "Maximum depth of search performed by the query optimizer. Values "
@@ -1332,13 +1341,9 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        "query plans, but take longer to compile a query. Values smaller "
        "than the number of tables in a relation result in faster "
        "optimization, but may produce very bad query plans. If set to 0, "
-       "the system will automatically pick a reasonable value; if set to "
-       "63, the optimizer will switch to the original find_best search. "
-       "NOTE: The value 63 and its associated behaviour is deprecated",
+       "the system will automatically pick a reasonable value",
        SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, MAX_TABLES+2), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_optimizer_search_depth));
+       VALID_RANGE(0, MAX_TABLES+1), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1));
 
 static const char *optimizer_switch_names[]=
 {
@@ -1412,7 +1417,7 @@ static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
-  if (thd->locked_tables_mode || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     return true;
@@ -1513,13 +1518,6 @@ static Sys_var_ulong Sys_div_precincrement(
        SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, DECIMAL_MAX_SCALE), DEFAULT(4), BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_rpl_recovery_rank(
-       "rpl_recovery_rank", "Unused, will be removed",
-       GLOBAL_VAR(rpl_recovery_rank), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(70000, 0));
-
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
        "Allocation block size for storing ranges during optimization",
@@ -1579,6 +1577,13 @@ static Sys_var_mybool Sys_skip_networking(
        READ_ONLY GLOBAL_VAR(opt_disable_networking), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
+static Sys_var_mybool Sys_skip_name_resolve(
+       "skip_name_resolve",
+       "Don't resolve hostnames. All hostnames are IP's or 'localhost'.",
+       READ_ONLY GLOBAL_VAR(opt_skip_name_resolve),
+       CMD_LINE(OPT_ARG, OPT_SKIP_RESOLVE),
+       DEFAULT(FALSE));
+
 static Sys_var_mybool Sys_skip_show_database(
        "skip_show_database", "Don't allow 'SHOW DATABASE' commands",
        READ_ONLY GLOBAL_VAR(opt_skip_show_db), CMD_LINE(OPT_ARG),
@@ -1607,7 +1612,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
        "semicolon (;)"
 #else
        "colon (:)"
@@ -1755,6 +1760,12 @@ static Sys_var_ulong Sys_server_id(
        GLOBAL_VAR(server_id), CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
+
+static Sys_var_charptr Sys_server_uuid(
+       "server_uuid",
+       "Uniquely identifies the server instance in the universe",
+       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
+       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -1906,7 +1917,7 @@ static Sys_var_set Sys_sql_mode(
        sql_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
 #else
 #define SSL_OPT(X) NO_CMD_LINE
@@ -1990,34 +2001,54 @@ static Sys_var_ulong Sys_thread_pool_size(
        VALID_RANGE(1, 16384), DEFAULT(20), BLOCK_SIZE(0));
 #endif
 
-//  Can't change the 'next' tx_isolation if we are already in a transaction
+/**
+  Can't change the 'next' tx_isolation if we are already in a
+  transaction.
+*/
+
 static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_DEFAULT && (thd->server_status & SERVER_STATUS_IN_TRANS))
+  if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
   {
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
     my_error(ER_CANT_CHANGE_TX_ISOLATION, MYF(0));
-    return true;
+    return TRUE;
   }
-  return false;
+  return FALSE;
 }
 
-/*
-  If one doesn't use the SESSION modifier, the isolation level
-  is only active for the next command.
-*/
-static bool fix_tx_isolation(sys_var *self, THD *thd, enum_var_type type)
+
+bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
-  if (type == OPT_SESSION)
-    thd->session_tx_isolation= (enum_tx_isolation)thd->variables.tx_isolation;
-  return false;
+  if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
+    return TRUE;
+  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  {
+    /*
+      Update the isolation level of the next transaction.
+      I.e. if one did:
+      COMMIT;
+      SET SESSION ISOLATION LEVEL ...
+      BEGIN; <-- this transaction has the new isolation
+      Note, that in case of:
+      COMMIT;
+      SET TRANSACTION ISOLATION LEVEL ...
+      SET SESSION ISOLATION LEVEL ...
+      BEGIN; <-- the session isolation level is used, not the
+      result of SET TRANSACTION statement.
+     */
+    thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
+  }
+  return FALSE;
 }
+
+
 // NO_CMD_LINE - different name of the option
-static Sys_var_enum Sys_tx_isolation(
+static Sys_var_tx_isolation Sys_tx_isolation(
        "tx_isolation", "Default transaction isolation level",
        SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation),
-       ON_UPDATE(fix_tx_isolation));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
@@ -2214,17 +2245,69 @@ static Sys_var_bit Sys_log_off(
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_LOG_OFF,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super));
 
-static bool fix_sql_log_bin(sys_var *self, THD *thd, enum_var_type type)
+/**
+  This function sets the session variable thd->variables.sql_log_bin 
+  to reflect changes to @@session.sql_log_bin.
+
+  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[IN] type   The type either session or global.
+
+  @return @c FALSE.
+*/
+static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
+                                         enum_var_type type)
 {
-  if (type != OPT_GLOBAL && !thd->in_sub_stmt)
-    thd->sql_log_bin_toplevel= thd->variables.option_bits & OPTION_BIN_LOG;
-  return false;
+  if (type == OPT_SESSION)
+  {
+    if (thd->variables.sql_log_bin)
+      thd->variables.option_bits |= OPTION_BIN_LOG;
+    else
+      thd->variables.option_bits &= ~OPTION_BIN_LOG;
+  }
+  return FALSE;
 }
-static Sys_var_bit Sys_log_binlog(
+
+/**
+  This function checks if the sql_log_bin can be changed,
+  what is possible if:
+    - the user is a super user;
+    - the set is not called from within a function/trigger;
+    - there is no on-going transaction.
+
+  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[IN] var    A pointer to the set_var created by the parser.
+
+  @return @c FALSE if the change is allowed, otherwise @c TRUE.
+*/
+static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_has_super(self, thd, var))
+    return TRUE;
+
+  if (var->type == OPT_GLOBAL)
+    return FALSE;
+
+  /* If in a stored function/trigger, it's too late to change sql_log_bin. */
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN, MYF(0));
+    return TRUE;
+  }
+  /* Make the session variable 'sql_log_bin' read-only inside a transaction. */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN, MYF(0));
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+static Sys_var_mybool Sys_log_binlog(
        "sql_log_bin", "sql_log_bin",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BIN_LOG,
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super),
-       ON_UPDATE(fix_sql_log_bin));
+       SESSION_VAR(sql_log_bin), NO_CMD_LINE,
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
+       ON_UPDATE(fix_sql_log_bin_after_update));
 
 static Sys_var_bit Sys_sql_warnings(
        "sql_warnings", "sql_warnings",
@@ -2284,7 +2367,7 @@ static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
        SESSION_VAR(select_limit), NO_CMD_LINE,
-       VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
+       VALID_RANGE(0, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
 
 static bool update_timestamp(THD *thd, set_var *var)
 {
@@ -2298,12 +2381,33 @@ static ulonglong read_timestamp(THD *thd)
 {
   return (ulonglong) thd->start_time;
 }
+
+
+static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
+{
+  time_t val;
+
+  if (!var->value)
+    return FALSE;
+
+  val= (time_t) var->save_result.ulonglong_value;
+  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  {
+    my_message(ER_UNKNOWN_ERROR, 
+               "This version of MySQL doesn't support dates later than 2038",
+               MYF(0));
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 static Sys_var_session_special Sys_timestamp(
        "timestamp", "Set the time for this client",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
        VALID_RANGE(0, ~(time_t)0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_timestamp),
-       ON_READ(read_timestamp));
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_timestamp), 
+       ON_UPDATE(update_timestamp), ON_READ(read_timestamp));
 
 static bool update_last_insert_id(THD *thd, set_var *var)
 {
@@ -2701,8 +2805,8 @@ static Sys_var_mybool Sys_log_slow(
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
   bool res;
-  my_bool *newvalptr, newval, oldval;
-  uint log_type;
+  my_bool *UNINIT_VAR(newvalptr), newval, UNINIT_VAR(oldval);
+  uint UNINIT_VAR(log_type);
 
   if (self == &Sys_general_log || self == &Sys_log)
   {
@@ -2749,6 +2853,8 @@ static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
   logger.unlock();
   return false;
 }
+
+static const char *log_output_names[] = { "NONE", "FILE", "TABLE", NULL};
 
 static Sys_var_set Sys_log_output(
        "log_output", "Syntax: log-output=value[,value...], "
@@ -2803,7 +2909,7 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
 static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_mutex_lock(&LOCK_active_mi);
-  DBUG_PRINT("info", ("slave_net_timeout=%lu mi->heartbeat_period=%.3f",
+  DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)

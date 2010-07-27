@@ -4053,10 +4053,10 @@ join_0.c1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
+Note	1003	select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
 SHOW WARNINGS;
 Level	Code	Message
-Note	1003	select '0' AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by '0','0','0','0','0'
+Note	1003	select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where 0 group by NULL,NULL,NULL,NULL,NULL
 DROP TABLE t1;
 SELECT 1 AS ` `;
 
@@ -4656,17 +4656,17 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select '0' AS `a`,'0' AS `b`,'0' AS `c` from `test`.`t1` where 1
+Note	1003	select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 DROP TABLE t1;
 #
 # Bug#45266: Uninitialized variable lead to an empty result.
@@ -4856,4 +4856,38 @@ a	b	c
 SELECT * FROM t1 WHERE 102 < c;
 a	b	c
 DROP TABLE t1;
+#
+# Bug #54459: Assertion failed: param.sort_length, 
+# file .\filesort.cc, line 149 (part II)
+#
+CREATE TABLE t1(a ENUM('') NOT NULL);
+INSERT INTO t1 VALUES (), (), ();
+EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+1
+1
+1
+1
+DROP TABLE t1;
 End of 5.1 tests
+#
+# Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
+#            SELECT from VIEW with GROUP BY
+#
+CREATE TABLE t1 (
+col_int_key int DEFAULT NULL,
+KEY int_key (col_int_key)
+) ;
+INSERT INTO t1 VALUES (1),(2);
+CREATE VIEW view_t1 AS 
+SELECT t1.col_int_key AS col_int_key
+FROM t1;
+SELECT col_int_key FROM view_t1 GROUP BY col_int_key;
+col_int_key
+1
+2
+DROP VIEW view_t1;
+DROP TABLE t1;
+# End of test BUG#54515

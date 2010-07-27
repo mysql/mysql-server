@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +15,9 @@
 
 AM_CPPFLAGS     = -I$(srcdir) -I$(top_builddir)/include -I$(srcdir)/.. -I$(top_srcdir)/include
 
-AM_LDFLAGS      = -L$(top_builddir)/unittest/mytap
-
-LDADD           = -lmytap
+LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
+		  $(top_builddir)/mysys/libmysyslt.la \
+		  $(top_builddir)/dbug/libdbuglt.la \
+		  $(top_builddir)/strings/libmystringslt.la
 
 noinst_PROGRAMS = basic-t
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

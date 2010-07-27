@@ -22,7 +22,6 @@ loose-innodb
 log-bin=                    slave-bin
 relay-log=                  slave-relay-bin
 
-init-rpl-role=              slave
 log-slave-updates
 master-retry-count=         10
 

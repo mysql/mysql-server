@@ -31,13 +31,13 @@ EXTRA_PROGRAMS = testBitmask
 testBitmask_SOURCES =  testBitmask.cpp
 testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-         $(top_builddir)/dbug/libdbug.a \
-         $(top_builddir)/mysys/libmysys.a \
-         $(top_builddir)/strings/libmystrings.a
+         $(top_builddir)/dbug/libdbuglt.la \
+         $(top_builddir)/mysys/libmysyslt.la \
+         $(top_builddir)/strings/libmystringslt.la
 
 testBitmask.cpp : Bitmask.cpp
 	rm -f testBitmask.cpp
-	@LN_CP_F@ $(srcdir)/Bitmask.cpp testBitmask.cpp
+	@LN_CP_F@ Bitmask.cpp testBitmask.cpp
 
 testBitmask.o:	$(testBitmask_SOURCES)
 		$(CXXCOMPILE) -c $(INCLUDES) -D__TEST_BITMASK__ $<
@@ -45,9 +45,6 @@ testBitmask.o:	$(testBitmask_SOURCES)
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
 
 windoze-dsp: libgeneral.dsp
 

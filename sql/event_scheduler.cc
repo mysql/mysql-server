@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (C) 2004, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,14 +11,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "event_scheduler.h"
 #include "events.h"
 #include "event_data_objects.h"
-#include "event_scheduler.h"
 #include "event_queue.h"
 #include "event_db_repository.h"
+#include "sql_connect.h"         // init_new_connection_handler_thread
+#include "sql_acl.h"             // SUPER_ACL
 
 /**
   @addtogroup Event_Scheduler
@@ -200,7 +203,6 @@ pre_init_event_thread(THD* thd)
   */
 
   thd->proc_info= "Initialized";
-  thd->version= refresh_version;
   thd->set_time();
 
   /* Do not use user-supplied timeout value for system threads. */
@@ -236,7 +238,7 @@ event_scheduler_thread(void *arg)
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("event_scheduler_thread");
-  my_free((char*)arg, MYF(0));
+  my_free(arg);
   if (!res)
     scheduler->run(thd);
 
@@ -497,8 +499,8 @@ Event_scheduler::run(THD *thd)
   deinit_event_thread(thd);
   scheduler_thd= NULL;
   state= INITIALIZED;
-  DBUG_PRINT("info", ("Signalling back to the stopper COND_state"));
-  mysql_cond_signal(&COND_state);
+  DBUG_PRINT("info", ("Broadcasting COND_state back to the stoppers"));
+  mysql_cond_broadcast(&COND_state);
   UNLOCK_DATA();
 
   DBUG_RETURN(res);

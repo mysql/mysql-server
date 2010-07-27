@@ -1,4 +1,4 @@
-CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 drop table if exists t1,t2;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
@@ -105,9 +105,8 @@ select * from t2;
 a
 select * from t3;
 a
-show binlog events;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	#	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
 master-bin.000001	#	Query	#	#	BEGIN
@@ -127,7 +126,7 @@ master-bin.000001	#	Query	#	#	use `test`; replace into t1 values(100)
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (a varchar(200)) engine=blackhole
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=581
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE `t2` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`) ;file_id=#
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 add b int
@@ -164,13 +163,6 @@ start transaction;
 insert into t1 values(2);
 rollback;
 set autocommit=1;
-show binlog events;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	#	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(1)
-master-bin.000001	#	Query	#	#	COMMIT
 drop table if exists t1;
 reset master;
 create table t1 (a int auto_increment, primary key (a)) engine=blackhole;

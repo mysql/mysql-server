@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* compare and test functions */
@@ -22,6 +22,10 @@
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
+
+#include "thr_malloc.h"                         /* sql_calloc */
+#include "item_func.h"             /* Item_int_func, Item_bool_func */
+#include "my_regex.h"
 
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;
@@ -57,9 +61,9 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(TRUE),
+  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), thd(0),
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
     a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
@@ -115,7 +119,22 @@ public:
     return (owner->type() == Item::FUNC_ITEM &&
            ((Item_func*)owner)->functype() == Item_func::EQUAL_FUNC);
   }
-
+  void cleanup()
+  {
+    delete [] comparators;
+    comparators= 0;
+  }
+  /*
+    Set correct cmp_context if items would be compared as INTs.
+  */
+  inline void set_cmp_context_for_datetime()
+  {
+    DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
+    if ((*a)->result_as_longlong())
+      (*a)->cmp_context= INT_RESULT;
+    if ((*b)->result_as_longlong())
+      (*b)->cmp_context= INT_RESULT;
+  }
   friend class Item_func;
 };
 
@@ -250,7 +269,7 @@ protected:
   my_bool result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0),
+    Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
   {}
   bool fix_fields(THD *, Item **);
@@ -368,6 +387,11 @@ public:
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
+  void cleanup()
+  {
+    Item_int_func::cleanup();
+    cmp.cleanup();
+  }
 
   friend class  Arg_comparator;
 };
@@ -1311,8 +1335,8 @@ public:
     else
     {
       args[0]->update_used_tables();
-      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables())) &&
-          !with_subselect)
+      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
+          !with_subselect))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();
@@ -1411,9 +1435,6 @@ public:
   void cleanup();
 };
 
-#ifdef USE_REGEX
-
-#include "my_regex.h"
 
 class Item_func_regex :public Item_bool_func
 {
@@ -1441,23 +1462,6 @@ public:
 
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
-
-#else
-
-class Item_func_regex :public Item_bool_func
-{
-public:
-  Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b) {}
-  longlong val_int() { return 0;}
-  const char *func_name() const { return "regex"; }
-
-  virtual inline void print(String *str, enum_query_type query_type)
-  {
-    print_op(str, query_type);
-  }
-};
-
-#endif /* USE_REGEX */
 
 
 typedef class Item COND;
@@ -1624,7 +1628,7 @@ public:
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }
   optimize_type select_optimize() const { return OPTIMIZE_EQUAL; }
-  void sort(Item_field_cmpfunc cmp, void *arg);
+  void sort(Item_field_cmpfunc compare, void *arg);
   friend class Item_equal_iterator;
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
@@ -1760,8 +1764,26 @@ inline Item *and_conds(Item *a, Item *b)
   return new Item_cond_and(a, b);
 }
 
+
 Item *and_expressions(Item *a, Item *b, Item **org_item);
+
+longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                            Item *warn_item, bool *is_null);
+
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
+
+/*
+  These need definitions from this file but the variables are defined
+  in mysqld.h. The variables really belong in this component, but for
+  the time being we leave them in mysqld.cc to avoid merge problems.
+*/
+extern Eq_creator eq_creator;
+extern Ne_creator ne_creator;
+extern Gt_creator gt_creator;
+extern Lt_creator lt_creator;
+extern Ge_creator ge_creator;
+extern Le_creator le_creator;
+
 #endif /* ITEM_CMPFUNC_INCLUDED */

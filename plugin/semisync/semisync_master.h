@@ -153,7 +153,7 @@ public:
   int free_nodes_before(TranxNode* node)
   {
     Block *block;
-    Block *prev_block;
+    Block *prev_block= NULL;
 
     block= first_block;
     while (block != current_block->next)
@@ -255,7 +255,7 @@ private:
    */
   void free_block(Block *block)
   {
-    my_free(block, MYF(0));
+    my_free(block);
     --block_num;
   }
 

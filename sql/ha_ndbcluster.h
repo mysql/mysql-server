@@ -1,7 +1,7 @@
 #ifndef HA_NDBCLUSTER_INCLUDED
 #define HA_NDBCLUSTER_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This file defines the NDB Cluster handler: the interface between MySQL and
@@ -50,6 +50,8 @@ class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
 class ha_ndbcluster_cond;
+
+#include "sql_partition.h"                      /* part_id_range */
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
@@ -273,7 +275,7 @@ class ha_ndbcluster: public handler
   ha_rows estimate_rows_upper_bound()
     { return HA_POS_ERROR; }
   int info(uint);
-  void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
+  void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();

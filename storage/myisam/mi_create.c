@@ -19,12 +19,8 @@
 #include "sp_defs.h"
 #include <my_bit.h>
 
-#if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
 #include <fcntl.h>
-#else
-#include <process.h>			/* Prototype for getpid */
-#endif
 #endif
 #include <m_ctype.h>
 
@@ -38,7 +34,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	      MI_CREATE_INFO *ci,uint flags)
 {
   register uint i,j;
-  File UNINIT_VAR(dfile),file;
+  File UNINIT_VAR(dfile), UNINIT_VAR(file);
   int errpos,save_errno, create_mode= O_RDWR | O_TRUNC;
   myf create_flag;
   uint fields,length,max_key_length,packed,pointer,real_length_diff,
@@ -73,8 +69,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   {
     DBUG_RETURN(my_errno=HA_WRONG_CREATE_OPTION);
   }
-  LINT_INIT(dfile);
-  LINT_INIT(file);
+
   errpos=0;
   options=0;
   bzero((uchar*) &share,sizeof(share));
@@ -554,11 +549,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.pack_bits=packed;
   share.base.fields=fields;
   share.base.pack_fields=packed;
-#ifdef USE_RAID
-  share.base.raid_type=ci->raid_type;
-  share.base.raid_chunks=ci->raid_chunks;
-  share.base.raid_chunksize=ci->raid_chunksize;
-#endif
 
   /* max_data_file_length and max_key_file_length are recalculated on open */
   if (options & HA_OPTION_TMP_TABLE)
@@ -647,20 +637,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (!(flags & HA_DONT_TOUCH_DATA))
   {
-#ifdef USE_RAID
-    if (share.base.raid_type)
-    {
-      (void) fn_format(filename, name, "", MI_NAME_DEXT,
-                       MY_UNPACK_FILENAME | MY_APPEND_EXT);
-      if ((dfile=my_raid_create(filename, 0, create_mode,
-				share.base.raid_type,
-				share.base.raid_chunks,
-				share.base.raid_chunksize,
-				MYF(MY_WME | MY_RAID))) < 0)
-	goto err;
-    }
-    else
-#endif
     {
       if (ci->data_file_name)
       {
@@ -835,7 +811,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   mysql_mutex_unlock(&THR_LOCK_myisam);
   if (mysql_file_close(file, MYF(0)))
     goto err;
-  my_free((char*) rec_per_key_part,MYF(0));
+  my_free(rec_per_key_part);
   DBUG_RETURN(0);
 
 err:
@@ -846,7 +822,6 @@ err:
     (void) mysql_file_close(dfile, MYF(0));
     /* fall through */
   case 2:
-    /* QQ: Tõnu should add a call to my_raid_delete() here */
   if (! (flags & HA_DONT_TOUCH_DATA))
     mysql_file_delete_with_symlink(mi_key_file_dfile,
                                    fn_format(filename, name, "", MI_NAME_DEXT,
@@ -861,7 +836,7 @@ err:
                                                MY_UNPACK_FILENAME | MY_APPEND_EXT),
                                      MYF(0));
   }
-  my_free((char*) rec_per_key_part, MYF(0));
+  my_free(rec_per_key_part);
   DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */
 }
 

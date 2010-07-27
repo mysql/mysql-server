@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,14 +10,18 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Write some debug info */
 
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_test.h"
+#include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
+#include "sql_show.h" // calc_sum_of_all_status
 #include "sql_select.h"
 #include "keycaches.h"
 #include <hash.h>
@@ -41,7 +45,6 @@ static const char *lock_descriptions[] =
   /* TL_READ_HIGH_PRIORITY      */  "High priority read lock",
   /* TL_READ_NO_INSERT          */  "Read lock without concurrent inserts",
   /* TL_WRITE_ALLOW_WRITE       */  "Write lock that allows other writers",
-  /* TL_WRITE_ALLOW_READ        */  "Write lock, but allow reading",
   /* TL_WRITE_CONCURRENT_INSERT */  "Concurrent insert lock",
   /* TL_WRITE_DELAYED           */  "Lock used by delayed insert",
   /* TL_WRITE_DEFAULT           */  NULL,
@@ -72,7 +75,7 @@ print_where(COND *cond,const char *info, enum_query_type query_type)
 	/* This is for debugging purposes */
 
 
-void print_cached_tables(void)
+static void print_cached_tables(void)
 {
   uint idx,count,unused;
   TABLE_SHARE *share;
@@ -337,6 +340,11 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
 #endif
 
+C_MODE_START
+static int dl_compare(const void *p1, const void *p2);
+static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
+C_MODE_END
+
 typedef struct st_debug_lock
 {
   ulong thread_id;
@@ -346,8 +354,13 @@ typedef struct st_debug_lock
   enum thr_lock_type type;
 } TABLE_LOCK_INFO;
 
-static int dl_compare(TABLE_LOCK_INFO *a,TABLE_LOCK_INFO *b)
+static int dl_compare(const void *p1, const void *p2)
 {
+  TABLE_LOCK_INFO *a, *b;
+
+  a= (TABLE_LOCK_INFO *) p1;
+  b= (TABLE_LOCK_INFO *) p2;
+
   if (a->thread_id > b->thread_id)
     return 1;
   if (a->thread_id < b->thread_id)
@@ -397,9 +410,10 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
   function so that we can easily add this if we ever need this.
 */
 
-static void display_table_locks(void) 
+static void display_table_locks(void)
 {
   LIST *list;
+  void *saved_base;
   DYNAMIC_ARRAY saved_table_locks;
 
   (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), table_cache_count + 20,50);
@@ -420,13 +434,17 @@ static void display_table_locks(void)
     mysql_mutex_unlock(&lock->mutex);
   }
   mysql_mutex_unlock(&THR_LOCK_lock);
-  if (!saved_table_locks.elements) goto end;
-  
-  qsort((uchar*) dynamic_element(&saved_table_locks,0,TABLE_LOCK_INFO *),saved_table_locks.elements,sizeof(TABLE_LOCK_INFO),(qsort_cmp) dl_compare);
+
+  if (!saved_table_locks.elements)
+    goto end;
+
+  saved_base= dynamic_element(&saved_table_locks, 0, TABLE_LOCK_INFO *);
+  my_qsort(saved_base, saved_table_locks.elements, sizeof(TABLE_LOCK_INFO),
+           dl_compare);
   freeze_size(&saved_table_locks);
 
   puts("\nThread database.table_name          Locked/Waiting        Lock_type\n");
-  
+
   unsigned int i;
   for (i=0 ; i < saved_table_locks.elements ; i++)
   {
@@ -536,11 +554,6 @@ Next alarm time: %lu\n",
 	 alarm_info.next_alarm_time);
 #endif
   display_table_locks();
-  fflush(stdout);
-  my_checkmalloc();
-  fprintf(stdout,"\nBegin safemalloc memory dump:\n"); // tag needed for test suite
-  TERMINATE(stdout, 1);				// Write malloc information
-  fprintf(stdout,"\nEnd safemalloc memory dump.\n");  
   fflush(stdout);
 #ifdef HAVE_MALLINFO
   struct mallinfo info= mallinfo();

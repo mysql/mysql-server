@@ -91,11 +91,11 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "ha_example.h"
 #include "probes_mysql.h"
-#include <mysql/plugin.h>
+#include "sql_plugin.h"
 
 static handler *example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
@@ -232,7 +232,7 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   mysql_mutex_destroy(&share->mutex);
-  my_free(share, MYF(0));
+  my_free(share);
 
   return NULL;
 }
@@ -252,7 +252,7 @@ static int free_share(EXAMPLE_SHARE *share)
     my_hash_delete(&example_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
-    my_free(share, MYF(0));
+    my_free(share);
   }
   mysql_mutex_unlock(&example_mutex);
 

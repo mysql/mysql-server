@@ -3902,6 +3902,7 @@ drop procedure p;
 --echo #
 CREATE TABLE t1 (a INT);
 CREATE VIEW v1 AS SELECT a FROM t1;
+--error ER_WRONG_OBJECT
 ALTER TABLE v1;
 DROP VIEW v1;
 DROP TABLE t1;
@@ -3950,6 +3951,15 @@ INSERT INTO t1 VALUES ();
 CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE
 ROW(1,1) >= ROW(1, (SELECT 1 FROM t1 WHERE  f1 >= ANY ( SELECT '1' )));
 
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#52120 create view cause Assertion failed: 0, file .\item_subselect.cc, line 817
+--echo #
+CREATE TABLE t1 (a CHAR(1) CHARSET latin1, b CHAR(1) CHARSET utf8);
+CREATE VIEW v1 AS SELECT 1 from t1
+WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
 

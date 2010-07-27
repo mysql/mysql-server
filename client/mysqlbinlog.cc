@@ -31,7 +31,9 @@
 #include "client_priv.h"
 #include <my_time.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
-#include "mysql_priv.h" 
+#include "sql_priv.h"
+#include <signal.h>
+#include <my_dir.h>
 #include "log_event.h"
 #include "sql_common.h"
 
@@ -48,6 +50,7 @@ ulong server_id = 0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
 ulong open_files_limit;
+ulong opt_binlog_rows_event_max_size;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
 static FILE *result_file;
@@ -60,28 +63,31 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
-static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
-static bool opt_hexdump= 0;
+static my_bool one_database=0, disable_log_bin= 0;
+static my_bool opt_hexdump= 0;
 const char *base64_output_mode_names[]=
 {"NEVER", "AUTO", "ALWAYS", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
   { array_elements(base64_output_mode_names) - 1, "",
     base64_output_mode_names, NULL };
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
-static const char *opt_base64_output_mode_str= NullS;
-static const char* database= 0;
+static char *opt_base64_output_mode_str= 0;
+static char *database= 0;
+static char *output_file= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
-static my_bool force_if_open_opt= 1;
+static my_bool force_if_open_opt= 1, raw_mode= 0;
+static my_bool to_last_remote_log= 0, stop_never= 0;
 static ulonglong offset = 0;
-static const char* host = 0;
+static uint stop_never_server_id= 1;
+static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
 #endif
-static const char* user = 0;
+static char* user = 0;
 static char* pass = 0;
 static char *charset= 0;
 
@@ -96,7 +102,7 @@ static my_time_t start_datetime= 0, stop_datetime= MY_TIME_T_MAX;
 static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
-static const char* dirname_for_local_load= 0;
+static char* dirname_for_local_load= 0;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -124,7 +130,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname);
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
-
 
 class Load_log_processor
 {
@@ -191,7 +196,7 @@ public:
   int init()
   {
     return init_dynamic_array(&file_names, sizeof(File_name_record),
-			      100,100 CALLER_INFO);
+			      100, 100);
   }
 
   void init_by_dir_name(const char *dir)
@@ -213,7 +218,7 @@ public:
     {
       if (ptr->fname)
       {
-        my_free(ptr->fname, MYF(MY_WME));
+        my_free(ptr->fname);
         delete ptr->event;
         bzero((char *)ptr, sizeof(File_name_record));
       }
@@ -436,13 +441,13 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   ptr= fname + target_dir_name_len;
   memcpy(ptr,bname,blen);
   ptr+= blen;
-  ptr+= my_sprintf(ptr, (ptr, "-%x", file_id));
+  ptr+= sprintf(ptr, "-%x", file_id);
 
   if ((file= create_unique_file(fname,ptr)) < 0)
   {
     error("Could not construct local filename %s%s.",
           target_dir_name,bname);
-    my_free(fname, MYF(0));
+    my_free(fname);
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -458,7 +463,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   if (set_dynamic(&file_names, (uchar*)&rec, file_id))
   {
     error("Out of memory.");
-    my_free(fname, MYF(0));
+    my_free(fname);
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -736,9 +741,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (strncmp(((Query_log_event*)ev)->query, "BEGIN", 5) && 
-          strncmp(((Query_log_event*)ev)->query, "COMMIT", 6) && 
-          strncmp(((Query_log_event*)ev)->query, "ROLLBACK", 8) &&  
+      if (!((Query_log_event*)ev)->is_trans_keyword() &&
           shall_skip_database(((Query_log_event*)ev)->db))
         goto end;
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
@@ -824,7 +827,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         */
         convert_path_to_forward_slashes((char*) ce->fname);
 	ce->print(result_file, print_event_info, TRUE);
-	my_free((char*)ce->fname,MYF(MY_WME));
+	my_free((void*)ce->fname);
 	delete ce;
       }
       else
@@ -889,7 +892,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
 
       if (fname)
-	my_free(fname, MYF(MY_WME));
+	my_free(fname);
       break;
     }
     case TABLE_MAP_EVENT:
@@ -1004,10 +1007,6 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"base64-output", OPT_BASE64_OUTPUT_MODE,
     /* 'unspec' is not mentioned because it is just a placeholder. */
    "Determine when the output statements should be base64-encoded BINLOG "
@@ -1018,9 +1017,8 @@ static struct my_option my_long_options[] =
    "events); 'always' prints base64 whenever possible. 'always' is for "
    "debugging only and should not be used in a production system. If this "
    "argument is not given, the default is 'auto'; if it is given with no "
-   "argument, 'always' is used."
-   ,(uchar**) &opt_base64_output_mode_str,
-   (uchar**) &opt_base64_output_mode_str,
+   "argument, 'always' is used.",
+   &opt_base64_output_mode_str, &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
@@ -1029,43 +1027,43 @@ static struct my_option my_long_options[] =
     SET @`a`:=_cp850 0x4DFC6C6C6572 COLLATE `cp850_general_ci`;
   */
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", (uchar**) &charsets_dir,
-   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", &charsets_dir,
+   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'd', "List entries for just this database (local log only).",
-   (uchar**) &database, (uchar**) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   &database, &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug", '#', "Output debug log.", (uchar**) &default_dbug_option,
-   (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log.", &default_dbug_option,
+   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
-   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
     "This way you could avoid an endless loop. You would also like to use it "
     "when restoring after a crash to avoid duplication of the statements you "
     "already have. NOTE: you will need a SUPER privilege to use this option.",
-   (uchar**) &disable_log_bin, (uchar**) &disable_log_bin, 0, GET_BOOL,
+   &disable_log_bin, &disable_log_bin, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force-if-open", 'F', "Force if binlog was not closed properly.",
-   (uchar**) &force_if_open_opt, (uchar**) &force_if_open_opt, 0, GET_BOOL, NO_ARG,
+   &force_if_open_opt, &force_if_open_opt, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"force-read", 'f', "Force reading unknown binlog events.",
-   (uchar**) &force_opt, (uchar**) &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &force_opt, &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"hexdump", 'H', "Augment output with hexadecimal and ASCII event dump.",
-   (uchar**) &opt_hexdump, (uchar**) &opt_hexdump, 0, GET_BOOL, NO_ARG,
+   &opt_hexdump, &opt_hexdump, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Get the binlog from server.", (uchar**) &host, (uchar**) &host,
+  {"host", 'h', "Get the binlog from server.", &host, &host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
-   (uchar**) &dirname_for_local_load, (uchar**) &dirname_for_local_load, 0,
+   &dirname_for_local_load, &dirname_for_local_load, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"offset", 'o', "Skip the first N entries.", (uchar**) &offset, (uchar**) &offset,
+  {"offset", 'o', "Skip the first N entries.", &offset, &offset,
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1075,37 +1073,43 @@ static struct my_option my_long_options[] =
    "/etc/services, "
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-   (uchar**) &port, (uchar**) &port, 0, GET_INT, REQUIRED_ARG,
+   &port, &port, 0, GET_INT, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"read-from-remote-server", 'R', "Read binary logs from a MySQL server.",
-   (uchar**) &remote_opt, (uchar**) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &remote_opt, &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"raw", OPT_RAW_OUTPUT, "Requires -R. Output raw binlog data instead of SQL "
+   "statements, output is to log files.",
+   &raw_mode, &raw_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"result-file", 'r', "Direct output to a given file. With --raw this is a "
+   "prefix for the file names.",
+   &output_file, &output_file, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
-   (uchar**) &server_id, (uchar**) &server_id, 0, GET_ULONG,
+   &server_id, &server_id, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
-   "Add 'SET NAMES character_set' to the output.", (uchar**) &charset,
-   (uchar**) &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Add 'SET NAMES character_set' to the output.", &charset,
+   &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
-   (uchar**) &shared_memory_base_name, 
+   "Base name of shared memory.", &shared_memory_base_name,
+   &shared_memory_base_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"short-form", 's', "Just show regular queries: no extra info and no "
    "row-based events. This is for testing only, and should not be used in "
    "production systems. If you want to suppress base64-output, consider "
    "using --base64-output=never instead.",
-   (uchar**) &short_form, (uchar**) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &short_form, &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"socket", 'S', "The socket file to use for connection.",
-   (uchar**) &sock, (uchar**) &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 
+   &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
@@ -1113,12 +1117,12 @@ static struct my_option my_long_options[] =
    "in the local time zone, in any format accepted by the MySQL server "
    "for DATETIME and TIMESTAMP types, for example: 2004-12-25 11:25:56 "
    "(you should probably use quotes for your shell to set it properly).",
-   (uchar**) &start_datetime_str, (uchar**) &start_datetime_str,
+   &start_datetime_str, &start_datetime_str,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"start-position", 'j',
    "Start reading the binlog at position N. Applies to the first binlog "
    "passed on the command line.",
-   (uchar**) &start_position, (uchar**) &start_position, 0, GET_ULL,
+   &start_position, &start_position, 0, GET_ULL,
    REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
    /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
    (ulonglong)(~(uint32)0), 0, 0, 0},
@@ -1128,22 +1132,32 @@ static struct my_option my_long_options[] =
    "in the local time zone, in any format accepted by the MySQL server "
    "for DATETIME and TIMESTAMP types, for example: 2004-12-25 11:25:56 "
    "(you should probably use quotes for your shell to set it properly).",
-   (uchar**) &stop_datetime_str, (uchar**) &stop_datetime_str,
+   &stop_datetime_str, &stop_datetime_str,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"stop-never", OPT_STOP_NEVER, "Wait for more data from the server "
+   "instead of stopping at the end of the last log. Implicitly sets "
+   "--to-last-log but instead of stopping at the end of the last log "
+   "it continues to wait till the server disconnects.",
+   &stop_never, &stop_never, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
+   "The slave server ID used for stop-never",
+   &stop_never_server_id, &stop_never_server_id, 0,
+   GET_UINT, REQUIRED_ARG, 65535, 1, 65535, 0, 0, 0},
   {"stop-position", OPT_STOP_POSITION,
    "Stop reading the binlog at position N. Applies to the last binlog "
    "passed on the command line.",
-   (uchar**) &stop_position, (uchar**) &stop_position, 0, GET_ULL,
+   &stop_position, &stop_position, 0, GET_ULL,
    REQUIRED_ARG, (ulonglong)(~(my_off_t)0), BIN_LOG_HEADER_SIZE,
    (ulonglong)(~(my_off_t)0), 0, 0, 0},
-  {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
-requested binlog but rather continue printing until the end of the last \
-binlog of the MySQL server. If you send the output to the same MySQL server, \
-that may lead to an endless loop.",
-   (uchar**) &to_last_remote_log, (uchar**) &to_last_remote_log, 0, GET_BOOL,
+  {"to-last-log", 't', "Requires -R. Will not stop at the end of the "
+   "requested binlog but rather continue printing until the end of the last "
+   "binlog of the MySQL server. If you send the output to the same MySQL "
+   "server, that may lead to an endless loop.",
+   &to_last_remote_log, &to_last_remote_log, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Connect to the remote server as username.",
-   (uchar**) &user, (uchar**) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
+   &user, &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
   {"verbose", 'v', "Reconstruct SQL statements out of row events. "
                    "-v -v adds comments on column data types.",
@@ -1152,8 +1166,18 @@ that may lead to an endless loop.",
    0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "Used to reserve file descriptors for use by this program.",
-   (uchar**) &open_files_limit, (uchar**) &open_files_limit, 0, GET_ULONG,
+   &open_files_limit, &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+   "The maximum size of a row-based binary log event in bytes. Rows will be "
+   "grouped into events smaller than this size if possible. "
+   "This value must be a multiple of 256.",
+   &opt_binlog_rows_event_max_size,
+   &opt_binlog_rows_event_max_size, 0,
+   GET_ULONG, REQUIRED_ARG,
+   /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
+   /* max_value */ ULONG_MAX, /* sub_size */ 0,
+   /* block_size */ 256, /* app_type */ 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1225,23 +1249,21 @@ static void warning(const char *format,...)
 */
 static void cleanup()
 {
-  my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) database, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) host, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) user, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) dirname_for_local_load, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(pass);
+  my_free(database);
+  my_free(host);
+  my_free(user);
+  my_free(dirname_for_local_load);
 
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
 }
 
-#include <help_start.h>
 
 static void print_version()
 {
   printf("%s Ver 3.3 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -1283,7 +1305,6 @@ static my_time_t convert_str_to_timestamp(const char* str)
     my_system_gmt_sec(&l_time, &dummy_my_timezone, &dummy_in_dst_time_gap);
 }
 
-#include <help_end.h>
 
 extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -1291,11 +1312,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   bool tty_password=0;
   switch (optid) {
-#ifdef __NETWARE__
-  case OPT_AUTO_CLOSE:
-    setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-    break;
-#endif
 #ifndef DBUG_OFF
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
@@ -1309,7 +1325,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       argument= (char*) "";                     // Don't require password
     if (argument)
     {
-      my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+      my_free(pass);
       char *start=argument;
       pass= my_strdup(argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
@@ -1318,10 +1334,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     else
       tty_password=1;
-    break;
-  case 'r':
-    if (!(result_file = my_fopen(argument, O_WRONLY | O_BINARY, MYF(MY_WME))))
-      exit(1);
     break;
   case 'R':
     remote_opt= 1;
@@ -1354,6 +1366,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case OPT_STOP_NEVER:
+    /* wait-for-data implicitly sets to-last-log */
+    to_last_remote_log= 1;
+    break;
   case '?':
     usage();
     exit(0);
@@ -1438,7 +1454,10 @@ static Exit_status dump_log_entries(const char* logname)
      Set safe delimiter, to dump things
      like CREATE PROCEDURE safely
   */
-  fprintf(result_file, "DELIMITER /*!*/;\n");
+  if (!raw_mode)
+  {
+    fprintf(result_file, "DELIMITER /*!*/;\n");
+  }
   strmov(print_event_info.delimiter, "/*!*/;");
   
   print_event_info.verbose= short_form ? 0 : verbose;
@@ -1447,8 +1466,11 @@ static Exit_status dump_log_entries(const char* logname)
        dump_local_log_entries(&print_event_info, logname));
 
   /* Set delimiter back to semicolon */
-  fprintf(result_file, "DELIMITER ;\n");
-  strmov(print_event_info.delimiter, ";");
+  if (!raw_mode)
+  {
+    fprintf(result_file, "DELIMITER ;\n");
+    strmov(print_event_info.delimiter, ";");
+  }
   return rc;
 }
 
@@ -1548,11 +1570,15 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   uchar buf[128];
   ulong len;
   uint logname_len;
+  uint server_id;
   NET* net;
   my_off_t old_off= start_position_mot;
   char fname[FN_REFLEN+1];
+  char log_file_name[FN_REFLEN+1];
   Exit_status retval= OK_CONTINUE;
   DBUG_ENTER("dump_remote_log_entries");
+
+  fname[0]= log_file_name[0]= 0;
 
   /*
     Even if we already read one binlog (case of >=2 binlogs on command line),
@@ -1580,7 +1606,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     DBUG_RETURN(ERROR_STOP);
   }
   logname_len = (uint) tlen;
-  int4store(buf + 6, 0);
+
+  /*
+    Fake a server ID to log continously.
+    This will show as a slave on the mysql server.
+  */
+  server_id= ((to_last_remote_log && stop_never) ? stop_never_server_id : 0);
+
+  int4store(buf + 6, server_id);
   memcpy(buf + 10, logname, logname_len);
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, logname_len + 10, 1))
   {
@@ -1592,6 +1625,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   {
     const char *error_msg;
     Log_event *ev;
+    Log_event_type type;
 
     len= cli_safe_read(mysql);
     if (len == packet_error)
@@ -1603,20 +1637,27 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       break; // end of data
     DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
 			len, net->read_pos[5]));
-    if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                        len - 1, &error_msg,
-                                        glob_description_event)))
-    {
-      error("Could not construct log event object: %s", error_msg);
-      DBUG_RETURN(ERROR_STOP);
-    }   
     /*
-      If reading from a remote host, ensure the temp_buf for the
-      Log_event class is pointing to the incoming stream.
+      In raw mode We only need the full event details if it is a 
+      ROTATE_EVENT or FORMAT_DESCRIPTION_EVENT
     */
-    ev->register_temp_buf((char *) net->read_pos + 1);
 
-    Log_event_type type= ev->get_type_code();
+    type= (Log_event_type) net->read_pos[1 + EVENT_TYPE_OFFSET];
+    if (!raw_mode || (type == ROTATE_EVENT) || (type == FORMAT_DESCRIPTION_EVENT))
+    {
+      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
+                                          len - 1, &error_msg,
+                                          glob_description_event)))
+      {
+        error("Could not construct log event object: %s", error_msg);
+        DBUG_RETURN(ERROR_STOP);
+      }
+      /*
+        If reading from a remote host, ensure the temp_buf for the
+        Log_event class is pointing to the incoming stream.
+      */
+      ev->register_temp_buf((char *) net->read_pos + 1);
+    }
     if (glob_description_event->binlog_version >= 3 ||
         (type != LOAD_EVENT && type != CREATE_FILE_EVENT))
     {
@@ -1639,6 +1680,19 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           part of our log) and then we will stop when we receive the fake one
           soon.
         */
+        if (raw_mode)
+        {
+          if (output_file != 0)
+          {
+            my_snprintf(log_file_name, sizeof(log_file_name), "%s%s",
+                        output_file, rev->new_log_ident);
+          }
+          else
+          {
+            strmov(log_file_name, rev->new_log_ident);
+          }
+        }
+
         if (rev->when == 0)
         {
           if (!to_last_remote_log)
@@ -1668,10 +1722,47 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           don't increment old_off. Real Format_description_log_event always
           starts from BIN_LOG_HEADER_SIZE position.
         */
-        if (old_off != BIN_LOG_HEADER_SIZE)
-          len= 1;         // fake event, don't increment old_off
+        // fake event when not in raw mode, don't increment old_off
+        if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
+          len= 1;
+        if (raw_mode)
+        {
+          if (result_file && (result_file != stdout))
+            my_fclose(result_file, MYF(0));
+          if (!(result_file = my_fopen(log_file_name, O_WRONLY | O_BINARY,
+                                       MYF(MY_WME))))
+          {
+            error("Could not create log file '%s'", log_file_name);
+            DBUG_RETURN(ERROR_STOP);
+          }
+          my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
+                    BIN_LOG_HEADER_SIZE, MYF(0));
+          /*
+            Need to handle these events correctly in raw mode too 
+            or this could get messy
+          */
+          delete glob_description_event;
+          glob_description_event= (Format_description_log_event*) ev;
+          print_event_info->common_header_len= glob_description_event->common_header_len;
+          ev->temp_buf= 0;
+          ev= 0;
+        }
       }
-      Exit_status retval= process_event(print_event_info, ev, old_off, logname);
+
+      if (raw_mode)
+      {
+        my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(0));
+        if (ev)
+        {
+          ev->temp_buf=0;
+          delete ev;
+        }
+      }
+      else
+      {
+        retval= process_event(print_event_info, ev, old_off, logname);
+      }
+
       if (retval != OK_CONTINUE)
         DBUG_RETURN(retval);
     }
@@ -1681,7 +1772,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       const char *old_fname= le->fname;
       uint old_len= le->fname_len;
       File file;
-      Exit_status retval;
 
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
         DBUG_RETURN(ERROR_STOP);
@@ -2014,6 +2104,40 @@ end:
   return retval;
 }
 
+/* Post processing of arguments to check for conflicts and other setups */
+static int args_post_process(void)
+{
+  DBUG_ENTER("args_post_process");
+
+  if (raw_mode)
+  {
+    if (one_database)
+      warning("The --database option is ignored with --raw mode");
+
+    if (!remote_opt)
+    {
+      error("You need to set --read-from-remote-server for --raw mode");
+      DBUG_RETURN(ERROR_STOP);
+    }
+
+    if (stop_position != (ulonglong)(~(my_off_t)0))
+      warning("The --stop-position option is ignored in raw mode");
+
+    if (stop_datetime != MY_TIME_T_MAX)
+      warning("The --stop-datetime option is ignored in raw mode");
+  }
+  else if (output_file)
+  {
+    if (!(result_file = my_fopen(output_file, O_WRONLY | O_BINARY, MYF(MY_WME))))
+    {
+      error("Could not create log file '%s'", output_file);
+      DBUG_RETURN(ERROR_STOP);
+    }
+  }
+
+  DBUG_RETURN(OK_CONTINUE);
+}
+
 
 int main(int argc, char** argv)
 {
@@ -2029,14 +2153,20 @@ int main(int argc, char** argv)
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
   defaults_argv= argv;
-  parse_args(&argc, (char***)&argv);
+
+  parse_args(&argc, &argv);
 
   if (!argc)
   {
     usage();
     free_defaults(defaults_argv);
+    my_end(my_end_arg);
     exit(1);
   }
+
+  /* Check for argument conflicts and do any post-processing */
+  if (args_post_process() == ERROR_STOP)
+    exit(1);
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
@@ -2059,27 +2189,30 @@ int main(int argc, char** argv)
   else
     load_processor.init_by_cur_dir();
 
-  fprintf(result_file,
-	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
-
-  if (disable_log_bin)
+  if (!raw_mode)
+  {
     fprintf(result_file,
-            "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
+            "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
 
-  /*
-    In mysqlbinlog|mysql, don't want mysql to be disconnected after each
-    transaction (which would be the case with GLOBAL.COMPLETION_TYPE==2).
-  */
-  fprintf(result_file,
-          "/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,"
-          "COMPLETION_TYPE=0*/;\n");
+    if (disable_log_bin)
+      fprintf(result_file,
+              "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
 
-  if (charset)
+    /*
+      In mysqlbinlog|mysql, don't want mysql to be disconnected after each
+      transaction (which would be the case with GLOBAL.COMPLETION_TYPE==2).
+    */
     fprintf(result_file,
-            "\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
-            "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
-            "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"  
-            "\n/*!40101 SET NAMES %s */;\n", charset);
+            "/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,"
+            "COMPLETION_TYPE=0*/;\n");
+
+    if (charset)
+      fprintf(result_file,
+              "\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
+              "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
+              "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
+              "\n/*!40101 SET NAMES %s */;\n", charset);
+  }
 
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) ; )
@@ -2093,28 +2226,32 @@ int main(int argc, char** argv)
     start_position= BIN_LOG_HEADER_SIZE;
   }
 
-  /*
-    Issue a ROLLBACK in case the last printed binlog was crashed and had half
-    of transaction.
-  */
-  fprintf(result_file,
+  if (!raw_mode)
+  {
+    /*
+      Issue a ROLLBACK in case the last printed binlog was crashed and had half
+      of transaction.
+    */
+    fprintf(result_file,
           "# End of log file\nROLLBACK /* added by mysqlbinlog */;\n"
           "/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;\n");
-  if (disable_log_bin)
-    fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
+    if (disable_log_bin)
+      fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
 
-  if (charset)
-    fprintf(result_file,
-            "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
-            "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
-            "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
+    if (charset)
+      fprintf(result_file,
+              "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
+              "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
+              "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
+  }
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
-  if (result_file != stdout)
+  if (result_file && (result_file != stdout))
     my_fclose(result_file, MYF(0));
   cleanup();
-  free_defaults(defaults_argv);
+  if (defaults_argv)
+    free_defaults(defaults_argv);
   my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */

@@ -1,5 +1,5 @@
-# Copyright (C) 2006 MySQL AB
-#
+# Copyright (C) 2005-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+# All rights reserved.
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -35,14 +35,14 @@ noinst_HEADERS =	ha_blackhole.h
 EXTRA_LTLIBRARIES =	ha_blackhole.la
 pkgplugin_LTLIBRARIES =	@plugin_blackhole_shared_target@
 ha_blackhole_la_LDFLAGS=-module -rpath $(pkgplugindir)
-ha_blackhole_la_CXXFLAGS=$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_blackhole_la_CXXFLAGS=$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_blackhole_la_CFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_blackhole_la_SOURCES=ha_blackhole.cc
 
 
 EXTRA_LIBRARIES =	libblackhole.a
 noinst_LIBRARIES =	@plugin_blackhole_static_target@
-libblackhole_a_CXXFLAGS=$(AM_CFLAGS)
+libblackhole_a_CXXFLAGS=$(AM_CXXFLAGS)
 libblackhole_a_CFLAGS =	$(AM_CFLAGS)
 libblackhole_a_SOURCES=	ha_blackhole.cc
 
@@ -50,11 +50,22 @@ libblackhole_a_SOURCES=	ha_blackhole.cc
 EXTRA_DIST =		CMakeLists.txt plug.in
 
 if HAVE_DTRACE_DASH_G
+# The object for static and dynamic linking of blackhole differ
+# For static linkage of blackhole to mysqld
+
 libblackhole_a_LIBADD = probes_mysql.o
 libblackhole_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
-CLEANFILES = probes_mysql.o dtrace_files dtrace_providers
-DTRACEFILES = libblackhole_a-ha_blackhole.o
+# For blackhole as shared library
+ha_blackhole_la_LIBADD = probes_sh_mysql.o
+# Hack: We "depend" on ".libs/" but have no rule for it,
+# but it is created as a byproduct of the ".lo"
+DTRACESHAREDDEPS = ha_blackhole_la-ha_blackhole.lo
+DTRACESHAREDFILES = ha_blackhole_la-ha_blackhole.o
 DTRACEPROVIDER = probes_mysql.d
+ha_blackhole_la_DEPENDENCIES = probes_sh_mysql.o $(DTRACESHAREDDEPS) dtrace_providers
+
+CLEANFILES = $(DTRACEPROVIDERS) dtrace_files dtrace_providers $(DTRACESHAREDDEPS)
+DTRACEFILES = libblackhole_a-ha_blackhole.o
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
@@ -65,9 +76,10 @@ probes_mysql.d:
 	$(CP) $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d
 	echo timestamp > dtrace_sources
 
+probes_sh_mysql.o: $(DTRACEPROVIDER) $(DTRACESHAREDDEPS)
+	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACESHAREDFILES) -o $@
+	$(CP) $(DTRACESHAREDFILES) .libs
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
-endif
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+endif

@@ -45,8 +45,11 @@ TODO:
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "my_global.h"
+#include "sql_priv.h"
+#include "sql_class.h"                          // SSV
 #include <mysql/plugin.h>
+#include <mysql/psi/mysql_file.h>
 #include "ha_tina.h"
 #include "probes_mysql.h"
 
@@ -248,7 +251,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   mysql_mutex_unlock(&tina_mutex);
-  my_free((uchar*) share, MYF(0));
+  my_free(share);
 
   return NULL;
 }
@@ -426,7 +429,7 @@ static int free_share(TINA_SHARE *share)
     my_hash_delete(&tina_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
-    my_free((uchar*) share, MYF(0));
+    my_free(share);
   }
   mysql_mutex_unlock(&tina_mutex);
 
@@ -804,15 +807,15 @@ int ha_tina::find_current_row(uchar *buf)
         Field_blob *blob= *(Field_blob**) field;
         uchar *src, *tgt;
         uint length, packlength;
-        
+
         packlength= blob->pack_length_no_ptr();
         length= blob->get_length(blob->ptr);
-        memcpy_fixed(&src, blob->ptr + packlength, sizeof(char*));
+        memcpy(&src, blob->ptr + packlength, sizeof(char*));
         if (src)
         {
           tgt= (uchar*) alloc_root(&blobroot, length);
           bmove(tgt, src, length);
-          memcpy_fixed(blob->ptr + packlength, &tgt, sizeof(char*));
+          memcpy(blob->ptr + packlength, &tgt, sizeof(char*));
         }
       }
     }
@@ -1526,7 +1529,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   free_root(&blobroot, MYF(0));
 
-  my_free((char*)buf, MYF(0));
+  my_free(buf);
 
   if (rc == HA_ERR_END_OF_FILE)
   {
@@ -1732,7 +1735,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   free_root(&blobroot, MYF(0));
 
-  my_free((char*)buf, MYF(0));
+  my_free(buf);
   thd_proc_info(thd, old_proc_info);
 
   if ((rc != HA_ERR_END_OF_FILE) || count)

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (c) 2007, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -29,8 +29,12 @@
 */
 
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_profile.h"
 #include "my_sys.h"
+#include "sql_show.h"                     // schema_table_store_record
+#include "sql_class.h"                    // THD
 
 #define TIME_FLOAT_DIGITS 9
 /** two vals encoded: (dec*100)+len */
@@ -173,8 +177,7 @@ PROF_MEASUREMENT::PROF_MEASUREMENT(QUERY_PROFILE *profile_arg,
 
 PROF_MEASUREMENT::~PROF_MEASUREMENT()
 {
-  if (allocated_status_memory != NULL)
-    my_free(allocated_status_memory, MYF(0));
+  my_free(allocated_status_memory);
   status= function= file= NULL;
 }
 
@@ -264,8 +267,7 @@ QUERY_PROFILE::~QUERY_PROFILE()
   while (! entries.is_empty())
     delete entries.pop();
 
-  if (query_source != NULL)
-    my_free(query_source, MYF(0));
+  my_free(query_source);
 }
 
 /**
@@ -508,7 +510,7 @@ void PROFILING::set_query_source(char *query_source_arg, uint query_length_arg)
   There are two ways to get to this function:  Selecting from the information
   schema, and a SHOW command.
 */
-int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
+int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("PROFILING::fill_statistics_info");
   TABLE *table= tables->table;
@@ -543,7 +545,7 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
       /* Skip the first.  We count spans of fence, not fence-posts. */
       if (previous == NULL) continue;
 
-      if (thd->lex->sql_command == SQLCOM_SHOW_PROFILE)
+      if (thd_arg->lex->sql_command == SQLCOM_SHOW_PROFILE)
       {
         /*
           We got here via a SHOW command.  That means that we stored
@@ -556,14 +558,14 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
           struct where and having conditions at the SQL layer, then this
           condition should be ripped out.
         */
-        if (thd->lex->profile_query_id == 0) /* 0 == show final query */
+        if (thd_arg->lex->profile_query_id == 0) /* 0 == show final query */
         {
           if (query != last)
             continue;
         }
         else
         {
-          if (thd->lex->profile_query_id != query->profiling_query_id)
+          if (thd_arg->lex->profile_query_id != query->profiling_query_id)
             continue;
         }
       }
@@ -701,7 +703,7 @@ int PROFILING::fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond)
         table->field[17]->set_notnull();
       }
 
-      if (schema_table_store_record(thd, table))
+      if (schema_table_store_record(thd_arg, table))
         DBUG_RETURN(1);
 
     }

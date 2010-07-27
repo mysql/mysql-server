@@ -45,7 +45,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"info", 'I', "Synonym for --help.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"silent", 's', "Be more silent.", (uchar**) &silent, (uchar**) &silent,
+  {"silent", 's', "Be more silent.", &silent, &silent,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Displays version information and exits.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -155,11 +155,8 @@ int main(int argc, char **argv)
 	else
 	{
 	  printf ("Host name of %s is %s", ip,hpaddr->h_name);
-#ifndef __NETWARE__
-	  /* this information is not available on NetWare */
 	  for (q = hpaddr->h_aliases; *q != 0; q++)
 	    (void) printf(", %s", *q);
-#endif /* __NETWARE__ */
 	  puts("");
 	}
       }

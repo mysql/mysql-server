@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,11 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "m_string.h"                           /* bzero, memcpy */
+#ifdef MYSQL_SERVER
+#include "table.h"                              /* TABLE_LIST */
+#endif
 #include "mysql_com.h"
 
 class Relay_log_info;
@@ -229,7 +233,7 @@ struct RPL_TABLE_LIST
 
 
 /* Anonymous namespace for template functions/classes */
-namespace {
+CPP_UNNAMED_NS_START
 
   /*
     Smart pointer that will automatically call my_afree (a macro) when
@@ -256,7 +260,7 @@ namespace {
     Obj* get() { return m_ptr; }
   };
 
-}
+CPP_UNNAMED_NS_END
 #endif
 
 // NB. number of printed bit values is limited to sizeof(buf) - 1

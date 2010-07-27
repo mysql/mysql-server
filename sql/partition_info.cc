@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2008 MySQL AB, Sun Microsystems Inc. 2008-2009
+/* Copyright (c) 2006, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* Some general useful functions */
 
@@ -19,7 +19,13 @@
 #pragma implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+// Required to get server definitions for mysql/plugin.h right
+#include "sql_plugin.h"
+#include "sql_partition.h"     /* partition_info.h: LIST_PART_ENTRY */
+#include "partition_info.h"
+#include "sql_parse.h"                        // test_if_data_home_dir
+#include "sql_acl.h"                          // *_ACL
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -103,8 +109,8 @@ char *partition_info::create_default_partition_names(uint part_no,
   {
     do
     {
-      my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
-      move_ptr+=MAX_PART_NAME_SIZE;
+      sprintf(move_ptr, "p%u", (start_no + i));
+      move_ptr+= MAX_PART_NAME_SIZE;
     } while (++i < num_parts_arg);
   }
   else
@@ -171,7 +177,7 @@ char *partition_info::create_subpartition_name(uint subpart_no,
 
   if (likely(ptr != NULL))
   {
-    my_sprintf(ptr, (ptr, "%ssp%u", part_name, subpart_no));
+    my_snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   }
   else
   {
@@ -597,12 +603,12 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
 {
   handlerton *old_engine_type= engine_type;
   bool first= TRUE;
-  uint num_parts= partitions.elements;
+  uint n_parts= partitions.elements;
   DBUG_ENTER("partition_info::check_engine_mix");
   DBUG_PRINT("info", ("in: engine_type = %s, table_engine_set = %u",
                        ha_resolve_storage_engine_name(engine_type),
                        table_engine_set));
-  if (num_parts)
+  if (n_parts)
   {
     List_iterator<partition_element> part_it(partitions);
     uint i= 0;
@@ -615,7 +621,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
       if (is_sub_partitioned() &&
           part_elem->subpartitions.elements)
       {
-        uint num_subparts= part_elem->subpartitions.elements;
+        uint n_subparts= part_elem->subpartitions.elements;
         uint j= 0;
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         do
@@ -627,7 +633,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
           if (check_engine_condition(sub_elem, table_engine_set,
                                      &engine_type, &first))
             goto error;
-        } while (++j < num_subparts);
+        } while (++j < n_subparts);
         /* ensure that the partition also has correct engine */
         if (check_engine_condition(part_elem, table_engine_set,
                                    &engine_type, &first))
@@ -636,7 +642,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
       else if (check_engine_condition(part_elem, table_engine_set,
                                       &engine_type, &first))
         goto error;
-    } while (++i < num_parts);
+    } while (++i < n_parts);
   }
   DBUG_PRINT("info", ("engine_type = %s",
                        ha_resolve_storage_engine_name(engine_type)));
@@ -695,12 +701,11 @@ bool partition_info::check_range_constants(THD *thd)
   if (column_list)
   {
     part_column_list_val *loc_range_col_array;
-    part_column_list_val *current_largest_col_val;
+    part_column_list_val *UNINIT_VAR(current_largest_col_val);
     uint num_column_values= part_field_list.elements;
     uint size_entries= sizeof(part_column_list_val) * num_column_values;
     range_col_array= (part_column_list_val*)sql_calloc(num_parts *
                                                        size_entries);
-    LINT_INIT(current_largest_col_val);
     if (unlikely(range_col_array == NULL))
     {
       mem_alloc_error(num_parts * size_entries);
@@ -733,11 +738,9 @@ bool partition_info::check_range_constants(THD *thd)
   }
   else
   {
-    longlong current_largest;
+    longlong UNINIT_VAR(current_largest);
     longlong part_range_value;
     bool signed_flag= !part_expr->unsigned_flag;
-
-    LINT_INIT(current_largest);
 
     part_result_type= INT_RESULT;
     range_int_array= (longlong*)sql_alloc(num_parts * sizeof(longlong));
@@ -799,7 +802,8 @@ range_not_increasing_error:
     -1                 a < b
 */
 
-int partition_info::list_part_cmp(const void* a, const void* b)
+extern "C"
+int partition_info_list_part_cmp(const void* a, const void* b)
 {
   longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
   longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
@@ -811,7 +815,14 @@ int partition_info::list_part_cmp(const void* a, const void* b)
     return 0;
 }
 
- /*
+
+int partition_info::list_part_cmp(const void* a, const void* b)
+{
+  return partition_info_list_part_cmp(a, b);
+}
+
+
+/*
   Compare two lists of column values in RANGE/LIST partitioning
   SYNOPSIS
     compare_column_values()
@@ -823,8 +834,9 @@ int partition_info::list_part_cmp(const void* a, const void* b)
     +1                       First argument is larger
 */
 
-int partition_info::compare_column_values(const void *first_arg,
-                                          const void *second_arg)
+extern "C"
+int partition_info_compare_column_values(const void *first_arg,
+                                         const void *second_arg)
 {
   const part_column_list_val *first= (part_column_list_val*)first_arg;
   const part_column_list_val *second= (part_column_list_val*)second_arg;
@@ -860,6 +872,14 @@ int partition_info::compare_column_values(const void *first_arg,
   return 0;
 }
 
+
+int partition_info::compare_column_values(const void *first_arg,
+                                          const void *second_arg)
+{
+  return partition_info_compare_column_values(first_arg, second_arg);
+}
+
+
 /*
   This routine allocates an array for all list constants to achieve a fast
   check what partition a certain value belongs to. At the same time it does
@@ -888,10 +908,11 @@ bool partition_info::check_list_constants(THD *thd)
   part_elem_value *list_value;
   bool result= TRUE;
   longlong type_add, calc_value;
-  void *curr_value, *prev_value;
+  void *curr_value;
+  void *UNINIT_VAR(prev_value);
   partition_element* part_def;
   bool found_null= FALSE;
-  int (*compare_func)(const void *, const void*);
+  qsort_cmp compare_func;
   void *ptr;
   List_iterator<partition_element> list_func_it(partitions);
   DBUG_ENTER("partition_info::check_list_constants");
@@ -948,7 +969,7 @@ bool partition_info::check_list_constants(THD *thd)
     part_column_list_val *loc_list_col_array;
     loc_list_col_array= (part_column_list_val*)ptr;
     list_col_array= (part_column_list_val*)ptr;
-    compare_func= compare_column_values;
+    compare_func= partition_info_compare_column_values;
     i= 0;
     do
     {
@@ -968,7 +989,7 @@ bool partition_info::check_list_constants(THD *thd)
   }
   else
   {
-    compare_func= list_part_cmp;
+    compare_func= partition_info_list_part_cmp;
     list_array= (LIST_PART_ENTRY*)ptr;
     i= 0;
     /*
@@ -1003,7 +1024,6 @@ bool partition_info::check_list_constants(THD *thd)
              compare_func);
 
     i= 0;
-    LINT_INIT(prev_value);
     do
     {
       DBUG_ASSERT(i < num_list_values);
@@ -1024,6 +1044,30 @@ bool partition_info::check_list_constants(THD *thd)
   result= FALSE;
 end:
   DBUG_RETURN(result);
+}
+
+/**
+  Check if we allow DATA/INDEX DIRECTORY, if not warn and set them to NULL.
+
+  @param thd  THD also containing sql_mode (looks from MODE_NO_DIR_IN_CREATE).
+  @param part_elem partition_element to check.
+*/
+static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
+{
+#ifdef HAVE_READLINK
+  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+#endif
+  {
+    if (part_elem->data_file_name)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
+    if (part_elem->index_file_name)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "INDEX DIRECTORY");
+    part_elem->data_file_name= part_elem->index_file_name= NULL;
+  }
 }
 
 
@@ -1163,20 +1207,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     do
     {
       partition_element *part_elem= part_it++;
-#ifdef HAVE_READLINK
-      if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
-#endif
-      {
-        if (part_elem->data_file_name)
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                              WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
-                              "DATA DIRECTORY");
-        if (part_elem->index_file_name)
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                              WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
-                              "INDEX DIRECTORY");
-        part_elem->data_file_name= part_elem->index_file_name= NULL;
-      }
+      warn_if_dir_in_part_elem(thd, part_elem);
       if (!is_sub_partitioned())
       {
         if (part_elem->engine_type == NULL)
@@ -1185,7 +1216,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           part_elem->engine_type= default_engine_type;
         }
         if (check_table_name(part_elem->partition_name,
-                             strlen(part_elem->partition_name)))
+                             strlen(part_elem->partition_name), FALSE))
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
@@ -1202,8 +1233,9 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         do
         {
           sub_elem= sub_it++;
+          warn_if_dir_in_part_elem(thd, sub_elem);
           if (check_table_name(sub_elem->partition_name,
-                               strlen(sub_elem->partition_name)))
+                               strlen(sub_elem->partition_name), FALSE))
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
             goto end;
@@ -1300,15 +1332,15 @@ end:
   RETURN VALUES
 */
 
-void partition_info::print_no_partition_found(TABLE *table)
+void partition_info::print_no_partition_found(TABLE *table_arg)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
   TABLE_LIST table_list;
 
   bzero(&table_list, sizeof(table_list));
-  table_list.db= table->s->db.str;
-  table_list.table_name= table->s->table_name.str;
+  table_list.db= table_arg->s->db.str;
+  table_list.table_name= table_arg->s->table_name.str;
 
   if (check_single_table_access(current_thd,
                                 SELECT_ACL, &table_list, TRUE))
@@ -1322,13 +1354,13 @@ void partition_info::print_no_partition_found(TABLE *table)
       buf_ptr= (char*)"from column_list";
     else
     {
-      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table_arg, table_arg->read_set);
       if (part_expr->null_value)
         buf_ptr= (char*)"NULL";
       else
         longlong2str(err_value, buf,
                      part_expr->unsigned_flag ? 10 : -10);
-      dbug_tmp_restore_column_map(table->read_set, old_map);
+      dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
   }
@@ -1988,7 +2020,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
                                                 part_elem_value *val,
                                                 uint part_id)
 {
-  uint num_columns= part_field_list.elements;
+  uint n_columns= part_field_list.elements;
   bool result= FALSE;
   uint i;
   part_column_list_val *col_val= val->col_val_array;
@@ -1998,7 +2030,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
   {
     DBUG_RETURN(FALSE);
   }
-  for (i= 0; i < num_columns; col_val++, i++)
+  for (i= 0; i < n_columns; col_val++, i++)
   {
     Item *column_item= col_val->item_expression;
     Field *field= part_field_array[i];

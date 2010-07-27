@@ -1,7 +1,7 @@
 #ifndef SQL_SERVERS_INCLUDED
 #define SQL_SERVERS_INCLUDED
 
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "slave.h" // for tables_ok(), rpl_filter
+#include "my_global.h"                  /* uint */
+#include "rpl_slave.h" // for tables_ok(), rpl_filter
+
+class THD;
+typedef struct st_lex_server_options LEX_SERVER_OPTIONS;
+typedef struct st_mem_root MEM_ROOT;
 
 /* structs */
 typedef struct st_federated_server
