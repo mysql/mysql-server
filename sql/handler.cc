@@ -1132,6 +1132,7 @@ int ha_commit_trans(THD *thd, bool all)
 
   if (thd->in_sub_stmt)
   {
+    DBUG_ASSERT(0);
     /*
       Since we don't support nested statement transactions in 5.0,
       we can't commit or rollback stmt transactions while we are inside
@@ -1146,7 +1147,6 @@ int ha_commit_trans(THD *thd, bool all)
       bail out with error even before ha_commit_trans() call. To be 100% safe
       let us throw error in non-debug builds.
     */
-    DBUG_ASSERT(0);
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(2);
   }
@@ -1329,6 +1329,7 @@ int ha_rollback_trans(THD *thd, bool all)
 
   if (thd->in_sub_stmt)
   {
+    DBUG_ASSERT(0);
     /*
       If we are inside stored function or trigger we should not commit or
       rollback current statement transaction. See comment in ha_commit_trans()
@@ -1336,7 +1337,6 @@ int ha_rollback_trans(THD *thd, bool all)
     */
     if (!all)
       DBUG_RETURN(0);
-    DBUG_ASSERT(0);
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
   }

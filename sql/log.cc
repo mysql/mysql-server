@@ -27,7 +27,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "log.h"
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // open_log_table
 #include "sql_delete.h"                         // mysql_truncate
 #include "sql_parse.h"                          // command_name
 #include "sql_time.h"           // calc_time_from_sec, my_time_compare

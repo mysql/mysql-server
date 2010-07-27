@@ -38,6 +38,7 @@
 #include "set_var.h"
 #include "sql_parse.h"                          // cleanup_items
 #include "sql_base.h"                           // close_thread_tables
+#include "transaction.h"       // trans_commit_stmt
 
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).
@@ -795,6 +796,7 @@ sp_head::~sp_head()
   while ((lex= (LEX *)m_lex.pop()))
   {
     THD *thd= lex->thd;
+    thd->lex->sphead= NULL;
     lex_end(thd->lex);
     delete thd->lex;
     thd->lex= lex;
@@ -1995,16 +1997,23 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
+    thd->lex->unit.cleanup();
+
     if (!thd->in_sub_stmt)
     {
-      thd->lex->unit.cleanup();
-
-      thd_proc_info(thd, "closing tables");
-      close_thread_tables(thd);
-      thd_proc_info(thd, 0);
-
-      thd->rollback_item_tree_changes();
+      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+      thd->stmt_da->can_overwrite_status= FALSE;
     }
+
+    thd_proc_info(thd, "closing tables");
+    close_thread_tables(thd);
+    thd_proc_info(thd, 0);
+
+    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
+      thd->mdl_context.release_transactional_locks();
+
+    thd->rollback_item_tree_changes();
 
     DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                        m_name.str));
@@ -2197,6 +2206,7 @@ sp_head::restore_lex(THD *thd)
   merge_table_list(thd, sublex->query_tables, sublex);
   if (! sublex->sp_lex_in_use)
   {
+    sublex->sphead= NULL;
     lex_end(sublex);
     delete sublex;
   }
@@ -2806,12 +2816,27 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     DBUG_PRINT("info",("exec_core returned: %d", res));
   }
 
-  m_lex->unit.cleanup();
+  /*
+    Call after unit->cleanup() to close open table
+    key read.
+  */
+  if (open_tables)
+  {
+    m_lex->unit.cleanup();
+    /* Here we also commit or rollback the current statement. */
+    if (! thd->in_sub_stmt)
+    {
+      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+      thd->stmt_da->can_overwrite_status= FALSE;
+    }
+    thd_proc_info(thd, "closing tables");
+    close_thread_tables(thd);
+    thd_proc_info(thd, 0);
 
-  thd_proc_info(thd, "closing tables");
-  /* Here we also commit or rollback the current statement. */
-  close_thread_tables(thd);
-  thd_proc_info(thd, 0);
+    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
+      thd->mdl_context.release_transactional_locks();
+  }
 
   if (m_lex->query_tables_own_last)
   {

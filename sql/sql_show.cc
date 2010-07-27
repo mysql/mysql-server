@@ -649,9 +649,17 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
+  List<Item> field_list;
+  bool error= TRUE;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->table_name));
+
+  /*
+    Metadata locks taken during SHOW CREATE should be released when
+    the statmement completes as it is an information statement.
+  */
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* We want to preserve the tree for views. */
   thd->lex->view_prepare_mode= TRUE;
@@ -659,12 +667,12 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
-    bool error=
+    bool open_error=
       open_normal_and_derived_tables(thd, table_list,
                                      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
     thd->pop_internal_handler();
-    if (error && (thd->killed || thd->is_error()))
-      DBUG_RETURN(TRUE);
+    if (open_error && (thd->killed || thd->is_error()))
+      goto exit;
   }
 
   /* TODO: add environment variables show when it become possible */
@@ -672,7 +680,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     my_error(ER_WRONG_OBJECT, MYF(0),
              table_list->db, table_list->table_name, "VIEW");
-    DBUG_RETURN(TRUE);
+    goto exit;
   }
 
   buffer.length(0);
@@ -684,9 +692,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table_list, &buffer, NULL,
                          FALSE /* show_database */)))
-    DBUG_RETURN(TRUE);
+    goto exit;
 
-  List<Item> field_list;
   if (table_list->view)
   {
     field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
@@ -707,7 +714,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    goto exit;
+
   protocol->prepare_for_resend();
   if (table_list->view)
     protocol->store(table_list->view_name.str, system_charset_info);
@@ -735,10 +743,16 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->write())
-    DBUG_RETURN(TRUE);
+    goto exit;
 
+  error= FALSE;
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+
+exit:
+  close_thread_tables(thd);
+  /* Release any metadata locks taken during SHOW CREATE. */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+  DBUG_RETURN(error);
 }
 
 bool mysqld_show_create_db(THD *thd, char *dbname,
@@ -7719,6 +7733,10 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 bool show_create_trigger(THD *thd, const sp_name *trg_name)
 {
   TABLE_LIST *lst= get_trigger_table(thd, trg_name);
+  uint num_tables; /* NOTE: unused, only to pass to open_tables(). */
+  Table_triggers_list *triggers;
+  int trigger_idx;
+  bool error= TRUE;
 
   if (!lst)
     return TRUE;
@@ -7730,35 +7748,35 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   }
 
   /*
-    Open the table by name in order to load Table_triggers_list object.
-
-    NOTE: there is race condition here -- the table can be dropped after
-    LOCK_open is released. It will be fixed later by acquiring shared
-    metadata lock on trigger or table name.
+    Metadata locks taken during SHOW CREATE TRIGGER should be released when
+    the statement completes as it is an information statement.
   */
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
-  uint num_tables; /* NOTE: unused, only to pass to open_tables(). */
-
-  if (open_tables(thd, &lst, &num_tables, 0))
+  /*
+    Open the table by name in order to load Table_triggers_list object.
+  */
+  if (open_tables(thd, &lst, &num_tables,
+                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),
              (const char *) trg_name->m_db.str,
              (const char *) lst->table_name);
 
-    return TRUE;
+    goto exit;
 
     /* Perform closing actions and return error status. */
   }
 
-  Table_triggers_list *triggers= lst->table->triggers;
+  triggers= lst->table->triggers;
 
   if (!triggers)
   {
     my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-    return TRUE;
+    goto exit;
   }
 
-  int trigger_idx= triggers->find_trigger_by_name(&trg_name->m_name);
+  trigger_idx= triggers->find_trigger_by_name(&trg_name->m_name);
 
   if (trigger_idx < 0)
   {
@@ -7766,16 +7784,22 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
              (const char *) trg_name->m_db.str,
              (const char *) lst->table_name);
 
-    return TRUE;
+    goto exit;
   }
 
-  return show_create_trigger_impl(thd, triggers, trigger_idx);
+  error= show_create_trigger_impl(thd, triggers, trigger_idx);
 
   /*
     NOTE: if show_create_trigger_impl() failed, that means we could not
     send data to the client. In this case we simply raise the error
     status and client connection will be closed.
   */
+
+exit:
+  close_thread_tables(thd);
+  /* Release any metadata locks taken during SHOW CREATE TRIGGER. */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+  return error;
 }
 
 class IS_internal_schema_access : public ACL_internal_schema_access

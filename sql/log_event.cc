@@ -3320,6 +3320,19 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       
       thd->table_map_for_update= (table_map)table_map_for_update;
       thd->set_invoker(&user, &host);
+      /*
+        Flag if we need to rollback the statement transaction on
+        slave if it by chance succeeds.
+        If we expected a non-zero error code and get nothing and,
+        it is a concurrency issue or ignorable issue, effects
+        of the statement should be rolled back.
+      */
+      if (expected_error &&
+          (ignored_error_code(expected_error) ||
+           concurrency_error_code(expected_error)))
+      {
+        thd->variables.option_bits|= OPTION_MASTER_SQL_ERROR;
+      }
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
@@ -3327,6 +3340,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
         log_slow_statement(thd);
       }
+
+      thd->variables.option_bits&= ~OPTION_MASTER_SQL_ERROR;
 
       /*
         Resetting the enable_slow_log thd variable.
@@ -3370,7 +3385,6 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
-
     /*
       In the slave thread, we may sometimes execute some DROP / * 40005
       TEMPORARY * / TABLE that come from parts of binlogs (likely if we
@@ -3418,25 +3432,7 @@ Default database: '%s'. Query: '%s'",
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
-      /*
-        When an error is expected and matches the actual error the
-        slave does not report any error and by consequence changes
-        on transactional tables are not rolled back in the function
-        close_thread_tables(). For that reason, we explicitly roll
-        them back here.
-      */
-      if (expected_error && expected_error == actual_error)
-        trans_rollback_stmt(thd);
     }
-    /*
-      If we expected a non-zero error code and get nothing and, it is a concurrency
-      issue or should be ignored.
-    */
-    else if (expected_error && !actual_error &&
-             (concurrency_error_code(expected_error) ||
-              ignored_error_code(expected_error)))
-      trans_rollback_stmt(thd);
-
     /*
       Other cases: mostly we expected no error and get one.
     */
@@ -3504,7 +3500,6 @@ end:
   thd->set_db(NULL, 0);                 /* will free the current database */
   thd->set_query(NULL, 0);
   DBUG_PRINT("info", ("end: query= 0"));
-  close_thread_tables(thd);
   /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able
@@ -4934,7 +4929,22 @@ error:
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
   thd->set_query(NULL, 0);
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
   close_thread_tables(thd);
+  /*
+    - If inside a multi-statement transaction,
+    defer the release of metadata locks until the current
+    transaction is either committed or rolled back. This prevents
+    other statements from modifying the table for the entire
+    duration of this transaction.  This provides commit ordering
+    and guarantees serializability across multiple transactions.
+    - If in autocommit mode, or outside a transactional context,
+    automatically release metadata locks of the current statement.
+  */
+  if (! thd->in_multi_stmt_transaction_mode())
+    thd->mdl_context.release_transactional_locks();
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
                   thd->is_slave_error= 0; thd->is_fatal_error= 1;);
@@ -5522,11 +5532,9 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  if (!(res= trans_commit(thd)))
-  {
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
-  }
+  res= trans_commit(thd); /* Automatically rolls back on error. */
+  thd->mdl_context.release_transactional_locks();
+
   return res;
 }
 
@@ -7604,8 +7612,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
             We should not honour --slave-skip-errors at this point as we are
             having severe errors which should not be skiped.
           */
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
           thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);

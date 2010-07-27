@@ -90,7 +90,7 @@ When one supplies long data for a placeholder:
 #include "set_var.h"
 #include "sql_prepare.h"
 #include "sql_parse.h" // insert_precheck, update_precheck, delete_precheck
-#include "sql_base.h"  // close_thread_tables
+#include "sql_base.h"  // open_normal_and_derived_tables
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_view.h"                          // create_view_precheck
 #include "sql_delete.h"                        // mysql_prepare_delete
@@ -152,6 +152,7 @@ public:
   THD *thd;
   Select_fetch_protocol_binary result;
   Item_param **param_array;
+  Server_side_cursor *cursor;
   uint param_count;
   uint last_errno;
   uint flags;
@@ -2672,7 +2673,6 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!cursor->is_open())
   {
     stmt->close_cursor();
-    thd->cursor= 0;
     reset_stmt_params(stmt);
   }
 
@@ -2989,12 +2989,6 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   error= mysql_execute_command(thd);
 
-  if (thd->killed_errno())
-  {
-    if (! thd->stmt_da->is_set())
-      thd->send_kill_message();
-  }
-
   /* report error issued during command execution */
   if (error == 0 && thd->spcont == NULL)
     general_log_write(thd, COM_STMT_EXECUTE,
@@ -3016,6 +3010,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   thd(thd_arg),
   result(thd_arg),
   param_array(0),
+  cursor(0),
   param_count(0),
   last_errno(0),
   flags((uint) IS_IN_USE)
@@ -3102,13 +3097,8 @@ void Prepared_statement::cleanup_stmt()
   DBUG_ENTER("Prepared_statement::cleanup_stmt");
   DBUG_PRINT("enter",("stmt: 0x%lx", (long) this));
 
-  delete lex->sphead;
-  lex->sphead= 0;
-  /* The order is important */
-  lex->unit.cleanup();
   cleanup_items(free_list);
   thd->cleanup_after_query();
-  close_thread_tables(thd);
   thd->rollback_item_tree_changes();
 
   DBUG_VOID_RETURN;
@@ -3272,21 +3262,16 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     to PREPARE stmt FROM "CREATE PROCEDURE ..."
   */
   DBUG_ASSERT(lex->sphead == NULL || error != 0);
-  if (lex->sphead)
-  {
-    delete lex->sphead;
-    lex->sphead= NULL;
-  }
+  /* The order is important */
+  lex->unit.cleanup();
 
+  /* No need to commit statement transaction, it's not started. */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   lex_end(lex);
   cleanup_stmt();
-  /*
-    If not inside a multi-statement transaction, the metadata
-    locks have already been released and our savepoint points
-    to ticket which has been released as well.
-  */
-  if (thd->in_multi_stmt_transaction_mode())
-    thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
@@ -3393,11 +3378,6 @@ Prepared_statement::set_parameters(String *expanded_query,
   and execute of a new statement. If this happens repeatedly
   more than MAX_REPREPARE_ATTEMPTS times, we give up.
 
-  In future we need to be able to keep the metadata locks between
-  prepare and execute, but right now open_and_lock_tables(), as
-  well as close_thread_tables() are buried deep inside
-  execution code (mysql_execute_command()).
-
   @return TRUE if an error, FALSE if success
   @retval  TRUE    either MAX_REPREPARE_ATTEMPTS has been reached,
                    or some general error
@@ -3484,11 +3464,6 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
 
   error= server_runnable->execute_server_code(thd);
 
-  delete lex->sphead;
-  lex->sphead= 0;
-  /* The order is important */
-  lex->unit.cleanup();
-  close_thread_tables(thd);
   thd->cleanup_after_query();
 
   thd->restore_active_arena(this, &stmt_backup);
@@ -3777,8 +3752,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   /* Go! */
 
   if (open_cursor)
-    error= mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
-                             &result, &cursor);
+    error= mysql_open_cursor(thd, &result, &cursor);
   else
   {
     /*

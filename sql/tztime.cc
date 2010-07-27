@@ -50,13 +50,6 @@
                                                 // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /*
-  This forward declaration is needed because including sql_base.h
-  causes further includes.  [TODO] Eliminate this forward declaration
-  and include a file with the prototype instead.
-*/
-extern void close_thread_tables(THD *thd);
-
-/*
   Now we don't use abbreviations in server but we will do this in future.
 */
 #if defined(TZINFO2SQL) || defined(TESTTIME)
@@ -1784,10 +1777,7 @@ end_with_setting_default_tz:
 
 end_with_close:
   if (time_zone_tables_exist)
-  {
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
-  }
+    close_mysql_tables(thd);
 
 end_with_cleanup:
 

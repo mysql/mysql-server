@@ -242,9 +242,10 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
                                              MDL_ticket **ticket_downgrade)
 {
   TABLE *table= NULL;
-  MDL_ticket *mdl_ticket= NULL;
   DBUG_ENTER("open_and_lock_table_for_truncate");
 
+  DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
+  DBUG_ASSERT(table_ref->mdl_request.type == MDL_SHARED_NO_READ_WRITE);
   /*
     Before doing anything else, acquire a metadata lock on the table,
     or ensure we have one.  We don't use open_and_lock_tables()
@@ -266,6 +267,7 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
 
     *hton_can_recreate= ha_check_storage_engine_flag(table->s->db_type(),
                                                      HTON_CAN_RECREATE);
+    table_ref->mdl_request.ticket= table->mdl_ticket;
   }
   else
   {
@@ -273,20 +275,11 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
       Even though we could use the previous execution branch here just as
       well, we must not try to open the table:
     */
-    MDL_request mdl_global_request, mdl_request;
-    MDL_request_list mdl_requests;
-
-    mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
-    mdl_request.init(MDL_key::TABLE, table_ref->db, table_ref->table_name,
-                     MDL_SHARED_NO_READ_WRITE);
-    mdl_requests.push_front(&mdl_request);
-    mdl_requests.push_front(&mdl_global_request);
-
-    if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                        thd->variables.lock_wait_timeout))
+    DBUG_ASSERT(table_ref->next_global == NULL);
+    if (lock_table_names(thd, table_ref, NULL,
+                         thd->variables.lock_wait_timeout,
+                         MYSQL_OPEN_SKIP_TEMPORARY))
       DBUG_RETURN(TRUE);
-
-    mdl_ticket= mdl_request.ticket;
 
     if (dd_check_storage_engine_flag(thd, table_ref->db, table_ref->table_name,
                                      HTON_CAN_RECREATE, hton_can_recreate))
@@ -313,7 +306,9 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
     else
     {
       ulong timeout= thd->variables.lock_wait_timeout;
-      if (thd->mdl_context.upgrade_shared_lock_to_exclusive(mdl_ticket, timeout))
+      if (thd->mdl_context.
+          upgrade_shared_lock_to_exclusive(table_ref->mdl_request.ticket,
+                                           timeout))
         DBUG_RETURN(TRUE);
       mysql_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db,
@@ -335,15 +330,14 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
     table_ref->required_type= FRMTYPE_TABLE;
     /* We don't need to load triggers. */
     DBUG_ASSERT(table_ref->trg_event_map == 0);
-    /* Work around partition parser rules using alter table's. */
-    if (thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
-    {
-      table_ref->lock_type= TL_WRITE;
-      table_ref->mdl_request.set_type(MDL_SHARED_WRITE);
-    }
-    /* Ensure proper lock types (e.g. from the parser). */
-    DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
-    DBUG_ASSERT(table_ref->mdl_request.type == MDL_SHARED_WRITE);
+    /*
+      Even though we have an MDL lock on the table here, we don't
+      pass MYSQL_OPEN_HAS_MDL_LOCK to open_and_lock_tables
+      since to truncate a MERGE table, we must open and lock
+      merge children, and on those we don't have an MDL lock.
+      Thus clear the ticket to satisfy MDL asserts.
+    */
+    table_ref->mdl_request.ticket= NULL;
 
     /*
       Open the table as it will handle some required preparations.
