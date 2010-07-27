@@ -411,7 +411,7 @@ static void create_record(uchar *record,uint rownr)
     tmp=strlen((char*) blob_key);
     int4store(pos,tmp);
     ptr=blob_key;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));
+    memcpy(pos+4, &ptr, sizeof(char*));
     pos+=recinfo[1].length;
   }
   else if (recinfo[1].type == FIELD_VARCHAR)
@@ -439,7 +439,7 @@ static void create_record(uchar *record,uint rownr)
     tmp=strlen((char*) blob_record);
     int4store(pos,tmp);
     ptr=blob_record;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));
+    memcpy(pos+4, &ptr, sizeof(char*));
   }
   else if (recinfo[2].type == FIELD_VARCHAR)
   {
@@ -468,10 +468,10 @@ static void update_record(uchar *record)
     uchar *column,*ptr;
     int length;
     length=uint4korr(pos);			/* Long blob */
-    memcpy_fixed(&column,pos+4,sizeof(char*));
+    memcpy(&column, pos+4, sizeof(char*));
     memcpy(blob_key,column,length);		/* Move old key */
     ptr=blob_key;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));	/* Store pointer to new key */
+    memcpy(pos+4, &ptr, sizeof(char*));	/* Store pointer to new key */
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
       default_charset_info->cset->casedn(default_charset_info,
                                          (char*) blob_key, length,
@@ -501,13 +501,13 @@ static void update_record(uchar *record)
     uchar *column;
     int length;
     length=uint4korr(pos);
-    memcpy_fixed(&column,pos+4,sizeof(char*));
+    memcpy(&column, pos+4, sizeof(char*));
     memcpy(blob_record,column,length);
     bfill(blob_record+length,20,'.');	/* Make it larger */
     length+=20;
     int4store(pos,length);
     column= blob_record;
-    memcpy_fixed(pos+4,&column,sizeof(char*));
+    memcpy(pos+4, &column, sizeof(char*));
   }
   else if (recinfo[2].type == FIELD_VARCHAR)
   {

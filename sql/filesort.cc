@@ -511,6 +511,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   volatile THD::killed_state *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set;
+  bool skip_record;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",
                      (select ? select->quick ? "ranges" : "where":
@@ -603,7 +604,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     if (error == 0)
       param->examined_rows++;
-    if (error == 0 && (!select || select->skip_record() == 0))
+    if (!error && (!select ||
+                   (!select->skip_record(thd, &skip_record) && !skip_record)))
     {
       if (idx == param->keys)
       {
@@ -1666,7 +1668,7 @@ void change_double_for_sort(double nr,uchar *to)
   else
   {
 #ifdef WORDS_BIGENDIAN
-    memcpy_fixed(tmp,&nr,sizeof(nr));
+    memcpy(tmp, &nr, sizeof(nr));
 #else
     {
       uchar *ptr= (uchar*) &nr;

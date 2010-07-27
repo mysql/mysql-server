@@ -21,6 +21,8 @@
 
 namespace thread {
 
+class Thread_start_arg;
+
 /*
   An abstract class for creating/running/joining threads.
   Thread::start() will create a new pthread, and execute the run() function.
@@ -28,7 +30,11 @@ namespace thread {
 class Thread
 {
 public:
-  Thread() : m_thread_id(0) {}
+  Thread() : m_thread_id(0)
+#ifdef __WIN__
+    , m_thread_handle(NULL)
+#endif
+  {}
   virtual ~Thread();
 
   /*
@@ -51,7 +57,7 @@ public:
     Users should *not* call this function directly, they should rather
     invoke the start() function.
   */
-  static void run_wrapper(Thread*);
+  static void run_wrapper(Thread_start_arg*);
 
 protected:
   /*
@@ -63,6 +69,10 @@ protected:
 
 private:
   pthread_t m_thread_id;
+#ifdef __WIN__
+  // We need an open handle to the thread in order to join() it.
+  HANDLE m_thread_handle;
+#endif
 
   Thread(const Thread&);                        /* Not copyable. */
   void operator=(const Thread&);                /* Not assignable. */
@@ -74,10 +84,10 @@ private:
 class Mutex_lock
 {
 public:
-  Mutex_lock(pthread_mutex_t *mutex);
+  Mutex_lock(mysql_mutex_t *mutex);
   ~Mutex_lock();
 private:
-  pthread_mutex_t *m_mutex;
+  mysql_mutex_t *m_mutex;
 
   Mutex_lock(const Mutex_lock&);                /* Not copyable. */
   void operator=(const Mutex_lock&);            /* Not assignable. */
@@ -96,8 +106,8 @@ public:
   void notify();
 private:
   bool            m_notified;
-  pthread_cond_t  m_cond;
-  pthread_mutex_t m_mutex;
+  mysql_cond_t    m_cond;
+  mysql_mutex_t   m_mutex;
 
   Notification(const Notification&);            /* Not copyable. */
   void operator=(const Notification&);          /* Not assignable. */
