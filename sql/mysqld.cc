@@ -27,8 +27,8 @@
                           // reset_status_vars
 #include "strfunc.h"      // find_set_from_flags
 #include "parse_file.h"   // File_parser_dummy_hook
-#include "sql_db.h"       // my_database_names_free,
-                          // my_database_names_init
+#include "sql_db.h"       // my_dboptions_cache_free
+                          // my_dboptions_cache_init
 #include "sql_table.h"    // release_ddl_log, execute_ddl_log_recovery
 #include "sql_connect.h"  // free_max_user_conn, init_max_user_conn,
                           // handle_one_connection
@@ -601,7 +601,7 @@ SHOW_COMP_OPTION have_profiling;
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_thread_count;
-mysql_mutex_t LOCK_mysql_create_db, LOCK_open,
+mysql_mutex_t LOCK_open,
   LOCK_status, LOCK_global_read_lock,
   LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
@@ -1420,7 +1420,7 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
-  my_database_names_free();
+  my_dboptions_cache_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   servers_free(1);
   acl_free(1);
@@ -1525,8 +1525,6 @@ static void wait_for_signal_thread_to_end()
 
 static void clean_up_mutexes()
 {
-  mysql_mutex_destroy(&LOCK_mysql_create_db);
-  mysql_mutex_destroy(&LOCK_lock_db);
   mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_open);
   mysql_mutex_destroy(&LOCK_thread_count);
@@ -3441,7 +3439,7 @@ static int init_common_variables()
   use_temp_pool= 0;
 #endif
 
-  if (my_database_names_init())
+  if (my_dboptions_cache_init())
     return 1;
 
   /*
@@ -3498,9 +3496,6 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
-  mysql_mutex_init(key_LOCK_mysql_create_db,
-                   &LOCK_mysql_create_db, MY_MUTEX_INIT_SLOW);
-  mysql_mutex_init(key_LOCK_lock_db, &LOCK_lock_db, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
@@ -7834,8 +7829,8 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
-  key_LOCK_lock_db, key_LOCK_manager,
-  key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
+  key_LOCK_manager,
+  key_LOCK_open, key_LOCK_prepared_stmt_count,
   key_LOCK_server_started, key_LOCK_status,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
@@ -7873,9 +7868,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
   { &key_LOCK_global_read_lock, "LOCK_global_read_lock", PSI_FLAG_GLOBAL},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
-  { &key_LOCK_lock_db, "LOCK_lock_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
-  { &key_LOCK_mysql_create_db, "LOCK_mysql_create_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_GLOBAL},

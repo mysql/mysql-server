@@ -60,12 +60,9 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock);
 bool mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
-TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
-                                      TABLE_LIST *haystack);
 void broadcast_refresh(void);
 /* Lock based on name */
-bool lock_table_names(THD *thd, TABLE_LIST *table_list);
-void unlock_table_names(THD *thd);
+bool lock_schema_name(THD *thd, const char *db);
 /* Lock based on stored routine name */
 bool lock_routine_name(THD *thd, bool is_function, const char *db,
                        const char *name);

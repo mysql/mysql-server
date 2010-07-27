@@ -842,6 +842,7 @@ struct THD_TRANS
   bool modified_non_trans_table;
 
   void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
+  bool is_empty() const { return ha_list == NULL; }
 };
 
 

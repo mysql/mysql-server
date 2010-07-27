@@ -475,10 +475,7 @@ int ha_myisammrg::add_children_list(void)
     child_l->parent_l= parent_l;
     /* Copy select_lex. Used in unique_table() at least. */
     child_l->select_lex= parent_l->select_lex;
-    /*
-      Set the expected table version, to not cause spurious re-prepare.
-      @todo: revise after the fix for Bug#36171
-    */
+    /* Set the expected table version, to not cause spurious re-prepare. */
     child_l->set_table_ref_id(mrg_child_def->get_child_table_ref_type(),
                               mrg_child_def->get_child_def_version());
     /* Link TABLE_LIST object into the children list. */
@@ -617,15 +614,17 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     param->need_compat_check= TRUE;
 
   /*
-    If parent is temporary, children must be temporary too and vice
-    versa. This check must be done for every child on every open because
-    the table def version can overlap between temporary and
-    non-temporary tables. We need to detect the case where a
-    non-temporary table has been replaced with a temporary table of the
-    same version. Or vice versa. A very unlikely case, but it could
-    happen.
+    If child is temporary, parent must be temporary as well. Other
+    parent/child combinations are allowed. This check must be done for
+    every child on every open because the table def version can overlap
+    between temporary and non-temporary tables. We need to detect the
+    case where a non-temporary table has been replaced with a temporary
+    table of the same version. Or vice versa. A very unlikely case, but
+    it could happen. (Note that the condition was different from
+    5.1.23/6.0.4(Bug#19627) to 5.5.6 (Bug#36171): child->s->tmp_table !=
+    parent->s->tmp_table. Tables were required to have the same status.)
   */
-  if (child->s->tmp_table != parent->s->tmp_table)
+  if (child->s->tmp_table && !parent->s->tmp_table)
   {
     DBUG_PRINT("error", ("temporary table mismatch parent: %d  child: %d",
                          parent->s->tmp_table, child->s->tmp_table));
@@ -1320,6 +1319,8 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
      tables to be closed */
   if (operation == HA_EXTRA_FORCE_REOPEN ||
       operation == HA_EXTRA_PREPARE_FOR_DROP)
+    return 0;
+  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap)
     return 0;
   return myrg_extra(file,operation,0);
 }

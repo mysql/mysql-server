@@ -133,6 +133,16 @@
   Type of locks to be acquired is specified directly.
 */
 #define SELECT_HIGH_PRIORITY            (1ULL << 34)     // SELECT, user
+/**
+  Is set in slave SQL thread when there was an
+  error on master, which, when is not reproducible
+  on slave (i.e. the query succeeds on slave),
+  is not terminal to the state of repliation,
+  and should be ignored. The slave SQL thread,
+  however, needs to rollback the effects of the
+  succeeded statement to keep replication consistent.
+*/
+#define OPTION_MASTER_SQL_ERROR (1ULL << 35)
 
 
 /* The rest of the file is included in the server only */

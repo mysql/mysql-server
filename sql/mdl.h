@@ -40,15 +40,16 @@ class Deadlock_detection_visitor;
   Type of metadata lock request.
 
   @sa Comments for MDL_object_lock::can_grant_lock() and
-      MDL_global_lock::can_grant_lock() for details.
+      MDL_scoped_lock::can_grant_lock() for details.
 */
 
 enum enum_mdl_type {
   /*
-    An intention exclusive metadata lock. Used only for global locks.
+    An intention exclusive metadata lock. Used only for scoped locks.
     Owner of this type of lock can acquire upgradable exclusive locks on
     individual objects.
-    Compatible with other IX locks, but is incompatible with global S lock.
+    Compatible with other IX locks, but is incompatible with scoped S and
+    X locks.
   */
   MDL_INTENTION_EXCLUSIVE= 0,
   /*
@@ -179,6 +180,7 @@ public:
     MDL_key is also used outside of the MDL subsystem.
   */
   enum enum_mdl_namespace { GLOBAL=0,
+                            SCHEMA,
                             TABLE,
                             FUNCTION,
                             PROCEDURE,
@@ -396,9 +398,6 @@ public:
 public:
   bool has_pending_conflicting_lock() const;
 
-  void *get_cached_object();
-  void set_cached_object(void *cached_object,
-                         mdl_cached_object_release_hook release_hook);
   MDL_context *get_ctx() const { return m_ctx; }
   bool is_upgradable_or_exclusive() const
   {
@@ -646,6 +645,8 @@ private:
       closes all open HANDLERs.
       However, one can open a few HANDLERs after entering the
       read only mode.
+    * LOCK TABLES locks include intention exclusive locks on
+      involved schemas.
   */
   Ticket_list m_tickets;
   /**
@@ -720,10 +721,10 @@ void mdl_destroy();
 
 extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
                                                    bool needs_thr_lock_abort);
-extern "C" const char *set_thd_proc_info(void *thd_arg, const char *info,
-                                         const char *calling_function,
-                                         const char *calling_file,
-                                         const unsigned int calling_line);
+extern "C" const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
+                                      mysql_mutex_t *mutex, const char *msg);
+extern "C" void thd_exit_cond(MYSQL_THD thd, const char *old_msg);
+
 #ifndef DBUG_OFF
 extern mysql_mutex_t LOCK_open;
 #endif

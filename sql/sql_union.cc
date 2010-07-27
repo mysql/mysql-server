@@ -36,8 +36,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
   if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
                            setup_tables_done_option)))
     res= unit->exec();
-  if (res || !thd->cursor || !thd->cursor->is_open())
-    res|= unit->cleanup();
+  res|= unit->cleanup();
   DBUG_RETURN(res);
 }
 

@@ -32,11 +32,11 @@ class JOIN;
 */
 
 /**
-  Server_side_cursor -- an interface for materialized and
-  sensitive (non-materialized) implementation of cursors. All
-  cursors are self-contained (created in their own memory root).
-  For that reason they must be deleted only using a pointer to
-  Server_side_cursor, not to its base class.
+  Server_side_cursor -- an interface for materialized
+  implementation of cursors. All cursors are self-contained
+  (created in their own memory root).  For that reason they must
+  be deleted only using a pointer to Server_side_cursor, not to
+  its base class.
 */
 
 class Server_side_cursor: protected Query_arena, public Sql_alloc
@@ -60,11 +60,7 @@ public:
 };
 
 
-int mysql_open_cursor(THD *thd, uint flags,
-                      select_result *result,
+int mysql_open_cursor(THD *thd, select_result *result,
                       Server_side_cursor **res);
-
-/** Possible values for flags */
-enum { ANY_CURSOR= 1, ALWAYS_MATERIALIZED_CURSOR= 2 };
 
 #endif /* _sql_cusor_h_ */

@@ -297,13 +297,6 @@ static void run_query(THD *thd, char *buf, char *end,
                       thd_ndb->m_error_code,
                       (int) thd->is_error(), thd->is_slave_error);
   }
-
-  /*
-    After executing statement we should unlock and close tables open
-    by it as well as release meta-data locks obtained by it.
-  */
-  close_thread_tables(thd);
-
   /*
     XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
     can not be called from within a statement, and
@@ -2421,7 +2414,11 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
   }
 
 add_ndb_binlog_index_err:
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
   ndb_binlog_index= 0;
   thd->variables.option_bits= saved_options;
   return error;
@@ -3968,7 +3965,9 @@ restart:
     {
       if (ndb_binlog_index->s->needs_reopen())
       {
+        trans_commit_stmt(thd);
         close_thread_tables(thd);
+        thd->mdl_context.release_transactional_locks();
         ndb_binlog_index= 0;
       }
     }
@@ -4279,7 +4278,9 @@ restart:
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
   {
     ndb_binlog_tables_inited= FALSE;
+    trans_commit_stmt(thd);
     close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
     ndb_binlog_index= 0;
     goto restart;
   }
@@ -4287,7 +4288,11 @@ err:
   sql_print_information("Stopping Cluster Binlog");
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
   mysql_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;

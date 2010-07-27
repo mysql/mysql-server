@@ -450,10 +450,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
   if (!proc_table_intact.check(table, &proc_table_def))
     DBUG_RETURN(table);
 
-  close_thread_tables(thd);
-
   DBUG_RETURN(NULL);
-
 }
 
 
@@ -856,6 +853,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   }
 
 end:
+  thd->lex->sphead= NULL;
   lex_end(thd->lex);
   thd->lex= old_lex;
   return ret;
@@ -1159,8 +1157,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 done:
   thd->count_cuted_fields= saved_count_cuted_fields;
   thd->variables.sql_mode= saved_mode;
-
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1239,8 +1235,6 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
         sp_cache_flush_obsolete(spc, &sp);
     }
   }
-
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1348,7 +1342,6 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     sp_cache_invalidate();
   }
 err:
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1370,6 +1363,7 @@ sp_drop_db_routines(THD *thd, char *db)
   TABLE *table;
   int ret;
   uint key_len;
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
 
@@ -1410,6 +1404,11 @@ sp_drop_db_routines(THD *thd, char *db)
   table->file->ha_index_end();
 
   close_thread_tables(thd);
+  /*
+    Make sure to only release the MDL lock on mysql.proc, not other
+    metadata locks DROP DATABASE might have acquired.
+  */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
 err:
   DBUG_RETURN(ret);
@@ -2142,6 +2141,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   newlex.current_select= NULL; 
   sp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
   *free_sp_head= 1;
+  thd->lex->sphead= NULL;
   lex_end(thd->lex);
   thd->lex= old_lex;
   return sp;

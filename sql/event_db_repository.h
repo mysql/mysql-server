@@ -91,7 +91,7 @@ public:
   bool
   load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_basic *et);
 
-  bool
+  static bool
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
   bool
@@ -109,9 +109,6 @@ public:
   static bool
   check_system_tables(THD *thd);
 private:
-  void
-  drop_events_by_field(THD *thd, enum enum_events_table_field field,
-                       LEX_STRING field_value);
   bool
   index_read_for_db_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table,
                             const char *db);

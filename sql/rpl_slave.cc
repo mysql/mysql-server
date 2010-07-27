@@ -3294,7 +3294,6 @@ err:
   mi->rli.relay_log.description_event_for_queue= 0;
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
-  close_thread_tables(thd);
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;

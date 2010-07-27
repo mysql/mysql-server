@@ -449,6 +449,9 @@ void lex_end(LEX *lex)
   }
   reset_dynamic(&lex->plugins);
 
+  delete lex->sphead;
+  lex->sphead= NULL;
+
   DBUG_VOID_RETURN;
 }
 
