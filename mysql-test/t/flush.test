@@ -318,6 +318,20 @@ insert into t2 (a) values (3);
 --echo # --> connection default;
 connection default;
 unlock tables;
+--echo #
+--echo # Check that "flush tables <list> with read lock" is
+--echo # compatible with active "flush tables with read lock".
+--echo # Vice versa is not true as tables read-locked by
+--echo # "flush tables <list> with read lock" can't be flushed.
+flush tables with read lock;
+--echo # --> connection con1;
+connection con1;
+flush table t1 with read lock;
+select * from t1;
+unlock tables;
+--echo # --> connection default;
+connection default;
+unlock tables;
 --echo # --> connection con1
 connection con1;
 disconnect con1;

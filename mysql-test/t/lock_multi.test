@@ -982,7 +982,7 @@ connection con3;
 connection con2;
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Flushing tables" AND info = "FLUSH TABLES";
+  WHERE state = "Waiting for table" AND info = "FLUSH TABLES";
 --source include/wait_condition.inc
 --error ER_LOCK_WAIT_TIMEOUT
 SELECT * FROM t1;

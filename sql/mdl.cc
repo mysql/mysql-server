@@ -98,70 +98,6 @@ private:
 };
 
 
-enum enum_deadlock_weight
-{
-  MDL_DEADLOCK_WEIGHT_DML= 0,
-  MDL_DEADLOCK_WEIGHT_DDL= 100
-};
-
-
-/**
-  A context of the recursive traversal through all contexts
-  in all sessions in search for deadlock.
-*/
-
-class Deadlock_detection_visitor
-{
-public:
-  Deadlock_detection_visitor(MDL_context *start_node_arg)
-    : m_start_node(start_node_arg),
-      m_victim(NULL),
-      m_current_search_depth(0)
-  {}
-  bool enter_node(MDL_context * /* unused */);
-  void leave_node(MDL_context * /* unused */);
-
-  bool inspect_edge(MDL_context *dest);
-
-  MDL_context *get_victim() const { return m_victim; }
-
-  /**
-    Change the deadlock victim to a new one if it has lower deadlock
-    weight.
-  */
-  MDL_context *opt_change_victim_to(MDL_context *new_victim);
-private:
-  /**
-    The context which has initiated the search. There
-    can be multiple searches happening in parallel at the same time.
-  */
-  MDL_context *m_start_node;
-  /** If a deadlock is found, the context that identifies the victim. */
-  MDL_context *m_victim;
-  /** Set to the 0 at start. Increased whenever
-    we descend into another MDL context (aka traverse to the next
-    wait-for graph node). When MAX_SEARCH_DEPTH is reached, we
-    assume that a deadlock is found, even if we have not found a
-    loop.
-  */
-  uint m_current_search_depth;
-  /**
-    Maximum depth for deadlock searches. After this depth is
-    achieved we will unconditionally declare that there is a
-    deadlock.
-
-    @note This depth should be small enough to avoid stack
-          being exhausted by recursive search algorithm.
-
-    TODO: Find out what is the optimal value for this parameter.
-          Current value is safe, but probably sub-optimal,
-          as there is an anecdotal evidence that real-life
-          deadlocks are even shorter typically.
-  */
-  static const uint MAX_SEARCH_DEPTH= 32;
-};
-
-
 /**
   Enter a node of a wait-for graph. After
   a node is entered, inspect_edge() will be called
@@ -876,7 +812,7 @@ void MDL_ticket::destroy(MDL_ticket *ticket)
 uint MDL_ticket::get_deadlock_weight() const
 {
   return (m_lock->key.mdl_namespace() == MDL_key::GLOBAL ||
-          m_type > MDL_SHARED_NO_WRITE ?
+          m_type >= MDL_SHARED_NO_WRITE ?
           MDL_DEADLOCK_WEIGHT_DDL : MDL_DEADLOCK_WEIGHT_DML);
 }
 
@@ -1528,9 +1464,8 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   MDL_ticket *ticket;
   bool is_transactional;
 
-  DBUG_ASSERT(mdl_request->type < MDL_SHARED_NO_WRITE ||
-              (is_lock_owner(MDL_key::GLOBAL, "", "",
-                             MDL_INTENTION_EXCLUSIVE)));
+  DBUG_ASSERT(mdl_request->type != MDL_EXCLUSIVE ||
+              is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
   DBUG_ASSERT(mdl_request->ticket == NULL);
 
   /* Don't take chances in production. */
@@ -2088,6 +2023,21 @@ end:
 
 
 /**
+  Traverse portion of wait-for graph which is reachable through edge
+  represented by this ticket in search for deadlocks.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE
+*/
+
+bool MDL_ticket::find_deadlock(Deadlock_detection_visitor *dvisitor)
+{
+  return m_lock->find_deadlock(this, dvisitor);
+}
+
+
+/**
   Recursively traverse the wait-for graph of MDL contexts
   in search for deadlocks.
 
@@ -2105,7 +2055,7 @@ bool MDL_context::find_deadlock(Deadlock_detection_visitor *dvisitor)
 
   if (m_waiting_for)
   {
-    result= m_waiting_for->m_lock->find_deadlock(m_waiting_for, dvisitor);
+    result= m_waiting_for->find_deadlock(dvisitor);
     if (result)
       m_unlock_ctx= dvisitor->opt_change_victim_to(this);
   }

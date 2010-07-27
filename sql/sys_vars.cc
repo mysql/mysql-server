@@ -1488,7 +1488,8 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
     can cause to wait on a read lock, it's required for the client application
     to unlock everything, and acceptable for the server to wait on all locks.
   */
-  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE)))
+  if ((result= close_cached_tables(thd, NULL, FALSE, TRUE,
+                                   thd->variables.lock_wait_timeout)))
     goto end_with_read_lock;
 
   if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))

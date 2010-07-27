@@ -634,7 +634,7 @@ mysql_mutex_t LOCK_des_key_file;
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 mysql_cond_t COND_thread_count;
-mysql_cond_t COND_refresh, COND_global_read_lock;
+mysql_cond_t COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
@@ -1573,7 +1573,6 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_cond_destroy(&COND_thread_count);
-  mysql_cond_destroy(&COND_refresh);
   mysql_cond_destroy(&COND_global_read_lock);
   mysql_cond_destroy(&COND_thread_cache);
   mysql_cond_destroy(&COND_flush_thread_cache);
@@ -3564,7 +3563,6 @@ static int init_thread_environment()
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
   mysql_cond_init(key_COND_thread_count, &COND_thread_count, NULL);
-  mysql_cond_init(key_COND_refresh, &COND_refresh, NULL);
   mysql_cond_init(key_COND_global_read_lock, &COND_global_read_lock, NULL);
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
@@ -7786,7 +7784,7 @@ PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 
 PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
-  key_COND_refresh, key_COND_rpl_status, key_COND_server_started,
+  key_COND_rpl_status, key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
@@ -7810,7 +7808,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_global_read_lock, "COND_global_read_lock", PSI_FLAG_GLOBAL},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
-  { &key_COND_refresh, "COND_refresh", PSI_FLAG_GLOBAL},
   { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
   { &key_delayed_insert_cond, "Delayed_insert::cond", 0},
