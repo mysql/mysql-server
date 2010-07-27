@@ -101,7 +101,7 @@ Rpl_info_fields::~Rpl_info_fields()
     {
       if (field[pos].saved.str)
       {
-        my_free(field[pos].saved.str, MYF(0));
+        my_free(field[pos].saved.str);
       }
     }
     delete [] field;

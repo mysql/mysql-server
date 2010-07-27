@@ -31,7 +31,7 @@
  * .configure. mbmaxlen_sjis=2
  */
 
-static uchar NEAR ctype_sjis[257] =
+static uchar ctype_sjis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -68,7 +68,7 @@ static uchar NEAR ctype_sjis[257] =
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000
 };
 
-static uchar NEAR to_lower_sjis[]=
+static uchar to_lower_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +104,7 @@ static uchar NEAR to_lower_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR to_upper_sjis[]=
+static uchar to_upper_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +140,7 @@ static uchar NEAR to_upper_sjis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar NEAR sort_order_sjis[]=
+static uchar sort_order_sjis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -197,7 +197,7 @@ static uint mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 #define sjiscode(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
 
-static MY_UNICASE_INFO c81[256]=
+static MY_UNICASE_CHARACTER c81[256]=
 {
   /* 8100-810F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -407,7 +407,7 @@ static MY_UNICASE_INFO c81[256]=
 };
 
 
-static MY_UNICASE_INFO c82[256]=
+static MY_UNICASE_CHARACTER c82[256]=
 {
   /* 8200-820F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -615,7 +615,7 @@ static MY_UNICASE_INFO c82[256]=
 };
 
 
-static MY_UNICASE_INFO c83[256]=
+static MY_UNICASE_CHARACTER c83[256]=
 {
   /* 8300-830F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -825,7 +825,7 @@ static MY_UNICASE_INFO c83[256]=
 };
 
 
-static MY_UNICASE_INFO c84[256]=
+static MY_UNICASE_CHARACTER c84[256]=
 {
   /* 8400-840F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1035,7 +1035,7 @@ static MY_UNICASE_INFO c84[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_sjis[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_sjis[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1069,6 +1069,13 @@ static MY_UNICASE_INFO *my_caseinfo_sjis[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_sjis=
+{
+  0xFFFF,
+  my_caseinfo_pages_sjis
 };
 
 
@@ -34260,11 +34267,10 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     to_lower_sjis,
     to_upper_sjis,
     sort_order_sjis,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_sjis,   /* caseinfo     */
+    &my_caseinfo_sjis,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -34294,11 +34300,10 @@ CHARSET_INFO my_charset_sjis_bin=
     to_lower_sjis,
     to_upper_sjis,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_sjis,   /* caseinfo     */
+    &my_caseinfo_sjis,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

@@ -90,17 +90,17 @@ IF(MALLOC_LIB)
 ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  # No multiconfig build - use CMAKE_C_FLAGS
-  SET(CFLAGS "@CMAKE_C_FLAGS@")
-  SET(CXXFLAGS "@CMAKE_CXX_FLAGS@")
+  # Strip maintainer mode options if necessary
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
     SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
     SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
   ENDFOREACH()
 ELSE()
-  # Multiconfig build - use CMAKE_C_FLAGS_RELWITHDEBINFO
-  SET(CFLAGS "@CMAKE_C_FLAGS_RELWITHDEBINFO@")
-  SET(CXXFLAGS "@CMAKE_CXX_FLAGS_RELWITHDEBINFO@")
+  # Strip maintainer mode options if necessary
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
 
 IF(UNIX)
@@ -139,6 +139,43 @@ ELSE()
 ENDIF()
 
 SET(HOSTNAME "hostname")
+
+# Required for mysqlbug until autotools are deprecated, once done remove these
+# and expand default cmake variables
+SET(CC ${CMAKE_C_COMPILER})
+SET(CXX ${CMAKE_CXX_COMPILER})
+SET(SAVE_CC ${CMAKE_C_COMPILER})
+SET(SAVE_CXX ${CMAKE_CXX_COMPILER})
+SET(SAVE_CFLAGS ${CFLAGS})
+SET(SAVE_CXXFLAGS ${CXXFLAGS})
+# XXX no cmake equivalent for this, just make one up
+SET(CONFIGURE_LINE "Built using CMake")
+
+# Also required for mysqlbug, autoconf only supports --version so for now we
+# just explicitly require GNU
+IF(CMAKE_COMPILER_IS_GNUCC)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} --version
+    COMMAND sed 1q
+    OUTPUT_VARIABLE CC_VERSION)
+ELSE()
+  SET(CC_VERSION "")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} --version
+    COMMAND sed 1q
+    OUTPUT_VARIABLE CXX_VERSION)
+ELSE()
+  SET(CXX_VERSION "")
+ENDIF()
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
+  ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
+INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/mysqlbug
+  DESTINATION ${INSTALL_BINDIR}
+  COMPONENT Server
+  )
 
 ENDIF(UNIX)
 
@@ -196,9 +233,9 @@ SET(localstatedir ${MYSQL_DATADIR})
 
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  SET(TARGET_LINUX 1)
+  SET(TARGET_LINUX "true")
 ELSE()
-  SET(TARGET_LINUX 0)
+  SET(TARGET_LINUX "false")
 ENDIF()
 
 # Use cmake variables to inspect dependencies for 
@@ -292,7 +329,6 @@ ELSE()
     mysql_zap
     mysqlaccess
     mysqlaccess.conf
-    mysqlbug
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy

@@ -61,6 +61,27 @@ insert into t1 values ('a');
 select * from t1 where c1='b';
 drop table t1;
 
+# make sure utf8_test_ci is Unicode-5.0.0
+SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_ci));
+SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
+SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
+SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
+SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
+
+# check that it works with supplementary characters
+SELECT hex(weight_string(convert(_utf32 0x61 using utf8mb4) collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_utf32 0x62 using utf8mb4) collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_utf32 0x10062 using utf8mb4) collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_utf32 0x100400 using utf8mb4) collate utf8mb4_test_ci));
+
+# check contractions with non-ascii characters
+SELECT hex(weight_string(_utf8mb4 0x64 collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_ucs2 0x0064017e using utf8mb4) collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_ucs2 0x0044017e using utf8mb4) collate utf8mb4_test_ci));
+SELECT hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_ci));
+
 
 #
 # Bug#41084 full-text index added to custom UCA collation not working
@@ -181,3 +202,11 @@ DROP TABLE t1;
 SET NAMES utf8 COLLATE utf8_phone_ci;
 SHOW COLLATION LIKE 'utf8_phone_ci';
 SET NAMES utf8;
+
+# make sure utf8mb4_test_400_ci is Unicode-4.0.0 based
+SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci));
+SELECT hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_400_ci));
+SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
+SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
+SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
+SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));

@@ -1,4 +1,5 @@
 -- source include/have_ucs2.inc
+-- source include/have_utf8mb4.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -184,6 +185,7 @@ insert into t1 values (_ucs2 0x01fc),(_ucs2 0x01fd),(_ucs2 0x01fe),(_ucs2 0x01ff
 
 
 insert into t1 values ('AA'),('Aa'),('aa'),('aA');
+insert into t1 values ('AE'),('Ae'),('ae'),('aE');
 insert into t1 values ('CH'),('Ch'),('ch'),('cH');
 insert into t1 values ('DZ'),('Dz'),('dz'),('dZ');
 insert into t1 values ('IJ'),('Ij'),('ij'),('iJ');
@@ -214,6 +216,29 @@ select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_esperanto_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_hungarian_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_german2_ci;
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_unicode_520_ci;
+
+ALTER TABLE t1 CONVERT TO CHARACTER SET ucs2 COLLATE ucs2_bin;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_unicode_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_icelandic_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_latvian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_romanian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_slovenian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_polish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_estonian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_spanish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_swedish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_turkish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_czech_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_danish_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_lithuanian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_slovak_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_spanish2_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_roman_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_esperanto_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_hungarian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_german2_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_unicode_520_ci;
 
 drop table t1;
 
@@ -622,12 +647,29 @@ set @@collation_connection=ucs2_czech_ci;
 --source include/weight_string_chde.inc
 
 --echo #
+--echo # Bug#33077 weight of supplementary characters is not 0xfffd
+--echo #
+select hex(weight_string(_utf8mb4 0xF0908080 /* U+10000 */ collate utf8mb4_unicode_ci));
+
+--echo #
 --echo # Bug#53064 garbled data when using utf8_german2_ci collation
 --echo #
 CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_german2_ci); 
 INSERT INTO t1 VALUES ('a'),('ae'),('af');                 
 SELECT s1,hex(s1),hex(weight_string(s1)) FROM t1 ORDER BY s1; 
 DROP TABLE t1;
+
+--echo #
+--echo # WL#4013 Unicode german2 collation
+--echo #
+SET collation_connection=utf8_german2_ci;
+--source include/ctype_german.inc
+
+--echo #
+--echo # WL#2673 Unicode Collation Algorithm new version
+--echo #
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+--source include/ctype_unicode520.inc
 
 --echo #
 --echo # End of 5.6 tests

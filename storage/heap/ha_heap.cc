@@ -112,7 +112,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     create_info.pin_share= TRUE;
 
     rc= heap_create(name, &create_info, &internal_share, &created_new_share);
-    my_free((uchar*) create_info.keydef, MYF(0));
+    my_free(create_info.keydef);
     if (rc)
       goto end;
 
@@ -764,7 +764,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
   error= heap_create(name, &hp_create_info, &internal_share, &created);
-  my_free((uchar*) hp_create_info.keydef, MYF(0));
+  my_free(hp_create_info.keydef);
   DBUG_ASSERT(file == 0);
   return (error);
 }

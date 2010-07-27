@@ -93,23 +93,33 @@ int nt_share_delete(const char *name, myf MyFlags)
                            name, buf, errno));
     break;
   }
-  
+
   if (errno == ERROR_FILE_NOT_FOUND)
   {
-       my_errno= ENOENT;    // marking, that `name' doesn't exist 
+    my_errno= ENOENT;    // marking, that `name' doesn't exist 
   }
   else if (errno == 0)
   {
-       if (DeleteFile(buf))
-            DBUG_RETURN(0);
-       else if ((my_errno= GetLastError()) == 0)
-            my_errno= ENOENT; // marking, that `buf' doesn't exist
-  } else
-       my_errno= errno;
-  
+    if (DeleteFile(buf))
+      DBUG_RETURN(0);
+    /*
+      The below is more complicated than necessary. For some reason, the
+      assignment to my_errno clears the error number, which is retrieved
+      by GetLastError() (VC2005EE). Assigning to errno first, allows to
+      retrieve the correct value.
+    */
+    errno= GetLastError();
+    if (errno == 0)
+      my_errno= ENOENT; // marking, that `buf' doesn't exist
+    else
+      my_errno= errno;
+  }
+  else
+    my_errno= errno;
+
   if (MyFlags & (MY_FAE+MY_WME))
-       my_error(EE_DELETE, MYF(ME_BELL + ME_WAITTANG + (MyFlags & ME_NOINPUT)),
-                name, my_errno);
+    my_error(EE_DELETE, MYF(ME_BELL + ME_WAITTANG + (MyFlags & ME_NOINPUT)),
+             name, my_errno);
   DBUG_RETURN(-1);
 }
 #endif

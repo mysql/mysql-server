@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -72,7 +72,12 @@ String *Item_str_ascii_func::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
 
   if (!(collation.collation->state & MY_CS_NONASCII))
-    return val_str_ascii(str);
+  {
+    String *res= val_str_ascii(str);
+    if (res)
+      res->set_charset(collation.collation);
+    return res;
+  }
   
   DBUG_ASSERT(str != &ascii_buf);
   
@@ -242,7 +247,7 @@ void Item_func_sha::fix_length_and_dec()
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
 
-String *Item_func_sha2::val_str(String *str)
+String *Item_func_sha2::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -338,19 +343,19 @@ void Item_func_sha2::fix_length_and_dec()
   switch (sha_variant) {
 #ifndef OPENSSL_NO_SHA512
   case 512:
-    max_length= SHA512_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA512_DIGEST_LENGTH * 2, default_charset());
     break;
   case 384:
-    max_length= SHA384_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA384_DIGEST_LENGTH * 2, default_charset());
     break;
 #endif
 #ifndef OPENSSL_NO_SHA256
   case 256:
   case 0: // SHA-256 is the default
-    max_length= SHA256_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA256_DIGEST_LENGTH * 2, default_charset());
     break;
   case 224:
-    max_length= SHA224_DIGEST_LENGTH*2;
+    fix_length_and_charset(SHA224_DIGEST_LENGTH * 2, default_charset());
     break;
 #endif
   default:

@@ -1,7 +1,7 @@
 #ifndef UNIREG_INCLUDED
 #define UNIREG_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #include "my_global.h"                          /* ulonglong */
@@ -77,8 +77,8 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define SPECIAL_LOG_QUERIES_NOT_USING_INDEXES 4096 /* Obsolete */
 
 	/* Extern defines */
-#define store_record(A,B) bmove_align((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
-#define restore_record(A,B) bmove_align((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
+#define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
+#define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
 #define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
 #define empty_record(A) { \
                           restore_record((A),s->default_values); \
