@@ -33,7 +33,6 @@
 #include "sql_select.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_table.h"                          // primary_key_name
-#include "sql_cursor.h"
 #include "probes_mysql.h"
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
@@ -2340,35 +2339,13 @@ JOIN::exec()
   curr_join->fields= curr_fields_list;
   curr_join->procedure= procedure;
 
-  if (is_top_level_join() && thd->cursor && tables != const_tables)
-  {
-    /*
-      We are here if this is JOIN::exec for the last select of the main unit
-      and the client requested to open a cursor.
-      We check that not all tables are constant because this case is not
-      handled by do_select() separately, and this case is not implemented
-      for cursors yet.
-    */
-    DBUG_ASSERT(error == 0);
-    /*
-      curr_join is used only for reusable joins - that is, 
-      to perform SELECT for each outer row (like in subselects).
-      This join is main, so we know for sure that curr_join == join.
-    */
-    DBUG_ASSERT(curr_join == this);
-    /* Open cursor for the last join sweep */
-    error= thd->cursor->open(this);
-  }
-  else
-  {
-    thd_proc_info(thd, "Sending data");
-    DBUG_PRINT("info", ("%s", thd->proc_info));
-    result->send_result_set_metadata((procedure ? curr_join->procedure_fields_list :
-                         *curr_fields_list),
-                        Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-    error= do_select(curr_join, curr_fields_list, NULL, procedure);
-    thd->limit_found_rows= curr_join->send_records;
-  }
+  thd_proc_info(thd, "Sending data");
+  DBUG_PRINT("info", ("%s", thd->proc_info));
+  result->send_result_set_metadata((procedure ? curr_join->procedure_fields_list :
+                                    *curr_fields_list),
+                                   Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  error= do_select(curr_join, curr_fields_list, NULL, procedure);
+  thd->limit_found_rows= curr_join->send_records;
 
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->examined_row_count+= curr_join->examined_rows;
@@ -2562,16 +2539,6 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     goto err;
 
   join->exec();
-
-  if (thd->cursor && thd->cursor->is_open())
-  {
-    /*
-      A cursor was opened for the last sweep in exec().
-      We are here only if this is mysql_select for top-level SELECT_LEX_UNIT
-      and there were no error.
-    */
-    free_join= 0;
-  }
 
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
@@ -11642,37 +11609,23 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   enum_nested_loop_state rc;
   READ_RECORD *info= &join_tab->read_record;
 
-  if (join->resume_nested_loop)
+  join->return_tab= join_tab;
+
+  if (join_tab->last_inner)
   {
-    /* If not the last table, plunge down the nested loop */
-    if (join_tab < join->join_tab + join->tables - 1)
-      rc= (*join_tab->next_select)(join, join_tab + 1, 0);
-    else
-    {
-      join->resume_nested_loop= FALSE;
-      rc= NESTED_LOOP_OK;
-    }
+    /* join_tab is the first inner table for an outer join operation. */
+
+    /* Set initial state of guard variables for this table.*/
+    join_tab->found=0;
+    join_tab->not_null_compl= 1;
+
+    /* Set first_unmatched for the last inner table of this group */
+    join_tab->last_inner->first_unmatched= join_tab;
   }
-  else
-  {
-    join->return_tab= join_tab;
+  join->thd->warning_info->reset_current_row_for_warning();
 
-    if (join_tab->last_inner)
-    {
-      /* join_tab is the first inner table for an outer join operation. */
-
-      /* Set initial state of guard variables for this table.*/
-      join_tab->found=0;
-      join_tab->not_null_compl= 1;
-
-      /* Set first_unmatched for the last inner table of this group */
-      join_tab->last_inner->first_unmatched= join_tab;
-    }
-    join->thd->warning_info->reset_current_row_for_warning();
-
-    error= (*join_tab->read_first_record)(join_tab);
-    rc= evaluate_join_record(join, join_tab, error);
-  }
+  error= (*join_tab->read_first_record)(join_tab);
+  rc= evaluate_join_record(join, join_tab, error);
 
   while (rc == NESTED_LOOP_OK)
   {

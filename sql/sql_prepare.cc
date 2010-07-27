@@ -152,6 +152,7 @@ public:
   THD *thd;
   Select_fetch_protocol_binary result;
   Item_param **param_array;
+  Server_side_cursor *cursor;
   uint param_count;
   uint last_errno;
   uint flags;
@@ -2672,7 +2673,6 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!cursor->is_open())
   {
     stmt->close_cursor();
-    thd->cursor= 0;
     reset_stmt_params(stmt);
   }
 
@@ -3010,6 +3010,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   thd(thd_arg),
   result(thd_arg),
   param_array(0),
+  cursor(0),
   param_count(0),
   last_errno(0),
   flags((uint) IS_IN_USE)
@@ -3751,8 +3752,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   /* Go! */
 
   if (open_cursor)
-    error= mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
-                             &result, &cursor);
+    error= mysql_open_cursor(thd, &result, &cursor);
   else
   {
     /*
