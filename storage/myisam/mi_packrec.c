@@ -1051,8 +1051,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
     }
     decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
     _my_store_blob_length((uchar*) to,pack_length,length);
-    memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,
-		 sizeof(char*));
+    memcpy((char*) to+pack_length, &bit_buff->blob_pos, sizeof(char*));
     bit_buff->blob_pos+=length;
   }
 }

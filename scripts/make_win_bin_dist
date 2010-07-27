@@ -264,7 +264,6 @@ cp include/mysql.h \
    include/sql_state.h \
    include/mysqld_ername.h \
    include/mysql_version.h \
-   include/config-win.h \
    libmysql/libmysql.def \
    $DESTDIR/include/
 

@@ -73,8 +73,6 @@ int main(void)
   test_arg("strstr(v1,v5)",(long) strstr(v1,v5),0L);
   test_arg("strstr(v6,v8)",(long) strstr(v6,v8),0L);
 
-  test_arg("strinstr(v1,v4)",(long) strinstr(v1,v4),4L);
-  test_arg("strinstr(v1,v5)",(long) strinstr(v1,v5),0L);
   test_arg("strlen(from)",(long) strlen(from),(long) F_LEN);
   test_arg("strlen(\"\")",(long) strlen(""),0L);
 #ifdef HAVE_STRNLEN
