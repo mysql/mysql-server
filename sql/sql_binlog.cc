@@ -46,14 +46,12 @@ static int check_event_type(int type, Relay_log_info *rli)
   */
   if (fd_event && fd_event->event_type_permutation)
   {
-    IF_DBUG({
-        int new_type= fd_event->event_type_permutation[type];
-        DBUG_PRINT("info",
-                   ("converting event type %d to %d (%s)",
-                    type, new_type,
-                    Log_event::get_type_str((Log_event_type)new_type)));
-      },
-      (void)0);
+#ifndef DBUG_OFF
+    Log_event_type new_type;
+    new_type= (Log_event_type) fd_event->event_type_permutation[type];
+    DBUG_PRINT("info", ("converting event type %d to %d (%s)",
+                        type, new_type, Log_event::get_type_str(new_type)));
+#endif
     type= fd_event->event_type_permutation[type];
   }
 

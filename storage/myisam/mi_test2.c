@@ -1030,7 +1030,7 @@ static void put_blob_in_record(uchar *blob_pos, char **blob_buffer)
       for (i=0 ; i < length ; i++)
 	(*blob_buffer)[i]=(char) (length+i);
       int4store(blob_pos,length);
-      memcpy_fixed(blob_pos+4,(char*) blob_buffer,sizeof(char*));
+      memcpy(blob_pos+4, blob_buffer, sizeof(char*));
     }
     else
     {

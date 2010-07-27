@@ -28,13 +28,13 @@ my_bool opt_help= false;
 struct my_option unittest_options[] =
 {
   { "tap-output", 1, "TAP (default) or gunit output.",
-    (uchar**) &opt_use_tap, (uchar**) &opt_use_tap, NULL,
+    &opt_use_tap, &opt_use_tap, NULL,
     GET_BOOL, OPT_ARG,
     opt_use_tap, 0, 1, 0,
     0, NULL
   },
   { "help", 2, "Help.",
-    (uchar**) &opt_help, (uchar**) &opt_help, NULL,
+    &opt_help, &opt_help, NULL,
     GET_BOOL, NO_ARG,
     opt_help, 0, 1, 0,
     0, NULL

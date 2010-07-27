@@ -4720,8 +4720,6 @@ void Item_func_like::cleanup()
   Item_bool_func2::cleanup();
 }
 
-#ifdef USE_REGEX
-
 /**
   @brief Compile regular expression.
 
@@ -4797,8 +4795,8 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
 
   regex_lib_flags= (cmp_collation.collation->state &
                     (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                   REG_EXTENDED | REG_NOSUB :
-                   REG_EXTENDED | REG_NOSUB | REG_ICASE;
+                   MY_REG_EXTENDED | MY_REG_NOSUB :
+                   MY_REG_EXTENDED | MY_REG_NOSUB | MY_REG_ICASE;
   /*
     If the case of UCS2 and other non-ASCII character sets,
     we will convert patterns and strings to UTF8.
@@ -4871,9 +4869,6 @@ void Item_func_regex::cleanup()
   }
   DBUG_VOID_RETURN;
 }
-
-
-#endif /* USE_REGEX */
 
 
 #ifdef LIKE_CMP_TOUPPER

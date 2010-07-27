@@ -293,12 +293,6 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
-const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
-static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
-TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
-                             log_output_names, 
-                             (unsigned int *) log_output_names_len};
-
 /* static variables */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -394,8 +388,8 @@ my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_slave_compressed_protocol;
-my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
+my_bool opt_safe_user_create = 0;
+my_bool opt_show_slave_auth_info;
 my_bool opt_log_slave_updates= 0;
 char *opt_slave_skip_errors;
 
@@ -439,9 +433,6 @@ my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-TYPELIB binlog_format_typelib=
-  { array_elements(binlog_format_names) - 1, "",
-    binlog_format_names, NULL };
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif
@@ -457,7 +448,7 @@ ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
 ulong what_to_log;
-ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
+ulong slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_trans_retries;
 uint  slave_net_timeout;
@@ -547,7 +538,6 @@ char mysql_real_data_home[FN_REFLEN],
      mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file;
 char *lc_messages_dir_ptr, *log_error_file_ptr;
-char err_shared_dir[FN_REFLEN];
 char mysql_unpacked_real_data_home[FN_REFLEN];
 int mysql_unpacked_real_data_home_len;
 uint mysql_real_data_home_len, mysql_data_home_len= 1;
@@ -581,7 +571,6 @@ Le_creator le_creator;
 
 MYSQL_FILE *bootstrap_file;
 int bootstrap_error;
-FILE *stderror_file=0;
 
 I_List<THD> threads;
 Rpl_filter* rpl_filter;
@@ -613,7 +602,7 @@ pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_thread_count;
 mysql_mutex_t LOCK_mysql_create_db, LOCK_open,
-  LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
+  LOCK_status, LOCK_global_read_lock,
   LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
   LOCK_crypt,
@@ -1476,9 +1465,7 @@ void clean_up(bool print_message)
   delete rpl_filter;
   end_ssl();
   vio_end();
-#ifdef USE_REGEX
   my_regex_end();
-#endif
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
@@ -1543,7 +1530,6 @@ static void clean_up_mutexes()
   mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_open);
   mysql_mutex_destroy(&LOCK_thread_count);
-  mysql_mutex_destroy(&LOCK_mapped_file);
   mysql_mutex_destroy(&LOCK_status);
   mysql_mutex_destroy(&LOCK_delayed_insert);
   mysql_mutex_destroy(&LOCK_delayed_status);
@@ -1940,7 +1926,7 @@ static void network_init(void)
     (void) setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,
 		      sizeof(arg));
     umask(0);
-    if (bind(unix_sock, my_reinterpret_cast(struct sockaddr *) (&UNIXaddr),
+    if (bind(unix_sock, reinterpret_cast<struct sockaddr *>(&UNIXaddr),
 	     sizeof(UNIXaddr)) < 0)
     {
       sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
@@ -3351,9 +3337,7 @@ static int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
-#ifdef USE_REGEX
   my_regex_init(&my_charset_latin1);
-#endif
   /*
     Process a comma-separated character set list and choose
     the first available character set. This is mostly for
@@ -3519,7 +3503,6 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_lock_db, &LOCK_lock_db, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_mapped_file, &LOCK_mapped_file, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
                    &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
@@ -3806,7 +3789,7 @@ static int init_server_auto_options()
   const char *groups[]= {"auto", NULL};
   char *uuid= 0;
   my_option auto_options[]= {
-    {"server-uuid", 0, "", (uchar**) &uuid, (uchar **) &uuid,
+    {"server-uuid", 0, "", &uuid, &uuid,
       0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
   };
@@ -7851,7 +7834,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
-  key_LOCK_lock_db, key_LOCK_manager, key_LOCK_mapped_file,
+  key_LOCK_lock_db, key_LOCK_manager,
   key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
   key_LOCK_server_started, key_LOCK_status,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
@@ -7892,7 +7875,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
   { &key_LOCK_lock_db, "LOCK_lock_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
-  { &key_LOCK_mapped_file, "LOCK_mapped_file", PSI_FLAG_GLOBAL},
   { &key_LOCK_mysql_create_db, "LOCK_mysql_create_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},

@@ -458,7 +458,7 @@ int test_update(MI_INFO *file,int id,int lock_type)
 	}
       }
     }
-    memcpy_fixed(new_record.id,record.id,sizeof(record.id));
+    memcpy(new_record.id, record.id, sizeof(record.id));
     tmp=rnd(20000)+40000;
     int4store(new_record.nr,tmp);
     if (!mi_update(file,record.id,new_record.id))
