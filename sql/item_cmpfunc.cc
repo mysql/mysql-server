@@ -876,8 +876,10 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
     for the current thread but it still may change during the execution.
   */
-  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
-      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
+  if (item->const_item() && cache_arg &&
+      item->type() != Item::CACHE_ITEM &&
+      (item->type() != Item::FUNC_ITEM ||
+       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
     Item_cache_int *cache= new Item_cache_int();
     /* Mark the cache as non-const to prevent re-caching. */
@@ -937,6 +939,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     get_value_a_func= &get_datetime_value;
     get_value_b_func= &get_datetime_value;
     cmp_collation.set(&my_charset_numeric);
+    set_cmp_context_for_datetime();
     return 0;
   }
   else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
@@ -949,6 +952,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     func= &Arg_comparator::compare_datetime;
     get_value_a_func= &get_time_value;
     get_value_b_func= &get_time_value;
+    set_cmp_context_for_datetime();
     return 0;
   }
   else if (type == STRING_RESULT &&
@@ -1005,6 +1009,7 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
 
   is_nulls_eq= is_owner_equal_func();
   func= &Arg_comparator::compare_datetime;
+  set_cmp_context_for_datetime();
 
   return TRUE;
 }
@@ -1058,6 +1063,7 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
   func= &Arg_comparator::compare_datetime;
   get_value_a_func= &get_datetime_value;
   get_value_b_func= &get_datetime_value;
+  set_cmp_context_for_datetime();
 }
 
 
@@ -1144,8 +1150,10 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     Do not cache GET_USER_VAR() function as its const_item() may return TRUE
     for the current thread but it still may change during the execution.
   */
-  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
-      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
+  if (item->const_item() && cache_arg &&
+      item->type() != Item::CACHE_ITEM &&
+      (item->type() != Item::FUNC_ITEM ||
+       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
     Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
@@ -4712,8 +4720,6 @@ void Item_func_like::cleanup()
   Item_bool_func2::cleanup();
 }
 
-#ifdef USE_REGEX
-
 /**
   @brief Compile regular expression.
 
@@ -4863,9 +4869,6 @@ void Item_func_regex::cleanup()
   }
   DBUG_VOID_RETURN;
 }
-
-
-#endif /* USE_REGEX */
 
 
 #ifdef LIKE_CMP_TOUPPER

@@ -25,6 +25,7 @@
 
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "item_func.h"             /* Item_int_func, Item_bool_func */
+#include "my_regex.h"
 
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;
@@ -123,7 +124,17 @@ public:
     delete [] comparators;
     comparators= 0;
   }
-
+  /*
+    Set correct cmp_context if items would be compared as INTs.
+  */
+  inline void set_cmp_context_for_datetime()
+  {
+    DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
+    if ((*a)->result_as_longlong())
+      (*a)->cmp_context= INT_RESULT;
+    if ((*b)->result_as_longlong())
+      (*b)->cmp_context= INT_RESULT;
+  }
   friend class Item_func;
 };
 
@@ -258,7 +269,7 @@ protected:
   my_bool result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0),
+    Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
   {}
   bool fix_fields(THD *, Item **);
@@ -1424,9 +1435,6 @@ public:
   void cleanup();
 };
 
-#ifdef USE_REGEX
-
-#include "my_regex.h"
 
 class Item_func_regex :public Item_bool_func
 {
@@ -1454,23 +1462,6 @@ public:
 
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
-
-#else
-
-class Item_func_regex :public Item_bool_func
-{
-public:
-  Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b) {}
-  longlong val_int() { return 0;}
-  const char *func_name() const { return "regex"; }
-
-  virtual inline void print(String *str, enum_query_type query_type)
-  {
-    print_op(str, query_type);
-  }
-};
-
-#endif /* USE_REGEX */
 
 
 typedef class Item COND;

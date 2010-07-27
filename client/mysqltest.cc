@@ -5954,8 +5954,8 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"result-format-version", OPT_RESULT_FORMAT_VERSION,
    "Version of the result file format to use",
-   (uchar**) &opt_result_format_version,
-   (uchar**) &opt_result_format_version, 0,
+   &opt_result_format_version,
+   &opt_result_format_version, 0,
    GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5998,8 +5998,7 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "Number of seconds before connection timeout.",
-   (uchar**) &opt_connect_timeout,
-   (uchar**) &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
+   &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -8513,7 +8512,7 @@ void free_replace_column()
 typedef struct st_pointer_array {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
   uchar	*str;					/* Strings is here */
-  int7	*flag;					/* Flag about each var. */
+  uint8 *flag;					/* Flag about each var. */
   uint	array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
@@ -9644,7 +9643,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
 					       sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     pa->length=0;
     pa->max_length=PS_MALLOC-MALLOC_OVERHEAD;
     pa->array_allocs=1;
@@ -9680,7 +9679,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     pa->typelib.type_names=new_array;
     old_count=pa->max_count;
     pa->max_count=len/(sizeof(uchar*) + sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     memcpy((uchar*) pa->flag,(char *) (pa->typelib.type_names+old_count),
 	   old_count*sizeof(*pa->flag));
   }
