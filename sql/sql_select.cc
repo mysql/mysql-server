@@ -13308,9 +13308,9 @@ static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
       no_jbuf_before          Don't allow to use join buffering before this
                               table
       reopt_rec_count     OUT New output record count
+                              DBL_MAX if we could find no plan.
       reopt_cost          OUT New join prefix cost
-      sj_inner_fanout     OUT Fanout in the [first_tab; last_tab] range that
-                              is produced by semi-join-inner tables.
+                              DBL_MAX if we could find no plan.
 
   DESCRIPTION
     Given a join prefix [0; ... first_tab], change the access to the tables
@@ -13327,12 +13327,13 @@ static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
 void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
                                 table_map last_remaining_tables, 
                                 bool first_alt, uint no_jbuf_before,
-                                double *reopt_rec_count, double *reopt_cost,
-                                double *sj_inner_fanout)
+                                double *reopt_rec_count, double *reopt_cost)
 {
   double cost, outer_fanout, inner_fanout= 1.0;
   table_map reopt_remaining_tables= last_remaining_tables;
   uint i;
+
+  DBUG_ENTER("optimize_wo_join_buffering");
 
   if (first_tab > join->const_tables)
   {
@@ -13342,7 +13343,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
   else
   {
     cost= 0.0;
-    outer_fanout= 1;
+    outer_fanout= 1.0;
   }
 
   for (i= first_tab; i <= last_tab; i++)
@@ -13357,14 +13358,25 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     {
       /* Find the best access method that would not use join buffering */
       best_access_path(join, rs, reopt_remaining_tables, i, 
-                       test(i < no_jbuf_before), inner_fanout*outer_fanout,
+                       i < no_jbuf_before, inner_fanout * outer_fanout,
                        &pos, &loose_scan_pos);
     }
     else 
       pos= join->positions[i];
 
-    if ((i == first_tab && first_alt))
+    if (i == first_tab && first_alt)
       pos= loose_scan_pos;
+
+    /*
+      Terminate search if best_access_path found no possible plan.
+      Otherwise we will be getting infinite cost when summing up below.
+     */
+    if (pos.read_time == DBL_MAX)
+    {
+      *reopt_rec_count= DBL_MAX;
+      *reopt_cost= DBL_MAX;
+      DBUG_VOID_RETURN;
+    }
 
     reopt_remaining_tables &= ~rs->table->map;
     cost += pos.read_time;
@@ -13378,7 +13390,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
 
   *reopt_rec_count= outer_fanout;
   *reopt_cost= cost;
-  *sj_inner_fanout= inner_fanout;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -13439,6 +13451,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   TABLE_LIST *emb_sj_nest;
   POSITION *pos= join->positions + idx;
   remaining_tables &= ~new_join_tab->table->map;
+
+  DBUG_ENTER("advance_sj_state");
 
   pos->prefix_cost.convert_from_cost(*current_read_time);
   pos->prefix_record_count= *current_record_count;
@@ -13535,24 +13549,28 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
           Got a complete FirstMatch range.
             Calculate correct costs and fanout
         */
-        double reopt_cost, reopt_rec_count, sj_inner_fanout;
+        double reopt_cost, reopt_rec_count;
         optimize_wo_join_buffering(join, pos->first_firstmatch_table, idx,
                                    remaining_tables, FALSE, idx,
-                                   &reopt_rec_count, &reopt_cost, 
-                                   &sj_inner_fanout);
-        /*
-          We don't yet know what are the other strategies, so pick the
-          FirstMatch.
+                                   &reopt_rec_count, &reopt_cost);
+        if (reopt_cost < DBL_MAX)
+        {
+          /*
+            We don't yet know what are the other strategies, so pick the
+            FirstMatch.
 
-          We ought to save the alternate POSITIONs produced by
-          optimize_wo_join_buffering but the problem is that providing save
-          space uses too much space. Instead, we will re-calculate the
-          alternate POSITIONs after we've picked the best QEP.
-        */
-        pos->sj_strategy= SJ_OPT_FIRST_MATCH;
-        *current_read_time=    reopt_cost;
-        *current_record_count= reopt_rec_count;
-        handled_by_fm_or_ls=  pos->firstmatch_need_tables;
+            We ought to save the alternate POSITIONs produced by
+            optimize_wo_join_buffering but the problem is that providing save
+            space uses too much space. Instead, we will re-calculate the
+            alternate POSITIONs after we've picked the best QEP.
+          */
+          pos->sj_strategy= SJ_OPT_FIRST_MATCH;
+          *current_read_time=    reopt_cost;
+          *current_record_count= reopt_rec_count;
+          handled_by_fm_or_ls=  pos->firstmatch_need_tables;
+        }
+        else
+          DBUG_PRINT("info", ("Cannot use FirstMatch"));
       }
     }
   }
@@ -13599,7 +13617,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       first=join->positions + pos->first_loosescan_table; 
       uint n_tables= my_count_bits(first->table->emb_sj_nest->sj_inner_tables);
       /* Got a complete LooseScan range. Calculate its cost */
-      double reopt_cost, reopt_rec_count, sj_inner_fanout;
+      double reopt_cost, reopt_rec_count;
       /*
         The same problem as with FirstMatch - we need to save POSITIONs
         somewhere but reserving space for all cases would require too
@@ -13610,18 +13628,23 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
                                  TRUE,  //first_alt
                                  pos->first_loosescan_table + n_tables,
                                  &reopt_rec_count, 
-                                 &reopt_cost, &sj_inner_fanout);
-      /*
-        We don't yet have any other strategies that could handle this
-        semi-join nest (the other options are Duplicate Elimination or
-        Materialization, which need at least the same set of tables in 
-        the join prefix to be considered) so unconditionally pick the 
-        LooseScan.
-      */
-      pos->sj_strategy= SJ_OPT_LOOSE_SCAN;
-      *current_read_time=    reopt_cost;
-      *current_record_count= reopt_rec_count;
-      handled_by_fm_or_ls= first->table->emb_sj_nest->sj_inner_tables;
+                                 &reopt_cost);
+      if (reopt_cost < DBL_MAX)
+      {
+        /*
+          We don't yet have any other strategies that could handle this
+          semi-join nest (the other options are Duplicate Elimination or
+          Materialization, which need at least the same set of tables in 
+          the join prefix to be considered) so unconditionally pick the 
+          LooseScan.
+        */
+        pos->sj_strategy= SJ_OPT_LOOSE_SCAN;
+        *current_read_time=    reopt_cost;
+        *current_record_count= reopt_rec_count;
+        handled_by_fm_or_ls= first->table->emb_sj_nest->sj_inner_tables;
+      }
+      else
+        DBUG_PRINT("info", ("Cannot use LooseScan"));
     }
   }
 
@@ -13876,6 +13899,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       }
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
