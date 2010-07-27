@@ -45,6 +45,7 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 struct TABLE_LIST;
 class Field;
+class Deadlock_detection_visitor;
 
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -508,6 +509,45 @@ public:
 };
 
 
+/**
+  Class representing the fact that some thread waits for table
+  share to be flushed. Is used to represent information about
+  such waits in MDL deadlock detector.
+*/
+
+class Flush_ticket : public Wait_for_edge
+{
+  MDL_context *m_ctx;
+  TABLE_SHARE *m_share;
+  uint m_deadlock_weight;
+public:
+  Flush_ticket(MDL_context *ctx_arg, TABLE_SHARE *share_arg,
+               uint deadlock_weight_arg)
+    : m_ctx(ctx_arg), m_share(share_arg),
+      m_deadlock_weight(deadlock_weight_arg)
+  {}
+
+  MDL_context *get_ctx() const { return m_ctx; }
+
+  bool find_deadlock(Deadlock_detection_visitor *dvisitor);
+
+  uint get_deadlock_weight() const;
+
+  /**
+    Pointers for participating in the list of waiters for table share.
+  */
+  Flush_ticket *next_in_share;
+  Flush_ticket **prev_in_share;
+};
+
+
+typedef I_P_List <Flush_ticket,
+                  I_P_List_adapter<Flush_ticket,
+                                   &Flush_ticket::next_in_share,
+                                   &Flush_ticket::prev_in_share> >
+                 Flush_ticket_list;
+
+
 /*
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
@@ -661,6 +701,11 @@ struct TABLE_SHARE
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
+
+  /**
+    List of tickets representing threads waiting for the share to be flushed.
+  */
+  Flush_ticket_list m_flush_tickets;
 
   /*
     Set share's table cache key and update its db and table name appropriately.
@@ -837,6 +882,12 @@ struct TABLE_SHARE
     return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
   }
 
+  bool find_deadlock(Flush_ticket *waiting_ticket,
+                     Deadlock_detection_visitor *dvisitor);
+
+  bool wait_until_flushed(MDL_context *mdl_context,
+                          struct timespec *abstime,
+                          uint deadlock_weight);
 };
 
 

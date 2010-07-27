@@ -1756,6 +1756,7 @@ static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
 {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
   TABLE_LIST *table_list;
+  MDL_request_list mdl_requests;
 
   /*
     This is called from SQLCOM_FLUSH, the transaction has
@@ -1774,23 +1775,27 @@ static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
   }
 
   /*
-    @todo: Since lock_table_names() acquires a global IX
-    lock, this actually waits for a GRL in another connection.
-    We are thus introducing an incompatibility.
-    Do nothing for now, since not taking a global IX violates
-    current internal MDL asserts, fix after discussing with
-    Dmitry.
+    Acquire SNW locks on tables to be flushed. We can't use
+    lock_table_names() here as this call will also acquire global IX
+    and database-scope IX locks on the tables, and this will make
+    this statement incompatible with FLUSH TABLES WITH READ LOCK.
   */
-  if (lock_table_names(thd, all_tables, 0, thd->variables.lock_wait_timeout,
-                       MYSQL_OPEN_SKIP_TEMPORARY))
+  for (table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+    mdl_requests.push_front(&table_list->mdl_request);
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
     goto error;
+
+  DEBUG_SYNC(thd,"flush_tables_with_read_lock_after_acquire_locks");
 
   for (table_list= all_tables; table_list;
        table_list= table_list->next_global)
   {
-    /* Remove the table from cache. */
+    /* Request removal of table from cache. */
     mysql_mutex_lock(&LOCK_open);
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+    tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                      table_list->db,
                      table_list->table_name);
     mysql_mutex_unlock(&LOCK_open);
@@ -1800,6 +1805,11 @@ static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
     table_list->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
   }
 
+  /*
+    Before opening and locking tables the below call also waits for old
+    shares to go away, so the fact that we don't pass MYSQL_LOCK_IGNORE_FLUSH
+    flag to it is important.
+  */
   if  (open_and_lock_tables(thd, all_tables, FALSE,
                             MYSQL_OPEN_HAS_MDL_LOCK,
                             &lock_tables_prelocking_strategy) ||
@@ -1810,17 +1820,11 @@ static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
   thd->variables.option_bits|= OPTION_TABLE_LOCK;
 
   /*
-    Downgrade the exclusive locks.
-    Use MDL_SHARED_NO_WRITE as the intended
-    post effect of this call is identical
-    to LOCK TABLES <...> READ, and we didn't use
-    thd->in_lock_talbes and thd->sql_command= SQLCOM_LOCK_TABLES
-    hacks to enter the LTM.
-    @todo: release the global IX lock here!!!
+    We don't downgrade MDL_SHARED_NO_WRITE here as the intended
+    post effect of this call is identical to LOCK TABLES <...> READ,
+    and we didn't use thd->in_lock_talbes and
+    thd->sql_command= SQLCOM_LOCK_TABLES hacks to enter the LTM.
   */
-  for (table_list= all_tables; table_list;
-       table_list= table_list->next_global)
-    table_list->mdl_request.ticket->downgrade_exclusive_lock(MDL_SHARED_NO_WRITE);
 
   return FALSE;
 
@@ -6854,8 +6858,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (thd->global_read_lock.lock_global_read_lock(thd))
 	return 1;                               // Killed
-      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                              FALSE : TRUE))
+      if (close_cached_tables(thd, tables, FALSE, ((options & REFRESH_FAST) ?
+                              FALSE : TRUE), thd->variables.lock_wait_timeout))
           result= 1;
       
       if (thd->global_read_lock.make_global_read_lock_block_commit(thd)) // Killed
@@ -6894,8 +6898,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         }
       }
 
-      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                              FALSE : TRUE))
+      if (close_cached_tables(thd, tables, FALSE, ((options & REFRESH_FAST) ?
+                              FALSE : TRUE),
+                              (thd ? thd->variables.lock_wait_timeout :
+                                     LONG_TIMEOUT)))
         result= 1;
     }
     my_dbopt_cleanup();

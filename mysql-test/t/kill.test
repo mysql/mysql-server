@@ -536,7 +536,7 @@ connection ddl;
 connection dml;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and
+  where state = "Waiting for table" and
         info = "flush tables";
 --source include/wait_condition.inc
 --send select * from t1

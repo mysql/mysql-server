@@ -210,9 +210,6 @@ select count(name) from COND_INSTANCES
  where name like "wait/synch/cond/sql/COND_server_started";
 
 select count(name) from COND_INSTANCES
- where name like "wait/synch/cond/sql/COND_refresh";
-
-select count(name) from COND_INSTANCES
  where name like "wait/synch/cond/sql/COND_thread_count";
 
 select count(name) from COND_INSTANCES

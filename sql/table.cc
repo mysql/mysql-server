@@ -34,6 +34,7 @@
 #include <m_ctype.h>
 #include "my_md5.h"
 #include "sql_select.h"
+#include "mdl.h"                 // Deadlock_detection_visitor
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -325,6 +326,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 
     share->used_tables.empty();
     share->free_tables.empty();
+    share->m_flush_tickets.empty();
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
@@ -389,6 +391,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 
   share->used_tables.empty();
   share->free_tables.empty();
+  share->m_flush_tickets.empty();
 
   DBUG_VOID_RETURN;
 }
@@ -432,9 +435,40 @@ void free_table_share(TABLE_SHARE *share)
       key_info->flags= 0;
     }
   }
-  /* We must copy mem_root from share because share is allocated through it */
-  memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
-  free_root(&mem_root, MYF(0));                 // Free's share
+
+  if (share->m_flush_tickets.is_empty())
+  {
+    /*
+      There are no threads waiting for this share to be flushed. So
+      we can immediately release memory associated with it. We must
+      copy mem_root from share because share is allocated through it.
+    */
+    memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
+    free_root(&mem_root, MYF(0));                 // Free's share
+  }
+  else
+  {
+    /*
+      If there are threads waiting for this share to be flushed we
+      don't free share memory here. Instead we notify waiting threads
+      and delegate freeing share's memory to them.
+      At this point a) all resources except memory associated with share
+      were already released b) share should have been already removed
+      from table definition cache. So it is OK to proceed without waiting
+      for these threads to finish their work.
+    */
+    Flush_ticket_list::Iterator it(share->m_flush_tickets);
+    Flush_ticket *ticket;
+
+    /*
+      To avoid problems due to threads being wake up concurrently modifying
+      flush ticket list we must hold LOCK_open here.
+    */
+    mysql_mutex_assert_owner(&LOCK_open);
+
+    while ((ticket= it++))
+      (void) ticket->get_ctx()->m_wait.set_status(MDL_wait::GRANTED);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2993,6 +3027,223 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     table->s->table_field_def_cache= table_def;
 
   DBUG_RETURN(error);
+}
+
+
+/**
+  Traverse portion of wait-for graph which is reachable through edge
+  represented by this flush ticket in search for deadlocks.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE
+*/
+
+bool Flush_ticket::find_deadlock(Deadlock_detection_visitor *dvisitor)
+{
+  return m_share->find_deadlock(this, dvisitor);
+}
+
+
+uint Flush_ticket::get_deadlock_weight() const
+{
+  return m_deadlock_weight;
+}
+
+
+/**
+  Traverse portion of wait-for graph which is reachable through this
+  table share in search for deadlocks.
+
+  @param waiting_ticket  Ticket representing wait for this share.
+  @param dvisitor        Deadlock detection visitor.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE
+*/
+
+bool TABLE_SHARE::find_deadlock(Flush_ticket *waiting_ticket,
+                                Deadlock_detection_visitor *dvisitor)
+{
+  TABLE *table;
+  MDL_context *src_ctx= waiting_ticket->get_ctx();
+  bool result= TRUE;
+
+  /*
+    To protect used_tables list from being concurrently modified while we
+    are iterating through it we acquire LOCK_open. This should not introduce
+    deadlocks in deadlock detector because we support recursive acquiring of
+    such mutex and also because we won't try to acquire LOCK_open mutex while
+    holding write-lock on MDL_lock::m_rwlock.
+
+    Here is the more elaborate proof:
+
+    0) Let us assume that there is a deadlock.
+    1) Wait graph (the one which reflects waits for system synchronization
+       primitives and not the one which inspected by MDL deadlock detector)
+       for this deadlock should contain loop including both LOCK_open and
+       some of MDL synchronization primitives. Otherwise deadlock would had
+       already exisited before we have introduced acquiring of LOCK_open in
+       MDL deadlock detector.
+    2) Also in this graph edge going out of LOCK_open node should go to one
+       of MDL synchronization primitives. Different situation would mean that
+       we have some non-MDL synchronization primitive besides LOCK_open under
+       which we try to acquire MDL lock, which is not the case.
+    3) Moreover edge coming from LOCK_open should go to MDL_lock::m_rwlock
+       object and correspond to request for read-lock. It can't be request
+       for rwlock in MDL_context or mutex in MDL_wait object because they
+       are terminal (i.e. thread having them locked in exclusive mode won't
+       wait for any other resource). It can't be request for write-lock on
+       MDL_lock::m_rwlock as this would mean that we try to acquire metadata
+       lock under LOCK_open (which is not the case).
+    4) Since MDL_lock::m_rwlock is rwlock which prefers readers the only
+       situation when it can be waited for is when some thread has it 
+       write-locked.
+    5) TODO/FIXME:
+       - Either prove that thread having MDL_lock::m_rwlock write-locked won't
+         wait for LOCK_open directly or indirectly (see notify_shared_lock()).
+       - Or change code to hold only read-lock on MDL_lock::m_rwlock during
+         notify_shared_lock() and thus make MDL_lock::m_rwlock terminal when
+         write-locked.
+  */
+  if (! (dvisitor->m_table_shares_visited++))
+    mysql_mutex_lock(&LOCK_open);
+
+  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
+
+  /* Not strictly necessary ? */
+  if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY)
+  {
+    result= FALSE;
+    goto end;
+  }
+
+  if (dvisitor->enter_node(src_ctx))
+    goto end;
+
+  while ((table= tables_it++))
+  {
+    if (dvisitor->inspect_edge(&table->in_use->mdl_context))
+    {
+      goto end_leave_node;
+    }
+  }
+
+  tables_it.rewind();
+  while ((table= tables_it++))
+  {
+    if (table->in_use->mdl_context.find_deadlock(dvisitor))
+    {
+      goto end_leave_node;
+    }
+  }
+
+  result= FALSE;
+
+end_leave_node:
+  dvisitor->leave_node(src_ctx);
+
+end:
+  if (! (--dvisitor->m_table_shares_visited))
+    mysql_mutex_unlock(&LOCK_open);
+
+  return result;
+}
+
+
+/**
+  Wait until old version of table share is removed from TDC.
+
+  @param mdl_context     MDL context for thread which is going to wait.
+  @param abstime         Timeout for waiting as absolute time value.
+  @param deadlock_weight Weight of this wait for deadlock detector.
+
+  @note This method assumes that its caller owns LOCK_open mutex.
+        This mutex will be unlocked temporarily during its execution.
+
+  @retval FALSE - Success.
+  @retval TRUE  - Error (OOM, deadlock, timeout, etc...).
+*/
+
+bool TABLE_SHARE::wait_until_flushed(MDL_context *mdl_context,
+                                     struct timespec *abstime,
+                                     uint deadlock_weight)
+{
+  Flush_ticket *ticket;
+  MDL_wait::enum_wait_status wait_status;
+
+  mysql_mutex_assert_owner(&LOCK_open);
+
+  /*
+    We should enter this method only then share's version is not
+    up to date and the share is referenced. Otherwise there is
+    no guarantee that our thread will be waken-up from wait.
+  */
+  DBUG_ASSERT(version != refresh_version && ref_count != 0);
+
+  if (! (ticket= new Flush_ticket(mdl_context, this, deadlock_weight)))
+  {
+    mysql_mutex_unlock(&LOCK_open);
+    return TRUE;
+  }
+
+  m_flush_tickets.push_front(ticket);
+
+  mdl_context->m_wait.reset_status();
+
+  mysql_mutex_unlock(&LOCK_open);
+
+  mdl_context->will_wait_for(ticket);
+
+  mdl_context->find_deadlock();
+
+  wait_status= mdl_context->m_wait.timed_wait(mdl_context->get_thd(),
+                                              abstime, TRUE);
+
+  mdl_context->done_waiting_for();
+
+  mysql_mutex_lock(&LOCK_open);
+
+  m_flush_tickets.remove(ticket);
+
+  /*
+    If our thread was the last one waiting for table share to be flushed
+    we can finish destruction of share object by releasing its memory
+    (share object was allocated on share's own MEM_ROOT).
+
+    In cases when our wait was aborted due KILL statement, deadlock or
+    timeout share still might be referenced, so we don't free its memory
+    in this case. Note that we can't rely on checking wait_status to
+    determine this condition as, for example, timeout can happen even
+    when there are no references to table share so memory should be
+    released.
+  */
+  if (m_flush_tickets.is_empty() && ! ref_count)
+  {
+    MEM_ROOT mem_root_copy;
+    memcpy((char*) &mem_root_copy, (char*) &mem_root, sizeof(mem_root));
+    free_root(&mem_root_copy, MYF(0));
+  }
+
+  delete ticket;
+
+  switch (wait_status)
+  {
+  case MDL_wait::GRANTED:
+    return FALSE;
+  case MDL_wait::VICTIM:
+    my_error(ER_LOCK_DEADLOCK, MYF(0));
+    return TRUE;
+  case MDL_wait::TIMEOUT:
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return TRUE;
+  case MDL_wait::KILLED:
+    return TRUE;
+  default:
+    DBUG_ASSERT(0);
+    return TRUE;
+  }
 }
 
 

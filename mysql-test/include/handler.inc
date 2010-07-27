@@ -523,7 +523,7 @@ connection waiter;
 --echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 connection default;
 --echo connection: default

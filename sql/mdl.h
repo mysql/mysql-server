@@ -34,7 +34,6 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
-class Deadlock_detection_visitor;
 
 /**
   Type of metadata lock request.
@@ -360,6 +359,96 @@ public:
 
 typedef void (*mdl_cached_object_release_hook)(void *);
 
+
+enum enum_deadlock_weight
+{
+  MDL_DEADLOCK_WEIGHT_DML= 0,
+  MDL_DEADLOCK_WEIGHT_DDL= 100
+};
+
+
+/**
+  A context of the recursive traversal through all contexts
+  in all sessions in search for deadlock.
+*/
+
+class Deadlock_detection_visitor
+{
+public:
+  Deadlock_detection_visitor(MDL_context *start_node_arg)
+    : m_start_node(start_node_arg),
+      m_victim(NULL),
+      m_current_search_depth(0),
+      m_table_shares_visited(0)
+  {}
+  bool enter_node(MDL_context * /* unused */);
+  void leave_node(MDL_context * /* unused */);
+
+  bool inspect_edge(MDL_context *dest);
+
+  MDL_context *get_victim() const { return m_victim; }
+
+  /**
+    Change the deadlock victim to a new one if it has lower deadlock
+    weight.
+  */
+  MDL_context *opt_change_victim_to(MDL_context *new_victim);
+private:
+  /**
+    The context which has initiated the search. There
+    can be multiple searches happening in parallel at the same time.
+  */
+  MDL_context *m_start_node;
+  /** If a deadlock is found, the context that identifies the victim. */
+  MDL_context *m_victim;
+  /** Set to the 0 at start. Increased whenever
+    we descend into another MDL context (aka traverse to the next
+    wait-for graph node). When MAX_SEARCH_DEPTH is reached, we
+    assume that a deadlock is found, even if we have not found a
+    loop.
+  */
+  uint m_current_search_depth;
+  /**
+    Maximum depth for deadlock searches. After this depth is
+    achieved we will unconditionally declare that there is a
+    deadlock.
+
+    @note This depth should be small enough to avoid stack
+          being exhausted by recursive search algorithm.
+
+    TODO: Find out what is the optimal value for this parameter.
+          Current value is safe, but probably sub-optimal,
+          as there is an anecdotal evidence that real-life
+          deadlocks are even shorter typically.
+  */
+  static const uint MAX_SEARCH_DEPTH= 32;
+
+public:
+  /**
+    Number of TABLE_SHARE objects visited by deadlock detector so far.
+    Used by TABLE_SHARE::find_deadlock() method to implement recursive
+    locking for LOCK_open mutex.
+  */
+  uint m_table_shares_visited;
+};
+
+
+/**
+  Abstract class representing edge in waiters graph to be
+  traversed by deadlock detection algorithm.
+*/
+
+class Wait_for_edge
+{
+public:
+  virtual ~Wait_for_edge() {};
+
+  virtual bool find_deadlock(Deadlock_detection_visitor *dvisitor) = 0;
+
+  virtual uint get_deadlock_weight() const = 0;
+};
+
+
 /**
   A granted metadata lock.
 
@@ -380,7 +469,7 @@ typedef void (*mdl_cached_object_release_hook)(void *);
           threads/contexts.
 */
 
-class MDL_ticket
+class MDL_ticket : public Wait_for_edge
 {
 public:
   /**
@@ -414,6 +503,7 @@ public:
   bool is_incompatible_when_granted(enum_mdl_type type) const;
   bool is_incompatible_when_waiting(enum_mdl_type type) const;
 
+  bool find_deadlock(Deadlock_detection_visitor *dvisitor);
   /* A helper used to determine which lock request should be aborted. */
   uint get_deadlock_weight() const;
 private:
@@ -680,7 +770,7 @@ private:
     by inspecting waiting queues, but we'd very much like it to be
     readily available to the wait-for graph iterator.
    */
-  MDL_ticket *m_waiting_for;
+  Wait_for_edge *m_waiting_for;
 private:
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           bool *is_transactional);
@@ -688,10 +778,11 @@ private:
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
 
+public:
   void find_deadlock();
 
   /** Inform the deadlock detector there is an edge in the wait-for graph. */
-  void will_wait_for(MDL_ticket *pending_ticket)
+  void will_wait_for(Wait_for_edge *pending_ticket)
   {
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for= pending_ticket;

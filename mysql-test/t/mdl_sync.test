@@ -2829,11 +2829,261 @@ connection default;
 
 drop table t1;
 
+--echo #
+--echo # Now, test for situation in which deadlock involves waiting not
+--echo # only in MDL subsystem but also for TDC. Such deadlocks should be
+--echo # successfully detected. If possible they should be resolved without
+--echo # resorting to ER_LOCK_DEADLOCK error.
+--echo #
+create table t1(i int);
+create table t2(j int);
+
+--echo #
+--echo # First, let us check how we handle simple scenario involving
+--echo # waits in MDL and TDC.
+--echo #
+set debug_sync= 'RESET';
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Start statement which will acquire SR metadata lock on t1, open it
+--echo # and then will stop, before trying to acquire SW lock and opening t2.
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+--echo # Sending:
+--send select * from t1 where i in (select j from t2 for update)
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait till the above SELECT stops.
+set debug_sync='now WAIT_FOR parked';
+--echo # The below FLUSH TABLES WITH READ LOCK should acquire
+--echo # SNW locks on t1 and t2 and wait till SELECT closes t1.
+--echo # Sending:
+--send flush tables t1, t2 with read lock
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Wait until FLUSH TABLES WITH READ LOCK starts waiting
+--echo # for SELECT to close t1.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "flush tables t1, t2 with read lock";
+--source include/wait_condition.inc
+
+--echo # Resume SELECT, so it tries to acquire SW lock on t1 and blocks,
+--echo # creating a deadlock. This deadlock should be detected and resolved
+--echo # by backing-off SELECT. As result FLUSH TABLES WITH READ LOCK should
+--echo # be able to finish.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Reap FLUSH TABLES WITH READ LOCK.
+--reap
+unlock tables;
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reap SELECT.
+--reap
+
+--echo #
+--echo # The same scenario with a slightly different order of events
+--echo # which emphasizes that setting correct deadlock detector weights
+--echo # for flush waits is important.
+--echo #
+set debug_sync= 'RESET';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+set debug_sync='flush_tables_with_read_lock_after_acquire_locks SIGNAL parked WAIT_FOR go';
+
+--echo # The below FLUSH TABLES WITH READ LOCK should acquire
+--echo # SNW locks on t1 and t2 and wait on debug sync point.
+--echo # Sending:
+--send flush tables t1, t2 with read lock
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait till FLUSH TABLE WITH READ LOCK stops.
+set debug_sync='now WAIT_FOR parked';
+
+--echo # Start statement which will acquire SR metadata lock on t1, open
+--echo # it and then will block while trying to acquire SW lock on t2.
+--echo # Sending:
+--send select * from t1 where i in (select j from t2 for update)
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Wait till the above SELECT blocks.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and
+        info = "select * from t1 where i in (select j from t2 for update)";
+--source include/wait_condition.inc
+
+--echo # Resume FLUSH TABLES, so it tries to flush t1 creating a deadlock.
+--echo # This deadlock should be detected and resolved by backing-off SELECT.
+--echo # As result FLUSH TABLES WITH READ LOCK should be able to finish.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Reap FLUSH TABLES WITH READ LOCK.
+--reap
+unlock tables;
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reap SELECT.
+--reap
+
+--echo #
+--echo # Now more complex scenario involving two connections
+--echo # waiting for MDL and one for TDC.
+--echo #
+set debug_sync= 'RESET';
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Start statement which will acquire SR metadata lock on t2, open it
+--echo # and then will stop, before trying to acquire SR lock and opening t1.
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+--echo # Sending:
+--send select * from t2, t1
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait till the above SELECT stops.
+set debug_sync='now WAIT_FOR parked';
+--echo # The below FLUSH TABLES WITH READ LOCK should acquire
+--echo # SNW locks on t2 and wait till SELECT closes t2.
+--echo # Sending:
+--send flush tables t2 with read lock
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Wait until FLUSH TABLES WITH READ LOCK starts waiting
+--echo # for SELECT to close t2.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "flush tables t2 with read lock";
+--source include/wait_condition.inc
+
+--echo # The below DROP TABLES should acquire X lock on t1 and start
+--echo # waiting for X lock on t2.
+--echo # Sending:
+--send drop tables t1, t2
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until DROP TABLES starts waiting for X lock on t2.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "drop tables t1, t2";
+--source include/wait_condition.inc
+
+--echo # Resume SELECT, so it tries to acquire SR lock on t1 and blocks,
+--echo # creating a deadlock. This deadlock should be detected and resolved
+--echo # by backing-off SELECT. As result FLUSH TABLES WITH READ LOCK should
+--echo # be able to finish.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Reap FLUSH TABLES WITH READ LOCK.
+--reap
+--echo # Unblock DROP TABLES.
+unlock tables;
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Reap DROP TABLES.
+--reap
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reap SELECT. It should emit error about missing table.
+--error ER_NO_SUCH_TABLE
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+
 set debug_sync= 'RESET';
 
 disconnect deadlock_con1;
 disconnect deadlock_con2;
 disconnect deadlock_con3;
+
+
+--echo #
+--echo # Test for scenario in which FLUSH TABLES <list> WITH READ LOCK
+--echo # has been erroneously releasing metadata locks.
+--echo # 
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+connection default;
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+set debug_sync= 'RESET';
+create table t1(i int);
+create table t2(j int);
+
+--echo # Switching to connection 'con2'.
+connection con2;
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+
+--echo # The below FLUSH TABLES <list> WITH READ LOCK should acquire
+--echo # SNW locks on t1 and t2, open table t1 and wait on debug sync
+--echo # point.
+--echo # Sending:
+--send flush tables t1, t2 with read lock
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Wait till FLUSH TABLES <list> WITH READ LOCK stops.
+set debug_sync='now WAIT_FOR parked';
+
+--echo # Start statement which will flush all tables and thus invalidate
+--echo # table t1 open by FLUSH TABLES <list> WITH READ LOCK.
+--echo # Sending:
+--send flush tables
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait till the above FLUSH TABLES blocks.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and
+        info = "flush tables";
+--source include/wait_condition.inc
+
+--echo # Resume FLUSH TABLES <list> WITH READ LOCK, so it tries to open t2
+--echo # discovers that its t1 is obsolete and tries to reopen all tables.
+--echo # Such reopen should not cause releasing of SNW metadata locks
+--echo # which will result in assertion failures.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Reap FLUSH TABLES <list> WITH READ LOCK.
+--reap
+unlock tables;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Reap FLUSH TABLES.
+--reap
+
+--echo # Clean-up.
+--echo # Switching to connection 'default'.
+connection default;
+drop tables t1, t2;
+set debug_sync= 'RESET';
+disconnect con1;
+disconnect con2;
 
 
 --echo #
