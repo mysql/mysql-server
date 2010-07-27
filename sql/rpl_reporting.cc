@@ -47,6 +47,7 @@ Slave_reporting_capability::report(loglevel level, int err_code,
     pbuff= m_last_error.message;
     pbuffsize= sizeof(m_last_error.message);
     m_last_error.number = err_code;
+    m_last_error.update_timestamp();
     report_function= sql_print_error;
     break;
   case WARNING_LEVEL:
