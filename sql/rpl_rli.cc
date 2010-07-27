@@ -1023,7 +1023,30 @@ int Relay_log_info::init_info()
       position is at the beginning of the file, and will read the
       "signature" and then fast-forward to the last position read.
     */
+    bool hot_log= FALSE;
+    /* 
+      my_b_seek does an implicit flush_io_cache, so we need to:
+
+      1. check if this log is active (hot)
+      2. if it is we keep log_lock until the seek ends, otherwise 
+         release it right away.
+
+      If we did not take log_lock, SQL thread might race with IO
+      thread for the IO_CACHE mutex.
+
+    */
+    mysql_mutex_t *log_lock= relay_log.get_log_lock();
+    mysql_mutex_lock(log_lock);
+    hot_log= relay_log.is_active(linfo.log_file_name);
+
+    if (!hot_log)
+      mysql_mutex_unlock(log_lock);
+
     my_b_seek(cur_log, (my_off_t) 0);
+
+    if (hot_log)
+      mysql_mutex_unlock(log_lock);
+
     DBUG_RETURN(0);
   }
 
