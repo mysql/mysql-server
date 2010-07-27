@@ -540,9 +540,9 @@ end:
   }
 
   /*
-    If we are under LOCK TABLES we should restore original state of meta-data
-    locks. Otherwise call to close_thread_tables() will take care about both
-    TABLE instance created by open_n_lock_single_table() and metadata lock.
+    If we are under LOCK TABLES we should restore original state of
+    meta-data locks. Otherwise all locks will be released along
+    with the implicit commit.
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
     mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
@@ -1321,6 +1321,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       thd->reset_db((char*) db, strlen(db));
       while ((trg_create_str= it++))
       {
+        sp_head *sp;
         trg_sql_mode= itm++;
         LEX_STRING *trg_definer= it_definer++;
 
@@ -1357,13 +1358,14 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         */
         lex.set_trg_event_type_for_tables();
 
-        lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
-
         int event= lex.trg_chistics.event;
         int action_time= lex.trg_chistics.action_time;
 
-        lex.sphead->set_creation_ctx(creation_ctx);
-        triggers->bodies[event][action_time]= lex.sphead;
+        sp= triggers->bodies[event][action_time]= lex.sphead;
+        lex.sphead= NULL; /* Prevent double cleanup. */
+
+        sp->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
+        sp->set_creation_ctx(creation_ctx);
 
         if (!trg_definer->length)
         {
@@ -1376,27 +1378,26 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
                                 (const char*) db,
-                                (const char*) lex.sphead->m_name.str);
+                                (const char*) sp->m_name.str);
           
           /*
             Set definer to the '' to correct displaying in the information
             schema.
           */
 
-          lex.sphead->set_definer((char*) "", 0);
+          sp->set_definer((char*) "", 0);
 
           /*
             Triggers without definer information are executed under the
             authorization of the invoker.
           */
 
-          lex.sphead->m_chistics->suid= SP_IS_NOT_SUID;
+          sp->m_chistics->suid= SP_IS_NOT_SUID;
         }
         else
-          lex.sphead->set_definer(trg_definer->str, trg_definer->length);
+          sp->set_definer(trg_definer->str, trg_definer->length);
 
-        if (triggers->names_list.push_back(&lex.sphead->m_name,
-                                           &table->mem_root))
+        if (triggers->names_list.push_back(&sp->m_name, &table->mem_root))
             goto err_with_lex_cleanup;
 
         if (!(on_table_name= alloc_lex_string(&table->mem_root)))

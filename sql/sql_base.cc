@@ -1402,6 +1402,9 @@ void close_thread_tables(THD *thd)
     DEBUG_SYNC(thd, "before_close_thread_tables");
 #endif
 
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt ||
+              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
+
   /* Detach MERGE children after every statement. Even under LOCK TABLES. */
   for (table= thd->open_tables; table; table= table->next)
   {
@@ -1446,28 +1449,6 @@ void close_thread_tables(THD *thd)
     Mark all temporary tables used by this statement as free for reuse.
   */
   mark_temp_tables_as_free_for_reuse(thd);
-  /*
-    Let us commit transaction for statement. Since in 5.0 we only have
-    one statement transaction and don't allow several nested statement
-    transactions this call will do nothing if we are inside of stored
-    function or trigger (i.e. statement transaction is already active and
-    does not belong to statement for which we do close_thread_tables()).
-    TODO: This should be fixed in later releases.
-   */
-  if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
-  {
-    thd->stmt_da->can_overwrite_status= TRUE;
-    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-    thd->stmt_da->can_overwrite_status= FALSE;
-
-    /*
-      Reset transaction state, but only if we're not inside a
-      sub-statement of a prelocked statement.
-    */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES ||
-        thd->lex->requires_prelocking())
-      thd->transaction.stmt.reset();
-  }
 
   if (thd->locked_tables_mode)
   {
@@ -1528,26 +1509,6 @@ void close_thread_tables(THD *thd)
   if (thd->open_tables)
     close_open_tables(thd);
 
-  /*
-    - If inside a multi-statement transaction,
-    defer the release of metadata locks until the current
-    transaction is either committed or rolled back. This prevents
-    other statements from modifying the table for the entire
-    duration of this transaction.  This provides commit ordering
-    and guarantees serializability across multiple transactions.
-    - If closing a system table, defer the release of metadata locks
-    to the caller. We have no sentinel in MDL subsystem to guard
-    transactional locks from system tables locks, so don't know
-    which locks are which here.
-    - If in autocommit mode, or outside a transactional context,
-    automatically release metadata locks of the current statement.
-  */
-  if (! thd->in_multi_stmt_transaction_mode() &&
-      ! (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
-  {
-    thd->mdl_context.release_transactional_locks();
-  }
-
   DBUG_VOID_RETURN;
 }
 
@@ -1562,7 +1523,14 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
   mysql_mutex_assert_not_owner(&LOCK_open);
-
+  /*
+    The metadata lock must be released after giving back
+    the table to the table cache.
+  */
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                             table->s->db.str,
+                                             table->s->table_name.str,
+                                             MDL_SHARED));
   table->mdl_ticket= NULL;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -3188,6 +3156,7 @@ Locked_tables_list::init_locked_tables(THD *thd)
   return FALSE;
 }
 
+
 /**
   Leave LTM_LOCK_TABLES mode if it's been entered.
 
@@ -3224,7 +3193,12 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
     }
     thd->leave_locked_tables_mode();
 
+    DBUG_ASSERT(thd->transaction.stmt.is_empty());
     close_thread_tables(thd);
+    /*
+      We rely on the caller to implicitly commit the
+      transaction and release transactional locks.
+    */
   }
   /*
     After closing tables we can free memory used for storing lock
@@ -3810,9 +3784,7 @@ Open_table_context::Open_table_context(THD *thd, uint flags)
              LONG_TIMEOUT : thd->variables.lock_wait_timeout),
    m_flags(flags),
    m_action(OT_NO_ACTION),
-   m_has_locks((thd->in_multi_stmt_transaction_mode() &&
-                thd->mdl_context.has_locks()) ||
-                thd->mdl_context.trans_sentinel())
+   m_has_locks(thd->mdl_context.has_locks())
 {}
 
 
@@ -5264,6 +5236,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     table= 0;
 
 end:
+  if (table == NULL)
+    close_thread_tables(thd);
   thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
@@ -5282,7 +5256,8 @@ end:
                               should work for this statement.
 
   @note
-    The lock will automaticaly be freed by close_thread_tables()
+    The thr_lock locks will automatically be freed by
+    close_thread_tables().
 
   @retval FALSE  OK.
   @retval TRUE   Error
@@ -5293,11 +5268,12 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_and_lock_tables");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
 
   if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
-    DBUG_RETURN(TRUE);
+    goto err;
 
   DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
                   const char *old_proc_info= thd->proc_info;
@@ -5306,15 +5282,22 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                   thd->proc_info= old_proc_info;});
 
   if (lock_tables(thd, tables, counter, flags))
-    DBUG_RETURN(TRUE);
+    goto err;
 
   if (derived &&
       (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
        (thd->fill_derived_tables() &&
         mysql_handle_derived(thd->lex, &mysql_derived_filling))))
-    DBUG_RETURN(TRUE); /* purecov: inspected */
+    goto err;
 
   DBUG_RETURN(FALSE);
+err:
+  if (! thd->in_sub_stmt)
+    trans_rollback_stmt(thd);  /* Necessary if derived handling failed. */
+  close_thread_tables(thd);
+  /* Don't keep locks for a failed statement. */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -5340,13 +5323,24 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
 {
+  DML_prelocking_strategy prelocking_strategy;
   uint counter;
+  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_normal_and_derived_tables");
   DBUG_ASSERT(!thd->fill_derived_tables());
-  if (open_tables(thd, &tables, &counter, flags) ||
+  if (open_tables(thd, &tables, &counter, flags, &prelocking_strategy) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-    DBUG_RETURN(TRUE); /* purecov: inspected */
+    goto end;
+
   DBUG_RETURN(0);
+end:
+  /* No need to rollback statement transaction, it's not started. */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+  close_thread_tables(thd);
+  /* Don't keep locks for a failed statement. */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
+  DBUG_RETURN(TRUE); /* purecov: inspected */
 }
 
 
@@ -5607,6 +5601,14 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     /* We have to cleanup translation tables of views. */
     tmp->cleanup_items();
   }
+  /*
+    No need to commit/rollback the statement transaction: it's
+    either not started or we're filling in an INFORMATION_SCHEMA
+    table on the fly, and thus mustn't manipulate with the
+    transaction of the enclosing statement.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
+              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(start_of_statement_svp);
 }
@@ -9034,7 +9036,8 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
                            MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    goto error;
+    thd->restore_backup_open_tables_state(backup);
+    DBUG_RETURN(TRUE);
   }
 
   for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
@@ -9045,11 +9048,6 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
   lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
   DBUG_RETURN(FALSE);
-
-error:
-  close_system_tables(thd, backup);
-
-  DBUG_RETURN(TRUE);
 }
 
 
@@ -9071,6 +9069,38 @@ close_system_tables(THD *thd, Open_tables_backup *backup)
   thd->restore_backup_open_tables_state(backup);
 }
 
+
+/**
+  A helper function to close a mysql.* table opened
+  in an auxiliary THD during bootstrap or in the main
+  connection, when we know that there are no locks
+  held by the connection due to a preceding implicit
+  commit.
+
+  This function assumes that there is no
+  statement transaction started for the operation
+  itself, since mysql.* tables are not transactional
+  and when they are used the binlog is off (DDL
+  binlogging is always statement-based.
+
+  We need this function since we'd like to not
+  just close the system table, but also release
+  the metadata lock on it.
+
+  Note, that in LOCK TABLES mode this function
+  does not release the metadata lock. But in this
+  mode the table can be opened only if it is locked
+  explicitly with LOCK TABLES.
+*/
+
+void
+close_mysql_tables(THD *thd)
+{
+  /* No need to commit/rollback statement transaction, it's not started. */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+  close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
+}
 
 /*
   Open and lock one system table for update.
@@ -9143,16 +9173,7 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
   else
-  {
-    /*
-      If error in mysql_lock_tables(), open_ltable doesn't close the
-      table. Thread kill during mysql_lock_tables() is such error. But
-      open tables cannot be accepted when restoring the open tables
-      state.
-    */
-    close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
-  }
 
   thd->utime_after_lock= save_utime_after_lock;
   DBUG_RETURN(table);
