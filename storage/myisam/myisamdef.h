@@ -347,11 +347,11 @@ typedef struct st_mi_sort_param
   int (*key_read)(struct st_mi_sort_param *,void *);
   int (*key_write)(struct st_mi_sort_param *, const void *);
   void (*lock_in_memory)(MI_CHECK *);
-  NEAR int (*write_keys)(struct st_mi_sort_param *, register uchar **,
-                     uint , struct st_buffpek *, IO_CACHE *);
-  NEAR uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
-  NEAR int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
-                       uint, uint);
+  int (*write_keys)(struct st_mi_sort_param *, register uchar **,
+                    uint , struct st_buffpek *, IO_CACHE *);
+  uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
+  int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
+                   uint, uint);
 } MI_SORT_PARAM;
 
 	/* Some defines used by isam-funktions */
@@ -475,8 +475,8 @@ extern mysql_mutex_t THR_LOCK_myisam;
 	/* Some extern variables */
 
 extern LIST *myisam_open_list;
-extern uchar NEAR myisam_file_magic[],NEAR myisam_pack_file_magic[];
-extern uint NEAR myisam_read_vec[],NEAR myisam_readnext_vec[];
+extern uchar myisam_file_magic[], myisam_pack_file_magic[];
+extern uint myisam_read_vec[], myisam_readnext_vec[];
 extern uint myisam_quick_table_bits;
 extern File myisam_log_file;
 extern ulong myisam_pid;
@@ -774,9 +774,9 @@ void _mi_report_crashed(MI_INFO *file, const char *message,
 
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);
-void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
-void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
-void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
+void mi_check_print_error(MI_CHECK *param, const char *fmt,...);
+void mi_check_print_warning(MI_CHECK *param, const char *fmt,...);
+void mi_check_print_info(MI_CHECK *param, const char *fmt,...);
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);

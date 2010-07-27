@@ -208,7 +208,7 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
 
-  my_sprintf(buffer, (buffer, "%.3f", value));
+  sprintf(buffer, "%.3f", value);
 
   return (my_b_printf(&info_file, "%s\n", buffer) > (size_t) 0 ?
           FALSE : TRUE);
@@ -236,7 +236,7 @@ bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
           (size_t) 0 ? FALSE : TRUE);
 
 err:
-  my_free(server_ids_buffer, MYF(0));
+  my_free(server_ids_buffer);
   return error;
 }
 
@@ -304,7 +304,7 @@ bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
       Release the buffer allocated while reading the server ids
       from the file.
     */
-    my_free(buffer_act, MYF(0));
+    my_free(buffer_act);
   }
 
   return error;

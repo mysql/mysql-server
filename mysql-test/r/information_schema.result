@@ -1429,7 +1429,7 @@ USE test;
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-MyISAM	DEFAULT	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
+MyISAM	DEFAULT	MyISAM storage engine	NO	NO	NO
 grant select on *.* to user3148@localhost;
 select user,db from information_schema.processlist;
 user	db
@@ -1683,6 +1683,33 @@ COUNT(*)
 DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
+
+Bug#54422 query with = 'variables'
+
+CREATE TABLE variables(f1 INT);
+SELECT COLUMN_DEFAULT, TABLE_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
+COLUMN_DEFAULT	TABLE_NAME
+NULL	variables
+DROP TABLE variables;
+#
+# Bug #53814: NUMERIC_PRECISION for unsigned bigint field is 19, 
+# should be 20
+#
+CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
+SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
+FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
+TABLE_NAME	COLUMN_NAME	NUMERIC_PRECISION
+ubig	a	19
+ubig	b	20
+INSERT INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SELECT length(CAST(b AS CHAR)) FROM ubig;
+length(CAST(b AS CHAR))
+20
+DROP TABLE ubig;
 End of 5.1 tests.
 create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
 returns char(10) return null;

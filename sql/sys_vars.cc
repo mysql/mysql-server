@@ -605,9 +605,6 @@ static Sys_var_dbug Sys_dbug(
        ON_CHECK(check_has_super));
 #endif
 
-static Sys_var_charptr Sys_server_uuid("server_uuid", "UUID of the server",
-       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
-       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 /**
   @todo
     When updating myisam_delay_key_write, we should do a 'flush tables'
@@ -965,10 +962,10 @@ static bool update_cached_long_query_time(sys_var *self, THD *thd,
 {
   if (type == OPT_SESSION)
     thd->variables.long_query_time=
-      thd->variables.long_query_time_double * 1e6;
+      double2ulonglong(thd->variables.long_query_time_double * 1e6);
   else
     global_system_variables.long_query_time=
-      global_system_variables.long_query_time_double * 1e6;
+      double2ulonglong(global_system_variables.long_query_time_double * 1e6);
   return false;
 }
 
@@ -1537,13 +1534,6 @@ static Sys_var_ulong Sys_div_precincrement(
        SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, DECIMAL_MAX_SCALE), DEFAULT(4), BLOCK_SIZE(1));
 
-static Sys_var_ulong Sys_rpl_recovery_rank(
-       "rpl_recovery_rank", "Unused, will be removed",
-       GLOBAL_VAR(rpl_recovery_rank), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(70000, 0));
-
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
        "Allocation block size for storing ranges during optimization",
@@ -1638,7 +1628,7 @@ static Sys_var_ulong Sys_thread_stack(
 static Sys_var_charptr Sys_tmpdir(
        "tmpdir", "Path for temporary files. Several paths may "
        "be specified, separated by a "
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__WIN__)
        "semicolon (;)"
 #else
        "colon (:)"
@@ -1786,6 +1776,12 @@ static Sys_var_ulong Sys_server_id(
        GLOBAL_VAR(server_id), CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
+
+static Sys_var_charptr Sys_server_uuid(
+       "server_uuid",
+       "Uniquely identifies the server instance in the universe",
+       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
+       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -2387,7 +2383,7 @@ static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
        SESSION_VAR(select_limit), NO_CMD_LINE,
-       VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
+       VALID_RANGE(0, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
 
 static bool update_timestamp(THD *thd, set_var *var)
 {

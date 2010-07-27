@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,13 +94,13 @@ public:
       localtime_r(&skr, &tm_tmp);
       start=&tm_tmp;
 
-      my_sprintf(timestamp, (timestamp, "%02d%02d%02d %02d:%02d:%02d", 
-                         start->tm_year % 100,
-                         start->tm_mon+1,
-                         start->tm_mday,
-                         start->tm_hour,
-                         start->tm_min,
-                         start->tm_sec));
+      sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
+              start->tm_year % 100,
+              start->tm_mon+1,
+              start->tm_mday,
+              start->tm_hour,
+              start->tm_min,
+              start->tm_sec);
       timestamp[15]= '\0';
     }
 

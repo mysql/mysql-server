@@ -79,7 +79,7 @@ link_sources:
 # a minimal MySQL client library
 #
 # For a really minimal distribution (without debugging code) we could
-# keep only the stubs for safemalloc.c and debug.c
+# keep only the stubs for debug.c
 #
 # A list of needed headers collected from the deps information 000213
 nh =		my_global.h config-win32.h dbug.h errmsg.h \
