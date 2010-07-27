@@ -18,8 +18,8 @@
 #include "rpl_info_handler.h"
 
 Rpl_info_handler::Rpl_info_handler(const int nparam)
-  :ninfo(nparam), cursor((my_off_t)0), prv_error(0),
-  sync_counter(0), sync_period(0), field_values(0)
+  :field_values(0), ninfo(nparam), cursor((my_off_t)0),
+  prv_error(0), sync_counter(0), sync_period(0)
 {  
   field_values= new Rpl_info_fields(ninfo);
   /*
