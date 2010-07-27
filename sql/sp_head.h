@@ -682,6 +682,8 @@ public:
   {
     if (m_lex_resp)
     {
+      /* Prevent endless recursion. */
+      m_lex->sphead= NULL;
       lex_end(m_lex);
       delete m_lex;
     }

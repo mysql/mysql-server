@@ -27,7 +27,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "sql_acl.h"         // MYSQL_DB_FIELD_COUNT, ACL_ACCESS
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "key.h"             // key_copy, key_cmp_if_same, key_restore
 #include "sql_show.h"        // append_identifier
 #include "sql_table.h"                         // build_table_filename
@@ -730,9 +730,7 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
-  trans_commit_implicit(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
+  close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -1585,6 +1583,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   /* Buffer should be extended when password length is extended. */
   char buff[512];
   ulong query_length;
+  bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   DBUG_ENTER("change_password");
@@ -1614,9 +1613,16 @@ bool change_password(THD *thd, const char *host, const char *user,
       DBUG_RETURN(0);
   }
 #endif
-
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(1);
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&acl_cache->lock);
   ACL_USER *acl_user;
@@ -1652,7 +1658,13 @@ bool change_password(THD *thd, const char *host, const char *user,
                               FALSE, FALSE, FALSE, 0);
   }
 end:
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
+
+  /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+
   DBUG_RETURN(result);
 }
 
@@ -3082,7 +3094,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           DBUG_RETURN(TRUE);
         column_priv|= column->rights;
       }
-      close_thread_tables(thd);
+      close_mysql_tables(thd);
     }
     else
     {
@@ -3172,7 +3184,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->lex->sql_command= backup.sql_command;
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
-    close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3398,7 +3409,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
-    close_thread_tables(thd);
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3553,7 +3563,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
-    close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3613,7 +3622,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
 
   if (!result)
     my_ok(thd);
@@ -3874,10 +3882,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, &table, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {
-    close_thread_tables(thd);
     DBUG_RETURN(TRUE);
-  }
 
   mysql_rwlock_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -3899,7 +3904,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   mysql_rwlock_unlock(&LOCK_grant);
 
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -3970,9 +3975,7 @@ my_bool grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   mysql_rwlock_unlock(&LOCK_grant);
-  trans_commit_implicit(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
+  close_mysql_tables(thd);
 
   /*
     It is OK failing to load procs_priv table because we may be
@@ -5250,7 +5253,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
-    close_thread_tables(thd);
     DBUG_RETURN(-1);
   }
 
@@ -5890,7 +5892,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -5975,7 +5976,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -6072,7 +6072,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6270,8 +6269,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
-
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6418,7 +6415,6 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   mysql_mutex_unlock(&acl_cache->lock);
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
 
   thd->pop_internal_handler();
   /* Restore the state of binlog format */

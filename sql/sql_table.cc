@@ -2285,18 +2285,13 @@ err:
   {
     /*
       Under LOCK TABLES we should release meta-data locks on the tables
-      which were dropped. Otherwise we can rely on close_thread_tables()
-      doing this. Unfortunately in this case we are likely to get more
-      false positives in try_acquire_lock() function. So
-      it makes sense to remove exclusive meta-data locks in all cases.
+      which were dropped.
 
       Leave LOCK TABLES mode if we managed to drop all tables which were
       locked. Additional check for 'non_temp_tables_count' is to avoid
       leaving LOCK TABLES mode if we have dropped only temporary tables.
     */
-    if (! thd->locked_tables_mode)
-      thd->mdl_context.release_transactional_locks();
-    else
+    if (thd->locked_tables_mode)
     {
       if (thd->lock && thd->lock->table_count == 0 && non_temp_tables_count > 0)
       {
@@ -2305,7 +2300,8 @@ err:
       }
       for (table= tables; table; table= table->next_local)
       {
-        if (table->mdl_request.ticket)
+        /* Drop locks for all successfully dropped tables. */
+        if (table->table == NULL && table->mdl_request.ticket)
         {
           /*
             Under LOCK TABLES we may have several instances of table open
@@ -2316,6 +2312,10 @@ err:
         }
       }
     }
+    /*
+      Rely on the caller to implicitly commit the transaction
+      and release metadata locks.
+    */
   }
 
 end:
@@ -4214,8 +4214,14 @@ warn:
 }
 
 
-/*
-  Database and name-locking aware wrapper for mysql_create_table_no_lock(),
+/**
+  Implementation of SQLCOM_CREATE_TABLE.
+
+  Take the metadata locks (including a shared lock on the affected
+  schema) and create the table. Is written to be called from
+  mysql_execute_command(), to which it delegates the common parts
+  with other commands (i.e. implicit commit before and after,
+  close of thread tables.
 */
 
 bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
@@ -4231,7 +4237,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   if (open_and_lock_tables(thd, thd->lex->query_tables, FALSE, 0))
   {
     result= TRUE;
-    goto unlock;
+    goto end;
   }
 
   /* Got lock. */
@@ -4253,16 +4259,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
     result= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
-  {
-    /*
-      close_thread_tables() takes care about both closing open tables (which
-      might be still around in case of error) and releasing metadata locks.
-    */
-    close_thread_tables(thd);
-  }
-
-unlock:
+end:
   DBUG_RETURN(result);
 }
 
@@ -4752,6 +4749,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         trans_rollback_stmt(thd);
         trans_rollback(thd);
         close_thread_tables(thd);
+        thd->mdl_context.release_transactional_locks();
         DBUG_PRINT("admin", ("simple error, admin next table"));
         continue;
       case -1:           // error, message could be written to net
@@ -5038,11 +5036,11 @@ send_result_message:
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
-      table->table= NULL;
       thd->mdl_context.release_transactional_locks();
+      table->table= NULL;
       if (!result_code) // recreation went ok
       {
-        /* Clear the ticket released in close_thread_tables(). */
+        /* Clear the ticket released above. */
         table->mdl_request.ticket= NULL;
         DEBUG_SYNC(thd, "ha_admin_open_ltable");
         table->mdl_request.set_type(MDL_SHARED_WRITE);
@@ -6729,13 +6727,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         goto err;
       DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-      /* COND_refresh will be signaled in close_thread_tables() */
       break;
     case DISABLE:
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
         goto err;
       error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
-      /* COND_refresh will be signaled in close_thread_tables() */
       break;
     default:
       DBUG_ASSERT(FALSE);
@@ -6821,8 +6817,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       /*
         Under LOCK TABLES we should adjust meta-data locks before finishing
-        statement. Otherwise we can rely on close_thread_tables() releasing
-        them.
+        statement. Otherwise we can rely on them being released
+        along with the implicit commit.
       */
       if (new_name != table_name || new_db != db)
       {
@@ -7360,8 +7356,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     5) Write statement to the binary log.
     6) If we are under LOCK TABLES and do ALTER TABLE ... RENAME we
        remove placeholders and release metadata locks.
-    7) If we are not not under LOCK TABLES we rely on close_thread_tables()
-       call to remove placeholders and releasing metadata locks.
+    7) If we are not not under LOCK TABLES we rely on the caller
+      (mysql_execute_command()) to release metadata locks.
   */
 
   thd_proc_info(thd, "rename result table");
@@ -7990,7 +7986,13 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	}
       }
       thd->clear_error();
+      if (! thd->in_sub_stmt)
+        trans_rollback_stmt(thd);
       close_thread_tables(thd);
+      /*
+        Don't release metadata locks, this will be done at
+        statement end.
+      */
       table->table=0;				// For query cache
     }
     if (protocol->write())
@@ -8000,10 +8002,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   my_eof(thd);
   DBUG_RETURN(FALSE);
 
- err:
-  close_thread_tables(thd);			// Shouldn't be needed
-  if (table)
-    table->table=0;
+err:
   DBUG_RETURN(TRUE);
 }
 

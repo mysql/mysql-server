@@ -29,7 +29,6 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
-#include "lock.h"      // unlock_global_read_lock, mysql_unlock_tables
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_time.h"                         // date_time_format_copy
@@ -1817,12 +1816,6 @@ bool select_send::send_eof()
   */
   ha_release_temporary_latches(thd);
 
-  /* Unlock tables before sending packet to gain some speed */
-  if (thd->lock && ! thd->locked_tables_mode)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
-  }
   /* 
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)

@@ -59,7 +59,7 @@
 #include "key.h"                                // key_copy
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
-#include <assert.h>
+#include "transaction.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
@@ -309,9 +309,15 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   }
   if (error)
   {
+    /*
+      No need to rollback statement transaction, it's not started.
+      If called with reopen flag, no need to rollback either,
+      it will be done at statement end.
+    */
+    DBUG_ASSERT(thd->transaction.stmt.is_empty());
     close_thread_tables(thd);
-    thd->set_open_tables(backup_open_tables);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+    thd->set_open_tables(backup_open_tables);
     if (!reopen)
       my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
     else
@@ -578,6 +584,11 @@ retry:
   if (sql_handler_lock_error.need_reopen())
   {
     DBUG_ASSERT(!lock && !thd->is_error());
+    /*
+      Always close statement transaction explicitly,
+      so that the engine doesn't have to count locks.
+    */
+    trans_rollback_stmt(thd);
     mysql_ha_close_table(thd, hash_tables);
     goto retry;
   }
@@ -764,12 +775,18 @@ retry:
     num_rows++;
   }
 ok:
+  /*
+    Always close statement transaction explicitly,
+    so that the engine doesn't have to count locks.
+  */
+  trans_commit_stmt(thd);
   mysql_unlock_tables(thd,lock);
   my_eof(thd);
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
 
 err:
+  trans_rollback_stmt(thd);
   mysql_unlock_tables(thd,lock);
 err0:
   DBUG_PRINT("exit",("ERROR"));
