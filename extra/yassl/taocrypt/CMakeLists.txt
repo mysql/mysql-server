@@ -16,6 +16,8 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL
                     ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include)
 
+ADD_DEFINITIONS("-DYASSL_THREAD_SAFE")
+
 SET(TAOCRYPT_SOURCES		src/aes.cpp src/aestables.cpp src/algebra.cpp src/arc4.cpp src/asn.cpp src/coding.cpp 
 				src/des.cpp src/dh.cpp src/dsa.cpp src/file.cpp src/hash.cpp src/integer.cpp src/md2.cpp 
 				src/md4.cpp src/md5.cpp src/misc.cpp src/random.cpp src/ripemd.cpp src/rsa.cpp src/sha.cpp

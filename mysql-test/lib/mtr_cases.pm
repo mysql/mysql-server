@@ -768,11 +768,13 @@ sub collect_one_test_case {
   # Check for disabled tests
   # ----------------------------------------------------------------------
   my $marked_as_disabled= 0;
-  if ( $disabled->{$tname} )
+  if ( $disabled->{$tname} or $disabled->{"$suitename.$tname"} )
   {
     # Test was marked as disabled in suites disabled.def file
     $marked_as_disabled= 1;
-    $tinfo->{'comment'}= $disabled->{$tname};
+    # Test name may have been disabled with or without suite name part
+    $tinfo->{'comment'}= $disabled->{$tname} || 
+                         $disabled->{"$suitename.$tname"};
   }
 
   my $disabled_file= "$testdir/$tname.disabled";

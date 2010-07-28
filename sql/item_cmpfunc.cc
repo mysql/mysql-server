@@ -2773,6 +2773,8 @@ Item *Item_func_case::find_item(String *str)
     /* Compare every WHEN argument with it and return the first match */
     for (uint i=0 ; i < ncases ; i+=2)
     {
+      if (args[i]->real_item()->type() == NULL_ITEM)
+        continue;
       cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
@@ -4002,9 +4004,17 @@ longlong Item_func_in::val_int()
     return (longlong) (!null_value && tmp != negated);
   }
 
+  if ((null_value= args[0]->real_item()->type() == NULL_ITEM))
+    return 0;
+
   have_null= 0;
   for (uint i= 1 ; i < arg_count ; i++)
   {
+    if (args[i]->real_item()->type() == NULL_ITEM)
+    {
+      have_null= TRUE;
+      continue;
+    }
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
@@ -4568,13 +4578,14 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   if (args[1]->const_item())
   {
     String* res2= args[1]->val_str((String *)&cmp.value2);
+    const char *ptr2;
 
-    if (!res2)
+    if (!res2 || !(ptr2= res2->ptr()))
       return OPTIMIZE_NONE;
 
-    if (*res2->ptr() != wild_many)
+    if (*ptr2 != wild_many)
     {
-      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
 	return OPTIMIZE_OP;
     }
   }

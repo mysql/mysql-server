@@ -76,7 +76,7 @@ SHOW CREATE TABLE mysqltest1.tmp2;
 ERROR 42S02: Table 'mysqltest1.tmp2' doesn't exist
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
-0
+2
 FLUSH LOGS;
 -------- switch to master --------
 FLUSH LOGS;
