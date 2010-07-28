@@ -45,25 +45,28 @@ struct row_setup_instruments
 /** Position of a cursor on PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
 struct pos_setup_instruments : public PFS_double_index
 {
+  static const uint FIRST_VIEW= 1;
   static const uint VIEW_MUTEX= 1;
   static const uint VIEW_RWLOCK= 2;
   static const uint VIEW_COND= 3;
   /** Reverved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
   static const uint VIEW_THREAD= 4;
   static const uint VIEW_FILE= 5;
+  static const uint VIEW_TABLE= 6;
+  static const uint LAST_VIEW= 6;
 
   pos_setup_instruments()
-    : PFS_double_index(VIEW_MUTEX, 1)
+    : PFS_double_index(FIRST_VIEW, 1)
   {}
 
   inline void reset(void)
   {
-    m_index_1= VIEW_MUTEX;
+    m_index_1= FIRST_VIEW;
     m_index_2= 1;
   }
 
   inline bool has_more_view(void)
-  { return (m_index_1 <= VIEW_FILE); }
+  { return (m_index_1 <= LAST_VIEW); }
 
   inline void next_view(void)
   {

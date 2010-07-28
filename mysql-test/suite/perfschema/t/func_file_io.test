@@ -190,3 +190,5 @@ GROUP BY i.user, h.operation
 HAVING BYTES > 0
 ORDER BY i.user, h.operation;
 --enable_result_log
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
