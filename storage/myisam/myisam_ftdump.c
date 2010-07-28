@@ -46,7 +46,7 @@ static struct my_option my_long_options[] =
   {"stats", 's', "Report global stats.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Be verbose.",
-   (uchar**) &verbose, (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -253,18 +253,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
-#include <help_start.h>
 
 static void usage()
 {
   printf("Use: myisam_ftdump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
-  NETWARE_SET_SCREEN_MODE(1);
   exit(1);
 }
 
-#include <help_end.h>
 
 static void complain(int val) /* Kinda assert :-)  */
 {

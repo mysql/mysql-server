@@ -84,10 +84,10 @@ static my_bool get_one_option(int optid, const struct my_option *,
 C_MODE_END
 
 enum {
-  OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
-  OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES, OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS,
-  OPT_LOG_DIR, OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION
+  OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
+  OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
+  OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
+  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION
 };
 
 static int record= 0, opt_sleep= -1;
@@ -156,7 +156,7 @@ static struct st_block *cur_block, *block_stack_end;
 struct st_test_file
 {
   FILE* file;
-  const char *file_name;
+  char *file_name;
   uint lineno; /* Current line in file */
 };
 
@@ -1106,9 +1106,9 @@ void close_connections()
     mysql_close(&next_con->mysql);
     if (next_con->util_mysql)
       mysql_close(next_con->util_mysql);
-    my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(next_con->name);
   }
-  my_free(connections, MYF(MY_WME));
+  my_free(connections);
   DBUG_VOID_RETURN;
 }
 
@@ -1137,7 +1137,7 @@ void close_files()
       DBUG_PRINT("info", ("closing file: %s", cur_file->file_name));
       fclose(cur_file->file);
     }
-    my_free((uchar*) cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(cur_file->file_name);
     cur_file->file_name= 0;
   }
   DBUG_VOID_RETURN;
@@ -1157,22 +1157,22 @@ void free_used_memory()
   for (i= 0 ; i < q_lines.elements ; i++)
   {
     struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
-    my_free((*q)->query_buf,MYF(MY_ALLOW_ZERO_PTR));
+    my_free((*q)->query_buf);
     if ((*q)->content.str)
       dynstr_free(&(*q)->content);
-    my_free((*q),MYF(0));
+    my_free((*q));
   }
   for (i= 0; i < 10; i++)
   {
     if (var_reg[i].alloced_len)
-      my_free(var_reg[i].str_val, MYF(MY_WME));
+      my_free(var_reg[i].str_val);
   }
   while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
+    my_free(embedded_server_args[--embedded_server_arg_count]);
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
   free_all_replace();
-  my_free(opt_pass,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_pass);
   free_defaults(default_argv);
   free_re();
 #ifdef __WIN__
@@ -1933,9 +1933,10 @@ static uchar *get_var_key(const uchar* var, size_t *len,
 
 static void var_free(void *v)
 {
-  my_free(((VAR*) v)->str_val, MYF(MY_WME));
-  if (((VAR*)v)->alloced)
-    my_free(v, MYF(MY_WME));
+  VAR *var= (VAR*) v;
+  my_free(var->str_val);
+  if (var->alloced)
+    my_free(var);
 }
 
 C_MODE_END
@@ -3706,7 +3707,6 @@ void do_send_quit(struct st_command *command)
 void do_change_user(struct st_command *command)
 {
   MYSQL *mysql = &cur_con->mysql;
-  /* static keyword to make the NetWare compiler happy. */
   static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
   const struct command_arg change_user_args[] = {
     { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
@@ -4824,7 +4824,7 @@ void do_close_connection(struct st_command *command)
   con->util_mysql= 0;
   con->pending= FALSE;
   
-  my_free(con->name, MYF(0));
+  my_free(con->name);
 
   /*
     When the connection is closed set name to "-closed_connection-"
@@ -5491,7 +5491,7 @@ int read_line(char *buf, int size)
 	fclose(cur_file->file);
         cur_file->file= 0;
       }
-      my_free((uchar*) cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(cur_file->file_name);
       cur_file->file_name= 0;
       if (cur_file == file_stack)
       {
@@ -5827,7 +5827,7 @@ int read_command(struct st_command** command_ptr)
         (struct st_command*) my_malloc(sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
       insert_dynamic(&q_lines, (uchar*) &command))
-    die(NullS);
+    die("Out of memory");
   command->type= Q_UNKNOWN;
 
   read_command_buf[0]= 0;
@@ -5954,8 +5954,8 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"result-format-version", OPT_RESULT_FORMAT_VERSION,
    "Version of the result file format to use",
-   (uchar**) &opt_result_format_version,
-   (uchar**) &opt_result_format_version, 0,
+   &opt_result_format_version,
+   &opt_result_format_version, 0,
    GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5967,9 +5967,6 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    &silent, &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
-   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Always sleep this many seconds on sleep commands.",
    &opt_sleep, &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, -1, 0,
    0, 0, 0},
@@ -6001,14 +5998,11 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "Number of seconds before connection timeout.",
-   (uchar**) &opt_connect_timeout,
-   (uchar**) &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
+   &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-
-#include <help_start.h>
 
 void print_version(void)
 {
@@ -6027,8 +6021,6 @@ void usage()
   printf("  --no-defaults       Don't read default options from any options file.\n");
   my_print_variables(my_long_options);
 }
-
-#include <help_end.h>
 
 
 /*
@@ -6125,7 +6117,7 @@ get_one_option(int optid, const struct my_option *, char *argument)
       argument= (char*) "";			// Don't require password
     if (argument)
     {
-      my_free(opt_pass, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_pass);
       opt_pass= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       tty_password= 0;
@@ -6157,11 +6149,6 @@ get_one_option(int optid, const struct my_option *, char *argument)
     break;
   case 'F':
     read_embedded_server_arguments(argument);
-    break;
-  case OPT_SKIP_SAFEMALLOC:
-#ifdef SAFEMALLOC
-    sf_malloc_quick=1;
-#endif
     break;
   case OPT_RESULT_FORMAT_VERSION:
     set_result_format_version(opt_result_format_version);
@@ -6321,12 +6308,12 @@ void init_win_path_patterns()
     /* Don't insert zero length strings in patterns array */
     if (strlen(p) == 0)
     {
-      my_free(p, MYF(0));
+      my_free(p);
       continue;
     }
 
     if (insert_dynamic(&patterns, (uchar*) &p))
-      die(NullS);
+      die("Out of memory");
 
     DBUG_PRINT("info", ("p: %s", p));
     while (*p)
@@ -6345,7 +6332,7 @@ void free_win_path_patterns()
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
-    my_free((char*) *pattern, MYF(0));
+    my_free((void *) *pattern);
   }
   delete_dynamic(&patterns);
 }
@@ -6538,12 +6525,12 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   for (i= 0; i < num_fields; i++)
   {
     /* Free data for output */
-    my_free(my_bind[i].buffer, MYF(MY_WME | MY_FAE));
+    my_free(my_bind[i].buffer);
   }
   /* Free array with bind structs, lengths and NULL flags */
-  my_free(my_bind    , MYF(MY_WME | MY_FAE));
-  my_free(length  , MYF(MY_WME | MY_FAE));
-  my_free(is_null , MYF(MY_WME | MY_FAE));
+  my_free(my_bind);
+  my_free(length);
+  my_free(is_null);
 }
 
 
@@ -8493,11 +8480,11 @@ void do_get_replace_column(struct st_command *command)
     if (!*from)
       die("Wrong number of arguments to replace_column in '%s'", command->query);
     to= get_string(&buff, &from, command);
-    my_free(replace_column[column_number-1], MY_ALLOW_ZERO_PTR);
+    my_free(replace_column[column_number-1]);
     replace_column[column_number-1]= my_strdup(to, MYF(MY_WME | MY_FAE));
     set_if_bigger(max_replace_column, column_number);
   }
-  my_free(start, MYF(0));
+  my_free(start);
   command->last_argument= command->end;
 
   DBUG_VOID_RETURN;
@@ -8511,7 +8498,7 @@ void free_replace_column()
   {
     if (replace_column[i])
     {
-      my_free(replace_column[i], 0);
+      my_free(replace_column[i]);
       replace_column[i]= 0;
     }
   }
@@ -8529,7 +8516,7 @@ void free_replace_column()
 typedef struct st_pointer_array {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
   uchar	*str;					/* Strings is here */
-  int7	*flag;					/* Flag about each var. */
+  uint8 *flag;					/* Flag about each var. */
   uint	array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
@@ -8592,7 +8579,7 @@ void do_get_replace(struct st_command *command)
     die("Can't initialize replace from '%s'", command->query);
   free_pointer_array(&from_array);
   free_pointer_array(&to_array);
-  my_free(start, MYF(0));
+  my_free(start);
   command->last_argument= command->end;
   DBUG_VOID_RETURN;
 }
@@ -8601,11 +8588,8 @@ void do_get_replace(struct st_command *command)
 void free_replace()
 {
   DBUG_ENTER("free_replace");
-  if (glob_replace)
-  {
-    my_free(glob_replace,MYF(0));
-    glob_replace=0;
-  }
+  my_free(glob_replace);
+  glob_replace= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -8825,7 +8809,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
   return res;
 
 err:
-  my_free(res,0);
+  my_free(res);
   die("Error parsing replace_regex \"%s\"", expr);
   return 0;
 }
@@ -8917,9 +8901,9 @@ void free_replace_regex()
   if (glob_replace_regex)
   {
     delete_dynamic(&glob_replace_regex->regex_arr);
-    my_free(glob_replace_regex->even_buf,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(glob_replace_regex->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(glob_replace_regex,MYF(0));
+    my_free(glob_replace_regex->even_buf);
+    my_free(glob_replace_regex->odd_buf);
+    my_free(glob_replace_regex);
     glob_replace_regex=0;
   }
 }
@@ -9114,7 +9098,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
       str_p= str_end;
     }
   }
-  my_free(subs, MYF(0));
+  my_free(subs);
   my_regfree(&r);
   *res_p= 0;
   *buf_p= buf;
@@ -9246,7 +9230,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
   if (!(follow=(FOLLOWS*) my_malloc((states+2)*sizeof(FOLLOWS),MYF(MY_WME))))
   {
     free_sets(&sets);
-    my_free(found_set,MYF(0));
+    my_free(found_set);
     DBUG_RETURN(0);
   }
 
@@ -9425,8 +9409,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     for (i=1 ; i <= found_sets ; i++)
     {
       pos=from[found_set[i-1].table_offset];
-      rep_str[i].found= !bcmp((const uchar*) pos,
-			      (const uchar*) "\\^", 3) ? 2 : 1;
+      rep_str[i].found= !memcmp(pos, "\\^", 3) ? 2 : 1;
       rep_str[i].replace_string=to_array[found_set[i-1].table_offset];
       rep_str[i].to_offset=found_set[i-1].found_offset-start_at_word(pos);
       rep_str[i].from_offset=found_set[i-1].found_offset-replace_len(pos)+
@@ -9441,9 +9424,9 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
 	  replace[i].next[j]=(REPLACE*) (rep_str+(-sets.set[i].next[j]-1));
     }
   }
-  my_free(follow,MYF(0));
+  my_free(follow);
   free_sets(&sets);
-  my_free(found_set,MYF(0));
+  my_free(found_set);
   DBUG_PRINT("exit",("Replace table has %d states",sets.count));
   DBUG_RETURN(replace);
 }
@@ -9459,7 +9442,7 @@ int init_sets(REP_SETS *sets,uint states)
   if (!(sets->bit_buffer=(uint*) my_malloc(sizeof(uint)*sets->size_of_bits*
 					   SET_MALLOC_HUNC,MYF(MY_WME))))
   {
-    my_free(sets->set,MYF(0));
+    my_free(sets->set);
     return 1;
   }
   return 0;
@@ -9520,8 +9503,8 @@ void free_last_set(REP_SETS *sets)
 
 void free_sets(REP_SETS *sets)
 {
-  my_free(sets->set_buffer,MYF(0));
-  my_free(sets->bit_buffer,MYF(0));
+  my_free(sets->set_buffer);
+  my_free(sets->bit_buffer);
   return;
 }
 
@@ -9554,8 +9537,8 @@ void copy_bits(REP_SET *to,REP_SET *from)
 
 int cmp_bits(REP_SET *set1,REP_SET *set2)
 {
-  return bcmp((uchar*) set1->bits,(uchar*) set2->bits,
-	      sizeof(uint) * set1->size_of_bits);
+  return memcmp(set1->bits, set2->bits,
+                sizeof(uint) * set1->size_of_bits);
 }
 
 
@@ -9624,17 +9607,15 @@ int find_found(FOUND_SET *found_set,uint table_offset, int found_offset)
 
 uint start_at_word(char * pos)
 {
-  return (((!bcmp((const uchar*) pos, (const uchar*) "\\b",2) && pos[2]) ||
-           !bcmp((const uchar*) pos, (const uchar*) "\\^", 2)) ? 1 : 0);
+  return (((!memcmp(pos, "\\b",2) && pos[2]) ||
+           !memcmp(pos, "\\^", 2)) ? 1 : 0);
 }
 
 uint end_of_word(char * pos)
 {
   char * end=strend(pos);
-  return ((end > pos+2 && !bcmp((const uchar*) end-2,
-                                (const uchar*) "\\b", 2)) ||
-	  (end >= pos+2 && !bcmp((const uchar*) end-2,
-                                (const uchar*) "\\$",2))) ? 1 : 0;
+  return ((end > pos+2 && !memcmp(end-2, "\\b", 2)) ||
+	  (end >= pos+2 && !memcmp(end-2, "\\$",2))) ? 1 : 0;
 }
 
 /****************************************************************************
@@ -9661,12 +9642,12 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
-      my_free((char*) pa->typelib.type_names,MYF(0));
+      my_free(pa->typelib.type_names);
       DBUG_RETURN (-1);
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
 					       sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     pa->length=0;
     pa->max_length=PS_MALLOC-MALLOC_OVERHEAD;
     pa->array_allocs=1;
@@ -9702,7 +9683,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     pa->typelib.type_names=new_array;
     old_count=pa->max_count;
     pa->max_count=len/(sizeof(uchar*) + sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     memcpy((uchar*) pa->flag,(char *) (pa->typelib.type_names+old_count),
 	   old_count*sizeof(*pa->flag));
   }
@@ -9722,9 +9703,9 @@ void free_pointer_array(POINTER_ARRAY *pa)
   if (pa->typelib.count)
   {
     pa->typelib.count=0;
-    my_free((char*) pa->typelib.type_names,MYF(0));
+    my_free(pa->typelib.type_names);
     pa->typelib.type_names=0;
-    my_free(pa->str,MYF(0));
+    my_free(pa->str);
   }
 } /* free_pointer_array */
 

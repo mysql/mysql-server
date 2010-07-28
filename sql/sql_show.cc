@@ -26,7 +26,7 @@
 #include "sql_table.h"                        // filename_to_tablename,
                                               // primary_key_name,
                                               // build_table_filename
-#include "repl_failsafe.h"
+#include "sql_view.h"                           // mysql_frm_type
 #include "sql_parse.h"             // check_access, check_table_access
 #include "sql_partition.h"         // partition_element
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
@@ -1357,7 +1357,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
       packet->append(for_str, strlen(for_str));
       packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
-      my_free(for_str, MYF(0));
+      my_free(for_str);
     }
 
     /*
@@ -1499,7 +1499,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
        table->part_info->set_show_version_string(packet);
        packet->append(part_syntax, part_syntax_len);
        packet->append(STRING_WITH_LEN(" */"));
-       my_free(part_syntax, MYF(0));
+       my_free(part_syntax);
     }
   }
 #endif
@@ -2132,8 +2132,8 @@ static bool show_status_array(THD *thd, const char *wild,
                               bool ucase_names,
                               Item *cond)
 {
-  MY_ALIGNED_BYTE_ARRAY(buff_data, SHOW_VAR_FUNC_BUFF_SIZE, long);
-  char * const buff= (char *) &buff_data;
+  my_aligned_storage<SHOW_VAR_FUNC_BUFF_SIZE, MY_ALIGNOF(long)> buffer;
+  char * const buff= buffer.data;
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
@@ -2631,36 +2631,54 @@ bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
 {
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
+  bool rc= 0;
+
   bzero((char*) lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
   switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     if (wild)
     {
-      lookup_field_values->db_value.str= (char*) wild;
-      lookup_field_values->db_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->db_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_db_value= 1;
     }
-    return 0;
+    break;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
-    lookup_field_values->db_value.str= lex->select_lex.db;
-    lookup_field_values->db_value.length=strlen(lex->select_lex.db);
+    thd->make_lex_string(&lookup_field_values->db_value, 
+                         lex->select_lex.db, strlen(lex->select_lex.db), 0);
     if (wild)
     {
-      lookup_field_values->table_value.str= (char*)wild;
-      lookup_field_values->table_value.length= strlen(wild);
+      thd->make_lex_string(&lookup_field_values->table_value, 
+                           wild, strlen(wild), 0);
       lookup_field_values->wild_table_value= 1;
     }
-    return 0;
+    break;
   default:
     /*
       The "default" is for queries over I_S.
       All previous cases handle SHOW commands.
     */
-    return calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    rc= calc_lookup_values_from_cond(thd, cond, tables, lookup_field_values);
+    break;
   }
+
+  if (lower_case_table_names && !rc)
+  {
+    /* 
+      We can safely do in-place upgrades here since all of the above cases
+      are allocating a new memory buffer for these strings.
+    */  
+    if (lookup_field_values->db_value.str && lookup_field_values->db_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->db_value.str);
+    if (lookup_field_values->table_value.str && 
+        lookup_field_values->table_value.str[0])
+      my_casedn_str(system_charset_info, lookup_field_values->table_value.str);
+  }
+
+  return rc;
 }
 
 
@@ -2862,9 +2880,15 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   {
     if (with_i_schema)
     {
-      if (find_schema_table(thd, lookup_field_vals->table_value.str))
+      LEX_STRING *name;
+      ST_SCHEMA_TABLE *schema_table=
+        find_schema_table(thd, lookup_field_vals->table_value.str);
+      if (schema_table && !schema_table->hidden)
       {
-        if (table_names->push_back(&lookup_field_vals->table_value))
+        if (!(name= 
+              thd->make_lex_string(NULL, schema_table->table_name,
+                                   strlen(schema_table->table_name), TRUE)) ||
+            table_names->push_back(name))
           return 1;
       }
     }
@@ -3328,7 +3352,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
     free_root(&tbl.mem_root, MYF(0));
-    my_free((char*) tbl.alias, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((void *) tbl.alias);
   }
 
 end_share:
@@ -3444,6 +3468,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
     error= 0;
     goto err;
   }
+
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              STR_OR_NIL(lookup_field_vals.db_value.str),
                              STR_OR_NIL(lookup_field_vals.table_value.str)));
@@ -4002,9 +4027,12 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_LONGLONG:
   case MYSQL_TYPE_INT24:
     field_length= field->max_display_length() - 1;
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    field_length= field->max_display_length() - 
+      ((field->flags & UNSIGNED_FLAG) ? 0 : 1);
     break;
   case MYSQL_TYPE_BIT:
     field_length= field->max_display_length();
@@ -5380,7 +5408,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
       if(ts)
       {
         table->field[24]->store(ts, strlen(ts), cs);
-        my_free(ts, MYF(0));
+        my_free(ts);
       }
       else
         table->field[24]->set_null();
@@ -5676,52 +5704,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   DBUG_RETURN(0);
 }
 
-
-#ifdef NOT_USED
-static interval_type get_real_interval_type(interval_type i_type)
-{
-  switch (i_type) {
-  case INTERVAL_YEAR:
-    return INTERVAL_YEAR;
-
-  case INTERVAL_QUARTER:
-  case INTERVAL_YEAR_MONTH:
-  case INTERVAL_MONTH:
-    return INTERVAL_MONTH;
-
-  case INTERVAL_WEEK:
-  case INTERVAL_DAY:
-    return INTERVAL_DAY;
-
-  case INTERVAL_DAY_HOUR:
-  case INTERVAL_HOUR:
-    return INTERVAL_HOUR;
-
-  case INTERVAL_DAY_MINUTE:
-  case INTERVAL_HOUR_MINUTE:
-  case INTERVAL_MINUTE:
-    return INTERVAL_MINUTE;
-
-  case INTERVAL_DAY_SECOND:
-  case INTERVAL_HOUR_SECOND:
-  case INTERVAL_MINUTE_SECOND:
-  case INTERVAL_SECOND:
-    return INTERVAL_SECOND;
-
-  case INTERVAL_DAY_MICROSECOND:
-  case INTERVAL_HOUR_MICROSECOND:
-  case INTERVAL_MINUTE_MICROSECOND:
-  case INTERVAL_SECOND_MICROSECOND:
-  case INTERVAL_MICROSECOND:
-    return INTERVAL_MICROSECOND;
-  case INTERVAL_LAST:
-    DBUG_ASSERT(0);
-  }
-  DBUG_ASSERT(0);
-  return INTERVAL_SECOND;
-}
-
-#endif
 
 #ifdef HAVE_EVENT_SCHEDULER
 /*
@@ -7475,7 +7457,7 @@ int initialize_schema_table(st_plugin_int *plugin)
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
       plugin->data= NULL;
-      my_free(schema_table, MYF(0));
+      my_free(schema_table);
       DBUG_RETURN(1);
     }
     
@@ -7498,7 +7480,7 @@ int finalize_schema_table(st_plugin_int *plugin)
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
     }
-    my_free(schema_table, MYF(0));
+    my_free(schema_table);
   }
   DBUG_RETURN(0);
 }

@@ -404,9 +404,9 @@ static void
 freekeys()
 {
   if (g_keys != 0)
-    my_free((char*)g_keys, MYF(0));
+    my_free(g_keys);
   if (g_sortkeys != 0)
-    my_free((char*)g_sortkeys, MYF(0));
+    my_free(g_sortkeys);
   g_keys = 0;
   g_sortkeys = 0;
 }
@@ -896,7 +896,7 @@ static void
 freeranges()
 {
   if (g_ranges != 0)
-    my_free((char*)g_ranges, MYF(0));
+    my_free(g_ranges);
   g_ranges = 0;
 }
 
@@ -1297,43 +1297,43 @@ my_long_options[] =
 {
   NDB_STD_OPTS("testIndexStat"),
   { "loglevel", 1001, "Logging level in this program 0-3 (default 0)",
-    (uchar **)&g_opts.loglevel, (uchar **)&g_opts.loglevel, 0,
+    &g_opts.loglevel, &g_opts.loglevel, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "seed", 1002, "Random seed (0=loop number, default -1=random)",
-    (uchar **)&g_opts.seed, (uchar **)&g_opts.seed, 0,
+    &g_opts.seed, &g_opts.seed, 0,
     GET_INT, REQUIRED_ARG, -1, 0, 0, 0, 0, 0 },
   { "loop", 1003, "Number of test loops (default 1, 0=forever)",
-    (uchar **)&g_opts.loop, (uchar **)&g_opts.loop, 0,
+    &g_opts.loop, &g_opts.loop, 0,
     GET_INT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0 },
   { "rows", 1004, "Number of rows (default 100000)",
-    (uchar **)&g_opts.rows, (uchar **)&g_opts.rows, 0,
+    &g_opts.rows, &g_opts.rows, 0,
     GET_UINT, REQUIRED_ARG, 100000, 0, 0, 0, 0, 0 },
   { "ops", 1005, "Number of index scans per loop (default 1000)",
-    (uchar **)&g_opts.ops, (uchar **)&g_opts.ops, 0,
+    &g_opts.ops, &g_opts.ops, 0,
     GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0 },
   { "dupkeys", 1006, "Pct records per key (min 100, default 1000)",
-    (uchar **)&g_opts.dupkeys, (uchar **)&g_opts.dupkeys, 0,
+    &g_opts.dupkeys, &g_opts.dupkeys, 0,
     GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0 },
   { "scanpct", 1007, "Preferred max pct of total rows per scan (default 5)",
-    (uchar **)&g_opts.scanpct, (uchar **)&g_opts.scanpct, 0,
+    &g_opts.scanpct, &g_opts.scanpct, 0,
     GET_UINT, REQUIRED_ARG, 5, 0, 0, 0, 0, 0 },
   { "nullkeys", 1008, "Pct nulls in each key attribute (default 10)",
-    (uchar **)&g_opts.nullkeys, (uchar **)&g_opts.nullkeys, 0,
+    &g_opts.nullkeys, &g_opts.nullkeys, 0,
     GET_UINT, REQUIRED_ARG, 10, 0, 0, 0, 0, 0 },
   { "eqscans", 1009, "Pct scans for partial/full equality (default 50)",
-    (uchar **)&g_opts.eqscans, (uchar **)&g_opts.eqscans, 0,
+    &g_opts.eqscans, &g_opts.eqscans, 0,
     GET_UINT, REQUIRED_ARG, 50, 0, 0, 0, 0, 0 },
   { "dupscans", 1010, "Pct scans using same bounds (default 10)",
-    (uchar **)&g_opts.dupscans, (uchar **)&g_opts.dupscans, 0,
+    &g_opts.dupscans, &g_opts.dupscans, 0,
     GET_UINT, REQUIRED_ARG, 10, 0, 0, 0, 0, 0 },
   { "keeptable", 1011, "Use existing table and data if any and do not drop",
-    (uchar **)&g_opts.keeptable, (uchar **)&g_opts.keeptable, 0,
+    &g_opts.keeptable, &g_opts.keeptable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-extra-checks", 1012, "Omit expensive consistency checks",
-    (uchar **)&g_opts.nochecks, (uchar **)&g_opts.nochecks, 0,
+    &g_opts.nochecks, &g_opts.nochecks, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "abort-on-error", 1013, "Dump core on any error",
-    (uchar **)&g_opts.abort, (uchar **)&g_opts.abort, 0,
+    &g_opts.abort, &g_opts.abort, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
     0, 0, 0,

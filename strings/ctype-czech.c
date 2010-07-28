@@ -291,7 +291,8 @@ my_strnxfrmlen_czech(CHARSET_INFO *cs __attribute__((unused)), size_t len)
 
 static size_t
 my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
-                  uchar *dest, size_t len, uint nweights_arg,
+                  uchar *dest, size_t len,
+                  uint nweights_arg __attribute__((unused)),
                   const uchar *src, size_t srclen, uint flags)
 {
   int value;
@@ -426,7 +427,7 @@ static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
  * definition table reworked by Jaromir Dolecek <dolecek@ics.muni.cz>
  */
 
-static uchar NEAR ctype_czech[257] = {
+static uchar ctype_czech[257] = {
 0,
  32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -446,7 +447,7 @@ static uchar NEAR ctype_czech[257] = {
   2,  2,  2,  2,  2,  2,  2, 16,  2,  2,  2,  2,  2,  2,  2, 16,
 };
 
-static uchar NEAR to_lower_czech[] = {
+static uchar to_lower_czech[] = {
   0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -465,7 +466,7 @@ static uchar NEAR to_lower_czech[] = {
 240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,
 };
 
-static uchar NEAR to_upper_czech[] = {
+static uchar to_upper_czech[] = {
   0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -484,7 +485,7 @@ static uchar NEAR to_upper_czech[] = {
 240,209,210,211,212,213,214,247,216,217,218,219,220,221,222,255,
 };
 
-static uchar NEAR sort_order_czech[] = {
+static uchar sort_order_czech[] = {
   0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -609,11 +610,10 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
-    my_unicase_default, /* caseinfo     */
+    &my_unicase_default,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     4,			/* strxfrm_multiply */

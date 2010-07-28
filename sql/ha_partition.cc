@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
@@ -65,10 +65,6 @@
 #include "debug_sync.h"
 
 static const char *ha_par_ext= ".par";
-#ifdef NOT_USED
-static int free_share(PARTITION_SHARE * share);
-static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
-#endif
 
 /****************************************************************************
                 MODULE create/delete handler object
@@ -288,7 +284,7 @@ ha_partition::~ha_partition()
     for (i= 0; i < m_tot_parts; i++)
       delete m_file[i];
   }
-  my_free((char*) m_ordered_rec_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_ordered_rec_buffer);
 
   clear_handler_file();
   DBUG_VOID_RETURN;
@@ -1130,13 +1126,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
                      part, sub_elem->partition_name));
-#ifdef NOT_USED
-          if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                          opt_op_name[flag],
-                          "Start to operate on subpartition %s", 
-                          sub_elem->partition_name))
-            DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
           if ((error= handle_opt_part(thd, check_opt, m_file[part], flag)))
           {
             /* print a line which partition the error belongs to */
@@ -1163,13 +1152,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
       {
         DBUG_PRINT("info", ("Optimize partition %u (%s)", i,
                             part_elem->partition_name));
-#ifdef NOT_USED
-        if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                        opt_op_name[flag],
-                        "Start to operate on partition %s", 
-                        part_elem->partition_name))
-          DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
         if ((error= handle_opt_part(thd, check_opt, m_file[i], flag)))
         {
           /* print a line which partition the error belongs to */
@@ -2268,7 +2250,7 @@ bool ha_partition::create_handler_file(const char *name)
   }
   else
     result= TRUE;
-  my_free((char*) file_buffer, MYF(0));
+  my_free(file_buffer);
   DBUG_RETURN(result);
 }
 
@@ -2286,8 +2268,8 @@ void ha_partition::clear_handler_file()
 {
   if (m_engine_array)
     plugin_unlock_list(NULL, m_engine_array, m_tot_parts);
-  my_free((char*) m_file_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) m_engine_array, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(m_file_buffer);
+  my_free(m_engine_array);
   m_file_buffer= NULL;
   m_engine_array= NULL;
 }
@@ -2496,7 +2478,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
 err3:
   my_afree((gptr) engine_array);
 err2:
-  my_free(file_buffer, MYF(0));
+  my_free(file_buffer);
 err1:
   (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(TRUE);
@@ -4368,6 +4350,58 @@ int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
   m_start_key.keypart_map= keypart_map;
   m_start_key.flag= HA_READ_PREFIX_LAST;
   DBUG_RETURN(common_index_read(buf, TRUE));
+}
+
+
+/*
+  Optimization of the default implementation to take advantage of dynamic
+  partition pruning.
+*/
+int ha_partition::index_read_idx_map(uchar *buf, uint index,
+                                     const uchar *key,
+                                     key_part_map keypart_map,
+                                     enum ha_rkey_function find_flag)
+{
+  int error= HA_ERR_KEY_NOT_FOUND;
+  DBUG_ENTER("ha_partition::index_read_idx_map");
+
+  if (find_flag == HA_READ_KEY_EXACT)
+  {
+    uint part;
+    m_start_key.key= key;
+    m_start_key.keypart_map= keypart_map;
+    m_start_key.flag= find_flag;
+    m_start_key.length= calculate_key_len(table, index, m_start_key.key,
+                                          m_start_key.keypart_map);
+
+    get_partition_set(table, buf, index, &m_start_key, &m_part_spec);
+
+    /* How can it be more than one partition with the current use? */
+    DBUG_ASSERT(m_part_spec.start_part == m_part_spec.end_part);
+
+    for (part= m_part_spec.start_part; part <= m_part_spec.end_part; part++)
+    {
+      if (bitmap_is_set(&(m_part_info->used_partitions), part))
+      {
+        error= m_file[part]->index_read_idx_map(buf, index, key,
+                                                keypart_map, find_flag);
+        if (error != HA_ERR_KEY_NOT_FOUND &&
+            error != HA_ERR_END_OF_FILE)
+          break;
+      }
+    }
+  }
+  else
+  {
+    /*
+      If not only used with READ_EXACT, we should investigate if possible
+      to optimize for other find_flag's as well.
+    */
+    DBUG_ASSERT(0);
+    /* fall back on the default implementation */
+    error= handler::index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  }
+  DBUG_RETURN(error);
 }
 
 

@@ -20,15 +20,8 @@
 #include "rt_index.h"
 #include <m_ctype.h>
 
-#if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
 #include <fcntl.h>
-#else
-#include <process.h>			/* Prototype for getpid */
-#endif
-#endif
-#ifdef VMS
-#include "static.c"
 #endif
 
 static void setup_key_functions(MI_KEYDEF *keyinfo);
@@ -266,25 +259,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 #if SIZEOF_OFF_T == 4
     set_if_smaller(max_data_file_length, INT_MAX32);
     set_if_smaller(max_key_file_length, INT_MAX32);
-#endif
-#if USE_RAID && SYSTEM_SIZEOF_OFF_T == 4
-    set_if_smaller(max_key_file_length, INT_MAX32);
-    if (!share->base.raid_type)
-    {
-      set_if_smaller(max_data_file_length, INT_MAX32);
-    }
-    else
-    {
-      set_if_smaller(max_data_file_length,
-		     (ulonglong) share->base.raid_chunks << 31);
-    }
-#elif !defined(USE_RAID)
-    if (share->base.raid_type)
-    {
-      DBUG_PRINT("error",("Table uses RAID but we don't have RAID support"));
-      my_errno=HA_ERR_UNSUPPORTED;
-      goto err;
-    }
 #endif
     share->base.max_data_file_length=(my_off_t) max_data_file_length;
     share->base.max_key_file_length=(my_off_t) max_key_file_length;
@@ -676,7 +650,7 @@ err:
     mi_report_error(save_errno, name);
   switch (errpos) {
   case 6:
-    my_free((uchar*) m_info,MYF(0));
+    my_free(m_info);
     /* fall through */
   case 5:
     (void) mysql_file_close(info.dfile, MYF(0));
@@ -684,7 +658,7 @@ err:
       break;					/* Don't remove open table */
     /* fall through */
   case 4:
-    my_free((uchar*) share,MYF(0));
+    my_free(share);
     /* fall through */
   case 3:
     if (! lock_error)
@@ -884,7 +858,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
 	key_blocks=state->header.max_block_size_index;
   DBUG_ENTER("mi_state_info_write");
 
-  memcpy_fixed(ptr,&state->header,sizeof(state->header));
+  memcpy(ptr, &state->header, sizeof(state->header));
   ptr+=sizeof(state->header);
 
   /* open_count must be first because of _mi_mark_file_changed ! */
@@ -943,7 +917,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
 uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 {
   uint i,keys,key_parts,key_blocks;
-  memcpy_fixed(&state->header,ptr, sizeof(state->header));
+  memcpy(&state->header, ptr, sizeof(state->header));
   ptr +=sizeof(state->header);
   keys=(uint) state->header.keys;
   key_parts=mi_uint2korr(state->header.key_parts);
@@ -1043,10 +1017,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
   mi_int2store(ptr,base->max_key_length);		ptr +=2;
   mi_int2store(ptr,base->extra_alloc_bytes);		ptr +=2;
   *ptr++= base->extra_alloc_procent;
-  *ptr++= base->raid_type;
-  mi_int2store(ptr,base->raid_chunks);			ptr +=2;
-  mi_int4store(ptr,base->raid_chunksize);		ptr +=4;
-  bzero(ptr,6);						ptr +=6; /* extra */
+  bzero(ptr,13);					ptr +=13; /* extra */
   return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
@@ -1077,17 +1048,8 @@ uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
   base->max_key_length = mi_uint2korr(ptr);		ptr +=2;
   base->extra_alloc_bytes = mi_uint2korr(ptr);		ptr +=2;
   base->extra_alloc_procent = *ptr++;
-  base->raid_type= *ptr++;
-  base->raid_chunks= mi_uint2korr(ptr);			ptr +=2;
-  base->raid_chunksize= mi_uint4korr(ptr);		ptr +=4;
-  /* TO BE REMOVED: Fix for old RAID files */
-  if (base->raid_type == 0)
-  {
-    base->raid_chunks=0;
-    base->raid_chunksize=0;
-  }
 
-  ptr+=6;
+  ptr+=13;
   return ptr;
 }
 
@@ -1230,7 +1192,7 @@ uchar *mi_recinfo_read(uchar *ptr, MI_COLUMNDEF *recinfo)
 }
 
 /**************************************************************************
-Open data file with or without RAID
+Open data file.
 We can't use dup() here as the data file descriptors need to have different
 active seek-positions.
 
@@ -1258,20 +1220,8 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
       data_name= real_data_name;
     }
   }
-#ifdef USE_RAID
-  if (share->base.raid_type)
-  {
-    info->dfile=my_raid_open(data_name,
-			     share->mode | O_SHARE,
-			     share->base.raid_type,
-			     share->base.raid_chunks,
-			     share->base.raid_chunksize,
-			     MYF(MY_WME | MY_RAID));
-  }
-  else
-#endif
-    info->dfile= mysql_file_open(mi_key_file_dfile,
-                                 data_name, share->mode | O_SHARE, MYF(MY_WME));
+  info->dfile= mysql_file_open(mi_key_file_dfile,
+                               data_name, share->mode | O_SHARE, MYF(MY_WME));
   return info->dfile >= 0 ? 0 : 1;
 }
 

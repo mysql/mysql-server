@@ -66,8 +66,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_profile.cc sql_truncate.cc datadict.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
-        sql_join_cache.cc \
-	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
+        sql_join_cache.cc sql_lex.cc sql_list.cc sql_manager.cc\
 	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc sys_vars.cc \
@@ -159,27 +158,22 @@ if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
 else
 	-rm -f libmysqld.a
-	if test "$(host_os)" = "netware" ; \
-		then \
-		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
-		else \
-		  current_dir=`pwd`; \
-		  rm -rf tmp; mkdir tmp; \
-		  (for arc in $(INC_LIB) ./libmysqld_int.a; do \
-		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
-		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
-		    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
-		      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
-		      mkdir $$artmp; cd $$artmp > /dev/null; \
-		      $(AR) x ../../$$arc; \
-		      cd $$current_dir > /dev/null; \
-		      ls $$artmp/* | grep -v SYMDEF; \
-		      continue 2; fi; done; \
-		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
-		  $(AR) r libmysqld.a $(storageobjects); \
-		  $(RANLIB) libmysqld.a	; \
-		  rm -rf tmp; \
-		fi
+	current_dir=`pwd`; \
+	rm -rf tmp; mkdir tmp; \
+	(for arc in $(INC_LIB) ./libmysqld_int.a; do \
+	  arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
+	  artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
+	    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
+	      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
+	        mkdir $$artmp; cd $$artmp > /dev/null; \
+	        $(AR) x ../../$$arc; \
+	        cd $$current_dir > /dev/null; \
+	        ls $$artmp/* | grep -v SYMDEF; \
+	        continue 2; fi; done; \
+	done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a; \
+	$(AR) r libmysqld.a $(storageobjects); \
+	$(RANLIB) libmysqld.a ; \
+	rm -rf tmp
 endif
 
 ## XXX: any time the client interface changes, we'll need to bump

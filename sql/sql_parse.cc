@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"
@@ -80,7 +80,6 @@
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_filter.h"
-#include "repl_failsafe.h"
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
@@ -1059,7 +1058,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (res)
     {
-      x_free(thd->security_ctx->user);
+      my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
       thd->db= save_db;
@@ -1072,8 +1071,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
-      x_free(save_db);
-      x_free(save_security_ctx.user);
+      my_free(save_db);
+      my_free(save_security_ctx.user);
 
       if (cs_number)
       {
@@ -1416,18 +1415,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef EMBEDDED_LIBRARY
     /* Store the buffer in permanent memory */
     my_ok(thd, 0, 0, buff);
-#endif
-#ifdef SAFEMALLOC
-    if (sf_malloc_cur_memory)				// Using SAFEMALLOC
-    {
-      char *end= buff + length;
-      length+= my_snprintf(end, buff_len - length - 1,
-                           end,"  Memory in use: %ldK  Max memory used: %ldK",
-                           (sf_malloc_cur_memory+1023L)/1024L,
-                           (sf_malloc_max_memory+1023L)/1024L);
-    }
-#endif
-#ifndef EMBEDDED_LIBRARY
+#else
     (void) my_net_write(net, (uchar*) buff, length);
     (void) net_flush(net);
     thd->stmt_da->disable_status();
@@ -2426,14 +2414,9 @@ case SQLCOM_PREPARE:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
-    /* This query don't work now. See comment in repl_failsafe.cc */
-#ifndef WORKING_NEW_MASTER
+    /* This query don't work now.*/
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "SHOW NEW MASTER");
     goto error;
-#else
-    res = show_new_master(thd);
-    break;
-#endif
   }
 
 #ifdef HAVE_REPLICATION
@@ -5645,7 +5628,7 @@ void THD::reset_for_next_command()
     thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
-  thd->thread_specific_used= thd->thread_temporary_used= FALSE;
+  thd->thread_specific_used= FALSE;
 
   if (opt_bin_log)
   {
@@ -5661,6 +5644,7 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+  thd->stmt_accessed_table_flag= 0;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
@@ -6086,7 +6070,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 
 void store_position_for_column(const char *name)
 {
-  current_thd->lex->last_field->after=my_const_cast(char*) (name);
+  current_thd->lex->last_field->after=(char*) (name);
 }
 
 bool
@@ -7558,28 +7542,6 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   if (select_lex->item_list.elements)
   {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
-
-#ifdef NOT_NECESSARY_TO_CHECK_CREATE_TABLE_EXIST_WHEN_PREPARING_STATEMENT
-    /* This code throws an ill error for CREATE TABLE t1 SELECT * FROM t1 */
-    /*
-      Only do the check for PS, because we on execute we have to check that
-      against the opened tables to ensure we don't use a table that is part
-      of the view (which can only be done after the table has been opened).
-    */
-    if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
-    {
-      /*
-        For temporary tables we don't have to check if the created table exists
-      */
-      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-          find_table_in_global_list(tables, create_table->db,
-                                    create_table->table_name))
-      {
-	error= FALSE;
-        goto err;
-      }
-    }
-#endif
     if (tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                      UINT_MAX, FALSE))
       goto err;
@@ -7670,7 +7632,7 @@ LEX_USER *create_default_definer(THD *thd)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  get_default_definer(thd, definer);
+  thd->get_definer(definer);
 
   return definer;
 }

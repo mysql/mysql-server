@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -41,7 +41,6 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str= {NULL, 0};
-const LEX_STRING empty_lex_str= { (char*) "", 0 };
 /**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
@@ -456,8 +455,8 @@ Yacc_state::~Yacc_state()
 {
   if (yacc_yyss)
   {
-    my_free(yacc_yyss, MYF(0));
-    my_free(yacc_yyvs, MYF(0));
+    my_free(yacc_yyss);
+    my_free(yacc_yyvs);
   }
 }
 
@@ -2198,7 +2197,7 @@ void st_select_lex::print_limit(THD *thd,
                   */
                   (((subs_type == Item_subselect::IN_SUBS) &&
                     ((Item_in_subselect*)item)->exec_method ==
-                    Item_in_subselect::MATERIALIZATION) ?
+                    Item_in_subselect::EXEC_MATERIALIZATION) ?
                    TRUE :
                    (select_limit->val_int() == LL(1)) &&
                    offset_limit == 0));

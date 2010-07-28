@@ -64,14 +64,14 @@ typedef struct st_hash {
 typedef uint HASH_SEARCH_STATE;
 
 #define my_hash_init(A,B,C,D,E,F,G,H) \
-          _my_hash_init(A,0,B,C,D,E,F,G,H CALLER_INFO)
+          _my_hash_init(A,0,B,C,D,E,F,G,H)
 #define my_hash_init2(A,B,C,D,E,F,G,H,I) \
-          _my_hash_init(A,B,C,D,E,F,G,H,I CALLER_INFO)
+          _my_hash_init(A,B,C,D,E,F,G,H,I)
 my_bool _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
                       ulong default_array_elements, size_t key_offset,
                       size_t key_length, my_hash_get_key get_key,
                       void (*free_element)(void*),
-                      uint flags CALLER_INFO_PROTO);
+                      uint flags);
 void my_hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
 uchar *my_hash_element(HASH *hash, ulong idx);
@@ -100,7 +100,7 @@ my_bool my_hash_check(HASH *hash); /* Only in debug library */
 #define my_hash_clear(H) bzero((char*) (H), sizeof(*(H)))
 #define my_hash_inited(H) ((H)->blength != 0)
 #define my_hash_init_opt(A,B,C,D,E,F,G,H) \
-          (!my_hash_inited(A) && _my_hash_init(A,0,B,C,D,E,F,G, H CALLER_INFO))
+          (!my_hash_inited(A) && _my_hash_init(A,0,B,C,D,E,F,G,H))
 
 #ifdef	__cplusplus
 }

@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
@@ -1106,6 +1106,8 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
+
+  bool update_const_key_parts(Item *conds);
 };
 
 
@@ -1290,7 +1292,7 @@ enum enum_open_type
 
 class SJ_MATERIALIZATION_INFO;
 class Index_hint;
-class Item_in_subselect;
+class Item_exists_subselect;
 
 
 /*
@@ -1366,7 +1368,7 @@ struct TABLE_LIST
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
-  Item          *sj_on_expr;
+  Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
     semi-join (this is different from bitmap of all nest's children because
@@ -1374,9 +1376,7 @@ struct TABLE_LIST
     nest's children).
   */
   table_map     sj_inner_tables;
-  /* Number of IN-compared expressions */
-  uint          sj_in_exprs; 
-  Item_in_subselect  *sj_subq_pred;
+  Item_exists_subselect  *sj_subq_pred;
   SJ_MATERIALIZATION_INFO *sj_mat_info;
 
   /*
@@ -1960,13 +1960,17 @@ typedef struct st_nested_join
   uint              counter_;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
   /*
-    (Valid only for semi-join nests) Bitmap of tables outside the semi-join
-    that are used within the semi-join's ON condition.
+    Tables outside the semi-join that are used within the semi-join's
+    ON condition (ie. the subquery WHERE clause and optional IN equalities).
   */
   table_map         sj_depends_on;
-  /* Outer non-trivially correlated tables */
+  /* Outer non-trivially correlated tables, a true subset of sj_depends_on */
   table_map         sj_corr_tables;
-  List<Item>        sj_outer_expr_list;
+  /*
+    Lists of trivially-correlated expressions from the outer and inner tables
+    of the semi-join, respectively.
+  */
+  List<Item>        sj_outer_exprs, sj_inner_exprs;
   /**
      True if this join nest node is completely covered by the query execution
      plan. This means two things.
@@ -2138,6 +2142,8 @@ inline void mark_as_null_row(TABLE *table)
   table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->s->null_bytes,255);
 }
+
+bool is_simple_order(ORDER *order);
 
 #endif /* MYSQL_CLIENT */
 
