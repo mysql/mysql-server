@@ -1,3 +1,9 @@
+2010-07-27	The InnoDB Team
+
+	* include/mem0pool.h, mem/mem0mem.c, mem/mem0pool.c, srv/srv0start.c:
+	Fix Bug#55581 shutdown with innodb-use-sys-malloc=0: assert
+	mutex->magic_n == MUTEX_MAGIC_N.
+
 2010-06-30	The InnoDB Team
 
 	* btr/btr0sea.c, ha/ha0ha.c, handler/ha_innodb.cc, include/btr0sea.h:
