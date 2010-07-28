@@ -1256,7 +1256,7 @@ innobase_mysql_tmpfile(void)
 		my_close(). */
 
 #ifdef _WIN32
-		/* Note that on Windows, the integer returned by mysql_tmpfile 
+		/* Note that on Windows, the integer returned by mysql_tmpfile
 		has no relation to C runtime file descriptor. Here, we need 
 		to call my_get_osfhandle to get the HANDLE and then convert it 
 		to C runtime filedescriptor. */
