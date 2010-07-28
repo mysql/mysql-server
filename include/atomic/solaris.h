@@ -20,11 +20,17 @@
 
 #define	MY_ATOMIC_MODE	"solaris-atomic"
 
+#if defined(__GNUC__)
+#define atomic_typeof(T,V)      __typeof__(V)
+#else
+#define atomic_typeof(T,V)      T
+#endif
+
 #define uintptr_t void *
 #define atomic_or_ptr_nv(X,Y) (void *)atomic_or_ulong_nv((volatile ulong_t *)X, Y)
 
 #define make_atomic_cas_body(S)                         \
-  uint ## S ## _t sav;                                  \
+  atomic_typeof(uint ## S ## _t, *cmp) sav;             \
   sav = atomic_cas_ ## S(                               \
            (volatile uint ## S ## _t *)a,               \
            (uint ## S ## _t)*cmp,                       \
