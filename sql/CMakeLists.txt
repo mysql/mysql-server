@@ -43,7 +43,7 @@ SET (SQL_SOURCE
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
                ha_partition.cc
-               handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
+               handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
@@ -52,13 +52,13 @@ SET (SQL_SOURCE
                mysqld.cc net_serv.cc  keycaches.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
-               protocol.cc records.cc repl_failsafe.cc set_var.cc 
+               protocol.cc records.cc set_var.cc 
                sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
                sp_rcontext.cc spatial.cc sql_acl.cc sql_analyse.cc sql_base.cc 
                sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
-               sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc 
+               sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
                sql_join_cache.cc debug_sync.cc debug_sync.h
                sql_select.cc sql_show.cc sql_state.c sql_string.cc 
@@ -169,7 +169,10 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
-INSTALL_DEBUG_TARGET(mysqld DESTINATION ${INSTALL_SBINDIR} RENAME mysqld-debug)
+INSTALL_DEBUG_TARGET(mysqld 
+  DESTINATION ${INSTALL_SBINDIR} 
+  PDB_DESTINATION ${INSTALL_SBINDIR}/debug
+  RENAME mysqld-debug)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
@@ -195,22 +198,15 @@ RUN_BISON(
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash mysys)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
-  COMMAND gen_lex_hash ARGS > lex_hash.h.tmp &&
-  ${CMAKE_COMMAND} -E copy_if_different lex_hash.h.tmp lex_hash.h
-  COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
+  COMMAND gen_lex_hash > lex_hash.h
+)
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
-TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex   
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource

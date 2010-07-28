@@ -28,19 +28,21 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@sql_union_dirs@ \
 			unittest/mytap \
 			@sql_server@ unittest @man_dirs@ tests \
-			netware @libmysqld_dirs@ \
+			@libmysqld_dirs@ \
 			mysql-test support-files sql-bench \
 			win \
+			packaging \
 			cmake
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
 			pstack libservices \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
-			netware libmysqld \
+			libmysqld \
 			mysql-test support-files sql-bench \
 			win \
 			cmake \
+			packaging \
 			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 

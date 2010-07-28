@@ -187,6 +187,7 @@ insert into t1 select A.a + 10*(B.a + 10*C.a), 'bbb','filler' from t0 A, t0 B, t
 update t1 set b=repeat(char(65+a), 20) where a < 25;
 
 --echo This must show range + using index condition:
+--replace_column 9 x
 explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 drop table t0,t1;

@@ -179,11 +179,6 @@ int main(int argc, char *argv[])
 	printf("can't find key1: \"%s\"\n",(char*) key);
 	goto err;
       }
-#ifdef NOT_USED
-      if (file->current_ptr == hp_find_block(&file->s->block,0) ||
-	  file->current_ptr == hp_find_block(&file->s->block,1))
-	continue;			/* Don't remove 2 first records */
-#endif
       if (heap_delete(file,record))
       {
 	printf("error: %d; can't delete record: \"%s\"\n", my_errno,(char*) record);
@@ -401,7 +396,7 @@ int main(int argc, char *argv[])
   bmove(record2,record,reclength);
   if (heap_rsame(file,record,-1) || heap_rsame(file,record2,2))
     goto err;
-  if (bcmp(record2,record,reclength))
+  if (memcmp(record2,record,reclength))
   {
     puts("heap_rsame didn't find right record");
     goto end;
@@ -410,7 +405,7 @@ int main(int argc, char *argv[])
   puts("- Test of read through position");
   if (heap_rrnd(file,record,position))
     goto err;
-  if (bcmp(record3,record,reclength))
+  if (memcmp(record3,record,reclength))
   {
     puts("heap_frnd didn't find right record");
     goto end;

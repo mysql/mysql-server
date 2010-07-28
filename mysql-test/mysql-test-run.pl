@@ -165,6 +165,7 @@ our @opt_extra_mysqld_opt;
 my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
+my @opt_skip_test_list;
 our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -326,7 +327,7 @@ sub main {
   }
 
   mtr_report("Collecting tests...");
-  my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases);
+  my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases, \@opt_skip_test_list);
 
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
@@ -948,6 +949,7 @@ sub command_line_setup {
 
              'help|h'                   => \$opt_usage,
              'list-options'             => \$opt_list_options,
+             'skip-test-list=s'         => \@opt_skip_test_list
            );
 
   GetOptions(%options) or usage("Can't read options");
@@ -3178,7 +3180,6 @@ sub start_run_one ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/$run.test");
 
   my $errfile= "$opt_vardir/tmp/$name.err";
@@ -3757,25 +3758,6 @@ sub extract_server_log ($$) {
   }
   $Ferr = undef; # Close error log file
 
-  # mysql_client_test.test sends a COM_DEBUG packet to the server
-  # to provoke a SAFEMALLOC leak report, ignore any warnings
-  # between "Begin/end safemalloc memory dump"
-  if ( grep(/Begin safemalloc memory dump:/, @lines) > 0)
-  {
-    my $discard_lines= 1;
-    foreach my $line ( @lines )
-    {
-      if ($line =~ /Begin safemalloc memory dump:/){
-	$discard_lines = 1;
-      } elsif ($line =~ /End safemalloc memory dump./){
-	$discard_lines = 0;
-      }
-
-      if ($discard_lines){
-	$line = "ignored";
-      }
-    }
-  }
   return @lines;
 }
 
@@ -3871,8 +3853,6 @@ sub start_check_warnings ($$) {
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-
-  mtr_add_arg($args, "--loose-skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
   if ( $opt_embedded_server )
@@ -4303,8 +4283,6 @@ sub mysqld_arguments ($$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "--loose-skip-safemalloc");
-
     if ( $mysql_version_id < 50100 )
     {
       mtr_add_arg($args, "--skip-bdb");
@@ -4831,7 +4809,12 @@ sub start_servers($) {
 
       # Save this test case information, so next can examine it
       $mysqld->{'started_tinfo'}= $tinfo;
-      mtr_milli_sleep(500);
+
+      # Wait until server's uuid is generated. This avoids that master and
+      # slave generate the same UUID sporadically.
+      sleep_until_file_created("$datadir/auto.cnf", $opt_start_timeout,
+                               $mysqld->{'proc'});
+
     }
 
   }
@@ -4898,9 +4881,6 @@ sub start_check_testcase ($$$) {
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-
-  mtr_add_arg($args, "--skip-safemalloc");
-
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
@@ -4941,7 +4921,6 @@ sub start_mysqltest ($) {
 
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--silent");
-  mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
@@ -5183,7 +5162,7 @@ sub ddd_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "file $$exe\n" .
+	       "file ../sql/.libs/mysqld\n" .
 	       "set args $str\n" .
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
@@ -5441,6 +5420,9 @@ Options to control what test suites or cases to run
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
+  skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
+                        is an entry and should be formatted as: 
+                        <TESTNAME> : <COMMENT>
 
 Options that specify ports
 

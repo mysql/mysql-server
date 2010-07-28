@@ -21,8 +21,8 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 target =	libmysqlclient.la
-target_defs =	-DMYSQL_CLIENT_NO_THREADS -DDONT_USE_RAID \
-		-DDISABLE_MYSQL_THREAD_H @LIB_EXTRA_CCFLAGS@
+target_defs =	-DMYSQL_CLIENT_NO_THREADS -DDISABLE_MYSQL_THREAD_H \
+		@LIB_EXTRA_CCFLAGS@
 
 LIBS =		@CLIENT_LIBS@ 
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
@@ -33,7 +33,7 @@ include $(srcdir)/Makefile.shared
 libmysqlclient_la_SOURCES = $(target_sources)
 libmysqlclient_la_LIBADD = $(target_libadd) $(yassl_las)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
-EXTRA_DIST = Makefile.shared libmysql.def dll.c CMakeLists.txt
+EXTRA_DIST = Makefile.shared libmysql.def CMakeLists.txt
 noinst_HEADERS = client_settings.h
 
 link_sources:
@@ -79,10 +79,10 @@ link_sources:
 # a minimal MySQL client library
 #
 # For a really minimal distribution (without debugging code) we could
-# keep only the stubs for safemalloc.c and debug.c
+# keep only the stubs for debug.c
 #
 # A list of needed headers collected from the deps information 000213
-nh =		my_global.h config-win32.h dbug.h errmsg.h \
+nh =		my_global.h dbug.h errmsg.h \
 		m_ctype.h m_string.h password.h \
 		my_alarm.h my_config.h my_dir.h my_list.h my_net.h my_sys.h \
 		mysql.h mysql_com.h mysql_version.h mysqld_error.h \

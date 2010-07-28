@@ -140,7 +140,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length=_mi_calc_blob_length(keyseg->bit_start,pos);
-      memcpy_fixed((uchar*) &pos,pos+keyseg->bit_start,sizeof(char*));
+      memcpy(&pos,pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);

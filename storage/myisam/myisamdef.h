@@ -26,8 +26,9 @@
 #endif
 #include <mysql/psi/mysql_file.h>
 
-#if defined(my_write) && !defined(MAP_TO_USE_RAID)
-#undef my_write				/* undef map from my_nosys; We need test-if-disk full */
+/* undef map from my_nosys; We need test-if-disk full */
+#if defined(my_write)
+#undef my_write
 #endif
 
 typedef struct st_mi_status_info
@@ -130,9 +131,6 @@ typedef struct st_mi_base_info
   /* Extra allocation when using dynamic record format */
   uint extra_alloc_bytes;
   uint extra_alloc_procent;
-  /* Info about raid */
-  uint raid_type,raid_chunks;
-  ulong raid_chunksize;
   /* The following are from the header */
   uint key_parts,all_key_parts;
 } MI_BASE_INFO;
@@ -352,11 +350,11 @@ typedef struct st_mi_sort_param
   int (*key_read)(struct st_mi_sort_param *,void *);
   int (*key_write)(struct st_mi_sort_param *, const void *);
   void (*lock_in_memory)(MI_CHECK *);
-  NEAR int (*write_keys)(struct st_mi_sort_param *, register uchar **,
-                     uint , struct st_buffpek *, IO_CACHE *);
-  NEAR uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
-  NEAR int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
-                       uint, uint);
+  int (*write_keys)(struct st_mi_sort_param *, register uchar **,
+                    uint , struct st_buffpek *, IO_CACHE *);
+  uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
+  int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
+                   uint, uint);
 } MI_SORT_PARAM;
 
 	/* Some defines used by isam-funktions */
@@ -480,8 +478,8 @@ extern mysql_mutex_t THR_LOCK_myisam;
 	/* Some extern variables */
 
 extern LIST *myisam_open_list;
-extern uchar NEAR myisam_file_magic[],NEAR myisam_pack_file_magic[];
-extern uint NEAR myisam_read_vec[],NEAR myisam_readnext_vec[];
+extern uchar myisam_file_magic[], myisam_pack_file_magic[];
+extern uint myisam_read_vec[], myisam_readnext_vec[];
 extern uint myisam_quick_table_bits;
 extern File myisam_log_file;
 extern ulong myisam_pid;
@@ -549,10 +547,6 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			   MI_KEY_PARAM *s_temp);
 void _mi_store_var_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			     MI_KEY_PARAM *s_temp);
-#ifdef NOT_USED
-void _mi_store_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
-			 MI_KEY_PARAM *s_temp);
-#endif
 void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo,  uchar *key_pos,
 			    MI_KEY_PARAM *s_temp);
 
@@ -781,9 +775,9 @@ int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
 
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);
-void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
-void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
-void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
+void mi_check_print_error(MI_CHECK *param, const char *fmt,...);
+void mi_check_print_warning(MI_CHECK *param, const char *fmt,...);
+void mi_check_print_info(MI_CHECK *param, const char *fmt,...);
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);

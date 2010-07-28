@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 My QL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* classes to use when handling where clause */
@@ -361,6 +361,11 @@ public:
   */
   virtual void dbug_dump(int indent, bool verbose)= 0;
 #endif
+
+  /*
+    Returns a QUICK_SELECT with reverse order of to the index.
+  */
+  virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
 };
 
 
@@ -470,6 +475,9 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
+private:
+  /* Default copy ctor used by QUICK_SELECT_DESC */
 };
 
 
@@ -547,6 +555,7 @@ public:
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I
 {
+  Unique *unique;
 public:
   QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
   ~QUICK_INDEX_MERGE_SELECT();
@@ -733,7 +742,7 @@ private:
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I
 {
 private:
-  handler *file;         /* The handler used to get data. */
+  handler * const file;   /* The handler used to get data. */
   JOIN *join;            /* Descriptor of the current query */
   KEY  *index_info;      /* The index chosen for data access */
   uchar *record;          /* Buffer where the next record is returned. */
@@ -820,6 +829,10 @@ public:
   int get_next();
   bool reverse_sorted() { return 1; }
   int get_type() { return QS_TYPE_RANGE_DESC; }
+  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg)
+  {
+    return this; // is already reverse sorted
+  }
 private:
   bool range_reads_after_key(QUICK_RANGE *range);
   int reset(void) { rev_it.rewind(); return QUICK_RANGE_SELECT::reset(); }
@@ -846,12 +859,17 @@ class SQL_SELECT :public Sql_alloc {
   SQL_SELECT();
   ~SQL_SELECT();
   void cleanup();
+  void set_quick(QUICK_SELECT_I *new_quick) { delete quick; quick= new_quick; }
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   {
     key_map tmp(key_map::ALL_BITS);
     return test_quick_select(thd, tmp, 0, limit, force_quick_range, FALSE) < 0;
   }
-  inline bool skip_record() { return cond ? cond->val_int() == 0 : 0; }
+  inline bool skip_record(THD *thd, bool *skip_record)
+  {
+    *skip_record= cond ? cond->val_int() == FALSE : FALSE;
+    return thd->is_error();
+  }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
 			ha_rows limit, bool force_quick_range, 
                         bool ordered_output);
@@ -874,7 +892,6 @@ FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key);
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              struct st_table_ref *ref,
                                              ha_rows records);
-uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, Item *conds,
                         bool allow_null_cond,  int *error);

@@ -81,9 +81,6 @@ select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_thread_count";
 
 select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_mapped_file";
-
-select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_status";
 
 select count(name) from MUTEX_INSTANCES
@@ -135,9 +132,6 @@ select count(name) from MUTEX_INSTANCES
 
 select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOCK_server_started";
-
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_rpl_status";
 
 select count(name) from MUTEX_INSTANCES
  where name like "wait/synch/mutex/sql/LOG_INFO::lock";
@@ -232,9 +226,6 @@ select count(name) from COND_INSTANCES
 
 select count(name) from COND_INSTANCES
  where name like "wait/synch/cond/sql/COND_flush_thread_cache";
-
-select count(name) from COND_INSTANCES
- where name like "wait/synch/cond/sql/COND_rpl_status";
 
 select count(name) from COND_INSTANCES
  where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";

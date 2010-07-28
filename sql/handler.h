@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -33,10 +33,6 @@
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
-
-#ifndef NO_HASH
-#define NO_HASH				/* Not yet implemented */
-#endif
 
 // the following is for checking tables
 
@@ -101,7 +97,10 @@
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
   If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, it means that to position()
-  uses a primary key. Without primary key, we can't call position().
+  uses a primary key given by the record argument.
+  Without primary key, we can't call position().
+  If not set, the position is returned as the current rows position
+  regardless of what argument is given.
 */ 
 #define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16) 
 #define HA_CAN_RTREEKEYS       (1 << 17)
@@ -461,11 +460,7 @@ typedef struct xid_t XID;
 
 /* for recover() handlerton call */
 #define MIN_XID_LIST_SIZE  128
-#ifdef SAFEMALLOC
-#define MAX_XID_LIST_SIZE  256
-#else
 #define MAX_XID_LIST_SIZE  (1024*128)
-#endif
 
 /*
   These structures are used to pass information from a set of SQL commands
@@ -1635,6 +1630,19 @@ public:
   /* Estimates calculation */
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
+
+
+/**
+   The cost of reading a set of ranges from the table using an index
+   to access it.
+   
+   @param index  The index number.
+   @param ranges The number of ranges to be read.
+   @param rows   Total number of rows to be read.
+   
+   This method can be used to calculate the total cost of scanning a table
+   using an index by calling it using read_time(index, 1, table_size).
+*/
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
 
@@ -1809,10 +1817,9 @@ public:
   virtual int rnd_next(uchar *buf)=0;
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
   /**
-    One has to use this method when to find
-    random position by record as the plain
-    position() call doesn't work for some
-    handlers for random position.
+    This function only works for handlers having
+    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION set.
+    It will return the row with the PK given in the record argument.
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
@@ -1830,6 +1837,12 @@ public:
     { return HA_ERR_WRONG_COMMAND; }
   virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
     { return (ha_rows) 10; }
+  /*
+    If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, then it sets ref
+    (reference to the row, aka position, with the primary key given in
+    the record).
+    Otherwise it set ref to the current row.
+  */
   virtual void position(const uchar *record)=0;
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_STATS *stat_info,

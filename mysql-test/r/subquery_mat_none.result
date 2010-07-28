@@ -137,7 +137,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2i	index	NULL	it2i3	18	NULL	5	60.00	Using index
+2	DEPENDENT SUBQUERY	t2i	index	NULL	it2i3	18	NULL	3	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having (((<cache>(`test`.`t1`.`a1`) = `test`.`t2i`.`b1`) or isnull(`test`.`t2i`.`b1`)) and ((<cache>(`test`.`t1`.`a2`) = max(`test`.`t2i`.`b2`)) or isnull(max(`test`.`t2i`.`b2`))) and <is_not_null_test>(`test`.`t2i`.`b1`) and <is_not_null_test>(max(`test`.`t2i`.`b2`)))))
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
@@ -148,11 +148,11 @@ prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2)
 execute st1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	t2i	index	NULL	it2i3	18	NULL	5	Using index
+2	DEPENDENT SUBQUERY	t2i	index	NULL	it2i3	18	NULL	3	Using index
 execute st1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	t2i	index	NULL	it2i3	18	NULL	5	Using index
+2	DEPENDENT SUBQUERY	t2i	index	NULL	it2i3	18	NULL	3	Using index
 prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
 execute st2;
 a1	a2

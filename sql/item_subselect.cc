@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -326,8 +326,8 @@ bool Item_subselect::exec()
 bool Item_in_subselect::exec()
 {
   DBUG_ENTER("Item_in_subselect::exec");
-  DBUG_ASSERT(exec_method != MATERIALIZATION ||
-              (exec_method == MATERIALIZATION &&
+  DBUG_ASSERT(exec_method != EXEC_MATERIALIZATION ||
+              (exec_method == EXEC_MATERIALIZATION &&
                engine->engine_type() == subselect_engine::HASH_SJ_ENGINE));
   /*
     Initialize the cache of the left predicate operand. This has to be done as
@@ -342,7 +342,8 @@ bool Item_in_subselect::exec()
     - on a cost-based basis, that takes into account the cost of a cache
       lookup, the cache hit rate, and the savings per cache hit.
   */
-  if (need_expr_cache && !left_expr_cache && exec_method == MATERIALIZATION &&
+  if (need_expr_cache && !left_expr_cache &&
+      exec_method == EXEC_MATERIALIZATION &&
       init_left_expr_cache())
     DBUG_RETURN(TRUE);
 
@@ -724,7 +725,8 @@ bool Item_singlerow_subselect::val_bool()
 
 
 Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
-  Item_subselect()
+  Item_subselect(), value(FALSE), exec_method(EXEC_UNSPECIFIED),
+     sj_convert_priority(0), embedding_join_nest(NULL)
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
   bool val_bool();
@@ -732,7 +734,6 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
   max_columns= UINT_MAX;
   null_value= 0; //can't be NULL
   maybe_null= 0; //can't be NULL
-  value= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -761,17 +762,15 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
-  Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-  need_expr_cache(TRUE),
-  optimizer(0), pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED),
-  upper_item(0)
+  Item_exists_subselect(), left_expr(left_exp), left_expr_cache(NULL),
+  first_execution(TRUE), need_expr_cache(TRUE), expr(NULL),
+  optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
+  pushed_cond_guards(NULL), upper_item(NULL)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
-  left_expr= left_exp;
   init(select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   maybe_null= 1;
-  abort_on_null= 0;
   reset();
   //if test_limit will fail then error will be reported to client
   test_limit(select_lex->master_unit());
@@ -1173,7 +1172,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     If this IN predicate can be computed via materialization, do not
     perform the IN -> EXISTS transformation.
   */
-  if (exec_method == MATERIALIZATION)
+  if (exec_method == EXEC_MATERIALIZATION)
     DBUG_RETURN(RES_OK);
 
   /* Perform the IN=>EXISTS transformation. */
@@ -1452,7 +1451,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     If this IN predicate can be computed via materialization, do not
     perform the IN -> EXISTS transformation.
   */
-  if (exec_method == MATERIALIZATION)
+  if (exec_method == EXEC_MATERIALIZATION)
     DBUG_RETURN(RES_OK);
 
   /* Perform the IN=>EXISTS transformation. */
@@ -1712,7 +1711,7 @@ Item_subselect::trans_res
 Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 {
   Query_arena *arena, backup;
-  SELECT_LEX *current= thd->lex->current_select, *up;
+  SELECT_LEX *current= thd->lex->current_select;
   const char *save_where= thd->where;
   Item_subselect::trans_res res= RES_ERROR;
   bool result;
@@ -1768,8 +1767,8 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     If we didn't choose an execution method up to this point, we choose
     the IN=>EXISTS transformation.
   */
-  if (exec_method == NOT_TRANSFORMED)
-    exec_method= IN_TO_EXISTS;
+  if (exec_method == EXEC_UNSPECIFIED)
+    exec_method= EXEC_EXISTS;
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
@@ -1803,7 +1802,7 @@ err:
 
 void Item_in_subselect::print(String *str, enum_query_type query_type)
 {
-  if (exec_method == IN_TO_EXISTS)
+  if (exec_method == EXEC_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
@@ -1818,7 +1817,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
 
-  if (exec_method == SEMI_JOIN)
+  if (exec_method == EXEC_SEMI_JOIN)
     return !( (*ref)= new Item_int(1));
 
   if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
@@ -1884,7 +1883,7 @@ bool Item_in_subselect::setup_engine()
       */
       delete new_engine;
       new_engine= NULL;
-      exec_method= NOT_TRANSFORMED;
+      exec_method= EXEC_UNSPECIFIED;
       if (left_expr->cols() == 1)
         trans_res= single_value_in_to_exists_transformer(old_engine->join,
                                                          &eq_creator);
@@ -1995,7 +1994,7 @@ bool Item_in_subselect::init_left_expr_cache()
 
 bool Item_in_subselect::is_expensive_processor(uchar *arg)
 {
-  return exec_method == MATERIALIZATION;
+  return exec_method == EXEC_MATERIALIZATION;
 }
 
 
@@ -2003,7 +2002,7 @@ Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_allany_subselect::select_transformer");
-  exec_method= IN_TO_EXISTS;
+  exec_method= EXEC_EXISTS;
   if (upper_item)
     upper_item->show= 1;
   DBUG_RETURN(select_in_like_transformer(join, func));
@@ -2012,7 +2011,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
 
 void Item_allany_subselect::print(String *str, enum_query_type query_type)
 {
-  if (exec_method == IN_TO_EXISTS)
+  if (exec_method == EXEC_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
