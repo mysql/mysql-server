@@ -1,0 +1,1 @@
+--loose-ssl-key=$MYSQL_TEST_DIR/std_data/server8k-key.pem --loose-ssl-cert=$MYSQL_TEST_DIR/std_data/server8k-cert.pem
