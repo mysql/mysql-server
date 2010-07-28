@@ -284,3 +284,20 @@ INSERT INTO t1 VALUES('A ', 'A ');
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug #55472: Assertion failed in heap_rfirst function of hp_rfirst.c
+--echo #             on DELETE statement
+--echo #
+
+CREATE TABLE t1 (col_int_nokey INT,
+                 col_int_key INT,
+		 INDEX(col_int_key) USING HASH) ENGINE = HEAP;
+INSERT INTO t1 (col_int_nokey, col_int_key) VALUES (3, 0), (4, 0), (3, 1);
+
+DELETE FROM t1 WHERE col_int_nokey = 5 ORDER BY col_int_key LIMIT 2;
+
+DROP TABLE t1;
+
+--echo End of 5.5 tests
+

@@ -382,3 +382,14 @@ INSERT INTO t1 VALUES('A ', 'A ');
 ERROR 23000: Duplicate entry 'A -A ' for key 'key1'
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Bug #55472: Assertion failed in heap_rfirst function of hp_rfirst.c
+#             on DELETE statement
+#
+CREATE TABLE t1 (col_int_nokey INT,
+col_int_key INT,
+INDEX(col_int_key) USING HASH) ENGINE = HEAP;
+INSERT INTO t1 (col_int_nokey, col_int_key) VALUES (3, 0), (4, 0), (3, 1);
+DELETE FROM t1 WHERE col_int_nokey = 5 ORDER BY col_int_key LIMIT 2;
+DROP TABLE t1;
+End of 5.5 tests
