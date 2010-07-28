@@ -128,3 +128,13 @@ INSERT INTO t1(p,a) VALUES (0,1);
 INSERT INTO t1(p,a) VALUES (NULL,0);
 SELECT a, p, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
 DROP TABLE t1;
+
+#
+# Bug#610890: SHOW CREATE TABLE with a virtual column
+#
+
+CREATE TABLE t1 (a char(32), v char(32) CHARACTER SET ucs2 AS (a) VIRTUAL);
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
