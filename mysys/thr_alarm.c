@@ -306,7 +306,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 #if defined(MAIN) && !defined(__bsdi__)
     printf("thread_alarm in process_alarm\n"); fflush(stdout);
 #endif
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
     my_sigset(thr_client_alarm, process_alarm);	/* int. thread system calls */
 #endif
     return;
@@ -325,7 +325,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 #endif
   process_alarm_part2(sig);
 #ifndef USE_ALARM_THREAD
-#if defined(DONT_REMEMBER_SIGNAL) && !defined(USE_ONE_SIGNAL_HAND)
+#if defined(SIGNAL_HANDLER_RESET_ON_DELIVERY) && !defined(USE_ONE_SIGNAL_HAND)
   my_sigset(THR_SERVER_ALARM,process_alarm);
 #endif
   pthread_mutex_unlock(&LOCK_alarm);
@@ -523,12 +523,12 @@ void thr_alarm_info(ALARM_INFO *info)
 */
 
 
-static sig_handler thread_alarm(int sig)
+static sig_handler thread_alarm(int sig __attribute__((unused)))
 {
 #ifdef MAIN
   printf("thread_alarm\n"); fflush(stdout);
 #endif
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,thread_alarm);		/* int. thread system calls */
 #endif
 }
@@ -797,7 +797,7 @@ static sig_handler print_signal_warning(int sig)
 {
   printf("Warning: Got signal %d from thread %s\n",sig,my_thread_name());
   fflush(stdout);
-#ifdef DONT_REMEMBER_SIGNAL
+#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
   if (sig == SIGALRM)

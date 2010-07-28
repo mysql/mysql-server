@@ -153,14 +153,14 @@ static struct my_option my_long_options[] =
 
 #ifndef __WIN__
   { "angel-pid-file", OPT_ANGEL_PID_FILE, "Pid file for angel process.",
-    (uchar* *) &Options::Daemon::angel_pid_file_name,
-    (uchar* *) &Options::Daemon::angel_pid_file_name,
+    &Options::Daemon::angel_pid_file_name,
+    &Options::Daemon::angel_pid_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
 
   { "bind-address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
-    (uchar* *) &Options::Main::bind_address,
-    (uchar* *) &Options::Main::bind_address,
+    &Options::Main::bind_address,
+    &Options::Main::bind_address,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "check-password-file", OPT_CHECK_PASSWORD_FILE,
@@ -173,15 +173,15 @@ static struct my_option my_long_options[] =
 
 #ifndef DBUG_OFF
   {"debug", '#', "Debug log.",
-   (uchar* *) &Options::Debug::config_str,
-   (uchar* *) &Options::Debug::config_str,
+   &Options::Debug::config_str,
+   &Options::Debug::config_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 
   { "default-mysqld-path", OPT_MYSQLD_PATH, "Where to look for MySQL"
     " Server binary.",
-    (uchar* *) &Options::Main::default_mysqld_path,
-    (uchar* *) &Options::Main::default_mysqld_path,
+    &Options::Main::default_mysqld_path,
+    &Options::Main::default_mysqld_path,
     0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "drop-user", OPT_DROP_USER,
@@ -194,8 +194,8 @@ static struct my_option my_long_options[] =
 
 #ifdef __WIN__
   { "install", OPT_INSTALL_SERVICE, "Install as system service.",
-    (uchar* *) &Options::Service::install_as_service,
-    (uchar* *) &Options::Service::install_as_service,
+    &Options::Service::install_as_service,
+    &Options::Service::install_as_service,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
 #endif
 
@@ -205,22 +205,22 @@ static struct my_option my_long_options[] =
 
 #ifndef __WIN__
   { "log", OPT_LOG, "Path to log file. Used only with --run-as-service.",
-    (uchar* *) &Options::Daemon::log_file_name,
-    (uchar* *) &Options::Daemon::log_file_name,
+    &Options::Daemon::log_file_name,
+    &Options::Daemon::log_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
 
   { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor"
     " instances in seconds.",
-    (uchar* *) &Options::Main::monitoring_interval,
-    (uchar* *) &Options::Main::monitoring_interval,
+    &Options::Main::monitoring_interval,
+    &Options::Main::monitoring_interval,
     0, GET_UINT, REQUIRED_ARG, DEFAULT_MONITORING_INTERVAL,
     0, 0, 0, 0, 0 },
 
   { "mysqld-safe-compatible", OPT_MYSQLD_SAFE_COMPATIBLE,
     "Start Instance Manager in mysqld_safe-compatible manner.",
-    (uchar* *) &Options::Main::mysqld_safe_compatible,
-    (uchar* *) &Options::Main::mysqld_safe_compatible,
+    &Options::Main::mysqld_safe_compatible,
+    &Options::Main::mysqld_safe_compatible,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
 
   { "print-password-line", OPT_PRINT_PASSWORD_LINE,
@@ -228,61 +228,61 @@ static struct my_option my_long_options[] =
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "password", OPT_PASSWORD, "Password to update the password file.",
-    (uchar* *) &Options::User_management::password,
-    (uchar* *) &Options::User_management::password,
+    &Options::User_management::password,
+    &Options::User_management::password,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "password-file", OPT_PASSWORD_FILE,
     "Look for Instance Manager users and passwords here.",
-    (uchar* *) &Options::Main::password_file_name,
-    (uchar* *) &Options::Main::password_file_name,
+    &Options::Main::password_file_name,
+    &Options::Main::password_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "pid-file", OPT_PID_FILE, "Pid file to use.",
-    (uchar* *) &Options::Main::pid_file_name,
-    (uchar* *) &Options::Main::pid_file_name,
+    &Options::Main::pid_file_name,
+    &Options::Main::pid_file_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "port", OPT_PORT, "Port number to use for connections.",
-    (uchar* *) &Options::Main::port_number,
-    (uchar* *) &Options::Main::port_number,
+    &Options::Main::port_number,
+    &Options::Main::port_number,
     0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
 
 #ifdef __WIN__
   { "remove", OPT_REMOVE_SERVICE, "Remove system service.",
-    (uchar* *) &Options::Service::remove_service,
-    (uchar* *) &Options::Service::remove_service,
+    &Options::Service::remove_service,
+    &Options::Service::remove_service,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
 #else
   { "run-as-service", OPT_RUN_AS_SERVICE,
     "Daemonize and start angel process.",
-    (uchar* *) &Options::Daemon::run_as_service,
+    &Options::Daemon::run_as_service,
     0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
 #endif
 
 #ifndef __WIN__
   { "socket", OPT_SOCKET, "Socket file to use for connection.",
-    (uchar* *) &Options::Main::socket_file_name,
-    (uchar* *) &Options::Main::socket_file_name,
+    &Options::Main::socket_file_name,
+    &Options::Main::socket_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
 
 #ifdef __WIN__
   { "standalone", OPT_STAND_ALONE, "Run the application in stand alone mode.",
-    (uchar* *) &Options::Service::stand_alone,
-    (uchar* *) &Options::Service::stand_alone,
+    &Options::Service::stand_alone,
+    &Options::Service::stand_alone,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
 #else
   { "user", OPT_USER, "Username to start mysqlmanager.",
-    (uchar* *) &Options::Daemon::user,
-    (uchar* *) &Options::Daemon::user,
+    &Options::Daemon::user,
+    &Options::Daemon::user,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
 
   { "username", OPT_USERNAME,
     "Username to update the password file.",
-    (uchar* *) &Options::User_management::user_name,
-    (uchar* *) &Options::User_management::user_name,
+    &Options::User_management::user_name,
+    &Options::User_management::user_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
@@ -290,8 +290,8 @@ static struct my_option my_long_options[] =
 
   { "wait-timeout", OPT_WAIT_TIMEOUT, "The number of seconds IM waits "
     "for activity on a connection before closing it.",
-    (uchar* *) &net_read_timeout,
-    (uchar* *) &net_read_timeout,
+    &net_read_timeout,
+    &net_read_timeout,
     0, GET_ULONG, REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0 },
 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
