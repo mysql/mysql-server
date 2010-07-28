@@ -4782,4 +4782,19 @@ a	b	c
 SELECT * FROM t1 WHERE 102 < c;
 a	b	c
 DROP TABLE t1;
+#
+# Bug #54459: Assertion failed: param.sort_length, 
+# file .\filesort.cc, line 149 (part II)
+#
+CREATE TABLE t1(a ENUM('') NOT NULL);
+INSERT INTO t1 VALUES (), (), ();
+EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
+1
+1
+1
+1
+DROP TABLE t1;
 End of 5.1 tests

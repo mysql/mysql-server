@@ -971,7 +971,7 @@ int decimal2double(decimal_t *from, double *to)
 
   *to= from->sign ? -result : result;
 
-  DBUG_PRINT("info", ("result: %f (%lx)", *to, *(ulong *)to));
+  DBUG_PRINT("info", ("result: %f", *to));
 
   return E_DEC_OK;
 }

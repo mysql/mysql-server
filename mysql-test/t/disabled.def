@@ -12,5 +12,6 @@
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
 partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
-ps_3innodb               : Bug#38999 2010-04-30 VasilDimov valgrind warnings (Andrei corrected to the right bug)
 xa			 : Bug#54549 2010-06-17 Andrei
+main.mysqlhotcopy_myisam : bug#54129 2010-06-04 Horst
+main.mysqlhotcopy_archive: bug#54129 2010-06-04 Horst

@@ -1445,6 +1445,15 @@ DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 
+--echo
+--echo Bug#54422 query with = 'variables'
+--echo
+
+CREATE TABLE variables(f1 INT);
+SELECT COLUMN_DEFAULT, TABLE_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
+DROP TABLE variables;
 
 --echo End of 5.1 tests.
 

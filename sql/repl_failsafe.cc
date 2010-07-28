@@ -708,7 +708,7 @@ bool show_slave_hosts(THD* thd)
 
     /* get slave's UUID */
     String slave_uuid;
-    if (get_slave_uuid(si->thd, &slave_uuid));
+    if (get_slave_uuid(si->thd, &slave_uuid))
       protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
     if (protocol->write())
     {
@@ -720,6 +720,5 @@ bool show_slave_hosts(THD* thd)
   my_eof(thd);
   DBUG_RETURN(FALSE);
 }
-
 #endif /* HAVE_REPLICATION */
 

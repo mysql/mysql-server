@@ -641,49 +641,6 @@ enum enum_check_fields
   CHECK_FIELD_ERROR_FOR_NULL
 };
 
-                                  
-/** Struct to handle simple linked lists. */
-typedef struct st_sql_list {
-  uint elements;
-  uchar *first;
-  uchar **next;
-
-  st_sql_list() {}                              /* Remove gcc warning */
-  inline void empty()
-  {
-    elements=0;
-    first=0;
-    next= &first;
-  }
-  inline void link_in_list(uchar *element,uchar **next_ptr)
-  {
-    elements++;
-    (*next)=element;
-    next= next_ptr;
-    *next=0;
-  }
-  inline void save_and_clear(struct st_sql_list *save)
-  {
-    *save= *this;
-    empty();
-  }
-  inline void push_front(struct st_sql_list *save)
-  {
-    *save->next= first;				/* link current list last */
-    first= save->first;
-    elements+= save->elements;
-  }
-  inline void push_back(struct st_sql_list *save)
-  {
-    if (save->first)
-    {
-      *next= save->first;
-      next= save->next;
-      elements+= save->elements;
-    }
-  }
-} SQL_LIST;
-
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
@@ -1169,7 +1126,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 void prepare_triggers_for_insert_stmt(TABLE *table);
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
-                  SQL_LIST *order, ha_rows rows, ulonglong options,
+                  SQL_I_List<ORDER> *order, ha_rows rows, ulonglong options,
                   bool reset_auto_increment);
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
@@ -1368,7 +1325,7 @@ Create_field * new_create_field(THD *thd, char *field_name, enum_field_types typ
 				List<String> *interval_list, CHARSET_INFO *cs,
 				uint uint_geom_type);
 void store_position_for_column(const char *name);
-bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc);
+bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *group,bool asc);
 bool push_new_name_resolution_context(THD *thd,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
