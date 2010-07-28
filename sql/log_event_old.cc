@@ -235,11 +235,6 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
-    if (!ev->use_trans_cache())
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      ev_thd->options|= OPTION_KEEP_LOG;
-    }
   }
 
   /*
@@ -1757,11 +1752,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
-    if (!use_trans_cache())
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->options|= OPTION_KEEP_LOG;
-    }
   } // if (table)
 
   /*
@@ -2410,8 +2400,35 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     */
     if (table->key_info->flags & HA_NOSAME)
     {
-      table->file->ha_index_end();
-      DBUG_RETURN(0);
+      /* Unique does not have non nullable part */
+      if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
+      {
+        table->file->ha_index_end();
+        DBUG_RETURN(0);
+      }
+      else
+      {
+        KEY *keyinfo= table->key_info;
+        /*
+          Unique has nullable part. We need to check if there is any field in the
+          BI image that is null and part of UNNI.
+        */
+        bool null_found= FALSE;
+        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
+        {
+          uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
+          Field **f= table->field+fieldnr;
+          null_found= (*f)->is_null();
+        }
+
+        if (!null_found)
+        {
+          table->file->ha_index_end();
+          DBUG_RETURN(0);
+        }
+
+        /* else fall through to index scan */
+      }
     }
 
     /*

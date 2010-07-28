@@ -13524,9 +13524,17 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -13566,9 +13574,25 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 T CT R1 R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -13598,9 +13622,21 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -13636,6 +13672,10 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B tN CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -13643,6 +13683,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -13668,9 +13712,17 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -13706,6 +13758,10 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -13713,6 +13769,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B N CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
