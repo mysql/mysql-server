@@ -2991,7 +2991,7 @@ public:
     @retval TRUE      error, an error message is set
   */
   virtual bool check_simple_select() const;
-  virtual void abort() {}
+  virtual void abort_result_set() {}
   /*
     Cleanup instance of this class for next execution of a prepared
     statement/stored procedure.
@@ -3034,7 +3034,7 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
-  void abort();
+  void abort_result_set();
   virtual void cleanup();
 };
 
@@ -3126,7 +3126,7 @@ class select_insert :public select_result_interceptor {
   virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
 };
@@ -3162,7 +3162,7 @@ public:
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   virtual bool can_rollback_data() { return 1; }
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
@@ -3496,7 +3496,7 @@ public:
   {
     return deleted;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 
@@ -3547,7 +3547,7 @@ public:
   {
     return updated;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 class my_var : public Sql_alloc  {

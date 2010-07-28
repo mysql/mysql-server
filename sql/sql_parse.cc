@@ -3401,7 +3401,7 @@ end_with_restore_list:
       res|= thd->is_error();
       MYSQL_MULTI_DELETE_DONE(res, del_result->num_deleted());
       if (res)
-        del_result->abort();
+        del_result->abort_result_set();
       delete del_result;
     }
     else
@@ -4858,7 +4858,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
                      ER_YES, str.ptr());
       }
       if (res)
-        result->abort();
+        result->abort_result_set();
       else
         result->send_eof();
       delete result;

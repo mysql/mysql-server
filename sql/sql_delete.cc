@@ -770,9 +770,9 @@ void multi_delete::send_error(uint errcode,const char *err)
 }
 
 
-void multi_delete::abort()
+void multi_delete::abort_result_set()
 {
-  DBUG_ENTER("multi_delete::abort");
+  DBUG_ENTER("multi_delete::abort_result_set");
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||

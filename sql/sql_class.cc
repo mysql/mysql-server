@@ -1741,9 +1741,9 @@ bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
   return res;
 }
 
-void select_send::abort()
+void select_send::abort_result_set()
 {
-  DBUG_ENTER("select_send::abort");
+  DBUG_ENTER("select_send::abort_result_set");
 
   if (is_result_set_started && thd->spcont)
   {

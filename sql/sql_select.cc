@@ -300,7 +300,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		     thd->is_error()));
   res|= thd->is_error();
   if (unlikely(res))
-    result->abort();
+    result->abort_result_set();
 
   MYSQL_SELECT_DONE((int) res, (ulong) thd->limit_found_rows);
   DBUG_RETURN(res);
