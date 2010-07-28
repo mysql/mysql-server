@@ -186,8 +186,6 @@ int ha_perfschema::open(const char *name, int mode, uint test_if_locked)
   thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, NULL);
   ref_length= m_table_share->m_ref_length;
 
-  psi_open();
-
   DBUG_RETURN(0);
 }
 
@@ -197,8 +195,6 @@ int ha_perfschema::close(void)
   m_table_share= NULL;
   delete m_table;
   m_table= NULL;
-
-  psi_close();
 
   DBUG_RETURN(0);
 }
