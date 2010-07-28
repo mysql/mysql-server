@@ -1261,7 +1261,7 @@ bool mysql_multi_update(THD *thd,
   {
     /* If we had a another error reported earlier then this will be ignored */
     (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-    (*result)->abort();
+    (*result)->abort_result_set();
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(res);
@@ -1861,7 +1861,7 @@ void multi_update::send_error(uint errcode,const char *err)
 }
 
 
-void multi_update::abort()
+void multi_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||

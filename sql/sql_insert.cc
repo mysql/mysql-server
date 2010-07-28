@@ -3413,9 +3413,9 @@ bool select_insert::send_eof()
   DBUG_RETURN(0);
 }
 
-void select_insert::abort() {
+void select_insert::abort_result_set() {
 
-  DBUG_ENTER("select_insert::abort");
+  DBUG_ENTER("select_insert::abort_result_set");
   /*
     If the creation of the table failed (due to a syntax error, for
     example), no table will have been opened and therefore 'table'
@@ -3952,9 +3952,9 @@ bool select_create::send_eof()
 }
 
 
-void select_create::abort()
+void select_create::abort_result_set()
 {
-  DBUG_ENTER("select_create::abort");
+  DBUG_ENTER("select_create::abort_result_set");
 
   /*
     In select_insert::abort() we roll back the statement, including
@@ -3972,7 +3972,7 @@ void select_create::abort()
     log state.
   */
   tmp_disable_binlog(thd);
-  select_insert::abort();
+  select_insert::abort_result_set();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
