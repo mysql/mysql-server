@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2006 MySQL AB
+# Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -81,6 +81,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	debug_sync.cc sql_tablespace.cc transaction.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
+	sql_bootstrap.cc \
 	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)

@@ -115,3 +115,4 @@ LEFT JOIN information_schema.PROCESSLIST i USING (ID)
 GROUP BY i.user, h.operation
 HAVING BYTES > 0
 ORDER BY i.user, h.operation;
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';

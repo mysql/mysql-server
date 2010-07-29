@@ -37,7 +37,7 @@ noinst_HEADERS = ha_perfschema.h pfs_engine_table.h pfs.h pfs_server.h \
 		pfs_global.h pfs_instr_class.h pfs_instr.h \
                 pfs_column_types.h pfs_column_values.h \
                 table_setup_instruments.h table_performance_timers.h \
-                table_setup_timers.h \
+                table_setup_timers.h table_helper.h \
                 table_setup_consumers.h table_events_waits.h \
 		pfs_events_waits.h pfs_timer.h table_processlist.h \
 		table_sync_instances.h \
