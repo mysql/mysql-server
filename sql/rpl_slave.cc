@@ -4475,7 +4475,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 {
   int slave_was_killed;
   int last_errno= -2;                           // impossible error
-  ulong err_count=0;
+  ulong err_count= 0;
   char llbuff[22];
   DBUG_ENTER("connect_to_master");
 
@@ -4515,6 +4515,16 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     /* Don't repeat last error */
     if ((int)mysql_errno(mysql) != last_errno)
     {
+      /*
+        TODO: would be great that when issuing SHOW SLAVE STATUS
+              the number of retries would actually show err_count
+              instead of mi->retry_count.
+
+              We can achieve that if we remove the 'if' above and 
+              replace mi->retry_count with err_count. However, we
+              would be adding an entry in the error log for each 
+              connection attempt (ie, for each retry).
+       */
       last_errno=mysql_errno(mysql);
       suppress_warnings= 0;
       mi->report(ERROR_LEVEL, last_errno,
@@ -5680,7 +5690,7 @@ bool change_master(THD* thd, Master_info* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
-  if (lex_mi->retry_count)
+  if (lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->retry_count = lex_mi->retry_count;
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
