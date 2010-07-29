@@ -37,8 +37,8 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
 /*
-  Every second entry in the table_list is the original name and every
-  second entry is the new name.
+  Every two entries in the table_list form a pair of original name and
+  the new name.
 */
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
