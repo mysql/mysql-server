@@ -1040,7 +1040,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	{
 	  uint field_length=count->field_length -portable_sizeof_char_ptr;
 	  ulong blob_length= _mi_calc_blob_length(field_length, start_pos);
-	  memcpy_fixed((char*) &pos,  start_pos+field_length,sizeof(char*));
+	  memcpy(&pos, start_pos+field_length, sizeof(char*));
 	  end_pos=pos+blob_length;
 	  tot_blob_length+=blob_length;
 	  set_if_bigger(count->max_length,blob_length);
@@ -1889,7 +1889,7 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees)
 	      i->tree->tree_pack_length+j->tree->tree_pack_length+
 	      ALLOWED_JOIN_DIFF)
 	  {
-	    memcpy_fixed((uchar*) i->counts,(uchar*) count.counts,
+	    memcpy(i->counts, count.counts,
 			 sizeof(count.counts[0])*256);
 	    my_free(j->tree->element_buffer);
 	    j->tree->element_buffer=0;
@@ -2040,7 +2040,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   uchar *buff= (uchar*) file_buffer.pos;
 
   bzero(buff,HEAD_LENGTH);
-  memcpy_fixed(buff,myisam_pack_file_magic,4);
+  memcpy(buff,myisam_pack_file_magic,4);
   int4store(buff+4,head_length);
   int4store(buff+8, mrg->min_pack_length);
   int4store(buff+12,mrg->max_pack_length);
@@ -2697,8 +2697,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
             DBUG_PRINT("fields", ("FIELD_BLOB %lu bytes, bits: %2u",
                                   blob_length, count->length_bits));
 	    write_bits(blob_length,count->length_bits);
-	    memcpy_fixed(&blob,end_pos-portable_sizeof_char_ptr,
-			 sizeof(char*));
+	    memcpy(&blob, end_pos-portable_sizeof_char_ptr, sizeof(char*));
 	    blob_end=blob+blob_length;
             /* Encode the blob bytes. */
 	    for ( ; blob < blob_end ; blob++)

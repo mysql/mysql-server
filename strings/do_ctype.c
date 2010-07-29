@@ -140,7 +140,7 @@ void init_case_convert()
     to_upper[i]= sort_order[i]= to_lower[i]= (char) i;
 #endif
 
-#if defined(HPUX10) && ASCII_BITS_USED == 8
+#if defined(HPUX10)
   higher_pos= (uchar *) "\xd0\xd8\xda\xdb\xdc\xd3";
   lower_pos=  (uchar *) "\xd4\xcc\xce\xdf\xc9\xd7";
 #else
@@ -166,7 +166,7 @@ void init_case_convert()
 	/* sets upp sortorder; higer_pos character (upper and lower) is */
 	/* changed to lower_pos character */
 
-#if defined(HPUX10) && ASCII_BITS_USED == 8
+#if defined(HPUX10)
   higher_pos= lower_pos= (uchar *) "";		/* Tecknen i r{tt ordning */
 #else
 #ifdef USE_ISO_8859_1				/* As in USG5 ICL-386 */

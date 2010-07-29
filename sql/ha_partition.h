@@ -143,9 +143,6 @@ private:
     Variables for lock structures.
   */
   THR_LOCK_DATA lock;                   /* MySQL lock */
-#ifdef NOT_USED
-  PARTITION_SHARE *share;               /* Shared lock info */
-#endif
 
   /* 
     TRUE <=> this object was created with ha_partition::clone and doesn't
