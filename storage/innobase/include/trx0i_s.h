@@ -30,6 +30,7 @@ Created July 17, 2007 Vasil Dimov
 
 #include "univ.i"
 #include "trx0types.h"
+#include "dict0types.h"
 #include "ut0ut.h"
 
 /** The maximum amount of memory that can be consumed by innodb_trx,
@@ -95,7 +96,7 @@ struct i_s_hash_chain_struct {
 
 /** This structure represents INFORMATION_SCHEMA.innodb_locks row */
 struct i_s_locks_row_struct {
-	ullint		lock_trx_id;	/*!< transaction identifier */
+	trx_id_t	lock_trx_id;	/*!< transaction identifier */
 	const char*	lock_mode;	/*!< lock mode from
 					lock_get_mode_str() */
 	const char*	lock_type;	/*!< lock type from
@@ -116,7 +117,7 @@ struct i_s_locks_row_struct {
 
 	/** The following are auxiliary and not included in the table */
 	/* @{ */
-	ullint		lock_table_id;
+	table_id_t	lock_table_id;
 					/*!< table identifier from
 					lock_get_table_id */
 	i_s_hash_chain_t hash_chain;	/*!< hash table chain node for
@@ -126,10 +127,10 @@ struct i_s_locks_row_struct {
 
 /** This structure represents INFORMATION_SCHEMA.innodb_trx row */
 struct i_s_trx_row_struct {
-	ullint		trx_id;		/*!< transaction identifier */
-	const char*	trx_state;	/*!< transaction state from
-					trx_get_que_state_str() */
-	ib_time_t	trx_started;	/*!< trx_struct::start_time */
+	trx_id_t		trx_id;		/*!< transaction identifier */
+	const char*		trx_state;	/*!< transaction state from
+						trx_get_que_state_str() */
+	ib_time_t		trx_started;	/*!< trx_struct::start_time */
 	const i_s_locks_row_t*	requested_lock_row;
 					/*!< pointer to a row
 					in innodb_locks if trx

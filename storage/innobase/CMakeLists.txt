@@ -40,6 +40,12 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
+# Enable InnoDB's UNIV_DEBUG if MySQL's WITH_DEBUG[_FULL] is defined
+# enable when this bug is resolved:
+# Bug#54861 Additional connections not handled properly in mtr --embedded
+#IF(WITH_DEBUG OR WITH_DEBUG_FULL)
+#  ADD_DEFINITIONS("-DUNIV_DEBUG")
+#ENDIF()
 
 IF(NOT MSVC)
 # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
@@ -182,11 +188,7 @@ IF(SIZEOF_PTHREAD_T)
 ENDIF()
 
 IF(MSVC)
-  # Windows atomics do not perform well. Disable Windows atomics by default.
-  # See bug#52102 for details.
-
-  #ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
-  ADD_DEFINITIONS(-DHAVE_IB_PAUSE_INSTRUCTION)
+  ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
 ENDIF()
 
 

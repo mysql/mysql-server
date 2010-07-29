@@ -308,7 +308,7 @@
 #define USE_MB 1
 #define USE_MB_IDENT 1
 
-
+#cmakedefine HAVE_VALGRIND
 
 /* Types we may use */
 #ifdef __APPLE__
