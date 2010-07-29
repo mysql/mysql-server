@@ -3073,7 +3073,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
 
-      if (open_and_lock_tables(thd, table_list, TRUE, 0))
+      if (open_normal_and_derived_tables(thd, table_list, 0))
         DBUG_RETURN(TRUE);
 
       while ((column = column_iter++))

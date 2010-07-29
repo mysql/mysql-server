@@ -5144,7 +5144,8 @@ send_result_message:
           May be something modified. Consequently, we have to
           invalidate the query cache.
         */
-        query_cache_invalidate3(thd, table->table, 0);
+        table->table= 0;			// For query cache
+        query_cache_invalidate3(thd, table, 0);
       }
     }
     /* Error path, a admin command failed. */
@@ -5152,7 +5153,6 @@ send_result_message:
     trans_commit_implicit(thd);
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
-    table->table=0;				// For query cache
 
     /*
       If it is CHECK TABLE v1, v2, v3, and v1, v2, v3 are views, we will run
