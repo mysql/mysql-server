@@ -2624,6 +2624,7 @@ public:
   {
     save_val(result_field);
   }
+  Item* get_tmp_table_item(THD *thd_arg);
 
   /* Following methods make this item transparent as much as possible */
 
