@@ -32,7 +32,7 @@ Created 1/20/1994 Heikki Tuuri
 
 /*******************************************************//**
 Creates a 64-bit integer out of two 32-bit integers.
-@return	created dulint */
+@return	created integer */
 UNIV_INLINE
 ib_uint64_t
 ut_ull_create(

@@ -152,7 +152,7 @@ read_view_create_low(
 	view = mem_heap_alloc(heap, sizeof(read_view_t));
 
 	view->n_trx_ids = n;
-	view->trx_ids = mem_heap_alloc(heap, n * sizeof *view->trx_ids);
+	view->trx_ids = mem_heap_alloc(heap, n * sizeof(*view->trx_ids));
 
 	return(view);
 }
@@ -281,7 +281,8 @@ read_view_open_now(
 		    && (trx->conc_state == TRX_ACTIVE
 			|| trx->conc_state == TRX_PREPARED)) {
 
-			read_view_set_nth_trx_id(view, n, trx->id);
+			read_view_set_nth_trx_id(
+				view, n, trx->id);
 
 			n++;
 
@@ -398,7 +399,7 @@ UNIV_INTERN
 cursor_view_t*
 read_cursor_view_create_for_mysql(
 /*==============================*/
-	trx_t*	cr_trx)	/*!< in: trx where cursor view is created */
+	trx_t*		cr_trx)	/*!< in: trx where cursor view is created */
 {
 	cursor_view_t*	curview;
 	read_view_t*	view;

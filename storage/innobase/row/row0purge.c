@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0vers.h"
 #include "row0mysql.h"
 #include "log0log.h"
+#include "srv0mon.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -762,6 +763,8 @@ row_purge(
 		if (node->found_clust) {
 			btr_pcur_close(&(node->pcur));
 		}
+
+		MONITOR_INC(MONITOR_NUM_ROW_PURGE);
 
 		row_mysql_unfreeze_data_dictionary(trx);
 	}

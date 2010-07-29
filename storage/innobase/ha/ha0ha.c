@@ -47,28 +47,30 @@ ha_create_func(
 	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
 				order: this is used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes)	/*!< in: number of mutexes to protect the
+	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
+	ulint	type)		/*!< in: type of datastructure for which
+				the memory heap is going to be used e.g.:
+				MEM_HEAP_FOR_BTR_SEARCH or
+				MEM_HEAP_FOR_PAGE_HASH */
 {
 	hash_table_t*	table;
 #ifndef UNIV_HOTBACKUP
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	ut_a(type == MEM_HEAP_FOR_BTR_SEARCH
+	     || type == MEM_HEAP_FOR_PAGE_HASH);
+
 	ut_ad(ut_is_2pow(n_mutexes));
 	table = hash_create(n);
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
-	table->adaptive = TRUE;
-# endif /* !UNIV_HOTBACKUP */
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
 
 	if (n_mutexes == 0) {
-		table->heap = mem_heap_create_in_btr_search(
-			ut_min(4096, MEM_MAX_ALLOC_IN_BUF));
+		table->heap = mem_heap_create_typed(
+			ut_min(4096, MEM_MAX_ALLOC_IN_BUF), type);
 		ut_a(table->heap);
 
 		return(table);
@@ -80,7 +82,7 @@ ha_create_func(
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
 
 	for (i = 0; i < n_mutexes; i++) {
-		table->heaps[i] = mem_heap_create_in_btr_search(4096);
+		table->heaps[i] = mem_heap_create_typed(4096, type);
 		ut_a(table->heaps[i]);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -102,7 +104,8 @@ ha_clear(
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
+	ut_ad(!table->adaptive
+	       || rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
 #ifndef UNIV_HOTBACKUP

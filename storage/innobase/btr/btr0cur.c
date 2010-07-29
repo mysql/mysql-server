@@ -3880,7 +3880,6 @@ btr_blob_free(
 	mtr_commit(mtr);
 
 	buf_pool_mutex_enter(buf_pool);
-	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
 	the same file page. */
@@ -3901,7 +3900,6 @@ btr_blob_free(
 	}
 
 	buf_pool_mutex_exit(buf_pool);
-	mutex_exit(&block->mutex);
 }
 
 /*******************************************************************//**
