@@ -132,7 +132,7 @@ row_upd_index_entry_sys_field(
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint		type,	/*!< in: DATA_TRX_ID or DATA_ROLL_PTR */
-	dulint		val);	/*!< in: value to write */
+	ib_uint64_t	val);	/*!< in: value to write */
 /*********************************************************************//**
 Creates an update node for a query graph.
 @return	own: update node */
