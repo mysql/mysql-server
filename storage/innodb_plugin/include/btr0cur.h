@@ -570,7 +570,7 @@ btr_copy_externally_stored_field_prefix(
 	ulint		local_len);/*!< in: length of data, in bytes */
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
-@return	the field copied to heap */
+@return	the field copied to heap, or NULL if the field is incomplete */
 UNIV_INTERN
 byte*
 btr_rec_copy_externally_stored_field(
