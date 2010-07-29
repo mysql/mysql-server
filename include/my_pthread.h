@@ -269,13 +269,14 @@ int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
   we want to make sure that no such flags are set.
 */
 #if defined(HAVE_SIGACTION) && !defined(my_sigset)
-#define my_sigset(A,B) do { struct sigaction l_s; sigset_t l_set; int l_rc; \
+#define my_sigset(A,B) do { struct sigaction l_s; sigset_t l_set;           \
+                            IF_DBUG(int l_rc);                              \
                             DBUG_ASSERT((A) != 0);                          \
                             sigemptyset(&l_set);                            \
                             l_s.sa_handler = (B);                           \
                             l_s.sa_mask   = l_set;                          \
                             l_s.sa_flags   = 0;                             \
-                            l_rc= sigaction((A), &l_s, (struct sigaction *) NULL);\
+                            IF_DBUG(l_rc=) sigaction((A), &l_s, NULL);      \
                             DBUG_ASSERT(l_rc == 0);                         \
                           } while (0)
 #elif defined(HAVE_SIGSET) && !defined(my_sigset)
@@ -715,7 +716,7 @@ extern uint thd_lib_detected;
   The implementation is guaranteed to be thread safe, on all platforms.
   Note that the calling code should *not* assume the counter is protected
   by the mutex given, as the implementation of these helpers may change
-  to use my_atomic operations instead.
+  to use atomic operations instead.
 */
 
 /*

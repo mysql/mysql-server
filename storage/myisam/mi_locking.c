@@ -29,7 +29,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   int error;
   uint count;
   MYISAM_SHARE *share=info->s;
-  uint flag;
   DBUG_ENTER("mi_lock_database");
   DBUG_PRINT("enter",("lock_type: %d  old lock %d  r_locks: %u  w_locks: %u "
                       "global_changed:  %d  open_count: %u  name: '%s'",
@@ -48,7 +47,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
     DBUG_RETURN(0);
   }
 
-  flag=error=0;
+  error= 0;
   pthread_mutex_lock(&share->intern_lock);
   if (share->kfile >= 0)		/* May only be false on windows */
   {
@@ -120,14 +119,12 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	{
 	  if (share->r_locks)
 	  {					/* Only read locks left */
-	    flag=1;
 	    if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
 			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
 	      error=my_errno;
 	  }
 	  else if (!share->w_locks)
 	  {					/* No more locks */
-	    flag=1;
 	    if (my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
 			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
 	      error=my_errno;
@@ -148,7 +145,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
         */
 	if (share->w_locks == 1)
 	{
-	  flag=1;
           if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
 		      MYF(MY_SEEK_NOT_DONE)))
 	  {
@@ -163,7 +159,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       }
       if (!share->r_locks && !share->w_locks)
       {
-	flag=1;
 	if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
 		    info->lock_wait | MY_SEEK_NOT_DONE))
 	{
@@ -188,7 +183,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       {						/* Change READONLY to RW */
 	if (share->r_locks == 1)
 	{
-	  flag=1;
 	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
 		      MYF(info->lock_wait | MY_SEEK_NOT_DONE)))
 	  {
@@ -205,7 +199,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       {
 	if (!share->w_locks)
 	{
-	  flag=1;
 	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
 		      info->lock_wait | MY_SEEK_NOT_DONE))
 	  {
@@ -252,11 +245,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   }
 #endif
   pthread_mutex_unlock(&share->intern_lock);
-#if defined(FULL_LOG) || defined(_lint)
-  lock_type|=(int) (flag << 8);		/* Set bit to set if real lock */
-  myisam_log_command(MI_LOG_LOCK,info,(uchar*) &lock_type,sizeof(lock_type),
-		     error);
-#endif
   DBUG_RETURN(error);
 } /* mi_lock_database */
 

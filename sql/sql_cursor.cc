@@ -658,7 +658,12 @@ void Materialized_cursor::fetch(ulong num_rows)
     if ((res= table->file->rnd_next(table->record[0])))
       break;
     /* Send data only if the read was successful. */
-    result->send_data(item_list);
+    /*
+      If network write failed (i.e. due to a closed socked),
+      the error has already been set. Just return.
+    */
+    if (result->send_data(item_list))
+      return;
   }
 
   switch (res) {
