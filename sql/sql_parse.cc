@@ -1393,7 +1393,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR current_global_status_var;
     ulong uptime;
-    uint length;
+    uint length __attribute__((unused));
     ulonglong queries_per_second1000;
     char buff[250];
     uint buff_len= sizeof(buff);
@@ -1406,7 +1406,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
       queries_per_second1000= thd->query_id * LL(1000) / uptime;
 
-    length= my_snprintf((char*) buff, buff_len - 1,
+    length= my_snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%u",
@@ -1511,7 +1511,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   if (MYSQL_QUERY_DONE_ENABLED() || MYSQL_COMMAND_DONE_ENABLED())
   {
-    int res;
+    int res __attribute__((unused));
     res= (int) thd->is_error();
     if (command == COM_QUERY)
     {
@@ -5820,16 +5820,16 @@ void mysql_init_multi_delete(LEX *lex)
   Parse a query.
 
   @param       thd     Current thread
-  @param       inBuf   Begining of the query text
+  @param       rawbuf  Begining of the query text
   @param       length  Length of the query text
   @param[out]  found_semicolon For multi queries, position of the character of
                                the next query in the query text.
 */
 
-void mysql_parse(THD *thd, const char *inBuf, uint length,
+void mysql_parse(THD *thd, char *rawbuf, uint length,
                  Parser_state *parser_state)
 {
-  int error;
+  int error __attribute__((unused));
   DBUG_ENTER("mysql_parse");
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
@@ -5853,7 +5853,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
 
-  if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
+  if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
   {
     LEX *lex= thd->lex;
 
@@ -5935,14 +5935,14 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     1	can be ignored
 */
 
-bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
+bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 {
   LEX *lex= thd->lex;
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   Parser_state parser_state;
-  if (!(error= parser_state.init(thd, inBuf, length)))
+  if (!(error= parser_state.init(thd, rawbuf, length)))
   {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
