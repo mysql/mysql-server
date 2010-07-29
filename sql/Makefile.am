@@ -90,7 +90,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_create.h item_subselect.h item_row.h \
 			sql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
-			sql_map.h sql_string.h unireg.h \
+			sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			sql_profile.h mysqld.h sql_help.h frm_crypt.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
@@ -135,7 +135,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item_row.cc item_geofunc.cc item_xmlfunc.cc \
 			field.cc strfunc.cc key.cc sql_class.cc sql_list.cc \
 			net_serv.cc protocol.cc sql_state.c \
-			lock.cc sql_string.cc sql_manager.cc sql_map.cc \
+			lock.cc sql_string.cc sql_manager.cc \
 			main.cc mysqld.cc password.c hash_filo.cc hostname.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
 			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
@@ -160,8 +160,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			rpl_reporting.cc \
                         sql_union.cc sql_derived.cc \
 			sql_client.cc \
-			repl_failsafe.h repl_failsafe.cc \
-			sql_olap.cc sql_view.cc \
+			repl_failsafe.h repl_failsafe.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
 			tztime.cc my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
