@@ -4513,7 +4513,9 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                              mi->port, 0, client_flag) == 0))
   {
     /* Don't repeat last error */
-    if ((int)mysql_errno(mysql) != last_errno)
+    if ((int)mysql_errno(mysql) != last_errno || 
+        DBUG_EVALUATE_IF("connect_to_master_always_report_error", 
+                         TRUE, FALSE))
     {
       /*
         TODO: would be great that when issuing SHOW SLAVE STATUS
@@ -4532,7 +4534,10 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                  " - retry-time: %d  retries: %lu",
                  (reconnect ? "reconnecting" : "connecting"),
                  mi->user, mi->host, mi->port,
-                 mi->connect_retry, mi->retry_count);
+                 mi->connect_retry, 
+                 DBUG_EVALUATE_IF("connect_to_master_always_report_error", 
+                                  err_count+1, 
+                                  mi->retry_count));
     }
     /*
       By default we try forever. The reason is that failure will trigger

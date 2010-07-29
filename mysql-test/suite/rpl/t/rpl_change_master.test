@@ -133,8 +133,9 @@ if (`SELECT $retry_count1 <> ($retry_count0+10)`)
 
 -- source include/stop_slave.inc
 
-# action: change master_retry_count to zero, which should produce no change.
-CHANGE MASTER TO master_retry_count=0;
+# action: change master_retry_count to zero will set it to zero.
+-- let $retry_count1= 0
+-- eval CHANGE MASTER TO master_retry_count=$retry_count1
 
 -- source include/start_slave.inc
 
@@ -176,13 +177,37 @@ if (`SELECT $retry_count4 <> $retry_count0`)
   -- die
 }
 
-## Now lets change master_retry_count to 1 and stop and restart the slave 
-## to check whether master_retry_count persists or not
+## Now lets change master_retry_count to the maximum value possible
+## and stop and restart the slave to check that (in the middle of it 
+## we also check that when issueing CHANGE MASTER TO without specifying
+## master_retry_count will not affect its current value):
+##   1. master_retry_count persists after restart
+##   2. setting a value higher than the max will make the max to be set.
+##   3. maximum value is accepted and persists after serialization 
+##      and de-serialization
 -- source include/stop_slave.inc
--- let $retry_count_expected= 1
--- eval CHANGE MASTER TO master_retry_count=$retry_count_expected
+-- let $retry_count_set= 18446744073709551616
+-- replace_result 18446744073709551616 RETRY_COUNT_SET
+-- eval CHANGE MASTER TO master_retry_count=$retry_count_set
+-- let $retry_count_expected= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- replace_result 18446744073709551615 RETRY_COUNT_EXPECTED 4294967295 RETRY_COUNT_EXPECTED 9223372036854775807 RETRY_COUNT_EXPECTED
+-- eval SELECT $retry_count_expected AS current_retry_count
 
-# Stop master server
+## assert that issuing CHANGE MASTER without changing master_retry_count
+## does not affect the existing value for master_retry_count
+-- let $connect_retry_old= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
+-- let $connect_retry_new= `SELECT $connect_retry_old + 1`
+-- let $retry_count_before= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+-- eval CHANGE MASTER TO master_connect_retry= $connect_retry_new
+-- let $retry_count_after= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+if (`SELECT $retry_count_before <> $retry_count_after`)
+{
+  -- echo Unexpected retry count value! Got: $retry_count_after, expected: $retry_count_before
+  -- die
+}
+-- eval CHANGE MASTER TO master_connect_retry= $connect_retry_old
+
+## Server restart persisting test
 --echo ### stop slave server
 --write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 wait
@@ -207,27 +232,13 @@ if (`SELECT $retry_count5 <> $retry_count_expected`)
   -- die
 }
 
-## Checks that the slave actually gives up after retrying N times, where
-## N was set with CHANGE MASTER TO master_retry_count=N
-
--- source include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=3, master_host='dummy', master_connect_retry=1;
-START SLAVE io_thread;
-
-# We wait for slave to stop and inspect the number of retries in 
-# the error message.
--- source include/wait_for_slave_io_to_stop.inc
--- let $error= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
-if (!`SELECT "$error" LIKE "%retries: 3"`)
-{
-  -- echo Unexpected retry count value! Got: $error
-  -- echo Expected number of retries was: 3
-  -- die
-}
-
-## check that there is a parse error if not using a numerical value
+## assert that there is a parse error if not using a numerical value
 -- error ER_PARSE_ERROR
 CHANGE MASTER TO master_retry_count='a';
+
+## assert that there is a parse error if using a negative number
+-- error ER_PARSE_ERROR
+CHANGE MASTER TO master_retry_count=-1;
 
 -- source include/master-slave-reset.inc
 -- source include/master-slave-end.inc
