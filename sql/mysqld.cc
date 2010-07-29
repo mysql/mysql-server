@@ -183,7 +183,7 @@ typedef fp_except fp_except_t;
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
 # define _FPU_DOUBLE 0x200
-# if defined(__GNUC__) || defined(__SUNPRO_CC)
+# if defined(__GNUC__) || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
 #  define _FPU_GETCW(cw) asm volatile ("fnstcw %0" : "=m" (*&cw))
 #  define _FPU_SETCW(cw) asm volatile ("fldcw %0" : : "m" (*&cw))
 # else
@@ -3698,7 +3698,6 @@ static void end_ssl()
 
 static int init_server_components()
 {
-  FILE *reopen;
   DBUG_ENTER("init_server_components");
   /*
     We need to call each of these following functions to ensure that
@@ -3746,8 +3745,8 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        reopen= freopen(log_error_file, "a+", stderr);
-        setbuf(stderr, NULL);
+        if (freopen(log_error_file, "a+", stderr))
+          setbuf(stderr, NULL);
       }
     }
   }
@@ -6962,7 +6961,7 @@ mysqld_get_one_option(int optid,
     *val= 0;
     val+= 2;
     while (*val && my_isspace(mysqld_charset, *val))
-      *val++;
+      val++;
     if (!*val)
     {
       sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
