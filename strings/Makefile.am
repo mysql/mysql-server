@@ -37,18 +37,11 @@ if ASSEMBLER_x86
 ASRCS		= strings-x86.s longlong2str-x86.s my_strtoll10-x86.s
 CSRCS		= bmove.c bchange.c strxnmov.c int2str.c str2int.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c str_alloc.c longlong2str_asm.c dtoa.c strmov.c
 else
-if ASSEMBLER_sparc32
-# These file MUST all be on the same line!! Otherwise automake
-# generats a very broken makefile
-ASRCS		= bmove_upp-sparc.s strappend-sparc.s strend-sparc.s strmake-sparc.s strmov-sparc.s strnmov-sparc.s strstr-sparc.s
-CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bmove.c bchange.c strxnmov.c int2str.c str2int.c strtoll.c strtoull.c llstr.c strnlen.c strxmov.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c dtoa.c strmov.c
-else
 #no assembler
 ASRCS		=
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
 CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strmake.c strnmov.c strmov.c longlong2str.c bmove.c bchange.c strxnmov.c int2str.c str2int.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c dtoa.c
-endif
 endif
 
 noinst_LTLIBRARIES =	libmystringslt.la
@@ -67,9 +60,6 @@ EXTRA_DIST =		ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc
 			strxmov.c bmove_upp.c strappend.c strcont.c strend.c \
 			strfill.c strcend.c is_prefix.c strstr.c \
 			strmake.c strnmov.c strmov.c strnlen.c \
-			bmove_upp-sparc.s strappend-sparc.s strend-sparc.s \
-			strmake-sparc.s strmov-sparc.s \
-			strnmov-sparc.s strstr-sparc.s strxmov-sparc.s \
 			t_ctype.h my_strchr.c CMakeLists.txt \
 			CHARSET_INFO.txt
 

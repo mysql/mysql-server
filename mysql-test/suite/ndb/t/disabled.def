@@ -11,7 +11,6 @@
 ##############################################################################
 
 ndb_binlog_discover       : Bug#54851 2010-07-02 alik ndb.ndb_binlog_discover crashes the server
-ndb_condition_pushdown    : Bug#49746 2010-02-08 alik ndb_condition_pushdown fails in mysql-next-mr
 ndb_partition_error2      : Bug#40989 ndb_partition_error2 needs maintenance
 
 

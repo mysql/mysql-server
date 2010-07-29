@@ -1634,7 +1634,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
   creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread 
 */
 
-void close_temporary_tables(THD *thd)
+bool close_temporary_tables(THD *thd)
 {
   DBUG_ENTER("close_temporary_tables");
   TABLE *table;
@@ -1642,9 +1642,10 @@ void close_temporary_tables(THD *thd)
   TABLE *prev_table;
   /* Assume thd->variables.option_bits has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
+  bool error= 0;
 
   if (!thd->temporary_tables)
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(FALSE);
 
   if (!mysql_bin_log.is_open())
   {
@@ -1655,7 +1656,7 @@ void close_temporary_tables(THD *thd)
       close_temporary(table, 1, 1);
     }
     thd->temporary_tables= 0;
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(FALSE);
   }
 
   /* Better add "if exists", in case a RESET MASTER has been done */
@@ -1754,11 +1755,27 @@ void close_temporary_tables(THD *thd)
       qinfo.db= db.ptr();
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
-      if (mysql_bin_log.write(&qinfo))
+
+      thd->stmt_da->can_overwrite_status= TRUE;
+      if ((error= (mysql_bin_log.write(&qinfo) || error)))
       {
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, MYF(0),
-                     "Failed to write the DROP statement for temporary tables to binary log");
+        /*
+          If we're here following THD::cleanup, thence the connection
+          has been closed already. So lets print a message to the
+          error log instead of pushing yet another error into the
+          stmt_da.
+
+          Also, we keep the error flag so that we propagate the error
+          up in the stack. This way, if we're the SQL thread we notice
+          that close_temporary_tables failed. (Actually, the SQL
+          thread only calls close_temporary_tables while applying old
+          Start_log_event_v3 events.)
+        */
+        sql_print_error("Failed to write the DROP statement for "
+                        "temporary tables to binary log");
       }
+      thd->stmt_da->can_overwrite_status= FALSE;
+
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;
     }
@@ -1771,7 +1788,8 @@ void close_temporary_tables(THD *thd)
   if (!was_quote_show)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
-  DBUG_VOID_RETURN;
+
+  DBUG_RETURN(error);
 }
 
 /*

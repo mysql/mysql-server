@@ -22,7 +22,9 @@
    The code below should hopefully be (mostly) self-explanatory.
  */
 
-// Must include gtest first, since MySQL source has macros for min() etc ....
+// First include (the generated) my_config.h, to get correct platform defines,
+// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+#include "my_config.h"
 #include <gtest/gtest.h>
 
 #include "mdl.h"
