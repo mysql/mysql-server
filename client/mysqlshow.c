@@ -669,8 +669,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   char query[1024],*end;
   MYSQL_RES *result;
   MYSQL_ROW row;
-  ulong rows;
-  LINT_INIT(rows);
+  ulong UNINIT_VAR(rows);
 
   if (mysql_select_db(mysql,db))
   {

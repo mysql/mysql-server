@@ -225,15 +225,18 @@ public:
   {
     wkb_xdr= 0,    /* Big Endian */
     wkb_ndr= 1     /* Little Endian */
-  };                                    
+  };
+
+  /** Callback which creates Geometry objects on top of a given placement. */
+  typedef Geometry *(*create_geom_t)(char *);
 
   class Class_info
   {
   public:
     LEX_STRING m_name;
     int m_type_id;
-    void (*m_create_func)(void *);
-    Class_info(const char *name, int type_id, void(*create_func)(void *));
+    create_geom_t m_create_func;
+    Class_info(const char *name, int type_id, create_geom_t create_func);
   };
 
   virtual const Class_info *get_class_info() const=0;
@@ -263,15 +266,7 @@ public:
   virtual int geometry_n(uint32 num, String *result) const { return -1; }
 
 public:
-  static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id)
-  {
-    Class_info *ci;
-    if (!(ci= find_class((int) type_id)))
-      return NULL;
-    (*ci->m_create_func)((void *)buffer);
-    return my_reinterpret_cast(Geometry *)(buffer);
-  }
-
+  static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
   static Geometry *construct(Geometry_buffer *buffer,
                              const char *data, uint32 data_len);
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
@@ -528,11 +523,8 @@ public:
   const Class_info *get_class_info() const;
 };
 
-const int geometry_buffer_size= sizeof(Gis_point);
-struct Geometry_buffer
-{
-  void *arr[(geometry_buffer_size - 1)/sizeof(void *) + 1];
-};
+struct Geometry_buffer : public
+  my_aligned_storage<sizeof(Gis_point), MY_ALIGNOF(Gis_point)> {};
 
 #endif /*HAVE_SPATAIAL*/
 #endif

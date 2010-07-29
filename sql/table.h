@@ -442,7 +442,7 @@ typedef struct st_table_share
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /** @todo: Move into *ha_data for partitioning */
   bool auto_partitioned;
-  const char *partition_info;
+  char *partition_info;
   uint  partition_info_len;
   uint  partition_info_buffer_size;
   const char *part_state;

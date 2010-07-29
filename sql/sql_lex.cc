@@ -111,7 +111,7 @@ st_parsing_options::reset()
 }
 
 
-bool Lex_input_stream::init(THD *thd, const char *buff, unsigned int length)
+bool Lex_input_stream::init(THD *thd, char *buff, unsigned int length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("+d,simulate_out_of_memory"););
@@ -1292,11 +1292,10 @@ int MYSQLlex(void *arg, void *yythd)
           ulong version;
           version=strtol(version_str, NULL, 10);
 
-          /* Accept 'M' 'm' 'm' 'd' 'd' */
-          lip->yySkipn(5);
-
           if (version <= MYSQL_VERSION_ID)
           {
+            /* Accept 'M' 'm' 'm' 'd' 'd' */
+            lip->yySkipn(5);
             /* Expand the content of the special comment as real code */
             lip->set_echo(TRUE);
             state=MY_LEX_START;
@@ -1304,7 +1303,19 @@ int MYSQLlex(void *arg, void *yythd)
           }
           else
           {
+            const char* version_mark= lip->get_ptr() - 1;
+            DBUG_ASSERT(*version_mark == '!');
+            /*
+              Patch and skip the conditional comment to avoid it
+              being propagated infinitely (eg. to a slave).
+            */
+            char *pcom= lip->yyUnput(' ');
             comment_closed= ! consume_comment(lip, 1);
+            if (! comment_closed)
+            {
+              DBUG_ASSERT(pcom == version_mark);
+              *pcom= '!';
+            }
             /* version allowed to have one level of comment inside. */
           }
         }

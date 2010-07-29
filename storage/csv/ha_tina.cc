@@ -468,7 +468,7 @@ int ha_tina::encode_quote(uchar *buf)
     const char *ptr;
     const char *end_ptr;
     const bool was_null= (*field)->is_null();
-    
+
     /*
       assistance for backwards compatibility in production builds.
       note: this will not work for ENUM columns.
@@ -480,7 +480,7 @@ int ha_tina::encode_quote(uchar *buf)
     }
 
     (*field)->val_str(&attribute,&attribute);
-    
+
     if (was_null)
       (*field)->set_null();
 
@@ -491,34 +491,30 @@ int ha_tina::encode_quote(uchar *buf)
 
       buffer.append('"');
 
-      while (ptr < end_ptr) 
+      for (; ptr < end_ptr; ptr++)
       {
         if (*ptr == '"')
         {
           buffer.append('\\');
           buffer.append('"');
-          *ptr++;
         }
         else if (*ptr == '\r')
         {
           buffer.append('\\');
           buffer.append('r');
-          *ptr++;
         }
         else if (*ptr == '\\')
         {
           buffer.append('\\');
           buffer.append('\\');
-          *ptr++;
         }
         else if (*ptr == '\n')
         {
           buffer.append('\\');
           buffer.append('n');
-          *ptr++;
         }
         else
-          buffer.append(*ptr++);
+          buffer.append(*ptr);
       }
       buffer.append('"');
     }

@@ -42,7 +42,8 @@ LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @LIBDL@ $(CXXLDFLAGS) \
 
 mysqltest_embedded_LINK = $(CXXLINK)
 nodist_mysqltest_embedded_SOURCES =	mysqltest.cc
-mysqltest_embedded_LDADD =	$(LDADD) $(top_builddir)/regex/libregex.a
+mysqltest_embedded_LDADD =	$(LDADD) $(top_builddir)/regex/libregex.a \
+				@MYSQLD_EXTRA_LDFLAGS@
 
 nodist_mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
                 my_readline.h sql_string.h completion_hash.h
