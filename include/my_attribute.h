@@ -21,6 +21,12 @@
 #ifndef _my_attribute_h
 #define _my_attribute_h
 
+#if defined(__GNUC__)
+# ifndef GCC_VERSION
+#  define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
+# endif
+#endif
+
 /*
   Disable __attribute__() on gcc < 2.7, g++ < 3.4, and non-gcc compilers.
   Some forms of __attribute__ are actually supported in earlier versions of
