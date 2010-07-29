@@ -175,7 +175,6 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			mdl.cc transaction.cc sql_audit.cc  \
 			sha2.cc \
 			sql_alter_table.cc \
-			sql_partition_admin.cc \
 			sql_partition_admin.cc
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
