@@ -1231,7 +1231,13 @@ buf_pool_init_instance(
 		buf_pool->curr_size = chunk->size;
 		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
+		/* Number of mutexes portecting page_hash must be a
+		power of two */
+		srv_n_page_hash_mutexes =
+				 ut_2_power_up(srv_n_page_hash_mutexes);
 		ut_a(srv_n_page_hash_mutexes != 0);
+		ut_a(srv_n_page_hash_mutexes <= MAX_PAGE_HASH_MUTEXES);
+
 		buf_pool->page_hash = ha_create(2 * buf_pool->curr_size,
 						srv_n_page_hash_mutexes,
 						MEM_HEAP_FOR_PAGE_HASH,
@@ -1756,6 +1762,8 @@ buf_pool_page_hash_rebuild_instance(
 	hash_table_free(buf_pool->page_hash);
 
 	ut_a(srv_n_page_hash_mutexes != 0);
+	ut_a(srv_n_page_hash_mutexes <= MAX_PAGE_HASH_MUTEXES);
+
 	buf_pool->page_hash = page_hash
 			    = ha_create(2 * buf_pool->curr_size,
 					srv_n_page_hash_mutexes,

@@ -92,6 +92,10 @@ SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE bug54679 (a INT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 DROP TABLE bug54679;
 
+# restore original values, quietly so the test does not fail if those
+# defaults are changed
+-- disable_query_log
 EVAL SET GLOBAL innodb_file_format=$file_format;
 EVAL SET GLOBAL innodb_file_format_max=$file_format_max;
 EVAL SET GLOBAL innodb_file_per_table=$file_per_table;
+-- enable_query_log

@@ -69,6 +69,8 @@ Created 11/5/1995 Heikki Tuuri
 #define BUF_POOL_WATCH_SIZE		(srv_n_purge_threads + 1)
 					/*!< Maximum number of concurrent
 					buffer pool watches */
+#define MAX_PAGE_HASH_MUTEXES	1024	/*!< The maximum number of
+					page_hash mutexes */
 
 extern	buf_pool_t*	buf_pool_ptr[MAX_BUFFER_POOLS]; /*!< The buffer pools
 					of the database */
