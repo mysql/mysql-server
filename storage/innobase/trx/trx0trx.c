@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0proc.h"
 #include "trx0xa.h"
 #include "ha_prototypes.h"
+#include "srv0mon.h"
 
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
@@ -162,7 +163,8 @@ trx_create(
 	trx->was_chosen_as_deadlock_victim = FALSE;
 	UT_LIST_INIT(trx->wait_thrs);
 
-	trx->lock_heap = mem_heap_create_in_buffer(256);
+	trx->lock_heap = mem_heap_create_typed(256,
+					MEM_HEAP_FOR_LOCK_HEAP);
 	UT_LIST_INIT(trx->trx_locks);
 
 	UT_LIST_INIT(trx->trx_savepoints);
@@ -680,6 +682,8 @@ trx_start_low(
 	trx->start_time = time(NULL);
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
+
+	MONITOR_INC(MONITOR_TRX_ACTIVE);
 
 	return(TRUE);
 }
@@ -1561,6 +1565,9 @@ trx_commit_for_mysql(
 	mutex_enter(&kernel_mutex);
 
 	trx_commit_off_kernel(trx);
+
+	MONITOR_INC(MONITOR_TRX_COMMIT);
+	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 
 	mutex_exit(&kernel_mutex);
 

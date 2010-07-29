@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "log0log.h"
 #include "os0file.h"
 #include "trx0sys.h"
+#include "srv0mon.h"
 
 /**********************************************************************
 These statistics are generated for heuristics used in estimating the
@@ -227,6 +228,8 @@ buf_flush_free_flush_rbt(void)
 
 		buf_flush_list_mutex_enter(buf_pool);
 
+	MONITOR_INC(MONITOR_PAGE_INFLUSH);
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -379,6 +382,8 @@ buf_flush_insert_sorted_into_flush_list(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+	MONITOR_DEC(MONITOR_PAGE_INFLUSH);
 
 	buf_flush_list_mutex_exit(buf_pool);
 }
@@ -1295,7 +1300,7 @@ buf_flush_try_neighbors(
 		buf_pool_mutex_enter(buf_pool);
 
 		/* We only want to flush pages from this buffer pool. */
-		bpage = buf_page_hash_get(buf_pool, space, i);
+		bpage = buf_page_hash_get(buf_pool, space, i, NULL);
 
 		if (!bpage) {
 

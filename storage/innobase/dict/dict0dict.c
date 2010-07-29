@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,6 +54,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "row0merge.h"
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
+#include "srv0mon.h"
 
 #include <ctype.h>
 
@@ -310,6 +311,8 @@ dict_table_decrement_handle_count(
 	ut_a(table->n_mysql_handles_opened > 0);
 
 	table->n_mysql_handles_opened--;
+
+	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
 	if (!dict_locked) {
 		mutex_exit(&dict_sys->mutex);

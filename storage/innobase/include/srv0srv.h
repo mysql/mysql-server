@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -146,6 +146,8 @@ extern ibool	srv_use_sys_malloc;
 #endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
+extern ulint	srv_n_page_hash_mutexes; /*!< number of mutexes to
+					 protect buf_pool->page_hash */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
@@ -224,6 +226,8 @@ extern ulong	srv_n_free_tickets_to_enter;
 extern ulong	srv_thread_sleep_delay;
 extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
+
+extern ulint	srv_n_lock_wait_count;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;

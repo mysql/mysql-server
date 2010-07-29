@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,6 +47,7 @@ extern "C" {
 #include "srv0start.h" /* for srv_was_started */
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "srv0mon.h"
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -150,16 +151,20 @@ field_store_time_t(
 	MYSQL_TIME	my_time;
 	struct tm	tm_time;
 
+	if (time) {
 #if 0
-	/* use this if you are sure that `variables' and `time_zone'
-	are always initialized */
-	thd->variables.time_zone->gmt_sec_to_TIME(
-		&my_time, (my_time_t) time);
+		/* use this if you are sure that `variables' and `time_zone'
+		are always initialized */
+		thd->variables.time_zone->gmt_sec_to_TIME(
+			&my_time, (my_time_t) time);
 #else
-	localtime_r(&time, &tm_time);
-	localtime_to_TIME(&my_time, &tm_time);
-	my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
+		localtime_r(&time, &tm_time);
+		localtime_to_TIME(&my_time, &tm_time);
+		my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
 #endif
+	} else {
+		memset(&my_time, 0, sizeof(my_time));
+	}
 
 	return(field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME));
 }
@@ -1748,6 +1753,438 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_cmpmem_reset_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_metrics */
+static ST_FIELD_INFO	innodb_metrics_fields_info[] =
+{
+#define	METRIC_NAME		0
+	{STRUCT_FLD(field_name,		"name"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_SUBSYS		1
+	{STRUCT_FLD(field_name,		"subsystem"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_VALUE_START	2
+	{STRUCT_FLD(field_name,		"value_since_start"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MAX_VALUE_START	3
+	{STRUCT_FLD(field_name,		"max_since_start"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MIN_VALUE_START	4
+	{STRUCT_FLD(field_name,		"min_since_start"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_AVG_VALUE_START	5
+	{STRUCT_FLD(field_name,		"avg_since_start"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_VALUE_RESET	6
+	{STRUCT_FLD(field_name,		"value_since_reset"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MAX_VALUE_RESET	7
+	{STRUCT_FLD(field_name,		"max_since_reset"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MIN_VALUE_RESET	8
+	{STRUCT_FLD(field_name,		"min_since_reset"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_AVG_VALUE_RESET	9
+	{STRUCT_FLD(field_name,		"avg_since_reset"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_START_TIME	10
+	{STRUCT_FLD(field_name,		"start_time"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_STOP_TIME	11
+	{STRUCT_FLD(field_name,		"stop_time"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_RESET_TIME	12
+	{STRUCT_FLD(field_name,		"reset_time"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_STATUS		13
+	{STRUCT_FLD(field_name,		"status"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_TYPE		14
+	{STRUCT_FLD(field_name,		"type"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_DESC		15
+	{STRUCT_FLD(field_name,		"description"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/**********************************************************************//**
+Fill the information schema metrics table.
+@return	0 on success */
+static
+int
+i_s_metrics_fill(
+/*=============*/
+	THD*		thd,		/*!< in: thread */
+	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+{
+	int		count;
+	Field**		fields;
+	double		time_diff;
+	monitor_info_t*	monitor_info;
+	lint		min_val;
+	lint		max_val;
+
+	DBUG_ENTER("i_s_metrics_fill");
+	fields = table_to_fill->field;
+
+	for (count = 0; count < NUM_MONITOR; count++) {
+		monitor_info = srv_mon_get_info((monitor_id_t)count);
+
+		/* A good place to sanity check the Monitor ID */
+		ut_a(count == monitor_info->monitor_id);
+
+		/* If the item refers to a Module, nothing to fill,
+		continue. */
+		if (monitor_info->monitor_type & MONITOR_MODULE) {
+			continue;
+		}
+
+		/* If this is an existing "status variable", and
+		its corresponding counter is still on, we need
+		to calculate the result from its corresponding
+		counter. */
+		if (monitor_info->monitor_type & MONITOR_EXISTING
+		    && MONITOR_IS_ON(count)) {
+			srv_mon_process_existing_counter((monitor_id_t)count,
+							 MONITOR_GET_VALUE);
+		}
+
+		/* Fill in counter's basic information */
+		OK(field_store_string(fields[METRIC_NAME],
+				      monitor_info->monitor_name));
+
+		OK(field_store_string(fields[METRIC_SUBSYS],
+				      monitor_info->monitor_module));
+
+		OK(field_store_string(fields[METRIC_DESC],
+				      monitor_info->monitor_desc));
+
+		/* Fill in counter values */
+		OK(fields[METRIC_VALUE_RESET]->store(MONITOR_VALUE(count)));
+
+		OK(fields[METRIC_VALUE_START]->store(
+			MONITOR_VALUE_SINCE_START(count)));
+
+		/* If the max value is MAX_RESERVED, counter max
+		value has not been updated. Set the column value
+		to NULL. */
+		if (MONITOR_MAX_VALUE(count) == MAX_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MAX_VALUE_RESET]->set_null();
+		} else {
+			OK(fields[METRIC_MAX_VALUE_RESET]->store(
+				MONITOR_MAX_VALUE(count)));
+			fields[METRIC_MAX_VALUE_RESET]->set_notnull();
+		}
+
+		/* If the min value is MAX_RESERVED, counter min
+		value has not been updated. Set the column value
+		to NULL. */
+		if (MONITOR_MIN_VALUE(count) == MIN_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MIN_VALUE_RESET]->set_null();
+		} else {
+			OK(fields[METRIC_MIN_VALUE_RESET]->store(
+				MONITOR_MIN_VALUE(count)));
+			fields[METRIC_MIN_VALUE_RESET]->set_notnull();
+		}
+
+		/* Calculate the max value since counter started */
+		max_val = srv_mon_calc_max_since_start((monitor_id_t)count);
+
+		if (max_val == MAX_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MAX_VALUE_START]->set_null();
+		} else {
+			OK(fields[METRIC_MAX_VALUE_START]->store(max_val));
+			fields[METRIC_MAX_VALUE_START]->set_notnull();
+		}
+
+		/* Calculate the min value since counter started */
+		min_val = srv_mon_calc_min_since_start((monitor_id_t)count);
+
+		if (min_val == MIN_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MIN_VALUE_START]->set_null();
+		} else {
+			OK(fields[METRIC_MIN_VALUE_START]->store(min_val));
+			fields[METRIC_MIN_VALUE_START]->set_notnull();
+		}
+
+		if (monitor_info->monitor_type & MONITOR_AVERAGE) {
+			if (MONITOR_IS_ON(count)) {
+				time_diff = difftime(time(NULL),
+					MONITOR_FIELD(count, mon_start_time));
+			} else {
+				time_diff =  difftime(
+					MONITOR_FIELD(count, mon_stop_time),
+					MONITOR_FIELD(count, mon_start_time));
+			}
+
+			if (time_diff) {
+				OK(fields[METRIC_AVG_VALUE_START]->store(
+					MONITOR_VALUE_SINCE_START(count)
+					/ time_diff));
+				fields[METRIC_AVG_VALUE_START]->set_notnull();
+
+				OK(fields[METRIC_AVG_VALUE_RESET]->store(
+					MONITOR_VALUE(count) / time_diff));
+
+				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
+			} else {
+				fields[METRIC_AVG_VALUE_START]->set_null();
+				fields[METRIC_AVG_VALUE_RESET]->set_null();
+			}
+		} else {
+			fields[METRIC_AVG_VALUE_START]->set_null();
+			fields[METRIC_AVG_VALUE_RESET]->set_null();
+		}
+
+		if (MONITOR_FIELD(count, mon_start_time)) {
+			OK(field_store_time_t(fields[METRIC_START_TIME],
+				(time_t)MONITOR_FIELD(count, mon_start_time)));
+			fields[METRIC_START_TIME]->set_notnull();
+		} else {
+			fields[METRIC_START_TIME]->set_null();
+		}
+
+		if (MONITOR_IS_ON(count)) {
+			/* If monitor is on, the stop time will set to NULL */
+			fields[METRIC_STOP_TIME]->set_null();
+
+			/* Display latest Monitor Reset Time only if Monitor
+			counter is on. */
+			if (MONITOR_FIELD(count, mon_reset_time)) {
+				OK(field_store_time_t(
+					fields[METRIC_RESET_TIME],
+					(time_t)MONITOR_FIELD(
+						count, mon_reset_time)));
+				fields[METRIC_RESET_TIME]->set_notnull();
+			} else {
+				fields[METRIC_RESET_TIME]->set_null();
+			}
+
+			/* Display the monitor status to be "started" */
+			OK(field_store_string(fields[METRIC_STATUS],
+					      "started"));
+		} else {
+			if (MONITOR_FIELD(count, mon_stop_time)) {
+				OK(field_store_time_t(fields[METRIC_STOP_TIME],
+				(time_t)MONITOR_FIELD(count, mon_stop_time)));
+				fields[METRIC_STOP_TIME]->set_notnull();
+			} else {
+				fields[METRIC_STOP_TIME]->set_null();
+			}
+
+			fields[METRIC_RESET_TIME]->set_null();
+
+			OK(field_store_string(fields[METRIC_STATUS],
+					      "stopped"));
+		}
+
+		if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "current_value"));
+		} else {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "counter_value"));
+		}
+
+		OK(schema_table_store_record(thd, table_to_fill));
+	}
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Function to fill information schema metrics tables.
+@return	0 on success */
+static
+int
+i_s_metrics_fill_table(
+/*===================*/
+	THD*		thd,    /*!< in: thread */
+	TABLE_LIST*	tables, /*!< in/out: tables to fill */
+	COND*		cond)   /*!< in: condition (not used) */
+{
+	DBUG_ENTER("i_s_metrics_fill_table");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+                DBUG_RETURN(0);
+	}
+
+	i_s_metrics_fill(thd, tables->table);
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.innodb_metrics
+@return	0 on success */
+static
+int
+innodb_metrics_init(
+/*================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_metrics_init");
+
+	schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innodb_metrics_fields_info;
+	schema->fill_table = i_s_metrics_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_METRICS"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, "Oracle and/or its affiliates."),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB Metrics Info"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_metrics_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
