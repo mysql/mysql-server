@@ -3707,6 +3707,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
 int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Start_log_event_v3::do_apply_event");
+  int error= 0;
   switch (binlog_version)
   {
   case 3:
@@ -3719,7 +3720,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     */
     if (created)
     {
-      close_temporary_tables(thd);
+      error= close_temporary_tables(thd);
       cleanup_load_tmpdir();
     }
     else
@@ -3747,7 +3748,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
         Can distinguish, based on the value of 'created': this event was
         generated at master startup.
       */
-      close_temporary_tables(thd);
+      error= close_temporary_tables(thd);
     }
     /*
       Otherwise, can't distinguish a Start_log_event generated at
@@ -3759,7 +3760,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     /* this case is impossible */
     DBUG_RETURN(1);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
