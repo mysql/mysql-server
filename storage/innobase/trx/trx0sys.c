@@ -664,8 +664,8 @@ trx_sys_flush_max_trx_id(void)
 
 	sys_header = trx_sysf_get(&mtr);
 
-	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-			  trx_sys->max_trx_id, &mtr);
+	mlog_write_ull(sys_header + TRX_SYS_TRX_ID_STORE,
+		       trx_sys->max_trx_id, &mtr);
 	mtr_commit(&mtr);
 }
 
@@ -912,8 +912,7 @@ trx_sysf_create(
 	sys_header = trx_sysf_get(mtr);
 
 	/* Start counting transaction ids from number 1 up */
-	mach_write_to_8(sys_header + TRX_SYS_TRX_ID_STORE,
-			ut_dulint_create(0, 1));
+	mach_write_to_8(sys_header + TRX_SYS_TRX_ID_STORE, 1);
 
 	/* Reset the rollback segment slots.  Old versions of InnoDB
 	define TRX_SYS_N_RSEGS as 256 (TRX_SYS_OLD_N_RSEGS) and expect
@@ -950,7 +949,7 @@ trx_sys_init_at_db_start(void)
 /*==========================*/
 {
 	trx_sysf_t*	sys_header;
-	ib_int64_t	rows_to_undo	= 0;
+	ib_uint64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
 	trx_t*		trx;
 	mtr_t		mtr;
@@ -976,12 +975,10 @@ trx_sys_init_at_db_start(void)
 	to the disk-based header! Thus trx id values will not overlap when
 	the database is repeatedly started! */
 
-	trx_sys->max_trx_id = ut_dulint_add(
-		ut_dulint_align_up(mtr_read_dulint(
-					   sys_header
-					   + TRX_SYS_TRX_ID_STORE, &mtr),
-				   TRX_SYS_TRX_ID_WRITE_MARGIN),
-		2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
+	trx_sys->max_trx_id = 2 * TRX_SYS_TRX_ID_WRITE_MARGIN
+		+ ut_uint64_align_up(mach_read_from_8(sys_header
+						   + TRX_SYS_TRX_ID_STORE),
+				     TRX_SYS_TRX_ID_WRITE_MARGIN);
 
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
 	trx_dummy_sess = sess_open();
@@ -992,9 +989,8 @@ trx_sys_init_at_db_start(void)
 
 		for (;;) {
 
-			if ( trx->conc_state != TRX_PREPARED) {
-				rows_to_undo += ut_conv_dulint_to_longlong(
-					trx->undo_no);
+			if (trx->conc_state != TRX_PREPARED) {
+				rows_to_undo += trx->undo_no;
 			}
 
 			trx = UT_LIST_GET_NEXT(trx_list, trx);
@@ -1017,7 +1013,7 @@ trx_sys_init_at_db_start(void)
 			(ulong) rows_to_undo, unit);
 
 		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
-			TRX_ID_PREP_PRINTF(trx_sys->max_trx_id));
+			(ullint) trx_sys->max_trx_id);
 	}
 
 	UT_LIST_INIT(trx_sys->view_list);
@@ -1061,7 +1057,7 @@ trx_sys_file_format_max_write(
 	mtr_t		mtr;
 	byte*		ptr;
 	buf_block_t*	block;
-	ulint		tag_value_low;
+	ib_uint64_t	tag_value;
 
 	mtr_start(&mtr);
 
@@ -1072,17 +1068,13 @@ trx_sys_file_format_max_write(
 	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
 
 	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
-	tag_value_low = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+	tag_value = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
 
 	if (name) {
 		*name = file_format_max.name;
 	}
 
-	mlog_write_dulint(
-		ptr,
-		ut_dulint_create(TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH,
-				 tag_value_low),
-		&mtr);
+	mlog_write_ull(ptr, tag_value, &mtr);
 
 	mtr_commit(&mtr);
 
@@ -1100,8 +1092,7 @@ trx_sys_file_format_max_read(void)
 	mtr_t			mtr;
 	const byte*		ptr;
 	const buf_block_t*	block;
-	ulint			format_id;
-	dulint			file_format_id;
+	ib_id_t			file_format_id;
 
 	/* Since this is called during the startup phase it's safe to
 	read the value without a covering mutex. */
@@ -1115,16 +1106,15 @@ trx_sys_file_format_max_read(void)
 
 	mtr_commit(&mtr);
 
-	format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
 
-	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
-	    || format_id >= FILE_FORMAT_NAME_N) {
+	if (file_format_id >= FILE_FORMAT_NAME_N) {
 
 		/* Either it has never been tagged, or garbage in it. */
 		return(ULINT_UNDEFINED);
 	}
 
-	return(format_id);
+	return((ulint) file_format_id);
 }
 
 /*****************************************************************//**
@@ -1416,7 +1406,7 @@ trx_sys_read_file_format_id(
 	byte		buf[UNIV_PAGE_SIZE * 2];
 	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
 	const byte*	ptr;
-	dulint		file_format_id;
+	ib_id_t		file_format_id;
 
 	*format_id = ULINT_UNDEFINED;
 
@@ -1430,9 +1420,9 @@ trx_sys_read_file_format_id(
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
 "  ibbackup: Error: trying to read system tablespace file format,\n"
 "  ibbackup: but could not open the tablespace file %s!\n",
@@ -1449,9 +1439,9 @@ trx_sys_read_file_format_id(
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
 "  ibbackup: Error: trying to read system table space file format,\n"
 "  ibbackup: but failed to read the tablespace file %s!\n",
@@ -1465,17 +1455,16 @@ trx_sys_read_file_format_id(
 	/* get the file format from the page */
 	ptr = page + TRX_SYS_FILE_FORMAT_TAG;
 	file_format_id = mach_read_from_8(ptr);
+	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
 
-	*format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
-
-	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
-	    || *format_id >= FILE_FORMAT_NAME_N) {
+	if (file_format_id >= FILE_FORMAT_NAME_N) {
 
 		/* Either it has never been tagged, or garbage in it. */
-		*format_id = ULINT_UNDEFINED;
 		return(TRUE);
 	}
-	
+
+	*format_id = (ulint) file_format_id;
+
 	return(TRUE);
 }
 

@@ -111,11 +111,11 @@ Database: information_schema
 | VIEWS                                 |
 | INNODB_SYS_FIELDS                     |
 | INNODB_TRX                            |
-| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_COLUMNS                    |
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
-| INNODB_SYS_COLUMNS                    |
+| INNODB_METRICS                        |
 | INNODB_CMP_RESET                      |
 | INNODB_SYS_FOREIGN_COLS               |
 | INNODB_LOCKS                          |
@@ -123,6 +123,7 @@ Database: information_schema
 | INNODB_CMPMEM                         |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_TABLES                     |
+| INNODB_SYS_INDEXES                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -160,11 +161,11 @@ Database: INFORMATION_SCHEMA
 | VIEWS                                 |
 | INNODB_SYS_FIELDS                     |
 | INNODB_TRX                            |
-| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_COLUMNS                    |
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
-| INNODB_SYS_COLUMNS                    |
+| INNODB_METRICS                        |
 | INNODB_CMP_RESET                      |
 | INNODB_SYS_FOREIGN_COLS               |
 | INNODB_LOCKS                          |
@@ -172,6 +173,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_CMPMEM                         |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_TABLES                     |
+| INNODB_SYS_INDEXES                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

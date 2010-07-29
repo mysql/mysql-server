@@ -621,7 +621,7 @@ or row lock! */
 #define SYNC_FILE_FORMAT_TAG	1200	/* Used to serialize access to the
 					file format tag */
 #define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
-					this in X-mode, implicit or backround
+					this in X-mode; implicit or backround
 					operations purge, rollback, foreign
 					key checks reserve this in S-mode */
 #define SYNC_DICT		1000
@@ -672,6 +672,7 @@ or row lock! */
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
 #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
+#define	SYNC_BUF_PAGE_HASH	149	/* buf_pool->page_hash mutex */
 #define	SYNC_BUF_BLOCK		146	/* Block mutex */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140

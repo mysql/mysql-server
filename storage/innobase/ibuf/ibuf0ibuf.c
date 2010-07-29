@@ -565,7 +565,7 @@ ibuf_init_at_db_start(void)
 
 	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
 
-	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, IBUF_SPACE_ID);
+	table->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 
 	dict_table_add_to_cache(table, heap);
 	mem_heap_free(heap);
@@ -576,7 +576,7 @@ ibuf_init_at_db_start(void)
 
 	dict_mem_index_add_field(index, "DUMMY_COLUMN", 0);
 
-	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, IBUF_SPACE_ID);
+	index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 
 	error = dict_index_add_to_cache(table, index,
 					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
@@ -3683,10 +3683,11 @@ check_watch:
 		buf_page_t*	bpage;
 		ulint		fold = buf_page_address_fold(space, page_no);
 		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
+		mutex_t*	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
 
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(hash_mutex);
 		bpage = buf_page_hash_get_low(buf_pool, space, page_no, fold);
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(hash_mutex);
 
 		if (UNIV_LIKELY_NULL(bpage)) {
 			/* A buffer pool watch has been set or the
