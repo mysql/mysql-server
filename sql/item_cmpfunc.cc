@@ -4720,8 +4720,6 @@ void Item_func_like::cleanup()
   Item_bool_func2::cleanup();
 }
 
-#ifdef USE_REGEX
-
 /**
   @brief Compile regular expression.
 
@@ -4871,9 +4869,6 @@ void Item_func_regex::cleanup()
   }
   DBUG_VOID_RETURN;
 }
-
-
-#endif /* USE_REGEX */
 
 
 #ifdef LIKE_CMP_TOUPPER

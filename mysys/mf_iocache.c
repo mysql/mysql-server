@@ -47,7 +47,6 @@ TODO:
   write buffer to the read buffer before we start to reuse it.
 */
 
-#define MAP_TO_USE_RAID
 #include "mysys_priv.h"
 #include <m_string.h>
 #ifdef HAVE_AIOWAIT
