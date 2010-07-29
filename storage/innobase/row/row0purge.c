@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,17 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0vers.h"
 #include "row0mysql.h"
 #include "log0log.h"
+#include "srv0mon.h"
+
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
 
 /********************************************************************//**
 Creates a purge node to a query graph.
@@ -126,6 +137,7 @@ row_purge_remove_clust_if_poss_low(
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
+	log_free_check();
 	mtr_start(&mtr);
 
 	success = row_purge_reposition_pcur(mode, node, &mtr);
@@ -140,10 +152,9 @@ row_purge_remove_clust_if_poss_low(
 
 	rec = btr_pcur_get_rec(pcur);
 
-	if (0 != ut_dulint_cmp(node->roll_ptr, row_get_rec_roll_ptr(
-				       rec, index, rec_get_offsets(
-					       rec, index, offsets_,
-					       ULINT_UNDEFINED, &heap)))) {
+	if (node->roll_ptr != row_get_rec_roll_ptr(
+		    rec, index, rec_get_offsets(rec, index, offsets_,
+						ULINT_UNDEFINED, &heap))) {
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -606,7 +617,7 @@ row_purge_parse_undo_rec(
 	byte*		ptr;
 	trx_t*		trx;
 	undo_no_t	undo_no;
-	dulint		table_id;
+	table_id_t	table_id;
 	trx_id_t	trx_id;
 	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
@@ -752,6 +763,8 @@ row_purge(
 		if (node->found_clust) {
 			btr_pcur_close(&(node->pcur));
 		}
+
+		MONITOR_INC(MONITOR_NUM_ROW_PURGE);
 
 		row_mysql_unfreeze_data_dictionary(trx);
 	}
