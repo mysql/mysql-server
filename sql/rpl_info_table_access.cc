@@ -182,8 +182,8 @@ enum enum_return_id Rpl_info_table_access::find_info_id(ulong server_id,
 
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     DBUG_RETURN(NOT_FOUND_ID);
   }

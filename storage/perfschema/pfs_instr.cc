@@ -999,10 +999,12 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
 /**
   Create instrumentation for a table instance.
   @param share                        the table share
+  @param opening_thread               the opening thread
   @param identity                     the table address
   @return a table instance, or NULL
 */
-PFS_table* create_table(PFS_table_share *share, const void *identity)
+PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
+                        const void *identity)
 {
   PFS_scan scan;
   uint random= randomized_index(identity, table_max);
@@ -1021,10 +1023,12 @@ PFS_table* create_table(PFS_table_share *share, const void *identity)
         {
           pfs->m_identity= identity;
           pfs->m_share= share;
+          share->m_refcount++;
           pfs->m_wait_stat.m_control_flag=
             &flag_events_waits_summary_by_instance;
           pfs->m_wait_stat.m_parent= &share->m_wait_stat;
           reset_single_stat_link(&pfs->m_wait_stat);
+          pfs->m_opening_thread= opening_thread;
           pfs->m_lock.dirty_to_allocated();
           return pfs;
         }

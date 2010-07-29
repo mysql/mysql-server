@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
 	       ../sql/rpl_utility.cc ../sql/binlog.cc
            ../sql/sys_vars.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-           ../sql/mdl.cc ../sql/transaction.cc
+           ../sql/mdl.cc ../sql/transaction.cc ../sql/sql_bootstrap.cc
            ${GEN_SOURCES}
            ${MYSYS_LIBWRAP_SOURCE}
 )
