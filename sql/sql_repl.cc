@@ -1435,6 +1435,8 @@ bool change_master(THD* thd, Master_info* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
+  if (lex_mi->retry_count)
+    mi->retry_count = lex_mi->retry_count;
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else
