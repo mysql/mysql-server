@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 #called from the top level Makefile
 
@@ -164,8 +164,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
-			sql_union.cc sql_derived.cc \
-			sql_client.cc \
+                        sql_union.cc sql_derived.cc \
+			sql_client.cc sql_bootstrap.cc \
 			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
 			tztime.cc my_decimal.cc\

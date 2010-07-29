@@ -4708,7 +4708,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
     DBUG_RETURN(1);
   }
   proc_table->file->ha_index_init(0, 1);
-  if ((res= proc_table->file->index_first(proc_table->record[0])))
+  if ((res= proc_table->file->ha_index_first(proc_table->record[0])))
   {
     res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
     goto err;
@@ -4721,7 +4721,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
     res= 1;
     goto err;
   }
-  while (!proc_table->file->index_next(proc_table->record[0]))
+  while (!proc_table->file->ha_index_next(proc_table->record[0]))
   {
     if (schema_table_idx == SCH_PROCEDURES ?
         store_schema_proc(thd, table, proc_table, wild, full_access, definer): 

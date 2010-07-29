@@ -8867,19 +8867,19 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
 
-       - use rnd_pos() with a row-id (available as dupp_row) to the
+       - use ha_rnd_pos() with a row-id (available as dupp_row) to the
          offending row, if that is possible (MyISAM and Blackhole), or else
 
-       - use index_read_idx() with the key that is duplicated, to
+       - use ha_index_read_idx_map() with the key that is duplicated, to
          retrieve the offending row.
      */
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
-      DBUG_PRINT("info",("Locating offending record using rnd_pos()"));
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      DBUG_PRINT("info",("Locating offending record using ha_rnd_pos()"));
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
-        DBUG_PRINT("info",("rnd_pos() returns error %d",error));
+        DBUG_PRINT("info",("ha_rnd_pos() returns error %d",error));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
@@ -8908,13 +8908,13 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
       key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
                0);
-      error= table->file->index_read_idx_map(table->record[1], keynum,
-                                             (const uchar*)key.get(),
-                                             HA_WHOLE_KEY,
-                                             HA_READ_KEY_EXACT);
+      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                (const uchar*)key.get(),
+                                                HA_WHOLE_KEY,
+                                                HA_READ_KEY_EXACT);
       if (error)
       {
-        DBUG_PRINT("info",("index_read_idx() returns %s", HA_ERR(error)));
+        DBUG_PRINT("info",("ha_index_read_idx_map() returns %s", HA_ERR(error)));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
@@ -9263,9 +9263,9 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       table->record[0][table->s->null_bytes - 1]|=
         256U - (1U << table->s->last_null_bit_pos);
 
-    if ((error= table->file->index_read_map(table->record[0], m_key, 
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_map(table->record[0], m_key,
+                                               HA_WHOLE_KEY,
+                                               HA_READ_KEY_EXACT)))
     {
       DBUG_PRINT("info",("no record matching the key found in the table"));
       if (error == HA_ERR_RECORD_DELETED)
@@ -9354,7 +9354,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      while ((error= table->file->index_next(table->record[0])))
+      while ((error= table->file->ha_index_next(table->record[0])))
       {
         /* We just skip records that has already been deleted */
         if (error == HA_ERR_RECORD_DELETED)
@@ -9373,11 +9373,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   }
   else
   {
-    DBUG_PRINT("info",("locating record using table scan (rnd_next)"));
+    DBUG_PRINT("info",("locating record using table scan (ha_rnd_next)"));
 
     int restart_count= 0; // Number of times scanning has restarted from top
 
-    /* We don't have a key: search the table using rnd_next() */
+    /* We don't have a key: search the table using ha_rnd_next() */
     if ((error= table->file->ha_rnd_init(1)))
     {
       DBUG_PRINT("info",("error initializing table scan"
@@ -9389,8 +9389,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
-  restart_rnd_next:
-      error= table->file->rnd_next(table->record[0]);
+  restart_ha_rnd_next:
+      error= table->file->ha_rnd_next(table->record[0]);
 
       DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
@@ -9403,7 +9403,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
         any comparisons.
       */
       case HA_ERR_RECORD_DELETED:
-        goto restart_rnd_next;
+        goto restart_ha_rnd_next;
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
@@ -9412,7 +9412,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
       default:
         DBUG_PRINT("info", ("Failed to get next record"
-                            " (rnd_next returns %d)",error));
+                            " (ha_rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
         table->file->ha_rnd_end();
         goto err;

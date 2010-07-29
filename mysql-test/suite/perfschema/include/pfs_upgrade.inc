@@ -1,4 +1,4 @@
-# Copyright (C) 2010 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.   
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,10 +17,6 @@
 # Make sure mysql_upgrade does not destroy data in a 'performance_schema'
 # database.
 # 
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source include/have_lowercase0.inc
 
 --disable_warnings
 drop table if exists test.user_table;
