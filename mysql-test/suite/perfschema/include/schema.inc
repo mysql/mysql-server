@@ -14,8 +14,10 @@
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
+#    Show existing objects and information about their structure
 
-show databases;
+show databases like 'performance_schema';
+show create database performance_schema;
 
 use performance_schema;
 
