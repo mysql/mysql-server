@@ -42,21 +42,7 @@ trx_isolation_level	varchar(16)	NO
 trx_unique_checks	int(1)	NO		0	
 trx_foreign_key_checks	int(1)	NO		0	
 trx_last_foreign_key_error	varchar(256)	YES		NULL	
-trx_apative_hash_latched	int(1)	NO		0	
-trx_adaptive_hash_timeout	bigint(21) unsigned	NO		0	
-trx_operation_state	varchar(64)	YES		NULL	
-trx_tables_in_use	bigint(21) unsigned	NO		0	
-trx_tables_locked	bigint(21) unsigned	NO		0	
-trx_lock_structs	bigint(21) unsigned	NO		0	
-trx_lock_memory_bytes	bigint(21) unsigned	NO		0	
-trx_rows_locked	bigint(21) unsigned	NO		0	
-trx_rows_modified	bigint(21) unsigned	NO		0	
-trx_concurrency_tickets	bigint(21) unsigned	NO		0	
-trx_isolation_level	varchar(16)	NO			
-trx_unique_checks	int(1)	NO		0	
-trx_foreign_key_checks	int(1)	NO		0	
-trx_last_foreign_key_error	varchar(256)	YES		NULL	
-trx_apative_hash_latched	int(1)	NO		0	
+trx_adaptive_hash_latched	int(1)	NO		0	
 trx_adaptive_hash_timeout	bigint(21) unsigned	NO		0	
 trx_state	trx_weight	trx_tables_in_use	trx_tables_locked	trx_rows_locked	trx_rows_modified	trx_concurrency_tickets	trx_isolation_level	trx_unique_checks	trx_foreign_key_checks
 RUNNING	4	0	0	7	1	0	REPEATABLE READ	1	1

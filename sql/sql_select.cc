@@ -13197,7 +13197,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
         DBUG_RETURN(0);
     }
 
-    if (key_part->field != field)
+    if (key_part->field != field || !field->part_of_sortkey.is_set(idx))
       DBUG_RETURN(0);
 
     /* set flag to 1 if we can use read-next on key, else to -1 */

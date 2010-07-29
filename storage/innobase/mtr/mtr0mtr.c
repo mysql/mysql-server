@@ -337,9 +337,12 @@ mtr_memo_release(
 		slot = dyn_array_get_element(memo, offset);
 
 		if (object == slot->object && type == slot->type) {
-			if (mtr->modifications) {
-				mtr_memo_slot_note_modification(mtr, slot);
-			}
+
+			/* We cannot release a page that has been written
+			to in the middle of a mini-transaction. */
+
+			ut_ad(!(mtr->modifications
+			       	&& slot->type == MTR_MEMO_PAGE_X_FIX));
 
 			mtr_memo_slot_release(mtr, slot);
 
@@ -373,23 +376,6 @@ mtr_read_ulint(
 		ut_ad(type == MLOG_4BYTES);
 		return(mach_read_from_4(ptr));
 	}
-}
-
-/********************************************************//**
-Reads 8 bytes from a file page buffered in the buffer pool.
-@return	value read */
-UNIV_INTERN
-dulint
-mtr_read_dulint(
-/*============*/
-	const byte*	ptr,	/*!< in: pointer from where to read */
-	mtr_t*		mtr __attribute__((unused)))
-				/*!< in: mini-transaction handle */
-{
-	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
-	return(mach_read_from_8(ptr));
 }
 
 #ifdef UNIV_DEBUG
