@@ -36,6 +36,7 @@
 #include "lock.h"                              // MYSQL_LOCK_IGNORE_FLUSH,
                                                // mysql_unlock_tables
 #include "sql_parse.h"                         // mysql_parse
+#include "transaction.h"
 
 #ifdef ndb_dynamite
 #undef assert
