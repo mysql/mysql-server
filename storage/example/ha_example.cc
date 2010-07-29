@@ -153,7 +153,7 @@ static int example_done_func(void *p)
   hash_free(&example_open_tables);
   pthread_mutex_destroy(&example_mutex);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
