@@ -4183,7 +4183,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
 */
 
 bool mysql_unpack_partition(THD *thd,
-                            const char *part_buf, uint part_info_len,
+                            char *part_buf, uint part_info_len,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type,
                             bool *work_part_info_used)
