@@ -185,7 +185,7 @@ void Base64Decoder::Decode()
 {
     word32 bytes = coded_.size();
     word32 plainSz = bytes - ((bytes + (pemLineSz - 1)) / pemLineSz); 
-    plainSz = (plainSz * 3 + 3) / 4;
+    plainSz = ((plainSz * 3) / 4) + 3;
     decoded_.New(plainSz);
 
     word32 i = 0;
