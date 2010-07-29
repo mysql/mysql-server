@@ -2278,19 +2278,17 @@ buf_LRU_print_instance(
 		case BUF_BLOCK_FILE_PAGE:
 			frame = buf_block_get_frame((buf_block_t*) bpage);
 			fprintf(stderr, "\ntype %lu"
-				" index id %lu\n",
+				" index id %llu\n",
 				(ulong) fil_page_get_type(frame),
-				(ulong) ut_dulint_get_low(
-					btr_page_get_index_id(frame)));
+				(ullint) btr_page_get_index_id(frame));
 			break;
 		case BUF_BLOCK_ZIP_PAGE:
 			frame = bpage->zip.data;
 			fprintf(stderr, "\ntype %lu size %lu"
-				" index id %lu\n",
+				" index id %llu\n",
 				(ulong) fil_page_get_type(frame),
 				(ulong) buf_page_get_zip_size(bpage),
-				(ulong) ut_dulint_get_low(
-					btr_page_get_index_id(frame)));
+				(ullint) btr_page_get_index_id(frame));
 			break;
 
 		default:
