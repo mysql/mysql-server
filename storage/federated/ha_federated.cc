@@ -2752,9 +2752,9 @@ void ha_federated::position(const uchar *record __attribute__ ((unused)))
 
   position_called= TRUE;
   /* Store result set address. */
-  memcpy_fixed(ref, &stored_result, sizeof(MYSQL_RES *));
+  memcpy(ref, &stored_result, sizeof(MYSQL_RES *));
   /* Store data cursor position. */
-  memcpy_fixed(ref + sizeof(MYSQL_RES *), &current_position,
+  memcpy(ref + sizeof(MYSQL_RES *), &current_position,
                sizeof(MYSQL_ROW_OFFSET));
   DBUG_VOID_RETURN;
 }
@@ -2780,11 +2780,11 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos)
   ha_statistic_increment(&SSV::ha_read_rnd_count);
 
   /* Get stored result set. */
-  memcpy_fixed(&result, pos, sizeof(MYSQL_RES *));
+  memcpy(&result, pos, sizeof(MYSQL_RES *));
   DBUG_ASSERT(result);
   /* Set data cursor position. */
-  memcpy_fixed(&result->data_cursor, pos + sizeof(MYSQL_RES *),
-               sizeof(MYSQL_ROW_OFFSET));
+  memcpy(&result->data_cursor, pos + sizeof(MYSQL_RES *),
+         sizeof(MYSQL_ROW_OFFSET));
   /* Read a row. */
   ret_val= read_next(buf, result);
   MYSQL_READ_ROW_DONE(ret_val);

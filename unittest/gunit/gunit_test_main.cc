@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines,
+// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+#include "my_config.h"
 #include <gtest/gtest.h>
 
 #include "mdl.h"                                // SHOULD BE my_sys.h
@@ -28,13 +31,13 @@ my_bool opt_help= false;
 struct my_option unittest_options[] =
 {
   { "tap-output", 1, "TAP (default) or gunit output.",
-    (uchar**) &opt_use_tap, (uchar**) &opt_use_tap, NULL,
+    &opt_use_tap, &opt_use_tap, NULL,
     GET_BOOL, OPT_ARG,
     opt_use_tap, 0, 1, 0,
     0, NULL
   },
   { "help", 2, "Help.",
-    (uchar**) &opt_help, (uchar**) &opt_help, NULL,
+    &opt_help, &opt_help, NULL,
     GET_BOOL, NO_ARG,
     opt_help, 0, 1, 0,
     0, NULL
