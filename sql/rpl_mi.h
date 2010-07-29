@@ -112,6 +112,7 @@ class Master_info : public Slave_reporting_capability
   ulonglong received_heartbeats;  // counter of received heartbeat events
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
+  ulong retry_count;
   char master_uuid[UUID_LENGTH+1];
 };
 void init_master_log_pos(Master_info* mi);

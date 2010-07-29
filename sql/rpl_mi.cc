@@ -34,7 +34,7 @@ Master_info::Master_info(bool is_slave_recovery)
    inited(0), abort_slave(0), 
    slave_running(0), slave_run_id(0), clock_diff_with_master(0), 
    sync_counter(0), heartbeat_period(0), received_heartbeats(0), 
-   master_id(0)
+   master_id(0), retry_count(master_retry_count)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
@@ -131,8 +131,10 @@ enum {
   LINE_FOR_MASTER_HEARTBEAT_PERIOD= 16,
   /* 6.0 added value of master_ignore_server_id */
   LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 17,
+  /* line for master_retry_count */
+  LINE_FOR_MASTER_RETRY_COUNT= 18,
 
-  LINE_FOR_MASTER_UUID= 18,
+  LINE_FOR_MASTER_UUID= 19,
   /* Number of lines currently used when saving master info file */
   LINES_IN_MASTER_INFO= LINE_FOR_MASTER_UUID
 };
@@ -238,6 +240,7 @@ file '%s')", fname);
     int ssl= 0, ssl_verify_server_cert= 0;
     float master_heartbeat_period= 0.0;
     char *first_non_digit;
+    long retry_count= master_retry_count;
 
     /*
        Starting from 4.1.x master.info has new format. Now its
@@ -337,6 +340,14 @@ file '%s')", fname);
         goto errwithmsg;
       }
 
+      /* master_retry_count may be in the file. */
+      if (lines >= LINE_FOR_MASTER_RETRY_COUNT &&
+          init_longvar_from_file(&retry_count, &mi->file, master_retry_count))
+      {
+        sql_print_error("Failed to initialize master info master_retry_count");
+        goto errwithmsg;
+      }
+
       if (lines >= LINE_FOR_MASTER_UUID &&
           init_strvar_from_file(mi->master_uuid, sizeof(mi->master_uuid), &mi->file, 0))
         goto errwithmsg;
@@ -359,6 +370,7 @@ file '%s')", fname);
     mi->ssl= (my_bool) ssl;
     mi->ssl_verify_server_cert= ssl_verify_server_cert;
     mi->heartbeat_period= master_heartbeat_period;
+    mi->retry_count= retry_count;
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
                             mi->master_log_name,
@@ -482,14 +494,14 @@ int flush_master_info(Master_info* mi,
   my_sprintf(heartbeat_buf, (heartbeat_buf, "%.3f", mi->heartbeat_period));
   my_b_seek(file, 0L);
   my_b_printf(file,
-              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%s\n",
+              "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n%d\n%s\n%s\n%ld\n%s\n",
               LINES_IN_MASTER_INFO,
               mi->master_log_name, llstr(mi->master_log_pos, lbuf),
               mi->host, mi->user,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
-              heartbeat_buf, ignore_server_ids_buf, mi->master_uuid);
+              heartbeat_buf, ignore_server_ids_buf, mi->retry_count, mi->master_uuid);
   my_free(ignore_server_ids_buf, MYF(0));
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 
