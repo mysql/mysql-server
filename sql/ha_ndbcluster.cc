@@ -35,6 +35,7 @@
 #include "discover.h"       // readfrm
 #include "sql_acl.h"        // wild_case_compare
 #include "rpl_mi.h"
+#include "transaction.h"
 
 /*
   There is an incompatibility between GNU ar and the Solaris linker
