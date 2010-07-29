@@ -30,7 +30,7 @@ test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
   
   cs->coll->like_range(cs, src, src_len, '\\', '_', '%',
                        sizeof(min_str),  min_str, max_str, &min_len, &max_len);
-  diag("min_len=%d\tmax_len=%d\t%s", min_len, max_len, cs->name);
+  diag("min_len=%d\tmax_len=%d\t%s", (int) min_len, (int) max_len, cs->name);
   min_well_formed_len= cs->cset->well_formed_len(cs,
                                                  min_str, min_str + min_len,
                                                  10000, &error);
@@ -39,11 +39,11 @@ test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
                                                  10000, &error);
   if (min_len != min_well_formed_len)
     diag("Bad min_str: min_well_formed_len=%d min_str[%d]=0x%02X",
-          min_well_formed_len, min_well_formed_len,
+          (int) min_well_formed_len, (int) min_well_formed_len,
           (uchar) min_str[min_well_formed_len]);
   if (max_len != max_well_formed_len)
     diag("Bad max_str: max_well_formed_len=%d max_str[%d]=0x%02X",
-          max_well_formed_len, max_well_formed_len,
+          (int) max_well_formed_len, (int) max_well_formed_len,
           (uchar) max_str[max_well_formed_len]);
   return
     min_len == min_well_formed_len &&
