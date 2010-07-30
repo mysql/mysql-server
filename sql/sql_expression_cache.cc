@@ -41,7 +41,6 @@ bool Expression_cache_tmptable::make_equalities()
   List<Item> args;
   List_iterator_fast<Item*> li(*list);
   Item **ref;
-  Name_resolution_context *cn= NULL;
   DBUG_ENTER("Expression_cache_tmptable::make_equalities");
 
   for (uint i= 1 /* skip result filed */; (ref= li++); i++)
@@ -58,14 +57,7 @@ bool Expression_cache_tmptable::make_equalities()
         fld->type() == MYSQL_TYPE_NEWDECIMAL ||
         fld->type() == MYSQL_TYPE_DECIMAL)
     {
-      if (!cn)
-      {
-        // dummy resolution context
-        cn= new Name_resolution_context();
-        cn->init();
-      }
-      args.push_front(new Item_func_eq(new Item_ref(cn, ref, "", "", FALSE),
-                                       new Item_field(fld)));
+      args.push_front(new Item_func_eq(*ref, new Item_field(fld)));
     }
   }
   if (args.elements == 1)
