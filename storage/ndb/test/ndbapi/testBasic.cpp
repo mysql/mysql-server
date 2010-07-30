@@ -1915,12 +1915,36 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTransCopy(*copyTab);
   hugoTransCopy.loadTable(pNdb, rows);
 
+  {
+    restarter.getNumDbNodes(); // connect
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+    NdbLogEventHandle handle =
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+    for (Uint32 i = 0; i<3; i++)
+    {
+      int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+
+      struct ndb_logevent event;
+
+      restarter.dumpStateAllNodes(dump, 1);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointStarted);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointCompleted);
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+  }
+
   for (int i = 0; i<5; i++)
   {
     int val1 = DumpStateOrd::DihMaxTimeBetweenLCP;
     int val2 = 7099; // Force start
 
     restarter.dumpStateAllNodes(&val1, 1);
+    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateAllNodes(val, 2);
+
+    restarter.insertErrorInAllNodes(932); // prevent arbit shutdown
 
     HugoTransactions hugoTrans(*pTab);
     hugoTrans.loadTable(pNdb, 20);
@@ -1938,8 +1962,6 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
     hugoOps.execute_NoCommit(pNdb);
 
     restarter.insertErrorInAllNodes(5056);
-    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-    restarter.dumpStateAllNodes(val, 2);
     restarter.dumpStateAllNodes(&val2, 1);
     restarter.waitClusterNoStart();
     int vall = 11009;
