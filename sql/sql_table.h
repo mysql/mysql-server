@@ -210,7 +210,6 @@ uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
 
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
-extern int creating_table;    // How many mysql_create_table() are running
 extern mysql_mutex_t LOCK_gdl;
 
 #endif /* SQL_TABLE_INCLUDED */

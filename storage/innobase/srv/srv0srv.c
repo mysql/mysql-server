@@ -142,6 +142,21 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 UNIV_INTERN my_bool	srv_use_native_aio = TRUE;
 
+#ifdef __WIN__
+/* Windows native condition variables. We use runtime loading / function
+pointers, because they are not available on Windows Server 2003 and
+Windows XP/2000.
+
+We use condition for events on Windows if possible, even if os_event
+resembles Windows kernel event object well API-wise. The reason is
+performance, kernel objects are heavyweights and WaitForSingleObject() is a
+performance killer causing calling thread to context switch. Besides, Innodb
+is preallocating large number (often millions) of os_events. With kernel event
+objects it takes a big chunk out of non-paged pool, which is better suited
+for tasks like IO than for storing idle event objects. */
+UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
+#endif /* __WIN__ */
+
 UNIV_INTERN ulint	srv_n_data_files = 0;
 UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
@@ -3007,6 +3022,8 @@ srv_purge_thread(
 
 	slot_no = srv_table_reserve_slot(SRV_WORKER);
 
+	slot = srv_table_get_nth_slot(slot_no);
+
 	++srv_n_threads_active[SRV_WORKER];
 
 	mutex_exit(&kernel_mutex);
@@ -3058,19 +3075,15 @@ srv_purge_thread(
 
 	mutex_enter(&kernel_mutex);
 
+	ut_ad(srv_table_get_nth_slot(slot_no) == slot);
+
 	/* Decrement the active count. */
 	srv_suspend_thread();
 
-	mutex_exit(&kernel_mutex);
+	slot->in_use = FALSE;
 
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());
-
-	mutex_enter(&kernel_mutex);
-
-	/* Free the slot for reuse. */
-	slot = srv_table_get_nth_slot(slot_no);
-	slot->in_use = FALSE;
 
 	mutex_exit(&kernel_mutex);
 
