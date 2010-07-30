@@ -388,6 +388,10 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *derived)
     SELECT_LEX *first_select= unit->first_select();
     select_union *derived_result= derived->derived_result;
     SELECT_LEX *save_current_select= lex->current_select;
+
+    /* Create table if it isn't created yet. */
+    DBUG_ASSERT(table->created);
+
     if (unit->is_union())
     {
       // execute union without clean up
