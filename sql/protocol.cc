@@ -790,31 +790,14 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 	  local_packet->realloc(local_packet->length()+10))
 	goto err;
       pos= (char*) local_packet->ptr()+local_packet->length();
-
-#ifdef TO_BE_DELETED_IN_6
-      if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
-      {
-	pos[0]=3;
-	int3store(pos+1,field.length);
-	pos[4]=1;
-	pos[5]=field.type;
-	pos[6]=2;
-	pos[7]= (char) field.flags;
-	pos[8]= (char) field.decimals;
-	pos+= 9;
-      }
-      else
-#endif
-      {
-	pos[0]=3;
-	int3store(pos+1,field.length);
-	pos[4]=1;
-	pos[5]=field.type;
-	pos[6]=3;
-	int2store(pos+7,field.flags);
-	pos[9]= (char) field.decimals;
-	pos+= 10;
-      }
+      pos[0]=3;
+      int3store(pos+1,field.length);
+      pos[4]=1;
+      pos[5]=field.type;
+      pos[6]=3;
+      int2store(pos+7,field.flags);
+      pos[9]= (char) field.decimals;
+      pos+= 10;
     }
     local_packet->length((uint) (pos - local_packet->ptr()));
     if (flags & SEND_DEFAULTS)

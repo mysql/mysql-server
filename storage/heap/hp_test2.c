@@ -179,11 +179,6 @@ int main(int argc, char *argv[])
 	printf("can't find key1: \"%s\"\n",(char*) key);
 	goto err;
       }
-#ifdef NOT_USED
-      if (file->current_ptr == hp_find_block(&file->s->block,0) ||
-	  file->current_ptr == hp_find_block(&file->s->block,1))
-	continue;			/* Don't remove 2 first records */
-#endif
       if (heap_delete(file,record))
       {
 	printf("error: %d; can't delete record: \"%s\"\n", my_errno,(char*) record);
