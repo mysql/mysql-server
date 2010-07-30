@@ -755,7 +755,7 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
       type (the types are supplied at execute). Check that the
       supplied type of placeholder can accept a data stream.
     */
-    else if (!is_param_long_data_type(param))
+    else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
     res= param->query_val_str(&str);
     if (param->convert_str_value(thd))
@@ -801,7 +801,7 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
       type (the types are supplied at execute). Check that the
       supplied type of placeholder can accept a data stream.
     */
-    else if (is_param_long_data_type(param))
+    else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
     if (param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);                           /* out of memory */
