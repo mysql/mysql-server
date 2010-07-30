@@ -3946,6 +3946,8 @@ create view a as select 1;
 end|
 call p();
 call p();
+Warnings:
+Error	1050	Table 'a' already exists
 drop view a;
 drop procedure p;
 #

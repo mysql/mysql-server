@@ -845,35 +845,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     }
   }
 
-  /*
-    If a continue handler is found, the error message will be cleared
-    by the stored procedures code.
-  */
-  if (!is_fatal_error && spcont &&
-      spcont->handle_condition(this, sql_errno, sqlstate, level, msg, &cond))
-  {
-    /*
-      Do not push any warnings, a handled error must be completely
-      silenced.
-    */
-    DBUG_RETURN(cond);
-  }
-
-  /* Un-handled conditions */
-
-  cond= raise_condition_no_handler(sql_errno, sqlstate, level, msg);
-  DBUG_RETURN(cond);
-}
-
-MYSQL_ERROR*
-THD::raise_condition_no_handler(uint sql_errno,
-                                const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
-                                const char* msg)
-{
-  MYSQL_ERROR *cond= NULL;
-  DBUG_ENTER("THD::raise_condition_no_handler");
-
   query_cache_abort(&query_cache_tls);
 
   /* FIXME: broken special case */
@@ -886,6 +857,7 @@ THD::raise_condition_no_handler(uint sql_errno,
   cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
+
 extern "C"
 void *thd_alloc(MYSQL_THD thd, unsigned int size)
 {
