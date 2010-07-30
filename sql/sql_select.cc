@@ -14094,7 +14094,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     TABLE_LIST *derived= table->pos_in_table_list;
     // Fill derived table prior to sorting.
     if (derived && derived->is_materialized_derived() &&
-        mysql_handle_single_derived(thd->lex, derived, &mysql_derived_filling))
+        (mysql_handle_single_derived(thd->lex, derived,
+                                     &mysql_derived_create) ||
+         mysql_handle_single_derived(thd->lex, derived, &mysql_derived_filling)))
       goto err;
   }
 
