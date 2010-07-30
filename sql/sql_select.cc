@@ -7878,9 +7878,6 @@ best_extension_by_limited_search(JOIN      *join,
   if (thd->killed)  // Abort
     DBUG_RETURN(TRUE);
 
-  DBUG_EXECUTE("opt", print_plan(join, idx, read_time, record_count, idx,
-                                 "SOFAR:"););
-
   /* 
      'join' is a partial plan with lower cost than the best plan so far,
      so continue expanding it further with the tables in 'remaining_tables'.
