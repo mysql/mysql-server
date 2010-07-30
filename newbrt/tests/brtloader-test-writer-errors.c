@@ -74,6 +74,8 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints);  CKERR(r);
     // destroy_rowset(&aset);
 
+    brtloader_fi_close_all(&bl.file_infos);
+
     QUEUE q;
     r = queue_create(&q, 0xFFFFFFFF); // infinite queue.
     assert(r==0);

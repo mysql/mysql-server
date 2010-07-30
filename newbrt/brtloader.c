@@ -257,6 +257,13 @@ int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
     return result;
 }
 
+void brtloader_fi_close_all(struct file_infos *fi) {
+    for (int i = 0; i < fi->n_files; i++) {
+        FIDX idx = { i };
+        (void ) brtloader_fi_close(fi, idx);
+    }
+}
+
 int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 /* Effect: Open a temporary file in read-write mode.  Save enough information to close and delete the file later.
  * Return value: 0 on success, an error number otherwise.
@@ -982,11 +989,15 @@ static int finish_extractor (BRTLOADER bl) {
 	int r = queue_destroy(bl->primary_rowset_queue);
 	invariant(r==0);
     }
+
+    brtloader_fi_close_all(&bl->file_infos);
+
    //printf("%s:%d joined\n", __FILE__, __LINE__);
     return 0;
 }
 
 static const DBT zero_dbt = {0,0,0,0};
+
 static DBT make_dbt (void *data, u_int32_t size) {
     DBT result = zero_dbt;
     result.data = data;
@@ -1348,6 +1359,11 @@ CILK_END
 void init_merge_fileset (struct merge_fileset *fs)
 /* Effect: Initialize a fileset */ 
 {
+    fs->have_sorted_output = FALSE;
+    fs->sorted_output      = FIDX_NULL;
+    fs->prev_key           = zero_dbt;
+    fs->prev_key.flags     = DB_DBT_REALLOC;
+
     fs->n_temp_files = 0;
     fs->n_temp_files_limit = 0;
     fs->data_fidxs = NULL;
@@ -1357,6 +1373,7 @@ void destroy_merge_fileset (struct merge_fileset *fs)
 /* Effect: Destroy a fileset. */
 {
     if ( fs ) {
+        toku_destroy_dbt(&fs->prev_key);
         fs->n_temp_files = 0;
         fs->n_temp_files_limit = 0;
         toku_free(fs->data_fidxs);
@@ -1416,6 +1433,21 @@ static int update_progress (int N,
     return result;
 }
 
+
+static int write_rowset_to_file (BRTLOADER bl, FIDX sfile, const struct rowset rows) {
+    FILE *sstream = toku_bl_fidx2file(bl, sfile);
+    for (size_t i=0; i<rows.n_rows; i++) {
+	DBT skey = make_dbt(rows.data + rows.rows[i].off,                     rows.rows[i].klen);
+	DBT sval = make_dbt(rows.data + rows.rows[i].off + rows.rows[i].klen, rows.rows[i].vlen);
+	
+	u_int64_t soffset=0; // don't really need this.
+	int r = loader_write_row(&skey, &sval, sfile, sstream, &soffset, bl);
+	if (r != 0) return r;
+    }
+    return 0;
+}
+
+
 CILK_BEGIN
 int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare)
 /* Effect: Given a rowset, sort it and write it to a temporary file.
@@ -1433,40 +1465,42 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER
  */
 {
     //printf(" sort_and_write use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
-    FIDX sfile = FIDX_NULL;
-    u_int64_t soffset=0;
 
     // TODO: erase the files, and deal with all the cleanup on error paths
     //printf("%s:%d sort_rows n_rows=%ld\n", __FILE__, __LINE__, rows->n_rows);
     //bl_time_t before_sort = bl_time_now();
 
-    int result = 0;
-    int r = sort_rows(&rows, which_db, dest_db, compare, bl);
-    if (r != 0) result = r;
+    int result;
+    if (rows.n_rows == 0) {
+        result = 0;
+    } else {
+        result = sort_rows(&rows, which_db, dest_db, compare, bl);
 
-    //bl_time_t after_sort = bl_time_now();
+        //bl_time_t after_sort = bl_time_now();
 
-    if (result == 0) {
-        r = extend_fileset(bl, fs, &sfile);
-        if (r != 0) 
-            result = r;
-        else {
-
-            FILE *sstream = toku_bl_fidx2file(bl, sfile);
-            for (size_t i=0; i<rows.n_rows; i++) {
-                DBT skey = make_dbt(rows.data + rows.rows[i].off,                     rows.rows[i].klen);
-                DBT sval = make_dbt(rows.data + rows.rows[i].off + rows.rows[i].klen, rows.rows[i].vlen);
-
-                r = loader_write_row(&skey, &sval, sfile, sstream, &soffset, bl);
-                if (r != 0) {
-                    result = r;
-                    break;
+        if (result == 0) {
+            DBT akey = make_dbt(rows.data+rows.rows[0].off,  rows.rows[0].klen);
+            if (fs->have_sorted_output && compare(dest_db, &fs->prev_key, &akey)<0) {
+                // write everything to the same output.
+                result = write_rowset_to_file(bl, fs->sorted_output, rows);
+            } else {
+                FIDX sfile = FIDX_NULL;
+                result = extend_fileset(bl, fs, &sfile);
+                if (result == 0) {
+                    if (fs->have_sorted_output) {
+                        fs->have_sorted_output = FALSE;
+                        result = brtloader_fi_close(&bl->file_infos, fs->sorted_output);
+                    }
+                    if (result == 0) {
+                        result = write_rowset_to_file(bl, sfile, rows);
+                        if (result == 0) {
+                            fs->have_sorted_output = TRUE; fs->sorted_output = sfile;
+                            result = toku_dbt_set(rows.rows[rows.n_rows-1].klen, rows.data + rows.rows[rows.n_rows-1].off, &fs->prev_key, NULL);
+                        }
+                    }
                 }
-            }
-            
-            r = brtloader_fi_close(&bl->file_infos, sfile);
-            if (r != 0) result = r;
-        }
+	    }
+	}
     }
 
     destroy_rowset(&rows);
@@ -1834,8 +1868,7 @@ int merge_files (struct merge_fileset *fs,
 	    if (result!=0) break;
 	}
 
-
-	toku_free(fs->data_fidxs);
+        destroy_merge_fileset(fs);
 	*fs = next_file_set;
 
 	// Update the progress

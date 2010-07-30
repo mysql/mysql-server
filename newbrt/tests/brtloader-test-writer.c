@@ -110,6 +110,8 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
     r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints);  CKERR(r);
     // destroy_rowset(&aset);
+    
+    brtloader_fi_close_all(&bl.file_infos);
 
     QUEUE q;
     r = queue_create(&q, 0xFFFFFFFF); // infinite queue.
