@@ -173,7 +173,7 @@ type_long_blob longblob,
 index(type_short)
 ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed CHARSET=latin1;
 
-# Not tested above: RAID_# UNION INSERT_METHOD DATA DIRECTORY INDEX DIRECTORY
+# Not tested above: UNION INSERT_METHOD DATA DIRECTORY INDEX DIRECTORY
 show create table t1;
 insert into t1 (type_timestamp) values ("2003-02-07 10:00:01");
 select * from t1;

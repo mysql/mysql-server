@@ -190,15 +190,6 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 }
 
 
-#ifdef NOT_USED
-static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
-{
-  handlerton *hton= ha_default_handlerton(current_thd);
-  return (hton && hton->create) ? hton->create(hton, table, mem_root) : NULL;
-}
-#endif
-
-
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
   plugin_ref plugin;
@@ -239,10 +230,6 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   switch (database_type) {
-#ifndef NO_HASH
-  case DB_TYPE_HASH:
-    return ha_resolve_by_legacy_type(thd, DB_TYPE_HASH);
-#endif
   case DB_TYPE_MRG_ISAM:
     return ha_resolve_by_legacy_type(thd, DB_TYPE_MRG_MYISAM);
   default:

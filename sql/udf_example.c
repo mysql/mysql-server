@@ -133,7 +133,6 @@ typedef long long longlong;
 #include <string.h>
 #define strmov(a,b) stpcpy(a,b)
 #define bzero(a,b) memset(a,0,b)
-#define memcpy_fixed(a,b,c) memcpy(a,b,c)
 #endif
 #endif
 #include <mysql.h>
@@ -778,7 +777,7 @@ char *lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
   }
   pthread_mutex_unlock(&LOCK_hostname);
 #endif
-  memcpy_fixed((char*) &in,(char*) *hostent->h_addr_list, sizeof(in.s_addr));
+  memcpy(&in, *hostent->h_addr_list, sizeof(in.s_addr));
   *res_length= (ulong) (strmov(result, inet_ntoa(in)) - result);
   return result;
 }
