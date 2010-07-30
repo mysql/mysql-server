@@ -2800,23 +2800,6 @@ private:
                   MYSQL_ERROR::enum_warning_level level,
                   const char* msg);
 
-  /**
-    Raise a generic SQL condition, without activation any SQL condition
-    handlers.
-    This method is necessary to support the RESIGNAL statement,
-    which is allowed to bypass SQL exception handlers.
-    @param sql_errno the condition error number
-    @param sqlstate the condition SQLSTATE
-    @param level the condition level
-    @param msg the condition message text
-    @return The condition raised, or NULL
-  */
-  MYSQL_ERROR*
-  raise_condition_no_handler(uint sql_errno,
-                             const char* sqlstate,
-                             MYSQL_ERROR::enum_warning_level level,
-                             const char* msg);
-
 public:
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
