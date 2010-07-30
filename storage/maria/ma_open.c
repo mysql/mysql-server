@@ -209,6 +209,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
   DBUG_RETURN(m_info);
 
 err:
+  DBUG_PRINT("error", ("error: %d", my_errno));
   save_errno=my_errno ? my_errno : HA_ERR_END_OF_FILE;
   if ((save_errno == HA_ERR_CRASHED) ||
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
@@ -918,10 +919,15 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   if (!(m_info= maria_clone_internal(share, name, mode, data_file)))
     goto err;
 
+  if (maria_is_crashed(m_info))
+    DBUG_PRINT("warning", ("table is crashed: changed: %u",
+                           share->state.changed));
+
   pthread_mutex_unlock(&THR_LOCK_maria);
   DBUG_RETURN(m_info);
 
 err:
+  DBUG_PRINT("error", ("error: %d  errpos: %d", my_errno, errpos));
   save_errno=my_errno ? my_errno : HA_ERR_END_OF_FILE;
   if ((save_errno == HA_ERR_CRASHED) ||
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||

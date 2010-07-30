@@ -57,8 +57,16 @@ void tprint(FILE *trace_file __attribute__ ((unused)),
             const char *format __attribute__ ((unused)), ...)
 {
   va_list args;
+#ifndef DBUG_OFF
+  {
+    char buff[1024];
+    va_start(args, format);
+    vsnprintf(buff, sizeof(buff)-1, format, args);
+    DBUG_PRINT("info", ("%s", buff));
+    va_end(args);
+  }
+#endif
   va_start(args, format);
-  DBUG_PRINT("info", ("%s", format));
   if (trace_file != NULL)
   {
     if (procent_printed)

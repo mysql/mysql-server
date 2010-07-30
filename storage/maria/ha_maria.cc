@@ -749,6 +749,9 @@ static int maria_create_trn_for_mysql(MARIA_HA *info)
                                    (uchar*) thd->query(),
                                    thd->query_length());
   }
+  else
+    DBUG_PRINT("info", ("lock_type: %d  trnman_flags: %u",
+                        info->lock_type, trnman_get_flags(trn))); /* QQ */
 #endif
   DBUG_RETURN(0);
 }
@@ -1055,7 +1058,8 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   if (!maria_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
         !(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-                                  STATE_CRASHED_ON_REPAIR)) &&
+                                  STATE_CRASHED_ON_REPAIR |
+                                  STATE_IN_REPAIR)) &&
         share->state.open_count == 0) ||
        ((param.testflag & T_FAST) && (share->state.open_count ==
                                       (uint) (share->global_changed ? 1 :
@@ -1092,14 +1096,15 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   if (!error)
   {
     if ((share->state.changed & (STATE_CHANGED |
-                                 STATE_CRASHED_ON_REPAIR |
+                                 STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR |
                                  STATE_CRASHED | STATE_NOT_ANALYZED)) ||
         (param.testflag & T_STATISTICS) || maria_is_crashed(file))
     {
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       pthread_mutex_lock(&share->intern_lock);
-      share->state.changed &= ~(STATE_CHANGED | STATE_CRASHED |
-                                STATE_CRASHED_ON_REPAIR);
+      DBUG_PRINT("info", ("Reseting crashed state"));
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
       if (!(table->db_stat & HA_READ_ONLY))
         error= maria_update_state_info(&param, file,
                                        UPDATE_TIME | UPDATE_OPEN_COUNT |
@@ -1513,8 +1518,9 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   {
     if ((share->state.changed & STATE_CHANGED) || maria_is_crashed(file))
     {
-      share->state.changed &= ~(STATE_CHANGED | STATE_CRASHED |
-                                STATE_CRASHED_ON_REPAIR);
+      DBUG_PRINT("info", ("Reseting crashed state"));
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
+                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
     /*
@@ -2357,6 +2363,15 @@ int ha_maria::delete_table(const char *name)
   (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
                                  (uchar*) thd->query(), thd->query_length());
   return maria_delete_table(name);
+}
+
+
+/* This is mainly for temporary tables, so no logging necessary */
+
+void ha_maria::drop_table(const char *name)
+{
+  (void) close();
+  (void) maria_delete_table(name);
 }
 
 

@@ -1377,7 +1377,8 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
   uint freed_size= 0;
   uchar *dir, *end;
   DBUG_ENTER("_ma_compact_block_page");
-  DBUG_PRINT("enter", ("rownr: %u", rownr));
+  DBUG_PRINT("enter", ("rownr: %u  min_read_from: %lu", rownr,
+                       (ulong) min_read_from));
   DBUG_ASSERT(max_entry > 0 &&
               max_entry < (block_size - PAGE_HEADER_SIZE -
                            PAGE_SUFFIX_SIZE) / DIR_ENTRY_SIZE);
@@ -3407,13 +3408,14 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
       DBUG_ASSERT(row->checksum == (info->s->calc_checksum)(info, record));
     }
   }
+  DBUG_PRINT("info", ("rowid: %lu (%lu:%u) length: %u", (ulong) row->lastpos,
+                      (ulong) ma_recordpos_to_page(row->lastpos),
+                      ma_recordpos_to_dir_entry(row->lastpos),
+                      row_pos.length));
   if (write_block_record(info, (uchar*) 0, record, row,
                          blocks, blocks->block->org_bitmap_value != 0,
                          &row_pos, undo_lsn, 0))
-    goto err;                         /* Error reading bitmap */
-  DBUG_PRINT("exit", ("rowid: %lu (%lu:%u)", (ulong) row->lastpos,
-                      (ulong) ma_recordpos_to_page(row->lastpos),
-                      ma_recordpos_to_dir_entry(row->lastpos)));
+    goto err;
   /* Now let checkpoint happen but don't commit */
   DBUG_EXECUTE_IF("maria_over_alloc_bitmap", sleep(1000););
   DBUG_RETURN(0);
@@ -4404,13 +4406,15 @@ crashed:
     1   error
 */
 
-static my_bool read_long_data(MARIA_HA *info, uchar *to, ulong length,
+static my_bool read_long_data2(MARIA_HA *info, uchar *to, ulong length,
                               MARIA_EXTENT_CURSOR *extent,
                               uchar **data, uchar **end_of_data)
 {
-  DBUG_ENTER("read_long_data");
+  uint left_length;
+  left_length= (uint) (*end_of_data - *data);
+  DBUG_ENTER("read_long_data2");
   DBUG_PRINT("enter", ("length: %lu  left_length: %u",
-                       length, (uint) (*end_of_data - *data)));
+                       length, left_length));
   DBUG_ASSERT(*data <= *end_of_data);
 
   /*
@@ -4422,14 +4426,15 @@ static my_bool read_long_data(MARIA_HA *info, uchar *to, ulong length,
     This may change in the future, which is why we have the loop written
     the way it's written.
   */
-  if (extent->first_extent && length > (ulong) (*end_of_data - *data))
+  if (extent->first_extent && length > left_length)
+  {
     *end_of_data= *data;
+    left_length= 0;
+  }
 
   for(;;)
   {
-    uint left_length;
-    left_length= (uint) (*end_of_data - *data);
-    if (likely(left_length >= length))
+    if (unlikely(left_length >= length))
     {
       memcpy(to, *data, length);
       (*data)+= length;
@@ -4441,8 +4446,23 @@ static my_bool read_long_data(MARIA_HA *info, uchar *to, ulong length,
     length-= left_length;
     if (!(*data= read_next_extent(info, extent, end_of_data)))
       break;
+    left_length= (uint) (*end_of_data - *data);
   }
   DBUG_RETURN(1);
+}
+
+static inline my_bool read_long_data(MARIA_HA *info, uchar *to, ulong length,
+                              MARIA_EXTENT_CURSOR *extent,
+                              uchar **data, uchar **end_of_data)
+{
+  uint left_length= (uint) (*end_of_data - *data);
+  if (likely(left_length >= length))
+  {
+    memcpy(to, *data, length);
+    (*data)+= length;
+    return 0;
+  }
+  return read_long_data2(info, to, length, extent, data, end_of_data);
 }
 
 

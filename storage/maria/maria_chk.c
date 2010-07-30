@@ -990,7 +990,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
 
     if ((param->testflag & (T_REP_ANY | T_SORT_RECORDS)) &&
 	((share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				  STATE_CRASHED_ON_REPAIR) ||
+				  STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR) ||
 	  !(param->testflag & T_CHECK_ONLY_CHANGED))))
       need_to_check=1;
 
@@ -1008,7 +1008,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
     }
     if ((param->testflag & T_CHECK_ONLY_CHANGED) &&
 	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR)))
+				 STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR)))
       need_to_check=1;
     if (!need_to_check)
     {
@@ -1225,8 +1225,11 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (!error && (param->testflag & T_ZEROFILL))
       error= maria_zerofill(param, info, filename);
     if (!error)
+    {
+      DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR);
+                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+    }
     else
       maria_mark_crashed(info);
   }
@@ -1278,8 +1281,9 @@ static int maria_chk(HA_CHECK *param, char *filename)
       if ((share->state.changed & STATE_CHANGED) &&
           (param->testflag & T_UPDATE_STATE))
         info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
+      DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR);
+                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
     }
     else if (!maria_is_crashed(info) &&
              (param->testflag & T_UPDATE_STATE))

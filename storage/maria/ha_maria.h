@@ -135,6 +135,7 @@ public:
                                   ulonglong *nb_reserved_values);
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
+  void drop_table(const char *name);
   int check(THD * thd, HA_CHECK_OPT * check_opt);
   int analyze(THD * thd, HA_CHECK_OPT * check_opt);
   int repair(THD * thd, HA_CHECK_OPT * check_opt);

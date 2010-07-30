@@ -1,4 +1,5 @@
 /* Copyright (C) 2007 MySQL AB
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,6 +151,9 @@ err:
 
 #include "ma_check_standalone.h"
 
+enum options_mc {
+  OPT_CHARSETS_DIR=256
+};
 
 static struct my_option my_long_options[] =
 {
@@ -158,6 +162,9 @@ static struct my_option my_long_options[] =
    " Displays a lot of information if not run with --silent",
    (uchar **) &opt_apply, (uchar **) &opt_apply, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.",
+   (uchar**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "if --display-only, check if record is fully readable (for debugging)",
    (uchar **) &opt_check, (uchar **) &opt_check, 0,
@@ -206,7 +213,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.2 for %s on %s\n",
+  VOID(printf("%s Ver 1.3 for %s on %s\n",
               my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
   NETWARE_SET_SCREEN_MODE(1);
 }
