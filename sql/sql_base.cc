@@ -541,6 +541,12 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
     DBUG_RETURN(0);
   }
   share->ref_count++;				// Mark in use
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server != NULL))
+    share->m_psi= PSI_server->get_table_share(false, share);
+#endif
+
   DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
                       (ulong) share, share->ref_count));
   DBUG_RETURN(share);
@@ -5741,8 +5747,20 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   init_tmp_table_share(thd, share, saved_cache_key, key_length,
                        strend(saved_cache_key)+1, tmp_path);
 
-  if (open_table_def(thd, share, 0) ||
-      open_table_from_share(thd, share, table_name,
+  if (open_table_def(thd, share, 0))
+  {
+    /* No need to lock share->mutex as this is not needed for tmp tables */
+    free_table_share(share);
+    my_free(tmp_table);
+    DBUG_RETURN(0);
+  }
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server != NULL))
+    share->m_psi= PSI_server->get_table_share(true, share);
+#endif
+
+  if (open_table_from_share(thd, share, table_name,
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX),
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
@@ -8981,7 +8999,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
 	!strcmp(table->s->db.str, share->db.str))
     {
       mysql_lock_remove(thd, thd->lock, table);
-      table->file->close();
+      table->file->ha_close();
       table->db_stat= 0;                        // Mark file closed
       /*
         Ensure that we won't end up with a crippled table instance

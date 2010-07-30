@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,7 @@ one TL_WRITE_DELAYED lock at the same time as multiple read locks.
 
 #ifdef THREAD
 #include "thr_lock.h"
+#include "mysql/psi/mysql_table.h"
 #include <m_string.h>
 #include <errno.h>
 
@@ -513,12 +514,17 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
   enum enum_thr_lock_result result= THR_LOCK_SUCCESS;
   struct st_lock_list *wait_queue;
   THR_LOCK_DATA *lock_owner;
+  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("thr_lock");
 
   data->next=0;
   data->cond=0;					/* safety */
   data->type=lock_type;
   data->owner= owner;                           /* Must be reset ! */
+
+  MYSQL_START_TABLE_WAIT(locker, &state, data->m_psi,
+                         PSI_TABLE_LOCK, 0, lock_type);
+
   mysql_mutex_lock(&lock->mutex);
   DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%lx  lock: 0x%lx  type: %d",
                      (long) data, data->owner->info->thread_id,
@@ -761,9 +767,12 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     goto end;
   }
   /* Can't get lock yet;  Wait for it */
-  DBUG_RETURN(wait_for_lock(wait_queue, data, 0, lock_wait_timeout));
+  result= wait_for_lock(wait_queue, data, 0, lock_wait_timeout);
+  MYSQL_END_TABLE_WAIT(locker);
+  DBUG_RETURN(result);
 end:
   mysql_mutex_unlock(&lock->mutex);
+  MYSQL_END_TABLE_WAIT(locker);
   DBUG_RETURN(result);
 }
 
