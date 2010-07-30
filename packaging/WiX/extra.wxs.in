@@ -48,7 +48,11 @@
     </Directory>
   </DirectoryRef>
 
-  <Feature Id="UserEditableDatafiles" Level='1' Display='hidden'  ConfigurableDirectory="DATADIR">
+  <Feature Id='UserEditableDataFiles' 
+       Title='Server data files'
+       Description='Server data files'
+       ConfigurableDirectory='DATADIR'
+       Level='1'>
     <ComponentRef Id="component.datadir"/>
     <ComponentRef Id="component.datadir.mysql"/>
     <ComponentRef Id="component.datadir.performance_schema"/>

@@ -138,7 +138,7 @@ void sigwait_setup(sigset_t *set)
 
   sact.sa_flags = 0;
   sact.sa_handler = px_handle_sig;
-  memcpy_fixed(&sact.sa_mask,set,sizeof(*set));	/* handler isn't thread_safe */
+  memcpy(&sact.sa_mask, set, sizeof(*set));    /* handler isn't thread_safe */
   sigemptyset(&unblock_mask);
   pthread_sigmask(SIG_UNBLOCK,(sigset_t*) 0,&rev_sigwait_set);
 
@@ -164,7 +164,7 @@ void sigwait_setup(sigset_t *set)
       }
     }
   }
-  memcpy_fixed(&sigwait_set,set,sizeof(*set));
+  memcpy(&sigwait_set, set, sizeof(*set));
   pthread_sigmask(SIG_BLOCK,(sigset_t*) set,(sigset_t*) 0);
   pthread_sigmask(SIG_UNBLOCK,&unblock_mask,(sigset_t*) 0);
 }
@@ -252,7 +252,7 @@ void *sigwait_thread(void *set_arg)
   struct sigaction sact;
   sact.sa_flags = 0;
   sact.sa_handler = sigwait_handle_sig;
-  memcpy_fixed(&sact.sa_mask,set,sizeof(*set));	/* handler isn't thread_safe */
+  memcpy(&sact.sa_mask, set, sizeof(*set));    /* handler isn't thread_safe */
   sigemptyset(&pending_set);
 
   for (i = 1; i <= sizeof(pending_set)*8; i++)

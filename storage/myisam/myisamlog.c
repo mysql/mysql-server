@@ -619,7 +619,7 @@ static int examine_log(char * file_name, char **table_names)
     case MI_LOG_LOCK:
       if (my_b_read(&cache,(uchar*) head,sizeof(lock_command)))
 	goto err;
-      memcpy_fixed(&lock_command,head,sizeof(lock_command));
+      memcpy(&lock_command, head, sizeof(lock_command));
       if (verbose && !record_pos_file &&
 	  (!table_names[0] || (curr_file_info && curr_file_info->used)))
 	printf_log("%s: %s(%d) -> %d\n",FILENAME(curr_file_info),
@@ -728,7 +728,7 @@ static void fix_blob_pointers(MI_INFO *info, uchar *record)
        blob != end ;
        blob++)
   {
-    memcpy_fixed(record+blob->offset+blob->pack_length,&pos,sizeof(char*));
+    memcpy(record+blob->offset+blob->pack_length, &pos, sizeof(char*));
     pos+=_mi_calc_blob_length(blob->pack_length,record+blob->offset);
   }
 }
