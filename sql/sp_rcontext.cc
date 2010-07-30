@@ -525,8 +525,7 @@ sp_cursor::open(THD *thd)
                MYF(0));
     return -1;
   }
-  if (mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR, &result,
-                        &server_side_cursor))
+  if (mysql_open_cursor(thd, &result, &server_side_cursor))
     return -1;
   return 0;
 }

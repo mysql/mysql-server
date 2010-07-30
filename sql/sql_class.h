@@ -38,7 +38,7 @@
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                     THR_LOCK_INFO, THR_LOCK_OWNER */
+                                     THR_LOCK_INFO */
 
 
 class Reprepare_observer;
@@ -723,7 +723,6 @@ public:
     ENGINE INNODB STATUS.
   */
   LEX_STRING query_string;
-  Server_side_cursor *cursor;
 
   inline char *query() { return query_string.str; }
   inline uint32 query_length() { return query_string.length; }
@@ -1416,9 +1415,6 @@ public:
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
-  THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
-  THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
-                                        // the lock_id of a cursor.
   /**
     Protects THD data accessed from other threads:
     - thd->query and thd->query_length (used by SHOW ENGINE

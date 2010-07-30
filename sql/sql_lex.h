@@ -1392,9 +1392,9 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, const char *buff, unsigned int length);
+  bool init(THD *thd, char *buff, unsigned int length);
 
-  void reset(const char *buff, unsigned int length);
+  void reset(char *buff, unsigned int length);
 
   /**
     Set the echo mode.
@@ -1507,6 +1507,20 @@ public:
       m_cpp_ptr += n;
     }
     m_ptr += n;
+  }
+
+  /**
+    Puts a character back into the stream, canceling
+    the effect of the last yyGet() or yySkip().
+    Note that the echo mode should not change between calls
+    to unput, get, or skip from the stream.
+  */
+  char *yyUnput(char ch)
+  {
+    *--m_ptr= ch;
+    if (m_echo)
+      m_cpp_ptr--;
+    return m_ptr;
   }
 
   /**
@@ -1666,7 +1680,7 @@ public:
 
 private:
   /** Pointer to the current position in the raw input stream. */
-  const char *m_ptr;
+  char *m_ptr;
 
   /** Starting position of the last token parsed, in the raw buffer. */
   const char *m_tok_start;
@@ -2348,7 +2362,7 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, const char *buff, unsigned int length)
+  bool init(THD *thd, char *buff, unsigned int length)
   {
     return m_lip.init(thd, buff, length);
   }
@@ -2359,7 +2373,7 @@ public:
   Lex_input_stream m_lip;
   Yacc_state m_yacc;
 
-  void reset(const char *found_semicolon, unsigned int length)
+  void reset(char *found_semicolon, unsigned int length)
   {
     m_lip.reset(found_semicolon, length);
     m_yacc.reset();
