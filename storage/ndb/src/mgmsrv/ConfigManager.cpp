@@ -1735,6 +1735,11 @@ ConfigManager::run()
 
   if (!m_opts.config_cache)   
   {
+    /* Stop receiving signals by closing ConfigManager's
+       block in TransporterFacade */
+    delete m_ss;
+    m_ss = NULL;
+
     /* Confirm the present config, free the space that was allocated for a
        new one, and terminate the manager thread */
     delete m_new_config; 
