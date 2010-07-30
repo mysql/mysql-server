@@ -26,6 +26,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "table_all_instr.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -64,13 +65,13 @@ struct pos_events_waits_summary_by_thread_by_event_name
 : public PFS_triple_index, public PFS_instrument_view_constants
 {
   pos_events_waits_summary_by_thread_by_event_name()
-    : PFS_triple_index(0, VIEW_MUTEX, 1)
+    : PFS_triple_index(0, FIRST_VIEW, 1)
   {}
 
   inline void reset(void)
   {
     m_index_1= 0;
-    m_index_2= VIEW_MUTEX;
+    m_index_2= FIRST_VIEW;
     m_index_3= 1;
   }
 
@@ -78,12 +79,12 @@ struct pos_events_waits_summary_by_thread_by_event_name
   { return (m_index_1 < thread_max); }
 
   inline bool has_more_view(void)
-  { return (m_index_2 <= VIEW_FILE); }
+  { return (m_index_2 <= LAST_VIEW); }
 
   inline void next_thread(void)
   {
     m_index_1++;
-    m_index_2= VIEW_MUTEX;
+    m_index_2= FIRST_VIEW;
     m_index_3= 1;
   }
 

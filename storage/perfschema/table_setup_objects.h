@@ -23,6 +23,7 @@
 
 #include "pfs_instr_class.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -53,17 +54,17 @@ struct pos_setup_objects : public PFS_double_index,
                            public PFS_object_view_constants
 {
   pos_setup_objects()
-    : PFS_double_index(VIEW_TABLE, 0)
+    : PFS_double_index(FIRST_VIEW, 0)
   {}
 
   inline void reset(void)
   {
-    m_index_1= VIEW_TABLE;
+    m_index_1= FIRST_VIEW;
     m_index_2= 0;
   }
 
   inline bool has_more_view(void)
-  { return (m_index_1 <= VIEW_FUNCTION); }
+  { return (m_index_1 <= LAST_VIEW); }
 
   inline void next_view(void)
   {

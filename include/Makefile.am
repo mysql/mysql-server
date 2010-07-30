@@ -48,7 +48,8 @@ noinst_HEADERS =	config-win.h lf.h my_bit.h \
 			atomic/solaris.h mysql/innodb_priv.h my_compiler.h
 
 pkgpsiinclude_HEADERS = mysql/psi/psi.h mysql/psi/mysql_thread.h \
-			mysql/psi/mysql_file.h
+			mysql/psi/mysql_file.h \
+			mysql/psi/mysql_table.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
 			CMakeLists.txt \

@@ -96,6 +96,7 @@
 #include "debug_sync.h"
 #include "probes_mysql.h"
 #include "set_var.h"
+#include "sql_bootstrap.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -483,11 +484,20 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
 #endif
 }
 
+static char *fgets_fn(char *buffer, size_t size, fgets_input_t input)
+{
+  MYSQL_FILE *in= static_cast<MYSQL_FILE*> (input);
+  return mysql_file_fgets(buffer, size, in);
+}
 
 static void handle_bootstrap_impl(THD *thd)
 {
   MYSQL_FILE *file= bootstrap_file;
-  char *buff;
+  char buffer[MAX_BOOTSTRAP_QUERY_SIZE];
+  char *query;
+  int length;
+  int rc;
+  const char* found_semicolon= NULL;
 
   DBUG_ENTER("handle_bootstrap");
 
@@ -507,44 +517,26 @@ static void handle_bootstrap_impl(THD *thd)
   */
   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
 
-  buff= (char*) thd->net.buff;
   thd->init_for_queries();
-  while (mysql_file_fgets(buff, thd->net.max_packet, file))
+
+  for ( ; ; )
   {
-    char *query;
-    /* strlen() can't be deleted because mysql_file_fgets() doesn't return length */
-    ulong length= (ulong) strlen(buff);
-    while (buff[length-1] != '\n' && !mysql_file_feof(file))
+    rc= read_bootstrap_query(buffer, &length, file, fgets_fn);
+
+    if (rc == READ_BOOTSTRAP_ERROR)
     {
-      /*
-        We got only a part of the current string. Will try to increase
-        net buffer then read the rest of the current string.
-      */
-      /* purecov: begin tested */
-      if (net_realloc(&(thd->net), 2 * thd->net.max_packet))
-      {
-        thd->protocol->end_statement();
-        bootstrap_error= 1;
-        break;
-      }
-      buff= (char*) thd->net.buff;
-      mysql_file_fgets(buff + length, thd->net.max_packet - length, file);
-      length+= (ulong) strlen(buff + length);
-      /* purecov: end */
+      thd->raise_error(ER_SYNTAX_ERROR);
+      thd->protocol->end_statement();
+      bootstrap_error= 1;
+      break;
     }
-    if (bootstrap_error)
-      break;                                    /* purecov: inspected */
 
-    while (length && (my_isspace(thd->charset(), buff[length-1]) ||
-                      buff[length-1] == ';'))
-      length--;
-    buff[length]=0;
+    if (rc == READ_BOOTSTRAP_EOF)
+      break;
 
-    /* Skip lines starting with delimiter */
-    if (strncmp(buff, STRING_WITH_LEN("delimiter")) == 0)
-      continue;
+    DBUG_ASSERT(rc == 0);
 
-    query= (char *) thd->memdup_w_gap(buff, length + 1,
+    query= (char *) thd->memdup_w_gap(buffer, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
     thd->set_query_and_id(query, length, next_query_id());
