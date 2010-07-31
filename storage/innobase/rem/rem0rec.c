@@ -574,9 +574,7 @@ rec_get_offsets_func(
 	if (UNIV_UNLIKELY(!offsets)
 	    || UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
 		if (UNIV_UNLIKELY(!*heap)) {
-			*heap = mem_heap_create_func(size * sizeof(ulint),
-						     MEM_HEAP_DYNAMIC,
-						     file, line);
+			*heap = mem_heap_create(size * sizeof(ulint));
 		}
 		offsets = mem_heap_alloc(*heap, size * sizeof(ulint));
 		rec_offs_set_n_alloc(offsets, size);

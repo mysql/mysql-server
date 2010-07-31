@@ -191,15 +191,6 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 }
 
 
-#ifdef NOT_USED
-static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
-{
-  handlerton *hton= ha_default_handlerton(current_thd);
-  return (hton && hton->create) ? hton->create(hton, table, mem_root) : NULL;
-}
-#endif
-
-
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
   plugin_ref plugin;
@@ -240,10 +231,6 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   switch (database_type) {
-#ifndef NO_HASH
-  case DB_TYPE_HASH:
-    return ha_resolve_by_legacy_type(thd, DB_TYPE_HASH);
-#endif
   case DB_TYPE_MRG_ISAM:
     return ha_resolve_by_legacy_type(thd, DB_TYPE_MRG_MYISAM);
   default:
@@ -1146,6 +1133,7 @@ int ha_commit_trans(THD *thd, bool all)
 
   if (thd->in_sub_stmt)
   {
+    DBUG_ASSERT(0);
     /*
       Since we don't support nested statement transactions in 5.0,
       we can't commit or rollback stmt transactions while we are inside
@@ -1160,7 +1148,6 @@ int ha_commit_trans(THD *thd, bool all)
       bail out with error even before ha_commit_trans() call. To be 100% safe
       let us throw error in non-debug builds.
     */
-    DBUG_ASSERT(0);
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(2);
   }
@@ -1343,6 +1330,7 @@ int ha_rollback_trans(THD *thd, bool all)
 
   if (thd->in_sub_stmt)
   {
+    DBUG_ASSERT(0);
     /*
       If we are inside stored function or trigger we should not commit or
       rollback current statement transaction. See comment in ha_commit_trans()
@@ -1350,7 +1338,6 @@ int ha_rollback_trans(THD *thd, bool all)
     */
     if (!all)
       DBUG_RETURN(0);
-    DBUG_ASSERT(0);
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
   }

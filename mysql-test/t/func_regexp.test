@@ -92,3 +92,17 @@ DROP TABLE t1;
 
 
 --echo End of 5.1 tests
+
+#
+# Bug #54805 definitions in regex/my_regex.h conflict with /usr/include/regex.h
+#
+# This test verifies that '\t' is recognized as space, but not as blank.
+# This is *not* according to the POSIX standard, but seems to have been MySQL
+# behaviour ever since regular expressions were introduced.
+# See: Bug #55427 REGEXP does not recognize '\t' as [:blank:]
+#
+SELECT ' '  REGEXP '[[:blank:]]';
+SELECT '\t' REGEXP '[[:blank:]]';
+
+SELECT ' '  REGEXP '[[:space:]]';
+SELECT '\t' REGEXP '[[:space:]]';

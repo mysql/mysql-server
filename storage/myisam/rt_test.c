@@ -366,25 +366,6 @@ static int read_with_pos (MI_INFO * file,int silent)
 }
 
 
-#ifdef NOT_USED
-static void bprint_record(char * record,
-			  my_off_t offs __attribute__((unused)),
-			  const char * tail)
-{
-  int i;
-  char * pos;
-  i=(unsigned char)record[0];
-  printf("%02X ",i);
-  
-  for( pos=record+1, i=0; i<32; i++,pos++){
-    int b=(unsigned char)*pos;
-    printf("%02X",b);
-  }
-  printf("%s",tail);
-}
-#endif
-
-
 static void print_record(uchar * record,
 			 my_off_t offs __attribute__((unused)),
 			 const char * tail)
@@ -424,30 +405,6 @@ static void create_record1(uchar *record,uint rownr)
    }
 }
 
-#ifdef NOT_USED
-
-static void create_record0(uchar *record,uint rownr)
-{
-   int i;
-   char * pos;
-   double c=rownr+10;
-   double c0=0;
-   
-   bzero((char*) record,MAX_REC_LENGTH);
-   record[0]=0x01; /* DEL marker */
-
-   for ( pos=record+1, i=0; i<ndims; i++)
-   {
-      memcpy(pos,&c0,sizeof(c0));
-      float8store(pos,c0);
-      pos+=sizeof(c0);
-      memcpy(pos,&c,sizeof(c));
-      float8store(pos,c);
-      pos+=sizeof(c);
-   }
-}
-
-#endif
 
 static void create_record(uchar *record,uint rownr)
 {

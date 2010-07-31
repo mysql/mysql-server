@@ -44,17 +44,17 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "no-contact", 'n', "Wait for cluster no contact",
-    (uchar**) &_no_contact, (uchar**) &_no_contact, 0,
+    &_no_contact, &_no_contact, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "not-started", OPT_WAIT_STATUS_NOT_STARTED, "Wait for cluster not started",
-    (uchar**) &_not_started, (uchar**) &_not_started, 0,
+    &_not_started, &_not_started, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "single-user", OPT_WAIT_STATUS_SINGLE_USER,
     "Wait for cluster to enter single user mode",
-    (uchar**) &_single_user, (uchar**) &_single_user, 0,
+    &_single_user, &_single_user, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "timeout", 't', "Timeout to wait in seconds",
-    (uchar**) &_timeout, (uchar**) &_timeout, 0,
+    &_timeout, &_timeout, 0,
     GET_INT, REQUIRED_ARG, 120, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
