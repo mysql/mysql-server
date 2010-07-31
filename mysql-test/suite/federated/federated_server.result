@@ -272,6 +272,10 @@ END//
 use test;
 call p1();
 call p1();
+Warnings:
+Error	1477	The foreign server name you are trying to reference does not exist. Data source error:  s
+Warnings:
+Error	1476	The foreign server, s, you are trying to create already exists.
 drop procedure p1;
 drop server if exists s;
 DROP TABLE IF EXISTS federated.t1;
