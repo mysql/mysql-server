@@ -59,7 +59,7 @@
 #include "my_md5.h"
 #include "transaction.h"
 
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                   // close_all_tables_for_name
 #include "sql_table.h"                  // build_table_filename,
                                         // build_table_shadow_filename,
                                         // table_to_filename
@@ -1071,7 +1071,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   partition_info *part_info= table->part_info;
   bool result= TRUE;
   int error;
-  const char *save_where;
   LEX *old_lex= thd->lex;
   LEX lex;
   uint8 saved_full_group_by_flag;
@@ -1083,7 +1082,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 
   func_expr->walk(&Item::change_context_processor, 0,
                   (uchar*) &lex.select_lex.context);
-  save_where= thd->where;
   thd->where= "partition function";
   /*
     In execution we must avoid the use of thd->change_item_tree since
@@ -4185,7 +4183,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
 */
 
 bool mysql_unpack_partition(THD *thd,
-                            const char *part_buf, uint part_info_len,
+                            char *part_buf, uint part_info_len,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type,
                             bool *work_part_info_used)
@@ -6758,7 +6756,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                  table_list, FALSE, NULL,
                                  written_bin_log));
 err:
-  close_thread_tables(thd);
   DBUG_RETURN(TRUE);
 }
 #endif

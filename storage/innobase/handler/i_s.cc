@@ -401,133 +401,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_TRX_ADAPTIVE_HASH_LATCHED	20
-	{STRUCT_FLD(field_name,		"trx_apative_hash_latched"),
-	 STRUCT_FLD(field_length,	1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ADAPTIVE_HASH_TIMEOUT	21
-	{STRUCT_FLD(field_name,		"trx_adaptive_hash_timeout"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_OPERATION_STATE	8
-	{STRUCT_FLD(field_name,		"trx_operation_state"),
-	 STRUCT_FLD(field_length,	TRX_I_S_TRX_OP_STATE_MAX_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_TABLES_IN_USE	9
-	{STRUCT_FLD(field_name,		"trx_tables_in_use"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_TABLES_LOCKED	10
-	{STRUCT_FLD(field_name,		"trx_tables_locked"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_LOCK_STRUCTS	11
-	{STRUCT_FLD(field_name,		"trx_lock_structs"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_LOCK_MEMORY_BYTES	12
-	{STRUCT_FLD(field_name,		"trx_lock_memory_bytes"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ROWS_LOCKED	13
-	{STRUCT_FLD(field_name,		"trx_rows_locked"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ROWS_MODIFIED		14
-	{STRUCT_FLD(field_name,		"trx_rows_modified"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_CONNCURRENCY_TICKETS	15
-	{STRUCT_FLD(field_name,		"trx_concurrency_tickets"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ISOLATION_LEVEL	16
-	{STRUCT_FLD(field_name,		"trx_isolation_level"),
-	 STRUCT_FLD(field_length,	TRX_I_S_TRX_ISOLATION_LEVEL_MAX_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_UNIQUE_CHECKS	17
-	{STRUCT_FLD(field_name,		"trx_unique_checks"),
-	 STRUCT_FLD(field_length,	1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	STRUCT_FLD(value,		1),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_FOREIGN_KEY_CHECKS	18
-	{STRUCT_FLD(field_name,		"trx_foreign_key_checks"),
-	 STRUCT_FLD(field_length,	1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	 STRUCT_FLD(value,		1),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_LAST_FOREIGN_KEY_ERROR	19
-	{STRUCT_FLD(field_name,		"trx_last_foreign_key_error"),
-	 STRUCT_FLD(field_length,	TRX_I_S_TRX_FK_ERROR_MAX_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ADAPTIVE_HASH_LATCHED	20
-	{STRUCT_FLD(field_name,		"trx_apative_hash_latched"),
+	{STRUCT_FLD(field_name,		"trx_adaptive_hash_latched"),
 	 STRUCT_FLD(field_length,	1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -674,7 +548,7 @@ fill_innodb_trx_from_cache(
 		OK(field_store_string(fields[IDX_TRX_LAST_FOREIGN_KEY_ERROR],
 				      row->trx_foreign_key_error));
 
-		/* trx_apative_hash_latched */
+		/* trx_adaptive_hash_latched */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_LATCHED]->store(
 			   row->trx_has_search_latch));
 
@@ -1973,16 +1847,13 @@ i_s_dict_fill_sys_tables(
 	dict_table_t*	table,		/*!< in: table */
 	TABLE*		table_to_fill)  /*!< in/out: fill this table */
 {
-	longlong	table_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tables");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(table->id);
-
-	OK(fields[SYS_TABLE_ID]->store(table_id, TRUE));
+	OK(fields[SYS_TABLE_ID]->store(longlong(table->id), TRUE));
 
 	OK(field_store_string(fields[SYS_TABLE_NAME], table->name));
 
@@ -2238,16 +2109,13 @@ i_s_dict_fill_sys_tablestats(
 	dict_table_t*	table,		/*!< in: table */
 	TABLE*		table_to_fill)  /*!< in/out: fill this table */
 {
-	longlong	table_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablestats");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(table->id);
-
-	OK(fields[SYS_TABLESTATS_ID]->store(table_id, TRUE));
+	OK(fields[SYS_TABLESTATS_ID]->store(longlong(table->id), TRUE));
 
 	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
 
@@ -2495,27 +2363,22 @@ int
 i_s_dict_fill_sys_indexes(
 /*======================*/
 	THD*		thd,		/*!< in: thread */
-	dulint		tableid,	/*!< in: table id */
+	table_id_t	table_id,	/*!< in: table id */
 	dict_index_t*	index,		/*!< in: populated dict_index_t
 					struct with index info */
 	TABLE*		table_to_fill)  /*!< in/out: fill this table */
 {
-	longlong	table_id;
-	longlong	index_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_indexes");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(tableid);
-	index_id = ut_conv_dulint_to_longlong(index->id);
-
-	OK(fields[SYS_INDEX_ID]->store(index_id, TRUE));
+	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
 
 	OK(field_store_string(fields[SYS_INDEX_NAME], index->name));
 
-	OK(fields[SYS_INDEX_TABLE_ID]->store(table_id, TRUE));
+	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), TRUE));
 
 	OK(fields[SYS_INDEX_TYPE]->store(index->type));
 
@@ -2564,7 +2427,7 @@ i_s_sys_indexes_fill_table(
 	/* Process each record in the table */
 	while (rec) {
 		const char*	err_msg;;
-		dulint		table_id;
+		table_id_t	table_id;
 		dict_index_t	index_rec;
 
 		/* Populate a dict_index_t structure with information from
@@ -2737,22 +2600,19 @@ int
 i_s_dict_fill_sys_columns(
 /*======================*/
 	THD*		thd,		/*!< in: thread */
-	dulint		tableid,	/*!< in: table ID */
+	table_id_t	table_id,	/*!< in: table ID */
 	const char*	col_name,	/*!< in: column name */
 	dict_col_t*	column,		/*!< in: dict_col_t struct holding
 					more column information */
 	TABLE*		table_to_fill)  /*!< in/out: fill this table */
 {
-	longlong	table_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_columns");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(tableid);
-
-	OK(fields[SYS_COLUMN_TABLE_ID]->store(table_id, TRUE));
+	OK(fields[SYS_COLUMN_TABLE_ID]->store(longlong(table_id), TRUE));
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
@@ -2803,7 +2663,7 @@ i_s_sys_columns_fill_table(
 	while (rec) {
 		const char*	err_msg;
 		dict_col_t	column_rec;
-		dulint		table_id;
+		table_id_t	table_id;
 
 		/* populate a dict_col_t structure with information from
 		a SYS_COLUMNS row */
@@ -2948,21 +2808,18 @@ int
 i_s_dict_fill_sys_fields(
 /*=====================*/
 	THD*		thd,		/*!< in: thread */
-	dulint		indexid,	/*!< in: index id for the field */
+	index_id_t	index_id,	/*!< in: index id for the field */
 	dict_field_t*	field,		/*!< in: table */
 	ulint		pos,		/*!< in: Field position */
 	TABLE*		table_to_fill)  /*!< in/out: fill this table */
 {
-	longlong	index_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_fields");
 
 	fields = table_to_fill->field;
 
-	index_id = ut_conv_dulint_to_longlong(indexid);
-
-	OK(fields[SYS_FIELD_INDEX_ID]->store(index_id, TRUE));
+	OK(fields[SYS_FIELD_INDEX_ID]->store(longlong(index_id), TRUE));
 
 	OK(field_store_string(fields[SYS_FIELD_NAME], field->name));
 
@@ -2988,7 +2845,7 @@ i_s_sys_fields_fill_table(
         btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
-	dulint		last_id;
+	index_id_t	last_id;
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_fields_fill_table");
@@ -3005,14 +2862,14 @@ i_s_sys_fields_fill_table(
 
 	/* will save last index id so that we know whether we move to
 	the next index. This is used to calculate prefix length */
-	last_id = ut_dulint_create(0, 0);
+	last_id = 0;
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_FIELDS);
 
 	while (rec) {
 		ulint		pos;
 		const char*	err_msg;
-		dulint		index_id;
+		index_id_t	index_id;
 		dict_field_t	field_rec;
 
 		/* Populate a dict_field_t structure with information from

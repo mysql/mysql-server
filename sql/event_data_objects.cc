@@ -1402,6 +1402,8 @@ Event_job_data::execute(THD *thd, bool drop)
   */
   thd->set_db(dbname.str, dbname.length);
 
+  lex_start(thd);
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (event_sctx.change_security_context(thd,
                                          &definer_user, &definer_host,
@@ -1411,7 +1413,7 @@ Event_job_data::execute(THD *thd, bool drop)
                     "[%s].[%s.%s] execution failed, "
                     "failed to authenticate the user.",
                     definer.str, dbname.str, name.str);
-    goto end_no_lex_start;
+    goto end;
   }
 #endif
 
@@ -1427,11 +1429,11 @@ Event_job_data::execute(THD *thd, bool drop)
                     "[%s].[%s.%s] execution failed, "
                     "user no longer has EVENT privilege.",
                     definer.str, dbname.str, name.str);
-    goto end_no_lex_start;
+    goto end;
   }
 
   if (construct_sp_sql(thd, &sp_sql))
-    goto end_no_lex_start;
+    goto end;
 
   /*
     Set up global thread attributes to reflect the properties of
@@ -1450,8 +1452,6 @@ Event_job_data::execute(THD *thd, bool drop)
     Parser_state parser_state;
     if (parser_state.init(thd, thd->query(), thd->query_length()))
       goto end;
-
-    lex_start(thd);
 
     if (parse_sql(thd, & parser_state, creation_ctx))
     {
@@ -1484,13 +1484,6 @@ Event_job_data::execute(THD *thd, bool drop)
   }
 
 end:
-  if (thd->lex->sphead)                        /* NULL only if a parse error */
-  {
-    delete thd->lex->sphead;
-    thd->lex->sphead= NULL;
-  }
-
-end_no_lex_start:
   if (drop && !thd->is_fatal_error)
   {
     /*
@@ -1529,7 +1522,6 @@ end_no_lex_start:
   if (save_sctx)
     event_sctx.restore_security_context(thd, save_sctx);
 #endif
-  lex_end(thd->lex);
   thd->lex->unit.cleanup();
   thd->end_statement();
   thd->cleanup_after_query();
