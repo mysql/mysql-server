@@ -20,7 +20,7 @@
 EXTRA_DIST =		FINISH.sh \
 			SETUP.sh \
 			autorun.sh \
-			choose_configure.sh \
+			cmake_configure.sh \
 			build_mccge.sh \
 			check-cpu \
 			cleanup \

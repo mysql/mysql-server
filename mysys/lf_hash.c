@@ -41,8 +41,6 @@ typedef struct {
   */
 } LF_SLIST;
 
-const int LF_HASH_OVERHEAD= sizeof(LF_SLIST);
-
 /*
   a structure to pass the context (pointers two the three successive elements
   in a list) from lfind to linsert/ldelete

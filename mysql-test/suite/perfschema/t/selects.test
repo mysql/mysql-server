@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2009 Sun Microsystems, Inc
+# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
@@ -85,20 +85,32 @@ LIMIT 5;
 
 # EVENT
 
+# Check that the event_scheduler is really running
+--source include/running_event_scheduler.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t_event;
+DROP EVENT IF EXISTS t_ps_event;
+--enable_warnings
+CREATE TABLE t_event AS
+SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE 1 = 2;
 CREATE EVENT t_ps_event
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
-DO SELECT DISTINCT EVENT_ID
+DO INSERT INTO t_event
+   SELECT DISTINCT EVENT_ID
    FROM performance_schema.EVENTS_WAITS_CURRENT
    JOIN performance_schema.EVENTS_WAITS_HISTORY USING (EVENT_ID)
    ORDER BY EVENT_ID
    LIMIT 1;
 
---sleep 2
-
 # TRIGGER
 
 ALTER TABLE t1 ADD COLUMN c INT;
 
+--disable_warnings
+DROP TRIGGER IF EXISTS t_ps_trigger;
+--enable_warnings
 delimiter |;
 
 CREATE TRIGGER t_ps_trigger BEFORE INSERT ON t1
@@ -119,6 +131,9 @@ DROP TRIGGER t_ps_trigger;
 
 # PROCEDURE
 
+--disable_warnings
+DROP PROCEDURE IF EXISTS t_ps_proc;
+--enable_warnings
 delimiter |;
 
 CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
@@ -135,6 +150,9 @@ CALL t_ps_proc(0, @p_id);
 
 # FUNCTION
 
+--disable_warnings
+DROP FUNCTION IF EXISTS t_ps_proc;
+--enable_warnings
 delimiter |;
 
 CREATE FUNCTION t_ps_func(tid INT) RETURNS int
@@ -149,8 +167,17 @@ delimiter ;|
 
 SELECT t_ps_func(0) = @p_id;
 
-DROP PROCEDURE t_ps_proc;
-DROP FUNCTION t_ps_func;
+# We might reach this point too early which means the event scheduler has not
+# execute our "t_ps_event". Therefore we poll till the record was inserted
+# and run our test statement afterwards.
+let $wait_timeout= 20;
+let $wait_condition= SELECT COUNT(*) = 1 FROM t_event;
+--source include/wait_condition.inc
+--replace_column 1 [EVENT_ID]
+SELECT * FROM t_event;
 
 # Clean up
+DROP PROCEDURE t_ps_proc;
+DROP FUNCTION t_ps_func;
 DROP TABLE t1;
+DROP TABLE t_event;

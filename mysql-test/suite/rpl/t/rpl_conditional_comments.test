@@ -1,0 +1,74 @@
+###############################################################################
+# After the patch for BUG#49124:
+#  - Use ' ' instead of '!' in the conditional comments which are not applied on
+#  master. So they become common comments and will not be applied on slave.
+#
+#  - Example: 
+#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /*!99999 ,(3)*/ 
+#  will be binlogged as 
+#  'INSERT INTO t1 VALUES (1) /*!10000, (2)*/ /* 99999 ,(3)*/'.
+###############################################################################
+source include/master-slave.inc;
+source include/have_binlog_format_statement.inc;
+
+CREATE TABLE t1(c1 INT);
+source include/show_binlog_events.inc;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--echo
+--echo # Case 1:
+--echo # ------------------------------------------------------------------
+--echo # In a statement, some CCs are applied while others are not. The CCs
+--echo # which are not applied on master will be binlogged as common comments.
+
+/*!99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!99999 ,(11)*/;
+
+source include/show_binlog_events.inc;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+sync_slave_with_master;
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+--echo
+--echo # Case 2:
+--echo # -----------------------------------------------------------------
+--echo # Verify whether it can be binlogged correctly when executing prepared
+--echo # statement.
+PREPARE stmt FROM 'INSERT INTO /*!99999 blabla*/ t1 VALUES(60) /*!99999 ,(61)*/';
+EXECUTE stmt;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+EXECUTE stmt;
+
+sync_slave_with_master;
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+--echo
+SET @value=62;
+PREPARE stmt FROM 'INSERT INTO /*!99999 blabla */ t1 VALUES(?) /*!99999 ,(63)*/';
+EXECUTE stmt USING @value;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+EXECUTE stmt USING @value;
+
+source include/show_binlog_events.inc;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+sync_slave_with_master;
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+--echo
+--echo # Case 3:
+--echo # -----------------------------------------------------------------
+--echo # Verify it can restore the '!', if the it is an uncomplete conditional
+--echo # comments
+--error 1064
+SELECT c1 FROM /*!99999 t1 WHEREN;
+
+DROP TABLE t1;
+source include/master-slave-end.inc;
