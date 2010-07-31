@@ -541,7 +541,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   int error, table_type;
   bool error_given;
   File file;
-  uchar head[64], *disk_buff;
+  uchar head[64];
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
@@ -550,7 +550,6 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   error= 1;
   error_given= 0;
-  disk_buff= NULL;
 
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= mysql_file_open(key_file_frm,
@@ -797,7 +796,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   share->key_info= keyinfo;
-  key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
+  key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
@@ -1822,8 +1821,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
       goto err;
     outparam->key_info= key_info;
-    key_part= (my_reinterpret_cast(KEY_PART_INFO*) (key_info+share->keys));
-    
+    key_part= (reinterpret_cast<KEY_PART_INFO*>(key_info+share->keys));
+
     memcpy(key_info, share->key_info, sizeof(*key_info)*share->keys);
     memcpy(key_part, share->key_info[0].key_part, (sizeof(*key_part) *
                                                    share->key_parts));

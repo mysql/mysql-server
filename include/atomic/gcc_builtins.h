@@ -22,8 +22,9 @@
   v= __sync_lock_test_and_set(a, v);
 #define make_atomic_cas_body(S)                     \
   int ## S sav;                                     \
-  sav= __sync_val_compare_and_swap(a, *cmp, set);   \
-  if (!(ret= (sav == *cmp))) *cmp= sav;
+  int ## S cmp_val= *cmp;                           \
+  sav= __sync_val_compare_and_swap(a, cmp_val, set);\
+  if (!(ret= (sav == cmp_val))) *cmp= sav
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 #define make_atomic_load_body(S)   ret= *a

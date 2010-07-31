@@ -83,7 +83,6 @@ ulonglong relay_log_space_limit = 0;
 */
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
-int events_till_abort = -1;
 
 static pthread_key(Master_info*, RPL_MASTER_INFO);
 
@@ -796,17 +795,6 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   }
   DBUG_RETURN(error);
 }
-
-
-#ifdef NOT_USED_YET
-static int end_slave_on_walk(Master_info* mi, uchar* /*unused*/)
-{
-  DBUG_ENTER("end_slave_on_walk");
-
-  end_master_info(mi);
-  DBUG_RETURN(0);
-}
-#endif
 
 
 /*
@@ -3044,7 +3032,6 @@ err:
   change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
-  close_thread_tables(thd);
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
@@ -3275,11 +3262,8 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   mysql_mutex_lock(&rli->data_lock);
   if (rli->slave_skip_counter)
   {
-    char *pos;
-    pos= strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
-    pos= '\0';
-    pos= strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
-    pos= '\0';
+    strmake(saved_log_name, rli->group_relay_log_name, FN_REFLEN - 1);
+    strmake(saved_master_log_name, rli->group_master_log_name, FN_REFLEN - 1);
     saved_log_pos= rli->group_relay_log_pos;
     saved_master_log_pos= rli->group_master_log_pos;
     saved_skip= rli->slave_skip_counter;
