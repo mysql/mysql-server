@@ -2243,6 +2243,8 @@ void Item_func_min_max::fix_length_and_dec()
     max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
                                                              decimals, decimals,
                                                              unsigned_flag);
+  else if (cmp_type == REAL_RESULT)
+    max_length= float_length(decimals);
   cached_field_type= agg_field_type(args, arg_count);
 }
 
