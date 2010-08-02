@@ -2933,7 +2933,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
     */
     if (res == FIND_FILES_DIR)
     {
-      if (lex->sql_command != SQLCOM_SELECT)
+      if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
         return 1;
       thd->clear_error();
       return 2;
