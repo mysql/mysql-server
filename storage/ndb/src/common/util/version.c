@@ -91,8 +91,6 @@ struct NdbUpGradeCompatible {
   UG_MatchType matchType;
 };
 
-/*#define TEST_VERSION*/
-
 #define HAVE_NDB_SETVERSION
 #ifdef HAVE_NDB_SETVERSION
 Uint32 ndbOwnVersionTesting = 0;
@@ -111,7 +109,6 @@ ndbSetOwnVersion() {
 void ndbSetOwnVersion() {}
 #endif
 
-#ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
   { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(6,4,0), UG_Range },
@@ -151,28 +148,6 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
   { MAKE_VERSION(3,5,4), MAKE_VERSION(3,5,3), UG_Exact },
   { 0, 0, UG_Null }
 };
-
-#else /* testing purposes */
-
-struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
-  { MAKE_VERSION(4,1,5), MAKE_VERSION(4,1,0), UG_Range },
-  { MAKE_VERSION(3,6,9), MAKE_VERSION(3,6,1), UG_Range },
-  { MAKE_VERSION(3,6,2), MAKE_VERSION(3,6,1), UG_Range },
-  { MAKE_VERSION(3,5,7), MAKE_VERSION(3,5,0), UG_Range },
-  { MAKE_VERSION(3,5,1), MAKE_VERSION(3,5,0), UG_Range },
-  { NDB_VERSION_D      , MAKE_VERSION(NDB_VERSION_MAJOR,NDB_VERSION_MINOR,2), UG_Range },
-  { 0, 0, UG_Null }
-};
-
-struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
-  { MAKE_VERSION(4,1,5), MAKE_VERSION(3,6,9), UG_Exact },
-  { MAKE_VERSION(3,6,2), MAKE_VERSION(3,5,7), UG_Exact },
-  { MAKE_VERSION(3,5,1), NDB_VERSION_D      , UG_Exact },
-  { 0, 0, UG_Null }
-};
-
-
-#endif
 
 void ndbPrintVersion()
 {
