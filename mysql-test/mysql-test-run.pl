@@ -3097,7 +3097,8 @@ sub check_testcase($$)
   my %started;
   foreach my $mysqld ( mysqlds() )
   {
-    if ( defined $mysqld->{'proc'} )
+    # Skip if server has been restarted with additional options
+    if ( defined $mysqld->{'proc'} && ! exists $mysqld->{'restart_opts'} )
     {
       my $proc= start_check_testcase($tinfo, $mode, $mysqld);
       $started{$proc->pid()}= $proc;
@@ -3862,8 +3863,8 @@ sub extract_warning_lines ($$) {
     if ($opt_valgrind_mysqld) {
       # Skip valgrind summary from tests where server has been restarted
       # Should this contain memory leaks, the final report will find it
-      $skip_valgrind= 1 if $line =~ /^==\d+== ERROR SUMMARY:/;
-      $skip_valgrind= 1 if $line =~ /^==\d+== HEAP SUMMARY:/;
+      # Use a generic pattern for summaries
+      $skip_valgrind= 1 if $line =~ /^==\d+== [A-Z ]+ SUMMARY:/;
       $skip_valgrind= 0 unless $line =~ /^==\d+==/;
       next if $skip_valgrind;
     }
@@ -4071,6 +4072,16 @@ sub check_expected_crash_and_restart {
 	  next;
 	}
 
+	# If last line begins "restart:", the rest of the line is read as
+        # extra command line options to add to the restarted mysqld.
+        # Anything other than 'wait' or 'restart:' (with a colon) will
+        # result in a restart with original mysqld options.
+	if ($last_line =~ /restart:(.+)/) {
+	  my @rest_opt= split(' ', $1);
+	  $mysqld->{'restart_opts'}= \@rest_opt;
+	} else {
+	  delete $mysqld->{'restart_opts'};
+	}
 	unlink($expect_file);
 
 	# Start server with same settings as last time
@@ -4418,7 +4429,13 @@ sub mysqld_start ($$) {
   }
 
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-  mysqld_arguments($args,$mysqld,$extra_opts);
+
+  # Add any additional options from an in-test restart
+  my @all_opts= @$extra_opts;
+  if (exists $mysqld->{'restart_opts'}) {
+    push (@all_opts, @{$mysqld->{'restart_opts'}});
+  }
+  mysqld_arguments($args,$mysqld,\@all_opts);
 
   if ( $opt_debug )
   {
@@ -4599,7 +4616,10 @@ sub server_need_restart {
     my $extra_opts= get_extra_opts($server, $tinfo);
     my $started_opts= $server->{'started_opts'};
 
-    if (!My::Options::same($started_opts, $extra_opts) )
+    # Also, always restart if server had been restarted with additional
+    # options within test.
+    if (!My::Options::same($started_opts, $extra_opts) ||
+        exists $server->{'restart_opts'})
     {
       my $use_dynamic_option_switch= 0;
       if (!$use_dynamic_option_switch)
