@@ -431,6 +431,7 @@ main(int argc, char ** argv)
       {
         g_logger.debug("Timed out");
 	result = ERR_MAX_TIME_ELAPSED;
+        g_logger.info("Timeout '%s' after %d seconds", test_case.m_name, test_case.m_max_time);
 	break;
       }
       NdbSleep_SecSleep(1);

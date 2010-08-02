@@ -1968,6 +1968,11 @@ sub environment_setup {
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
+    $ENV{'NDB_NDBD'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/src/kernel", "bin", "libexec"],
+		  ["ndbmtd", "ndbd"]);
+
     $ENV{'NDB_TOOLS_DIR'}=
       my_find_dir($basedir,
 		  ["storage/ndb/tools", "bin"]);
