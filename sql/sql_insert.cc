@@ -3873,6 +3873,17 @@ void select_create::abort()
 
   if (table)
   {
+    if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        thd->current_stmt_binlog_row_based &&
+        !(thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+        mysql_bin_log.is_open())
+    {
+      /*
+        This should be removed after BUG#47899.
+      */
+      mysql_bin_log.reset_gathered_updates(thd);
+    }
+
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     if (!create_info->table_existed)

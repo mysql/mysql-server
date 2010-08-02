@@ -1628,6 +1628,19 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
+/**
+  Cleanup the cache.
+
+  @param thd   The client thread that wants to clean up the cache.
+*/
+void MYSQL_BIN_LOG::reset_gathered_updates(THD *thd)
+{
+  binlog_trx_data *const trx_data=
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+
+  trx_data->reset();
+}
+
 void MYSQL_BIN_LOG::set_write_error(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::set_write_error");
