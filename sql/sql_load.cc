@@ -1054,7 +1054,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par),escape_char(escape)
+  :file(file_par),buffer(0),escape_char(escape)
 {
   read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
@@ -1103,6 +1103,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free((uchar*) buffer,MYF(0)); /* purecov: inspected */
+      buffer= 0;
       error=1;
     }
     else
@@ -1133,9 +1134,8 @@ READ_INFO::~READ_INFO()
   {
     if (need_end_io_cache)
       ::end_io_cache(&cache);
-    my_free((uchar*) buffer,MYF(0));
-    error=1;
   }
+  my_free((uchar*) buffer,MYF(MY_ALLOW_ZERO_PTR));
 }
 
 

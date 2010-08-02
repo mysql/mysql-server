@@ -1601,7 +1601,7 @@ sub collect_mysqld_features {
 	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
 	#print "mysql_version_id: $mysql_version_id\n";
-	mtr_report("MySQL Version $1.$2.$3");
+	mtr_report("MariaDB Version $1.$2.$3");
       }
     }
     else

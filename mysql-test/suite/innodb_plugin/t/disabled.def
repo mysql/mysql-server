@@ -9,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+
+innodb-use-sys-malloc : Waiting for buyfix from Percona for LP#612600

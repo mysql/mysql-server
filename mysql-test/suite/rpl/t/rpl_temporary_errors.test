@@ -77,6 +77,7 @@ DROP TABLE t_myisam, t_innodb;
 # the error log only during shutdown, and currently the suppression of
 # "Deadlock found" set in this test case is not effective during server
 # shutdown.
+--sync_slave_with_master
 connection slave;
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc

@@ -18159,7 +18159,7 @@ static void test_bug53907()
   rc= mysql_change_user(mysql, "testbug", NULL, "bug53907");
   myquery(rc);
 
-  rc= simple_command(mysql, COM_TABLE_DUMP, buf, sizeof(buf), 0);
+  rc= simple_command(mysql, COM_TABLE_DUMP, (uchar*) buf, sizeof(buf), 0);
   fprintf(stderr, ">>>>>>>>> %d\n", mysql_errno(mysql));
   DIE_UNLESS(mysql_errno(mysql) == 1103); /* ER_WRONG_TABLE_NAME */
 
