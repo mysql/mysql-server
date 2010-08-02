@@ -163,6 +163,8 @@ struct brtloader_s {
     toku_pthread_t *fractal_threads;
     BOOL *fractal_threads_live; // an array of bools indicating that fractal_threads[i] is a live thread.  (There is no NULL for a pthread_t, so we have to maintain this separately).
 
+    unsigned fractal_workers; // number of fractal tree writer threads
+
     toku_pthread_mutex_t mutex;
     BOOL mutex_init;
 };
