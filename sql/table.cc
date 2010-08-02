@@ -5265,6 +5265,8 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   {
     uint tbl;
     table_map tables= values[i]->used_tables();
+    if (!tables)
+      continue;
     for (tbl= 1; tables >= tbl; tbl<<= 1)
     {
       uint key= 0;

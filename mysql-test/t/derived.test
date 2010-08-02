@@ -328,3 +328,25 @@ ORDER  BY field1;
 DROP TABLE C;
 --echo # End of test for bug#55586
 
+--echo #
+--echo # Bug#55561: Crash on JOIN with 2 FROM subqueries
+--echo #
+CREATE TABLE C (
+  col_int int DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL
+);
+
+INSERT INTO `C` VALUES (0,NULL);
+INSERT INTO `C` VALUES (5,'y');
+ 
+SELECT table1.col_varchar
+FROM 
+ ( SELECT * FROM C  ) table1  
+ JOIN ( SELECT * FROM C  ) table2  ON table2.col_varchar = table1.col_varchar
+WHERE 
+  table2.col_varchar < table2.col_varchar
+  AND table1.col_varchar != 'k' 
+LIMIT  1;
+DROP TABLE C;
+--echo # End on bug#55561
+
