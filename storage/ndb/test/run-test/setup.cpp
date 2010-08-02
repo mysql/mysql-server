@@ -341,6 +341,13 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.append(" --core-file");
     if (g_fix_nodeid)
       proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
+
+    // Add ndb connect string
+    const char * val;
+    if (cluster.m_options.m_loaded.get(ndbcs, &val)) {
+      proc.m_proc.m_args.appfmt(" %s=%s", ndbcs, val);
+    }
+
     proc.m_proc.m_cwd.appfmt("%smysqld.%u", dir.c_str(), proc.m_index);
     proc.m_proc.m_shutdown_options = "SIGKILL"; // not nice
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=.%u%s", 
@@ -623,6 +630,7 @@ pr_check_features(Properties& props, proc_rule_ctx& ctx, int)
   {
     if (cluster.m_processes[i]->m_type == atrt_process::AP_NDB_MGMD ||
 	cluster.m_processes[i]->m_type == atrt_process::AP_NDB_API ||
+	cluster.m_processes[i]->m_type == atrt_process::AP_MYSQLD ||
 	cluster.m_processes[i]->m_type == atrt_process::AP_NDBD)
     {
       features |= atrt_options::AO_NDBCLUSTER;
