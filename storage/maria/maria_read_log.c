@@ -164,7 +164,7 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
-   (uchar**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "if --display-only, check if record is fully readable (for debugging)",
    (uchar **) &opt_check, (uchar **) &opt_check, 0,
@@ -183,12 +183,12 @@ static struct my_option my_long_options[] =
     (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "page_buffer_size", 'P', "",
-    (uchar**) &opt_page_buffer_size, (uchar**) &opt_page_buffer_size, 0,
+    &opt_page_buffer_size, &opt_page_buffer_size, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
     (long) USE_BUFFER_INIT, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
     (long) IO_SIZE, 0},
   { "start_from_lsn", 'o', "Start reading log from this lsn",
-    (uchar**) &opt_start_from_lsn, (uchar**) &opt_start_from_lsn,
+    &opt_start_from_lsn, &opt_start_from_lsn,
     0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
    (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
@@ -200,7 +200,7 @@ static struct my_option my_long_options[] =
 #else
    "colon (:)"
 #endif
-   , (uchar**) &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   , &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},

@@ -55,6 +55,10 @@
 #define USE_PRAGMA_INTERFACE
 #endif
 
+#if defined(__OpenBSD__) && (OpenBSD >= 200411)
+#define HAVE_ERRNO_AS_DEFINE
+#endif
+
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
@@ -548,8 +552,8 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #endif
 
 /* Does the system remember a signal handler after a signal ? */
-#ifndef HAVE_BSD_SIGNALS
-#define DONT_REMEMBER_SIGNAL
+#if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
+#define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
 /* Define void to stop lint from generating "null effekt" comments */

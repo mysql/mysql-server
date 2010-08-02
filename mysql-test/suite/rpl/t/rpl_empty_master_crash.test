@@ -1,7 +1,5 @@
 source include/master-slave.inc;
 
-source include/show_slave_status.inc;
-
 #
 # Load table should not succeed on the master as this is not a slave
 #

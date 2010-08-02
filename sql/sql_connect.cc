@@ -474,6 +474,12 @@ check_user(THD *thd, enum enum_server_command command,
         }
       }
       my_ok(thd);
+      /*
+        Allow the network layer to skip big packets. Although a malicious
+        authenticated session might use this to trick the server to read
+        big packets indefinitely, this is a previously established behavior
+        that needs to be preserved as to not break backwards compatibility.
+      */
       thd->net.net_skip_rest_factor= 2;  // skip at most 2*max_packet_size
       thd->password= test(passwd_len);   // remember for error messages 
       /* Ready to handle queries */

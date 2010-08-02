@@ -136,25 +136,24 @@ ALTER TABLE t2 DROP COLUMN d;
 
 
 ******************** SHOW BINLOG EVENTS ********************
-show binlog events from 1;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: #
-master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS test_rpl
-master-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS test_rpl_1
-master-bin.000001	#	Query	1	#	CREATE DATABASE test_rpl_1 CHARACTER SET utf8 COLLATE utf8_general_ci
-master-bin.000001	#	Query	1	#	ALTER DATABASE test_rpl_1 CHARACTER SET latin1 COLLATE latin1_general_ci
-master-bin.000001	#	Query	1	#	DROP DATABASE test_rpl_1
-master-bin.000001	#	Query	1	#	CREATE DATABASE test_rpl CHARACTER SET utf8 COLLATE utf8_general_ci
-master-bin.000001	#	Query	1	#	ALTER DATABASE test_rpl CHARACTER SET latin1 COLLATE latin1_swedish_ci
-master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE TABLE t0 (a int auto_increment not null, c int not null, PRIMARY KEY(a), KEY index2 (c)) ENGINE=innodb
-master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER TABLE t0 DROP INDEX index2
-master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER TABLE t0 ADD COLUMN b char(254)
-master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER TABLE t0 ADD INDEX index1 (b)
-master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER TABLE t0 DROP COLUMN c
-master-bin.000001	#	Query	1	#	use `test_rpl`; RENAME TABLE t0 TO t1
-master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE TABLE t2 LIKE t1
-master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER TABLE t2 ADD COLUMN d datetime
-master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE INDEX index2 on t2 (d)
-master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE INDEX index3 on t2 (a, d)
-master-bin.000001	#	Query	1	#	use `test_rpl`; ALTER TABLE t2 DROP COLUMN d
+master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS test_rpl
+master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS test_rpl_1
+master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl_1 CHARACTER SET utf8 COLLATE utf8_general_ci
+master-bin.000001	#	Query	#	#	ALTER DATABASE test_rpl_1 CHARACTER SET latin1 COLLATE latin1_general_ci
+master-bin.000001	#	Query	#	#	DROP DATABASE test_rpl_1
+master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl CHARACTER SET utf8 COLLATE utf8_general_ci
+master-bin.000001	#	Query	#	#	ALTER DATABASE test_rpl CHARACTER SET latin1 COLLATE latin1_swedish_ci
+master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE TABLE t0 (a int auto_increment not null, c int not null, PRIMARY KEY(a), KEY index2 (c)) ENGINE=innodb
+master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t0 DROP INDEX index2
+master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t0 ADD COLUMN b char(254)
+master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t0 ADD INDEX index1 (b)
+master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t0 DROP COLUMN c
+master-bin.000001	#	Query	#	#	use `test_rpl`; RENAME TABLE t0 TO t1
+master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE TABLE t2 LIKE t1
+master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t2 ADD COLUMN d datetime
+master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE INDEX index2 on t2 (d)
+master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE INDEX index3 on t2 (a, d)
+master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t2 DROP COLUMN d
 drop database test_rpl;

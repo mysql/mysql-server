@@ -322,7 +322,7 @@ file '%s')", fname);
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
-  if ((error=test(flush_master_info(mi, 1))))
+  if ((error=test(flush_master_info(mi, TRUE, TRUE))))
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
@@ -348,10 +348,13 @@ err:
      1 - flush master info failed
      0 - all ok
 */
-int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
+int flush_master_info(Master_info* mi, 
+                      bool flush_relay_log_cache, 
+                      bool need_lock_relay_log)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
+  int err= 0;
 
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
@@ -368,9 +371,23 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
     When we come to this place in code, relay log may or not be initialized;
     the caller is responsible for setting 'flush_relay_log_cache' accordingly.
   */
-  if (flush_relay_log_cache &&
-      flush_io_cache(mi->rli.relay_log.get_log_file()))
-    DBUG_RETURN(2);
+  if (flush_relay_log_cache)
+  {
+    pthread_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
+    IO_CACHE *log_file= mi->rli.relay_log.get_log_file();
+
+    if (need_lock_relay_log)
+      pthread_mutex_lock(log_lock);
+
+    safe_mutex_assert_owner(log_lock);
+    err= flush_io_cache(log_file);
+
+    if (need_lock_relay_log)
+      pthread_mutex_unlock(log_lock);
+
+    if (err)
+      DBUG_RETURN(2);
+  }
 
   /*
     We flushed the relay log BEFORE the master.info file, because if we crash

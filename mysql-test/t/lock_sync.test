@@ -1,0 +1,867 @@
+#
+# Locking related tests which use DEBUG_SYNC facility.
+#
+--source include/have_debug_sync.inc
+# This test requires statement/mixed mode binary logging.
+# Row-based mode puts weaker serializability requirements
+# so weaker locks are acquired for it.
+--source include/have_binlog_format_mixed_or_statement.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+
+--echo #
+--echo # Test how we handle locking in various cases when
+--echo # we read data from MyISAM tables.
+--echo #
+--echo # In this test we mostly check that the SQL-layer correctly
+--echo # determines the type of thr_lock.c lock for a table being
+--echo # read.
+--echo # I.e. that it disallows concurrent inserts when the statement
+--echo # is going to be written to the binary log and therefore
+--echo # should be serialized, and allows concurrent inserts when
+--echo # such serialization is not necessary (e.g. when 
+--echo # the statement is not written to binary log).
+--echo #
+
+--echo # Force concurrent inserts to be performed even if the table
+--echo # has gaps. This allows to simplify clean up in scripts
+--echo # used below (instead of backing up table being inserted
+--echo # into and then restoring it from backup at the end of the
+--echo # script we can simply delete rows which were inserted).
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 2;
+select @@global.concurrent_insert;
+
+--echo # Prepare playground by creating tables, views,
+--echo # routines and triggers used in tests.
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
+connection default;
+--disable_warnings
+drop table if exists t0, t1, t2, t3, t4, t5, te;
+drop view if exists v1, v2;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop function if exists f1;
+drop function if exists f2;
+drop function if exists f3;
+drop function if exists f4;
+drop function if exists f5;
+drop function if exists f6;
+drop function if exists f7;
+drop function if exists f8;
+drop function if exists f9;
+drop function if exists f10;
+drop function if exists f11;
+drop function if exists f12;
+drop function if exists f13;
+drop function if exists f14;
+drop function if exists f15;
+--enable_warnings
+create table t1 (i int primary key);
+insert into t1 values (1), (2), (3), (4), (5);
+create table t2 (j int primary key);
+insert into t2 values (1), (2), (3), (4), (5);
+create table t3 (k int primary key);
+insert into t3 values (1), (2), (3);
+create table t4 (l int primary key);
+insert into t4 values (1);
+create table t5 (l int primary key);
+insert into t5 values (1);
+create table te(e int primary key);
+insert into te values (1);
+create view v1 as select i from t1;
+create view v2 as select j from t2 where j in (select i from t1);
+create procedure p1(k int) insert into t2 values (k);
+delimiter |;
+create function f1() returns int
+begin
+  declare j int;
+  select i from t1 where i = 1 into j;
+  return j;
+end|
+create function f2() returns int
+begin
+  declare k int;
+  select i from t1 where i = 1 into k;
+  insert into t2 values (k + 5);
+  return 0;
+end|
+create function f3() returns int
+begin
+  return (select i from t1 where i = 3);
+end|
+create function f4() returns int
+begin
+  if (select i from t1 where i = 3) then
+    return 1;
+  else
+    return 0;
+  end if;
+end|
+create function f5() returns int
+begin
+  insert into t2 values ((select i from t1 where i = 1) + 5);
+  return 0;
+end|
+create function f6() returns int
+begin
+  declare k int;
+  select i from v1 where i = 1 into k;
+  return k;
+end|
+create function f7() returns int
+begin
+  declare k int;
+  select j from v2 where j = 1 into k;
+  return k;
+end|
+create function f8() returns int
+begin
+  declare k int;
+  select i from v1 where i = 1 into k;
+  insert into t2 values (k+5);
+  return k;
+end|
+create function f9() returns int
+begin
+  update v2 set j=j+10 where j=1;
+  return 1;
+end|
+create function f10() returns int
+begin
+  return f1();
+end|
+create function f11() returns int
+begin
+  declare k int;
+  set k= f1();
+  insert into t2 values (k+5);
+  return k;
+end|
+create function f12(p int) returns int
+begin
+  insert into t2 values (p);
+  return p;
+end|
+create function f13(p int) returns int
+begin
+  return p;
+end|
+create procedure p2(inout p int)
+begin
+  select i from t1 where i = 1 into p;
+end|
+create function f14() returns int
+begin
+  declare k int;
+  call p2(k);
+  insert into t2 values (k+5);
+  return k;
+end|
+create function f15() returns int
+begin
+  declare k int;
+  call p2(k);
+  return k;
+end|
+create trigger t4_bi before insert on t4 for each row
+begin
+  declare k int;
+  select i from t1 where i=1 into k;
+  set new.l= k+1;
+end|
+create trigger t4_bu before update on t4 for each row
+begin
+  if (select i from t1 where i=1) then
+    set new.l= 2;
+  end if;
+end|
+--echo # Trigger below uses insertion of duplicate key in 'te'
+--echo # table as a way to abort delete operation.
+create trigger t4_bd before delete on t4 for each row
+begin
+  if !(select i from v1 where i=1) then
+    insert into te values (1);
+  end if;
+end|
+create trigger t5_bi before insert on t5 for each row
+begin
+  set new.l= f1()+1;
+end|
+create trigger t5_bu before update on t5 for each row
+begin
+  declare j int;
+  call p2(j);
+  set new.l= j + 1;
+end|
+delimiter ;|
+
+--echo #
+--echo # Set common variables to be used by the scripts
+--echo # called below.
+--echo #
+let $con_aux1= con1; 
+let $con_aux2= con2; 
+let $table= t1;
+
+--echo # Switch to connection 'con1'.
+connection con1;
+--echo # Cache all functions used in the tests below so statements
+--echo # calling them won't need to open and lock mysql.proc table
+--echo # and we can assume that each statement locks its tables
+--echo # once during its execution.
+--disable_result_log
+show create procedure p1;
+show create procedure p2;
+show create function f1;
+show create function f2;
+show create function f3;
+show create function f4;
+show create function f5;
+show create function f6;
+show create function f7;
+show create function f8;
+show create function f9;
+show create function f10;
+show create function f11;
+show create function f12;
+show create function f13;
+show create function f14;
+show create function f15;
+--enable_result_log
+--echo # Switch back to connection 'default'.
+connection default;
+
+--echo #
+--echo # 1. Statements that read tables and do not use subqueries.
+--echo #
+
+--echo #
+--echo # 1.1 Simple SELECT statement.
+--echo #
+--echo # No locks are necessary as this statement won't be written
+--echo # to the binary log and thanks to how MyISAM works SELECT
+--echo # will see version of the table prior to concurrent insert.
+let $statement= select * from t1;
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 1.2 Multi-UPDATE statement.
+--echo #
+--echo # Has to take shared locks on rows in the table being read as this
+--echo # statement will be written to the binary log and therefore should
+--echo # be serialized with concurrent statements.
+let $statement= update t2, t1 set j= j - 1 where i = j;
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 1.3 Multi-DELETE statement.
+--echo #
+--echo # The above is true for this statement as well.
+let $statement= delete t2 from t1, t2 where i = j;
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 1.4 DESCRIBE statement.
+--echo #
+--echo # This statement does not really read data from the
+--echo # target table and thus does not take any lock on it.
+--echo # We check this for completeness of coverage.
+lock table t1 write;
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # This statement should not be blocked.
+--disable_result_log
+describe t1;
+--enable_result_log
+--echo # Switching to connection 'default'.
+connection default;
+unlock tables;
+
+--echo #
+--echo # 1.5 SHOW statements.
+--echo # 
+--echo # The above is true for SHOW statements as well.
+lock table t1 write;
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # These statements should not be blocked.
+# The below test for SHOW CREATE TABLE is disabled until bug 52593
+# "SHOW CREATE TABLE is blocked if table is locked for write by another
+# connection" is fixed.
+--disable_parsing
+show create table t1;
+--enable_parsing
+--disable_result_log
+show keys from t1;
+--enable_result_log
+--echo # Switching to connection 'default'.
+connection default;
+unlock tables;
+
+
+--echo #
+--echo # 2. Statements which read tables through subqueries.
+--echo #
+
+--echo #
+--echo # 2.1 CALL with a subquery.
+--echo # 
+--echo # In theory strong lock is not necessary as this statement
+--echo # is not written to the binary log as a whole (it is written
+--echo # statement-by-statement). But in practice in 5.1 for
+--echo # almost everything except SELECT we take strong lock.
+let $statement= call p1((select i + 5 from t1 where i = 1));
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.2 CREATE TABLE with a subquery.
+--echo #
+--echo # Has to take a strong lock on the table being read as
+--echo # this statement is written to the binary log and therefore
+--echo # should be serialized with concurrent statements.
+let $statement= create table t0 select * from t1;
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+drop table t0;
+let $statement= create table t0 select j from t2 where j in (select i from t1);
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+drop table t0;
+
+--echo #
+--echo # 2.3 DELETE with a subquery.
+--echo #
+--echo # The above is true for this statement as well.
+let $statement= delete from t2 where j in (select i from t1);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.4 MULTI-DELETE with a subquery.
+--echo #
+--echo # Same is true for this statement as well.
+let $statement= delete t2 from t3, t2 where k = j and j in (select i from t1);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+
+--echo #
+--echo # 2.5 DO with a subquery.
+--echo #
+--echo # In theory strong lock is not necessary as it is not logged.
+--echo # But in practice in 5.1 for almost everything except SELECT
+--echo # we take strong lock.
+let $statement= do (select i from t1 where i = 1);
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.6 INSERT with a subquery.
+--echo #
+--echo # Has to take a strong lock on the table being read as
+--echo # this statement is written to the binary log and therefore
+--echo # should be serialized with concurrent inserts.
+let $statement= insert into t2 select i+5 from t1;
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= insert into t2 values ((select i+5 from t1 where i = 4));
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.7 LOAD DATA with a subquery.
+--echo # 
+--echo # The above is true for this statement as well.
+let $statement= load data infile '../../std_data/rpl_loaddata.dat' into table t2 (@a, @b) set j= @b + (select i from t1 where i = 1);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.8 REPLACE with a subquery.
+--echo # 
+--echo # Same is true for this statement as well.
+let $statement= replace into t2 select i+5 from t1;
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= replace into t2 values ((select i+5 from t1 where i = 4));
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.9 SELECT with a subquery.
+--echo #
+--echo # Strong locks are not necessary as this statement is not written
+--echo # to the binary log and thanks to how MyISAM works this statement
+--echo # sees a version of the table prior to the concurrent insert.
+let $statement= select * from t2 where j in (select i from t1);
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 2.10 SET with a subquery.
+--echo #
+--echo # In theory the same is true for this statement as well.
+--echo # But in practice in 5.1 we acquire strong lock in this
+--echo # case as well.
+let $statement= set @a:= (select i from t1 where i = 1);
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.11 SHOW with a subquery.
+--echo # 
+--echo # The same is true for this statement too.
+let $statement= show tables from test where Tables_in_test = 't2' and (select i from t1 where i = 1);
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+let $statement= show columns from t2 where (select i from t1 where i = 1);
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.12 UPDATE with a subquery.
+--echo #
+--echo # Has to take a strong lock on the table being read as
+--echo # this statement is written to the binary log and therefore
+--echo # should be serialized with concurrent inserts.
+let $statement= update t2 set j= j-10 where j in (select i from t1);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 2.13 MULTI-UPDATE with a subquery.
+--echo #
+--echo # Same is true for this statement as well.
+let $statement= update t2, t3 set j= j -10 where j=k and j in (select i from t1);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+
+--echo #
+--echo # 3. Statements which read tables through a view.
+--echo #
+
+--echo #
+--echo # 3.1 SELECT statement which uses some table through a view.
+--echo #
+--echo # Since this statement is not written to the binary log and
+--echo # an old version of the table is accessible thanks to how MyISAM
+--echo # handles concurrent insert, no locking is necessary.
+let $statement= select * from v1;
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+let $statement= select * from v2;
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+let $statement= select * from t2 where j in (select i from v1);
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+let $statement= select * from t3 where k in (select j from v2);
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 3.2 Statements which modify a table and use views.
+--echo #
+--echo # Since such statements are going to be written to the binary
+--echo # log they need to be serialized against concurrent statements
+--echo # and therefore should take strong locks on the data read.
+let $statement= update t2 set j= j-10 where j in (select i from v1);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= update t3 set k= k-10 where k in (select j from v2);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= update t2, v1 set j= j-10 where j = i;
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= update v2 set j= j-10 where j = 3;
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+
+--echo #
+--echo # 4. Statements which read tables through stored functions.
+--echo #
+
+--echo #
+--echo # 4.1 SELECT/SET with a stored function which does not 
+--echo #     modify data and uses SELECT in its turn.
+--echo #
+--echo # Calls to such functions won't get into the binary log and
+--echo # thus don't need to acquire strong locks.
+--echo # In 5.5 due to fix for bug #53921 "Wrong locks for SELECTs
+--echo # used stored functions may lead to broken SBR" strong locks
+--echo # are taken (we accepted it as a trade-off for this fix).
+let $statement= select f1();
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+let $statement= set @a:= f1();
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 4.2 INSERT (or other statement which modifies data) with
+--echo #     a stored function which does not modify data and uses
+--echo #     SELECT.
+--echo #
+--echo # Since such statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting the data
+--echo # it uses. Therefore it should take strong lock on the data
+--echo # it reads.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= insert into t2 values (f1() + 5);
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 4.3 SELECT/SET with a stored function which
+--echo #     reads and modifies data.
+--echo #
+--echo # Since a call to such function is written to the binary log,
+--echo # it should be serialized with concurrent statements affecting
+--echo # the data it uses. Hence, a strong lock on the data read
+--echo # should be taken.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= select f2();
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+let $statement= set @a:= f2();
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 4.4. SELECT/SET with a stored function which does not
+--echo #      modify data and reads a table through subselect
+--echo #      in a control construct.
+--echo #
+--echo # Again, in theory a call to this function won't get to the
+--echo # binary log and thus no strong lock is needed. But in practice
+--echo # we don't detect this fact early enough (get_lock_type_for_table())
+--echo # to avoid taking a strong lock.
+let $statement= select f3();
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+let $statement= set @a:= f3();
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+let $statement= select f4();
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+let $statement= set @a:= f4();
+let $restore_table= ;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 4.5. INSERT (or other statement which modifies data) with
+--echo #      a stored function which does not modify data and reads
+--echo #      the table through a subselect in one of its control
+--echo #      constructs.
+--echo #
+--echo # Since such statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting data it
+--echo # uses. Therefore it should take a strong lock on the data
+--echo # it reads.
+let $statement= insert into t2 values (f3() + 5);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= insert into t2 values (f4() + 6);
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 4.6 SELECT/SET which uses a stored function with
+--echo #      DML which reads a table via a subquery.
+--echo #
+--echo # Since call to such function is written to the binary log
+--echo # it should be serialized with concurrent statements.
+--echo # Hence reads should take a strong lock.
+let $statement= select f5();
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= set @a:= f5();
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 4.7 SELECT/SET which uses a stored function which
+--echo #     doesn't modify data and reads tables through
+--echo #     a view.
+--echo #
+--echo # Once again, in theory, calls to such functions won't
+--echo # get into the binary log and thus don't need strong
+--echo # locks. In practice this fact is discovered
+--echo # too late to have any effect.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken
+--echo # in case when simple SELECT is used.
+let $statement= select f6();
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+let $statement= set @a:= f6();
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+let $statement= select f7();
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+let $statement= set @a:= f7();
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 4.8 INSERT which uses stored function which
+--echo #     doesn't modify data and reads a table
+--echo #     through a view.
+--echo #
+--echo # Since such statement is written to the binary log and
+--echo # should be serialized with concurrent statements affecting
+--echo # the data it uses. Therefore it should take a strong lock on
+--echo # the table it reads.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken
+--echo # in case when simple SELECT is used.
+let $statement= insert into t3 values (f6() + 5);
+let $restore_table= t3;
+--source include/check_concurrent_insert.inc
+let $statement= insert into t3 values (f7() + 5);
+let $restore_table= t3;
+--source include/check_no_concurrent_insert.inc
+
+
+--echo #
+--echo # 4.9 SELECT which uses a stored function which
+--echo #     modifies data and reads tables through a view.
+--echo #
+--echo # Since a call to such function is written to the binary log
+--echo # it should be serialized with concurrent statements.
+--echo # Hence, reads should take strong locks.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken
+--echo # in case when simple SELECT is used.
+let $statement= select f8();
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+let $statement= select f9();
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 4.10 SELECT which uses a stored function which doesn't modify
+--echo #      data and reads a table indirectly, by calling another
+--echo #      function.
+--echo #
+--echo # Calls to such functions won't get into the binary log and
+--echo # thus don't need to acquire strong locks.
+--echo # In 5.5 due to fix for bug #53921 "Wrong locks for SELECTs
+--echo # used stored functions may lead to broken SBR" strong locks
+--echo # are taken (we accepted it as a trade-off for this fix).
+let $statement= select f10();
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 4.11 INSERT which uses a stored function which doesn't modify
+--echo #      data and reads a table indirectly, by calling another
+--echo #      function. 
+--echo #
+--echo # Since such statement is written to the binary log, it should
+--echo # be serialized with concurrent statements affecting the data it
+--echo # uses. Therefore it should take strong locks on data it reads.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= insert into t2 values (f10() + 5);
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 4.12 SELECT which uses a stored function which modifies
+--echo #      data and reads a table indirectly, by calling another
+--echo #      function. 
+--echo #
+--echo # Since a call to such function is written to the binary log
+--echo # it should be serialized from concurrent statements.
+--echo # Hence, read should take a strong lock.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= select f11();
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 4.13 SELECT that reads a table through a subquery passed
+--echo #      as a parameter to a stored function which modifies
+--echo #      data.
+--echo #
+--echo # Even though a call to this function is written to the
+--echo # binary log, values of its parameters are written as literals.
+--echo # So there is no need to acquire strong locks for tables used in
+--echo # the subquery.
+let $statement= select f12((select i+10 from t1 where i=1));
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 4.14 INSERT that reads a table via a subquery passed
+--echo #      as a parameter to a stored function which doesn't
+--echo #      modify data.
+--echo #
+--echo # Since this statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting the data it
+--echo # uses. Therefore it should take strong locks on the data it reads.
+let $statement= insert into t2 values (f13((select i+10 from t1 where i=1)));
+let $restore_table= t2;
+--source include/check_no_concurrent_insert.inc
+
+
+--echo #
+--echo # 5. Statements that read tables through stored procedures.
+--echo #
+
+--echo #
+--echo # 5.1 CALL statement which reads a table via SELECT.
+--echo #
+--echo # Since neither this statement nor its components are
+--echo # written to the binary log, there is no need to take
+--echo # strong locks on the data it reads.
+let $statement= call p2(@a);
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 5.2 Function that modifies data and uses CALL, 
+--echo #     which reads a table through SELECT.
+--echo #
+--echo # Since a call to such function is written to the binary
+--echo # log, it should be serialized with concurrent statements.
+--echo # Hence, in this case reads should take strong locks on data.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= select f14();
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 5.3 SELECT that calls a function that doesn't modify data and
+--echo #     uses a CALL statement that reads a table via SELECT.
+--echo #
+--echo # Calls to such functions won't get into the binary log and
+--echo # thus don't need to acquire strong locks.
+--echo # In 5.5 due to fix for bug #53921 "Wrong locks for SELECTs
+--echo # used stored functions may lead to broken SBR" strong locks
+--echo # are taken (we accepted it as a trade-off for this fix).
+let $statement= select f15();
+let $restore_table= ;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 5.4 INSERT which calls function which doesn't modify data and
+--echo #     uses CALL statement which reads table through SELECT.
+--echo #
+--echo # Since such statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting data it
+--echo # uses. Therefore it should take strong locks on data it reads.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= insert into t2 values (f15()+5);
+let $restore_table= t2;
+--source include/check_concurrent_insert.inc
+
+
+--echo #
+--echo # 6. Statements that use triggers.
+--echo #
+
+--echo #
+--echo # 6.1 Statement invoking a trigger that reads table via SELECT.
+--echo #
+--echo # Since this statement is written to the binary log it should
+--echo # be serialized with concurrent statements affecting the data
+--echo # it uses. Therefore, it should take strong locks on the data
+--echo # it reads.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= insert into t4 values (2);
+let $restore_table= t4;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 6.2 Statement invoking a trigger that reads table through
+--echo #     a subquery in a control construct.
+--echo #
+--echo # The above is true for this statement as well.
+let $statement= update t4 set l= 2 where l = 1;
+let $restore_table= t4;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 6.3 Statement invoking a trigger that reads a table through
+--echo #     a view.
+--echo #
+--echo # And for this statement.
+let $statement= delete from t4 where l = 1;
+let $restore_table= t4;
+--source include/check_no_concurrent_insert.inc
+
+--echo #
+--echo # 6.4 Statement invoking a trigger that reads a table through
+--echo #     a stored function.
+--echo #
+--echo # And for this statement.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= insert into t5 values (2);
+let $restore_table= t5;
+--source include/check_concurrent_insert.inc
+
+--echo #
+--echo # 6.5 Statement invoking a trigger that reads a table through
+--echo #     stored procedure.
+--echo #
+--echo # And for this statement.
+--echo # But due to bug #53921 "Wrong locks for SELECTs used stored
+--echo # functions may lead to broken SBR" weak locks are taken.
+let $statement= update t5 set l= 2 where l = 1;
+let $restore_table= t5;
+--source include/check_concurrent_insert.inc
+
+
+--echo # Clean-up.
+drop function f1;
+drop function f2;
+drop function f3;
+drop function f4;
+drop function f5;
+drop function f6;
+drop function f7;
+drop function f8;
+drop function f9;
+drop function f10;
+drop function f11;
+drop function f12;
+drop function f13;
+drop function f14;
+drop function f15;
+drop view v1, v2;
+drop procedure p1;
+drop procedure p2;
+drop table t1, t2, t3, t4, t5, te;
+
+disconnect con1;
+disconnect con2;
+
+set @@global.concurrent_insert= @old_concurrent_insert;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

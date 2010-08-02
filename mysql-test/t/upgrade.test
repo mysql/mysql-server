@@ -137,3 +137,37 @@ select * from `a-b-c`.v1;
 --enable_ps_protocol
 drop database `a-b-c`;
 use test;
+
+--echo # End of 5.0 tests
+
+--echo #
+--echo # Bug #53804: serious flaws in the alter database .. upgrade data
+--echo #             directory name command
+--echo #
+
+--error ER_BAD_DB_ERROR
+ALTER DATABASE `#mysql50#:` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#.` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#../` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#../..` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#../../` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#./blablabla` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#../blablabla` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#/` UPGRADE DATA DIRECTORY NAME;
+--error ER_WRONG_DB_NAME
+ALTER DATABASE `#mysql50#/.` UPGRADE DATA DIRECTORY NAME;
+
+--error ER_WRONG_DB_NAME
+USE `#mysql50#.`;
+--error ER_WRONG_DB_NAME
+USE `#mysql50#../blablabla`;
+
+--echo # End of 5.1 tests
+

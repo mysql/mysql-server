@@ -22,10 +22,9 @@ eval $test_insert;
 
 connection slave;
 START SLAVE;
---source include/wait_for_slave_sql_to_stop.inc
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+--let $slave_sql_errno= 1535
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 
 # The following should be 0
 SELECT COUNT(*) FROM t1;
