@@ -6799,8 +6799,17 @@ void JOIN::drop_unused_derived_keys()
   {
     JOIN_TAB *tab=join_tab+i;
     TABLE *table=tab->table;
-    if (!table->pos_in_table_list->is_materialized_derived() ||
-        table->max_keys <= 1)
+    /*
+     No need to drop keys descriptions if:
+     1) not a materialized derive table
+     2) it's already materialized
+     3) no keys are defined for it
+     4) only one key and it is already used
+    */
+    if (!table->pos_in_table_list->is_materialized_derived() || // (1)
+        table->created ||
+        !table->max_keys ||                                     // (2)
+        (table->max_keys == 1 && !tab->ref.key))                // (3)
       continue;
     table->use_index(tab->ref.key);
     /* Now there is only 1 index, point to it. */
