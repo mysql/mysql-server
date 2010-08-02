@@ -2018,8 +2018,12 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free();
-	ut_free_all_mem();
 	mem_close();
+
+	/* ut_free_all_mem() frees all allocated memory not freed yet
+	in shutdown, and it will also free the ut_list_mutex, so it
+	should be the last one for all operation */
+	ut_free_all_mem();
 
 	if (os_thread_count != 0
 	    || os_event_count != 0
