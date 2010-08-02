@@ -249,6 +249,10 @@ int toku_brt_loader_finish_extractor(BRTLOADER bl);
 
 int toku_brt_loader_get_error(BRTLOADER bl, int *loader_errno);
 
+int brt_loader_lock_init(BRTLOADER bl);
+void brt_loader_lock_destroy(BRTLOADER bl);
+void brt_loader_set_fractal_workers_count_from_c(BRTLOADER bl);
+
 C_END
 
 #endif

@@ -282,8 +282,10 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
         .temp_file_template = template,
         .reserved_memory = 512*1024*1024,
     };
-    int r = brtloader_init_file_infos(&bl.file_infos);
-    CKERR(r);
+    int r = brtloader_init_file_infos(&bl.file_infos); CKERR(r);
+    r = brt_loader_lock_init(&bl); CKERR(r);
+    brt_loader_set_fractal_workers_count_from_c(&bl);
+
     struct merge_fileset fs;
     init_merge_fileset(&fs);
 
@@ -328,6 +330,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
 
     destroy_merge_fileset(&fs);
     brtloader_fi_destroy(&bl.file_infos, FALSE);
+    brt_loader_lock_destroy(&bl);
 
     // verify the dbfile
     verify_dbfile(10, sorted_keys, sorted_vals, output_name);
