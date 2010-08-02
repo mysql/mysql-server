@@ -1452,11 +1452,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
                                trx_data->has_incident());
     trx_data->reset();
 
-    /*
-      We need to step the table map version after writing the
-      transaction cache to disk.
-    */
-    mysql_bin_log.update_table_map_version();
     statistic_increment(binlog_cache_use, &LOCK_status);
     if (trans_log->disk_writes != 0)
     {
@@ -1482,13 +1477,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     }
     else                                        // ...statement
       trx_data->truncate(trx_data->before_stmt_pos);
-
-    /*
-      We need to step the table map version on a rollback to ensure
-      that a new table map event is generated instead of the one that
-      was written to the thrown-away transaction cache.
-    */
-    mysql_bin_log.update_table_map_version();
   }
 
   DBUG_ASSERT(thd->binlog_get_pending_rows_event() == NULL);
@@ -1534,28 +1522,23 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   }
 
   /*
-    We commit the transaction if:
+    We flush the cache if:
 
-    - We are not in a transaction and committing a statement, or
+     - we are committing a transaction or;
+     - no statement was committed before and just non-transactional
+       tables were updated.
 
-    - We are in a transaction and a full transaction is committed
-
-    Otherwise, we accumulate the statement
+    Otherwise, we collect the changes.
   */
-  ulonglong const in_transaction=
-    thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
   DBUG_PRINT("debug",
-             ("all: %d, empty: %s, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
+             ("all: %d, empty: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
               all,
               YESNO(trx_data->empty()),
-              YESNO(in_transaction),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
-
-  if (!in_transaction || all ||
-      (!all && !trx_data->at_least_one_stmt_committed &&
-       !stmt_has_updated_trans_table(thd) &&
-       thd->transaction.stmt.modified_non_trans_table))
+  if (ending_trans(thd, all) ||
+      (trans_has_no_stmt_committed(thd, all) &&
+       !stmt_has_updated_trans_table(thd) && stmt_has_updated_non_trans_table(thd)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
     error= binlog_end_trans(thd, trx_data, &qev, all);
@@ -1618,7 +1601,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       On the other hand, if a statement is transactional, we just safely roll it
       back.
     */
-    if ((thd->transaction.stmt.modified_non_trans_table ||
+    if ((stmt_has_updated_non_trans_table(thd) ||
         (thd->options & OPTION_KEEP_LOG)) &&
         mysql_bin_log.check_write_error(thd))
       trx_data->set_incident();
@@ -1627,20 +1610,19 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   else
   {
    /*
-      We flush the cache with a rollback, wrapped in a beging/rollback if:
-        . aborting a transaction that modified a non-transactional table;
+      We flush the cache with a rollback, wrapped in a begin/rollback if:
+        . aborting a transaction that modified a non-transactional table or
+          the OPTION_KEEP_LOG is activate.
         . aborting a statement that modified both transactional and
           non-transactional tables but which is not in the boundaries of any
           transaction or there was no early change;
-        . the OPTION_KEEP_LOG is activate.
     */
-    if ((all && thd->transaction.all.modified_non_trans_table) ||
-        (!all && thd->transaction.stmt.modified_non_trans_table &&
-         !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
-        (!all && thd->transaction.stmt.modified_non_trans_table &&
-         !trx_data->at_least_one_stmt_committed &&
-         thd->current_stmt_binlog_row_based) ||
-        ((thd->options & OPTION_KEEP_LOG)))
+    if ((ending_trans(thd, all) &&
+        (trans_has_updated_non_trans_table(thd) ||
+         (thd->options & OPTION_KEEP_LOG))) ||
+        (trans_has_no_stmt_committed(thd, all) &&
+         stmt_has_updated_non_trans_table(thd) &&
+         thd->current_stmt_binlog_row_based))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
       error= binlog_end_trans(thd, trx_data, &qev, all);
@@ -1649,8 +1631,8 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       Otherwise, we simply truncate the cache as there is no change on
       non-transactional tables as follows.
     */
-    else if ((all && !thd->transaction.all.modified_non_trans_table) ||
-          (!all && !thd->transaction.stmt.modified_non_trans_table))
+    else if (ending_trans(thd, all) ||
+             (!(thd->options & OPTION_KEEP_LOG) && !stmt_has_updated_non_trans_table(thd)))
       error= binlog_end_trans(thd, trx_data, 0, all);
   }
   if (!all)
@@ -1747,7 +1729,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->transaction.all.modified_non_trans_table || 
+  if (unlikely(trans_has_updated_non_trans_table(thd) || 
                (thd->options & OPTION_KEEP_LOG)))
   {
     String log_query;
@@ -2471,7 +2453,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
-   need_start_event(TRUE), m_table_map_version(0),
+   need_start_event(TRUE),
    is_relay_log(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
@@ -3985,6 +3967,67 @@ bool MYSQL_BIN_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
           query_id_param >= thd->binlog_evt_union.first_query_id);
 }
 
+/**
+  This function checks if a transaction, either a multi-statement
+  or a single statement transaction is about to commit or not.
+
+  @param thd The client thread that executed the current statement.
+  @param all Committing a transaction (i.e. TRUE) or a statement
+             (i.e. FALSE).
+  @return
+    @c true if committing a transaction, otherwise @c false.
+*/
+bool ending_trans(const THD* thd, const bool all)
+{
+  return (all || (!all && !(thd->options & 
+                  (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))));
+}
+
+/**
+  This function checks if a non-transactional table was updated by
+  the current transaction.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a non-transactional table was updated, @c false
+    otherwise.
+*/
+bool trans_has_updated_non_trans_table(const THD* thd)
+{
+  return (thd->transaction.all.modified_non_trans_table ||
+          thd->transaction.stmt.modified_non_trans_table);
+}
+
+/**
+  This function checks if any statement was committed and cached.
+
+  @param thd The client thread that executed the current statement.
+  @param all Committing a transaction (i.e. TRUE) or a statement
+             (i.e. FALSE).
+  @return
+    @c true if at a statement was committed and cached, @c false
+    otherwise.
+*/
+bool trans_has_no_stmt_committed(const THD* thd, bool all)
+{
+  binlog_trx_data *const trx_data=
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+
+  return (!all && !trx_data->at_least_one_stmt_committed);
+}
+
+/**
+  This function checks if a non-transactional table was updated by the
+  current statement.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a non-transactional table was updated, @c false otherwise.
+*/
+bool stmt_has_updated_non_trans_table(const THD* thd)
+{
+  return (thd->transaction.stmt.modified_non_trans_table);
+}
 
 /*
   These functions are placed in this file since they need access to
@@ -4117,7 +4160,6 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
     DBUG_RETURN(error);
 
   binlog_table_maps++;
-  table->s->table_map_version= mysql_bin_log.table_map_version();
   DBUG_RETURN(0);
 }
 
@@ -4208,10 +4250,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       file= &trx_data->trans_log;
 
     /*
-      If we are writing to the log file directly, we could avoid
-      locking the log. This does not work since we need to step the
-      m_table_map_version below, and that change has to be protected
-      by the LOCK_log mutex.
+      If we are not writing to the log file directly, we could avoid
+      locking the log.
     */
     pthread_mutex_lock(&LOCK_log);
 
@@ -4224,24 +4264,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       set_write_error(thd);
       DBUG_RETURN(1);
     }
-
-    /*
-      We step the table map version if we are writing an event
-      representing the end of a statement.  We do this regardless of
-      wheather we write to the transaction cache or to directly to the
-      file.
-
-      In an ideal world, we could avoid stepping the table map version
-      if we were writing to a transaction cache, since we could then
-      reuse the table map that was written earlier in the transaction
-      cache.  This does not work since STMT_END_F implies closing all
-      table mappings on the slave side.
-
-      TODO: Find a solution so that table maps does not have to be
-      written several times within a transaction.
-     */
-    if (pending->get_flags(Rows_log_event::STMT_END_F))
-      ++m_table_map_version;
 
     delete pending;
 
@@ -4455,9 +4477,6 @@ err:
     if (error)
       set_write_error(thd);
   }
-
-  if (event_info->flags & LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F)
-    ++m_table_map_version;
 
   pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -5285,39 +5304,39 @@ void sql_print_information(const char *format, ...)
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
-  the log consists of a file, mmapped to a memory.
-  file is divided on pages of tc_log_page_size size.
-  (usable size of the first page is smaller because of log header)
-  there's PAGE control structure for each page
-  each page (or rather PAGE control structure) can be in one of three
-  states - active, syncing, pool.
-  there could be only one page in active or syncing states,
-  but many in pool - pool is fifo queue.
-  usual lifecycle of a page is pool->active->syncing->pool
-  "active" page - is a page where new xid's are logged.
-  the page stays active as long as syncing slot is taken.
-  "syncing" page is being synced to disk. no new xid can be added to it.
-  when the sync is done the page is moved to a pool and an active page
+  the log consists of a file, mapped to memory.
+  file is divided into pages of tc_log_page_size size.
+  (usable size of the first page is smaller because of the log header)
+  there is a PAGE control structure for each page
+  each page (or rather its PAGE control structure) can be in one of
+  the three states - active, syncing, pool.
+  there could be only one page in the active or syncing state,
+  but many in pool - pool is a fifo queue.
+  the usual lifecycle of a page is pool->active->syncing->pool.
+  the "active" page is a page where new xid's are logged.
+  the page stays active as long as the syncing slot is taken.
+  the "syncing" page is being synced to disk. no new xid can be added to it.
+  when the syncing is done the page is moved to a pool and an active page
   becomes "syncing".
 
   the result of such an architecture is a natural "commit grouping" -
   If commits are coming faster than the system can sync, they do not
-  stall. Instead, all commit that came since the last sync are
-  logged to the same page, and they all are synced with the next -
+  stall. Instead, all commits that came since the last sync are
+  logged to the same "active" page, and they all are synced with the next -
   one - sync. Thus, thought individual commits are delayed, throughput
   is not decreasing.
 
-  when a xid is added to an active page, the thread of this xid waits
+  when an xid is added to an active page, the thread of this xid waits
   for a page's condition until the page is synced. when syncing slot
   becomes vacant one of these waiters is awaken to take care of syncing.
   it syncs the page and signals all waiters that the page is synced.
   PAGE::waiters is used to count these waiters, and a page may never
   become active again until waiters==0 (that is all waiters from the
-  previous sync have noticed the sync was completed)
+  previous sync have noticed that the sync was completed)
 
   note, that the page becomes "dirty" and has to be synced only when a
   new xid is added into it. Removing a xid from a page does not make it
-  dirty - we don't sync removals to disk.
+  dirty - we don't sync xid removals to disk.
 */
 
 ulong tc_log_page_waits= 0;
@@ -5383,7 +5402,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   inited=2;
 
   npages=(uint)file_length/tc_log_page_size;
-  DBUG_ASSERT(npages >= 3);             // to guarantee non-empty pool
+  if (npages < 3)             // to guarantee non-empty pool
+    goto err;
   if (!(pages=(PAGE *)my_malloc(npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
     goto err;
   inited=3;
@@ -5440,7 +5460,7 @@ err:
     -# if there're waiters - take the one with the most free space.
 
   @todo
-    TODO page merging. try to allocate adjacent page first,
+    page merging. try to allocate adjacent page first,
     so that they can be flushed both in one sync
 */
 
@@ -5449,8 +5469,7 @@ void TC_LOG_MMAP::get_active_from_pool()
   PAGE **p, **best_p=0;
   int best_free;
 
-  if (syncing)
-    pthread_mutex_lock(&LOCK_pool);
+  pthread_mutex_lock(&LOCK_pool);
 
   do
   {
@@ -5470,20 +5489,21 @@ void TC_LOG_MMAP::get_active_from_pool()
   }
   while ((*best_p == 0 || best_free == 0) && overflow());
 
+  safe_mutex_assert_owner(&LOCK_active);
   active=*best_p;
-  if (active->free == active->size) // we've chosen an empty page
-  {
-    tc_log_cur_pages_used++;
-    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
-  }
 
   if ((*best_p)->next)              // unlink the page from the pool
     *best_p=(*best_p)->next;
   else
     pool_last=*best_p;
+  pthread_mutex_unlock(&LOCK_pool);
 
-  if (syncing)
-    pthread_mutex_unlock(&LOCK_pool);
+  pthread_mutex_lock(&active->lock);
+  if (active->free == active->size) // we've chosen an empty page
+  {
+    tc_log_cur_pages_used++;
+    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
+  }
 }
 
 /**
@@ -5538,7 +5558,7 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   pthread_mutex_lock(&LOCK_active);
 
   /*
-    if active page is full - just wait...
+    if the active page is full - just wait...
     frankly speaking, active->free here accessed outside of mutex
     protection, but it's safe, because it only means we may miss an
     unlog() for the active page, and we're not waiting for it here -
@@ -5550,9 +5570,17 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   /* no active page ? take one from the pool */
   if (active == 0)
     get_active_from_pool();
+  else
+    pthread_mutex_lock(&active->lock);
 
   p=active;
-  pthread_mutex_lock(&p->lock);
+
+  /*
+    p->free is always > 0 here because to decrease it one needs
+    to take p->lock and before it one needs to take LOCK_active.
+    But checked that active->free > 0 under LOCK_active and
+    haven't release it ever since
+  */
 
   /* searching for an empty slot */
   while (*p->ptr)
@@ -5566,38 +5594,51 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   *p->ptr++= xid;
   p->free--;
   p->state= DIRTY;
-
-  /* to sync or not to sync - this is the question */
-  pthread_mutex_unlock(&LOCK_active);
-  pthread_mutex_lock(&LOCK_sync);
   pthread_mutex_unlock(&p->lock);
 
+  pthread_mutex_lock(&LOCK_sync);
   if (syncing)
   {                                          // somebody's syncing. let's wait
+    pthread_mutex_unlock(&LOCK_active);
+    pthread_mutex_lock(&p->lock);
     p->waiters++;
-    /*
-      note - it must be while (), not do ... while () here
-      as p->state may be not DIRTY when we come here
-    */
-    while (p->state == DIRTY && syncing)
+    for (;;)
+    {
+      int not_dirty = p->state != DIRTY;
+      pthread_mutex_unlock(&p->lock);
+      if (not_dirty || !syncing)
+        break;
       pthread_cond_wait(&p->cond, &LOCK_sync);
+      pthread_mutex_lock(&p->lock);
+    }
     p->waiters--;
     err= p->state == ERROR;
     if (p->state != DIRTY)                   // page was synced
     {
+      pthread_mutex_unlock(&LOCK_sync);
       if (p->waiters == 0)
         pthread_cond_signal(&COND_pool);     // in case somebody's waiting
-      pthread_mutex_unlock(&LOCK_sync);
+      pthread_mutex_unlock(&p->lock);
       goto done;                             // we're done
     }
-  }                                          // page was not synced! do it now
-  DBUG_ASSERT(active == p && syncing == 0);
-  pthread_mutex_lock(&LOCK_active);
-  syncing=p;                                 // place is vacant - take it
-  active=0;                                  // page is not active anymore
-  pthread_cond_broadcast(&COND_active);      // in case somebody's waiting
-  pthread_mutex_unlock(&LOCK_active);
-  pthread_mutex_unlock(&LOCK_sync);
+    DBUG_ASSERT(!syncing);
+    pthread_mutex_unlock(&p->lock);
+    syncing = p;
+    pthread_mutex_unlock(&LOCK_sync);
+
+    pthread_mutex_lock(&LOCK_active);
+    active=0;                                  // page is not active anymore
+    pthread_cond_broadcast(&COND_active);
+    pthread_mutex_unlock(&LOCK_active);
+  }
+  else
+  {
+    syncing = p;                               // place is vacant - take it
+    pthread_mutex_unlock(&LOCK_sync);
+    active = 0;                                // page is not active anymore
+    pthread_cond_broadcast(&COND_active);
+    pthread_mutex_unlock(&LOCK_active);
+  }
   err= sync();
 
 done:
@@ -5614,7 +5655,7 @@ int TC_LOG_MMAP::sync()
     sit down and relax - this can take a while...
     note - no locks are held at this point
   */
-  err= my_msync(fd, syncing->start, 1, MS_SYNC);
+  err= my_msync(fd, syncing->start, syncing->size * sizeof(my_xid), MS_SYNC);
 
   /* page is synced. let's move it to the pool */
   pthread_mutex_lock(&LOCK_pool);
@@ -5622,19 +5663,20 @@ int TC_LOG_MMAP::sync()
   pool_last=syncing;
   syncing->next=0;
   syncing->state= err ? ERROR : POOL;
-  pthread_cond_broadcast(&syncing->cond);    // signal "sync done"
   pthread_cond_signal(&COND_pool);           // in case somebody's waiting
   pthread_mutex_unlock(&LOCK_pool);
 
   /* marking 'syncing' slot free */
   pthread_mutex_lock(&LOCK_sync);
+  pthread_cond_broadcast(&syncing->cond);    // signal "sync done"
   syncing=0;
   /*
     we check the "active" pointer without LOCK_active. Still, it's safe -
     "active" can change from NULL to not NULL any time, but it
     will take LOCK_sync before waiting on active->cond. That is, it can never
     miss a signal.
-    And "active" can change to NULL only after LOCK_sync, so this is safe too.
+    And "active" can change to NULL only by the syncing thread
+    (the thread that will send a signal below)
   */
   if (active)
     pthread_cond_signal(&active->cond);      // wake up a new syncer
@@ -5654,13 +5696,13 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 
   DBUG_ASSERT(*x == xid);
   DBUG_ASSERT(x >= p->start && x < p->end);
-  *x=0;
 
   pthread_mutex_lock(&p->lock);
+  *x=0;
   p->free++;
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);
-  if (p->free == p->size)               // the page is completely empty
+  if (p->free == p->size)              // the page is completely empty
     statistic_decrement(tc_log_cur_pages_used, &LOCK_status);
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     pthread_cond_signal(&COND_pool);   // ping ... for overflow()

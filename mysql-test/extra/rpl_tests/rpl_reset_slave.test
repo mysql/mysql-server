@@ -9,36 +9,32 @@
 # RESET SLAVE.
 
 -- source include/master-slave.inc
-connection master;
-save_master_pos;
-connection slave;
-sync_with_master;
-source include/show_slave_status2.inc;
+sync_slave_with_master;
+let $status_items= Master_User, Master_Host;
+source include/show_slave_status.inc;
 
-stop slave;
+source include/stop_slave.inc;
 change master to master_user='test';
-source include/show_slave_status2.inc;
+source include/show_slave_status.inc;
 
 reset slave;
-source include/show_slave_status2.inc;
+source include/show_slave_status.inc;
 
-start slave;
+source include/start_slave.inc;
 sync_with_master;
-source include/show_slave_status2.inc;
+source include/show_slave_status.inc;
 
 # test of crash with temp tables & RESET SLAVE
 # (test to see if RESET SLAVE clears temp tables in memory and disk)
-stop slave;
+source include/stop_slave.inc;
 reset slave;
-start slave;
+source include/start_slave.inc;
 connection master;
 create temporary table t1 (a int);
-save_master_pos;
-connection slave;
-sync_with_master;
-stop slave;
+sync_slave_with_master;
+source include/stop_slave.inc;
 reset slave;
-start slave;
+source include/start_slave.inc;
 sync_with_master;
 show status like 'slave_open_temp_tables';
 
@@ -47,10 +43,9 @@ show status like 'slave_open_temp_tables';
 #
 
 # clearing the status
-stop slave;
+source include/stop_slave.inc;
 reset slave;
-let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
-echo *** errno must be zero: $last_io_errno ***;
+source include/check_slave_no_error.inc;
 
 #
 # verifying start slave resets Last_IO_Error and Last_IO_Errno.
@@ -58,19 +53,13 @@ echo *** errno must be zero: $last_io_errno ***;
 
 change master to master_user='impossible_user_name';
 start slave;
+let $slave_io_errno= 1045;
 source include/wait_for_slave_io_error.inc;
-let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
---disable_query_log
-eval SELECT $last_io_errno > 0 as ONE;
---enable_query_log
 
 source include/stop_slave.inc;
 change master to master_user='root';
 source include/start_slave.inc;
-let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
-let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
---echo *** last errno must be  zero: $last_io_errno ***
---echo *** last error must be blank: $last_io_error ***
+source include/check_slave_no_error.inc;
 
 #
 # verifying reset slave resets Last_{IO,SQL}_Err{or,no}
@@ -79,19 +68,9 @@ let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
 source include/stop_slave.inc;
 change master to master_user='impossible_user_name';
 start slave;
+let $slave_io_errno= 1045;
 source include/wait_for_slave_io_error.inc;
-let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
---disable_query_log
-eval SELECT $last_io_errno > 0 as ONE;
---enable_query_log
 
 source include/stop_slave.inc;
 reset slave;
-let $last_io_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
-let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
-let $last_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-let $last_sql_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
---echo *** io  last errno must be  zero: $last_io_errno  ***
---echo *** io  last error must be blank: $last_io_error  ***
---echo *** sql last errno must be  zero: $last_sql_errno ***
---echo *** sql last error must be blank: $last_sql_error ***
+source include/check_slave_no_error.inc;

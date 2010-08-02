@@ -1,4 +1,5 @@
 /* Copyright (C) 2006, 2007 MySQL AB
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +57,7 @@ static ulong skipped_undo_phase;
 static ulonglong now; /**< for tracking execution time of phases */
 static int (*save_error_handler_hook)(uint, const char *,myf);
 static uint recovery_warnings; /**< count of warnings */
+static uint recovery_found_crashed_tables;
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -219,7 +221,7 @@ int maria_recovery_from_log(void)
                        TRUE, TRUE, TRUE, &warnings_count);
   if (!res)
   {
-    if (warnings_count == 0)
+    if (warnings_count == 0 && recovery_found_crashed_tables == 0)
       tprint(trace_file, "SUCCESS\n");
     else
       tprint(trace_file, "DOUBTFUL (%u warnings, check previous output)\n",
@@ -265,7 +267,8 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
-  recovery_warnings= 0;
+  recovery_warnings= recovery_found_crashed_tables= 0;
+  maria_recovery_changed_data= 0;
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
   all_active_trans= (struct st_trn_for_recovery *)
@@ -455,7 +458,7 @@ end:
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
-  *warnings_count= recovery_warnings;
+  *warnings_count= recovery_warnings + recovery_found_crashed_tables;
   if (recovery_message_printed != REC_MSG_NONE)
   {
     if (procent_printed)
@@ -465,8 +468,18 @@ end:
       fflush(stderr);
     }
     if (!error)
+    {
       ma_message_no_user(ME_JUST_INFO, "recovery done");
+      maria_recovery_changed_data= 1;
+    }
   }
+  else if (!error && max_trid_in_control_file != max_long_trid)
+  {
+    /* Set max trid in log file so that one can run maria_chk on the tables */
+    max_trid_in_control_file= trnman_get_max_trid();
+    maria_recovery_changed_data= 1;
+  }
+
   if (error)
     my_message(HA_ERR_INITIALIZATION,
                "Maria recovery failed. Please run maria_chk -r on all maria "
@@ -715,9 +728,12 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     maria_close(info);
     info= NULL;
   }
-  else /* one or two files absent, or header corrupted... */
-    tprint(tracef, "Table '%s' can't be opened, probably does not exist\n",
-           name);
+  else
+  {
+    /* one or two files absent, or header corrupted... */
+    tprint(tracef, "Table '%s' can't be opened (Error: %d)\n",
+           name, my_errno);
+  }
   /* if does not exist, or is older, overwrite it */
   ptr= name + strlen(name) + 1;
   if ((flags= ptr[0] ? HA_DONT_TOUCH_DATA : 0))
@@ -1195,6 +1211,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     */
     tprint(tracef, ", record is corrupted");
     info= NULL;
+    recovery_warnings++;
     goto end;
   }
   tprint(tracef, "Table '%s', id %u", name, sid);
@@ -1204,6 +1221,8 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     tprint(tracef, ", is absent (must have been dropped later?)"
            " or its header is so corrupted that we cannot open it;"
            " we skip it");
+    if (my_errno != ENOENT)
+      recovery_found_crashed_tables++;
     error= 0;
     goto end;
   }
@@ -1227,6 +1246,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     */
     tprint(tracef, ", is not transactional.  Ignoring open request");
     error= -1;
+    recovery_warnings++;
     goto end;
   }
   if (cmp_translog_addr(lsn_of_file_id, share->state.create_rename_lsn) <= 0)
@@ -1235,6 +1255,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
            " LOGREC_FILE_ID's LSN (%lu,0x%lx), ignoring open request",
            LSN_IN_PARTS(share->state.create_rename_lsn),
            LSN_IN_PARTS(lsn_of_file_id));
+    recovery_warnings++;
     error= -1;
     goto end;
     /*
@@ -1246,6 +1267,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
   {
     eprint(tracef, "Table '%s' is crashed, skipping it. Please repair it with"
            " maria_chk -r", share->open_file_name.str);
+    recovery_found_crashed_tables++;
     error= -1; /* not fatal, try with other tables */
     goto end;
     /*
@@ -1264,6 +1286,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
       (kfile_len == MY_FILEPOS_ERROR))
   {
     tprint(tracef, ", length unknown\n");
+    recovery_warnings++;
     goto end;
   }
   if (share->state.state.data_file_length != dfile_len)

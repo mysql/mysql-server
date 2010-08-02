@@ -8,7 +8,7 @@
 GRANT INSERT ON mysql.plugin TO bug51770@localhost;
 connect(con1,localhost,bug51770,,);
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
 --error ER_TABLEACCESS_DENIED_ERROR
 UNINSTALL PLUGIN example;
 connection default;

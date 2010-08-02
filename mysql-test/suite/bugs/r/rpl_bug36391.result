@@ -13,5 +13,6 @@ Tables_in_test
 t1
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	278		
+master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 flush logs;
+drop table t1;

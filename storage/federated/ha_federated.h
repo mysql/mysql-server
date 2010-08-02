@@ -88,7 +88,7 @@ class ha_federated: public handler
     Array of all stored results we get during a query execution.
   */
   DYNAMIC_ARRAY results;
-  bool position_called;
+  bool position_called, table_will_be_deleted;
   uint fetch_num; // stores the fetch num
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;
@@ -210,7 +210,7 @@ public:
   int close(void);                                              // required
 
   void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert(bool abort);
+  int end_bulk_insert();
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);

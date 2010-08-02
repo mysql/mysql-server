@@ -2767,4 +2767,17 @@ SELECT MIN( a ) FROM t1 WHERE a IS NULL;
 MIN( a )
 NULL
 DROP TABLE t1;
+#
+# Bug#53859: Valgrind: opt_sum_query(TABLE_LIST*, List<Item>&, Item*) at
+# opt_sum.cc:305
+#
+CREATE TABLE t1 ( a INT, KEY (a) );
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT MIN( a ) AS min_a
+FROM t1
+WHERE a > 1 AND a IS NULL
+ORDER BY min_a;
+min_a
+NULL
+DROP TABLE t1;
 End of 5.1 tests

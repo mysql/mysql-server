@@ -45,9 +45,9 @@ sync_with_master;
 select * from t1;
 
 #checking show slave status
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 # 35 # 36 #
-query_vertical show slave status;
+let $status_items= Master_SSL_Allowed, Master_SSL_CA_Path, Master_SSL_CA_File, Master_SSL_Cert, Master_SSL_Key;
+source include/show_slave_status.inc;
+source include/check_slave_is_running.inc;
 
 #checking if replication works without ssl also performing clean up
 stop slave;
@@ -59,10 +59,8 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 # 35 # 36 #
-query_vertical show slave status;
-
+source include/show_slave_status.inc;
+source include/check_slave_is_running.inc;
 # End of 4.1 tests
 
 # Start replication with ssl_verify_server_cert turned on
@@ -89,9 +87,8 @@ echo on slave;
 select * from t1;
 
 #checking show slave status
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 6 # 7 # 8 # 9 # 10 # 11 # 16 # 22 # 23 # 33 # 35 # 36 #
-query_vertical show slave status;
+source include/show_slave_status.inc;
+--source include/check_slave_is_running.inc
 
 connection master;
 drop table t1;

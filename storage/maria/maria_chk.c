@@ -213,7 +213,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
-   (uchar**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "Check table for errors.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -233,8 +233,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"data-file-length", 'D',
    "Max length of data file (when recreating data-file when it's full).",
-   (uchar**) &check_param.max_data_file_length,
-   (uchar**) &check_param.max_data_file_length,
+   &check_param.max_data_file_length,
+   &check_param.max_data_file_length,
    0, GET_LL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extend-check", 'e',
    "If used when checking a table, ensure that the table is 100 percent consistent, which will take a long time. If used when repairing a table, try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option with repair if you are not totally desperate.",
@@ -256,20 +256,20 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"keys-used", 'k',
    "Tell MARIA to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts.",
-   (uchar**) &check_param.keys_in_use,
-   (uchar**) &check_param.keys_in_use,
+   &check_param.keys_in_use,
+   &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"datadir", OPT_DATADIR,
    "Path for control file (and logs if --log-dir not used).",
-   (uchar**) &maria_data_root, 0, 0, GET_STR, REQUIRED_ARG,
+   &maria_data_root, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"log-dir", OPT_LOG_DIR,
    "Path for log files.",
-   (uchar**) &opt_log_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_log_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"max-record-length", OPT_MAX_RECORD_LENGTH,
    "Skip rows bigger than this if maria_chk can't allocate memory to hold it",
-   (uchar**) &check_param.max_record_length,
-   (uchar**) &check_param.max_record_length,
+   &check_param.max_record_length,
+   &check_param.max_record_length,
    0, GET_ULL, REQUIRED_ARG, LONGLONG_MAX, 0, LONGLONG_MAX, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extend-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
@@ -302,12 +302,12 @@ static struct my_option my_long_options[] =
 #endif
   {"set-auto-increment", 'A',
    "Force auto_increment to start at this or higher value. If no value is given, then sets the next auto_increment value to the highest used value for the auto key + 1.",
-   (uchar**) &check_param.auto_increment_value,
-   (uchar**) &check_param.auto_increment_value,
+   &check_param.auto_increment_value,
+   &check_param.auto_increment_value,
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"set-collation", OPT_SET_COLLATION,
    "Change the collation used by the index",
-   (uchar**) &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -326,16 +326,16 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sort-records", 'R',
    "Sort records according to an index. This makes your data much more localized and may speed up things. (It may be VERY slow to do a sort the first time!)",
-   (uchar**) &check_param.opt_sort_key,
-   (uchar**) &check_param.opt_sort_key,
+   &check_param.opt_sort_key,
+   &check_param.opt_sort_key,
    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files.",
-   (uchar**) &opt_tmpdir,
+   &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"transaction-log", OPT_TRANSACTION_LOG,
    "Log repair command to transaction log",
-   (uchar**) &opt_transaction_logging, (uchar**) &opt_transaction_logging,
+   &opt_transaction_logging, &opt_transaction_logging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
    "Mark tables as crashed if any errors were found.",
@@ -352,46 +352,46 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "page_buffer_size", OPT_PAGE_BUFFER_SIZE,
     "Size of page buffer. Used by --safe-repair",
-    (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
+    &check_param.use_buffers, &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, 1024L*1024L,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
   { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
-    (uchar**) &check_param.read_buffer_length,
-    (uchar**) &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.read_buffer_length,
+    &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
-    (uchar**) &check_param.write_buffer_length,
-    (uchar**) &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.write_buffer_length,
+    &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_buffer_size", OPT_SORT_BUFFER_SIZE,
     "Size of sort buffer. Used by --recover",
-    (uchar**) &check_param.sort_buffer_length,
-    (uchar**) &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.sort_buffer_length,
+    &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
-    (uchar**) &check_param.sort_key_blocks,
-    (uchar**) &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.sort_key_blocks,
+    &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
     BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
-  { "decode_bits", OPT_DECODE_BITS, "", (uchar**) &decode_bits,
-    (uchar**) &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
-  { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", (uchar**) &ft_min_word_len,
-    (uchar**) &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
+  { "decode_bits", OPT_DECODE_BITS, "", &decode_bits,
+    &decode_bits, 0, GET_UINT, REQUIRED_ARG, 9L, 4L, 17L, 0L, 1L, 0},
+  { "ft_min_word_len", OPT_FT_MIN_WORD_LEN, "", &ft_min_word_len,
+    &ft_min_word_len, 0, GET_ULONG, REQUIRED_ARG, 4, 1, HA_FT_MAXCHARLEN,
     0, 1, 0},
-  { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (uchar**) &ft_max_word_len,
-    (uchar**) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
+  { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", &ft_max_word_len,
+    &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
     HA_FT_MAXCHARLEN, 0, 1, 0},
   { "maria_ft_stopword_file", OPT_FT_STOPWORD_FILE,
     "Use stopwords from this file instead of built-in list.",
-    (uchar**) &ft_stopword_file, (uchar**) &ft_stopword_file, 0, GET_STR,
+    &ft_stopword_file, &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "stats_method", OPT_STATS_METHOD,
     "Specifies how index statistics collection code should treat NULLs. "
     "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
     "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
-   (uchar**) &maria_stats_method_str, (uchar**) &maria_stats_method_str, 0,
+   &maria_stats_method_str, &maria_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "zerofill", 'z',
     "Fill empty space in data and index files with zeroes",
@@ -990,7 +990,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
 
     if ((param->testflag & (T_REP_ANY | T_SORT_RECORDS)) &&
 	((share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				  STATE_CRASHED_ON_REPAIR) ||
+				  STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR) ||
 	  !(param->testflag & T_CHECK_ONLY_CHANGED))))
       need_to_check=1;
 
@@ -1008,7 +1008,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
     }
     if ((param->testflag & T_CHECK_ONLY_CHANGED) &&
 	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR)))
+				 STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR)))
       need_to_check=1;
     if (!need_to_check)
     {
@@ -1094,7 +1094,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
   */
   maria_lock_database(info, F_EXTRA_LCK);
   datafile= info->dfile.file;
-  if (init_pagecache(maria_pagecache, param->use_buffers, 0, 0,
+  if (init_pagecache(maria_pagecache, (size_t) param->use_buffers, 0, 0,
                      maria_block_size, MY_WME) == 0)
   {
     _ma_check_print_error(param, "Can't initialize page cache with %lu memory",
@@ -1225,8 +1225,11 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (!error && (param->testflag & T_ZEROFILL))
       error= maria_zerofill(param, info, filename);
     if (!error)
+    {
+      DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR);
+                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+    }
     else
       maria_mark_crashed(info);
   }
@@ -1278,8 +1281,9 @@ static int maria_chk(HA_CHECK *param, char *filename)
       if ((share->state.changed & STATE_CHANGED) &&
           (param->testflag & T_UPDATE_STATE))
         info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
+      DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR);
+                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
     }
     else if (!maria_is_crashed(info) &&
              (param->testflag & T_UPDATE_STATE))

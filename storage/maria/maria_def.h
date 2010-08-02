@@ -482,7 +482,8 @@ typedef struct st_maria_block_scan
 struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
-  struct st_ma_transaction *trn;           /* Pointer to active transaction */
+  struct st_ma_transaction *trn;        /* Pointer to active transaction */
+  void *external_ptr;           	/* Pointer to THD in mysql */
   MARIA_STATUS_INFO *state, state_save;
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
@@ -610,6 +611,7 @@ struct st_maria_handler
 #define STATE_NOT_ZEROFILLED     128
 #define STATE_NOT_MOVABLE        256
 #define STATE_MOVED              512 /* set if base->uuid != maria_uuid */
+#define STATE_IN_REPAIR  	 1024 /* We are running repair on table */
 
 /* options to maria_read_cache */
 
@@ -665,11 +667,17 @@ struct st_maria_handler
 #define maria_mark_crashed_on_repair(x) do{(x)->s->state.changed|=      \
       STATE_CRASHED|STATE_CRASHED_ON_REPAIR;                            \
     (x)->update|= HA_STATE_CHANGED;                                     \
-    DBUG_PRINT("error",                                                 \
-               ("Marked table crashed"));                               \
+    DBUG_PRINT("error", ("Marked table crashed on repair"));            \
+  }while(0)
+#define maria_mark_in_repair(x) do{(x)->s->state.changed|=      \
+      STATE_CRASHED | STATE_IN_REPAIR;                          \
+    (x)->update|= HA_STATE_CHANGED;                             \
+    DBUG_PRINT("error", ("Marked table crashed for repair"));   \
   }while(0)
 #define maria_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define maria_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
+#define maria_in_repair(x) ((x)->s->state.changed & STATE_IN_REPAIR)
+
 #ifdef EXTRA_DEBUG
 /**
   Brings additional information in certain debug builds and in standalone
@@ -788,8 +796,9 @@ extern uint32 maria_read_vec[], maria_readnext_vec[];
 extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
-extern my_bool maria_inited, maria_in_ha_maria;
+extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
 extern HASH maria_stored_state;
+extern int (*maria_create_trn_hook)(MARIA_HA *);
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -1242,5 +1251,4 @@ extern my_bool maria_flush_log_for_page(uchar *page,
 extern my_bool maria_flush_log_for_page_none(uchar *page,
                                              pgcache_page_no_t page_no,
                                              uchar *data_ptr);
-void maria_concurrent_inserts(MARIA_HA *info, my_bool concurrent_insert);
 extern PAGECACHE *maria_log_pagecache;

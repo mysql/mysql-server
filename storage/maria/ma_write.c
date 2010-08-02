@@ -1755,7 +1755,7 @@ void maria_flush_bulk_insert(MARIA_HA *info, uint inx)
   }
 }
 
-void maria_end_bulk_insert(MARIA_HA *info, my_bool abort)
+void maria_end_bulk_insert(MARIA_HA *info)
 {
   DBUG_ENTER("maria_end_bulk_insert");
   if (info->bulk_insert)
@@ -1765,7 +1765,7 @@ void maria_end_bulk_insert(MARIA_HA *info, my_bool abort)
     {
       if (is_tree_inited(&info->bulk_insert[i]))
       {
-        if (abort)
+        if (info->s->deleting)
           reset_free_element(&info->bulk_insert[i]);
         delete_tree(&info->bulk_insert[i]);
       }

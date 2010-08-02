@@ -70,4 +70,6 @@ IF(NOT SOURCE_SUBLIBS)
     MYSQL_EMBED_MANIFEST("myisampack" "asInvoker")
   ENDIF(EMBED_MANIFESTS)
 
+  INSTALL(TARGETS myisam_ftdump myisamchk myisamlog myisampack DESTINATION bin COMPONENT runtime)
+
 ENDIF(NOT SOURCE_SUBLIBS)

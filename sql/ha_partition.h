@@ -364,7 +364,7 @@ public:
   virtual int delete_row(const uchar * buf);
   virtual int delete_all_rows(void);
   virtual void start_bulk_insert(ha_rows rows);
-  virtual int end_bulk_insert(bool);
+  virtual int end_bulk_insert();
 private:
   ha_rows guess_bulk_insert_rows();
   void start_part_bulk_insert(THD *thd, uint part_id);

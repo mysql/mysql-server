@@ -750,4 +750,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 DROP TABLE t1;
 #
+# Bug#54477: Crash on IN / CASE with NULL arguments
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT 1 IN (NULL, a) FROM t1;
+1 IN (NULL, a)
+1
+NULL
+SELECT a IN (a, a) FROM t1 GROUP BY a WITH ROLLUP;
+a IN (a, a)
+1
+1
+NULL
+SELECT CASE a WHEN a THEN a END FROM t1 GROUP BY a WITH ROLLUP;
+CASE a WHEN a THEN a END
+1
+2
+NULL
+DROP TABLE t1;
+#
 End of 5.1 tests

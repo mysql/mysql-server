@@ -30,4 +30,6 @@ SET(STRINGS_SOURCES bchange.c bcmp.c bfill.c bmove512.c bmove_upp.c ctype-big5.c
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(strings ${STRINGS_SOURCES})
+  
+  INSTALL(TARGETS strings DESTINATION lib/opt COMPONENT runtime) # TODO: Component
 ENDIF(NOT SOURCE_SUBLIBS)

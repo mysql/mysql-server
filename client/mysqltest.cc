@@ -73,6 +73,10 @@
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
 
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite);
+#endif
+
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
@@ -226,7 +230,6 @@ typedef struct
   int alloced_len;
   int int_dirty; /* do not update string if int is updated until first read */
   int alloced;
-  char *env_s;
 } VAR;
 
 /*Perl/shell-like variable registers */
@@ -538,7 +541,7 @@ public:
   {
     DBUG_ENTER("LogFile::open");
     DBUG_PRINT("enter", ("dir: '%s', name: '%s'",
-                         dir, name));
+                         val_or_null(dir), val_or_null(name)));
     if (!name)
     {
       m_file= stdout;
@@ -1981,13 +1984,20 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
                                                   + name_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  tmp_var->name = (name) ? (char*) tmp_var + sizeof(*tmp_var) : 0;
+  if (name != NULL)
+  {
+    tmp_var->name= reinterpret_cast<char*>(tmp_var) + sizeof(*tmp_var);
+    memcpy(tmp_var->name, name, name_len);
+    tmp_var->name[name_len]= 0;
+  }
+  else
+    tmp_var->name= NULL;
+
   tmp_var->alloced = (v == 0);
 
   if (!(tmp_var->str_val = (char*)my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  memcpy(tmp_var->name, name, name_len);
   if (val)
   {
     memcpy(tmp_var->str_val, val, val_len);
@@ -1998,7 +2008,6 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   tmp_var->alloced_len = val_alloc_len;
   tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
-  tmp_var->env_s = 0;
   return tmp_var;
 }
 
@@ -2126,20 +2135,15 @@ void var_set(const char *var_name, const char *var_name_end,
 
   if (env_var)
   {
-    char buf[1024], *old_env_s= v->env_s;
     if (v->int_dirty)
     {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
-                v->name_len, v->name,
-                v->str_val_len, v->str_val);
-    if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
-      die("Out of memory");
-    putenv(v->env_s);
-    my_free(old_env_s, MYF(MY_ALLOW_ZERO_PTR));
+    /* setenv() expects \0-terminated strings */
+    DBUG_ASSERT(v->name[v->name_len] == 0);
+    setenv(v->name, v->str_val, 1);
   }
   DBUG_VOID_RETURN;
 }
@@ -5877,18 +5881,18 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Basedir for tests.", (uchar**) &opt_basedir,
-   (uchar**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"basedir", 'b', "Basedir for tests.", &opt_basedir,
+   &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", (uchar**) &opt_charsets_dir,
-   (uchar**) &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", &opt_charsets_dir,
+   &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
-   (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
-   (uchar**) &cursor_protocol, (uchar**) &cursor_protocol, 0,
+   &cursor_protocol, &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use.", (uchar**) &opt_db, (uchar**) &opt_db, 0,
+  {"database", 'D', "Database to use.", &opt_db, &opt_db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
@@ -5898,33 +5902,33 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
-   (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
+   &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-   (uchar**) &debug_info_flag, (uchar**) &debug_info_flag,
+   &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"global-subst", OPT_GLOBAL_SUBST, "argument should be 'X,Y' ;"
    " substitute string X with another Y accross the whole test's current"
    " result before comparing with expected result file",
-   (uchar**) &global_subst, (uchar**) &global_subst, 0,
+   &global_subst, &global_subst, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (uchar**) &opt_host, (uchar**) &opt_host, 0,
+  {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"include", 'i', "Include SQL before each test case.", (uchar**) &opt_include,
-   (uchar**) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"logdir", OPT_LOG_DIR, "Directory for log files", (uchar**) &opt_logdir,
-   (uchar**) &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"include", 'i', "Include SQL before each test case.", &opt_include,
+   &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir,
+   &opt_logdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
    "Write line number and elapsed time to <testname>.progress.",
-   (uchar**) &opt_mark_progress, (uchar**) &opt_mark_progress, 0,
+   &opt_mark_progress, &opt_mark_progress, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
    "Maximum number of attempts to connect to server.",
-   (uchar**) &opt_max_connect_retries, (uchar**) &opt_max_connect_retries, 0,
+   &opt_max_connect_retries, &opt_max_connect_retries, 0,
    GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
   {"max-connections", OPT_MAX_CONNECTIONS,
    "Max number of open connections to server",
-   (uchar**) &opt_max_connections, (uchar**) &opt_max_connections, 0,
+   &opt_max_connections, &opt_max_connections, 0,
    GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -5934,18 +5938,17 @@ static struct my_option my_long_options[] =
    "/etc/services, "
 #endif
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-   (uchar**) &opt_port,
-   (uchar**) &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_port, &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ps-protocol", OPT_PS_PROTOCOL, 
    "Use prepared-statement protocol for communication.",
-   (uchar**) &ps_protocol, (uchar**) &ps_protocol, 0,
+   &ps_protocol, &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"quiet", 's', "Suppress all normal output.", (uchar**) &silent,
-   (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"quiet", 's', "Suppress all normal output.", &silent,
+   &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"result-file", 'R', "Read/store result from/in this file.",
-   (uchar**) &result_file_name, (uchar**) &result_file_name, 0,
+   &result_file_name, &result_file_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5953,28 +5956,28 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
-   "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
-   (uchar**) &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
+   "Base name of shared memory.", &shared_memory_base_name, 
+   &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
    0, 0, 0},
 #endif
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
-   (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &silent, &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
    "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Always sleep this many seconds on sleep commands.",
-   (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, -1, 0,
+   &opt_sleep, &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, -1, 0,
    0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
-   (uchar**) &unix_sock, (uchar**) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   &unix_sock, &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
-   (uchar**) &sp_protocol, (uchar**) &sp_protocol, 0,
+   &sp_protocol, &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the result to include in a failure report.",
-   (uchar**) &opt_tail_lines, (uchar**) &opt_tail_lines, 0,
+   &opt_tail_lines, &opt_tail_lines, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5985,14 +5988,14 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User for login.", (uchar**) &opt_user, (uchar**) &opt_user, 0,
+  {"user", 'u', "User for login.", &opt_user, &opt_user, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Write more.", (uchar**) &verbose, (uchar**) &verbose, 0,
+  {"verbose", 'v', "Write more.", &verbose, &verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
-   (uchar**) &view_protocol, (uchar**) &view_protocol, 0,
+   &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -9828,3 +9831,18 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }
+
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite)
+{
+  size_t buflen= strlen(name) + strlen(value) + 2;
+  char *envvar= (char *)malloc(buflen);
+  if(!envvar)
+    return ENOMEM;
+  strcpy(envvar, name);
+  strcat(envvar, "=");
+  strcat(envvar, value);
+  putenv(envvar);
+  return 0;
+}
+#endif

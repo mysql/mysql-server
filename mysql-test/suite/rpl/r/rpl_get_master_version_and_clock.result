@@ -14,7 +14,6 @@ slave is going to hang in get_master_version_and_clock
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_unix_timestamp';
 Check network error happened here
-NETWORK ERROR
 set @@global.debug = "-d,'debug_lock.before_get_UNIX_TIMESTAMP'";
 stop slave;
 SET @@global.debug= "+d,'debug_lock.before_get_SERVER_ID'";
@@ -23,7 +22,6 @@ slave is going to hang in get_master_version_and_clock
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_server_id';
 Check network error happened here
-NETWORK ERROR
 set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
 set global debug= '';
 reset master;
@@ -31,6 +29,5 @@ include/stop_slave.inc
 change master to master_port=SLAVE_PORT;
 start slave;
 *** must be having the replicate-same-server-id IO thread error ***
-Slave_IO_Errno= 1593
-Slave_IO_Error= Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
+Last_IO_Error = Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
 SET DEBUG_SYNC= 'RESET';

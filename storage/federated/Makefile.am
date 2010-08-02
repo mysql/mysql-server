@@ -26,8 +26,6 @@ INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
                         -I$(srcdir)
 WRAPLIBS=
 
-LDADD =
-
 DEFS =                  @DEFS@
 
 noinst_HEADERS =	ha_federated.h
@@ -37,7 +35,7 @@ pkgplugin_LTLIBRARIES =	@plugin_federated_shared_target@
 ha_federated_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_federated_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_federated_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_federated_la_SOURCES =	ha_federated.cc
+ha_federated_la_SOURCES =	ha_federated.cc $(top_srcdir)/mysys/string.c
 
 
 EXTRA_LIBRARIES =	libfederated.a

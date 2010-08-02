@@ -125,12 +125,7 @@ select * from t1;
 select * from t2;
 select * from t3;
 
-let $VERSION=`select version()`;
---replace_result $VERSION VERSION
---replace_column 2 # 4 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
---replace_regex /file_id=[0-9]+/file_id=#/
-show binlog events;
+--source include/show_binlog_events.inc
 
 drop table t1,t2,t3;
 
@@ -168,18 +163,21 @@ set autocommit=0;
 start transaction;
 insert into t1 values(1);
 commit;
+
+let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
+
 start transaction;
 insert into t1 values(2);
 rollback;
+
+let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
+if (`SELECT $master_log_pos_2 <> $master_log_pos_1`)
+{
+  echo $master_log_pos_1 $master_log_pos_2;
+  die Rollbacked transaction has been binlogged;
+}
+
 set autocommit=1;
-
-let $VERSION=`select version()`;
---replace_result $VERSION VERSION
---replace_column 2 # 4 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
---replace_regex /file_id=[0-9]+/file_id=#/
-show binlog events;
-
 drop table if exists t1;
 
 #

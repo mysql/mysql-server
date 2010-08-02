@@ -4,11 +4,6 @@
 drop table if exists t1, t2;
 --enable_warnings
 
-# This warning is indication of a real bug, MBug#578117.
-# But it is not a regression, so we suppress it to get a clean test run.
-# This suppression must be removed as part of MBug#578117 fix.
-CALL mtr.add_suppression("Found wrong usage of mutex 'LOCK_sync' and 'LOCK_active'");
-
 #
 # bug lp:544173, xa crash with two 2pc-capable storage engines without binlog
 #

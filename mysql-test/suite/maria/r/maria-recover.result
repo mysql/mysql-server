@@ -8,7 +8,7 @@ OFF
 set global maria_recover=default;
 select @@global.maria_recover;
 @@global.maria_recover
-OFF
+NORMAL
 set global maria_recover=normal;
 select @@global.maria_recover;
 @@global.maria_recover

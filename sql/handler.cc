@@ -58,6 +58,7 @@ static const LEX_STRING sys_table_aliases[]=
   { C_STRING_WITH_LEN("NDB") },       { C_STRING_WITH_LEN("NDBCLUSTER") },
   { C_STRING_WITH_LEN("HEAP") },      { C_STRING_WITH_LEN("MEMORY") },
   { C_STRING_WITH_LEN("MERGE") },     { C_STRING_WITH_LEN("MRG_MYISAM") },
+  { C_STRING_WITH_LEN("Aria") },      { C_STRING_WITH_LEN("Maria") },
   {NullS, 0}
 };
 
@@ -3865,7 +3866,8 @@ ha_find_files(THD *thd,const char *db,const char *path,
   int error= 0;
   DBUG_ENTER("ha_find_files");
   DBUG_PRINT("enter", ("db: '%s'  path: '%s'  wild: '%s'  dir: %d", 
-		       db, path, wild ? wild : "NULL", dir));
+		       val_or_null(db), val_or_null(path),
+                       val_or_null(wild), dir));
   st_find_files_args args= {db, path, wild, dir, files};
 
   plugin_foreach(thd, find_files_handlerton,

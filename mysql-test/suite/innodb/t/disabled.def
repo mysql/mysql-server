@@ -9,6 +9,10 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+
 innodb : Bug#53306 2010-04-30 VasilDimov valgrind warnings
 innodb_bug52663 : Waiting for merge with XtraDB
 innodb_bug51920 : Waiting for merge with XtraDB
+innodb_bug48024 : Waiting for merge with XtraDB
+innodb_bug49164 : Waiting for merge with XtraDB
+innodb_bug54044 : Waiting for merge with XtraDB

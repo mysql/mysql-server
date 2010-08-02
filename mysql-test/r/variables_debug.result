@@ -1,3 +1,4 @@
+SET @old_debug = @@GLOBAL.debug;
 set debug= 'T';
 select @@debug;
 @@debug
@@ -22,4 +23,5 @@ SET GLOBAL debug='';
 SELECT @@global.debug;
 @@global.debug
 
+SET GLOBAL debug=@old_debug;
 End of 5.1 tests

@@ -2143,12 +2143,12 @@ void ha_federatedx::start_bulk_insert(ha_rows rows)
   @retval       != 0    Error occured at remote server. Also sets my_errno.
 */
 
-int ha_federatedx::end_bulk_insert(bool abort)
+int ha_federatedx::end_bulk_insert()
 {
   int error= 0;
   DBUG_ENTER("ha_federatedx::end_bulk_insert");
   
-  if (bulk_insert.str && bulk_insert.length && !abort)
+  if (bulk_insert.str && bulk_insert.length && !table_will_be_deleted)
   {
     if ((error= txn->acquire(share, FALSE, &io)))
       DBUG_RETURN(error);
@@ -2995,7 +2995,6 @@ int ha_federatedx::rnd_pos(uchar *buf, uchar *pos)
 
 int ha_federatedx::info(uint flag)
 {
-  char error_buffer[FEDERATEDX_QUERY_BUFFER_SIZE];
   uint error_code;
   federatedx_io *tmp_io= 0, **iop= 0;
   DBUG_ENTER("ha_federatedx::info");
@@ -3037,12 +3036,10 @@ int ha_federatedx::info(uint flag)
 error:
   if (iop && *iop)
   {
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                              (*iop)->error_code(), (*iop)->error_str()));
-    my_error(error_code, MYF(0), error_buffer);
+    my_printf_error((*iop)->error_code(), "Got error: %d : %s", MYF(0),
+                    (*iop)->error_code(), (*iop)->error_str());
   }
-  else
-  if (remote_error_number != -1 /* error already reported */)
+  else if (remote_error_number != -1 /* error already reported */)
   {
     error_code= remote_error_number;
     my_error(error_code, MYF(0), ER(error_code));
@@ -3084,6 +3081,9 @@ int ha_federatedx::extra(ha_extra_function operation)
     break;
   case HA_EXTRA_INSERT_WITH_UPDATE:
     insert_dup_update= TRUE;
+    break;
+  case HA_EXTRA_PREPARE_FOR_DROP:
+    table_will_be_deleted = TRUE;
     break;
   default:
     /* do nothing */
@@ -3394,6 +3394,7 @@ int ha_federatedx::external_lock(MYSQL_THD thd, int lock_type)
     txn->release(&io);
   else
   {
+    table_will_be_deleted = FALSE;
     txn= get_txn(thd);  
     if (!(error= txn->acquire(share, lock_type == F_RDLCK, &io)) &&
         (lock_type == F_WRLCK || !io->is_autocommit()))
@@ -3495,7 +3496,7 @@ int ha_federatedx::rollback(handlerton *hton, MYSQL_THD thd, bool all)
 struct st_mysql_storage_engine federatedx_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-mysql_declare_plugin(federated)
+mysql_declare_plugin(federatedx)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &federatedx_storage_engine,

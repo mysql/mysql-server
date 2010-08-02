@@ -140,45 +140,7 @@ set GLOBAL slave_transaction_retries=1;
 **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 **** On Slave ****
-SHOW SLAVE STATUS;;
-Slave_IO_State	<Slave_IO_State>
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	MASTER_PORT
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	<Read_Master_Log_Pos>
-Relay_Log_File	<Relay_Log_File>
-Relay_Log_Pos	<Relay_Log_Pos>
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	<Replicate_Ignore_Table>
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	<Last_Errno>
-Last_Error	<Last_Error>
-Skip_Counter	0
-Exec_Master_Log_Pos	<Exec_Master_Log_Pos>
-Relay_Log_Space	<Relay_Log_Space>
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	<Seconds_Behind_Master>
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	<Last_IO_Errno>
-Last_IO_Error	<Last_IO_Error>
-Last_SQL_Errno	<Last_SQL_Errno>
-Last_SQL_Error	<Last_SQL_Error>
+Last_SQL_Error = Could not execute Write_rows event on table test.t1; Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB, Error_code: 1297; Lock wait timeout exceeded; try restarting transaction, Error_code: 1205; handler error HA_ERR_LOCK_WAIT_TIMEOUT; the event's master log master-bin.000001, end_log_pos 6834
 set GLOBAL slave_transaction_retries=10;
 include/start_slave.inc
 select * from t1 order by nid;

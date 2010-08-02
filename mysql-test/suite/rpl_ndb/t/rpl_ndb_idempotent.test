@@ -39,12 +39,9 @@ SELECT * FROM t1 ORDER BY c3;
 
 # check that we have it on the slave
 --sync_slave_with_master
---connection slave
 SELECT * FROM t1 ORDER BY c3;
 
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error>
-SHOW SLAVE STATUS;
+source include/check_slave_is_running.inc;
 
 # stop slave and reset position to before the last changes
 STOP SLAVE;
@@ -53,9 +50,7 @@ eval CHANGE MASTER TO
   master_log_file = '$the_file',
   master_log_pos = $the_pos ;
 
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error>
-SHOW SLAVE STATUS;
+source include/check_slave_no_error.inc;
 
 # start the slave again
 # -> same events should have been applied again
@@ -67,7 +62,6 @@ START SLAVE;
 --connection master
 SELECT * FROM t1 ORDER BY c3;
 --sync_slave_with_master
---connection slave
 SELECT * FROM t1 ORDER BY c3;
 
 STOP SLAVE;
@@ -106,9 +100,7 @@ COMMIT;
 --sync_slave_with_master
 --connection slave
 SELECT * FROM t1;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 34 <Last_IO_Errno> 35 <Last_IO_Error>
-SHOW SLAVE STATUS;
+source include/check_slave_is_running.inc;
 
 connection master;
 DROP TABLE IF EXISTS t1;

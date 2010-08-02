@@ -124,9 +124,6 @@ extern	size_t bcmp(const uchar *s1,const uchar *s2,size_t len);
 extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
 #undef bcmp
 #define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#define bzero_if_valgrind(A,B) bzero(A,B)
-#else
-#define bzero_if_valgrind(A,B)
 #endif /* HAVE_valgrind */
 
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS)

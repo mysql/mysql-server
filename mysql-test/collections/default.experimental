@@ -13,12 +13,15 @@ funcs_1.ndb*                             # joro : NDB tests marked as experiment
 funcs_2.ndb_charset                      # joro : NDB tests marked as experimental as agreed with bochklin
 
 main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
+main.func_str  @solaris                  # joro: Bug#40928
 main.plugin_load  @solaris               # Bug#42144
+main.sp @solaris                         # joro : Bug#54138
 main.outfile_loaddata @solaris           # joro : Bug #46895
 
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
 
 rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
+rpl.rpl_row_sp011         @solaris       # Joro : Bug #54138
 
 rpl_ndb.*                                # joro : NDB tests marked as experimental as agreed with bochklin
 rpl_ndb.rpl_ndb_log                      # Bug#38998
@@ -39,3 +42,5 @@ parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experiment
 parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
+main.mysqlhotcopy_myisam                 # horst: due to bug#54129
+main.mysqlhotcopy_archive                # horst: due to bug#54129

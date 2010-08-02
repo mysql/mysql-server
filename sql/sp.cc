@@ -782,7 +782,12 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   thd->spcont= NULL;
 
   {
-    Parser_state parser_state(thd, defstr.c_ptr(), defstr.length());
+    Parser_state parser_state;
+    if (parser_state.init(thd, defstr.c_ptr(), defstr.length()))
+    {
+      ret= SP_INTERNAL_ERROR;
+      goto end;
+    }
 
     lex_start(thd);
 
@@ -1630,8 +1635,7 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
 void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
                             bool *first_no_prelocking)
 {
-  Sroutine_hash_entry *routine;
-  routine= (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+  Sroutine_hash_entry *routine= thd->lex->sroutines_list.first;
 
   DBUG_ASSERT(routine);
   bool first_is_procedure= (routine->key.str[0] == TYPE_ENUM_PROCEDURE);
@@ -1694,7 +1698,7 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
     memcpy(rn->key.str, key->str, key->length + 1);
     if (my_hash_insert(&lex->sroutines, (uchar *)rn))
       return FALSE;
-    lex->sroutines_list.link_in_list((uchar *)rn, (uchar **)&rn->next);
+    lex->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
     return TRUE;
   }
@@ -1740,7 +1744,7 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
 void sp_remove_not_own_routines(LEX *lex)
 {
   Sroutine_hash_entry *not_own_rt, *next_rt;
-  for (not_own_rt= *(Sroutine_hash_entry **)lex->sroutines_list_own_last;
+  for (not_own_rt= *lex->sroutines_list_own_last;
        not_own_rt; not_own_rt= next_rt)
   {
     /*
@@ -1751,7 +1755,7 @@ void sp_remove_not_own_routines(LEX *lex)
     hash_delete(&lex->sroutines, (uchar *)not_own_rt);
   }
 
-  *(Sroutine_hash_entry **)lex->sroutines_list_own_last= NULL;
+  *lex->sroutines_list_own_last= NULL;
   lex->sroutines_list.next= lex->sroutines_list_own_last;
   lex->sroutines_list.elements= lex->sroutines_list_own_elements;
 }
@@ -1832,11 +1836,11 @@ sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src,
     It will also add elements to end of 'LEX::sroutines_list' list.
 */
 
-static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src,
+static void sp_update_stmt_used_routines(THD *thd, LEX *lex,
+                                         SQL_I_List<Sroutine_hash_entry> *src,
                                          TABLE_LIST *belong_to_view)
 {
-  for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
-       rt; rt= rt->next)
+  for (Sroutine_hash_entry *rt= src->first; rt; rt= rt->next)
     (void)add_used_routine(lex, thd->stmt_arena, &rt->key, belong_to_view);
 }
 
@@ -1971,8 +1975,7 @@ int
 sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
 {
   return sp_cache_routines_and_add_tables_aux(thd, lex,
-           (Sroutine_hash_entry *)lex->sroutines_list.first,
-           first_no_prelock);
+           lex->sroutines_list.first, first_no_prelock);
 }
 
 
@@ -1996,8 +1999,7 @@ sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
 int
 sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, TABLE_LIST *view)
 {
-  Sroutine_hash_entry **last_cached_routine_ptr=
-                          (Sroutine_hash_entry **)lex->sroutines_list.next;
+  Sroutine_hash_entry **last_cached_routine_ptr= lex->sroutines_list.next;
   sp_update_stmt_used_routines(thd, lex, &view->view->sroutines_list,
                                view->top_table());
   return sp_cache_routines_and_add_tables_aux(thd, lex,
@@ -2026,8 +2028,7 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 {
   int ret= 0;
 
-  Sroutine_hash_entry **last_cached_routine_ptr=
-    (Sroutine_hash_entry **)lex->sroutines_list.next;
+  Sroutine_hash_entry **last_cached_routine_ptr= lex->sroutines_list.next;
 
   if (static_cast<int>(table->lock_type) >=
       static_cast<int>(TL_WRITE_ALLOW_WRITE))

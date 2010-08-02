@@ -58,12 +58,22 @@ delete marked clustered index record was delete unmarked and possibly also
 some of its fields were changed. Now, it is possible that the delete marked
 version has become obsolete at the time the undo is started. */
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***********************************************************//**
 Checks if also the previous version of the clustered index record was
 modified or inserted by the same transaction, and its undo number is such
 that it should be undone in the same rollback.
 @return	TRUE if also previous modify or insert of this row should be undone */
-UNIV_INLINE
+static
 ibool
 row_undo_mod_undo_also_prev_vers(
 /*=============================*/
@@ -230,6 +240,8 @@ row_undo_mod_clust(
 	undo_no_t	new_undo_no;
 
 	ut_ad(node && thr);
+
+	log_free_check();
 
 	/* Check if also the previous version of the clustered index record
 	should be undone in this same rollback operation */
@@ -657,24 +669,55 @@ row_undo_mod_upd_exist_sec(
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, node->ext,
 						      index, heap);
-			ut_a(entry);
-			/* NOTE that if we updated the fields of a
-			delete-marked secondary index record so that
-			alphabetically they stayed the same, e.g.,
-			'abc' -> 'aBc', we cannot return to the original
-			values because we do not know them. But this should
-			not cause problems because in row0sel.c, in queries
-			we always retrieve the clustered index record or an
-			earlier version of it, if the secondary index record
-			through which we do the search is delete-marked. */
+			if (UNIV_UNLIKELY(!entry)) {
+				/* The server must have crashed in
+				row_upd_clust_rec_by_insert(), in
+				row_ins_index_entry_low() before
+				btr_store_big_rec_extern_fields()
+				has written the externally stored columns
+				(BLOBs) of the new clustered index entry. */
 
-			err = row_undo_mod_del_mark_or_remove_sec(node, thr,
-								  index,
-								  entry);
-			if (err != DB_SUCCESS) {
-				mem_heap_free(heap);
+				/* The table must be in DYNAMIC or COMPRESSED
+				format.  REDUNDANT and COMPACT formats
+				store a local 768-byte prefix of each
+				externally stored column. */
+				ut_a(dict_table_get_format(index->table)
+				     >= DICT_TF_FORMAT_ZIP);
 
-				return(err);
+				/* This is only legitimate when
+				rolling back an incomplete transaction
+				after crash recovery. */
+				ut_a(thr_get_trx(thr)->is_recovered);
+
+				/* The server must have crashed before
+				completing the insert of the new
+				clustered index entry and before
+				inserting to the secondary indexes.
+				Because node->row was not yet written
+				to this index, we can ignore it.  But
+				we must restore node->undo_row. */
+			} else {
+				/* NOTE that if we updated the fields of a
+				delete-marked secondary index record so that
+				alphabetically they stayed the same, e.g.,
+				'abc' -> 'aBc', we cannot return to the
+				original values because we do not know them.
+				But this should not cause problems because
+				in row0sel.c, in queries we always retrieve
+				the clustered index record or an earlier
+				version of it, if the secondary index record
+				through which we do the search is
+				delete-marked. */
+
+				err = row_undo_mod_del_mark_or_remove_sec(
+					node, thr, index, entry);
+				if (err != DB_SUCCESS) {
+					mem_heap_free(heap);
+
+					return(err);
+				}
+
+				mem_heap_empty(heap);
 			}
 
 			/* We may have to update the delete mark in the
@@ -683,7 +726,6 @@ row_undo_mod_upd_exist_sec(
 			the secondary index record if we updated its fields
 			but alphabetically they stayed the same, e.g.,
 			'abc' -> 'aBc'. */
-			mem_heap_empty(heap);
 			entry = row_build_index_entry(node->undo_row,
 						      node->undo_ext,
 						      index, heap);

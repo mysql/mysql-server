@@ -90,7 +90,7 @@ connection master;
 # Bug #29571: INSERT DELAYED IGNORE written to binary log on the master but
 # on the slave
 #
-if  (`SELECT @@global.binlog_format != 'ROW'`)
+if  ($binlog_format_statement)
 {
   #flush the logs before the test
   connection slave;
@@ -103,22 +103,23 @@ CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
 flush table t1; # to wait for INSERT DELAYED to be done
-
-if  (`SELECT @@global.binlog_format != 'ROW'`)
+if  ($binlog_format_statement)
 {
   #must show two INSERT DELAYED
-  --replace_column 1 x 2 x 3 x 4 x 5 x
-  show binlog events in 'master-bin.000002' LIMIT 2,2;
+  --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_limit= 1,2
+  --source include/show_binlog_events.inc
 }
 select * from t1;
 
 sync_slave_with_master;
 echo On slave;
-if  (`SELECT @@global.binlog_format != 'ROW'`)
+if  ($binlog_format_statement)
 {
   #must show two INSERT DELAYED
-  --replace_column 1 x 2 x 3 x 4 x 5 x
-  show binlog events in 'slave-bin.000002' LIMIT 2,2;
+  --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_limit= 1,2
+  --source include/show_binlog_events.inc
 }
 select * from t1;
 

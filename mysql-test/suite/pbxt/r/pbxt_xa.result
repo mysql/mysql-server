@@ -1,5 +1,4 @@
 drop table if exists t1, t2;
-CALL mtr.add_suppression("Found wrong usage of mutex 'LOCK_sync' and 'LOCK_active'");
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
 CREATE TABLE t2 (b INT PRIMARY KEY) ENGINE=pbxt;
 BEGIN;

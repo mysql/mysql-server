@@ -1,3 +1,2 @@
-$EXAMPLE_PLUGIN_OPT
-$EXAMPLE_PLUGIN_LOAD
+--plugin-load=EXAMPLE=$HA_EXAMPLE_SO
 --loose-plugin-example-enum-var=e2

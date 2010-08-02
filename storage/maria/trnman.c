@@ -176,6 +176,7 @@ int trnman_init(TrID initial_trid)
   trnman_active_transactions= 0;
   trnman_committed_transactions= 0;
   trnman_allocated_transactions= 0;
+  dummy_transaction_object.min_read_from= ~(TrID) 0;    /* for recovery */
 
   pool= 0;
   global_trid_generator= initial_trid;
