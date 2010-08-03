@@ -2908,8 +2908,6 @@ srv_purge_coordinator_thread(
 		srv_wake_worker_threads(srv_n_purge_threads - 1);
 	}
 
-	ut_ad(srv_table_get_nth_slot(slot_no) == slot);
-
 	/* Decrement the active count. */
 	srv_suspend_thread();
 
