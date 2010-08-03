@@ -72,14 +72,6 @@ Uint32 ndbGetOwnVersion();
 #define NDB_VERSION ndbGetOwnVersion()
 
 /**
- * Version id 
- *
- *  Used by transporter and when communicating with
- *     managment server
- */
-/*#define NDB_VERSION_ID 0*/
-
-/**
  * From which version do we support rowid
  */ 
 #define NDBD_ROWID_VERSION (NDB_MAKE_VERSION(5,1,6))
