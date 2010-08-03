@@ -239,24 +239,6 @@ trx_undo_get_undo_rec_low(
 /*======================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
 	mem_heap_t*	heap);		/*!< in: memory heap where copied */
-/******************************************************************//**
-Copies an undo record to heap.
-
-NOTE: the caller must have latches on the clustered index page and
-purge_view.
-
-@return DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been
-truncated and we cannot fetch the old version */
-UNIV_INTERN
-ulint
-trx_undo_get_undo_rec(
-/*==================*/
-	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	trx_id_t	trx_id,		/*!< in: id of the trx that generated
-					the roll pointer: it points to an
-					undo log of this transaction */
-	trx_undo_rec_t** undo_rec,	/*!< out, own: copy of the record */
-	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 /*******************************************************************//**
 Build a previous version of a clustered index record. This function checks
 that the caller has a latch on the index page of the clustered index record
