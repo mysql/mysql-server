@@ -3030,10 +3030,10 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     Allocate temporary space for the value of the tristate.
     This option will have a limited lifetime and is not used beyond
     server initialization.
-    GET_ENUM value is an integer.
+    GET_ENUM value is unsigned integer.
   */
   options[0].value= options[1].value= (uchar **)alloc_root(mem_root,
-                                                          sizeof(int));
+                                                          sizeof(uint));
   *((uint*) options[0].value)= *((uint*) options[1].value)=
     (uint) options[0].def_value;
 
