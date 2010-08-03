@@ -252,7 +252,6 @@ read_view_purge_open(
 	view->low_limit_no = oldest_view->low_limit_no;
 	view->low_limit_id = oldest_view->low_limit_id;
 
-
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
 		view->up_limit_id = read_view_get_nth_trx_id( view, n - 1);
@@ -292,8 +291,9 @@ read_view_open_now(
 
 	/* No future transactions should be visible in the view */
 
-	view->low_limit_no = trx_sys->max_trx_id;
 	view->low_limit_id = view->low_limit_no;
+
+	view->low_limit_no = trx_sys->max_trx_id;
 
 	n = 0;
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
