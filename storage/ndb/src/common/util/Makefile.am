@@ -35,7 +35,7 @@ INCLUDES_LOC = @ZLIB_INCLUDES@
 libndbazio_la_SOURCES = azio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t
+noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t ndb_version-t
 
 BaseString_t_SOURCES = BaseString.cpp
 BaseString_t_CXXFLAGS = -DTEST_BASE_STRING
@@ -57,6 +57,9 @@ Bitmask_t_LDADD = \
 	libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 
+ndb_version_t_SOURCES = version.cpp
+ndb_version_t_CXXFLAGS = -DTEST_VERSION
+ndb_version_t_LDADD = libgeneral.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am

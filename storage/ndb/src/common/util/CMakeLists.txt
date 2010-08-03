@@ -71,6 +71,11 @@ SET_TARGET_PROPERTIES(Parser-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_PARSER")
 TARGET_LINK_LIBRARIES(Parser-t ndbgeneral)
 
+ADD_EXECUTABLE(ndb_version-t version.cpp)
+SET_TARGET_PROPERTIES(ndb_version-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_VERSION")
+TARGET_LINK_LIBRARIES(ndb_version-t ndbgeneral)
+
 ADD_EXECUTABLE(require-test require.c)
 SET_TARGET_PROPERTIES(require-test
                       PROPERTIES COMPILE_FLAGS "-DTEST")
