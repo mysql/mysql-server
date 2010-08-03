@@ -177,10 +177,10 @@ read_view_create_low(
 {
 	read_view_t*	view;
 
-	view = mem_heap_alloc(heap, sizeof(read_view_t));
+	view = mem_heap_alloc(heap, sizeof(*view) + n * sizeof(*view->trx_ids));
 
 	view->n_trx_ids = n;
-	view->trx_ids = mem_heap_alloc(heap, n * sizeof *view->trx_ids);
+	view->trx_ids = (trx_id_t*) &view[1];
 
 	return(view);
 }
