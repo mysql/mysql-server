@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -284,6 +284,10 @@ dtype_new_store_for_order_and_null_size(
 #error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
 #endif
 	ulint	len;
+
+	ut_ad(type);
+	ut_ad(type->mtype >= DATA_VARCHAR);
+	ut_ad(type->mtype <= DATA_MYSQL);
 
 	buf[0] = (byte)(type->mtype & 0xFFUL);
 

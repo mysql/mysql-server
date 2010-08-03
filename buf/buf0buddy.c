@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -429,6 +429,8 @@ buf_buddy_relocate_block(
 		UT_LIST_ADD_FIRST(zip_list, buf_pool->zip_clean, dpage);
 	}
 	mutex_exit(&flush_list_mutex);
+
+	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
 	mutex_exit(&buf_pool_zip_mutex);
 	mutex_exit(&zip_free_mutex);
