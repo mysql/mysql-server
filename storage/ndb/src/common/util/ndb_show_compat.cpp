@@ -17,10 +17,8 @@
 */
 
 
-extern "C" {
-  void ndbPrintFullyCompatibleTable(void);
-  void ndbPrintUpgradeCompatibleTable(void);
-}
+void ndbPrintFullyCompatibleTable(void);
+void ndbPrintUpgradeCompatibleTable(void);
 
 int main(void){
   ndbPrintFullyCompatibleTable();
