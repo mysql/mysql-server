@@ -104,8 +104,6 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
-extern "C" void ndbSetOwnVersion();
-
 extern int g_ndb_init_need_monotonic;
 
 /**
@@ -119,8 +117,6 @@ real_main(int argc, char** argv)
 {
   g_ndb_init_need_monotonic = 1;
   NDB_INIT(argv[0]);
-
-  ndbSetOwnVersion();
 
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
