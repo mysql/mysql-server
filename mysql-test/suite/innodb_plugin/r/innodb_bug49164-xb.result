@@ -36,7 +36,7 @@ a	b	c
 commit;
 select * from bug49164;
 a	b	c
-1	1	1
+1	1	6
 2	2	2
 3	3	3
 drop table bug49164;

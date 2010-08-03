@@ -10925,8 +10925,8 @@ mysql_declare_plugin(xtradb)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
   innobase_hton_name,
-  "Innobase Oy",
-  "Supports transactions, row-level locking, and foreign keys",
+  "Percona",
+  "XtraDB engine based on InnoDB plugin. Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */

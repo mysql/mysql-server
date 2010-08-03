@@ -5577,7 +5577,8 @@ ha_innobase::change_active_index(
 				    keynr);
 		/* The caller seems to ignore this.  Thus, we must check
 		this again in row_search_for_mysql(). */
-		DBUG_RETURN(2);
+		DBUG_RETURN(convert_error_code_to_mysql(DB_MISSING_HISTORY,
+                                                        0, NULL));
 	}
 
 	ut_a(prebuilt->search_tuple != 0);

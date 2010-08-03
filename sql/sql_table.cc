@@ -6537,6 +6537,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_add_buffer= NULL;
   uint candidate_key_count= 0;
   bool no_pk;
+  ulong explicit_used_fields= 0;
   DBUG_ENTER("mysql_alter_table");
 
   /*
@@ -6807,6 +6808,7 @@ view_err:
       change the row format in update_create_info().
     */
     create_info->used_fields|= HA_CREATE_USED_ROW_FORMAT;
+    explicit_used_fields|= HA_CREATE_USED_ROW_FORMAT;
   }
 
   DBUG_PRINT("info", ("old type: %s  new type: %s",
@@ -6967,6 +6969,9 @@ view_err:
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
   
+  /* Remove markers set for update_create_info */
+  create_info->used_fields&= ~explicit_used_fields;
+
   if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
     need_copy_table= alter_info->change_level;
 

@@ -2311,8 +2311,8 @@ select_type	SIMPLE
 table	t1
 type	index
 possible_keys	NULL
-key	b
-key_len	10
+key	PRIMARY
+key_len	4
 ref	NULL
 rows	10
 Extra	Using index
