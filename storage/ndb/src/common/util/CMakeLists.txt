@@ -45,7 +45,7 @@ ADD_LIBRARY(ndbgeneral STATIC
             uucode.c
             random.c
             ndb_rand.c
-            version.c
+            version.cpp
             strdup.c
             ConfigValues.cpp
             ndb_init.cpp
