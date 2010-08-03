@@ -468,7 +468,7 @@ static int table2maria(TABLE *table_arg, data_file_type row_type,
   recinfo_pos= recinfo;
   create_info->null_bytes= table_arg->s->null_bytes;
 
-  while (recpos < (uint) share->reclength)
+  while (recpos < (uint) share->stored_rec_length)
   {
     Field **field, *found= 0;
     minpos= share->reclength;
