@@ -91,24 +91,6 @@ struct NdbUpGradeCompatible {
   UG_MatchType matchType;
 };
 
-#define HAVE_NDB_SETVERSION
-#ifdef HAVE_NDB_SETVERSION
-Uint32 ndbOwnVersionTesting = 0;
-void
-ndbSetOwnVersion() {
-  char buf[256];
-  if (NdbEnv_GetEnv("NDB_SETVERSION", buf, sizeof(buf))) {
-    Uint32 _v1,_v2,_v3;
-    if (sscanf(buf, "%u.%u.%u", &_v1, &_v2, &_v3) == 3) {
-      ndbOwnVersionTesting = MAKE_VERSION(_v1,_v2,_v3);
-      ndbout_c("Testing: Version set to 0x%x",  ndbOwnVersionTesting);
-    }
-  }
-}
-#else
-void ndbSetOwnVersion() {}
-#endif
-
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
   { MAKE_VERSION(7,0,NDB_VERSION_BUILD), MAKE_VERSION(6,4,0), UG_Range },
@@ -160,14 +142,7 @@ void ndbPrintVersion()
 Uint32
 ndbGetOwnVersion()
 {
-#ifdef HAVE_NDB_SETVERSION
-  if (ndbOwnVersionTesting == 0)
-    return NDB_VERSION_D;
-  else
-    return ndbOwnVersionTesting;
-#else
   return NDB_VERSION_D;
-#endif
 }
 
 int
