@@ -22,23 +22,27 @@
 #include <basestring_vsnprintf.h>
 #include <NdbOut.hpp>
 
+extern "C"
 Uint32 ndbGetMajor(Uint32 version) {
   return (version >> 16) & 0xFF;
 }
 
+extern "C"
 Uint32 ndbGetMinor(Uint32 version) {
   return (version >> 8) & 0xFF;
 }
 
+extern "C"
 Uint32 ndbGetBuild(Uint32 version) {
   return (version >> 0) & 0xFF;
 }
 
+extern "C"
 Uint32 ndbMakeVersion(Uint32 major, Uint32 minor, Uint32 build) {
   return NDB_MAKE_VERSION(major, minor, build);
-  
 }
 
+extern "C"
 const char * ndbGetOwnVersionString()
 {
   static char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
@@ -47,7 +51,9 @@ const char * ndbGetOwnVersionString()
                              sizeof(ndb_version_string_buf));
 }
 
-const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version, const char * status,
+extern "C"
+const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version,
+                                 const char * status,
                                  char *buf, unsigned sz)
 {
   char tmp[NDB_VERSION_STRING_BUF_SZ];
@@ -130,6 +136,7 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
   { 0, 0, UG_Null }
 };
 
+extern "C"
 void ndbPrintVersion()
 {
   printf("Version: %u.%u.%u\n",
@@ -138,12 +145,14 @@ void ndbPrintVersion()
 	 getBuild(ndbGetOwnVersion()));
 }
 
+extern "C"
 Uint32
 ndbGetOwnVersion()
 {
   return NDB_VERSION_D;
 }
 
+static
 int
 ndbSearchUpgradeCompatibleTable(Uint32 ownVersion, Uint32 otherVersion,
 				struct NdbUpGradeCompatible table[])
@@ -171,6 +180,7 @@ ndbSearchUpgradeCompatibleTable(Uint32 ownVersion, Uint32 otherVersion,
   return 0;
 }
 
+static
 int
 ndbCompatible(Uint32 ownVersion, Uint32 otherVersion, struct NdbUpGradeCompatible table[])
 {
@@ -180,12 +190,14 @@ ndbCompatible(Uint32 ownVersion, Uint32 otherVersion, struct NdbUpGradeCompatibl
   return ndbSearchUpgradeCompatibleTable(ownVersion, otherVersion, table);
 }
 
+static
 int
 ndbCompatible_full(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible(ownVersion, otherVersion, ndbCompatibleTable_full);
 }
 
+static
 int
 ndbCompatible_upgrade(Uint32 ownVersion, Uint32 otherVersion)
 {
@@ -194,49 +206,56 @@ ndbCompatible_upgrade(Uint32 ownVersion, Uint32 otherVersion)
   return ndbCompatible(ownVersion, otherVersion, ndbCompatibleTable_upgrade);
 }
 
+extern "C"
 int
 ndbCompatible_mgmt_ndb(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_mgmt_api(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_ndb_mgmt(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_api_mgmt(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_api_ndb(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_ndb_api(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_ndb_ndb(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
-
+static
 void
 ndbPrintCompatibleTable(struct NdbUpGradeCompatible table[])
 {
