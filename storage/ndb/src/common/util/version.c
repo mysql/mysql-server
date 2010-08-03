@@ -91,27 +91,6 @@ struct NdbUpGradeCompatible {
   UG_MatchType matchType;
 };
 
-/*#define TEST_VERSION*/
-
-#define HAVE_NDB_SETVERSION
-#ifdef HAVE_NDB_SETVERSION
-Uint32 ndbOwnVersionTesting = 0;
-void
-ndbSetOwnVersion() {
-  char buf[256];
-  if (NdbEnv_GetEnv("NDB_SETVERSION", buf, sizeof(buf))) {
-    Uint32 _v1,_v2,_v3;
-    if (sscanf(buf, "%u.%u.%u", &_v1, &_v2, &_v3) == 3) {
-      ndbOwnVersionTesting = MAKE_VERSION(_v1,_v2,_v3);
-      ndbout_c("Testing: Version set to 0x%x",  ndbOwnVersionTesting);
-    }
-  }
-}
-#else
-void ndbSetOwnVersion() {}
-#endif
-
-#ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(7,1,0), UG_Range },        /* From 7.1+ */
   { MAKE_VERSION(7,1,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },        /* From 7.0+ */
@@ -156,28 +135,6 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
   { 0, 0, UG_Null }
 };
 
-#else /* testing purposes */
-
-struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
-  { MAKE_VERSION(4,1,5), MAKE_VERSION(4,1,0), UG_Range },
-  { MAKE_VERSION(3,6,9), MAKE_VERSION(3,6,1), UG_Range },
-  { MAKE_VERSION(3,6,2), MAKE_VERSION(3,6,1), UG_Range },
-  { MAKE_VERSION(3,5,7), MAKE_VERSION(3,5,0), UG_Range },
-  { MAKE_VERSION(3,5,1), MAKE_VERSION(3,5,0), UG_Range },
-  { NDB_VERSION_D      , MAKE_VERSION(NDB_VERSION_MAJOR,NDB_VERSION_MINOR,2), UG_Range },
-  { 0, 0, UG_Null }
-};
-
-struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
-  { MAKE_VERSION(4,1,5), MAKE_VERSION(3,6,9), UG_Exact },
-  { MAKE_VERSION(3,6,2), MAKE_VERSION(3,5,7), UG_Exact },
-  { MAKE_VERSION(3,5,1), NDB_VERSION_D      , UG_Exact },
-  { 0, 0, UG_Null }
-};
-
-
-#endif
-
 void ndbPrintVersion()
 {
   printf("Version: %u.%u.%u\n",
@@ -189,14 +146,7 @@ void ndbPrintVersion()
 Uint32
 ndbGetOwnVersion()
 {
-#ifdef HAVE_NDB_SETVERSION
-  if (ndbOwnVersionTesting == 0)
-    return NDB_VERSION_D;
-  else
-    return ndbOwnVersionTesting;
-#else
   return NDB_VERSION_D;
-#endif
 }
 
 int
