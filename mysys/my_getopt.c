@@ -656,17 +656,21 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 	return EXIT_OUT_OF_MEMORY;
       break;
     case GET_ENUM:
-      if (((*(int*)result_pos)=
-             find_type(argument, opts->typelib, 2) - 1) < 0)
       {
-        /*
-          Accept an integer representation of the enumerated item.
-        */
-        char *endptr;
-        unsigned int arg= (unsigned int) strtol(argument, &endptr, 10);
-        if (*endptr || arg >= opts->typelib->count)
-          return EXIT_ARGUMENT_INVALID;
-        *(int*)result_pos= arg;
+        int type= find_type(argument, opts->typelib, 2);
+        if (type < 1)
+        {
+          /*
+            Accept an integer representation of the enumerated item.
+          */
+          char *endptr;
+          uint arg= (uint) strtoul(argument, &endptr, 10);
+          if (*endptr || arg >= opts->typelib->count)
+            return EXIT_ARGUMENT_INVALID;
+          *(uint*)result_pos= arg;
+        }
+        else
+          *(uint*)result_pos= type - 1;
       }
       break;
     case GET_SET:
