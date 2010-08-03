@@ -20,26 +20,29 @@
 #include <ndb_version.h>
 #include <version.h>
 #include <basestring_vsnprintf.h>
-#include <NdbEnv.h>
 #include <NdbOut.hpp>
 
+extern "C"
 Uint32 ndbGetMajor(Uint32 version) {
   return (version >> 16) & 0xFF;
 }
 
+extern "C"
 Uint32 ndbGetMinor(Uint32 version) {
   return (version >> 8) & 0xFF;
 }
 
+extern "C"
 Uint32 ndbGetBuild(Uint32 version) {
   return (version >> 0) & 0xFF;
 }
 
+extern "C"
 Uint32 ndbMakeVersion(Uint32 major, Uint32 minor, Uint32 build) {
   return NDB_MAKE_VERSION(major, minor, build);
-  
 }
 
+extern "C"
 const char * ndbGetOwnVersionString()
 {
   static char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
@@ -48,7 +51,9 @@ const char * ndbGetOwnVersionString()
                              sizeof(ndb_version_string_buf));
 }
 
-const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version, const char * status,
+extern "C"
+const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version,
+                                 const char * status,
                                  char *buf, unsigned sz)
 {
   char tmp[NDB_VERSION_STRING_BUF_SZ];
@@ -135,6 +140,7 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
   { 0, 0, UG_Null }
 };
 
+extern "C"
 void ndbPrintVersion()
 {
   printf("Version: %u.%u.%u\n",
@@ -143,12 +149,14 @@ void ndbPrintVersion()
 	 getBuild(ndbGetOwnVersion()));
 }
 
+extern "C"
 Uint32
 ndbGetOwnVersion()
 {
   return NDB_VERSION_D;
 }
 
+static
 int
 ndbSearchUpgradeCompatibleTable(Uint32 ownVersion, Uint32 otherVersion,
 				struct NdbUpGradeCompatible table[])
@@ -176,6 +184,7 @@ ndbSearchUpgradeCompatibleTable(Uint32 ownVersion, Uint32 otherVersion,
   return 0;
 }
 
+static
 int
 ndbCompatible(Uint32 ownVersion, Uint32 otherVersion, struct NdbUpGradeCompatible table[])
 {
@@ -185,12 +194,14 @@ ndbCompatible(Uint32 ownVersion, Uint32 otherVersion, struct NdbUpGradeCompatibl
   return ndbSearchUpgradeCompatibleTable(ownVersion, otherVersion, table);
 }
 
+static
 int
 ndbCompatible_full(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible(ownVersion, otherVersion, ndbCompatibleTable_full);
 }
 
+static
 int
 ndbCompatible_upgrade(Uint32 ownVersion, Uint32 otherVersion)
 {
@@ -199,49 +210,56 @@ ndbCompatible_upgrade(Uint32 ownVersion, Uint32 otherVersion)
   return ndbCompatible(ownVersion, otherVersion, ndbCompatibleTable_upgrade);
 }
 
+extern "C"
 int
 ndbCompatible_mgmt_ndb(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_mgmt_api(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_ndb_mgmt(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_api_mgmt(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_api_ndb(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_full(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_ndb_api(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
+extern "C"
 int
 ndbCompatible_ndb_ndb(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
 
-
+static
 void
 ndbPrintCompatibleTable(struct NdbUpGradeCompatible table[])
 {
@@ -285,3 +303,137 @@ ndbPrintUpgradeCompatibleTable(void){
   printf("ndbCompatibleTable_upgrade\n");
   ndbPrintCompatibleTable(ndbCompatibleTable_upgrade);
 }
+
+
+#ifdef TEST_VERSION
+
+#include <NdbTap.hpp>
+
+int main(int argc, const char** argv)
+{
+  printf("Checking NDB version defines and functions...\n\n");
+
+  printf(" version string: '%s'\n\n", VERSION);
+
+  printf(" NDB_MYSQL_VERSION_MAJOR: %d\n", NDB_MYSQL_VERSION_MAJOR);
+  printf(" NDB_MYSQL_VERSION_MINOR: %d\n", NDB_MYSQL_VERSION_MINOR);
+  printf(" NDB_MYSQL_VERSION_BUILD: %d\n\n", NDB_MYSQL_VERSION_BUILD);
+  printf(" NDB_VERSION_MAJOR: %d\n", NDB_VERSION_MAJOR);
+  printf(" NDB_VERSION_MINOR: %d\n", NDB_VERSION_MINOR);
+  printf(" NDB_VERSION_BUILD: %d\n", NDB_VERSION_BUILD);
+  printf(" NDB_VERSION_STATUS: '%s'\n\n", NDB_VERSION_STATUS);
+
+  /*
+    Parse the VERSION string as X.X.X-status */
+  unsigned mysql_major, mysql_minor, mysql_build;
+  char mysql_status[100];
+  const int matches_version = sscanf(VERSION, "%u.%u.%u-%s",
+                                     &mysql_major, &mysql_minor,
+                                     &mysql_build, mysql_status);
+  OK(matches_version == 3 || matches_version == 4);
+
+  /*
+    Check that defined MySQL version numbers X.X.X match those parsed
+    from the version string
+  */
+  OK(NDB_MYSQL_VERSION_MAJOR == mysql_major ||
+     NDB_MYSQL_VERSION_MINOR == mysql_minor ||
+     NDB_MYSQL_VERSION_BUILD == mysql_build);
+
+  if (matches_version == 4 &&
+      strncmp(mysql_status, "ndb", 3) == 0)
+  {
+    /* This is a MySQL Cluster build */
+    unsigned ndb_major, ndb_minor, ndb_build;
+    char ndb_status[100];
+    int matches_ndb = sscanf(mysql_status, "ndb-%u.%u.%u%s",
+                             &ndb_major, &ndb_minor,
+                             &ndb_build, ndb_status);
+
+    printf("This is a MySQL Cluster build!\n");
+    printf(" MySQL Server version(X.X.X): %u.%u.%u\n",
+           mysql_major, mysql_minor, mysql_build);
+    printf(" NDB version(Y.Y.Y): %u.%u.%u\n",
+           ndb_major, ndb_minor, ndb_build);
+
+    OK(matches_ndb == 3 || matches_ndb == 4);
+
+    /*
+      Check that defined NDB version numbers Y.Y.Y match
+      those parsed from the version string
+    */
+    OK(NDB_VERSION_MAJOR == ndb_major ||
+       NDB_VERSION_MINOR == ndb_minor ||
+       NDB_VERSION_BUILD == ndb_build);
+
+    if (matches_ndb == 4)
+    {
+      /* Check -status, which would normally be 'alpha' or 'beta' */
+      OK(strcmp(NDB_VERSION_STATUS, ndb_status) == 0);
+    }
+
+  }
+  else
+  {
+    /* This is a MySQL Server with NDB build */
+    printf("This is a MySQL Server with NDB build!\n");
+    printf(" MySQL Server version(X.X.X): %u.%u.%u\n",
+           mysql_major, mysql_minor, mysql_build);
+    printf(" NDB version(Y.Y.Y): %u.%u.%u\n",
+           NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD);
+
+    /* Check that MySQL and NDB version are not the same */
+    if (NDB_MYSQL_VERSION_MAJOR == NDB_VERSION_MAJOR &&
+        NDB_MYSQL_VERSION_MINOR == NDB_VERSION_MINOR &&
+        NDB_MYSQL_VERSION_BUILD == NDB_VERSION_BUILD)
+    {
+      /*
+        Building a MySQL Server with NDB set to same version
+        is most likely an error, not so severe
+        though -> print warning
+      */
+      printf("WARNING: The NDB version is set to same version as MySQL, "
+             "this is most likelky a configuration error!!\n\n");
+    }
+  }
+
+  /* ndbPrintVersion */
+  printf("ndbPrintVersion() => ");
+  ndbPrintVersion();
+
+  /* ndbMakeVersion */
+  Uint32 major = 1;
+  Uint32 minor = 2;
+  Uint32 build = 3;
+  Uint32 version = ndbMakeVersion(major, minor, build);
+  OK(version == 0x00010203);
+  OK(ndbGetMajor(version) == major);
+  OK(ndbGetMinor(version) == minor);
+  OK(ndbGetBuild(version) == build);
+
+  /* ndbGetVersionString */
+  char buf[64];
+  printf("ndbGetVersionString: '%s'\n",
+         ndbGetVersionString(version, 0x00030201, "-status",
+                             buf, sizeof(buf)));
+
+  /* ndbGetOwnVersionString */
+  printf("ndbGetOwnVersionString: '%s'\n",
+         ndbGetOwnVersionString());
+
+  /* ndbGetOwnVersion */
+  OK(ndbGetOwnVersion() == ndbMakeVersion(NDB_VERSION_MAJOR,
+                                          NDB_VERSION_MINOR,
+                                          NDB_VERSION_BUILD));
+  OK(ndbGetOwnVersion() == NDB_VERSION_D);
+  OK(ndbGetOwnVersion() == NDB_VERSION);
+
+  /* NDB_MYSQL_VERSION_D */
+  OK(NDB_MYSQL_VERSION_D == ndbMakeVersion(NDB_MYSQL_VERSION_MAJOR,
+                                           NDB_MYSQL_VERSION_MINOR,
+                                           NDB_MYSQL_VERSION_BUILD));
+
+  return 0;
+}
+
+#endif
