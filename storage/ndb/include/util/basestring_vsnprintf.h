@@ -18,8 +18,9 @@
 
 #ifndef BASESTRING_VSNPRINTF_H
 #define BASESTRING_VSNPRINTF_H
+
 #include <ndb_global.h>
-#include <stdarg.h>
+
 #if defined(__cplusplus)
 extern "C"
 {
