@@ -525,7 +525,6 @@ trx_purge_truncate_history(
 
 	ut_ad(purge_mutex_own());
 
-
 	/* We play safe and set the truncate limit at most to the purge view
 	low_limit number, though this is not necessary */
 
