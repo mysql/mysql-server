@@ -20,7 +20,6 @@
 #include <ndb_version.h>
 #include <version.h>
 #include <basestring_vsnprintf.h>
-#include <NdbEnv.h>
 #include <NdbOut.hpp>
 
 Uint32 ndbGetMajor(Uint32 version) {
