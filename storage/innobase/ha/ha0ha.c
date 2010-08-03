@@ -115,6 +115,15 @@ ha_clear(
 	for (i = 0; i < n; i++) {
 		mem_heap_free(table->heaps[i]);
 	}
+
+	if (table->heaps) {
+		mem_free(table->heaps);
+	}
+
+	if (table->mutexes) {
+		mem_free(table->mutexes);
+	}
+
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Clear the hash table. */
