@@ -21,12 +21,6 @@
 
 #include <ndb_types.h>
 
-/**
- * This is updated each time a version of backup/lcp format is changed
- *   when it's updated, it's set to version that made the change
- */
-#define NDB_BACKUP_VERSION NDB_MAKE_VERSION(6,3,11)
-
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
 #define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
@@ -70,6 +64,12 @@ Uint32 ndbGetOwnVersion();
 #define NDB_VERSION_STRING ndbGetOwnVersionString()
 
 #define NDB_VERSION ndbGetOwnVersion()
+
+/**
+ * This is updated each time a version of backup/lcp format is changed
+ *   when it's updated, it's set to version that made the change
+ */
+#define NDB_BACKUP_VERSION NDB_MAKE_VERSION(6,3,11)
 
 /**
  * From which version do we support rowid
