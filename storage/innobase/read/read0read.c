@@ -291,9 +291,9 @@ read_view_open_now(
 
 	/* No future transactions should be visible in the view */
 
-	view->low_limit_id = view->low_limit_no;
-
 	view->low_limit_no = trx_sys->max_trx_id;
+
+	view->low_limit_id = view->low_limit_no;
 
 	n = 0;
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
