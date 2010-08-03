@@ -393,6 +393,8 @@ true-inner again
 true-outer
 Counter is greater than 0, (counter=10)
 Counter is not 0, (counter=0)
+Counter is true, (counter=alpha)
+Beta is true
 1
 Testing while with not
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": At line 64: Nesting too deeply
