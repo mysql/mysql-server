@@ -671,11 +671,18 @@ trx_commit(
 {
 	page_t*		update_hdr_page;
 	ib_uint64_t	lsn		= 0;
-	trx_undo_t*	undo;
 	mtr_t		mtr;
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 		trx_rseg_t*	rseg;
+
+		if (trx->update_undo != NULL) {
+			trx_sys_mutex_enter();
+
+			trx->no = trx_sys_get_new_trx_id();
+
+			trx_sys_mutex_exit();
+		}
 
 		rseg = trx->rseg;
 
@@ -694,21 +701,14 @@ trx_commit(
 				rseg, trx->insert_undo, &mtr);
 		}
 
-		undo = trx->update_undo;
-
-		if (undo) {
-			trx_sys_mutex_enter();
-
-			trx->no = trx_sys_get_new_trx_id();
-
-			trx_sys_mutex_exit();
+		if (trx->update_undo != NULL) {
 
 			/* It is not necessary to obtain trx->undo_mutex here
 			because only a single OS thread is allowed to do the
 			transaction commit for this transaction. */
 
 			update_hdr_page = trx_undo_set_state_at_finish(
-				rseg, undo, &mtr);
+				rseg, trx->update_undo, &mtr);
 
 			/* We have to do the cleanup for the update log while
 			holding the rseg mutex because update log headers
