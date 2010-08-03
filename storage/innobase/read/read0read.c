@@ -296,16 +296,10 @@ read_view_open_now(
 	view->low_limit_id = view->low_limit_no;
 
 	n = 0;
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-
 	/* No active transaction should be visible, except cr_trx */
-
-	while (trx) {
-		trx_t*	prev_trx;
-
-		trx_mutex_enter(trx);
-
-		prev_trx = trx;
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		if (trx->id != cr_trx_id
 		    && (trx->lock.conc_state == TRX_ACTIVE
@@ -326,10 +320,6 @@ read_view_open_now(
 				view->low_limit_no = trx->no;
 			}
 		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
-
-		trx_mutex_exit(prev_trx);
 	}
 
 	view->n_trx_ids = n;
@@ -472,14 +462,12 @@ read_cursor_view_create_for_mysql(
 	view->low_limit_id = view->low_limit_no;
 
 	n = 0;
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	/* No active transaction should be visible */
 
-	while (trx) {
-		trx_t*	prev_trx = trx;
-
-		trx_mutex_enter(trx);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		if (trx->lock.conc_state == TRX_ACTIVE
 		    || trx->lock.conc_state == TRX_PREPARED) {
@@ -499,10 +487,6 @@ read_cursor_view_create_for_mysql(
 				view->low_limit_no = trx->no;
 			}
 		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
-
-		trx_mutex_exit(prev_trx);
 	}
 
 	view->n_trx_ids = n;
