@@ -24,7 +24,7 @@ libgeneral_la_SOURCES = \
             SocketServer.cpp SocketClient.cpp SocketAuthenticator.cpp\
 	    OutputStream.cpp NdbOut.cpp BaseString.cpp \
             NdbSqlUtil.cpp \
-            uucode.c random.c version.c ndb_opts.c \
+            uucode.c random.c version.cpp ndb_opts.c \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp \
@@ -35,7 +35,7 @@ INCLUDES_LOC = @ZLIB_INCLUDES@
 libndbazio_la_SOURCES = azio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t
+noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t ndb_version-t
 
 BaseString_t_SOURCES = BaseString.cpp
 BaseString_t_CXXFLAGS = -DTEST_BASE_STRING
@@ -57,6 +57,9 @@ Bitmask_t_LDADD = \
 	libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 
+ndb_version_t_SOURCES = version.cpp
+ndb_version_t_CXXFLAGS = -DTEST_VERSION
+ndb_version_t_LDADD = libgeneral.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
