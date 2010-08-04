@@ -309,7 +309,7 @@ int main(int argc, const char** argv)
 {
   printf("Checking NDB version defines and functions...\n\n");
 
-  printf(" version string: '%s'\n\n", VERSION);
+  printf(" version string: '%s'\n", MYSQL_SERVER_VERSION);
 
   printf(" NDB_MYSQL_VERSION_MAJOR: %d\n", NDB_MYSQL_VERSION_MAJOR);
   printf(" NDB_MYSQL_VERSION_MINOR: %d\n", NDB_MYSQL_VERSION_MINOR);

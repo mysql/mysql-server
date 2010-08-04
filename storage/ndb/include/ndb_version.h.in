@@ -20,6 +20,7 @@
 #define NDB_VERSION_H
 
 #include <ndb_types.h>
+#include <mysql_version.h>
 
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
