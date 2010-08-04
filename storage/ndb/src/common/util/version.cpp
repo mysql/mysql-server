@@ -327,7 +327,7 @@ TAPTEST(ndb_version)
     Parse the VERSION string as X.X.X-status */
   unsigned mysql_major, mysql_minor, mysql_build;
   char mysql_status[100];
-  const int matches_version = sscanf(VERSION, "%u.%u.%u-%s",
+  const int matches_version = sscanf(MYSQL_SERVER_VERSION, "%u.%u.%u-%s",
                                      &mysql_major, &mysql_minor,
                                      &mysql_build, mysql_status);
   OK(matches_version == 3 || matches_version == 4);
