@@ -250,7 +250,7 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
           used to build conf_to_src, which must require minimun
           dependency.
         */
-        sprintf(i->tailoring, "[version %.*s]", len, attr);
+        sprintf(i->tailoring, "[version %.*s]", (int) len, attr);
         i->tailoring_length= strlen(i->tailoring);
       }
     break;
@@ -329,10 +329,10 @@ my_bool my_parse_charset_xml(const char *buf, size_t len,
     const char *errstr= my_xml_error_string(&p);
     if (errsize > 32 + strlen(errstr))
     {
-      /* We cannot use my_snprintf() here. See comment avove */
+      /* We cannot use my_snprintf() here. See previous comment. */
       sprintf(error, "at line %d pos %d: %s",
                 my_xml_error_lineno(&p)+1,
-                my_xml_error_pos(&p),
+                (int) my_xml_error_pos(&p),
                 my_xml_error_string(&p));
     }
   }

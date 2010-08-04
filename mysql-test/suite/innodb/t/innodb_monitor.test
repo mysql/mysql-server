@@ -1,0 +1,278 @@
+# This is the test for Metrics Monitor Table feature.
+# Test the metrics monitor system's control system
+# and counter accuracy.
+
+--source include/have_innodb.inc
+
+select * from information_schema.innodb_metrics;
+
+# Test turn on/off the monitor counter  with "all" option
+# By default, they will be off
+select name, status from information_schema.innodb_metrics;
+
+# Turn on all monitor counters
+set global innodb_monitor_counter_on = all;
+
+# status should all change to "started"
+select name, status from information_schema.innodb_metrics;
+
+# Test wrong argument to the global configure option
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_monitor_counter_on = aaa;
+
+# We require a valid monitor counter/module name. There is no default
+# counter name or module. A warning will be printed asking user to
+# specify a valid counter name.
+#--disable_warnings
+#set global innodb_monitor_counter_on = default;
+#--enable_warnings
+
+# Turn off all monitor counters, option name should be case
+# insensitive
+set global innodb_monitor_counter_off = All;
+
+# status should all change to "stopped"
+select name, status from information_schema.innodb_metrics;
+
+# Reset all counter values
+set global innodb_monitor_counter_reset_all = all;
+
+# value_since_start should all change to 0
+select name, value_since_start, status from information_schema.innodb_metrics;
+
+# Only turn on "table_open" counter
+set global innodb_monitor_counter_on = server_table_open;
+
+# Create a new table to test "server_table_open" counter
+create table monitor_test(col int) engine = innodb;
+
+# This will open the monitor_test table
+select * from monitor_test;
+
+# "server_table_open" should increment by 1
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# Reset the counter value while counter is still on (started)
+# This will reset value "value_since_reset" but not
+# "value_since_start"
+set global innodb_monitor_counter_reset = server_table_open;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# re-create table again to increment "server_table_open" again
+drop table monitor_test;
+
+# Create a new table to test "server_table_open" counter
+create table monitor_test(col int) engine = innodb;
+
+select * from monitor_test;
+
+# "server_table_open" should increment
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# Cannot reset all monitor value while the counter is on
+set global innodb_monitor_counter_reset_all = server_table_open;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# Turn off the counter "server_table_open"
+set global innodb_monitor_counter_off = server_table_open;
+
+# Reset the counter value while counter is off (stopped)
+set global innodb_monitor_counter_reset = server_table_open;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# re-create table again. Since monitor is off, "server_table_open"
+# should not be incremented
+drop table monitor_test;
+
+# Create a new table to test "server_table_open" counter
+create table monitor_test(col int) engine = innodb;
+
+# "server_table_open" should increment
+select * from monitor_test;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# Reset all the counters, include those counter *_since_start
+set global innodb_monitor_counter_reset_all = server_table_open;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# Turn on "table_open" counter again
+set global innodb_monitor_counter_on = server_table_open;
+
+# Test server_table_open again to see if it is working correctly
+# after above round of turning on/off/reset
+drop table monitor_test;
+
+# Create a new table to test "server_table_open" counter
+create table monitor_test(col int) engine = innodb;
+
+select * from monitor_test;
+
+# "server_table_open" should increment
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_open";
+
+# Test counter "server_table_close", create index will close the old handle
+set global innodb_monitor_counter_on = server_table_close;
+
+create index idx on monitor_test(col);
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name = "server_table_close";
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "server%";
+
+# Reset counters only in "module_server" module
+set global innodb_monitor_counter_off = module_server;
+
+set global innodb_monitor_counter_reset = module_server;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "server%";
+
+set global innodb_monitor_counter_reset_all = module_server;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "server%";
+
+# Test Transaction Module
+set global innodb_monitor_counter_on = module_trx;
+
+begin;
+insert into monitor_test values(9);
+commit;
+
+begin;
+insert into monitor_test values(9);
+rollback;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "trx_num_abort" or name like "trx_active_trx";
+
+set global innodb_monitor_counter_off = module_trx;
+
+# Test DML Module
+set global innodb_monitor_counter_on = module_dml;
+
+insert into monitor_test values(9);
+
+update monitor_test set col = 10 where col = 9;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+
+delete from monitor_test;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+	from information_schema.innodb_metrics
+	where name like "dml%";
+
+# test reset counter while the counter is on
+set global innodb_monitor_counter_reset =  module_dml;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+
+# insert/delete some rows after the reset
+insert into monitor_test values(9);
+insert into monitor_test values(1);
+
+delete from monitor_test;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+
+# We do not allow reset_all while the counter is on, nothing
+# should be reset here
+set global innodb_monitor_counter_reset_all  =  module_dml;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+
+# Turn off the counter
+set global innodb_monitor_counter_off = module_dml;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+
+# Reset all counter values
+set global innodb_monitor_counter_reset_all  = module_dml;
+
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+
+# Open individual counter "dml_num_inserts"
+set global innodb_monitor_counter_on = dml_num_inserts;
+
+insert into monitor_test values(9);
+insert into monitor_test values(1);
+
+delete from monitor_test;
+
+# Only counter "dml_num_inserts" should be updated
+select name, max_since_start, min_since_start, value_since_start,
+	max_since_reset, min_since_reset, value_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+
+set global innodb_monitor_counter_off = module_dml;
+
+drop table monitor_test;
+
+-- disable_warnings
+set global innodb_monitor_counter_on = default;
+set global innodb_monitor_counter_off = default;
+set global innodb_monitor_counter_reset = default;
+set global innodb_monitor_counter_reset_all = default;
+-- enable_warnings

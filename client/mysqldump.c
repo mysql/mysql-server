@@ -203,7 +203,7 @@ static struct my_option my_long_options[] =
    &opt_drop, &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
   {"add-drop-trigger", 0, "Add a DROP TRIGGER before each create.",
-   (uchar**) &opt_drop_trigger, (uchar**) &opt_drop_trigger, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   &opt_drop_trigger, &opt_drop_trigger, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"add-locks", OPT_LOCKS, "Add locks around INSERT statements.",
    &opt_lock, &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,

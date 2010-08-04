@@ -112,59 +112,11 @@ void table_setup_objects::reset_position(void)
 
 int table_setup_objects::rnd_next(void)
 {
-  PFS_table_share *table_share;
-
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_view();
-       m_pos.next_view())
-  {
-    switch (m_pos.m_index_1) {
-    case pos_setup_objects::VIEW_TABLE:
-      for ( ; m_pos.m_index_2 < table_share_max; m_pos.m_index_2++)
-      {
-        table_share= &table_share_array[m_pos.m_index_2];
-        if (table_share->m_lock.is_populated())
-        {
-          make_row(table_share);
-          m_next_pos.set_after(&m_pos);
-          return 0;
-        }
-      }
-      break;
-    case pos_setup_objects::VIEW_EVENT:
-    case pos_setup_objects::VIEW_PROCEDURE:
-    case pos_setup_objects::VIEW_FUNCTION:
-    default:
-      break;
-    }
-  }
-
   return HA_ERR_END_OF_FILE;
 }
 
 int table_setup_objects::rnd_pos(const void *pos)
 {
-  PFS_table_share *share;
-
-  set_position(pos);
-
-  switch (m_pos.m_index_1) {
-  case pos_setup_objects::VIEW_TABLE:
-    DBUG_ASSERT(m_pos.m_index_2 < table_share_max);
-    share= &table_share_array[m_pos.m_index_2];
-    if (share->m_lock.is_populated())
-    {
-      make_row(share);
-      return 0;
-    }
-    break;
-  case pos_setup_objects::VIEW_EVENT:
-  case pos_setup_objects::VIEW_PROCEDURE:
-  case pos_setup_objects::VIEW_FUNCTION:
-  default:
-    break;
-  }
-
   return HA_ERR_RECORD_DELETED;
 }
 
@@ -184,7 +136,7 @@ void table_setup_objects::make_row(PFS_table_share *share)
   m_row.m_object_name_length= share->m_table_name_length;
   m_row.m_enabled_ptr= &share->m_enabled;
   m_row.m_timed_ptr= &share->m_timed;
-  m_row.m_aggregated_ptr= &share->m_aggregated;
+  m_row.m_aggregated_ptr= NULL;
 
   if (share->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;

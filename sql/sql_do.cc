@@ -39,9 +39,10 @@ bool mysql_do(THD *thd, List<Item> &values)
     /*
       Rollback the effect of the statement, since next instruction
       will clear the error and the rollback in the end of
-      dispatch_command() won't work.
+      mysql_execute_command() won't work.
     */
-    trans_rollback_stmt(thd);
+    if (! thd->in_sub_stmt)
+      trans_rollback_stmt(thd);
     thd->clear_error(); // DO always is OK
   }
   my_ok(thd);
