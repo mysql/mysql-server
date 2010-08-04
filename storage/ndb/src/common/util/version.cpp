@@ -407,7 +407,7 @@ TAPTEST(ndb_version)
 
   /* ndbGetVersionString */
   char buf[64];
-  printf("ndbGetVersionString: '%s'\n",
+  printf("ndbGetVersionString(0x00010203, 0x00030201): '%s'\n",
          ndbGetVersionString(version, 0x00030201, "-status",
                              buf, sizeof(buf)));
 
