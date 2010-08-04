@@ -278,7 +278,7 @@ read_view_open_now(
 					allocated */
 {
 	read_view_t*	view;
-	trx_t*		trx;
+	const trx_t*	trx;
 	ulint		n;
 
 	ut_ad(trx_sys_mutex_own());
@@ -428,7 +428,7 @@ read_cursor_view_create_for_mysql(
 	cursor_view_t*	curview;
 	read_view_t*	view;
 	mem_heap_t*	heap;
-	trx_t*		trx;
+	const trx_t*	trx;
 	ulint		n;
 
 	ut_a(cr_trx);
