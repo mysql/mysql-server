@@ -1599,11 +1599,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->last_null_bit_pos= null_bit_pos;
   share->null_bytes_for_compare= null_bits_are_used ? share->null_bytes : 0;
   share->can_cmp_whole_record= (share->blob_fields == 0 &&
-                                share->varchar_fields == 0 &&
-                                (share->null_bytes_for_compare ==
-                                 share->null_bytes ||
-                                 !(handler_file->ha_table_flags() &
-                                   HA_PARTIAL_COLUMN_READ)));
+                                share->varchar_fields == 0);
 
   share->db_low_byte_first= handler_file->low_byte_first();
   share->column_bitmap_size= bitmap_buffer_size(share->fields);

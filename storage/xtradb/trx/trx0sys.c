@@ -1143,12 +1143,14 @@ trx_sysf_dummy_create(
 	ulint	space,
 	mtr_t*	mtr)
 {
+#ifdef UNDEFINED
 	trx_sysf_t*	sys_header;
 	ulint		slot_no;
-	buf_block_t*	block;
-	page_t*		page;
 	ulint		page_no;
 	ulint		i;
+#endif
+	page_t*		page;
+	buf_block_t*	block;
 
 	ut_ad(mtr);
 
