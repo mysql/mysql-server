@@ -266,7 +266,7 @@ trx_get_on_id(
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx != NULL) {
-		if (0 == ut_dulint_cmp(trx_id, trx->id)) {
+		if (trx_id == trx->id) {
 
 			return(trx);
 		}
@@ -315,12 +315,12 @@ trx_is_active(
 
 	ut_ad(mutex_own(&(kernel_mutex)));
 
-	if (ut_dulint_cmp(trx_id, trx_list_get_min_trx_id()) < 0) {
+	if (trx_id < trx_list_get_min_trx_id()) {
 
 		return(FALSE);
 	}
 
-	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
+	if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
 
 		/* There must be corruption: we return TRUE because this
 		function is only called by lock_clust_rec_some_has_impl()
@@ -359,15 +359,12 @@ trx_sys_get_new_trx_id(void)
 	Thus trx id values will not overlap when the database is
 	repeatedly started! */
 
-	if (ut_dulint_get_low(trx_sys->max_trx_id)
-	    % TRX_SYS_TRX_ID_WRITE_MARGIN == 0) {
+	if ((ulint) trx_sys->max_trx_id % TRX_SYS_TRX_ID_WRITE_MARGIN == 0) {
 
 		trx_sys_flush_max_trx_id();
 	}
 
-	id = trx_sys->max_trx_id;
-
-	UT_DULINT_INC(trx_sys->max_trx_id);
+	id = trx_sys->max_trx_id++;
 
 	return(id);
 }

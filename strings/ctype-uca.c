@@ -19319,6 +19319,76 @@ static const char sinhala[]=
 #endif
 
 
+static const char vietnamese[]=
+" &A << \\u00E0 <<< \\u00C0" /* A */
+   " << \\u1EA3 <<< \\u1EA2"
+   " << \\u00E3 <<< \\u00C3"
+   " << \\u00E1 <<< \\u00C1"
+   " << \\u1EA1 <<< \\u1EA0"
+   "  < \\u0103 <<< \\u0102" /* A WITH BREVE */
+   " << \\u1EB1 <<< \\u1EB0"
+   " << \\u1EB3 <<< \\u1EB2"
+   " << \\u1EB5 <<< \\u1EB4"
+   " << \\u1EAF <<< \\u1EAE"
+   " << \\u1EB7 <<< \\u1EB6"
+   "  < \\u00E2 <<< \\u00C2" /* A WITH CIRCUMFLEX */
+   " << \\u1EA7 <<< \\u1EA6"
+   " << \\u1EA9 <<< \\u1EA8"
+   " << \\u1EAB <<< \\u1EAA"
+   " << \\u1EA5 <<< \\u1EA4"
+   " << \\u1EAD <<< \\u1EAC"
+" &D  < \\u0111 <<< \\u0110" /* D WITH STROKE */
+" &E << \\u00E8 <<< \\u00C8" /* E */
+   " << \\u1EBB <<< \\u1EBA"
+   " << \\u1EBD <<< \\u1EBC"
+   " << \\u00E9 <<< \\u00C9"
+   " << \\u1EB9 <<< \\u1EB8"
+   "  < \\u00EA <<< \\u00CA" /* E WITH CIRCUMFLEX */
+   " << \\u1EC1 <<< \\u1EC0"
+   " << \\u1EC3 <<< \\u1EC2"
+   " << \\u1EC5 <<< \\u1EC4"
+   " << \\u1EBF <<< \\u1EBE"
+   " << \\u1EC7 <<< \\u1EC6"
+" &I << \\u00EC <<< \\u00CC" /* I */
+   " << \\u1EC9 <<< \\u1EC8"
+   " << \\u0129 <<< \\u0128"
+   " << \\u00ED <<< \\u00CD"
+   " << \\u1ECB <<< \\u1ECA"
+" &O << \\u00F2 <<< \\u00D2" /* O */
+   " << \\u1ECF <<< \\u1ECE"
+   " << \\u00F5 <<< \\u00D5"
+   " << \\u00F3 <<< \\u00D3"
+   " << \\u1ECD <<< \\u1ECC"
+   "  < \\u00F4 <<< \\u00D4" /* O WITH CIRCUMFLEX */
+   " << \\u1ED3 <<< \\u1ED2"
+   " << \\u1ED5 <<< \\u1ED4"
+   " << \\u1ED7 <<< \\u1ED6"
+   " << \\u1ED1 <<< \\u1ED0"
+   " << \\u1ED9 <<< \\u1ED8"
+   "  < \\u01A1 <<< \\u01A0" /* O WITH HORN */
+   " << \\u1EDD <<< \\u1EDC"
+   " << \\u1EDF <<< \\u1EDE"
+   " << \\u1EE1 <<< \\u1EE0"
+   " << \\u1EDB <<< \\u1EDA"
+   " << \\u1EE3 <<< \\u1EE2"
+" &U << \\u00F9 <<< \\u00D9" /* U */
+   " << \\u1EE7 <<< \\u1EE6"
+   " << \\u0169 <<< \\u0168"
+   " << \\u00FA <<< \\u00DA"
+   " << \\u1EE5 <<< \\u1EE4"
+   "  < \\u01B0 <<< \\u01AF" /* U WITH HORN */
+   " << \\u1EEB <<< \\u1EEA"
+   " << \\u1EED <<< \\u1EEC"
+   " << \\u1EEF <<< \\u1EEE"
+   " << \\u1EE9 <<< \\u1EE8"
+   " << \\u1EF1 <<< \\u1EF0"
+" &Y << \\u1EF3 <<< \\u1EF2" /* Y */
+   " << \\u1EF7 <<< \\u1EF6"
+   " << \\u1EF9 <<< \\u1EF8"
+   " << \\u00FD <<< \\u00DD"
+   " << \\u1EF5 <<< \\u1EF4";
+
+
 /*
   Unicode Collation Algorithm:
   Collation element (weight) scanner, 
@@ -20547,7 +20617,7 @@ typedef struct my_coll_rule_item_st
 } MY_COLL_RULE;
 
 
-#define MY_MAX_COLL_RULE 128
+#define MY_MAX_COLL_RULE 256
 
 typedef struct my_coll_rules_st
 {
@@ -21785,6 +21855,74 @@ CHARSET_INFO my_charset_ucs2_unicode_520_ci=
 };
 
 
+CHARSET_INFO my_charset_ucs2_vietnamese_ci=
+{
+    151,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
+    "ucs2",              /* csname       */
+    "ucs2_vietnamese_ci",/* name         */
+    "",                  /* comment      */
+    vietnamese,          /* tailoring    */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* uca          */
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_default, /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    2,                   /* mbminlen     */
+    2,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    1,                   /* levels_for_order   */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
+CHARSET_INFO my_charset_ucs2_vietnamese_520_ci=
+{
+    152,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
+    "ucs2",              /* csname       */
+    "ucs2_vietnamese_520_ci",/* name     */
+    "",                  /* comment      */
+    vietnamese,          /* tailoring    */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    &my_uca_v520,        /* uca          */
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_unicode520, /* caseinfo  */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    2,                   /* mbminlen     */
+    2,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0x10FFFF,            /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    1,                   /* levels_for_order   */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
 #endif
 
 
@@ -22565,6 +22703,74 @@ CHARSET_INFO my_charset_utf8_unicode_520_ci=
 };
 
 
+CHARSET_INFO my_charset_utf8_vietnamese_ci=
+{
+    215,0,0,             /* number       */
+    MY_CS_UTF8MB3_UCA_FLAGS,/* flags     */
+    MY_UTF8MB3,          /* cs name      */
+    MY_UTF8MB3 "_vietnamese_ci",/* name  */
+    "",                  /* comment      */
+    vietnamese,          /* tailoring    */
+    ctype_utf8,          /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* uca          */
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_default, /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    1,                   /* mbminlen     */
+    3,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    1,                   /* levels_for_order   */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
+
+CHARSET_INFO my_charset_utf8_vietnamese_520_ci=
+{
+    216,0,0,             /* number       */
+    MY_CS_UTF8MB3_UCA_FLAGS,/* flags     */
+    MY_UTF8MB3,          /* cs name      */
+    MY_UTF8MB3 "_vietnamese_520_ci",/* name  */
+    "",                  /* comment      */
+    vietnamese,          /* tailoring    */
+    ctype_utf8,          /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    &my_uca_v520,        /* uca          */
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    &my_unicase_unicode520, /* caseinfo  */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    1,                   /* mbminlen     */
+    3,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0x10FFFF,            /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
+    1,                   /* levels_for_compare */
+    1,                   /* levels_for_order   */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
+
 #endif /* HAVE_CHARSET_utf8 */
 
 
@@ -23298,6 +23504,74 @@ CHARSET_INFO my_charset_utf8mb4_unicode_520_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     1,                   /* levels_for_order   */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler
+};
+
+
+CHARSET_INFO my_charset_utf8mb4_vietnamese_ci=
+{
+    247,0,0,            /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
+    MY_UTF8MB4,         /* csname       */
+    MY_UTF8MB4 "_vietnamese_ci",/* name */
+    "",                 /* comment      */
+    vietnamese,         /* tailoring    */
+    ctype_utf8,         /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* uca          */
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    &my_unicase_default,/* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen      */
+    4,                  /* mbmaxlen      */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler
+};
+
+
+CHARSET_INFO my_charset_utf8mb4_vietnamese_520_ci=
+{
+    248,0,0,            /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
+    MY_UTF8MB4,         /* csname       */
+    MY_UTF8MB4 "_vietnamese_520_ci",/* name */
+    "",                 /* comment      */
+    vietnamese,         /* tailoring    */
+    ctype_utf8,         /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    &my_uca_v520,       /* uca          */
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    &my_unicase_unicode520,/* caseinfo  */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen      */
+    4,                  /* mbmaxlen      */
+    9,                  /* min_sort_char */
+    0x10FFFF,           /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_utf8mb4_handler,
     &my_collation_any_uca_handler
 };
@@ -24055,6 +24329,75 @@ CHARSET_INFO my_charset_utf32_unicode_520_ci=
     &my_collation_utf32_uca_handler
 };
 
+
+CHARSET_INFO my_charset_utf32_vietnamese_ci=
+{
+    183,0,0,            /* number       */
+    MY_CS_UTF32_UCA_FLAGS,/* state      */
+    "utf32",            /* csname       */
+    "utf32_vietnamese_ci",/* name       */
+    "",                 /* comment      */
+    vietnamese,         /* tailoring    */
+    NULL,               /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* uca          */
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    &my_unicase_default,/* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    4,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
+    &my_charset_utf32_handler,
+    &my_collation_utf32_uca_handler
+};
+
+
+CHARSET_INFO my_charset_utf32_vietnamese_520_ci=
+{
+    184,0,0,            /* number       */
+    MY_CS_UTF32_UCA_FLAGS,/* state      */
+    "utf32",            /* csname       */
+    "utf32_vietnamese_520_ci",/* name   */
+    "",                 /* comment      */
+    vietnamese,         /* tailoring    */
+    NULL,               /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    &my_uca_v520,       /* uca          */
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    &my_unicase_unicode520,/* caseinfo  */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    4,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0x10FFFF,           /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
+    &my_charset_utf32_handler,
+    &my_collation_utf32_uca_handler
+};
+
+
 #endif /* HAVE_CHARSET_utf32 */
 
 
@@ -24805,6 +25148,74 @@ CHARSET_INFO my_charset_utf16_unicode_520_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     1,                   /* levels_for_order   */
+    &my_charset_utf16_handler,
+    &my_collation_utf16_uca_handler
+};
+
+
+CHARSET_INFO my_charset_utf16_vietnamese_ci=
+{
+    124,0,0,           /* number       */
+    MY_CS_UTF16_UCA_FLAGS,/* state     */
+    "utf16",           /* cs name      */
+    "utf16_vietnamese_ci",/* name      */
+    "",                /* comment      */
+    vietnamese,        /* tailoring    */
+    NULL,              /* ctype        */
+    NULL,              /* to_lower     */
+    NULL,              /* to_upper     */
+    NULL,              /* sort_order   */
+    NULL,              /* uca          */
+    NULL,              /* tab_to_uni   */
+    NULL,              /* tab_from_uni */
+    &my_unicase_default,/* caseinfo    */
+    NULL,              /* state_map    */
+    NULL,              /* ident_map    */
+    8,                 /* strxfrm_multiply */
+    1,                 /* caseup_multiply  */
+    1,                 /* casedn_multiply  */
+    2,                 /* mbminlen     */
+    4,                 /* mbmaxlen     */
+    9,                 /* min_sort_char */
+    0xFFFF,            /* max_sort_char */
+    ' ',               /* pad char      */
+    0,                 /* escape_with_backslash_is_dangerous */
+    1,                 /* levels_for_compare */
+    1,                 /* levels_for_order   */
+    &my_charset_utf16_handler,
+    &my_collation_utf16_uca_handler
+};
+
+
+CHARSET_INFO my_charset_utf16_vietnamese_520_ci=
+{
+    125,0,0,           /* number       */
+    MY_CS_UTF16_UCA_FLAGS,/* state     */
+    "utf16",           /* cs name      */
+    "utf16_vietnamese_520_ci",/* name  */
+    "",                /* comment      */
+    vietnamese,        /* tailoring    */
+    NULL,              /* ctype        */
+    NULL,              /* to_lower     */
+    NULL,              /* to_upper     */
+    NULL,              /* sort_order   */
+    &my_uca_v520,      /* uca          */
+    NULL,              /* tab_to_uni   */
+    NULL,              /* tab_from_uni */
+    &my_unicase_unicode520,/* caseinfo */
+    NULL,              /* state_map    */
+    NULL,              /* ident_map    */
+    8,                 /* strxfrm_multiply */
+    1,                 /* caseup_multiply  */
+    1,                 /* casedn_multiply  */
+    2,                 /* mbminlen     */
+    4,                 /* mbmaxlen     */
+    9,                 /* min_sort_char */
+    0x10FFFF,          /* max_sort_char */
+    ' ',               /* pad char      */
+    0,                 /* escape_with_backslash_is_dangerous */
+    1,                 /* levels_for_compare */
+    1,                 /* levels_for_order   */
     &my_charset_utf16_handler,
     &my_collation_utf16_uca_handler
 };

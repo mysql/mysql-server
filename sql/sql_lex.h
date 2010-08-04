@@ -593,11 +593,11 @@ public:
   st_select_lex* outer_select();
   st_select_lex* first_select()
   {
-    return my_reinterpret_cast(st_select_lex*)(slave);
+    return reinterpret_cast<st_select_lex*>(slave);
   }
   st_select_lex_unit* next_unit()
   {
-    return my_reinterpret_cast(st_select_lex_unit*)(next);
+    return reinterpret_cast<st_select_lex_unit*>(next);
   }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
@@ -922,6 +922,7 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_ALL_PARTITION      (1L << 21)
 #define ALTER_REMOVE_PARTITIONING (1L << 22)
 #define ALTER_FOREIGN_KEY        (1L << 23)
+#define ALTER_EXCHANGE_PARTITION (1L << 24)
 
 enum enum_alter_table_change_level
 {
@@ -929,6 +930,24 @@ enum enum_alter_table_change_level
   ALTER_TABLE_DATA_CHANGED= 1,
   ALTER_TABLE_INDEX_CHANGED= 2
 };
+
+
+/**
+  Temporary hack to enable a class bound forward declaration
+  of the enum_alter_table_change_level enumeration. To be
+  removed once Alter_info is moved ta the sql_alter_table.h
+  header.
+*/
+class Alter_table_change_level
+{
+private:
+  typedef enum enum_alter_table_change_level enum_type;
+  enum_type value;
+public:
+  void operator = (enum_type v) { value = v; }
+  operator enum_type () { return value; }
+};
+
 
 /**
   @brief Parsing data for CREATE or ALTER TABLE.
@@ -1006,8 +1025,6 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
-extern const LEX_STRING empty_lex_str;
-
 
 class Sroutine_hash_entry;
 
