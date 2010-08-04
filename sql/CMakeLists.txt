@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 
 INCLUDE_DIRECTORIES(
@@ -72,9 +72,12 @@ SET (SQL_SOURCE
                sql_servers.cc sql_audit.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
+               sql_bootstrap.cc
                sql_signal.cc mdl.cc
                sql_alloc_error_handler.cc
                transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
+               sql_partition_admin.cc
+               sql_alter_table.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -102,6 +105,8 @@ ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
+ADD_LIBRARY(sqlgunitlib mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
+ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 
 IF(WIN32)

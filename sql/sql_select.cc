@@ -33,7 +33,6 @@
 #include "sql_select.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_table.h"                          // primary_key_name
-#include "sql_cursor.h"
 #include "probes_mysql.h"
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
@@ -327,7 +326,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		     thd->is_error()));
   res|= thd->is_error();
   if (unlikely(res))
-    result->abort();
+    result->abort_result_set();
 
   MYSQL_SELECT_DONE((int) res, (ulong) thd->limit_found_rows);
   DBUG_RETURN(res);
@@ -3136,35 +3135,13 @@ JOIN::exec()
   curr_join->fields= curr_fields_list;
   curr_join->procedure= procedure;
 
-  if (is_top_level_join() && thd->cursor && tables != const_tables)
-  {
-    /*
-      We are here if this is JOIN::exec for the last select of the main unit
-      and the client requested to open a cursor.
-      We check that not all tables are constant because this case is not
-      handled by do_select() separately, and this case is not implemented
-      for cursors yet.
-    */
-    DBUG_ASSERT(error == 0);
-    /*
-      curr_join is used only for reusable joins - that is, 
-      to perform SELECT for each outer row (like in subselects).
-      This join is main, so we know for sure that curr_join == join.
-    */
-    DBUG_ASSERT(curr_join == this);
-    /* Open cursor for the last join sweep */
-    error= thd->cursor->open(this);
-  }
-  else
-  {
-    thd_proc_info(thd, "Sending data");
-    DBUG_PRINT("info", ("%s", thd->proc_info));
-    result->send_result_set_metadata((procedure ? curr_join->procedure_fields_list :
-                         *curr_fields_list),
-                        Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-    error= do_select(curr_join, curr_fields_list, NULL, procedure);
-    thd->limit_found_rows= curr_join->send_records;
-  }
+  thd_proc_info(thd, "Sending data");
+  DBUG_PRINT("info", ("%s", thd->proc_info));
+  result->send_result_set_metadata((procedure ? curr_join->procedure_fields_list :
+                                    *curr_fields_list),
+                                   Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  error= do_select(curr_join, curr_fields_list, NULL, procedure);
+  thd->limit_found_rows= curr_join->send_records;
 
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->examined_row_count+= curr_join->examined_rows;
@@ -3359,16 +3336,6 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     goto err;
 
   join->exec();
-
-  if (thd->cursor && thd->cursor->is_open())
-  {
-    /*
-      A cursor was opened for the last sweep in exec().
-      We are here only if this is mysql_select for top-level SELECT_LEX_UNIT
-      and there were no error.
-    */
-    free_join= 0;
-  }
 
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
@@ -16362,7 +16329,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
     is safe as this is a temporary MyISAM table without timestamp/autoincrement
     or partitioning.
   */
-  while (!table->file->rnd_next(new_table.record[1]))
+  while (!table->file->ha_rnd_next(new_table.record[1]))
   {
     write_err= new_table.file->ha_write_row(new_table.record[1]);
     DBUG_EXECUTE_IF("raise_error", write_err= HA_ERR_FOUND_DUPP_KEY ;);
@@ -16386,7 +16353,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
 
   /* remove heap table and change to use myisam table */
   (void) table->file->ha_rnd_end();
-  (void) table->file->close();                  // This deletes the table !
+  (void) table->file->ha_close();              // This deletes the table !
   delete table->file;
   table->file=0;
   plugin_unlock(0, table->s->db_plugin);
@@ -16406,7 +16373,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   DBUG_PRINT("error",("Got error: %d",write_err));
   table->file->print_error(write_err, MYF(0));
   (void) table->file->ha_rnd_end();
-  (void) new_table.file->close();
+  (void) new_table.file->ha_close();
  err1:
   new_table.file->ha_delete_table(new_table.s->table_name.str);
  err2:
@@ -17008,41 +16975,27 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     do_sj_reset(join_tab->flush_weedout_table);
   }
 
-  if (join->resume_nested_loop)
+  join->return_tab= join_tab;
+
+  if (join_tab->last_inner)
   {
-    /* If not the last table, plunge down the nested loop */
-    if (join_tab < join->join_tab + join->tables - 1)
-      rc= (*join_tab->next_select)(join, join_tab + 1, 0);
-    else
-    {
-      join->resume_nested_loop= FALSE;
-      rc= NESTED_LOOP_OK;
-    }
+    /* join_tab is the first inner table for an outer join operation. */
+
+    /* Set initial state of guard variables for this table.*/
+    join_tab->found=0;
+    join_tab->not_null_compl= 1;
+
+    /* Set first_unmatched for the last inner table of this group */
+    join_tab->last_inner->first_unmatched= join_tab;
   }
-  else
-  {
-    join->return_tab= join_tab;
+  join->thd->warning_info->reset_current_row_for_warning();
 
-    if (join_tab->last_inner)
-    {
-      /* join_tab is the first inner table for an outer join operation. */
+  error= (*join_tab->read_first_record)(join_tab);
 
-      /* Set initial state of guard variables for this table.*/
-      join_tab->found=0;
-      join_tab->not_null_compl= 1;
-
-      /* Set first_unmatched for the last inner table of this group */
-      join_tab->last_inner->first_unmatched= join_tab;
-    }
-    join->thd->warning_info->reset_current_row_for_warning();
-
-    error= (*join_tab->read_first_record)(join_tab);
-
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
-    
-    rc= evaluate_join_record(join, join_tab, error);
-  }
+  if (join_tab->keep_current_rowid)
+    join_tab->table->file->position(join_tab->table->record[0]);
+  
+  rc= evaluate_join_record(join, join_tab, error);
   
   /* 
     Note: psergey has added the 2nd part of the following condition; the 
@@ -17489,10 +17442,10 @@ int safe_index_read(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
-  if ((error=table->file->index_read_map(table->record[0],
-                                         tab->ref.key_buff,
-                                         make_prev_keypart_map(tab->ref.key_parts),
-                                         HA_READ_KEY_EXACT)))
+  if ((error=table->file->ha_index_read_map(table->record[0],
+                                            tab->ref.key_buff,
+                                            make_prev_keypart_map(tab->ref.key_parts),
+                                            HA_READ_KEY_EXACT)))
     return report_error(table, error);
   return 0;
 }
@@ -17623,10 +17576,10 @@ join_read_const(JOIN_TAB *tab)
       error=HA_ERR_KEY_NOT_FOUND;
     else
     {
-      error=table->file->index_read_idx_map(table->record[0],tab->ref.key,
-                                            (uchar*) tab->ref.key_buff,
-                                            make_prev_keypart_map(tab->ref.key_parts),
-                                            HA_READ_KEY_EXACT);
+      error=table->file->ha_index_read_idx_map(table->record[0],tab->ref.key,
+                                               (uchar*) tab->ref.key_buff,
+                                               make_prev_keypart_map(tab->ref.key_parts),
+                                               HA_READ_KEY_EXACT);
     }
     if (error)
     {
@@ -17708,10 +17661,10 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
       tab->read_record.file->unlock_row();
       tab->ref.has_record= FALSE;
     }
-    error=table->file->index_read_map(table->record[0],
-                                      table_ref->key_buff,
-                                      make_prev_keypart_map(table_ref->key_parts),
-                                      HA_READ_KEY_EXACT);
+    error= table->file->ha_index_read_map(table->record[0],
+                                          tab->ref.key_buff,
+                                          make_prev_keypart_map(tab->ref.key_parts),
+                                          HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
 
@@ -17802,10 +17755,10 @@ join_read_always_key(JOIN_TAB *tab)
 
   if (cp_buffer_from_ref(tab->join->thd, table, ref))
     return -1;
-  if ((error=table->file->index_read_map(table->record[0],
-                                         ref->key_buff,
-                                         make_prev_keypart_map(ref->key_parts),
-                                         HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_map(table->record[0],
+                                             tab->ref.key_buff,
+                                             make_prev_keypart_map(tab->ref.key_parts),
+                                             HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
@@ -17857,9 +17810,9 @@ join_read_next_same(READ_RECORD *info)
   TABLE *table= info->table;
   JOIN_TAB *tab=table->reginfo.join_tab;
 
-  if ((error=table->file->index_next_same(table->record[0],
-					  tab->ref.key_buff,
-					  tab->ref.key_length)))
+  if ((error= table->file->ha_index_next_same(table->record[0],
+                                              tab->ref.key_buff,
+                                              tab->ref.key_length)))
   {
     if (error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
@@ -17877,7 +17830,7 @@ join_read_prev_same(READ_RECORD *info)
   TABLE *table= info->table;
   JOIN_TAB *tab=table->reginfo.join_tab;
 
-  if ((error=table->file->index_prev(table->record[0])))
+  if ((error= table->file->ha_index_prev(table->record[0])))
     return report_error(table, error);
   if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,
                       tab->ref.key_length))
@@ -17958,7 +17911,7 @@ join_read_first(JOIN_TAB *tab)
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->index, tab->sorted);
-  if ((error=tab->table->file->index_first(tab->table->record[0])))
+  if ((error= tab->table->file->ha_index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       report_error(table, error);
@@ -17972,7 +17925,7 @@ static int
 join_read_next(READ_RECORD *info)
 {
   int error;
-  if ((error=info->file->index_next(info->record)))
+  if ((error= info->file->ha_index_next(info->record)))
     return report_error(info->table, error);
   return 0;
 }
@@ -17993,7 +17946,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
     table->file->ha_index_init(tab->index, 1);
-  if ((error= tab->table->file->index_last(tab->table->record[0])))
+  if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
 }
@@ -18003,7 +17956,7 @@ static int
 join_read_prev(READ_RECORD *info)
 {
   int error;
-  if ((error= info->file->index_prev(info->record)))
+  if ((error= info->file->ha_index_prev(info->record)))
     return report_error(info->table, error);
   return 0;
 }
@@ -18367,10 +18320,10 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (item->maybe_null)
       group->buff[-1]= (char) group->field->is_null();
   }
-  if (!table->file->index_read_map(table->record[1],
-                                   join->tmp_table_param.group_buff,
-                                   HA_WHOLE_KEY,
-                                   HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_map(table->record[1],
+                                      join->tmp_table_param.group_buff,
+                                      HA_WHOLE_KEY,
+                                      HA_READ_KEY_EXACT))
   {						/* Update old record */
     restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
@@ -18445,7 +18398,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
-    if (table->file->rnd_pos(table->record[1],table->file->dup_ref))
+    if (table->file->ha_rnd_pos(table->record[1], table->file->dup_ref))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
@@ -19937,7 +19890,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   new_record=(char*) table->record[1]+offset;
 
   file->ha_rnd_init(1);
-  error=file->rnd_next(record);
+  error=file->ha_rnd_next(record);
   for (;;)
   {
     if (thd->killed)
@@ -19950,7 +19903,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     {
       if (error == HA_ERR_RECORD_DELETED)
       {
-        error= file->rnd_next(record);
+        error= file->ha_rnd_next(record);
         continue;
       }
       if (error == HA_ERR_END_OF_FILE)
@@ -19961,7 +19914,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     {
       if ((error=file->ha_delete_row(record)))
 	goto err;
-      error=file->rnd_next(record);
+      error=file->ha_rnd_next(record);
       continue;
     }
     if (copy_blobs(first_field))
@@ -19976,7 +19929,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     bool found=0;
     for (;;)
     {
-      if ((error=file->rnd_next(record)))
+      if ((error=file->ha_rnd_next(record)))
       {
 	if (error == HA_ERR_RECORD_DELETED)
 	  continue;
@@ -20075,7 +20028,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
       error=0;
       goto err;
     }
-    if ((error=file->rnd_next(record)))
+    if ((error=file->ha_rnd_next(record)))
     {
       if (error == HA_ERR_RECORD_DELETED)
 	continue;
