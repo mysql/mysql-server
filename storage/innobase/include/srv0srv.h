@@ -112,6 +112,9 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+#ifdef __WIN__
+extern ibool	srv_use_native_conditions;
+#endif
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
@@ -161,9 +164,9 @@ is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
 #ifdef UNIV_LOG_ARCHIVE
-extern ibool	srv_log_archive_on;
-extern ibool	srv_archive_recovery;
-extern dulint	srv_archive_recovery_limit_lsn;
+extern ibool		srv_log_archive_on;
+extern ibool		srv_archive_recovery;
+extern ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
 extern char*	srv_file_flush_method_str;

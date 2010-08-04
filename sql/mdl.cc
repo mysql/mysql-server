@@ -284,8 +284,6 @@ public:
 public:
   /** The key of the object (data) being protected. */
   MDL_key key;
-  void   *cached_object;
-  mdl_cached_object_release_hook cached_object_release_hook;
   /**
     Read-write lock protecting this lock context.
 
@@ -362,8 +360,6 @@ public:
 
   MDL_lock(const MDL_key *key_arg)
   : key(key_arg),
-    cached_object(NULL),
-    cached_object_release_hook(NULL),
     m_ref_usage(0),
     m_ref_release(0),
     m_is_destroyed(FALSE)
@@ -405,14 +401,15 @@ public:
 
 
 /**
-  An implementation of the global metadata lock. The only locking modes
-  which are supported at the moment are SHARED and INTENTION EXCLUSIVE.
+  An implementation of the scoped metadata lock. The only locking modes
+  which are supported at the moment are SHARED and INTENTION EXCLUSIVE
+  and EXCLUSIVE
 */
 
-class MDL_global_lock : public MDL_lock
+class MDL_scoped_lock : public MDL_lock
 {
 public:
-  MDL_global_lock(const MDL_key *key_arg)
+  MDL_scoped_lock(const MDL_key *key_arg)
     : MDL_lock(key_arg)
   { }
 
@@ -674,9 +671,6 @@ void MDL_map::remove(MDL_lock *lock)
 {
   uint ref_usage, ref_release;
 
-  if (lock->cached_object)
-    (*lock->cached_object_release_hook)(lock->cached_object);
-
   /*
     Destroy the MDL_lock object, but ensure that anyone that is
     holding a reference to the object is not remaining, if so he
@@ -838,7 +832,8 @@ inline MDL_lock *MDL_lock::create(const MDL_key *mdl_key)
   switch (mdl_key->mdl_namespace())
   {
     case MDL_key::GLOBAL:
-      return new MDL_global_lock(mdl_key);
+    case MDL_key::SCHEMA:
+      return new MDL_scoped_lock(mdl_key);
     default:
       return new MDL_object_lock(mdl_key);
   }
@@ -883,67 +878,6 @@ uint MDL_ticket::get_deadlock_weight() const
   return (m_lock->key.mdl_namespace() == MDL_key::GLOBAL ||
           m_type > MDL_SHARED_NO_WRITE ?
           MDL_DEADLOCK_WEIGHT_DDL : MDL_DEADLOCK_WEIGHT_DML);
-}
-
-
-/**
-  Helper functions and macros to be used for killable waiting in metadata
-  locking subsystem.
-
-  @sa THD::enter_cond()/exit_cond()/killed.
-
-  @note We can't use THD::enter_cond()/exit_cond()/killed directly here
-        since this will make metadata subsystem dependent on THD class
-        and thus prevent us from writing unit tests for it. And usage of
-        wrapper functions to access THD::killed/enter_cond()/exit_cond()
-        will probably introduce too much overhead.
-*/
-
-#define MDL_ENTER_COND(A, B, C, D) \
-        mdl_enter_cond(A, B, C, D, __func__, __FILE__, __LINE__)
-
-static inline const char *mdl_enter_cond(THD *thd,
-                                         st_my_thread_var *mysys_var,
-                                         mysql_cond_t *cond,
-                                         mysql_mutex_t *mutex,
-                                         const char *calling_func,
-                                         const char *calling_file,
-                                         const unsigned int calling_line)
-{
-  mysql_mutex_assert_owner(mutex);
-
-  mysys_var->current_mutex= mutex;
-  mysys_var->current_cond= cond;
-
-  DEBUG_SYNC(thd, "mdl_enter_cond");
-
-  return set_thd_proc_info(thd, "Waiting for table",
-                           calling_func, calling_file, calling_line);
-}
-
-#define MDL_EXIT_COND(A, B, C, D) \
-        mdl_exit_cond(A, B, C, D, __func__, __FILE__, __LINE__)
-
-static inline void mdl_exit_cond(THD *thd,
-                                 st_my_thread_var *mysys_var,
-                                 mysql_mutex_t *mutex,
-                                 const char* old_msg,
-                                 const char *calling_func,
-                                 const char *calling_file,
-                                 const unsigned int calling_line)
-{
-  DBUG_ASSERT(mutex == mysys_var->current_mutex);
-
-  mysql_mutex_unlock(mutex);
-  mysql_mutex_lock(&mysys_var->mutex);
-  mysys_var->current_mutex= NULL;
-  mysys_var->current_cond= NULL;
-  mysql_mutex_unlock(&mysys_var->mutex);
-
-  DEBUG_SYNC(thd, "mdl_exit_cond");
-
-  (void) set_thd_proc_info(thd, old_msg, calling_func,
-                           calling_file, calling_line);
 }
 
 
@@ -1026,15 +960,14 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
 {
   const char *old_msg;
   enum_wait_status result;
-  st_my_thread_var *mysys_var= my_thread_var;
   int wait_result= 0;
 
   mysql_mutex_lock(&m_LOCK_wait_status);
 
-  old_msg= MDL_ENTER_COND(thd, mysys_var, &m_COND_wait_status,
-                          &m_LOCK_wait_status);
+  old_msg= thd_enter_cond(thd, &m_COND_wait_status, &m_LOCK_wait_status,
+                          "Waiting for table");
 
-  while (!m_wait_status && !mysys_var->abort &&
+  while (!m_wait_status && !thd_killed(thd) &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
@@ -1053,14 +986,14 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
       false, which means that the caller intends to restart the
       wait.
     */
-    if (mysys_var->abort)
+    if (thd_killed(thd))
       m_wait_status= KILLED;
     else if (set_status_on_timeout)
       m_wait_status= TIMEOUT;
   }
   result= m_wait_status;
 
-  MDL_EXIT_COND(thd, mysys_var, &m_LOCK_wait_status, old_msg);
+  thd_exit_cond(thd, old_msg);
 
   return result;
 }
@@ -1181,11 +1114,6 @@ void MDL_lock::reschedule_waiters()
         */
         m_waiting.remove_ticket(ticket);
         m_granted.add_ticket(ticket);
-
-        /* If we are granting an X lock, release the cached object. */
-        if (ticket->get_type() == MDL_EXCLUSIVE && cached_object)
-          (*cached_object_release_hook)(cached_object);
-        cached_object= NULL;
       }
       /*
         If we could not update the wait slot of the waiter,
@@ -1201,61 +1129,66 @@ void MDL_lock::reschedule_waiters()
 
 
 /**
-  Compatibility (or rather "incompatibility") matrices for global metadata
+  Compatibility (or rather "incompatibility") matrices for scoped metadata
   lock. Arrays of bitmaps which elements specify which granted/waiting locks
   are incompatible with type of lock being requested.
 
-  Here is how types of individual locks are translated to type of global lock:
+  Here is how types of individual locks are translated to type of scoped lock:
 
     ----------------+-------------+
     Type of request | Correspond. |
-    for indiv. lock | global lock |
+    for indiv. lock | scoped lock |
     ----------------+-------------+
     S, SH, SR, SW   |   IS        |
     SNW, SNRW, X    |   IX        |
     SNW, SNRW -> X  |   IX (*)    |
 
   The first array specifies if particular type of request can be satisfied
-  if there is granted global lock of certain type.
+  if there is granted scoped lock of certain type.
 
-             | Type of active |
-     Request |   global lock  |
-      type   | IS(**) IX   S  |
-    ---------+----------------+
-    IS       |  +      +   +  |
-    IX       |  +      +   -  |
-    S        |  +      -   +  |
+             | Type of active   |
+     Request |   scoped lock    |
+      type   | IS(**) IX   S  X |
+    ---------+------------------+
+    IS       |  +      +   +  + |
+    IX       |  +      +   -  - |
+    S        |  +      -   +  - |
+    X        |  +      -   -  - |
 
   The second array specifies if particular type of request can be satisfied
-  if there is already waiting request for the global lock of certain type.
+  if there is already waiting request for the scoped lock of certain type.
   I.e. it specifies what is the priority of different lock types.
 
-             |    Pending   |
-     Request |  global lock |
-      type   | IS(**) IX  S |
-    ---------+--------------+
-    IS       |  +      +  + |
-    IX       |  +      +  - |
-    S        |  +      +  + |
+             |    Pending      |
+     Request |  scoped lock    |
+      type   | IS(**) IX  S  X |
+    ---------+-----------------+
+    IS       |  +      +  +  + |
+    IX       |  +      +  -  - |
+    S        |  +      +  +  - |
+    X        |  +      +  +  + |
 
   Here: "+" -- means that request can be satisfied
         "-" -- means that request can't be satisfied and should wait
 
-  (*)   Since for upgradable locks we always take intention exclusive global
+  (*)   Since for upgradable locks we always take intention exclusive scoped
         lock at the same time when obtaining the shared lock, there is no
         need to obtain such lock during the upgrade itself.
-  (**)  Since intention shared global locks are compatible with all other
+  (**)  Since intention shared scoped locks are compatible with all other
         type of locks we don't even have any accounting for them.
 */
 
-const MDL_lock::bitmap_t MDL_global_lock::m_granted_incompatible[MDL_TYPE_END] =
+const MDL_lock::bitmap_t MDL_scoped_lock::m_granted_incompatible[MDL_TYPE_END] =
 {
-  MDL_BIT(MDL_SHARED), MDL_BIT(MDL_INTENTION_EXCLUSIVE), 0, 0, 0, 0, 0, 0
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_INTENTION_EXCLUSIVE), 0, 0, 0, 0, 0,
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED) | MDL_BIT(MDL_INTENTION_EXCLUSIVE)
 };
 
-const MDL_lock::bitmap_t MDL_global_lock::m_waiting_incompatible[MDL_TYPE_END] =
+const MDL_lock::bitmap_t MDL_scoped_lock::m_waiting_incompatible[MDL_TYPE_END] =
 {
-  MDL_BIT(MDL_SHARED), 0, 0, 0, 0, 0, 0, 0
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
+  MDL_BIT(MDL_EXCLUSIVE), 0, 0, 0, 0, 0, 0
 };
 
 
@@ -1655,10 +1588,6 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   {
     lock->m_granted.add_ticket(ticket);
 
-    if (mdl_request->type == MDL_EXCLUSIVE && lock->cached_object)
-      (*lock->cached_object_release_hook)(lock->cached_object);
-    lock->cached_object= NULL;
-
     mysql_prlock_unlock(&lock->m_rwlock);
 
     m_tickets.push_front(ticket);
@@ -1894,7 +1823,7 @@ extern "C" int mdl_request_ptr_cmp(const void* ptr1, const void* ptr2)
   @note The list of requests should not contain non-exclusive lock requests.
         There should not be any acquired locks in the context.
 
-  @note Assumes that one already owns global intention exclusive lock.
+  @note Assumes that one already owns scoped intention exclusive lock.
 
   @retval FALSE  Success
   @retval TRUE   Failure
@@ -1910,13 +1839,6 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
 
   if (req_count == 0)
     return FALSE;
-
-  /*
-    To reduce deadlocks, the server acquires all exclusive
-    locks at once. For shared locks, try_acquire_lock() is
-    used instead.
-  */
-  DBUG_ASSERT(m_tickets.is_empty() || m_tickets.front() == m_trans_sentinel);
 
   /* Sort requests according to MDL_key. */
   if (! (sort_buf= (MDL_request **)my_malloc(req_count *
@@ -2430,69 +2352,6 @@ MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
 bool MDL_ticket::has_pending_conflicting_lock() const
 {
   return m_lock->has_pending_conflicting_lock(m_type);
-}
-
-
-/**
-  Associate pointer to an opaque object with a lock.
-
-  @param cached_object Pointer to the object
-  @param release_hook  Cleanup function to be called when MDL subsystem
-                       decides to remove lock or associate another object.
-
-  This is used to cache a pointer to TABLE_SHARE in the lock
-  structure. Such caching can save one acquisition of LOCK_open
-  and one table definition cache lookup for every table.
-
-  Since the pointer may be stored only inside an acquired lock,
-  the caching is only effective when there is more than one lock
-  granted on a given table.
-
-  This function has the following usage pattern:
-    - try to acquire an MDL lock
-    - when done, call for mdl_get_cached_object(). If it returns NULL, our
-      thread has the only lock on this table.
-    - look up TABLE_SHARE in the table definition cache
-    - call mdl_set_cache_object() to assign the share to the opaque pointer.
-
- The release hook is invoked when the last shared metadata
- lock on this name is released.
-*/
-
-void
-MDL_ticket::set_cached_object(void *cached_object,
-                              mdl_cached_object_release_hook release_hook)
-{
-  DBUG_ENTER("mdl_set_cached_object");
-  DBUG_PRINT("enter", ("db=%s name=%s cached_object=%p",
-                        m_lock->key.db_name(), m_lock->key.name(),
-                        cached_object));
-  /*
-    TODO: This assumption works now since we do get_cached_object()
-          and set_cached_object() in the same critical section. Once
-          this becomes false we will have to call release_hook here and
-          use additional mutex protecting 'cached_object' member.
-  */
-  DBUG_ASSERT(!m_lock->cached_object);
-
-  m_lock->cached_object= cached_object;
-  m_lock->cached_object_release_hook= release_hook;
-
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Get a pointer to an opaque object that associated with the lock.
-
-  @param ticket  Lock ticket for the lock which the object is associated to.
-
-  @return Pointer to an opaque object associated with the lock.
-*/
-
-void *MDL_ticket::get_cached_object()
-{
-  return m_lock->cached_object;
 }
 
 

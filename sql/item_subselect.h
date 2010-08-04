@@ -184,7 +184,7 @@ public:
   void fix_length_and_dec();
 
   uint cols();
-  Item* element_index(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
+  Item* element_index(uint i) { return reinterpret_cast<Item*>(row[i]); }
   Item** addr(uint i) { return (Item**)row + i; }
   bool check_cols(uint c);
   bool null_inside();

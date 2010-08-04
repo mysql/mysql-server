@@ -494,14 +494,6 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   m_current_row_for_warning= 1; /* Start counting from the first row */
 }
 
-void Warning_info::reserve_space(THD *thd, uint count)
-{
-  /* Make room for count conditions */
-  while ((m_warn_list.elements > 0) &&
-        ((m_warn_list.elements + count) > thd->variables.max_error_count))
-    m_warn_list.pop();
-}
-
 /**
   Append warnings only if the original contents of the routine
   warning info was replaced.
@@ -588,16 +580,11 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   DBUG_PRINT("enter", ("code: %d, msg: %s", code, msg));
 
   /*
-    Calling push_warning/push_warning_printf with a
-    level of WARN_LEVEL_ERROR *is* a bug.
-    Either use my_error(), or WARN_LEVEL_WARN.
-    Please fix the calling code, and do *NOT*
-    add more work around code in the assert below.
+    Calling push_warning/push_warning_printf with a level of
+    WARN_LEVEL_ERROR *is* a bug.  Either use my_printf_error(),
+    my_error(), or WARN_LEVEL_WARN.
   */
-  DBUG_ASSERT(   (level != MYSQL_ERROR::WARN_LEVEL_ERROR)
-              || (code == ER_CANT_CREATE_TABLE) /* See Bug#47233 */
-              || (code == ER_ILLEGAL_HA_CREATE_OPTION) /* See Bug#47233 */
-             );
+  DBUG_ASSERT(level != MYSQL_ERROR::WARN_LEVEL_ERROR);
 
   if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
     level= MYSQL_ERROR::WARN_LEVEL_WARN;

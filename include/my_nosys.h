@@ -30,7 +30,7 @@ extern "C" {
 #include <malloc.h>
 #endif
 
-#undef my_read			/* Can be predefined in raid.h */
+#undef my_read
 #undef my_write
 #undef my_seek
 #define my_read(a,b,c,d) my_quick_read(a,b,c,d)
