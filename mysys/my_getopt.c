@@ -664,13 +664,13 @@ static int setval(const struct my_option *opts, void *value, char *argument,
             Accept an integer representation of the enumerated item.
           */
           char *endptr;
-          uint arg= (uint) strtoul(argument, &endptr, 10);
+          ulong arg= strtoul(argument, &endptr, 10);
           if (*endptr || arg >= opts->typelib->count)
             return EXIT_ARGUMENT_INVALID;
-          *(uint*)result_pos= arg;
+          *((ulong*) result_pos)= arg;
         }
         else
-          *(uint*)result_pos= type - 1;
+          *((ulong*) result_pos)= type - 1;
       }
       break;
     case GET_SET:
@@ -1008,7 +1008,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((int*) variable)= (int) getopt_ll_limit_value((int) value, option, NULL);
     break;
   case GET_ENUM:
-    *((uint*) variable)= (uint) value;
+    *((ulong*) variable)= (ulong) value;
     break;
   case GET_UINT:
     *((uint*) variable)= (uint) getopt_ull_limit_value((uint) value, option, NULL);
@@ -1248,7 +1248,7 @@ void my_print_variables(const struct my_option *options)
 	}
 	break;
       case GET_ENUM:
-        printf("%s\n", get_type(optp->typelib, *(uint*) value));
+        printf("%s\n", get_type(optp->typelib, *(ulong*) value));
 	break;
       case GET_STR:
       case GET_STR_ALLOC:                    /* fall through */
