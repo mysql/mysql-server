@@ -8647,9 +8647,8 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
    @param  db           Name of database
    @param  table_name   Name of table
 
-   @note Unlike remove_table_from_cache() it assumes that table instances
-         are already not used by any (other) thread (this should be achieved
-         by using meta-data locks).
+   @note It assumes that table instances are already not used by any
+   (other) thread (this should be achieved by using meta-data locks).
 */
 
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
