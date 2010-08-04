@@ -281,13 +281,13 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
 
       lex->current_select= first_select;
       res= mysql_select(thd, &first_select->ref_pointer_array,
-			(TABLE_LIST*) first_select->table_list.first,
+			first_select->table_list.first,
 			first_select->with_wild,
 			first_select->item_list, first_select->where,
 			(first_select->order_list.elements+
 			 first_select->group_list.elements),
-			(ORDER *) first_select->order_list.first,
-			(ORDER *) first_select->group_list.first,
+			first_select->order_list.first,
+			first_select->group_list.first,
 			first_select->having, (ORDER*) NULL,
 			(first_select->options | thd->options |
 			 SELECT_NO_UNLOCK),

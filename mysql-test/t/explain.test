@@ -213,4 +213,19 @@ EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT 1 FROM t1 t JOIN t2 WHERE b <= 1 AND 
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug #48573: difference of index selection between rpm binary and
+--echo #             .tar.gz, windows vs linux..
+--echo #
+
+CREATE TABLE t1(c1 INT, c2 INT, c4 INT, c5 INT, KEY(c2, c5), KEY(c2, c4, c5));
+INSERT INTO t1 VALUES(4, 1, 1, 1);
+INSERT INTO t1 VALUES(3, 1, 1, 1);
+INSERT INTO t1 VALUES(2, 1, 1, 1);
+INSERT INTO t1 VALUES(1, 1, 1, 1);
+
+EXPLAIN SELECT c1 FROM t1 WHERE c2 = 1 AND c4 = 1 AND c5 = 1;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests.

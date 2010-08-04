@@ -10,6 +10,8 @@ Created 5/24/1996 Heikki Tuuri
 #define db0err_h
 
 
+#define DB_SUCCESS_LOCKED_REC	9	/* like DB_SUCCESS, but a new
+					explicit record lock was created */
 #define DB_SUCCESS		10
 
 /* The following are error codes */
