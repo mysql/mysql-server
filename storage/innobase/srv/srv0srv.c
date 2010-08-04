@@ -2013,6 +2013,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+	export_vars.innodb_num_open_files = fil_n_file_opened;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }

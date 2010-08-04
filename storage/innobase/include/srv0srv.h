@@ -714,11 +714,12 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
+	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 };
 
 /** Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
-  
+
 /** Thread table is an array of slots */
 typedef srv_slot_t	srv_table_t;
 

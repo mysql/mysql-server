@@ -195,6 +195,10 @@ enum monitor_id_value {
 	MONITOR_INDEX_SPLIT,
 	MONITOR_INDEX_MERGE,
 
+	/* Tablespace related counters */
+	MONITOR_MODULE_FIL_SYSTEM,
+	MONITOR_OVLD_N_FILE_OPENED,
+
 	/* Data DML related counters */
 	MONITOR_MODULE_DMLSTATS,
 	MONITOR_OLVD_ROW_READ,
