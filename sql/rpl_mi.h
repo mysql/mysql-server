@@ -108,7 +108,8 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
 		     bool abort_if_no_master_info_file,
 		     int thread_mask);
 void end_master_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool flush_relay_log_cache);
-
+int flush_master_info(Master_info* mi, 
+                      bool flush_relay_log_cache, 
+                      bool need_lock_relay_log);
 #endif /* HAVE_REPLICATION */
 #endif /* RPL_MI_H */

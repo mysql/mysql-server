@@ -16,30 +16,31 @@
 #ifdef HAVE_OPENSSL
 
   {"ssl", OPT_SSL_SSL,
-   "Enable SSL for connection (automatically enabled with other flags). Disable with --skip-ssl.",
- (uchar **) &opt_use_ssl, (uchar **) &opt_use_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-   0, 0, 0},
+   "Enable SSL for connection (automatically enabled with other flags)."
+   "Disable with --skip-ssl.", &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ssl-ca", OPT_SSL_CA,
    "CA file in PEM format (check OpenSSL docs, implies --ssl).",
-   (uchar **) &opt_ssl_ca, (uchar **) &opt_ssl_ca, 0, GET_STR, REQUIRED_ARG,
+   &opt_ssl_ca, &opt_ssl_ca, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"ssl-capath", OPT_SSL_CAPATH,
    "CA directory (check OpenSSL docs, implies --ssl).",
-   (uchar **) &opt_ssl_capath, (uchar **) &opt_ssl_capath, 0, GET_STR, REQUIRED_ARG,
+   &opt_ssl_capath, &opt_ssl_capath, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"ssl-cert", OPT_SSL_CERT, "X509 cert in PEM format (implies --ssl).",
-   (uchar **) &opt_ssl_cert, (uchar **) &opt_ssl_cert, 0, GET_STR, REQUIRED_ARG,
+   &opt_ssl_cert, &opt_ssl_cert, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"ssl-cipher", OPT_SSL_CIPHER, "SSL cipher to use (implies --ssl).",
-   (uchar **) &opt_ssl_cipher, (uchar **) &opt_ssl_cipher, 0, GET_STR, REQUIRED_ARG,
+   &opt_ssl_cipher, &opt_ssl_cipher, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"ssl-key", OPT_SSL_KEY, "X509 key in PEM format (implies --ssl).",
-   (uchar **) &opt_ssl_key, (uchar **) &opt_ssl_key, 0, GET_STR, REQUIRED_ARG,
+   &opt_ssl_key, &opt_ssl_key, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef MYSQL_CLIENT
   {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
-   "Verify server's \"Common Name\" in its cert against hostname used when connecting. This option is disabled by default.",
-   (uchar **) &opt_ssl_verify_server_cert, (uchar **) &opt_ssl_verify_server_cert,
+   "Verify server's \"Common Name\" in its cert against hostname used "
+   "when connecting. This option is disabled by default.",
+   &opt_ssl_verify_server_cert, &opt_ssl_verify_server_cert,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #endif /* HAVE_OPENSSL */

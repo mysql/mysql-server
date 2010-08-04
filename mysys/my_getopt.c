@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <m_string.h>
 
-typedef void (*init_func_p)(const struct my_option *option, uchar* *variable,
+typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
 
 static void default_reporter(enum loglevel level, const char *format, ...);
@@ -40,11 +40,11 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *options,
                            init_func_p init_one_value);
-static void init_one_value(const struct my_option *option, uchar* *variable,
+static void init_one_value(const struct my_option *option, void *variable,
 			   longlong value);
-static void fini_one_value(const struct my_option *option, uchar* *variable,
+static void fini_one_value(const struct my_option *option, void *variable,
 			   longlong value);
-static int setval(const struct my_option *opts, uchar* *value, char *argument,
+static int setval(const struct my_option *opts, void *value, char *argument,
 		  my_bool set_maximum_value);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
@@ -101,10 +101,9 @@ static void default_reporter(enum loglevel level,
   one. Call function 'get_one_option()' once for each option.
 */
 
-static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *, int *);
+static my_getopt_value getopt_get_addr;
 
-void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
-						    const struct my_option *, int *))
+void my_getopt_register_get_addr(my_getopt_value func_addr)
 {
   getopt_get_addr= func_addr;
 }
@@ -119,7 +118,7 @@ int handle_options(int *argc, char ***argv,
   char **pos, **pos_end, *optend, *UNINIT_VAR(prev_found),
        *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
-  uchar* *value;
+  void *value;
   int error, i;
 
   LINT_INIT(opt_found);
@@ -173,7 +172,7 @@ int handle_options(int *argc, char ***argv,
                                    "%s: Option '--set-variable' is deprecated. "
                                    "Use --variable-name=value instead.",
                                    my_progname);
-                                   
+
 	  must_be_var= 1;
 	  if (cur_arg[13] == '=')
 	  {
@@ -378,7 +377,7 @@ int handle_options(int *argc, char ***argv,
           optp->value;
         if (error)
           return error;
-  
+
 	if (optp->arg_type == NO_ARG)
 	{
 	  if (optend && (optp->var_type & GET_TYPE_MASK) != GET_BOOL)
@@ -406,8 +405,8 @@ int handle_options(int *argc, char ***argv,
 	    else
 	    {
 	      my_getopt_error_reporter(WARNING_LEVEL,
-				       "%s: ignoring option '--%s' due to \
-invalid value '%s'",
+				       "%s: ignoring option '--%s' due to "
+                                       "invalid value '%s'",
 				       my_progname, optp->name, optend);
 	      continue;
 	    }
@@ -611,15 +610,14 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   Will set the option value to given value
 */
 
-static int setval(const struct my_option *opts, uchar* *value, char *argument,
+static int setval(const struct my_option *opts, void *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0;
 
   if (value && argument)
   {
-    uchar* *result_pos= ((set_maximum_value) ?
-		       opts->u_max_value : value);
+    void *result_pos= ((set_maximum_value) ? opts->u_max_value : value);
 
     if (!result_pos)
       return EXIT_NO_PTR_TO_VARIABLE;
@@ -994,7 +992,7 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
     value		Pointer to variable
 */
 
-static void init_one_value(const struct my_option *option, uchar* *variable,
+static void init_one_value(const struct my_option *option, void *variable,
 			   longlong value)
 {
   DBUG_ENTER("init_one_value");
@@ -1068,7 +1066,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     value		Pointer to variable
 */
 
-static void fini_one_value(const struct my_option *option, uchar* *variable,
+static void fini_one_value(const struct my_option *option, void *variable,
 			   longlong value __attribute__ ((unused)))
 {
   DBUG_ENTER("fini_one_value");
@@ -1109,7 +1107,7 @@ static void init_variables(const struct my_option *options,
   DBUG_ENTER("init_variables");
   for (; options->name; options++)
   {
-    uchar* *variable;
+    void *variable;
     DBUG_PRINT("options", ("name: '%s'", options->name));
     /*
       We must set u_max_value first as for some variables
@@ -1224,7 +1222,7 @@ void my_print_variables(const struct my_option *options)
   printf("--------------------------------- -----------------------------\n");
   for (optp= options; optp->id; optp++)
   {
-    uchar* *value= (optp->var_type & GET_ASK_ADDR ?
+    void *value= (optp->var_type & GET_ASK_ADDR ?
 		  (*getopt_get_addr)("", 0, optp, 0) : optp->value);
     if (value)
     {

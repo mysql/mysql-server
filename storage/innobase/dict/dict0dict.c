@@ -618,13 +618,11 @@ dict_table_get_on_id(
 
 	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
 	    || trx->dict_operation_lock_mode == RW_X_LATCH) {
-		/* It is a system table which will always exist in the table
-		cache: we avoid acquiring the dictionary mutex, because
-		if we are doing a rollback to handle an error in TABLE
-		CREATE, for example, we already have the mutex! */
 
-		ut_ad(mutex_own(&(dict_sys->mutex))
-		      || trx->dict_operation_lock_mode == RW_X_LATCH);
+		/* Note: An X latch implies that the transaction
+		already owns the dictionary mutex. */
+
+		ut_ad(mutex_own(&dict_sys->mutex));
 
 		return(dict_table_get_on_id_low(table_id));
 	}

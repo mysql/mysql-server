@@ -1913,10 +1913,6 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_uint_t, uint);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_ulong_t, ulong);
 typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_ulonglong_t, ulonglong);
 
-#define SET_PLUGIN_VAR_RESOLVE(opt)\
-  *(mysql_sys_var_ptr_p*)&((opt)->resolve)= mysql_sys_var_ptr
-typedef uchar *(*mysql_sys_var_ptr_p)(void* a_thd, int offset);
-
 
 /****************************************************************************
   default variable data check and update functions
@@ -2445,11 +2441,49 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   return (uchar*)thd->variables.dynamic_variables_ptr + offset;
 }
 
-static uchar *mysql_sys_var_ptr(void* a_thd, int offset)
+
+/**
+  For correctness and simplicity's sake, a pointer to a function
+  must be compatible with pointed-to type, that is, the return and
+  parameters types must be the same. Thus, a callback function is
+  defined for each scalar type. The functions are assigned in
+  construct_options to their respective types.
+*/
+
+static char *mysql_sys_var_char(THD* thd, int offset)
 {
-  return intern_sys_var_ptr((THD *)a_thd, offset, true);
+  return (char *) intern_sys_var_ptr(thd, offset, true);
 }
 
+static int *mysql_sys_var_int(THD* thd, int offset)
+{
+  return (int *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static long *mysql_sys_var_long(THD* thd, int offset)
+{
+  return (long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static unsigned long *mysql_sys_var_ulong(THD* thd, int offset)
+{
+  return (unsigned long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static long long *mysql_sys_var_longlong(THD* thd, int offset)
+{
+  return (long long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static unsigned long long *mysql_sys_var_ulonglong(THD* thd, int offset)
+{
+  return (unsigned long long *) intern_sys_var_ptr(thd, offset, true);
+}
+
+static char **mysql_sys_var_str(THD* thd, int offset)
+{
+  return (char **) intern_sys_var_ptr(thd, offset, true);
+}
 
 void plugin_thdvar_init(THD *thd)
 {
@@ -3020,25 +3054,25 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       continue;
     switch (opt->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_bool_t *) opt);
+      ((thdvar_bool_t *) opt)->resolve= mysql_sys_var_char;
       break;
     case PLUGIN_VAR_INT:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_int_t *) opt);
+      ((thdvar_int_t *) opt)->resolve= mysql_sys_var_int;
       break;
     case PLUGIN_VAR_LONG:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_long_t *) opt);
+      ((thdvar_long_t *) opt)->resolve= mysql_sys_var_long;
       break;
     case PLUGIN_VAR_LONGLONG:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_longlong_t *) opt);
+      ((thdvar_longlong_t *) opt)->resolve= mysql_sys_var_longlong;
       break;
     case PLUGIN_VAR_STR:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_str_t *) opt);
+      ((thdvar_str_t *) opt)->resolve= mysql_sys_var_str;
       break;
     case PLUGIN_VAR_ENUM:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_enum_t *) opt);
+      ((thdvar_enum_t *) opt)->resolve= mysql_sys_var_ulong;
       break;
     case PLUGIN_VAR_SET:
-      SET_PLUGIN_VAR_RESOLVE((thdvar_set_t *) opt);
+      ((thdvar_set_t *) opt)->resolve= mysql_sys_var_ulonglong;
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",

@@ -264,27 +264,26 @@ row_update_for_mysql(
 	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct in MySQL
 					handle */
 /*********************************************************************//**
-This can only be used when srv_locks_unsafe_for_binlog is TRUE or
-session is using a READ COMMITTED isolation level. Before
-calling this function we must use trx_reset_new_rec_lock_info() and
-trx_register_new_rec_lock() to store the information which new record locks
-really were set. This function removes a newly set lock under prebuilt->pcur,
-and also under prebuilt->clust_pcur. Currently, this is only used and tested
-in the case of an UPDATE or a DELETE statement, where the row lock is of the
-LOCK_X type.
-Thus, this implements a 'mini-rollback' that releases the latest record
-locks we set.
-@return	error code or DB_SUCCESS */
+This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
+session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
+Before calling this function row_search_for_mysql() must have
+initialized prebuilt->new_rec_locks to store the information which new
+record locks really were set. This function removes a newly set
+clustered index record lock under prebuilt->pcur or
+prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
+releases the latest clustered index record lock we set.
+@return error code or DB_SUCCESS */
 UNIV_INTERN
 int
 row_unlock_for_mysql(
 /*=================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in MySQL
+	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt struct in MySQL
 					handle */
-	ibool		has_latches_on_recs);/*!< TRUE if called so that we have
-					the latches on the records under pcur
-					and clust_pcur, and we do not need to
-					reposition the cursors. */
+	ibool		has_latches_on_recs);/*!< in: TRUE if called
+					so that we have the latches on
+					the records under pcur and
+					clust_pcur, and we do not need
+					to reposition the cursors. */
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
@@ -702,18 +701,17 @@ struct row_prebuilt_struct {
 	ulint		new_rec_locks;	/*!< normally 0; if
 					srv_locks_unsafe_for_binlog is
 					TRUE or session is using READ
-					COMMITTED isolation level, in a
-					cursor search, if we set a new
-					record lock on an index, this is
-					incremented; this is used in
-					releasing the locks under the
-					cursors if we are performing an
-					UPDATE and we determine after
-					retrieving the row that it does
-					not need to be locked; thus,
-					these can be used to implement a
-					'mini-rollback' that releases
-					the latest record locks */
+					COMMITTED or READ UNCOMMITTED
+					isolation level, set in
+					row_search_for_mysql() if we set a new
+					record lock on the secondary
+					or clustered index; this is
+					used in row_unlock_for_mysql()
+					when releasing the lock under
+					the cursor if we determine
+					after retrieving the row that
+					it does not need to be locked
+					('mini-rollback') */
 	ulint		mysql_prefix_len;/*!< byte offset of the end of
 					the last requested column */
 	ulint		mysql_row_len;	/*!< length in bytes of a row in the
