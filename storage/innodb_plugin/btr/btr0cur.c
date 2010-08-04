@@ -1959,9 +1959,8 @@ any_extern:
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
-err_exit:
-		mem_heap_free(heap);
-		return(err);
+
+		goto err_exit;
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2007,9 +2006,10 @@ err_exit:
 
 	page_cur_move_to_next(page_cursor);
 
+	err = DB_SUCCESS;
+err_exit:
 	mem_heap_free(heap);
-
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*************************************************************//**

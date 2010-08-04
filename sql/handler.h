@@ -910,7 +910,7 @@ typedef struct st_ha_create_information
   ulong avg_row_length;
   ulong used_fields;
   ulong key_block_size;
-  SQL_LIST merge_list;
+  SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**
     Row type of the table definition.

@@ -506,16 +506,6 @@ UNIV_INTERN
 ulint
 fil_load_single_table_tablespaces(void);
 /*===================================*/
-/********************************************************************//**
-If we need crash recovery, and we have called
-fil_load_single_table_tablespaces() and dict_load_single_table_tablespaces(),
-we can call this function to print an error message of orphaned .ibd files
-for which there is not a data dictionary entry with a matching table name
-and space id. */
-UNIV_INTERN
-void
-fil_print_orphaned_tablespaces(void);
-/*================================*/
 /*******************************************************************//**
 Returns TRUE if a single-table tablespace does not exist in the memory cache,
 or is being deleted there.

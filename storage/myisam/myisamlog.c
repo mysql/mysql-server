@@ -382,18 +382,18 @@ static int examine_log(char * file_name, char **table_names)
 	       curr_file_info->show_name);
       if (my_b_read(&cache,(uchar*) head,2))
 	goto err;
+      buff= 0;
       file_info.name=0;
       file_info.show_name=0;
       file_info.record=0;
-      if (read_string(&cache,(uchar**) &file_info.name,
-		      (uint) mi_uint2korr(head)))
+      if (read_string(&cache, &buff, (uint) mi_uint2korr(head)))
 	goto err;
       {
 	uint i;
 	char *pos,*to;
 
 	/* Fix if old DOS files to new format */
-	for (pos=file_info.name; (pos=strchr(pos,'\\')) ; pos++)
+	for (pos=file_info.name=(char*)buff; (pos=strchr(pos,'\\')) ; pos++)
 	  *pos= '/';
 
 	pos=file_info.name;
@@ -692,7 +692,7 @@ static int read_string(IO_CACHE *file, register uchar* *to, register uint length
     *to= 0;
     DBUG_RETURN(1);
   }
-  *((char*) *to+length)= '\0';
+  *((uchar*) *to+length)= '\0';
   DBUG_RETURN (0);
 }				/* read_string */
 

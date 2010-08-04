@@ -555,11 +555,12 @@ struct rw_lock_struct {
 	unsigned	cline:14;	/*!< Line where created */
 	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
 	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
+#ifdef UNIV_DEBUG
 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
-};
-
 /** Value of rw_lock_struct::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
+#endif /* UNIV_DEBUG */
+};
 
 #ifdef UNIV_SYNC_DEBUG
 /** The structure for storing debug info of an rw-lock */

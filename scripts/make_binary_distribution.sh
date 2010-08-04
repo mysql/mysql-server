@@ -476,9 +476,11 @@ $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     mysql-test/std_data/*.cnf mysql-test/std_data/*.MY* \
     $BASE/mysql-test/std_data
-$CP mysql-test/t/*.test mysql-test/t/*.imtest \
-    mysql-test/t/*.disabled mysql-test/t/*.opt \
-    mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
+# Attention: when the wildcards expand to a line that is very long,
+# it may exceed the command line length limit on some platform(s). Bug#54590
+$CP mysql-test/t/*.test mysql-test/t/*.imtest $BASE/mysql-test/t
+$CP mysql-test/t/*.disabled mysql-test/t/*.opt $BASE/mysql-test/t
+$CP mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
 $CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
 

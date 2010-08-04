@@ -583,13 +583,13 @@ thd_is_select(
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
-trx_t*&
+trx_t*
 thd_to_trx(
 /*=======*/
 			/* out: reference to transaction pointer */
 	THD*	thd)	/* in: MySQL thread */
 {
-	return(*(trx_t**) thd_ha_data(thd, innodb_hton_ptr));
+	return((trx_t*) thd_get_ha_data(thd, innodb_hton_ptr));
 }
 
 /************************************************************************
@@ -1164,7 +1164,7 @@ check_trx_exists(
 			/* out: InnoDB transaction handle */
 	THD*	thd)	/* in: user thread handle */
 {
-	trx_t*&	trx = thd_to_trx(thd);
+	trx_t*	trx = thd_to_trx(thd);
 
 	ut_ad(thd == current_thd);
 
@@ -1178,6 +1178,9 @@ check_trx_exists(
 		/* Update the info whether we should skip XA steps that eat
 		CPU time */
 		trx->support_xa = THDVAR(thd, support_xa);
+
+		/* We have a new trx, register with the thread handle */
+		thd_set_ha_data(thd, innodb_hton_ptr, trx);
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -2482,6 +2485,9 @@ innobase_close_connection(
 
 	innobase_rollback_trx(trx);
 
+	/* Release the lock in thread handler */
+	thd_set_ha_data(thd, hton, NULL);
+
 	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
@@ -3236,6 +3242,11 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_BLOB:
 	case MYSQL_TYPE_LONG_BLOB:
 		return(DATA_BLOB);
+	case MYSQL_TYPE_NULL:
+		/* MySQL currently accepts "NULL" datatype, but will
+		reject such datatype in the next release. We will cope
+		with it and not trigger assertion failure in 5.1 */
+		break;
 	default:
 		assert(0);
 	}
@@ -5257,7 +5268,22 @@ create_table_def(
 		field = form->field[i];
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
-									field);
+							     field);
+
+		if (!col_type) {
+			push_warning_printf(
+				(THD*) trx->mysql_thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_CANT_CREATE_TABLE,
+				"Error creating table '%s' with "
+				"column '%s'. Please check its "
+				"column type and try to re-create "
+				"the table with an appropriate "
+				"column type.",
+				table->name, (char*) field->field_name);
+			goto err_col;
+		}
+
 		if (field->null_ptr) {
 			nulls_allowed = 0;
 		} else {
@@ -5314,7 +5340,7 @@ create_table_def(
 				"different column name.",
 				table->name, (char*) field->field_name,
 				(char*) field->field_name);
-
+err_col:
 			dict_mem_table_free(table);
 			trx_commit_for_mysql(trx);
 

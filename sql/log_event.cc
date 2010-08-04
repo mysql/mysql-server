@@ -7560,12 +7560,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
-
-    if (!cache_stmt)
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->options|= OPTION_KEEP_LOG;
-    }
   } // if (table)
 
   /*
@@ -9015,8 +9009,35 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     */
     if (table->key_info->flags & HA_NOSAME)
     {
-      table->file->ha_index_end();
-      goto ok;
+      /* Unique does not have non nullable part */
+      if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
+      {
+        table->file->ha_index_end();
+        goto ok;
+      }
+      else
+      {
+        KEY *keyinfo= table->key_info;
+        /*
+          Unique has nullable part. We need to check if there is any field in the
+          BI image that is null and part of UNNI.
+        */
+        bool null_found= FALSE;
+        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
+        {
+          uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
+          Field **f= table->field+fieldnr;
+          null_found= (*f)->is_null();
+        }
+
+        if (!null_found)
+        {
+          table->file->ha_index_end();
+          goto ok;
+        }
+
+        /* else fall through to index scan */
+      }
     }
 
     /*

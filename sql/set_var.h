@@ -662,6 +662,7 @@ public:
                     Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
     :sys_var(name_arg, NULL, binlog_status_arg)
   { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   bool check_type(enum_var_type type)    { return type == OPT_GLOBAL; }

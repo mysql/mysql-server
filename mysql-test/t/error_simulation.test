@@ -45,6 +45,49 @@ SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#42064: low memory crash when importing hex strings, in Item_hex_string::Item_hex_string
+--echo #
+
+CREATE TABLE t1(a BLOB);
+
+SET SESSION debug="+d,bug42064_simulate_oom";
+# May fail with either ER_OUT_OF_RESOURCES or EE_OUTOFMEMORY
+--error ER_OUT_OF_RESOURCES, 5
+INSERT INTO t1 VALUES("");
+SET SESSION debug=DEFAULT;
+
+DROP TABLE t1;
+
+-- echo #
+-- echo # Bug#41660: Sort-index_merge for non-first join table may require 
+-- echo # O(#scans) memory
+-- echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+CREATE TABLE t2 (a INT, b INT, filler CHAR(100), KEY(a), KEY(b));
+INSERT INTO t2 SELECT 1000, 1000, 'filler' FROM t1 A, t1 B, t1 C;
+INSERT INTO t2 VALUES (1, 1, 'data');
+
+--echo # the example query uses LEFT JOIN only for the sake of being able to
+--echo # demonstrate the issue with a very small dataset. (left outer join 
+--echo # disables the use of join buffering, so we get the second table 
+--echo # re-scanned for every record in the outer table. if we used inner join,
+--echo # we would need to have thousands of records and/or more columns in both
+--echo # tables so that the join buffer is filled and re-scans are triggered).
+
+SET SESSION debug = '+d,only_one_Unique_may_be_created';
+
+--replace_column 1 x 2 x 3 x 4 x 5 x 6 x 7 x 8 x 9 x
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
+SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
+
+SET SESSION debug = DEFAULT;
+
+DROP TABLE t1, t2;
 
 --echo #
 --echo # End of 5.1 tests

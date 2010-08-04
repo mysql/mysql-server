@@ -257,10 +257,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"backup", 'b', "Make a backup of the table as table_name.OLD.",
-   (uchar**) &backup, (uchar**) &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &backup, &backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR_MP,
-   "Directory where character sets are.", (uchar**) &charsets_dir,
-   (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory where character sets are.", &charsets_dir,
+   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
@@ -268,7 +268,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"join", 'j',
    "Join all given tables into 'new_table_name'. All tables MUST have identical layouts.",
-   (uchar**) &join_table, (uchar**) &join_table, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   &join_table, &join_table, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -282,8 +282,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"wait", 'w', "Wait and retry if table is in use.", (uchar**) &opt_wait,
-   (uchar**) &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"wait", 'w', "Wait and retry if table is in use.", &opt_wait,
+   &opt_wait, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
