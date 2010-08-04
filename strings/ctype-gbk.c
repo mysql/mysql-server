@@ -138,7 +138,7 @@ static uchar to_upper_gbk[]=
 };
 
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -342,7 +342,7 @@ static MY_UNICASE_INFO cA2[256]=
   {0xA2FF,0xA2FF,0xA2FF}
 };
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -547,7 +547,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA6[256]=
+static MY_UNICASE_CHARACTER cA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -752,7 +752,7 @@ static MY_UNICASE_INFO cA6[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -957,7 +957,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_gbk[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -993,6 +993,12 @@ static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
+
+static MY_UNICASE_INFO my_caseinfo_gbk=
+{
+  0xFFFF,
+  my_caseinfo_pages_gbk
+};
 
 
 static uchar sort_order_gbk[]=
@@ -3520,111 +3526,35 @@ static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                              uchar *dest, size_t len,
-                              const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_gbk(CHARSET_INFO *cs,
+                uchar *dst, size_t dstlen, uint nweights,
+                const uchar *src, size_t srclen, uint flags)
 {
-  uint16 e;
-  size_t dstlen= len;
-  uchar *dest_end= dest + dstlen;
+  uchar *d0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  const uchar *sort_order= cs->sort_order;
 
-  len = srclen;
-  while (len-- && dest < dest_end)
+  for (; dst < de && src < se && nweights; nweights--)
   {
-    if ((len > 0) && isgbkcode(*src, *(src+1)))
-    {
-      e = gbksortorder((uint16) gbkcode(*src, *(src+1)));
-      *dest++ = gbkhead(e);
-      if (dest < dest_end)
-        *dest++ = gbktail(e);
-      src+=2;
-      len--;
-    } else 
-      *dest++ = sort_order_gbk[(uchar) *src++];
-  }
-  if (dstlen > srclen)
-    bfill(dest, dstlen - srclen, ' ');
-  return dstlen;
-}
-
-
-/*
-** Calculate min_str and max_str that ranges a LIKE string.
-** Arguments:
-** ptr		Pointer to LIKE string.
-** ptr_length	Length of LIKE string.
-** escape	Escape character in LIKE.  (Normally '\').
-**		All escape characters should be removed from min_str and max_str
-** res_length   Length of min_str and max_str.
-** min_str      Smallest case sensitive string that ranges LIKE.
-**		Should be space padded to res_length.
-** max_str	Largest case sensitive string that ranges LIKE.
-**		Normally padded with the biggest character sort value.
-**
-** The function should return 0 if ok and 1 if the LIKE string can't be
-** optimized !
-*/
-
-#define max_sort_char ((uchar) 255)
-
-static my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                                 const char *ptr,size_t ptr_length,
-                                 pbool escape, pbool w_one, pbool w_many,
-                                 size_t res_length,
-                                 char *min_str,char *max_str,
-                                 size_t *min_length,size_t *max_length)
-{
-  const char *end= ptr + ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-  size_t charlen= res_length / cs->mbmaxlen;
-
-  for (; ptr != end && min_str != min_end && charlen > 0; ptr++, charlen--)
-  {
-    if (ptr+1 != end && isgbkcode(ptr[0],ptr[1]))
-    {
-      *min_str++= *max_str++ = *ptr++;
-      *min_str++= *max_str++ = *ptr;
-      continue;
-    }
-    if (*ptr == escape && ptr+1 != end)
-    {
-      ptr++;				/* Skip escape */
-      if (isgbkcode(ptr[0], ptr[1]))
-        *min_str++= *max_str++ = *ptr;
-      if (min_str < min_end)
-        *min_str++= *max_str++= *ptr;
-      continue;
-    }
-    if (*ptr == w_one)		/* '_' in SQL */
-    {
-      *min_str++='\0';			/* This should be min char */
-      *max_str++=max_sort_char;
-      continue;
-    }
-    if (*ptr == w_many)		/* '%' in SQL */
+    if (cs->cset->ismbchar(cs, (const char*) src, (const char*) se))
     {
       /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
+        Note, it is safe not to check (src < se)
+        in the code below, because ismbchar() would
+        not return TRUE if src was too short
       */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      do {
-	*min_str++= 0;
-	*max_str++= max_sort_char;
-      } while (min_str != min_end);
-      return 0;
+      uint16 e= gbksortorder((uint16) gbkcode(*src, *(src + 1)));
+      *dst++= gbkhead(e);
+      if (dst < de)
+        *dst++= gbktail(e);
+      src+= 2;
     }
-    *min_str++= *max_str++ = *ptr;
+    else
+      *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-
-  *min_length= *max_length = (size_t) (min_str - min_org);
-  while (min_str != min_end)
-    *min_str++= *max_str++= ' ';           /* Because if key compression */
-  return 0;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
 
 
@@ -10841,7 +10771,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strnncollsp_gbk,
   my_strnxfrm_gbk,
   my_strnxfrmlen_simple,
-  my_like_range_gbk,
+  my_like_range_mb,
   my_wildcmp_mb,
   my_strcasecmp_mb,
   my_instr_mb,
@@ -10893,11 +10823,10 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gbk,    /* caseinfo     */
+    &my_caseinfo_gbk,   /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10906,9 +10835,11 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xA967,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -10925,11 +10856,10 @@ CHARSET_INFO my_charset_gbk_bin=
     to_lower_gbk,
     to_upper_gbk,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gbk,    /* caseinfo     */
+    &my_caseinfo_gbk,   /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10938,9 +10868,11 @@ CHARSET_INFO my_charset_gbk_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

@@ -21,8 +21,8 @@ ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'FILE_SU
 delete from performance_schema.FILE_SUMMARY_BY_EVENT_NAME;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'FILE_SUMMARY_BY_EVENT_NAME'
 LOCK TABLES performance_schema.FILE_SUMMARY_BY_EVENT_NAME READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_SUMMARY_BY_EVENT_NAME'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'FILE_SUMMARY_BY_EVENT_NAME'
 UNLOCK TABLES;
 LOCK TABLES performance_schema.FILE_SUMMARY_BY_EVENT_NAME WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_SUMMARY_BY_EVENT_NAME'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'FILE_SUMMARY_BY_EVENT_NAME'
 UNLOCK TABLES;

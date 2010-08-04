@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,19 +10,18 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_view.h"
-#include "sql_base.h"                     // find_table_in_global_list
+#include "sql_base.h"    // find_table_in_global_list, lock_table_names
 #include "sql_parse.h"                          // sql_parse
 #include "sql_cache.h"                          // query_cache_*
-#include "lock.h"        // wait_if_global_read_lock, lock_table_names
+#include "lock.h"        // wait_if_global_read_lock
 #include "sql_show.h"    // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
@@ -1652,7 +1651,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     DBUG_RETURN(TRUE);
   }
 
-  if (lock_table_names(thd, views))
+  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY))
     DBUG_RETURN(TRUE);
 
   mysql_mutex_lock(&LOCK_open);

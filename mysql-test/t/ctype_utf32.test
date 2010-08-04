@@ -803,3 +803,30 @@ DROP TABLE t1, t2;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set collation_connection=utf32_general_ci;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+select hex(weight_string(_utf32 0x10000));
+select hex(weight_string(_utf32 0x10001));
+--source include/weight_string_l1.inc
+
+set collation_connection=utf32_bin;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
+
+

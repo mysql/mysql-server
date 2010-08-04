@@ -77,8 +77,6 @@ SET @@global.optimizer_search_depth = 1;
 SELECT @@global.optimizer_search_depth;
 SET @@global.optimizer_search_depth = 62;
 SELECT @@global.optimizer_search_depth;
-SET @@global.optimizer_search_depth = 63;
-SELECT @@global.optimizer_search_depth;
 
 
 --echo '#--------------------FN_DYNVARS_116_04-------------------------#'
@@ -92,8 +90,6 @@ SET @@session.optimizer_search_depth = 1;
 SELECT @@session.optimizer_search_depth;
 SET @@session.optimizer_search_depth = 62;
 SELECT @@session.optimizer_search_depth;
-SET @@session.optimizer_search_depth = 63;
-SELECT @@session.optimizer_search_depth;
 
 
 --echo '#------------------FN_DYNVARS_116_05-----------------------#'
@@ -101,7 +97,7 @@ SELECT @@session.optimizer_search_depth;
 # Change the value of optimizer_search_depth to an invalid value #
 ##################################################################
 
-SET @@global.optimizer_search_depth = 64;
+SET @@global.optimizer_search_depth = 63;
 SELECT @@global.optimizer_search_depth;
 SET @@global.optimizer_search_depth = -1;
 SELECT @@global.optimizer_search_depth;

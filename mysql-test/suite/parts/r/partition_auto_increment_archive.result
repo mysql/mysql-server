@@ -85,30 +85,38 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`)
 ) ENGINE=ARCHIVE AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (NULL);
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`c1`)
-) ENGINE=ARCHIVE AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-SELECT * FROM t1 ORDER BY c1;
-c1
-4
-5
-6
+INSERT INTO t1 VALUES (-1);
+# ERROR (only OK if Archive) mysql_errno: 1022
+INSERT INTO t1 VALUES (NULL);
 INSERT INTO t1 VALUES (NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`c1`)
-) ENGINE=ARCHIVE AUTO_INCREMENT=8 DEFAULT CHARSET=latin1
+) ENGINE=ARCHIVE AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
 SELECT * FROM t1 ORDER BY c1;
 c1
 4
 5
 6
 7
+8
+INSERT INTO t1 VALUES (NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`c1`)
+) ENGINE=ARCHIVE AUTO_INCREMENT=10 DEFAULT CHARSET=latin1
+SELECT * FROM t1 ORDER BY c1;
+c1
+4
+5
+6
+7
+8
+9
 INSERT INTO t1 VALUES (100);
 INSERT INTO t1 VALUES (NULL);
 OPTIMIZE TABLE t1;
@@ -814,3 +822,179 @@ c1
 4
 5
 DROP TABLE t1;
+#############################################################################
+# Bug #45823 - Assertion failure in file row/row0mysql.c line 1386
+# Bug #43988 - AUTO_INCREMENT errors with partitioned InnoDB tables in 5.1.31
+##############################################################################
+# Inserting negative autoincrement values into a partition table (partitions >= 4)
+CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 4;
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t(c2) VALUES (30);
+INSERT INTO t(c2) VALUES (40);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+3	30
+4	40
+DROP TABLE t;
+# Reading from a partition table (partitions >= 2 ) after inserting a negative
+# value into the auto increment column
+CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 2;
+INSERT INTO t VALUES (-2,-20);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t(c2) VALUES (30);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	30
+DROP TABLE t;
+# Inserting negative auto increment value into a partition table (partitions >= 2)
+# auto increment value > 2.
+CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 2;
+INSERT INTO t VALUES (-4,-20);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t(c2) VALUES (30);
+INSERT INTO t(c2) VALUES (40);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	30
+2	40
+DROP TABLE t;
+# Inserting -1 into autoincrement column of a partition table (partition >= 4)
+CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 4;
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+# ERROR (only OK if Archive), mysql_errno: 1022
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+INSERT INTO t(c2) VALUES (30);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+3	30
+DROP TABLE t;
+# Deleting from an auto increment table after inserting negative values
+CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 4;
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t(c2) VALUES (30);
+INSERT INTO t VALUES (-3,-20);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t(c2) VALUES (40);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+3	30
+4	40
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+3	30
+4	40
+DROP TABLE t;
+# Inserting a positive value that exceeds maximum allowed value for an
+# Auto Increment column (positive maximum)
+CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 4;
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (126,30);
+INSERT INTO t VALUES (127,40);
+INSERT INTO t VALUES (128,50);
+INSERT INTO t VALUES (129,60);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+126	30
+127	40
+DROP TABLE t;
+# Inserting a negative value that goes below minimum allowed value for an
+# Auto Increment column (negative minimum)
+CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 4;
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-127,30);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t VALUES (-128,40);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t VALUES (-129,50);
+INSERT INTO t VALUES (-130,60);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+DROP TABLE t;
+# Updating the partition table with a negative Auto Increment value
+CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 4;
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (-1,-10);
+# ERROR (only OK if Archive), mysql_errno: 1022
+INSERT INTO t(c2) VALUES (30);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+3	30
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+3	30
+INSERT INTO t(c2) VALUES (40);
+INSERT INTO t(c2) VALUES (50);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+3	30
+4	40
+5	50
+DROP TABLE t;
+# Updating the partition table with a value that crosses the upper limits
+# on both the positive and the negative side.
+CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
+c2 INT) ENGINE='Archive' PARTITION BY HASH(c1) PARTITIONS 4;
+INSERT INTO t(c2) VALUES (10);
+INSERT INTO t(c2) VALUES (20);
+INSERT INTO t VALUES (126,30);
+INSERT INTO t VALUES (127,40);
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+126	30
+127	40
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+126	30
+127	40
+SELECT * FROM t ORDER BY c1 ASC;
+c1	c2
+1	10
+2	20
+126	30
+127	40
+DROP TABLE t;
+##############################################################################

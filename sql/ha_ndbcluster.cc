@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,9 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -36,6 +35,7 @@
 #include "discover.h"       // readfrm
 #include "sql_acl.h"        // wild_case_compare
 #include "rpl_mi.h"
+#include "transaction.h"
 
 /*
   There is an incompatibility between GNU ar and the Solaris linker
@@ -7417,7 +7417,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                                  FALSE,   /* drop_temporary */ 
                                  FALSE,   /* drop_view */
                                  TRUE     /* dont_log_query*/);
-
+      trans_commit_implicit(thd); /* Safety, should be unnecessary. */
+      thd->mdl_context.release_transactional_locks();
       /* Clear error message that is returned when table is deleted */
       thd->clear_error();
     }

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -58,8 +58,6 @@
                         "in a future release. Please use %s instead.",      \
                         (Old), (New));                                      \
   } while(0)
-
-extern char err_shared_dir[];
 
 /*************************************************************************/
 
@@ -135,6 +133,16 @@ extern char err_shared_dir[];
   Type of locks to be acquired is specified directly.
 */
 #define SELECT_HIGH_PRIORITY            (1ULL << 34)     // SELECT, user
+/**
+  Is set in slave SQL thread when there was an
+  error on master, which, when is not reproducible
+  on slave (i.e. the query succeeds on slave),
+  is not terminal to the state of repliation,
+  and should be ignored. The slave SQL thread,
+  however, needs to rollback the effects of the
+  succeeded statement to keep replication consistent.
+*/
+#define OPTION_MASTER_SQL_ERROR (1ULL << 35)
 
 
 /* The rest of the file is included in the server only */

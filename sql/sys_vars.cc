@@ -34,7 +34,7 @@
 
 #include "events.h"
 #include <thr_alarm.h>
-#include "slave.h"
+#include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "mysqld.h"
@@ -796,7 +796,11 @@ static Sys_var_lexstring Sys_init_connect(
 static Sys_var_charptr Sys_init_file(
        "init_file", "Read SQL commands from this file at startup",
        READ_ONLY GLOBAL_VAR(opt_init_file),
-       IF_DISABLE_GRANT_OPTIONS(NO_CMD_LINE, CMD_LINE(REQUIRED_ARG)),
+#ifdef DISABLE_GRANT_OPTIONS
+       NO_CMD_LINE,
+#else
+       CMD_LINE(REQUIRED_ARG),
+#endif
        IN_FS_CHARSET, DEFAULT(0));
 
 static PolyLock_rwlock PLock_sys_init_slave(&LOCK_sys_init_slave);
@@ -1330,17 +1334,6 @@ static Sys_var_ulong Sys_optimizer_prune_level(
        SESSION_VAR(optimizer_prune_level), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1), DEFAULT(1), BLOCK_SIZE(1));
 
-/** Warns about deprecated value 63 */
-static bool fix_optimizer_search_depth(sys_var *self, THD *thd,
-                                       enum_var_type type)
-{
-  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
-  if (sv->optimizer_search_depth == MAX_TABLES+2)
-    WARN_DEPRECATED(thd, 6, 0, "optimizer-search-depth=63",
-                    "a search depth less than 63");
-  return false;
-}
-
 static Sys_var_ulong Sys_optimizer_search_depth(
        "optimizer_search_depth",
        "Maximum depth of search performed by the query optimizer. Values "
@@ -1348,13 +1341,9 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        "query plans, but take longer to compile a query. Values smaller "
        "than the number of tables in a relation result in faster "
        "optimization, but may produce very bad query plans. If set to 0, "
-       "the system will automatically pick a reasonable value; if set to "
-       "63, the optimizer will switch to the original find_best search. "
-       "NOTE: The value 63 and its associated behaviour is deprecated",
+       "the system will automatically pick a reasonable value",
        SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, MAX_TABLES+2), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_optimizer_search_depth));
+       VALID_RANGE(0, MAX_TABLES+1), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1));
 
 static const char *optimizer_switch_names[]=
 {
@@ -1528,13 +1517,6 @@ static Sys_var_ulong Sys_div_precincrement(
        "operator will be increased on that value",
        SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, DECIMAL_MAX_SCALE), DEFAULT(4), BLOCK_SIZE(1));
-
-static Sys_var_ulong Sys_rpl_recovery_rank(
-       "rpl_recovery_rank", "Unused, will be removed",
-       GLOBAL_VAR(rpl_recovery_rank), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(70000, 0));
 
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
@@ -1778,6 +1760,12 @@ static Sys_var_ulong Sys_server_id(
        GLOBAL_VAR(server_id), CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
+
+static Sys_var_charptr Sys_server_uuid(
+       "server_uuid",
+       "Uniquely identifies the server instance in the universe",
+       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
+       NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -2203,14 +2191,21 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT)
   { // activating autocommit
 
-    if (trans_commit(thd))
+    if (trans_commit_stmt(thd) || trans_commit(thd))
     {
       thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
       return true;
     }
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
-
+    /*
+      Don't close thread tables or release metadata locks: if we do so, we
+      risk releasing locks/closing tables of expressions used to assign
+      other variables, as in:
+      set @var=my_stored_function1(), @@autocommit=1, @var2=(select max(a)
+      from my_table), ...
+      The locks will be released at statement end anyway, as SET
+      statement that assigns autocommit is marked to commit
+      transaction implicitly at the end (@sa stmt_causes_implicitcommit()).
+    */
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_KEEP_LOG | OPTION_NOT_AUTOCOMMIT);
     thd->transaction.all.modified_non_trans_table= false;
@@ -2865,6 +2860,8 @@ static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
   logger.unlock();
   return false;
 }
+
+static const char *log_output_names[] = { "NONE", "FILE", "TABLE", NULL};
 
 static Sys_var_set Sys_log_output(
        "log_output", "Syntax: log-output=value[,value...], "

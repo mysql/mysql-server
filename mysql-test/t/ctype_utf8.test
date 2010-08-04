@@ -1161,6 +1161,26 @@ explain
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 drop table t1;
 
+#
+# Bug #34349: Passing invalid parameter to CHAR() in an ORDER BY causes
+# MySQL to hang
+#
+
+SET CHARACTER SET utf8;
+SHOW VARIABLES LIKE 'character\_set\_%';
+CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
+USE crashtest;
+CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8;
+INSERT INTO crashtest VALUES ('35'), ('36'), ('37');
+SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8);
+INSERT INTO crashtest VALUES ('-1000');
+EXPLAIN SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8);
+SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8);
+DROP TABLE crashtest;
+DROP DATABASE crashtest;
+USE test;
+SET CHARACTER SET default;
+
 # End of 4.1 tests
 
 #
@@ -1508,3 +1528,39 @@ DROP TABLE t1, t2;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set names utf8;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+
+set @@collation_connection=utf8_bin;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+
+--echo #
+--echo # Checking strnxfrm() with odd length
+--echo #
+set max_sort_length=5;
+select @@max_sort_length;
+create table t1 (a varchar(128) character set utf8 collate utf8_general_ci);
+insert into t1 values ('a'),('b'),('c');
+select * from t1 order by a;
+alter table t1 modify a varchar(128) character set utf8 collate utf8_bin;
+select * from t1 order by a;
+drop table t1;
+set max_sort_length=default;
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
+

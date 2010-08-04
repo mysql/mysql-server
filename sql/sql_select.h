@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -191,7 +191,7 @@ typedef struct st_join_table {
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
   double	worst_seeks;
   key_map	const_keys;			/**< Keys with constant part */
-  key_map	checked_keys;			/**< Keys checked in find_best */
+  key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
 
@@ -309,11 +309,6 @@ public:
   bool     sort_and_group; 
   bool     first_record,full_join,group, no_field_update;
   bool	   do_send_rows;
-  /**
-    TRUE when we want to resume nested loop iterations when
-    fetching data from a cursor
-  */
-  bool     resume_nested_loop;
   table_map const_table_map,found_const_table_map;
   /*
      Bitmap of all inner tables from outer joins
@@ -349,9 +344,6 @@ public:
   /** second copy of sumfuncs (for queries with 2 temporary tables */
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Procedure *procedure;
-  Item	    *having;
-  Item      *tmp_having; ///< To store having when processed temporary table
-  Item      *having_history; ///< Store having for explain
   ulonglong  select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
@@ -418,7 +410,6 @@ public:
 
   bool need_tmp, hidden_group_fields;
   DYNAMIC_ARRAY keyuse;
-  Item::cond_result cond_value, having_value;
   List<Item> all_fields; ///< to store all fields that used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
@@ -429,8 +420,28 @@ public:
   int error;
 
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
-  COND *conds;                            // ---"---
-  Item *conds_history;                    // store WHERE for explain
+  /** 
+    JOIN::having is initially equal to select_lex->having, but may
+    later be changed by optimizations performed by JOIN.
+    The relationship between the JOIN::having condition and the
+    associated variable select_lex->having_value is so that
+    having_value can be:
+     - COND_UNDEF if a having clause was not specified in the query or
+       if it has not been optimized yet
+     - COND_TRUE if the having clause is always true, in which case
+       JOIN::having is set to NULL.
+     - COND_FALSE if the having clause is impossible, in which case
+       JOIN::having is set to NULL
+     - COND_OK otherwise, meaning that the having clause needs to be
+       further evaluated
+    All of the above also applies to the conds/select_lex->cond_value
+    pair.
+  */
+  COND       *conds;                      ///< The where clause item tree
+  Item       *having;                     ///< The having clause item tree
+  Item       *conds_history;              ///< store WHERE for explain
+  Item       *having_history;             ///< Store having for explain
+  Item       *tmp_having; ///< To store having when processed temporary table
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
@@ -479,7 +490,6 @@ public:
     sort_and_group= 0;
     first_record= 0;
     do_send_rows= 1;
-    resume_nested_loop= FALSE;
     send_records= 0;
     found_records= 0;
     fetch_limit= HA_POS_ERROR;
@@ -573,7 +583,7 @@ public:
   bool send_row_on_empty_set()
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    !group_list && having_value != Item::COND_FALSE);
+	    !group_list && select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
   bool is_top_level_join() const
@@ -779,6 +789,9 @@ protected:
     if (!inited)
     {
       inited=1;
+      TABLE *table= to_field->table;
+      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
+                                                       table->write_set);
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
@@ -790,6 +803,7 @@ protected:
         */
       if (!err && to_field->table->in_use->is_error())
         err= 1; /* STORE_KEY_FATAL */
+      dbug_tmp_restore_column_map(table->write_set, old_map);
     }
     null_key= to_field->is_null() || item->null_value;
     return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);

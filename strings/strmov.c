@@ -29,25 +29,9 @@
 #define strmov strmov_overlapp
 #endif
 
-#if !defined(MC68000) && !defined(DS90)
-
 char *strmov(register char *dst, register const char *src)
 {
   while ((*dst++ = *src++)) ;
   return dst-1;
 }
 
-#else
-
-char *strmov(dst, src)
-     char *dst, *src;
-{
-  asm("		movl	4(a7),a1	");
-  asm("		movl	8(a7),a0	");
-  asm(".L4:	movb	(a0)+,(a1)+	");
-  asm("		jne	.L4		");
-  asm("		movl	a1,d0		");
-  asm("		subql	#1,d0		");
-}
-
-#endif

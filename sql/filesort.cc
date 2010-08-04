@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -575,11 +575,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  error= my_errno ? my_errno : -1;		/* Abort */
 	  break;
 	}
-	error=file->rnd_pos(sort_form->record[0],next_pos);
+	error= file->ha_rnd_pos(sort_form->record[0], next_pos);
       }
       else
       {
-	error=file->rnd_next(sort_form->record[0]);
+	error= file->ha_rnd_next(sort_form->record[0]);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
@@ -827,8 +827,11 @@ static void make_sortkey(register SORTPARAM *param,
             memcpy(param->tmp_buffer,from,length);
             from=param->tmp_buffer;
           }
-          tmp_length= my_strnxfrm(cs,to,sort_field->length,
-                                  (uchar*) from, length);
+          tmp_length= cs->coll->strnxfrm(cs, to, sort_field->length,
+                                         item->max_char_length(),
+                                         (uchar*) from, length,
+                                         MY_STRXFRM_PAD_WITH_SPACE |
+                                         MY_STRXFRM_PAD_TO_MAXLEN);
           DBUG_ASSERT(tmp_length == sort_field->length);
         }
         else
@@ -1665,7 +1668,7 @@ void change_double_for_sort(double nr,uchar *to)
   else
   {
 #ifdef WORDS_BIGENDIAN
-    memcpy_fixed(tmp,&nr,sizeof(nr));
+    memcpy(tmp, &nr, sizeof(nr));
 #else
     {
       uchar *ptr= (uchar*) &nr;

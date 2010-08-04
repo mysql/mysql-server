@@ -90,3 +90,99 @@ SELECT DATE_FORMAT('2001-01-07', '%w %a %W');
 DATE_FORMAT('2001-01-07', '%w %a %W')
 0 Du Duminică
 End of 5.4 tests
+#
+# Start of 5.6 tests
+#
+#
+# WL#5303 Romansh locale for DAYNAME, MONTHNAME, DATE_FORMAT
+#
+SET NAMES utf8;
+SET @old_50915_lc_time_names := @@lc_time_names;
+SET lc_time_names=en_US;
+SELECT DATE_FORMAT('2001-01-01', '%w %a %W');
+DATE_FORMAT('2001-01-01', '%w %a %W')
+1 Mon Monday
+SELECT DATE_FORMAT('2001-03-01', '%c %b %M');
+DATE_FORMAT('2001-03-01', '%c %b %M')
+3 Mar March
+SET lc_time_names=rm_CH;
+SELECT DATE_FORMAT('2001-01-01', '%w %a %W');
+DATE_FORMAT('2001-01-01', '%w %a %W')
+1 gli glindesdi
+SELECT DATE_FORMAT('2001-01-02', '%w %a %W');
+DATE_FORMAT('2001-01-02', '%w %a %W')
+2 ma mardi
+SELECT DATE_FORMAT('2001-01-03', '%w %a %W');
+DATE_FORMAT('2001-01-03', '%w %a %W')
+3 me mesemna
+SELECT DATE_FORMAT('2001-01-04', '%w %a %W');
+DATE_FORMAT('2001-01-04', '%w %a %W')
+4 gie gievgia
+SELECT DATE_FORMAT('2001-01-05', '%w %a %W');
+DATE_FORMAT('2001-01-05', '%w %a %W')
+5 ve venderdi
+SELECT DATE_FORMAT('2001-01-06', '%w %a %W');
+DATE_FORMAT('2001-01-06', '%w %a %W')
+6 so sonda
+SELECT DATE_FORMAT('2001-01-07', '%w %a %W');
+DATE_FORMAT('2001-01-07', '%w %a %W')
+0 du dumengia
+SELECT DATE_FORMAT('2001-01-01', '%c %b %M');
+DATE_FORMAT('2001-01-01', '%c %b %M')
+1 schan schaner
+SELECT DATE_FORMAT('2001-02-01', '%c %b %M');
+DATE_FORMAT('2001-02-01', '%c %b %M')
+2 favr favrer
+SELECT DATE_FORMAT('2001-03-01', '%c %b %M');
+DATE_FORMAT('2001-03-01', '%c %b %M')
+3 mars mars
+SELECT DATE_FORMAT('2001-04-01', '%c %b %M');
+DATE_FORMAT('2001-04-01', '%c %b %M')
+4 avr avrigl
+SELECT DATE_FORMAT('2001-05-01', '%c %b %M');
+DATE_FORMAT('2001-05-01', '%c %b %M')
+5 matg matg
+SELECT DATE_FORMAT('2001-06-01', '%c %b %M');
+DATE_FORMAT('2001-06-01', '%c %b %M')
+6 zercl zercladur
+SELECT DATE_FORMAT('2001-07-01', '%c %b %M');
+DATE_FORMAT('2001-07-01', '%c %b %M')
+7 fan fanadur
+SELECT DATE_FORMAT('2001-08-01', '%c %b %M');
+DATE_FORMAT('2001-08-01', '%c %b %M')
+8 avust avust
+SELECT DATE_FORMAT('2001-09-01', '%c %b %M');
+DATE_FORMAT('2001-09-01', '%c %b %M')
+9 sett settember
+SELECT DATE_FORMAT('2001-10-01', '%c %b %M');
+DATE_FORMAT('2001-10-01', '%c %b %M')
+10 oct october
+SELECT DATE_FORMAT('2001-11-01', '%c %b %M');
+DATE_FORMAT('2001-11-01', '%c %b %M')
+11 nov november
+SELECT DATE_FORMAT('2001-12-01', '%c %b %M');
+DATE_FORMAT('2001-12-01', '%c %b %M')
+12 dec december
+SET lc_time_names=de_CH;
+SELECT DATE_FORMAT('2001-01-06', '%w %a %W');
+DATE_FORMAT('2001-01-06', '%w %a %W')
+6 Sa Samstag
+SELECT DATE_FORMAT('2001-09-01', '%c %b %M');
+DATE_FORMAT('2001-09-01', '%c %b %M')
+9 Sep September
+SELECT DATE_FORMAT('2010-03-23 11:00:00','%h %p');
+DATE_FORMAT('2010-03-23 11:00:00','%h %p')
+11 AM
+SELECT DATE_FORMAT('2010-03-23 13:00:00','%h %p');
+DATE_FORMAT('2010-03-23 13:00:00','%h %p')
+01 PM
+SELECT format(123456789,2,'rm_CH');
+format(123456789,2,'rm_CH')
+123'456'789,00
+SET lc_messages=rm_CH;
+SELECT * FROM non_existent;
+ERROR 42S02: Table 'test.non_existent' doesn't exist
+SET lc_time_names=@old_50915_lc_time_names;
+#
+# End of 5.6 tests
+#

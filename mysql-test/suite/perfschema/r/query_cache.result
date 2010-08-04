@@ -65,3 +65,4 @@ Variable_name	Value
 Qcache_hits	1
 SET GLOBAL query_cache_size= default;
 drop table t1;
+flush status;

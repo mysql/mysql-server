@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -41,7 +41,6 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str= {NULL, 0};
-const LEX_STRING empty_lex_str= { (char*) "", 0 };
 /**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
@@ -58,7 +57,7 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT
 };
 
 
@@ -153,7 +152,7 @@ st_parsing_options::reset()
 */
 
 bool Lex_input_stream::init(THD *thd,
-			    const char* buff,
+			    char* buff,
 			    unsigned int length)
 {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
@@ -183,7 +182,7 @@ bool Lex_input_stream::init(THD *thd,
 */
 
 void
-Lex_input_stream::reset(const char *buffer, unsigned int length)
+Lex_input_stream::reset(char *buffer, unsigned int length)
 {
   yylineno= 1;
   yytoklen= 0;
@@ -381,7 +380,7 @@ void lex_start(THD *thd)
   lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
-  lex->describe= 0;
+  lex->describe= DESCRIBE_NONE;
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
   lex->derived_tables= 0;
@@ -402,6 +401,7 @@ void lex_start(THD *thd)
   lex->spname= NULL;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->m_stmt= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
   lex->query_tables= 0;
@@ -449,6 +449,9 @@ void lex_end(LEX *lex)
                        lex->plugins.elements);
   }
   reset_dynamic(&lex->plugins);
+
+  delete lex->sphead;
+  lex->sphead= NULL;
 
   DBUG_VOID_RETURN;
 }
@@ -1425,11 +1428,10 @@ int lex_one_token(void *arg, void *yythd)
           ulong version;
           version=strtol(version_str, NULL, 10);
 
-          /* Accept 'M' 'm' 'm' 'd' 'd' */
-          lip->yySkipn(5);
-
           if (version <= MYSQL_VERSION_ID)
           {
+            /* Accept 'M' 'm' 'm' 'd' 'd' */
+            lip->yySkipn(5);
             /* Expand the content of the special comment as real code */
             lip->set_echo(TRUE);
             state=MY_LEX_START;
@@ -1437,7 +1439,19 @@ int lex_one_token(void *arg, void *yythd)
           }
           else
           {
+            const char* version_mark= lip->get_ptr() - 1;
+            DBUG_ASSERT(*version_mark == '!');
+            /*
+              Patch and skip the conditional comment to avoid it
+              being propagated infinitely (eg. to a slave).
+            */
+            char *pcom= lip->yyUnput(' ');
             comment_closed= ! consume_comment(lip, 1);
+            if (! comment_closed)
+            {
+              DBUG_ASSERT(pcom == version_mark);
+              *pcom= '!';
+            }
             /* version allowed to have one level of comment inside. */
           }
         }
@@ -3131,3 +3145,12 @@ bool LEX::is_partition_management() const
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
 
+
+/**
+  Set all fields to their "unspecified" value.
+*/
+void st_lex_master_info::set_unspecified()
+{
+  bzero((char*) this, sizeof(*this));
+  sql_delay= -1;
+}

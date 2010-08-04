@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,6 @@ bool parse_sql(THD *thd,
                Object_creation_ctx *creation_ctx);
 
 uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
-void sql_kill(THD *thd, ulong id, bool only_kill_query);
 
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -79,12 +78,11 @@ bool check_host_name(LEX_STRING *str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
-bool sqlcom_can_generate_row_events(const THD *thd);
 bool is_update_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
-void mysql_parse(THD *thd, const char *inBuf, uint length,
+void mysql_parse(THD *thd, char *rawbuf, uint length,
                  Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
 bool mysql_new_select(LEX *lex, bool move_down);
@@ -156,6 +154,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
+bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                   GRANT_INTERNAL_INFO *grant_internal_info,

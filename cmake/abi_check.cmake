@@ -18,8 +18,16 @@
 # API_PREPROCESSOR_HEADER.
 #
 # We use gcc specific preprocessing command and sed/diff, so it will 
-# only be run  on Unix and only if gcc is used.
-IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
+# only be run  on Unix and only if gcc is used. On some Unixes,
+# (Solaris) sed or diff might act differently from GNU, so we run only 
+# on systems we can trust.
+IF(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Linux")
+ SET(RUN_ABI_CHECK 1)
+ELSE()
+ SET(RUN_ABI_CHECK 0)
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
   IF(CMAKE_C_COMPILER MATCHES "ccache$")
     SET(COMPILER ${CMAKE_C_COMPILER_ARG1})
     STRING(REGEX REPLACE "^ " "" COMPILER ${COMPILER})
@@ -38,7 +46,7 @@ IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     -DCOMPILER=${COMPILER}
     -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
     -DBINARY_DIR=${CMAKE_BINARY_DIR}
-    "-DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
+    "-DDMYSQL_ABI_CHECK -DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
     -P ${CMAKE_SOURCE_DIR}/cmake/do_abi_check.cmake
     VERBATIM
   )
@@ -48,7 +56,7 @@ IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     -DCMAKE_C_COMPILER=${COMPILER} 
     -DCMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
     -DCMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
-    "-DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
+    "-DMYSQL_ABI_CHECK -DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
     -P ${CMAKE_SOURCE_DIR}/cmake/scripts/do_abi_check.cmake
     VERBATIM
   )

@@ -112,7 +112,8 @@ IF(MSVC)
 
   # Make class/struct definition mismatch an error (overseen too often,
   # adds tons of new warnings)
-  ADD_DEFINITIONS(/we4099)
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /we4099")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /we4099")
 
   IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
     # _WIN64 is defined by the compiler itself. 

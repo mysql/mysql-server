@@ -1,0 +1,50 @@
+'#---------------------BS_STVARS_004_01----------------------#'
+SELECT COUNT(@@GLOBAL.server_uuid);
+COUNT(@@GLOBAL.server_uuid)
+1
+1 Expected
+'#---------------------BS_STVARS_004_02----------------------#'
+SET @@GLOBAL.server_uuid=1;
+ERROR HY000: Variable 'server_uuid' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.server_uuid);
+COUNT(@@GLOBAL.server_uuid)
+1
+1 Expected
+'#---------------------BS_STVARS_004_03----------------------#'
+SELECT @@GLOBAL.server_uuid = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='server_uuid';
+@@GLOBAL.server_uuid = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.server_uuid);
+COUNT(@@GLOBAL.server_uuid)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='server_uuid';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_004_04----------------------#'
+SELECT @@server_uuid = @@GLOBAL.datadir;
+@@server_uuid = @@GLOBAL.datadir
+0
+1 Expected
+'#---------------------BS_STVARS_004_05----------------------#'
+SELECT COUNT(@@server_uuid);
+COUNT(@@server_uuid)
+1
+1 Expected
+SELECT COUNT(@@local.server_uuid);
+ERROR HY000: Variable 'server_uuid' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.server_uuid);
+ERROR HY000: Variable 'server_uuid' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.server_uuid);
+COUNT(@@GLOBAL.server_uuid)
+1
+1 Expected

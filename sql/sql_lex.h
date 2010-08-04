@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -152,6 +152,7 @@ enum enum_sql_command {
 };
 
 // describe/explain types
+#define DESCRIBE_NONE		0 // Not explain query
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 /*
@@ -234,18 +235,21 @@ typedef struct st_lex_master_info
   char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
   float heartbeat_period;
+  int sql_delay;
   ulonglong pos;
   ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
-  enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
+  enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+
+  void set_unspecified();
 } LEX_MASTER_INFO;
 
 
@@ -589,11 +593,11 @@ public:
   st_select_lex* outer_select();
   st_select_lex* first_select()
   {
-    return my_reinterpret_cast(st_select_lex*)(slave);
+    return reinterpret_cast<st_select_lex*>(slave);
   }
   st_select_lex_unit* next_unit()
   {
-    return my_reinterpret_cast(st_select_lex_unit*)(next);
+    return reinterpret_cast<st_select_lex_unit*>(next);
   }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
@@ -635,7 +639,14 @@ public:
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
   Item *prep_having;/* saved HAVING clause for prepared statement processing */
-  /* Saved values of the WHERE and HAVING clauses*/
+  /**
+    Saved values of the WHERE and HAVING clauses. Allowed values are: 
+     - COND_UNDEF if the condition was not specified in the query or if it 
+       has not been optimized yet
+     - COND_TRUE if the condition is always true
+     - COND_FALSE if the condition is impossible
+     - COND_OK otherwise
+  */
   Item::cond_result cond_value, having_value;
   /* point on lex in which it was created, used in view subquery detection */
   LEX *parent_lex;
@@ -911,6 +922,7 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_ALL_PARTITION      (1L << 21)
 #define ALTER_REMOVE_PARTITIONING (1L << 22)
 #define ALTER_FOREIGN_KEY        (1L << 23)
+#define ALTER_EXCHANGE_PARTITION (1L << 24)
 
 enum enum_alter_table_change_level
 {
@@ -918,6 +930,24 @@ enum enum_alter_table_change_level
   ALTER_TABLE_DATA_CHANGED= 1,
   ALTER_TABLE_INDEX_CHANGED= 2
 };
+
+
+/**
+  Temporary hack to enable a class bound forward declaration
+  of the enum_alter_table_change_level enumeration. To be
+  removed once Alter_info is moved ta the sql_alter_table.h
+  header.
+*/
+class Alter_table_change_level
+{
+private:
+  typedef enum enum_alter_table_change_level enum_type;
+  enum_type value;
+public:
+  void operator = (enum_type v) { value = v; }
+  operator enum_type () { return value; }
+};
+
 
 /**
   @brief Parsing data for CREATE or ALTER TABLE.
@@ -995,8 +1025,6 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
-extern const LEX_STRING empty_lex_str;
-
 
 class Sroutine_hash_entry;
 
@@ -1394,9 +1422,9 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, const char *buff, unsigned int length);
+  bool init(THD *thd, char *buff, unsigned int length);
 
-  void reset(const char *buff, unsigned int length);
+  void reset(char *buff, unsigned int length);
 
   /**
     Set the echo mode.
@@ -1509,6 +1537,20 @@ public:
       m_cpp_ptr += n;
     }
     m_ptr += n;
+  }
+
+  /**
+    Puts a character back into the stream, canceling
+    the effect of the last yyGet() or yySkip().
+    Note that the echo mode should not change between calls
+    to unput, get, or skip from the stream.
+  */
+  char *yyUnput(char ch)
+  {
+    *--m_ptr= ch;
+    if (m_echo)
+      m_cpp_ptr--;
+    return m_ptr;
   }
 
   /**
@@ -1668,7 +1710,7 @@ public:
 
 private:
   /** Pointer to the current position in the raw input stream. */
-  const char *m_ptr;
+  char *m_ptr;
 
   /** Starting position of the last token parsed, in the raw buffer. */
   const char *m_tok_start;
@@ -2350,7 +2392,7 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, const char *buff, unsigned int length)
+  bool init(THD *thd, char *buff, unsigned int length)
   {
     return m_lip.init(thd, buff, length);
   }
@@ -2361,7 +2403,7 @@ public:
   Lex_input_stream m_lip;
   Yacc_state m_yacc;
 
-  void reset(const char *found_semicolon, unsigned int length)
+  void reset(char *found_semicolon, unsigned int length)
   {
     m_lip.reset(found_semicolon, length);
     m_yacc.reset();

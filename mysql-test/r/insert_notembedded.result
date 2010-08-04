@@ -32,7 +32,7 @@ INNER JOIN      view_stations AS stations
 ON              table_source.id = stations.icao
 LEFT JOIN       table_target AS old
 USING           (mexs_id);
-ERROR 42000: INSERT,DELETE command denied to user 'user20989'@'localhost' for table 'table_target'
+ERROR 42000: INSERT, DELETE command denied to user 'user20989'@'localhost' for table 'table_target'
 REPLACE INTO    view_target2
 SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
 FROM            table_source
@@ -40,7 +40,7 @@ INNER JOIN      view_stations AS stations
 ON              table_source.id = stations.icao
 LEFT JOIN       view_target2 AS old
 USING           (mexs_id);
-ERROR 42000: INSERT,DELETE command denied to user 'user20989'@'localhost' for table 'view_target2'
+ERROR 42000: INSERT, DELETE command denied to user 'user20989'@'localhost' for table 'view_target2'
 REPLACE INTO    view_target3
 SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
 FROM            table_source
@@ -60,7 +60,7 @@ ON              table_source.id = stations.icao
 LEFT JOIN       table_target AS old
 USING           (mexs_id);
 REPLACE INTO    table_target2 VALUES ('00X45Y78','2006-07-12 07:50:00');
-ERROR 42000: INSERT,DELETE command denied to user 'user20989'@'localhost' for table 'table_target2'
+ERROR 42000: INSERT, DELETE command denied to user 'user20989'@'localhost' for table 'table_target2'
 REPLACE INTO    view_target2  VALUES ('12X45Y78','2006-07-12 07:50:00');
 SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
 FROM            table_source
