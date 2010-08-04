@@ -44,9 +44,9 @@ STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
 SET(NDB_MYSQL_VERSION_BUILD "${PARSE_VERSION_BUILD}" CACHE STRING "NDB MySQL Build Version" FORCE)
 
 #
-# Read configure.in and extract the NDB_VERSION_XX=YY variables
+# Read ndb_configure.m4 and extract the NDB_VERSION_XX=YY variables
 #
-FILE(READ "${CMAKE_SOURCE_DIR}/configure.in" CONFIGURE_IN)
+FILE(READ "${CMAKE_SOURCE_DIR}/storage/ndb/ndb_configure.m4" CONFIGURE_IN)
 
 # NDB_VERSION_MAJOR
 STRING(REGEX REPLACE ".*NDB_VERSION_MAJOR=([0-9]+).*"
