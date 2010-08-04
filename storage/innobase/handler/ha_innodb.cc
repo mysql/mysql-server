@@ -763,6 +763,16 @@ convert_error_code_to_mysql(
 
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 		return(-1);
+	} else if (error == DB_FOREIGN_EXCEED_MAX_CASCADE) {
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_ROW_IS_REFERENCED,
+				    "InnoDB: Cannot delete/update "
+				    "rows with cascading foreign key "
+				    "constraints that exceed max "
+				    "depth of %d. Please "
+				    "drop extra constraints and try "
+				    "again", DICT_FK_MAX_RECURSIVE_LOAD);
+		return(-1);
     	} else {
     		return(-1);			// Unknown error
     	}

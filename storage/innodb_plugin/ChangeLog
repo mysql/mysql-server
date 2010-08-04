@@ -1,3 +1,11 @@
+2010-08-03	The InnoDB Team
+
+	* dict/dict0load.c, handler/ha_innodb.cc, include/db0err.h,
+	include/dict0load.h, include/dict0mem.h, include/que0que.h,
+	row/row0merge.c, row/row0mysql.c:
+	Fix Bug#54582 stack overflow when opening many tables linked
+	with foreign keys at once
+
 2010-07-27	The InnoDB Team
 
 	* include/mem0pool.h, mem/mem0mem.c, mem/mem0pool.c, srv/srv0start.c:
