@@ -64,10 +64,6 @@
 #include "debug_sync.h"
 
 static const char *ha_par_ext= ".par";
-#ifdef NOT_USED
-static int free_share(PARTITION_SHARE * share);
-static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
-#endif
 
 /****************************************************************************
                 MODULE create/delete handler object
@@ -1129,13 +1125,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
                      part, sub_elem->partition_name));
-#ifdef NOT_USED
-          if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                          opt_op_name[flag],
-                          "Start to operate on subpartition %s", 
-                          sub_elem->partition_name))
-            DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
           if ((error= handle_opt_part(thd, check_opt, m_file[part], flag)))
           {
             /* print a line which partition the error belongs to */
@@ -1162,13 +1151,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
       {
         DBUG_PRINT("info", ("Optimize partition %u (%s)", i,
                             part_elem->partition_name));
-#ifdef NOT_USED
-        if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                        opt_op_name[flag],
-                        "Start to operate on partition %s", 
-                        part_elem->partition_name))
-          DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
         if ((error= handle_opt_part(thd, check_opt, m_file[i], flag)))
         {
           /* print a line which partition the error belongs to */

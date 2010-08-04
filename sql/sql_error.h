@@ -153,8 +153,8 @@ private:
   Representation of a SQL condition.
   A SQL condition can be a completion condition (note, warning),
   or an exception condition (error, not found).
-  @note This class is named MYSQL_ERROR instead of SQL_condition for historical reasons,
-  to facilitate merging code with previous releases.
+  @note This class is named MYSQL_ERROR instead of SQL_condition for
+  historical reasons, to facilitate merging code with previous releases.
 */
 class MYSQL_ERROR : public Sql_alloc
 {
@@ -470,18 +470,6 @@ public:
   ulong current_row_for_warning() const { return m_current_row_for_warning; }
 
   ulong statement_warn_count() const { return m_statement_warn_count; }
-
-  /**
-    Reserve some space in the condition area.
-    This is a privileged operation, reserved for the RESIGNAL implementation,
-    as only the RESIGNAL statement is allowed to remove conditions from
-    the condition area.
-    For other statements, new conditions are not added to the condition
-    area once the condition area is full.
-    @param thd The current thread
-    @param count The number of slots to reserve
-  */
-  void reserve_space(THD *thd, uint count);
 
   /** Add a new condition to the current list. */
   MYSQL_ERROR *push_warning(THD *thd,

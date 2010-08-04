@@ -335,10 +335,6 @@ long my_strntol_8bit(CHARSET_INFO *cs,
   int overflow;
 
   *err= 0;				/* Initialize error indicator */
-#ifdef NOT_USED
-  if (base < 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   s = nptr;
   e = nptr+l;
@@ -363,29 +359,6 @@ long my_strntol_8bit(CHARSET_INFO *cs,
   }
   else
     negative = 0;
-
-#ifdef NOT_USED
-  if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
-    s += 2;
-#endif
-
-#ifdef NOT_USED
-  if (base == 0)
-  {
-    if (*s == '0')
-    {
-      if (s[1]=='X' || s[1]=='x')
-      {
-	s += 2;
-	base = 16;
-      }
-      else
-	base = 8;
-    }
-    else
-      base = 10;
-  }
-#endif
 
   save = s;
   cutoff = ((uint32)~0L) / (uint32) base;
@@ -458,10 +431,6 @@ ulong my_strntoul_8bit(CHARSET_INFO *cs,
   int overflow;
 
   *err= 0;				/* Initialize error indicator */
-#ifdef NOT_USED
-  if (base < 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   s = nptr;
   e = nptr+l;
@@ -485,29 +454,6 @@ ulong my_strntoul_8bit(CHARSET_INFO *cs,
   }
   else
     negative = 0;
-
-#ifdef NOT_USED
-  if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
-    s += 2;
-#endif
-
-#ifdef NOT_USED
-  if (base == 0)
-  {
-    if (*s == '0')
-    {
-      if (s[1]=='X' || s[1]=='x')
-      {
-	s += 2;
-	base = 16;
-      }
-      else
-	base = 8;
-    }
-    else
-      base = 10;
-  }
-#endif
 
   save = s;
   cutoff = ((uint32)~0L) / (uint32) base;
@@ -571,10 +517,6 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   int overflow;
 
   *err= 0;				/* Initialize error indicator */
-#ifdef NOT_USED
-  if (base < 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   s = nptr;
   e = nptr+l;
@@ -598,29 +540,6 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   }
   else
     negative = 0;
-
-#ifdef NOT_USED
-  if (base == 16 && s[0] == '0' && (s[1]=='X'|| s[1]=='x'))
-    s += 2;
-#endif
-
-#ifdef NOT_USED
-  if (base == 0)
-  {
-    if (*s == '0')
-    {
-      if (s[1]=='X' || s[1]=='x')
-      {
-	s += 2;
-	base = 16;
-      }
-      else
-	base = 8;
-    }
-    else
-      base = 10;
-  }
-#endif
 
   save = s;
 
@@ -694,10 +613,6 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   int overflow;
 
   *err= 0;				/* Initialize error indicator */
-#ifdef NOT_USED
-  if (base < 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   s = nptr;
   e = nptr+l;
@@ -721,29 +636,6 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   }
   else
     negative = 0;
-
-#ifdef NOT_USED
-  if (base == 16 && s[0] == '0' && (s[1]=='X' || s[1]=='x'))
-    s += 2;
-#endif
-
-#ifdef NOT_USED
-  if (base == 0)
-  {
-    if (*s == '0')
-    {
-      if (s[1]=='X' || s[1]=='x')
-      {
-	s += 2;
-	base = 16;
-      }
-      else
-	base = 8;
-    }
-    else
-      base = 10;
-  }
-#endif
 
   save = s;
 

@@ -1190,6 +1190,8 @@ select'a'; insert into t1 values (200); end;|
 call t1();
 a
 a
+Warnings:
+Error	1264	Out of range value for column 'col1' at row 1
 select * from t1;
 col1
 drop procedure t1;

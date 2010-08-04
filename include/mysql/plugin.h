@@ -327,7 +327,7 @@ DECLARE_MYSQL_SYSVAR_SIMPLE(name, unsigned long long) = { \
   #name, comment, check, update, &varname, def, min, max, blk }
 
 #define MYSQL_SYSVAR_ENUM(name, varname, opt, comment, check, update, def, typelib) \
-DECLARE_MYSQL_SYSVAR_TYPELIB(name, unsigned long) = { \
+DECLARE_MYSQL_SYSVAR_TYPELIB(name, unsigned int) = { \
   PLUGIN_VAR_ENUM | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def, typelib }
 
