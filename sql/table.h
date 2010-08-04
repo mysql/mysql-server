@@ -401,6 +401,11 @@ typedef struct st_table_share
   uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
+  /*
+    Same as null_bytes, except that if there is only a 'delete-marker' in
+    the record then this value is 0.
+  */
+  uint null_bytes_for_compare;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys, key_parts;
@@ -432,6 +437,7 @@ typedef struct st_table_share
   bool name_lock, replace_with_name_lock;
   bool waiting_on_cond;                 /* Protection against free */
   bool deleting;                        /* going to delete this table */
+  bool can_cmp_whole_record;
   ulong table_map_id;                   /* for row-based replication */
 
   /*

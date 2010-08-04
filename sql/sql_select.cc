@@ -10396,7 +10396,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
     table->null_flags= (uchar*) table->record[0];
     share->null_fields= null_count+ hidden_null_count;
-    share->null_bytes= null_pack_length;
+    share->null_bytes= share->null_bytes_for_compare= null_pack_length;
   }
   null_count= (blob_count == 0) ? 1 : 0;
   hidden_field_count=param->hidden_field_count;
@@ -10762,7 +10762,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   {
     table->null_flags= (uchar*) table->record[0];
     share->null_fields= null_count;
-    share->null_bytes= null_pack_length;
+    share->null_bytes= share->null_bytes_for_compare= null_pack_length;
   }
 
   table->in_use= thd;           /* field->reset() may access table->in_use */

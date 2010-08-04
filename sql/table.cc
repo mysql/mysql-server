@@ -687,6 +687,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
   my_bitmap_map *bitmaps;
+  bool null_bits_are_used;
   DBUG_ENTER("open_binary_frm");
 
   new_field_pack_flag= head[27];
@@ -1134,6 +1135,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;
 
   record= share->default_values-1;              /* Fieldstart = 1 */
+  null_bits_are_used= share->null_fields != 0;
   if (share->null_field_first)
   {
     null_flags= null_pos= (uchar*) record+1;
@@ -1306,6 +1308,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     reg_field->comment=comment;
     if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
+      null_bits_are_used= 1;
       if ((null_bit_pos+= field_length & 7) > 7)
       {
         null_pos++;
@@ -1594,6 +1597,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->null_bytes= (null_pos - (uchar*) null_flags +
                       (null_bit_pos + 7) / 8);
   share->last_null_bit_pos= null_bit_pos;
+  share->null_bytes_for_compare= null_bits_are_used ? share->null_bytes : 0;
+  share->can_cmp_whole_record= (share->blob_fields == 0 &&
+                                share->varchar_fields == 0 &&
+                                (share->null_bytes_for_compare ==
+                                 share->null_bytes ||
+                                 !(handler_file->ha_table_flags() &
+                                   HA_PARTIAL_COLUMN_READ)));
 
   share->db_low_byte_first= handler_file->low_byte_first();
   share->column_bitmap_size= bitmap_buffer_size(share->fields);

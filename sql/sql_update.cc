@@ -27,14 +27,14 @@
 
 /* Return 0 if row hasn't changed */
 
-bool compare_record(TABLE *table)
+bool compare_record(TABLE *table, bool all_columns_exists)
 {
-  if (table->s->blob_fields + table->s->varchar_fields == 0)
+  if (table->s->can_cmp_whole_record && all_columns_exists)
     return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,
 	     table->null_flags+table->s->rec_buff_length,
-	     table->s->null_bytes))
+	     table->s->null_bytes_for_compare))
     return TRUE;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr= table->field ; *ptr ; ptr++)
@@ -186,7 +186,7 @@ int mysql_update(THD *thd,
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= test(thd->options & OPTION_SAFE_UPDATES);
   bool		used_key_is_modified, transactional_table, will_batch;
-  bool		can_compare_record;
+  bool		can_compare_record, all_columns_exists;
   int           res;
   int		error, loc_error;
   uint		used_index= MAX_KEY, dup_key_found;
@@ -574,6 +574,9 @@ int mysql_update(THD *thd,
   can_compare_record= (!(table->file->ha_table_flags() &
                          HA_PARTIAL_COLUMN_READ) ||
                        bitmap_is_subset(table->write_set, table->read_set));
+  all_columns_exists=  (can_compare_record &&
+                        bitmap_union_is_set_all(table->write_set,
+                                                table->read_set));
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
@@ -591,7 +594,7 @@ int mysql_update(THD *thd,
 
       found++;
 
-      if (!can_compare_record || compare_record(table))
+      if (!can_compare_record || compare_record(table, all_columns_exists))
       {
         if ((res= table_list->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
@@ -1758,11 +1761,14 @@ bool multi_update::send_data(List<Item> &not_used_values)
     */
     if (table == table_to_update)
     {
-      bool can_compare_record;
+      bool can_compare_record, all_columns_exists;
       can_compare_record= (!(table->file->ha_table_flags() &
                              HA_PARTIAL_COLUMN_READ) ||
                            bitmap_is_subset(table->write_set,
                                             table->read_set));
+      all_columns_exists=  (can_compare_record &&
+                            bitmap_union_is_set_all(table->write_set,
+                                                    table->read_set));
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, *fields_for_table[offset],
@@ -1777,7 +1783,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       */
       table->auto_increment_field_not_null= FALSE;
       found++;
-      if (!can_compare_record || compare_record(table))
+      if (!can_compare_record || compare_record(table, all_columns_exists))
       {
 	int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
@@ -1964,7 +1970,7 @@ int multi_update::do_updates()
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
-    bool can_compare_record;
+    bool can_compare_record, all_columns_exists;
     uint offset= cur_table->shared;
 
     table = cur_table->table;
@@ -1988,9 +1994,11 @@ int multi_update::do_updates()
       Setup copy functions to copy fields from temporary table
     */
     List_iterator_fast<Item> field_it(*fields_for_table[offset]);
-    Field **field= tmp_table->field + 
-                   1 + unupdated_check_opt_tables.elements; // Skip row pointers
+    Field **field;
     Copy_field *copy_field_ptr= copy_field, *copy_field_end;
+
+    /* Skip row pointers */
+    field= tmp_table->field + 1 + unupdated_check_opt_tables.elements;
     for ( ; *field ; field++)
     {
       Item_field *item= (Item_field* ) field_it++;
@@ -2005,6 +2013,9 @@ int multi_update::do_updates()
                            HA_PARTIAL_COLUMN_READ) ||
                          bitmap_is_subset(table->write_set,
                                           table->read_set));
+    all_columns_exists=  (can_compare_record &&
+                          bitmap_union_is_set_all(table->write_set,
+                                                  table->read_set));
 
     for (;;)
     {
@@ -2046,7 +2057,7 @@ int multi_update::do_updates()
                                             TRG_ACTION_BEFORE, TRUE))
         goto err2;
 
-      if (!can_compare_record || compare_record(table))
+      if (!can_compare_record || compare_record(table, all_columns_exists))
       {
         int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
