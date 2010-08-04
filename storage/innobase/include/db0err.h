@@ -73,6 +73,9 @@ Created 5/24/1996 Heikki Tuuri
 					a later version of the engine. */
 #define DB_INTERRUPTED		49	/* the query has been interrupted with
 					"KILL QUERY N;" */
+#define DB_FOREIGN_EXCEED_MAX_CASCADE 50/* Foreign key constraint related
+					cascading delete/update exceeds
+					maximum allowed depth */
 
 /* The following are partial failure codes */
 #define DB_FAIL			1000

@@ -94,6 +94,9 @@ enum db_err {
 
 	DB_PRIMARY_KEY_IS_NULL,		/* a column in the PRIMARY KEY
 					was found to be NULL */
+	DB_FOREIGN_EXCEED_MAX_CASCADE,	/* Foreign key constraint related
+					cascading delete/update exceeds
+					maximum allowed depth */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
