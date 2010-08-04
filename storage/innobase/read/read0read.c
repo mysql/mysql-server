@@ -199,7 +199,6 @@ read_view_purge_open(
 					allocated */
 {
 	ulint		i;
-	ulint		n;
 	read_view_t*	view;
 	read_view_t*	oldest_view;
 	ib_int64_t	creator_trx_id;
@@ -216,33 +215,32 @@ read_view_purge_open(
 
 	ut_ad(read_view_validate(oldest_view));
 
-	n = oldest_view->n_trx_ids + 1;
-
+	ut_a(oldest_view->creator_trx_id > 0);
 	creator_trx_id = oldest_view->creator_trx_id;
-	ut_a(creator_trx_id > 0);
 
-	view = read_view_create_low(n, heap);
+	view = read_view_create_low(oldest_view->n_trx_ids + 1, heap);
+
+	/* Add the creator transaction id in the trx_ids array in the
+	correct slot. */
 
 	for (i = 0; i < oldest_view->n_trx_ids; ++i) {
 		ib_int64_t	id;
 
-		id = read_view_get_nth_trx_id(oldest_view, i - insert_done);
+		id = oldest_view->trx_ids[i - insert_done];
 
 		if (insert_done == 0 && creator_trx_id > id) {
 			id = creator_trx_id;
 			insert_done = 1;
 		}
 
-		read_view_set_nth_trx_id(view, i, id);
+		view->trx_ids[i] = id;
 	}
 
 	if (insert_done == 0) {
-		read_view_set_nth_trx_id(view, i, creator_trx_id);
+		view->trx_ids[i] = creator_trx_id;
 	} else {
-		ib_int64_t	id;
-
-		id = read_view_get_nth_trx_id(oldest_view, i - 1);
-		read_view_set_nth_trx_id( view, i, id);
+		ut_a(i > 0);
+		view->trx_ids[i] = oldest_view->trx_ids[i - 1];
 	}
 
 	ut_ad(read_view_validate(view));
@@ -252,9 +250,10 @@ read_view_purge_open(
 	view->low_limit_no = oldest_view->low_limit_no;
 	view->low_limit_id = oldest_view->low_limit_id;
 
-	if (n > 0) {
+	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id( view, n - 1);
+
+		view->up_limit_id = view->trx_ids[view->n_trx_ids - 1];
 	} else {
 		view->up_limit_id = oldest_view->up_limit_id;
 	}
@@ -277,26 +276,25 @@ read_view_open_now(
 	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
-	read_view_t*	view;
 	const trx_t*	trx;
-	ulint		n;
+	read_view_t*	view;
+	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
 	ut_ad(trx_sys_mutex_own());
 
-	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
+	view = read_view_create_low(n_trx, heap);
 
-	view->creator_trx_id = cr_trx_id;
-	view->type = VIEW_NORMAL;
 	view->undo_no = 0;
+	view->type = VIEW_NORMAL;
+	view->creator_trx_id = cr_trx_id;
 
 	/* No future transactions should be visible in the view */
 
 	view->low_limit_no = trx_sys->max_trx_id;
-
 	view->low_limit_id = view->low_limit_no;
 
-	n = 0;
 	/* No active transaction should be visible, except cr_trx */
+
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
@@ -305,9 +303,8 @@ read_view_open_now(
 		    && (trx->lock.conc_state == TRX_ACTIVE
 			|| trx->lock.conc_state == TRX_PREPARED)) {
 
-			read_view_set_nth_trx_id(view, n, trx->id);
-
-			n++;
+			ut_ad(view->n_trx_ids < n_trx);
+			view->trx_ids[view->n_trx_ids++] = trx->id;
 
 			/* NOTE that a transaction whose trx number is <
 			trx_sys->max_trx_id can still be active, if it is
@@ -322,11 +319,10 @@ read_view_open_now(
 		}
 	}
 
-	view->n_trx_ids = n;
-
-	if (n > 0) {
+	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
+
+		view->up_limit_id = view->trx_ids[view->n_trx_ids - 1];
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
@@ -410,7 +406,7 @@ read_view_print(
 
 	for (i = 0; i < n_ids; i++) {
 		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
-			(ullint) read_view_get_nth_trx_id(view, i));
+			(ullint) view->trx_ids[i]);
 	}
 }
 
@@ -425,43 +421,43 @@ read_cursor_view_create_for_mysql(
 /*==============================*/
 	trx_t*	cr_trx)	/*!< in: trx where cursor view is created */
 {
-	cursor_view_t*	curview;
+	const trx_t*	trx;
 	read_view_t*	view;
 	mem_heap_t*	heap;
-	const trx_t*	trx;
-	ulint		n;
-
-	ut_a(cr_trx);
+	ulint		n_trx;
+	cursor_view_t*	curview;
 
 	/* Use larger heap than in trx_create when creating a read_view
 	because cursors are quite long. */
 
 	heap = mem_heap_create(512);
 
-	curview = (cursor_view_t*) mem_heap_alloc(heap, sizeof(cursor_view_t));
+	curview = (cursor_view_t*) mem_heap_alloc(heap, sizeof(*curview));
+
 	curview->heap = heap;
 
-	/* Drop cursor tables from consideration when evaluating the need of
-	auto-commit */
+	/* Drop cursor tables from consideration when evaluating the
+       	need of auto-commit */
+
 	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
+
 	cr_trx->n_mysql_tables_in_use = 0;
 
 	trx_sys_mutex_enter();
 
-	curview->read_view = read_view_create_low(
-		UT_LIST_GET_LEN(trx_sys->trx_list), curview->heap);
+	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
+
+	curview->read_view = read_view_create_low(n_trx, curview->heap);
 
 	view = curview->read_view;
+	view->undo_no = cr_trx->undo_no;
 	view->creator_trx_id = cr_trx->id;
 	view->type = VIEW_HIGH_GRANULARITY;
-	view->undo_no = cr_trx->undo_no;
 
 	/* No future transactions should be visible in the view */
 
 	view->low_limit_no = trx_sys->max_trx_id;
 	view->low_limit_id = view->low_limit_no;
-
-	n = 0;
 
 	/* No active transaction should be visible */
 
@@ -472,9 +468,9 @@ read_cursor_view_create_for_mysql(
 		if (trx->lock.conc_state == TRX_ACTIVE
 		    || trx->lock.conc_state == TRX_PREPARED) {
 
-			read_view_set_nth_trx_id(view, n, trx->id);
+			ut_ad(view->n_trx_ids < n_trx);
 
-			n++;
+			view->trx_ids[view->n_trx_ids++] = trx->id;
 
 			/* NOTE that a transaction whose trx number is <
 			trx_sys->max_trx_id can still be active, if it is
@@ -489,11 +485,10 @@ read_cursor_view_create_for_mysql(
 		}
 	}
 
-	view->n_trx_ids = n;
-
-	if (n > 0) {
+	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
-		view->up_limit_id = read_view_get_nth_trx_id(view, n - 1);
+
+		view->up_limit_id = view->trx_ids[view->n_trx_ids - 1];
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
