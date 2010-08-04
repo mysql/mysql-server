@@ -362,12 +362,6 @@ int main(int argc, const char** argv)
        NDB_VERSION_MINOR == ndb_minor ||
        NDB_VERSION_BUILD == ndb_build);
 
-    if (matches_ndb == 4)
-    {
-      /* Check -status, which would normally be 'alpha' or 'beta' */
-      OK(strcmp(NDB_VERSION_STATUS, ndb_status) == 0);
-    }
-
   }
   else
   {
