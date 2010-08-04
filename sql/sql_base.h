@@ -90,28 +90,10 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                 Open_table_context *ot_ctx);
-bool name_lock_locked_table(THD *thd, TABLE_LIST *tables);
-bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in);
-TABLE *table_cache_insert_placeholder(THD *thd, const char *key,
-                                      uint key_length);
-bool lock_table_name_if_not_cached(THD *thd, const char *db,
-                                   const char *table_name, TABLE **table);
-void detach_merge_children(TABLE *table, bool clear_refs);
-bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
-                          TABLE_LIST *new_child_list, TABLE_LIST **new_last);
-bool reopen_table(TABLE *table);
-bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-void close_data_files_and_morph_locks(THD *thd, const char *db,
-                                      const char *table_name);
-void close_handle_and_leave_table_as_lock(TABLE *table);
 bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                   uint db_stat, uint prgflag,
                   uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
                   MEM_ROOT *mem_root);
-bool wait_for_tables(THD *thd);
-bool table_is_used(TABLE *table, bool wait_for_name_lock);
-TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
-void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
@@ -190,12 +172,9 @@ bool setup_tables_and_check_access(THD *thd,
                                    ulong want_access);
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
-void unlink_open_table(THD *thd, TABLE *find, bool unlock);
 
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name);
-void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                               bool remove_from_locked_tables);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -232,8 +211,6 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
 void close_temporary(TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
-void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
-void remove_db_from_cache(const char *db);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
@@ -257,8 +234,6 @@ bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                                bool remove_from_locked_tables);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
-bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-                             uint flags);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
@@ -271,12 +246,10 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
 void mark_tmp_table_for_reuse(TABLE *table);
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 
-extern uint  table_cache_count;
 extern TABLE *unused_tables;
 extern Item **not_found_item;
 extern Field *not_found_field;
 extern Field *view_ref_found;
-extern HASH open_cache;
 extern HASH table_def_cache;
 
 /**
