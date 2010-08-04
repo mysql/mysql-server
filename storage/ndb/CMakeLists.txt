@@ -17,7 +17,6 @@ INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
 INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake")
 INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
-INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/cmake/java_version_string.cmake")
 
 SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
   "Enable the classpath for MySQL Cluster Java Connector")
