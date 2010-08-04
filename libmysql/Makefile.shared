@@ -37,7 +37,7 @@ target_sources = 	libmysql.c password.c \
 mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			strmake.lo strend.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
-			int2str.lo str2int.lo strinstr.lo strcont.lo \
+			int2str.lo str2int.lo strcont.lo \
 			strcend.lo ctype-latin1.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo my_vsnprintf.lo \
@@ -61,9 +61,8 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo \
 			mf_format.lo mf_path.lo mf_unixpath.lo my_fopen.lo \
 			my_symlink.lo my_fstream.lo mf_arr_appstr.lo \
 			mf_loadpath.lo my_pthread.lo my_thr_init.lo \
-			thr_mutex.lo mulalloc.lo string.lo \
-                        default.lo default_modify.lo \
-			my_compress.lo array.lo my_once.lo list.lo my_net.lo \
+			thr_mutex.lo mulalloc.lo string.lo default.lo \
+			my_compress.lo array.lo my_once.lo list.lo \
                         charset.lo charset-def.lo hash.lo mf_iocache.lo \
                         mf_iocache2.lo my_seek.lo my_sleep.lo \
 			my_pread.lo mf_cache.lo md5.lo sha1.lo \

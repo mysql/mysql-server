@@ -575,11 +575,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  error= my_errno ? my_errno : -1;		/* Abort */
 	  break;
 	}
-	error=file->rnd_pos(sort_form->record[0],next_pos);
+	error= file->ha_rnd_pos(sort_form->record[0], next_pos);
       }
       else
       {
-	error=file->rnd_next(sort_form->record[0]);
+	error= file->ha_rnd_next(sort_form->record[0]);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
@@ -1668,7 +1668,7 @@ void change_double_for_sort(double nr,uchar *to)
   else
   {
 #ifdef WORDS_BIGENDIAN
-    memcpy_fixed(tmp,&nr,sizeof(nr));
+    memcpy(tmp, &nr, sizeof(nr));
 #else
     {
       uchar *ptr= (uchar*) &nr;

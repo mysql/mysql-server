@@ -5,9 +5,6 @@ dnl you must also create strings/ctype-$charset_name.c
 
 AC_DIVERT_PUSH(0)
 
-# Any changes to the available character sets must also go into
-# include/config-win.h
-
 define(CHARSETS_AVAILABLE0,binary)
 define(CHARSETS_AVAILABLE1,armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
 define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 cp932 dec8 eucjpms euckr gb2312 gbk geostd8)

@@ -27,7 +27,6 @@
 #include "mysqld.h"                             // lc_messages_dir
 #include "sys_vars_shared.h"
 #include "transaction.h"
-#include "sql_base.h"                           // close_thread_tables
 #include "sql_locale.h"                         // my_locale_by_number,
                                                 // my_locale_by_name
 #include "strfunc.h"      // find_set_from_flags, find_set

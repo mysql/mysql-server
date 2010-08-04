@@ -443,7 +443,7 @@ struct st_command
   char *query, *query_buf,*first_argument,*last_argument,*end;
   DYNAMIC_STRING content;
   int first_word_len, query_len;
-  my_bool abort_on_error;
+  my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char require_file[FN_REFLEN];
   enum enum_commands type;
@@ -3323,7 +3323,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
     if (ds_wild && ds_wild->length &&
         wild_compare(file->name, ds_wild->str, 0))
       continue;
-    dynstr_append(ds, file->name);
+    replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
   }
   set_wild_chars(0);
@@ -3353,7 +3353,8 @@ static void do_list_files(struct st_command *command)
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files");
-
+  command->used_replace= 1;
+  
   check_command_args(command, command->first_argument,
                      list_files_args,
                      sizeof(list_files_args)/sizeof(struct command_arg), ' ');
@@ -3394,6 +3395,7 @@ static void do_list_files_write_file_command(struct st_command *command,
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files_write_file");
+  command->used_replace= 1;
 
   check_command_args(command, command->first_argument,
                      list_files_args,
@@ -6010,8 +6012,8 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"result-format-version", OPT_RESULT_FORMAT_VERSION,
    "Version of the result file format to use",
-   (uchar**) &opt_result_format_version,
-   (uchar**) &opt_result_format_version, 0,
+   &opt_result_format_version,
+   &opt_result_format_version, 0,
    GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6054,8 +6056,7 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "Number of seconds before connection timeout.",
-   (uchar**) &opt_connect_timeout,
-   (uchar**) &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
+   &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -7539,15 +7540,14 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 char *re_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= my_regerror(REG_ITOA|err, (my_regex_t *)NULL,
-			  epbuf, sizeof(epbuf));
+  size_t len= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }
 
 void init_re_comp(my_regex_t *re, const char* str)
 {
-  int err= my_regcomp(re, str, (REG_EXTENDED | REG_ICASE | REG_NOSUB),
+  int err= my_regcomp(re, str, (MY_REG_EXTENDED | MY_REG_ICASE | MY_REG_NOSUB),
                       &my_charset_latin1);
   if (err)
   {
@@ -7603,7 +7603,7 @@ int match_re(my_regex_t *re, char *str)
 
   if (err == 0)
     return 1;
-  else if (err == REG_NOMATCH)
+  else if (err == MY_REG_NOMATCH)
     return 0;
 
   {
@@ -8377,7 +8377,7 @@ int main(int argc, char **argv)
       memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
     }
 
-    if (command_executed != last_command_executed)
+    if (command_executed != last_command_executed || command->used_replace)
     {
       /*
         As soon as any command has been executed,
@@ -8571,7 +8571,7 @@ void free_replace_column()
 typedef struct st_pointer_array {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
   uchar	*str;					/* Strings is here */
-  int7	*flag;					/* Flag about each var. */
+  uint8 *flag;					/* Flag about each var. */
   uint	array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
@@ -8998,7 +8998,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   char *buf= *buf_p;
   int len;
   int buf_len, need_buf_len;
-  int cflags= REG_EXTENDED;
+  int cflags= MY_REG_EXTENDED;
   int err_code;
   char *res_p,*str_p,*str_end;
 
@@ -9015,7 +9015,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   SECURE_REG_BUF
 
   if (icase)
-    cflags|= REG_ICASE;
+    cflags|= MY_REG_ICASE;
 
   if ((err_code= my_regcomp(&r,pattern,cflags,&my_charset_latin1)))
   {
@@ -9035,10 +9035,10 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   {
     /* find the match */
     err_code= my_regexec(&r,str_p, r.re_nsub+1, subs,
-                         (str_p == string) ? REG_NOTBOL : 0);
+                         (str_p == string) ? MY_REG_NOTBOL : 0);
 
     /* if regular expression error (eg. bad syntax, or out of memory) */
-    if (err_code && err_code != REG_NOMATCH)
+    if (err_code && err_code != MY_REG_NOMATCH)
     {
       check_regerr(&r,err_code);
       my_regfree(&r);
@@ -9071,7 +9071,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
         /* found a valid back_ref (eg. \1)*/
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          regoff_t start_off, end_off;
+          my_regoff_t start_off, end_off;
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
@@ -9114,7 +9114,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
-          regoff_t start_off, end_off;
+          my_regoff_t start_off, end_off;
           if ((start_off=subs[back_ref_num].rm_so) > -1 &&
               (end_off=subs[back_ref_num].rm_eo) > -1)
           {
@@ -9702,7 +9702,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
 					       sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     pa->length=0;
     pa->max_length=PS_MALLOC-MALLOC_OVERHEAD;
     pa->array_allocs=1;
@@ -9738,7 +9738,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     pa->typelib.type_names=new_array;
     old_count=pa->max_count;
     pa->max_count=len/(sizeof(uchar*) + sizeof(*pa->flag));
-    pa->flag= (int7*) (pa->typelib.type_names+pa->max_count);
+    pa->flag= (uint8*) (pa->typelib.type_names+pa->max_count);
     memcpy((uchar*) pa->flag,(char *) (pa->typelib.type_names+old_count),
 	   old_count*sizeof(*pa->flag));
   }

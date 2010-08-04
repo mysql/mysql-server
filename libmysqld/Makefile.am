@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2006 MySQL AB
+# Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -66,7 +66,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_profile.cc sql_truncate.cc datadict.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
-	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc \
+	sql_lex.cc sql_list.cc sql_manager.cc \
 	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc sys_vars.cc \
@@ -81,7 +81,10 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	debug_sync.cc sql_tablespace.cc transaction.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
-	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc
+	sql_bootstrap.cc \
+	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc \
+	sql_alter_table.cc \
+	sql_partition_admin.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
 nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)

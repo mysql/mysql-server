@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 #called from the top level Makefile
 
@@ -96,7 +96,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			thr_malloc.h \
 			sql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
-			sql_map.h sql_string.h unireg.h \
+			sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			sql_profile.h mysqld.h sql_help.h frm_crypt.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
@@ -128,7 +128,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_plugin.h authors.h event_parse_data.h \
 			event_data_objects.h event_scheduler.h \
 			sql_partition.h partition_info.h partition_element.h \
-			sql_audit.h \
+			sql_audit.h sql_alter_table.h sql_partition_admin.h \
 			contributors.h sql_servers.h sql_signal.h records.h \
 			sql_prepare.h rpl_handler.h replication.h mdl.h \
 			sql_plist.h transaction.h sys_vars.h sql_truncate.h \
@@ -142,7 +142,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item_row.cc item_geofunc.cc item_xmlfunc.cc \
 			field.cc strfunc.cc key.cc sql_class.cc sql_list.cc \
 			net_serv.cc protocol.cc sql_state.c \
-			lock.cc sql_string.cc sql_manager.cc sql_map.cc \
+			lock.cc sql_string.cc sql_manager.cc \
 			main.cc mysqld.cc password.c hash_filo.cc hostname.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
 			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
@@ -161,8 +161,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
                         sql_union.cc sql_derived.cc \
-			sql_client.cc \
-			sql_olap.cc sql_view.cc \
+			sql_client.cc sql_bootstrap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
 			tztime.cc my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
@@ -173,7 +172,9 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
 			sql_servers.cc event_parse_data.cc sql_signal.cc \
 			mdl.cc transaction.cc sql_audit.cc  \
-			sha2.cc
+			sha2.cc \
+			sql_alter_table.cc \
+			sql_partition_admin.cc
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
 

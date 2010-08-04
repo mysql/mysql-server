@@ -3320,6 +3320,19 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       
       thd->table_map_for_update= (table_map)table_map_for_update;
       thd->set_invoker(&user, &host);
+      /*
+        Flag if we need to rollback the statement transaction on
+        slave if it by chance succeeds.
+        If we expected a non-zero error code and get nothing and,
+        it is a concurrency issue or ignorable issue, effects
+        of the statement should be rolled back.
+      */
+      if (expected_error &&
+          (ignored_error_code(expected_error) ||
+           concurrency_error_code(expected_error)))
+      {
+        thd->variables.option_bits|= OPTION_MASTER_SQL_ERROR;
+      }
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
@@ -3327,6 +3340,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
         log_slow_statement(thd);
       }
+
+      thd->variables.option_bits&= ~OPTION_MASTER_SQL_ERROR;
 
       /*
         Resetting the enable_slow_log thd variable.
@@ -3370,7 +3385,6 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
 compare_errors:
-
     /*
       In the slave thread, we may sometimes execute some DROP / * 40005
       TEMPORARY * / TABLE that come from parts of binlogs (likely if we
@@ -3418,25 +3432,7 @@ Default database: '%s'. Query: '%s'",
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
-      /*
-        When an error is expected and matches the actual error the
-        slave does not report any error and by consequence changes
-        on transactional tables are not rolled back in the function
-        close_thread_tables(). For that reason, we explicitly roll
-        them back here.
-      */
-      if (expected_error && expected_error == actual_error)
-        trans_rollback_stmt(thd);
     }
-    /*
-      If we expected a non-zero error code and get nothing and, it is a concurrency
-      issue or should be ignored.
-    */
-    else if (expected_error && !actual_error &&
-             (concurrency_error_code(expected_error) ||
-              ignored_error_code(expected_error)))
-      trans_rollback_stmt(thd);
-
     /*
       Other cases: mostly we expected no error and get one.
     */
@@ -3504,7 +3500,6 @@ end:
   thd->set_db(NULL, 0);                 /* will free the current database */
   thd->set_query(NULL, 0);
   DBUG_PRINT("info", ("end: query= 0"));
-  close_thread_tables(thd);
   /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able
@@ -3707,6 +3702,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
 int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Start_log_event_v3::do_apply_event");
+  int error= 0;
   switch (binlog_version)
   {
   case 3:
@@ -3719,7 +3715,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     */
     if (created)
     {
-      close_temporary_tables(thd);
+      error= close_temporary_tables(thd);
       cleanup_load_tmpdir();
     }
     else
@@ -3747,7 +3743,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
         Can distinguish, based on the value of 'created': this event was
         generated at master startup.
       */
-      close_temporary_tables(thd);
+      error= close_temporary_tables(thd);
     }
     /*
       Otherwise, can't distinguish a Start_log_event generated at
@@ -3759,7 +3755,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     /* this case is impossible */
     DBUG_RETURN(1);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
@@ -4934,7 +4930,22 @@ error:
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
   thd->set_query(NULL, 0);
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
   close_thread_tables(thd);
+  /*
+    - If inside a multi-statement transaction,
+    defer the release of metadata locks until the current
+    transaction is either committed or rolled back. This prevents
+    other statements from modifying the table for the entire
+    duration of this transaction.  This provides commit ordering
+    and guarantees serializability across multiple transactions.
+    - If in autocommit mode, or outside a transactional context,
+    automatically release metadata locks of the current statement.
+  */
+  if (! thd->in_multi_stmt_transaction_mode())
+    thd->mdl_context.release_transactional_locks();
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
                   thd->is_slave_error= 0; thd->is_fatal_error= 1;);
@@ -5522,11 +5533,9 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  if (!(res= trans_commit(thd)))
-  {
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
-  }
+  res= trans_commit(thd); /* Automatically rolls back on error. */
+  thd->mdl_context.release_transactional_locks();
+
   return res;
 }
 
@@ -7604,8 +7613,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
             We should not honour --slave-skip-errors at this point as we are
             having severe errors which should not be skiped.
           */
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
           thd->is_slave_error= 1;
           const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
@@ -8787,19 +8794,19 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
 
-       - use rnd_pos() with a row-id (available as dupp_row) to the
+       - use ha_rnd_pos() with a row-id (available as dupp_row) to the
          offending row, if that is possible (MyISAM and Blackhole), or else
 
-       - use index_read_idx() with the key that is duplicated, to
+       - use ha_index_read_idx_map() with the key that is duplicated, to
          retrieve the offending row.
      */
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
-      DBUG_PRINT("info",("Locating offending record using rnd_pos()"));
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      DBUG_PRINT("info",("Locating offending record using ha_rnd_pos()"));
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
-        DBUG_PRINT("info",("rnd_pos() returns error %d",error));
+        DBUG_PRINT("info",("ha_rnd_pos() returns error %d",error));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
@@ -8828,13 +8835,13 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
       key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
                0);
-      error= table->file->index_read_idx_map(table->record[1], keynum,
-                                             (const uchar*)key.get(),
-                                             HA_WHOLE_KEY,
-                                             HA_READ_KEY_EXACT);
+      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                (const uchar*)key.get(),
+                                                HA_WHOLE_KEY,
+                                                HA_READ_KEY_EXACT);
       if (error)
       {
-        DBUG_PRINT("info",("index_read_idx() returns %s", HA_ERR(error)));
+        DBUG_PRINT("info",("ha_index_read_idx_map() returns %s", HA_ERR(error)));
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
         table->file->print_error(error, MYF(0));
@@ -9183,9 +9190,9 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       table->record[0][table->s->null_bytes - 1]|=
         256U - (1U << table->s->last_null_bit_pos);
 
-    if ((error= table->file->index_read_map(table->record[0], m_key, 
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_map(table->record[0], m_key,
+                                               HA_WHOLE_KEY,
+                                               HA_READ_KEY_EXACT)))
     {
       DBUG_PRINT("info",("no record matching the key found in the table"));
       if (error == HA_ERR_RECORD_DELETED)
@@ -9274,7 +9281,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      while ((error= table->file->index_next(table->record[0])))
+      while ((error= table->file->ha_index_next(table->record[0])))
       {
         /* We just skip records that has already been deleted */
         if (error == HA_ERR_RECORD_DELETED)
@@ -9293,11 +9300,11 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   }
   else
   {
-    DBUG_PRINT("info",("locating record using table scan (rnd_next)"));
+    DBUG_PRINT("info",("locating record using table scan (ha_rnd_next)"));
 
     int restart_count= 0; // Number of times scanning has restarted from top
 
-    /* We don't have a key: search the table using rnd_next() */
+    /* We don't have a key: search the table using ha_rnd_next() */
     if ((error= table->file->ha_rnd_init(1)))
     {
       DBUG_PRINT("info",("error initializing table scan"
@@ -9309,8 +9316,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
-  restart_rnd_next:
-      error= table->file->rnd_next(table->record[0]);
+  restart_ha_rnd_next:
+      error= table->file->ha_rnd_next(table->record[0]);
 
       DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
@@ -9323,7 +9330,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
         any comparisons.
       */
       case HA_ERR_RECORD_DELETED:
-        goto restart_rnd_next;
+        goto restart_ha_rnd_next;
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
@@ -9332,7 +9339,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
       default:
         DBUG_PRINT("info", ("Failed to get next record"
-                            " (rnd_next returns %d)",error));
+                            " (ha_rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
         table->file->ha_rnd_end();
         goto err;

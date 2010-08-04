@@ -291,7 +291,8 @@ my_strnxfrmlen_czech(CHARSET_INFO *cs __attribute__((unused)), size_t len)
 
 static size_t
 my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
-                  uchar *dest, size_t len, uint nweights_arg,
+                  uchar *dest, size_t len,
+                  uint nweights_arg __attribute__((unused)),
                   const uchar *src, size_t srclen, uint flags)
 {
   int value;

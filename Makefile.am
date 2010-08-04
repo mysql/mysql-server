@@ -31,6 +31,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@libmysqld_dirs@ \
 			mysql-test support-files sql-bench \
 			win \
+			packaging \
 			cmake
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
@@ -41,6 +42,7 @@ DIST_SUBDIRS =		. include Docs zlib \
 			mysql-test support-files sql-bench \
 			win \
 			cmake \
+			packaging \
 			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 
@@ -64,7 +66,7 @@ dist-hook:
 	test ! -f $(top_srcdir)/configure.am  || \
 	$(INSTALL_DATA)  $(top_srcdir)/configure.am $(distdir)
 
-all-local:		@ABI_CHECK@	
+all-local:		@ABI_CHECK@
 
 tags:
 	support-files/build-tags
@@ -313,7 +315,7 @@ abi_check_all:	abi_check
 do_abi_check:
 	set -ex; \
 	for file in $(abi_headers); do \
-	         @CC@ -E -nostdinc -dI \
+	         @CC@ -E -nostdinc -dI -DMYSQL_ABI_CHECK \
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
 	                  -I$(top_srcdir)/sql \

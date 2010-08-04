@@ -73,7 +73,8 @@ dict_mem_table_create(
 	table->heap = heap;
 
 	table->flags = (unsigned int) flags;
-	table->name = mem_heap_strdup(heap, name);
+	table->name = ut_malloc(strlen(name) + 1);
+	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
 	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
 
@@ -112,6 +113,7 @@ dict_mem_table_free(
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
+	ut_free(table->name);
 	mem_heap_free(table->heap);
 }
 
@@ -202,6 +204,37 @@ dict_mem_table_add_col(
 	col = dict_table_get_nth_col(table, i);
 
 	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
+}
+
+
+/**********************************************************************//**
+This function populates a dict_col_t memory structure with
+supplied information. */
+UNIV_INTERN
+void
+dict_mem_fill_column_struct(
+/*========================*/
+	dict_col_t*	column,		/*!< out: column struct to be
+					filled */
+	ulint		col_pos,	/*!< in: column position */
+	ulint		mtype,		/*!< in: main data type */
+	ulint		prtype,		/*!< in: precise type */
+	ulint		col_len)	/*!< in: column length */
+{
+#ifndef UNIV_HOTBACKUP
+	ulint	mbminlen;
+	ulint	mbmaxlen;
+#endif /* !UNIV_HOTBACKUP */
+
+	column->ind = (unsigned int) col_pos;
+	column->ord_part = 0;
+	column->mtype = (unsigned int) mtype;
+	column->prtype = (unsigned int) prtype;
+	column->len = (unsigned int) col_len;
+#ifndef UNIV_HOTBACKUP
+        dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
+	dict_col_set_mbminmaxlen(column, mbminlen, mbmaxlen);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /**********************************************************************//**

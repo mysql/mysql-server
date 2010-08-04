@@ -235,4 +235,19 @@ INSERT INTO t2 SELECT f1();
 DROP TABLE t1,t2,t3;
 DROP FUNCTION f1;
 
+--echo #
+--echo # Bug #48067: A temp table with the same name as an existing table, 
+--echo #             makes drop database fail.
+--echo #
+--disable_warnings
+DROP TEMPORARY TABLE IF EXISTS bug48067.t1;
+DROP DATABASE IF EXISTS bug48067;
+--enable_warnings
+CREATE DATABASE bug48067;
+CREATE TABLE bug48067.t1 (c1 int);
+INSERT INTO bug48067.t1 values (1);
+CREATE TEMPORARY TABLE bug48067.t1 (c1 int);
+DROP DATABASE bug48067;
+DROP TEMPORARY table bug48067.t1;
+
 --echo End of 5.1 tests
