@@ -58,40 +58,40 @@ const char *opt_debug= 0;
     "Set connect string for connecting to ndb_mgmd. " \
     "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
     "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", \
-    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
+    &opt_ndb_connectstring, &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "ndb-mgmd-host", OPT_NDB_MGMD, \
     "Set host and port for connecting to ndb_mgmd. " \
     "Syntax: <hostname>[:<port>].", \
-    (uchar**) &opt_ndb_mgmd, (uchar**) &opt_ndb_mgmd, 0, \
+    &opt_ndb_mgmd, &opt_ndb_mgmd, 0, \
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "ndb-nodeid", OPT_NDB_NODEID, \
     "Set node id for this node.", \
-    (uchar**) &opt_ndb_nodeid, (uchar**) &opt_ndb_nodeid, 0, \
+    &opt_ndb_nodeid, &opt_ndb_nodeid, 0, \
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "ndb-shm", OPT_NDB_SHM,\
     "Allow optimizing using shared memory connections when available",\
-    (uchar**) &opt_ndb_shm, (uchar**) &opt_ndb_shm, 0,\
+    &opt_ndb_shm, &opt_ndb_shm, 0,\
     GET_BOOL, NO_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0 },\
   {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,\
     "Select nodes for transactions in a more optimal way",\
-    (uchar**) &opt_ndb_optimized_node_selection,\
-    (uchar**) &opt_ndb_optimized_node_selection, 0,\
+    &opt_ndb_optimized_node_selection,\
+    &opt_ndb_optimized_node_selection, 0,\
     GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},\
   { "connect-string", OPT_NDB_CONNECTSTRING, "same as --ndb-connectstring",\
-    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
+    &opt_ndb_connectstring, &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "core-file", OPT_WANT_CORE, "Write core on errors.",\
-    (uchar**) &opt_core, (uchar**) &opt_core, 0,\
+    &opt_core, &opt_core, 0,\
     GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0},\
   {"character-sets-dir", OPT_CHARSETS_DIR,\
-     "Directory where character sets are.", (uchar**) &charsets_dir,\
-     (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}\
+     "Directory where character sets are.", &charsets_dir,\
+     &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}\
 
 #ifndef DBUG_OFF
 #define NDB_STD_OPTS(prog_name) \
   { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
-    (uchar**) &opt_debug, (uchar**) &opt_debug, \
+    &opt_debug, &opt_debug, \
     0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 }, \
   NDB_STD_OPTS_COMMON
 #else

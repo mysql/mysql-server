@@ -65,10 +65,6 @@
 #include "debug_sync.h"
 
 static const char *ha_par_ext= ".par";
-#ifdef NOT_USED
-static int free_share(PARTITION_SHARE * share);
-static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
-#endif
 
 /****************************************************************************
                 MODULE create/delete handler object
@@ -153,7 +149,7 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
           HA_FAST_CHANGE_PARTITION);
 }
 
-const uint ha_partition::NO_CURRENT_PART_ID= 0xFFFFFFFF;
+const uint32 ha_partition::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
 
 /*
   Constructor method
@@ -1130,13 +1126,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
           part= i * num_subparts + j;
           DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
                      part, sub_elem->partition_name));
-#ifdef NOT_USED
-          if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                          opt_op_name[flag],
-                          "Start to operate on subpartition %s", 
-                          sub_elem->partition_name))
-            DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
           if ((error= handle_opt_part(thd, check_opt, m_file[part], flag)))
           {
             /* print a line which partition the error belongs to */
@@ -1163,13 +1152,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
       {
         DBUG_PRINT("info", ("Optimize partition %u (%s)", i,
                             part_elem->partition_name));
-#ifdef NOT_USED
-        if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
-                        opt_op_name[flag],
-                        "Start to operate on partition %s", 
-                        part_elem->partition_name))
-          DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-#endif
         if ((error= handle_opt_part(thd, check_opt, m_file[i], flag)))
         {
           /* print a line which partition the error belongs to */
@@ -1315,7 +1297,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
 
   DBUG_RETURN(0);
 error_external_lock:
-  (void) file->close();
+  (void) file->ha_close();
 error_open:
   (void) file->ha_delete_table(part_name);
 error_create:
@@ -1361,7 +1343,7 @@ void ha_partition::cleanup_new_partition(uint part_count)
     while ((part_count > 0) && (*file))
     {
       (*file)->ha_external_lock(thd, F_UNLCK);
-      (*file)->close();
+      (*file)->ha_close();
 
       /* Leave the (*file)->ha_delete_table(part_name) to the ddl-log */
 
@@ -1730,7 +1712,7 @@ int ha_partition::copy_partitions(ulonglong * const copied,
       goto error;
     while (TRUE)
     {
-      if ((result= file->rnd_next(m_rec0)))
+      if ((result= file->ha_rnd_next(m_rec0)))
       {
         if (result == HA_ERR_RECORD_DELETED)
           continue;                              //Probably MyISAM
@@ -2701,7 +2683,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 err_handler:
   DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
-    (*file)->close();
+    (*file)->ha_close();
   bitmap_free(&m_bulk_insert_started);
   if (!is_clone)
     bitmap_free(&(m_part_info->used_partitions));
@@ -2758,7 +2740,7 @@ int ha_partition::close(void)
 repeat:
   do
   {
-    (*file)->close();
+    (*file)->ha_close();
   } while (*(++file));
 
   if (first && m_added_file && m_added_file[0])
@@ -3813,7 +3795,7 @@ int ha_partition::rnd_next(uchar *buf)
   
   while (TRUE)
   {
-    result= file->rnd_next(buf);
+    result= file->ha_rnd_next(buf);
     if (!result)
     {
       m_last_part= part_id;
@@ -3823,7 +3805,7 @@ int ha_partition::rnd_next(uchar *buf)
     }
 
     /*
-      if we get here, then the current partition rnd_next returned failure
+      if we get here, then the current partition ha_rnd_next returned failure
     */
     if (result == HA_ERR_RECORD_DELETED)
       continue;                               // Probably MyISAM
@@ -3946,7 +3928,7 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
   DBUG_ASSERT(part_id < m_tot_parts);
   file= m_file[part_id];
   m_last_part= part_id;
-  DBUG_RETURN(file->rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
+  DBUG_RETURN(file->ha_rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
 }
 
 
@@ -4401,8 +4383,8 @@ int ha_partition::index_read_idx_map(uchar *buf, uint index,
     {
       if (bitmap_is_set(&(m_part_info->used_partitions), part))
       {
-        error= m_file[part]->index_read_idx_map(buf, index, key,
-                                                keypart_map, find_flag);
+        error= m_file[part]->ha_index_read_idx_map(buf, index, key,
+                                                   keypart_map, find_flag);
         if (error != HA_ERR_KEY_NOT_FOUND &&
             error != HA_ERR_END_OF_FILE)
           break;
@@ -4714,8 +4696,8 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else if (is_next_same)
   {
-    if (!(error= file->index_next_same(buf, m_start_key.key,
-                                       m_start_key.length)))
+    if (!(error= file->ha_index_next_same(buf, m_start_key.key,
+                                          m_start_key.length)))
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);
@@ -4723,7 +4705,7 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else 
   {
-    if (!(error= file->index_next(buf)))
+    if (!(error= file->ha_index_next(buf)))
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);                           // Row was in range
@@ -4778,13 +4760,13 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
       break;
     case partition_index_read:
       DBUG_PRINT("info", ("index_read on partition %d", i));
-      error= file->index_read_map(buf, m_start_key.key,
-                                  m_start_key.keypart_map,
-                                  m_start_key.flag);
+      error= file->ha_index_read_map(buf, m_start_key.key,
+                                     m_start_key.keypart_map,
+                                     m_start_key.flag);
       break;
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
-      error= file->index_first(buf);
+      error= file->ha_index_first(buf);
       break;
     case partition_index_first_unordered:
       /*
@@ -4865,17 +4847,17 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
 
     switch (m_index_scan_type) {
     case partition_index_read:
-      error= file->index_read_map(rec_buf_ptr,
-                                  m_start_key.key,
-                                  m_start_key.keypart_map,
-                                  m_start_key.flag);
+      error= file->ha_index_read_map(rec_buf_ptr,
+                                     m_start_key.key,
+                                     m_start_key.keypart_map,
+                                     m_start_key.flag);
       break;
     case partition_index_first:
-      error= file->index_first(rec_buf_ptr);
+      error= file->ha_index_first(rec_buf_ptr);
       reverse_order= FALSE;
       break;
     case partition_index_last:
-      error= file->index_last(rec_buf_ptr);
+      error= file->ha_index_last(rec_buf_ptr);
       reverse_order= TRUE;
       break;
     case partition_index_read_last:
@@ -4983,10 +4965,10 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     memcpy(rec_buf(part_id), table->record[0], m_rec_length);
   }
   else if (!is_next_same)
-    error= file->index_next(rec_buf(part_id));
+    error= file->ha_index_next(rec_buf(part_id));
   else
-    error= file->index_next_same(rec_buf(part_id), m_start_key.key,
-				 m_start_key.length);
+    error= file->ha_index_next_same(rec_buf(part_id), m_start_key.key,
+                                    m_start_key.length);
   if (error)
   {
     if (error == HA_ERR_END_OF_FILE)
@@ -5031,7 +5013,7 @@ int ha_partition::handle_ordered_prev(uchar *buf)
   handler *file= m_file[part_id];
   DBUG_ENTER("ha_partition::handle_ordered_prev");
 
-  if ((error= file->index_prev(rec_buf(part_id))))
+  if ((error= file->ha_index_prev(rec_buf(part_id))))
   {
     if (error == HA_ERR_END_OF_FILE)
     {

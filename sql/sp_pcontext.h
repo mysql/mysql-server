@@ -332,13 +332,6 @@ public:
   int
   push_cond(LEX_STRING *name, sp_cond_type_t *val);
 
-  inline void
-  pop_cond(uint num)
-  {
-    while (num--)
-      pop_dynamic(&m_conds);
-  }
-
   sp_cond_type_t *
   find_cond(LEX_STRING *name, my_bool scoped=0);
 

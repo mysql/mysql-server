@@ -432,6 +432,12 @@ void free_table_share(TABLE_SHARE *share)
       key_info->flags= 0;
     }
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server && share->m_psi))
+    PSI_server->release_table_share(share->m_psi);
+#endif
+
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
   free_root(&mem_root, MYF(0));                 // Free's share
@@ -796,7 +802,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     goto err;                                   /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   share->key_info= keyinfo;
-  key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
+  key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
   strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
@@ -1821,8 +1827,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
       goto err;
     outparam->key_info= key_info;
-    key_part= (my_reinterpret_cast(KEY_PART_INFO*) (key_info+share->keys));
-    
+    key_part= (reinterpret_cast<KEY_PART_INFO*>(key_info+share->keys));
+
     memcpy(key_info, share->key_info, sizeof(*key_info)*share->keys);
     memcpy(key_part, share->key_info[0].key_part, (sizeof(*key_part) *
                                                    share->key_parts));
@@ -2030,7 +2036,7 @@ int closefrm(register TABLE *table, bool free_share)
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
-    error=table->file->close();
+    error=table->file->ha_close();
   my_free((void *) table->alias);
   table->alias= 0;
   if (table->field)

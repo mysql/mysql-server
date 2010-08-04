@@ -1083,11 +1083,11 @@ static struct my_option my_long_options[] =
    0, 0},
   {"raw", OPT_RAW_OUTPUT, "Requires -R. Output raw binlog data instead of SQL "
    "statements, output is to log files.",
-   (uchar**) &raw_mode, (uchar**) &raw_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   &raw_mode, &raw_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r', "Direct output to a given file. With --raw this is a "
    "prefix for the file names.",
-   (uchar**) &output_file, (uchar**) &output_file, 0, GET_STR, REQUIRED_ARG,
+   &output_file, &output_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
@@ -1138,11 +1138,11 @@ static struct my_option my_long_options[] =
    "instead of stopping at the end of the last log. Implicitly sets "
    "--to-last-log but instead of stopping at the end of the last log "
    "it continues to wait till the server disconnects.",
-   (uchar**) &stop_never, (uchar**) &stop_never, 0,
+   &stop_never, &stop_never, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
    "The slave server ID used for stop-never",
-   (uchar**) &stop_never_server_id, (uchar**) &stop_never_server_id, 0,
+   &stop_never_server_id, &stop_never_server_id, 0,
    GET_UINT, REQUIRED_ARG, 65535, 1, 65535, 0, 0, 0},
   {"stop-position", OPT_STOP_POSITION,
    "Stop reading the binlog at position N. Applies to the last binlog "
@@ -1172,8 +1172,8 @@ static struct my_option my_long_options[] =
    "The maximum size of a row-based binary log event in bytes. Rows will be "
    "grouped into events smaller than this size if possible. "
    "This value must be a multiple of 256.",
-   (uchar**) &opt_binlog_rows_event_max_size,
-   (uchar**) &opt_binlog_rows_event_max_size, 0,
+   &opt_binlog_rows_event_max_size,
+   &opt_binlog_rows_event_max_size, 0,
    GET_ULONG, REQUIRED_ARG,
    /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
