@@ -123,6 +123,8 @@ struct PFS_file : public PFS_instr
 /** Instrumented table implementation. @see PSI_table. */
 struct PFS_table : public PFS_instr
 {
+  /** Owner. */
+  PFS_thread *m_opening_thread;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */
@@ -265,7 +267,8 @@ PFS_file* find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 
 void release_file(PFS_file *pfs);
 void destroy_file(PFS_thread *thread, PFS_file *pfs);
-PFS_table* create_table(PFS_table_share *share, const void *identity);
+PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
+                        const void *identity);
 void destroy_table(PFS_table *pfs);
 
 /* For iterators and show status. */

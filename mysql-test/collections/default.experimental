@@ -27,6 +27,9 @@ main.wait_timeout @solaris               # Bug#51244 2010-04-26 alik wait_timeou
 
 parts.partition_alter4_innodb            # Bug#45299 2010-06-28 alik Test "partition_alter4_innodb" is taking too long, timeout
 
+perfschema.start_server_on               # Bug#55576 2010-08-02 alik Two perfschema tests failed on mysql-next-mr-innodb PB2 tests#
+perfschema.server_init                   # Bug#55576 2010-08-02 alik Two perfschema tests failed on mysql-next-mr-innodb PB2 tests#
+
 rpl.rpl_heartbeat_basic                  # BUG#54820 2010-06-26 alik rpl.rpl_heartbeat_basic fails sporadically again
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 rpl.rpl_plugin_load*  @solaris           # Bug#47146

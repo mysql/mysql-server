@@ -38,7 +38,7 @@
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                     THR_LOCK_INFO, THR_LOCK_OWNER */
+                                     THR_LOCK_INFO */
 
 
 class Reprepare_observer;
@@ -734,7 +734,6 @@ public:
     ENGINE INNODB STATUS.
   */
   LEX_STRING query_string;
-  Server_side_cursor *cursor;
 
   inline char *query() { return query_string.str; }
   inline uint32 query_length() { return query_string.length; }
@@ -1427,9 +1426,6 @@ public:
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
-  THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
-  THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
-                                        // the lock_id of a cursor.
   /**
     Protects THD data accessed from other threads:
     - thd->query and thd->query_length (used by SHOW ENGINE
@@ -2829,23 +2825,6 @@ private:
                   MYSQL_ERROR::enum_warning_level level,
                   const char* msg);
 
-  /**
-    Raise a generic SQL condition, without activation any SQL condition
-    handlers.
-    This method is necessary to support the RESIGNAL statement,
-    which is allowed to bypass SQL exception handlers.
-    @param sql_errno the condition error number
-    @param sqlstate the condition SQLSTATE
-    @param level the condition level
-    @param msg the condition message text
-    @return The condition raised, or NULL
-  */
-  MYSQL_ERROR*
-  raise_condition_no_handler(uint sql_errno,
-                             const char* sqlstate,
-                             MYSQL_ERROR::enum_warning_level level,
-                             const char* msg);
-
 public:
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
@@ -3016,7 +2995,7 @@ public:
     @retval TRUE      error, an error message is set
   */
   virtual bool check_simple_select() const;
-  virtual void abort() {}
+  virtual void abort_result_set() {}
   /*
     Cleanup instance of this class for next execution of a prepared
     statement/stored procedure.
@@ -3059,7 +3038,7 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
-  void abort();
+  void abort_result_set();
   virtual void cleanup();
 };
 
@@ -3151,7 +3130,7 @@ class select_insert :public select_result_interceptor {
   virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
 };
@@ -3187,7 +3166,7 @@ public:
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   virtual bool can_rollback_data() { return 1; }
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
@@ -3591,7 +3570,7 @@ public:
   {
     return deleted;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 
@@ -3642,7 +3621,7 @@ public:
   {
     return updated;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 class my_var : public Sql_alloc  {

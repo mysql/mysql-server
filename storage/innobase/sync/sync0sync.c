@@ -40,6 +40,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "buf0types.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#ifdef UNIV_SYNC_DEBUG
+# include "srv0start.h" /* srv_is_being_started */
+#endif /* UNIV_SYNC_DEBUG */
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
@@ -1152,6 +1155,13 @@ sync_thread_add_level(
 	case SYNC_TREE_NODE_FROM_HASH:
 		/* Do no order checking */
 		break;
+	case SYNC_TRX_SYS_HEADER:
+		if (srv_is_being_started) {
+			/* This is violated during trx_sys_create_rsegs()
+			when creating additional rollback segments when
+			upgrading in innobase_start_or_create_for_mysql(). */
+			break;
+		}
 	case SYNC_MEM_POOL:
 	case SYNC_MEM_HASH:
 	case SYNC_RECV:
@@ -1160,7 +1170,6 @@ sync_thread_add_level(
 	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_THR_LOCAL:
 	case SYNC_ANY_LATCH:
-	case SYNC_TRX_SYS_HEADER:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:
@@ -1196,6 +1205,13 @@ sync_thread_add_level(
 		}
 		break;
 
+
+	case SYNC_BUF_PAGE_HASH:
+		/* Multiple page_hash mutexes are only allowed during
+		buf_validate and that is where buf_pool mutex is already
+		held. */
+		/* Fall through */
+
 	case SYNC_BUF_BLOCK:
 		/* Either the thread must own the buffer pool mutex
 		(buf_pool_mutex), or it is allowed to latch only ONE
@@ -1222,8 +1238,12 @@ sync_thread_add_level(
 			ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1,
 						  TRUE));
 		} else {
-			ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP,
-						  TRUE));
+			/* This is violated during trx_sys_create_rsegs()
+			when creating additional rollback segments when
+			upgrading in innobase_start_or_create_for_mysql(). */
+			ut_a(srv_is_being_started
+			     || sync_thread_levels_g(array, SYNC_IBUF_BITMAP,
+						     TRUE));
 		}
 		break;
 	case SYNC_FSP_PAGE:
@@ -1492,14 +1512,16 @@ sync_print_wait_info(
 
 	fprintf(file,
 		"Mutex spin waits %llu, rounds %llu, OS waits %llu\n"
-		"RW-shared spins %llu, OS waits %llu;"
-		" RW-excl spins %llu, OS waits %llu\n",
+		"RW-shared spins %llu, rounds %llu, OS waits %llu\n"
+		"RW-excl spins %llu, rounds %llu, OS waits %llu\n",
 		mutex_spin_wait_count,
 		mutex_spin_round_count,
 		mutex_os_wait_count,
 		rw_s_spin_wait_count,
+		rw_s_spin_round_count,
 		rw_s_os_wait_count,
 		rw_x_spin_wait_count,
+		rw_x_spin_round_count,
 		rw_x_os_wait_count);
 
 	fprintf(file,
