@@ -3502,7 +3502,7 @@ retry:
 		  sql_print_error("Table %s has a primary key in InnoDB data "
 				  "dictionary, but not in MySQL!", name);
 		}
-
+                  
 		prebuilt->clust_index_was_generated = FALSE;
 
 		/* MySQL allocates the buffer for ref. key_info->key_length
@@ -3511,7 +3511,8 @@ retry:
 		save space, because all row reference buffers are allocated
 		based on ref_length. */
 
-		ref_length = table->key_info[primary_key].key_length;
+		if (primary_key < MAX_KEY)
+                  ref_length = table->key_info[primary_key].key_length;
 	} else {
 		if (primary_key != MAX_KEY) {
 		  sql_print_error("Table %s has no primary key in InnoDB data "

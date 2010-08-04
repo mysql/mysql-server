@@ -16,6 +16,8 @@
 -- source include/have_innodb_plugin.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
 
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
