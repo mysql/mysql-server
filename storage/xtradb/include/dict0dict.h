@@ -928,9 +928,10 @@ UNIV_INTERN
 void
 dict_table_check_for_dup_indexes(
 /*=============================*/
-	const dict_table_t*	table);	/*!< in: Check for dup indexes
+	const dict_table_t*	table,	/*!< in: Check for dup indexes
 					in this table */
-
+	ibool			tmp_ok);/*!< in: TRUE=allow temporary
+					index names */
 #endif /* UNIV_DEBUG */
 /**********************************************************************//**
 Builds a node pointer out of a physical record and a page number.
@@ -1060,6 +1061,22 @@ UNIV_INTERN
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
+/**********************************************************************//**
+Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
+index->id is used to pick the right mutex and it should not change
+before dict_index_stat_mutex_exit() is called on this index. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_enter(
+/*========================*/
+	const dict_index_t*	index);	/*!< in: index */
+/**********************************************************************//**
+Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_exit(
+/*=======================*/
+	const dict_index_t*	index);	/*!< in: index */
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return	TRUE if same db name */

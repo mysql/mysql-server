@@ -141,6 +141,8 @@ show create table t4;
 --error ER_CANT_CREATE_TABLE
 alter table t3 add constraint dc foreign key (a) references t1(a);
 show create table t3;
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
 alter table t2 drop index b, add index (b);
 show create table t2;
 --error ER_ROW_IS_REFERENCED_2

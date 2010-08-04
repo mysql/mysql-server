@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -206,7 +206,8 @@ UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-	const mutex_t*	mutex);	/*!< in: mutex */
+	const mutex_t*	mutex)	/*!< in: mutex */
+	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
@@ -238,16 +239,27 @@ ibool
 sync_thread_levels_empty(void);
 /*==========================*/
 /******************************************************************//**
-Checks that the level array for the current thread is empty.
-@return	TRUE if empty except the exceptions specified below */
+Checks if the level array for the current thread contains a
+mutex or rw-latch at the specified level.
+@return	a matching latch, or NULL if not found */
 UNIV_INTERN
-ibool
-sync_thread_levels_empty_gen(
-/*=========================*/
+void*
+sync_thread_levels_contains(
+/*========================*/
+	ulint	level);			/*!< in: latching order level
+					(SYNC_DICT, ...)*/
+/******************************************************************//**
+Checks if the level array for the current thread is empty.
+@return	a latch, or NULL if empty except the exceptions specified below */
+UNIV_INTERN
+void*
+sync_thread_levels_nonempty_gen(
+/*============================*/
 	ibool	dict_mutex_allowed);	/*!< in: TRUE if dictionary mutex is
 					allowed to be owned by the thread,
 					also purge_is_running mutex is
 					allowed */
+#define sync_thread_levels_empty_gen(d) (!sync_thread_levels_nonempty_gen(d))
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
 UNIV_INTERN

@@ -1,0 +1,24 @@
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set global long_query_time=4;
+set global use_global_long_query_time=1;
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set global long_query_time=2;
+set global use_global_long_query_time=0;
+cat MYSQLD_DATADIR/percona_slow_query_log-use_global_long_query_time.log | grep Query_time | wc -l
+3

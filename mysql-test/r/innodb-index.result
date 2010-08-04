@@ -442,6 +442,7 @@ t3	CREATE TABLE `t3` (
   KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t2 drop index b, add index (b);
+ERROR 42000: Incorrect index name 'b'
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -452,8 +453,8 @@ t2	CREATE TABLE `t2` (
   `e` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `dc` (`d`,`c`),
-  KEY `c` (`c`),
   KEY `b` (`b`),
+  KEY `c` (`c`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE CASCADE,
   CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`c`),
   CONSTRAINT `t2_ibfk_3` FOREIGN KEY (`d`) REFERENCES `t4` (`d`)
@@ -628,7 +629,7 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
 alter table t1 add unique index (b), add unique index (c), add unique index (d);
-ERROR 23000: Duplicate entry 'ac' for key 'c'
+ERROR 23000: Duplicate entry '4' for key 'b'
 alter table t1 add unique index (c), add unique index (b), add index (d);
 ERROR 23000: Duplicate entry 'ac' for key 'c'
 show create table t1;

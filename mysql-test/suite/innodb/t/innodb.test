@@ -427,11 +427,13 @@ INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca
 select count(*) from t1 where sca_code = 'PD';
 select count(*) from t1 where sca_code <= 'PD';
 select count(*) from t1 where sca_pic is null;
-alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
-alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';
 select sca_pic from t1 where sca_pic is null;
@@ -1124,7 +1126,7 @@ show create table t2;
 create index id2 on t2 (id);
 show create table t2;
 drop index id2 on t2;
---error 1025,1025
+--error ER_DROP_INDEX_FK
 drop index id on t2;
 show create table t2;
 drop table t2;
@@ -1292,6 +1294,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
+--replace_result 8192 8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
@@ -1306,6 +1309,7 @@ SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.g
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 
 # Test for innodb_sync_spin_loops variable
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
@@ -1313,6 +1317,7 @@ set global innodb_sync_spin_loops=0;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 
 # Test for innodb_thread_concurrency variable
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
