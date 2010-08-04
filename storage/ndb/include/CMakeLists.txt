@@ -24,24 +24,6 @@ CHECK_TYPE_SIZE("long long" NDB_SIZEOF_LONG_LONG)
 CONFIGURE_FILE(ndb_types.h.in
                ${CMAKE_CURRENT_SOURCE_DIR}/ndb_types.h
                @ONLY)
-               
-# Split VERSION(mysql-5.1.37-xxx) into NDB_MYSQL_VERSION_XXX with
-# one variable for minor, major and build
-
-# NDB_MYSQL_VERSION_MAJOR
-STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
-        "\\1" PARSE_VERSION_MAJOR "${VERSION}")
-SET(NDB_MYSQL_VERSION_MAJOR "${PARSE_VERSION_MAJOR}" CACHE STRING "NDB MySQL Major Version" FORCE)
-
-# NDB_MYSQL_VERSION_MINOR
-STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
-        "\\2" PARSE_VERSION_MINOR "${VERSION}")
-SET(NDB_MYSQL_VERSION_MINOR "${PARSE_VERSION_MINOR}" CACHE STRING "NDB MySQL Minor Version" FORCE)
-
-# NDB_MYSQL_VERSION_BUILD
-STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
-        "\\3" PARSE_VERSION_BUILD "${VERSION}")
-SET(NDB_MYSQL_VERSION_BUILD "${PARSE_VERSION_BUILD}" CACHE STRING "NDB MySQL Build Version" FORCE)
 
 #
 # Read ndb_configure.m4 and extract the NDB_VERSION_XX=YY variables

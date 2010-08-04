@@ -22,16 +22,16 @@
 #include <ndb_types.h>
 #include <mysql_version.h>
 
+/* NDB version numbers and status */
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
 #define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
-
-/* NDB status version */
 #define NDB_VERSION_STATUS "@NDB_VERSION_STATUS@"
 
-#define NDB_MYSQL_VERSION_MAJOR @NDB_MYSQL_VERSION_MAJOR@
-#define NDB_MYSQL_VERSION_MINOR @NDB_MYSQL_VERSION_MINOR@
-#define NDB_MYSQL_VERSION_BUILD @NDB_MYSQL_VERSION_BUILD@
+/* MySQL Server version numbers extracted from MYSQL_VERSION_ID */
+#define NDB_MYSQL_VERSION_MAJOR ((MYSQL_VERSION_ID / 10000) % 100)
+#define NDB_MYSQL_VERSION_MINOR ((MYSQL_VERSION_ID /100) % 100)
+#define NDB_MYSQL_VERSION_BUILD (MYSQL_VERSION_ID % 100)
 
 #define NDB_MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
 
