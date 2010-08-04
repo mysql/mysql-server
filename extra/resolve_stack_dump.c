@@ -17,7 +17,6 @@
    versions into symbolic names. By Sasha Pachev <sasha@mysql.com>
  */
 
-#define DONT_USE_RAID
 #include <my_global.h>
 #include <m_ctype.h>
 #include <my_sys.h>

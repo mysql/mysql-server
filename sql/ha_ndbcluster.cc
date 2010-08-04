@@ -36,6 +36,7 @@
 #include "discover.h"       // readfrm
 #include "sql_acl.h"        // wild_case_compare
 #include "rpl_mi.h"
+#include "transaction.h"
 
 /*
   There is an incompatibility between GNU ar and the Solaris linker
@@ -7417,7 +7418,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                                  FALSE,   /* drop_temporary */ 
                                  FALSE,   /* drop_view */
                                  TRUE     /* dont_log_query*/);
-
+      trans_commit_implicit(thd); /* Safety, should be unnecessary. */
+      thd->mdl_context.release_transactional_locks();
       /* Clear error message that is returned when table is deleted */
       thd->clear_error();
     }

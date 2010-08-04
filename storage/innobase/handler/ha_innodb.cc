@@ -571,7 +571,7 @@ innodb_show_status(
 	THD*	thd,	/*!< in: the MySQL query thread of the caller */
 	stat_print_fn *stat_print);
 static
-bool innobase_show_status(handlerton *hton, THD* thd, 
+bool innobase_show_status(handlerton *hton, THD* thd,
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type);
 
@@ -1032,6 +1032,8 @@ innobase_get_cset_width(
 	if (cs) {
 		*mbminlen = cs->mbminlen;
 		*mbmaxlen = cs->mbmaxlen;
+		ut_ad(*mbminlen < DATA_MBMAX);
+		ut_ad(*mbmaxlen < DATA_MBMAX);
 	} else {
 		THD*	thd = current_thd;
 
@@ -1254,7 +1256,7 @@ innobase_mysql_tmpfile(void)
 		my_close(). */
 
 #ifdef _WIN32
-		/* Note that on Windows, the integer returned by mysql_tmpfile 
+		/* Note that on Windows, the integer returned by mysql_tmpfile
 		has no relation to C runtime file descriptor. Here, we need 
 		to call my_get_osfhandle to get the HANDLE and then convert it 
 		to C runtime filedescriptor. */
@@ -2444,6 +2446,7 @@ innobase_change_buffering_inited_ok:
 	/* Get the current high water mark format. */
 	innobase_file_format_max = (char*) trx_sys_file_format_max_get();
 
+	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
 	DBUG_RETURN(TRUE);
@@ -2956,9 +2959,9 @@ innobase_close_connection(
 		global_system_variables.log_warnings) {
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  %lu row modifications will "
+			"InnoDB transaction.  %llu row modifications will "
 			"roll back.",
-			(ulong) trx->undo_no.low);
+			(ullint) trx->undo_no);
 	}
 
 	innobase_rollback_trx(trx);
@@ -4427,15 +4430,14 @@ ha_innobase::store_key_val_for_row(
 			memcpy(buff, src_start, true_len);
 			buff += true_len;
 
-			/* Pad the unused space with spaces. Note that no
-			padding is ever needed for UCS-2 because in MySQL,
-			all UCS2 characters are 2 bytes, as MySQL does not
-			support surrogate pairs, which are needed to represent
-			characters in the range U+10000 to U+10FFFF. */
+			/* Pad the unused space with spaces. */
 
 			if (true_len < key_len) {
-				ulint pad_len = key_len - true_len;
-				memset(buff, ' ', pad_len);
+				ulint	pad_len = key_len - true_len;
+				ut_a(!(pad_len % cs->mbminlen));
+
+				cs->cset->fill(cs, buff, pad_len,
+					       0x20 /* space */);
 				buff += pad_len;
 			}
 		}
@@ -4544,6 +4546,7 @@ build_template(
 	/* Note that in InnoDB, i is the column number. MySQL calls columns
 	'fields'. */
 	for (i = 0; i < n_fields; i++) {
+		const dict_col_t* col = &index->table->cols[i];
 		templ = prebuilt->mysql_template + n_requested_fields;
 		field = table->field[i];
 
@@ -4592,7 +4595,7 @@ include_field:
 
 		if (index == clust_index) {
 			templ->rec_field_no = dict_col_get_clust_pos(
-				&index->table->cols[i], index);
+				col, index);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
@@ -4621,7 +4624,7 @@ include_field:
 			mysql_prefix_len = templ->mysql_col_offset
 				+ templ->mysql_col_len;
 		}
-		templ->type = index->table->cols[i].mtype;
+		templ->type = col->mtype;
 		templ->mysql_type = (ulint)field->type();
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -4629,12 +4632,10 @@ include_field:
 				(((Field_varstring*)field)->length_bytes);
 		}
 
-		templ->charset = dtype_get_charset_coll(
-			index->table->cols[i].prtype);
-		templ->mbminlen = index->table->cols[i].mbminlen;
-		templ->mbmaxlen = index->table->cols[i].mbmaxlen;
-		templ->is_unsigned = index->table->cols[i].prtype
-							& DATA_UNSIGNED;
+		templ->charset = dtype_get_charset_coll(col->prtype);
+		templ->mbminlen = dict_col_get_mbminlen(col);
+		templ->mbmaxlen = dict_col_get_mbmaxlen(col);
+		templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 		if (templ->type == DATA_BLOB) {
 			prebuilt->templ_contains_blob = TRUE;
 		}
@@ -5561,6 +5562,9 @@ ha_innobase::index_read(
 	if (UNIV_UNLIKELY(index == NULL)) {
 		prebuilt->index_usable = FALSE;
 		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
 	}
 
 	/* Note that if the index for which the search template is built is not
@@ -6655,6 +6659,7 @@ ha_innobase::create(
 	const ulint	file_format = srv_file_format;
 	const char*	stmt;
 	size_t		stmt_len;
+	enum row_type	row_type;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -6775,94 +6780,94 @@ ha_innobase::create(
 		}
 	}
 
-	if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) {
-		if (flags) {
-			/* KEY_BLOCK_SIZE was specified. */
-			if (form->s->row_type != ROW_TYPE_COMPRESSED) {
-				/* ROW_FORMAT other than COMPRESSED
-				ignores KEY_BLOCK_SIZE.  It does not
-				make sense to reject conflicting
-				KEY_BLOCK_SIZE and ROW_FORMAT, because
-				such combinations can be obtained
-				with ALTER TABLE anyway. */
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
-					" unless ROW_FORMAT=COMPRESSED.",
-					create_info->key_block_size);
-				flags = 0;
-			}
-		} else {
-			/* No KEY_BLOCK_SIZE */
-			if (form->s->row_type == ROW_TYPE_COMPRESSED) {
-				/* ROW_FORMAT=COMPRESSED without
-				KEY_BLOCK_SIZE implies half the
-				maximum KEY_BLOCK_SIZE. */
-				flags = (DICT_TF_ZSSIZE_MAX - 1)
-					<< DICT_TF_ZSSIZE_SHIFT
-					| DICT_TF_COMPACT
-					| DICT_TF_FORMAT_ZIP
-					<< DICT_TF_FORMAT_SHIFT;
+	row_type = form->s->row_type;
+
+	if (flags) {
+		/* KEY_BLOCK_SIZE was specified. */
+		if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
+			/* ROW_FORMAT was not specified;
+			default to ROW_FORMAT=COMPRESSED */
+			row_type = ROW_TYPE_COMPRESSED;
+		} else if (row_type != ROW_TYPE_COMPRESSED) {
+			/* ROW_FORMAT other than COMPRESSED
+			ignores KEY_BLOCK_SIZE.  It does not
+			make sense to reject conflicting
+			KEY_BLOCK_SIZE and ROW_FORMAT, because
+			such combinations can be obtained
+			with ALTER TABLE anyway. */
+			push_warning_printf(
+				thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
+				" unless ROW_FORMAT=COMPRESSED.",
+				create_info->key_block_size);
+			flags = 0;
+		}
+	} else {
+		/* No KEY_BLOCK_SIZE */
+		if (row_type == ROW_TYPE_COMPRESSED) {
+			/* ROW_FORMAT=COMPRESSED without
+			KEY_BLOCK_SIZE implies half the
+			maximum KEY_BLOCK_SIZE. */
+			flags = (DICT_TF_ZSSIZE_MAX - 1)
+				<< DICT_TF_ZSSIZE_SHIFT
+				| DICT_TF_COMPACT
+				| DICT_TF_FORMAT_ZIP
+				<< DICT_TF_FORMAT_SHIFT;
 #if DICT_TF_ZSSIZE_MAX < 1
 # error "DICT_TF_ZSSIZE_MAX < 1"
 #endif
-			}
 		}
+	}
 
-		switch (form->s->row_type) {
-			const char* row_format_name;
-		case ROW_TYPE_REDUNDANT:
-			break;
-		case ROW_TYPE_COMPRESSED:
-		case ROW_TYPE_DYNAMIC:
-			row_format_name
-				= form->s->row_type == ROW_TYPE_COMPRESSED
-				? "COMPRESSED"
-				: "DYNAMIC";
+	switch (row_type) {
+		const char* row_format_name;
+	case ROW_TYPE_REDUNDANT:
+		break;
+	case ROW_TYPE_COMPRESSED:
+	case ROW_TYPE_DYNAMIC:
+		row_format_name
+			= row_type == ROW_TYPE_COMPRESSED
+			? "COMPRESSED"
+			: "DYNAMIC";
 
-			if (!srv_file_per_table) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_per_table.",
-					row_format_name);
-			} else if (file_format < DICT_TF_FORMAT_ZIP) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_format >"
-					" Antelope.",
-					row_format_name);
-			} else {
-				flags |= DICT_TF_COMPACT
-					| (DICT_TF_FORMAT_ZIP
-					   << DICT_TF_FORMAT_SHIFT);
-				break;
-			}
-
-			/* fall through */
-		case ROW_TYPE_NOT_USED:
-		case ROW_TYPE_FIXED:
-		default:
-			push_warning(thd,
-				     MYSQL_ERROR::WARN_LEVEL_WARN,
-				     ER_ILLEGAL_HA_CREATE_OPTION,
-				     "InnoDB: assuming ROW_FORMAT=COMPACT.");
-		case ROW_TYPE_DEFAULT:
-		case ROW_TYPE_COMPACT:
-			flags = DICT_TF_COMPACT;
+		if (!srv_file_per_table) {
+			push_warning_printf(
+				thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s"
+				" requires innodb_file_per_table.",
+				row_format_name);
+		} else if (file_format < DICT_TF_FORMAT_ZIP) {
+			push_warning_printf(
+				thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s"
+				" requires innodb_file_format >"
+				" Antelope.",
+				row_format_name);
+		} else {
+			flags |= DICT_TF_COMPACT
+				| (DICT_TF_FORMAT_ZIP
+				   << DICT_TF_FORMAT_SHIFT);
 			break;
 		}
-	} else if (!flags) {
-		/* No KEY_BLOCK_SIZE or ROW_FORMAT specified:
-		use ROW_FORMAT=COMPACT by default. */
+
+		/* fall through */
+	case ROW_TYPE_NOT_USED:
+	case ROW_TYPE_FIXED:
+	default:
+		push_warning(thd,
+			     MYSQL_ERROR::WARN_LEVEL_WARN,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: assuming ROW_FORMAT=COMPACT.");
+	case ROW_TYPE_DEFAULT:
+	case ROW_TYPE_COMPACT:
 		flags = DICT_TF_COMPACT;
+		break;
 	}
 
 	/* Look for a primary key */
@@ -7417,6 +7422,10 @@ ha_innobase::records_in_range(
 	Necessary message should have been printed in innobase_get_index() */
 	if (UNIV_UNLIKELY(!index)) {
 		n_rows = HA_POS_ERROR;
+		goto func_exit;
+	}
+	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
+		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
 
@@ -10826,7 +10835,7 @@ by the server. Can be set during server startup at command
 line or configure file, and a read only variable after
 server startup */
 static MYSQL_SYSVAR_BOOL(file_format_check, innobase_file_format_check,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Whether to perform system file format check.",
   NULL, NULL, TRUE);
 
