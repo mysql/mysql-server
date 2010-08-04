@@ -826,6 +826,7 @@ impossible position";
 #ifndef DBUG_OFF
           ulong hb_info_counter= 0;
 #endif
+          const char* old_msg= thd->proc_info;
           signal_cnt= mysql_bin_log.signal_cnt;
           do 
           {
@@ -849,12 +850,15 @@ impossible position";
 #endif
               /* reset transmit packet for the heartbeat event */
               if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
+              {
+                thd->exit_cond(old_msg);
                 goto err;
+              }
               if (send_heartbeat_event(net, packet, coord))
               {
                 errmsg = "Failed on my_net_write()";
                 my_errno= ER_UNKNOWN_ERROR;
-                mysql_mutex_unlock(log_lock);
+                thd->exit_cond(old_msg);
                 goto err;
               }
             }
@@ -863,7 +867,7 @@ impossible position";
               DBUG_PRINT("wait",("binary log received update or a broadcast signal caught"));
             }
           } while (signal_cnt == mysql_bin_log.signal_cnt && !thd->killed);
-          mysql_mutex_unlock(log_lock);
+          thd->exit_cond(old_msg);
         }
         break;
             
