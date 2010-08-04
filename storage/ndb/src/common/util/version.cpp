@@ -309,7 +309,7 @@ ndbPrintUpgradeCompatibleTable(void){
 
 #include <NdbTap.hpp>
 
-int main(int argc, const char** argv)
+TAPTEST(ndb_version)
 {
   printf("Checking NDB version defines and functions...\n\n");
 
@@ -435,7 +435,7 @@ int main(int argc, const char** argv)
                     NDB_VERSION_MINOR,
                     NDB_VERSION_BUILD) >= 0x00070011); // 7.0.17
 
-  return 0;
+  return 1; // OK
 }
 
 #endif
