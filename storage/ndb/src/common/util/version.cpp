@@ -429,6 +429,14 @@ int main(int argc, const char** argv)
                                            NDB_MYSQL_VERSION_MINOR,
                                            NDB_MYSQL_VERSION_BUILD));
 
+  /* Check sanity of version defines(we don't own a time machine yet...) */
+  OK(ndbMakeVersion(NDB_MYSQL_VERSION_MAJOR,
+                    NDB_MYSQL_VERSION_MINOR,
+                    NDB_MYSQL_VERSION_BUILD) >= 0x0005012F); // 5.1.47
+  OK(ndbMakeVersion(NDB_VERSION_MAJOR,
+                    NDB_VERSION_MINOR,
+                    NDB_VERSION_BUILD) >= 0x00070011); // 7.0.17
+
   return 0;
 }
 
