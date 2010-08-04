@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Copy data from a textfile to table */
@@ -34,7 +34,7 @@
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <m_ctype.h>
 #include "rpl_mi.h"
-#include "sql_repl.h"
+#include "rpl_slave.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 
@@ -175,6 +175,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
+  THD::killed_state killed_status= THD::NOT_KILLED;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -186,7 +187,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
   bool is_concurrent;
-  THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_load");
 
 #ifdef EMBEDDED_LIBRARY
@@ -510,7 +510,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                     error=1;
                     thd->killed= THD::KILL_QUERY;
                   };);
-  killed_status= (error == 0)? THD::NOT_KILLED : thd->killed;
+
+#ifndef EMBEDDED_LIBRARY
+  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+#endif
+
   /*
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
@@ -553,7 +557,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	if (lf_info.wrote_create_file)
 	{
           int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-          
+
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
@@ -767,12 +771,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item_field *sql_field;
   TABLE *table= table_list->table;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_fixed_length");
 
-  id= 0;
- 
   while (!read_info.read_fixed_length())
   {
     if (thd->killed)
@@ -901,12 +902,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   uint enclosed_length;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
-  id= 0;
 
   for (;;it.rewind())
   {

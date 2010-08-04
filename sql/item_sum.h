@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* classes for sum functions */
@@ -443,10 +443,9 @@ public:
   */
   virtual void no_rows_in_result()
   {
-    if (!aggr)
-      set_aggregator(with_distinct ?
-                     Aggregator::DISTINCT_AGGREGATOR :
-                     Aggregator::SIMPLE_AGGREGATOR);
+    set_aggregator(with_distinct ?
+                   Aggregator::DISTINCT_AGGREGATOR :
+                   Aggregator::SIMPLE_AGGREGATOR);
     reset();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
@@ -497,11 +496,10 @@ public:
     quick_group= with_distinct ? 0 : 1;
   }
 
-  /**
+  /*
     Set the type of aggregation : DISTINCT or not.
 
-    Called when the final determination is done about the aggregation
-    type and the object is about to be used.
+    May be called multiple times.
   */
 
   int set_aggregator(Aggregator::Aggregator_type aggregator);

@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 # 
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 
 INCLUDE_DIRECTORIES(
@@ -43,39 +43,41 @@ SET (SQL_SOURCE
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
                ha_partition.cc
-               handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
+               handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
                key.cc log.cc lock.cc
-               log_event.cc rpl_record.cc rpl_reporting.cc
-               log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
-               protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
-               slave.cc sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
+               protocol.cc records.cc set_var.cc 
+               sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
                sp_rcontext.cc spatial.cc sql_acl.cc sql_analyse.cc sql_base.cc 
                sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
-               sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc 
+               sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
                debug_sync.cc debug_sync.h
-               sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 
+               sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
                sql_time.cc tztime.cc uniques.cc unireg.cc item_xmlfunc.cc 
-               rpl_tblmap.cc sql_binlog.cc event_scheduler.cc event_data_objects.cc
+               event_scheduler.cc event_data_objects.cc
                event_queue.cc event_db_repository.cc 
                sql_tablespace.cc events.cc ../sql-common/my_user.c 
-               partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
-               rpl_rli.cc rpl_mi.cc sql_servers.cc sql_audit.cc
+               partition_info.cc sql_locale.cc
+               sql_servers.cc sql_audit.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
-               sql_signal.cc rpl_handler.cc mdl.cc
-               transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
+               sql_bootstrap.cc
+               sql_signal.cc mdl.cc
+               sql_alloc_error_handler.cc
+               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
+               sql_partition_admin.cc
+               sql_alter_table.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -89,7 +91,23 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
- 
+SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
+		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
+		   sql_binlog.cc rpl_injector.cc)
+ADD_LIBRARY(binlog ${BINLOG_SOURCE})
+SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
+ADD_DEPENDENCIES(binlog GenError)
+ADD_LIBRARY(rpl ${RPL_SOURCE})
+SET (MASTER_SOURCE rpl_master.cc)
+ADD_DEPENDENCIES(rpl GenError)
+ADD_LIBRARY(master ${MASTER_SOURCE})
+ADD_DEPENDENCIES(master GenError)
+SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc)
+ADD_LIBRARY(slave ${SLAVE_SOURCE})
+ADD_DEPENDENCIES(slave GenError)
+ADD_LIBRARY(sqlgunitlib mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
+ADD_DEPENDENCIES(sqlgunitlib GenError)
+
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
@@ -131,7 +149,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql)
+TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
@@ -185,22 +203,15 @@ RUN_BISON(
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
-TARGET_LINK_LIBRARIES(gen_lex_hash mysys)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
-  COMMAND gen_lex_hash ARGS > lex_hash.h.tmp &&
-  ${CMAKE_COMMAND} -E copy_if_different lex_hash.h.tmp lex_hash.h
-  COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
+  COMMAND gen_lex_hash > lex_hash.h
+)
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
-TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex   
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource

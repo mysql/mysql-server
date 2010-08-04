@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -301,11 +301,10 @@ my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
-  char *end_ptr;
-  if (!(res= val_str(&str_value)))
-    return 0;                                   // NULL or EOM
 
-  end_ptr= (char*) res->ptr()+ res->length();
+  if (!(res= val_str(&str_value)))
+    return NULL;
+
   if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
@@ -5932,7 +5931,8 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
       a subselect (they use their own cache).
     */
     if (const_item() &&
-        !(item->basic_const_item() || item->type() == Item::FIELD_ITEM ||
+        !(basic_const_item() || item->basic_const_item() ||
+          item->type() == Item::FIELD_ITEM ||
           item->type() == SUBSELECT_ITEM ||
            /*
              Do not cache GET_USER_VAR() function as its const_item() may

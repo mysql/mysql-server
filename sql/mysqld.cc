@@ -27,8 +27,8 @@
                           // reset_status_vars
 #include "strfunc.h"      // find_set_from_flags
 #include "parse_file.h"   // File_parser_dummy_hook
-#include "sql_db.h"       // my_database_names_free,
-                          // my_database_names_init
+#include "sql_db.h"       // my_dboptions_cache_free
+                          // my_dboptions_cache_init
 #include "sql_table.h"    // release_ddl_log, execute_ddl_log_recovery
 #include "sql_connect.h"  // free_max_user_conn, init_max_user_conn,
                           // handle_one_connection
@@ -53,11 +53,10 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
-#include "slave.h"
+#include "rpl_slave.h"
+#include "rpl_master.h"
 #include "rpl_mi.h"
-#include "sql_repl.h"
 #include "rpl_filter.h"
-#include "repl_failsafe.h"
 #include <my_stacktrace.h>
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
@@ -183,7 +182,7 @@ typedef fp_except fp_except_t;
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
 # define _FPU_DOUBLE 0x200
-# if defined(__GNUC__) || defined(__SUNPRO_CC)
+# if defined(__GNUC__) || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
 #  define _FPU_GETCW(cw) asm volatile ("fnstcw %0" : "=m" (*&cw))
 #  define _FPU_SETCW(cw) asm volatile ("fldcw %0" : : "m" (*&cw))
 # else
@@ -294,12 +293,6 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
-const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
-static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
-TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
-                             log_output_names, 
-                             (unsigned int *) log_output_names_len};
-
 /* static variables */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -395,8 +388,8 @@ my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_slave_compressed_protocol;
-my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
+my_bool opt_safe_user_create = 0;
+my_bool opt_show_slave_auth_info;
 my_bool opt_log_slave_updates= 0;
 char *opt_slave_skip_errors;
 
@@ -440,9 +433,6 @@ my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-TYPELIB binlog_format_typelib=
-  { array_elements(binlog_format_names) - 1, "",
-    binlog_format_names, NULL };
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif
@@ -458,7 +448,7 @@ ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
 ulong what_to_log;
-ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
+ulong slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_trans_retries;
 uint  slave_net_timeout;
@@ -500,7 +490,6 @@ ulong slow_launch_threads = 0;
 uint sync_binlog_period= 0, sync_relaylog_period= 0,
      sync_relayloginfo_period= 0, sync_masterinfo_period= 0;
 ulong expire_logs_days = 0;
-ulong rpl_recovery_rank=0;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -538,6 +527,8 @@ const double log_10[] = {
 
 time_t server_start_time, flush_status_time;
 
+char server_uuid[UUID_LENGTH+1];
+const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
 char *default_tz_name;
@@ -547,7 +538,6 @@ char mysql_real_data_home[FN_REFLEN],
      mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file;
 char *lc_messages_dir_ptr, *log_error_file_ptr;
-char err_shared_dir[FN_REFLEN];
 char mysql_unpacked_real_data_home[FN_REFLEN];
 int mysql_unpacked_real_data_home_len;
 uint mysql_real_data_home_len, mysql_data_home_len= 1;
@@ -581,7 +571,6 @@ Le_creator le_creator;
 
 MYSQL_FILE *bootstrap_file;
 int bootstrap_error;
-FILE *stderror_file=0;
 
 I_List<THD> threads;
 Rpl_filter* rpl_filter;
@@ -612,8 +601,8 @@ SHOW_COMP_OPTION have_profiling;
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_thread_count;
-mysql_mutex_t LOCK_mysql_create_db, LOCK_open,
-  LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
+mysql_mutex_t LOCK_open,
+  LOCK_status, LOCK_global_read_lock,
   LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
   LOCK_crypt,
@@ -1431,7 +1420,7 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
-  my_database_names_free();
+  my_dboptions_cache_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   servers_free(1);
   acl_free(1);
@@ -1476,9 +1465,7 @@ void clean_up(bool print_message)
   delete rpl_filter;
   end_ssl();
   vio_end();
-#ifdef USE_REGEX
   my_regex_end();
-#endif
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
@@ -1538,12 +1525,9 @@ static void wait_for_signal_thread_to_end()
 
 static void clean_up_mutexes()
 {
-  mysql_mutex_destroy(&LOCK_mysql_create_db);
-  mysql_mutex_destroy(&LOCK_lock_db);
   mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_open);
   mysql_mutex_destroy(&LOCK_thread_count);
-  mysql_mutex_destroy(&LOCK_mapped_file);
   mysql_mutex_destroy(&LOCK_status);
   mysql_mutex_destroy(&LOCK_delayed_insert);
   mysql_mutex_destroy(&LOCK_delayed_status);
@@ -1560,10 +1544,6 @@ static void clean_up_mutexes()
     mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
 #endif
-#endif
-#ifdef HAVE_REPLICATION
-  mysql_mutex_destroy(&LOCK_rpl_status);
-  mysql_cond_destroy(&COND_rpl_status);
 #endif
   mysql_mutex_destroy(&LOCK_active_mi);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
@@ -1944,7 +1924,7 @@ static void network_init(void)
     (void) setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,
 		      sizeof(arg));
     umask(0);
-    if (bind(unix_sock, my_reinterpret_cast(struct sockaddr *) (&UNIXaddr),
+    if (bind(unix_sock, reinterpret_cast<struct sockaddr *>(&UNIXaddr),
 	     sizeof(UNIXaddr)) < 0)
     {
       sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
@@ -3355,9 +3335,7 @@ static int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
-#ifdef USE_REGEX
   my_regex_init(&my_charset_latin1);
-#endif
   /*
     Process a comma-separated character set list and choose
     the first available character set. This is mostly for
@@ -3461,7 +3439,7 @@ static int init_common_variables()
   use_temp_pool= 0;
 #endif
 
-  if (my_database_names_init())
+  if (my_dboptions_cache_init())
     return 1;
 
   /*
@@ -3518,12 +3496,8 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
-  mysql_mutex_init(key_LOCK_mysql_create_db,
-                   &LOCK_mysql_create_db, MY_MUTEX_INIT_SLOW);
-  mysql_mutex_init(key_LOCK_lock_db, &LOCK_lock_db, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_mapped_file, &LOCK_mapped_file, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
                    &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
@@ -3574,10 +3548,6 @@ static int init_thread_environment()
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
   mysql_cond_init(key_COND_manager, &COND_manager, NULL);
-#ifdef HAVE_REPLICATION
-  mysql_mutex_init(key_LOCK_rpl_status, &LOCK_rpl_status, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_rpl_status, &COND_rpl_status, NULL);
-#endif
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
@@ -3717,10 +3687,165 @@ static void end_ssl()
 #endif /* HAVE_OPENSSL */
 }
 
+/**
+  Generate a UUID and save it into server_uuid variable.
+
+  @return Retur 0 or 1 if an error occurred.
+ */
+static int generate_server_uuid()
+{
+  THD *thd;
+  Item_func_uuid *func_uuid;
+  String uuid;
+
+  /*
+    To be able to run this from boot, we allocate a temporary THD
+   */
+  if (!(thd=new THD))
+  {
+    sql_print_error("Failed to generate a server UUID because it is failed"
+                    " to allocate the THD.");
+    return 1;
+  }
+  thd->thread_stack= (char*) &thd;
+  thd->store_globals();
+  lex_start(thd);
+  func_uuid= new (thd->mem_root) Item_func_uuid();
+  func_uuid->fixed= 1;
+  func_uuid->val_str(&uuid);
+  delete thd;
+  /* Remember that we don't have a THD */
+  my_pthread_setspecific_ptr(THR_THD,  0);
+
+  strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
+  server_uuid[UUID_LENGTH]= '\0';
+  return 0;
+}
+
+/**
+  Save all options which was auto-generated by server-self into the given file.
+
+  @param fname The name of the file in which the auto-generated options will b
+  e saved.
+
+  @return Return 0 or 1 if an error occurred.
+ */
+int flush_auto_options(const char* fname)
+{
+  File fd;
+  IO_CACHE io_cache;
+  int result= 0;
+
+  if ((fd= my_open((const char *)fname, O_CREAT|O_RDWR, MYF(MY_WME))) < 0)
+  {
+    sql_print_error("Failed to create file(file: '%s', errno %d)", fname, my_errno);
+    return 1;
+  }
+
+  if (init_io_cache(&io_cache, fd, IO_SIZE*2, WRITE_CACHE, 0L, 0, MYF(MY_WME)))
+  {
+    sql_print_error("Failed to create a cache on (file: %s', errno %d)", fname, my_errno);
+    my_close(fd, MYF(MY_WME));
+    return 1;
+  }
+
+  my_b_seek(&io_cache, 0L);
+  my_b_printf(&io_cache, "%s\n", "[auto]");
+  my_b_printf(&io_cache, "server-uuid=%s\n", server_uuid);
+
+  if (flush_io_cache(&io_cache) || my_sync(fd, MYF(MY_WME)))
+    result= 1;
+
+  my_close(fd, MYF(MY_WME));
+  end_io_cache(&io_cache);
+  return result;
+}
+
+/**
+  File 'auto.cnf' resides in the data directory to hold values of options that
+  server evaluates itself and that needs to be durable to sustain the server
+  restart. There is only a section ['auto'] in the file. All these options are
+  in the section. Only one option exists now, it is server_uuid.
+  Note, the user may not supply any literal value to these auto-options, and
+  only allowed to trigger (re)evaluation.
+  For instance, 'server_uuid' value will be evaluated and stored if there is
+  no corresponding line in the file.
+  Because of the specifics of the auto-options, they need a seperate storage.
+  Meanwhile, it is the 'auto.cnf' that has the same structure as 'my.cnf'.
+
+  @todo consider to implement sql-query-able persistent storage by WL#5279.
+  @return Return 0 or 1 if an error occurred.
+ */
+static int init_server_auto_options()
+{
+  bool flush= false;
+  char fname[FN_REFLEN];
+  char *name= (char *)"auto";
+  const char *groups[]= {"auto", NULL};
+  char *uuid= 0;
+  my_option auto_options[]= {
+    {"server-uuid", 0, "", &uuid, &uuid,
+      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  };
+
+  DBUG_ENTER("init_server_auto_options");
+
+  if (NULL == fn_format(fname, "auto.cnf", mysql_data_home, "",
+                        MY_UNPACK_FILENAME | MY_SAFE_PATH))
+    DBUG_RETURN(1);
+
+  /* load_defaults require argv[0] is not null */
+  char **argv= &name;
+  int argc= 1;
+  /* load all options in 'auto.cnf'. */
+  if (my_load_defaults(fname, groups, &argc, &argv, NULL))
+    DBUG_RETURN(1);
+
+  /*
+    Record the origial pointer allocated by my_load_defaults for free,
+    because argv will be changed by handle_options
+   */
+  char **old_argv= argv;
+  if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
+    DBUG_RETURN(1);
+
+  if (uuid)
+  {
+    if (strlen(uuid) != UUID_LENGTH)
+    {
+      sql_print_error("The UUID stored in auto.cnf file is the wrong length.");
+      goto err;
+    }
+    strcpy(server_uuid, uuid);
+  }
+  else
+  {
+    flush= TRUE;
+    /* server_uuid will be set in the function */
+    if (generate_server_uuid())
+      goto err;
+    sql_print_warning("No existing UUID has been found, so we assume that this"
+                      " is the first time that this server has been started."
+                      " Generating a new UUID: %s.",
+                      server_uuid);
+  }
+  /*
+    The uuid has been copied to server_uuid, so the memory allocated by
+    my_load_defaults can be freed now.
+   */
+  free_defaults(old_argv);
+
+  if (flush)
+    DBUG_RETURN(flush_auto_options(fname));
+  DBUG_RETURN(0);
+err:
+  free_defaults(argv);
+  DBUG_RETURN(1);
+}
 
 static int init_server_components()
 {
-  FILE *reopen;
   DBUG_ENTER("init_server_components");
   /*
     We need to call each of these following functions to ensure that
@@ -3768,8 +3893,8 @@ static int init_server_components()
       if (freopen(log_error_file, "a+", stdout))
 #endif
       {
-        reopen= freopen(log_error_file, "a+", stderr);
-        setbuf(stderr, NULL);
+        if (freopen(log_error_file, "a+", stderr))
+          setbuf(stderr, NULL);
       }
     }
   }
@@ -4476,6 +4601,19 @@ int mysqld_main(int argc, char **argv)
 
   if (init_server_components())
     unireg_abort(1);
+
+  /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist.
+   */
+  if (!opt_bootstrap && init_server_auto_options())
+  {
+    sql_print_error("Initialzation of the server's UUID failed because it could"
+                    " not be read from the auto.cnf file. If this is a new"
+                    " server, the initialization failed because it was not"
+                    " possible to generate a new UUID.");
+    unireg_abort(1);
+  }
 
   init_ssl();
   network_init();
@@ -5858,9 +5996,6 @@ struct my_option my_long_options[]=
    &master_retry_count, &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
-  {"init-rpl-role", 0, "Set the replication role.",
-   &rpl_status, &rpl_status, &rpl_role_typelib,
-   GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"max-binlog-dump-events", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &max_binlog_dump_events, &max_binlog_dump_events, 0,
@@ -6076,13 +6211,6 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 #endif
 
 #ifdef HAVE_REPLICATION
-static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
-{
-  var->type= SHOW_CHAR;
-  var->value= const_cast<char*>(rpl_status_type[(int)rpl_status]);
-  return 0;
-}
-
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
@@ -6502,9 +6630,6 @@ SHOW_VAR status_vars[]= {
 #endif /*HAVE_QUERY_CACHE*/
   {"Queries",                  (char*) &show_queries,            SHOW_FUNC},
   {"Questions",                (char*) offsetof(STATUS_VAR, questions), SHOW_LONG_STATUS},
-#ifdef HAVE_REPLICATION
-  {"Rpl_status",               (char*) &show_rpl_status,          SHOW_FUNC},
-#endif
   {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONG_STATUS},
   {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONG_STATUS},
   {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count), SHOW_LONG_STATUS},
@@ -6741,6 +6866,7 @@ static int mysql_init_variables(void)
   opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   key_map_full.set_all();
+  server_uuid[0]= 0;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -6984,7 +7110,7 @@ mysqld_get_one_option(int optid,
     *val= 0;
     val+= 2;
     while (*val && my_isspace(mysqld_charset, *val))
-      *val++;
+      val++;
     if (!*val)
     {
       sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
@@ -7702,9 +7828,9 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
-  key_LOCK_lock_db, key_LOCK_manager, key_LOCK_mapped_file,
-  key_LOCK_mysql_create_db, key_LOCK_open, key_LOCK_prepared_stmt_count,
-  key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_manager,
+  key_LOCK_open, key_LOCK_prepared_stmt_count,
+  key_LOCK_server_started, key_LOCK_status,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
@@ -7741,13 +7867,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
   { &key_LOCK_global_read_lock, "LOCK_global_read_lock", PSI_FLAG_GLOBAL},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
-  { &key_LOCK_lock_db, "LOCK_lock_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
-  { &key_LOCK_mapped_file, "LOCK_mapped_file", PSI_FLAG_GLOBAL},
-  { &key_LOCK_mysql_create_db, "LOCK_mysql_create_db", PSI_FLAG_GLOBAL},
   { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
-  { &key_LOCK_rpl_status, "LOCK_rpl_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_GLOBAL},
   { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
@@ -7793,7 +7915,7 @@ PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 
 PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
-  key_COND_refresh, key_COND_rpl_status, key_COND_server_started,
+  key_COND_refresh, key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
@@ -7818,7 +7940,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_global_read_lock, "COND_global_read_lock", PSI_FLAG_GLOBAL},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_refresh, "COND_refresh", PSI_FLAG_GLOBAL},
-  { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
   { &key_delayed_insert_cond, "Delayed_insert::cond", 0},
   { &key_delayed_insert_cond_client, "Delayed_insert::cond_client", 0},

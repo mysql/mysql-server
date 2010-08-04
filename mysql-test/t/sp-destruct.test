@@ -41,13 +41,13 @@ create trigger t1_ai after insert on t1 for each row call bug14233();
 
 # Unsupported tampering with the mysql.proc definition
 alter table mysql.proc drop type;
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 call bug14233();
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 create view v1 as select bug14233_f();
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 insert into t1 values (0);
---error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 show procedure status;
 
 flush table mysql.proc;
@@ -186,12 +186,12 @@ SHOW PROCEDURE STATUS;
 
 ALTER TABLE mysql.proc MODIFY comment CHAR (32);
 
---error ER_CANNOT_LOAD_FROM_TABLE
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
 CREATE PROCEDURE p2()
   SET @foo = 10;
 --echo # Procedure loaded from the cache
 CALL p1();
---error ER_CANNOT_LOAD_FROM_TABLE
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
 SHOW PROCEDURE STATUS;
 
 DROP TABLE mysql.proc;

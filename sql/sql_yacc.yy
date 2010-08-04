@@ -44,13 +44,15 @@
 #include "sql_acl.h"                          /* *_ACL */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql_class.h"      /* Key_part_spec, enum_filetype, Diag_condition_item_name */
-#include "slave.h"
+#include "rpl_slave.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
+#include "sql_alter_table.h"                   // Alter_table*_statement
+#include "sql_partition_admin.h"               // Alter_table_*_partition_statement
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -956,6 +958,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EVENTS_SYM
 %token  EVENT_SYM
 %token  EVERY_SYM                     /* SQL-2003-N */
+%token  EXCHANGE_SYM
 %token  EXECUTE_SYM                   /* SQL-2003-R */
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
@@ -1068,6 +1071,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
+%token  MASTER_DELAY_SYM
 %token  MASTER_HOST_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
@@ -1226,6 +1230,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RESUME_SYM
 %token  RETURNS_SYM                   /* SQL-2003-R */
 %token  RETURN_SYM                    /* SQL-2003-R */
+%token  REVERSE_SYM
 %token  REVOKE                        /* SQL-2003-R */
 %token  RIGHT                         /* SQL-2003-R */
 %token  ROLLBACK_SYM                  /* SQL-2003-R */
@@ -1371,6 +1376,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
+%token  WEIGHT_STRING_SYM
 %token  WHEN_SYM                      /* SQL-2003-R */
 %token  WHERE                         /* SQL-2003-R */
 %token  WHILE_SYM
@@ -1448,6 +1454,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
+        ws_nweights
+        ws_level_flag_desc ws_level_flag_reverse ws_level_flags
+        opt_ws_levels ws_level_list ws_level_list_item ws_level_number
+        ws_level_range ws_level_list_or_range  
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
@@ -1855,11 +1865,13 @@ change:
           {
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
-            bzero((char*) &lex->mi, sizeof(lex->mi));
             /*
-              resetting flags that can left from the previous CHANGE MASTER
+              Clear LEX_MASTER_INFO struct and allocate memory for
+              repl_ignore_server_ids. repl_ignore_server_ids is freed
+              at the end of change_master. So it is guaranteed to be
+              uninitialized before here.
             */
-            lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+            lex->mi.set_unspecified();
             my_init_dynamic_array(&Lex->mi.repl_ignore_server_ids,
                                   sizeof(::server_id), 16, 16);
           }
@@ -1892,6 +1904,16 @@ master_def:
         | MASTER_CONNECT_RETRY_SYM EQ ulong_num
           {
             Lex->mi.connect_retry = $3;
+          }
+        | MASTER_DELAY_SYM EQ ulong_num
+          {
+            if ($3 > MASTER_DELAY_MAX)
+            {
+              my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
+                       $3, MASTER_DELAY_MAX);
+            }
+            else
+              Lex->mi.sql_delay = $3;
           }
         | MASTER_SSL_SYM EQ ulong_num
           {
@@ -3898,7 +3920,8 @@ change_ts_option:
         ;
 
 tablespace_option_list:
-        tablespace_options
+          /* empty */ 
+        | tablespace_options
         ;
 
 tablespace_options:
@@ -3919,7 +3942,8 @@ tablespace_option:
         ;
 
 alter_tablespace_option_list:
-        alter_tablespace_options
+          /* empty */
+        | alter_tablespace_options
         ;
 
 alter_tablespace_options:
@@ -3937,7 +3961,8 @@ alter_tablespace_option:
         ;
 
 logfile_group_option_list:
-        logfile_group_options
+          /* empty */ 
+        | logfile_group_options
         ;
 
 logfile_group_options:
@@ -3957,7 +3982,8 @@ logfile_group_option:
         ;
 
 alter_logfile_group_option_list:
-          alter_logfile_group_options
+          /* empty */ 
+        | alter_logfile_group_options
         ;
 
 alter_logfile_group_options:
@@ -4125,11 +4151,6 @@ opt_ts_engine:
             }
             lex->alter_tablespace_info->storage_engine= $4;
           }
-        ;
-
-opt_ts_wait:
-          /* empty */
-        | ts_wait
         ;
 
 ts_wait:
@@ -5874,6 +5895,73 @@ opt_bin_mod:
         | BINARY { Lex->type|= BINCMP_FLAG; }
         ;
 
+ws_nweights:
+        '(' real_ulong_num
+        {
+          if ($2 == 0)
+          {
+            my_parse_error(ER(ER_SYNTAX_ERROR));
+            MYSQL_YYABORT;
+          }
+        }
+        ')'
+        { $$= $2; }
+        ;
+
+ws_level_flag_desc:
+        ASC { $$= 0; }
+        | DESC { $$= 1 << MY_STRXFRM_DESC_SHIFT; }
+        ;
+
+ws_level_flag_reverse:
+        REVERSE_SYM { $$= 1 << MY_STRXFRM_REVERSE_SHIFT; } ;
+
+ws_level_flags:
+        /* empty */ { $$= 0; }
+        | ws_level_flag_desc { $$= $1; }
+        | ws_level_flag_desc ws_level_flag_reverse { $$= $1 | $2; }
+        | ws_level_flag_reverse { $$= $1 ; }
+        ;
+
+ws_level_number:
+        real_ulong_num
+        {
+          $$= $1 < 1 ? 1 : ($1 > MY_STRXFRM_NLEVELS ? MY_STRXFRM_NLEVELS : $1);
+          $$--;
+        }
+        ;
+
+ws_level_list_item:
+        ws_level_number ws_level_flags
+        {
+          $$= (1 | $2) << $1;
+        }
+        ;
+
+ws_level_list:
+        ws_level_list_item { $$= $1; }
+        | ws_level_list ',' ws_level_list_item { $$|= $3; }
+        ;
+
+ws_level_range:
+        ws_level_number '-' ws_level_number
+        {
+          uint start= $1;
+          uint end= $3;
+          for ($$= 0; start <= end; start++)
+            $$|= (1 << start);
+        }
+        ;
+
+ws_level_list_or_range:
+        ws_level_list { $$= $1; }
+        | ws_level_range { $$= $1; }
+        ;
+
+opt_ws_levels:
+        /* empty*/ { $$= 0; }
+        | LEVEL_SYM ws_level_list_or_range { $$= $2; }
+        ;
 
 opt_primary:
           /* empty */
@@ -6172,9 +6260,20 @@ alter:
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
+            DBUG_ASSERT(!lex->m_stmt);
           }
           alter_commands
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            if (!lex->m_stmt)
+            {
+              /* Create a generic ALTER TABLE statment. */
+              lex->m_stmt= new (thd->mem_root) Alter_table_statement(lex);
+              if (lex->m_stmt == NULL)
+                MYSQL_YYABORT;
+            }
+          }
         | ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
@@ -6375,8 +6474,7 @@ alter_commands:
   From here we insert a number of commands to manage the partitions of a
   partitioned table such as adding partitions, dropping partitions,
   reorganising partitions in various manners. In future releases the list
-  will be longer and also include moving partitions to a
-  new table and so forth.
+  will be longer.
 */
         | add_partition_rule
         | DROP PARTITION_SYM alt_part_name_list
@@ -6440,8 +6538,36 @@ alter_commands:
             lex->sql_command= SQLCOM_TRUNCATE;
             lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->check_opt.init();
+            lex->query_tables->mdl_request.set_type(MDL_SHARED_NO_READ_WRITE);
+            lex->query_tables->lock_type= TL_WRITE;
           }
         | reorg_partition_rule
+        | EXCHANGE_SYM PARTITION_SYM alt_part_name_item
+          WITH TABLE_SYM table_ident have_partitioning
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            size_t dummy;
+            lex->select_lex.db=$6->db.str;
+            if (lex->select_lex.db == NULL &&
+                lex->copy_db_to(&lex->select_lex.db, &dummy))
+            {
+              MYSQL_YYABORT;
+            }
+            lex->name= $6->table;
+            lex->alter_info.flags|= ALTER_EXCHANGE_PARTITION;
+            if (!lex->select_lex.add_table_to_list(thd, $6, NULL,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_READ_NO_INSERT,
+                                                   MDL_SHARED_NO_WRITE))
+              MYSQL_YYABORT;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root)
+                               Alter_table_exchange_partition_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
+          }
+          opt_ignore
         ;
 
 remove_partitioning:
@@ -6760,7 +6886,7 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
             /* If you change this code don't forget to update SLAVE START too */
           }
           slave_until
@@ -6778,7 +6904,8 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
-            bzero((char*) &lex->mi, sizeof(lex->mi));
+            lex->mi.set_unspecified();
+            /* If you change this code don't forget to update START SLAVE too */
           }
           slave_until
           {}
@@ -6787,6 +6914,7 @@ slave:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
             lex->type = 0;
+            /* If you change this code don't forget to update STOP SLAVE too */
           }
         ;
 
@@ -8444,6 +8572,12 @@ function_call_conflict:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
+        | REVERSE_SYM '(' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_reverse($3);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
         | TRUNCATE_SYM '(' expr ',' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_round($3,$5,1);
@@ -8465,6 +8599,36 @@ function_call_conflict:
         | WEEK_SYM '(' expr ',' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_week($3,$5);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr opt_ws_levels ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_weight_string($3, 0, 0, $4);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_nweights opt_ws_levels ')'
+          {
+            $$= new (YYTHD->mem_root)
+                Item_func_weight_string($3, 0, $6,
+                                        $7 | MY_STRXFRM_PAD_WITH_SPACE);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr AS BINARY ws_nweights ')'
+          {
+            Item *item= new (YYTHD->mem_root) Item_char_typecast($3, $6, &my_charset_bin);
+            if (item == NULL)
+              MYSQL_YYABORT;
+            $$= new (YYTHD->mem_root)
+                Item_func_weight_string(item, 0, $6, MY_STRXFRM_PAD_WITH_SPACE);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | WEIGHT_STRING_SYM '(' expr ',' ulong_num ',' ulong_num ',' ulong_num ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_weight_string($3, $5, $7, $9);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -10261,12 +10425,12 @@ drop:
             lex->drop_if_exists= $3;
             lex->spname= $4;
           }
-        | DROP TABLESPACE tablespace_name opt_ts_engine opt_ts_wait
+        | DROP TABLESPACE tablespace_name drop_ts_options_list
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_TABLESPACE;
           }
-        | DROP LOGFILE_SYM GROUP_SYM logfile_group_name opt_ts_engine opt_ts_wait
+        | DROP LOGFILE_SYM GROUP_SYM logfile_group_name drop_ts_options_list
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_LOGFILE_GROUP;
@@ -10321,6 +10485,21 @@ opt_temporary:
           /* empty */ { $$= 0; }
         | TEMPORARY { $$= 1; }
         ;
+
+drop_ts_options_list:
+          /* empty */
+        | drop_ts_options
+
+drop_ts_options:
+          drop_ts_option
+        | drop_ts_options drop_ts_option
+        | drop_ts_options_list ',' drop_ts_option
+        ;
+
+drop_ts_option:
+          opt_ts_engine
+      	| ts_wait
+
 /*
 ** Insert : add new data to table
 */
@@ -10693,7 +10872,7 @@ truncate:
             lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
             lex->select_lex.init_order();
             YYPS->m_lock_type= TL_WRITE;
-            YYPS->m_mdl_type= MDL_SHARED_WRITE;
+            YYPS->m_mdl_type= MDL_SHARED_NO_READ_WRITE;
           }
           table_name
           {}
@@ -11184,10 +11363,10 @@ flush_options:
             Lex->type|= REFRESH_TABLES;
             /*
               Set type of metadata and table locks for
-              FLUSH TABLES table_list WITH READ LOCK.
+              FLUSH TABLES table_list [WITH READ LOCK].
             */
             YYPS->m_lock_type= TL_READ_NO_INSERT;
-            YYPS->m_mdl_type= MDL_EXCLUSIVE;
+            YYPS->m_mdl_type= MDL_SHARED_HIGH_PRIO;
           }
           opt_table_list {}
           opt_with_read_lock {}
@@ -11197,7 +11376,13 @@ flush_options:
 opt_with_read_lock:
           /* empty */ {}
         | WITH READ_SYM LOCK_SYM
-          { Lex->type|= REFRESH_READ_LOCK; }
+          {
+            TABLE_LIST *tables= Lex->query_tables;
+            Lex->type|= REFRESH_READ_LOCK;
+            /* We acquire an X lock currently and then downgrade. */
+            for (; tables; tables= tables->next_global)
+              tables->mdl_request.set_type(MDL_EXCLUSIVE);
+          }
         ;
 
 flush_options_list:
@@ -12373,6 +12558,7 @@ keyword_sp:
         | EVENT_SYM                {}
         | EVENTS_SYM               {}
         | EVERY_SYM                {}
+        | EXCHANGE_SYM             {}
         | EXPANSION_SYM            {}
         | EXTENDED_SYM             {}
         | EXTENT_SIZE_SYM          {}
@@ -12423,6 +12609,7 @@ keyword_sp:
         | MASTER_PASSWORD_SYM      {}
         | MASTER_SERVER_ID_SYM     {}
         | MASTER_CONNECT_RETRY_SYM {}
+        | MASTER_DELAY_SYM         {}
         | MASTER_SSL_SYM           {}
         | MASTER_SSL_CA_SYM        {}
         | MASTER_SSL_CAPATH_SYM    {}
@@ -12504,6 +12691,7 @@ keyword_sp:
         | RESOURCES                {}
         | RESUME_SYM               {}
         | RETURNS_SYM              {}
+        | REVERSE_SYM              {}
         | ROLLUP_SYM               {}
         | ROUTINE_SYM              {}
         | ROWS_SYM                 {}
@@ -12572,6 +12760,7 @@ keyword_sp:
         | WAIT_SYM                 {}
         | WEEK_SYM                 {}
         | WORK_SYM                 {}
+        | WEIGHT_STRING_SYM        {}
         | X509_SYM                 {}
         | XML_SYM                  {}
         | YEAR_SYM                 {}

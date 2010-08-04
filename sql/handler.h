@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -32,10 +32,6 @@
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
-
-#ifndef NO_HASH
-#define NO_HASH				/* Not yet implemented */
-#endif
 
 // the following is for checking tables
 
@@ -846,6 +842,7 @@ struct THD_TRANS
   bool modified_non_trans_table;
 
   void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
+  bool is_empty() const { return ha_list == NULL; }
 };
 
 
@@ -969,7 +966,6 @@ struct st_table_log_memory_entry;
 class partition_info;
 
 struct st_partition_iter;
-#define NOT_A_PARTITION_ID ((uint32)-1)
 
 enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
@@ -1261,9 +1257,10 @@ public:
   {
     cached_table_flags= table_flags();
   }
-  /* ha_ methods: pubilc wrappers for private virtual API */
+  /* ha_ methods: public wrappers for private virtual API */
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
+  int ha_close(void);
   int ha_index_init(uint idx, bool sorted)
   {
     int result;
@@ -1295,6 +1292,22 @@ public:
     inited=NONE;
     DBUG_RETURN(rnd_end());
   }
+  int ha_rnd_next(uchar *buf);
+  int ha_rnd_pos(uchar * buf, uchar *pos);
+  int ha_index_read_map(uchar *buf, const uchar *key,
+                        key_part_map keypart_map,
+                        enum ha_rkey_function find_flag);
+  int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                           key_part_map keypart_map,
+                           enum ha_rkey_function find_flag);
+  int ha_index_next(uchar * buf);
+  int ha_index_prev(uchar * buf);
+  int ha_index_first(uchar * buf);
+  int ha_index_last(uchar * buf);
+  int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  int ha_index_read(uchar *buf, const uchar *key, uint key_len,
+                    enum ha_rkey_function find_flag);
+  int ha_index_read_last(uchar *buf, const uchar *key, uint key_len);
   int ha_reset();
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
@@ -1374,6 +1387,19 @@ public:
   }
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
+
+
+/**
+   The cost of reading a set of ranges from the table using an index
+   to access it.
+   
+   @param index  The index number.
+   @param ranges The number of ranges to be read.
+   @param rows   Total number of rows to be read.
+   
+   This method can be used to calculate the total cost of scanning a table
+   using an index by calling it using read_time(index, 1, table_size).
+*/
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
@@ -1433,7 +1459,6 @@ public:
   */
   virtual void column_bitmaps_signal();
   uint get_index(void) const { return active_index; }
-  virtual int close(void)=0;
 
   /**
     @retval  0   Bulk update used by handler
@@ -1477,6 +1502,7 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
+protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle. Fetches the
@@ -1508,6 +1534,7 @@ public:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
+public:
   /**
      @brief
      The following functions works like index_read, but it find the last
@@ -1533,8 +1560,10 @@ public:
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
+protected:
   virtual int rnd_next(uchar *buf)=0;
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
+public:
   /**
     This function only works for handlers having
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION set.
@@ -1543,7 +1572,7 @@ public:
   virtual int rnd_pos_by_record(uchar *record)
     {
       position(record);
-      return rnd_pos(record, ref);
+      return ha_rnd_pos(record, ref);
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
   /**
@@ -1860,32 +1889,6 @@ protected:
   */
   PSI_table_share *ha_table_share_psi(const TABLE_SHARE *share) const;
 
-  inline void psi_open()
-  {
-    DBUG_ASSERT(m_psi == NULL);
-    DBUG_ASSERT(table_share != NULL);
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
-    {
-      PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      if (share_psi)
-        m_psi= PSI_server->open_table(share_psi, this);
-    }
-#endif
-  }
-
-  inline void psi_close()
-  {
-#ifdef HAVE_PSI_INTERFACE
-    if (PSI_server && m_psi)
-    {
-      PSI_server->close_table(m_psi);
-      m_psi= NULL; /* instrumentation handle, invalid after close_table() */
-    }
-#endif
-    DBUG_ASSERT(m_psi == NULL);
-  }
-
   /**
     Default rename_table() and delete_table() rename/delete files with a
     given name and extensions from bas_ext().
@@ -1910,6 +1913,7 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
+  virtual int close(void)=0;
   virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }
   virtual int index_end() { active_index= MAX_KEY; return 0; }
   /**
@@ -1986,11 +1990,13 @@ private:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
+protected:
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
    { return (my_errno= HA_ERR_WRONG_COMMAND); }
+public:
   /**
     This method is similar to update_row, however the handler doesn't need
     to execute the updates at this point in time. The handler can be certain

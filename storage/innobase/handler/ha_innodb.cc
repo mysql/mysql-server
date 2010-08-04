@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, MySQL AB & Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -87,6 +87,7 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
+#include "srv0mon.h"
 }
 
 #include "ha_innodb.h"
@@ -148,6 +149,10 @@ static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
+static char*	innobase_monitor_counter_on		= NULL;
+static char*	innobase_monitor_counter_off		= NULL;
+static char*	innobase_monitor_counter_reset		= NULL;
+static char*	innobase_monitor_counter_reset_all	= NULL;
 
 /* The highest file format being used in the database. The value can be
 set by user, however, it will be adjusted to the newer file format if
@@ -571,7 +576,7 @@ innodb_show_status(
 	THD*	thd,	/*!< in: the MySQL query thread of the caller */
 	stat_print_fn *stat_print);
 static
-bool innobase_show_status(handlerton *hton, THD* thd, 
+bool innobase_show_status(handlerton *hton, THD* thd,
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type);
 
@@ -1032,6 +1037,8 @@ innobase_get_cset_width(
 	if (cs) {
 		*mbminlen = cs->mbminlen;
 		*mbmaxlen = cs->mbmaxlen;
+		ut_ad(*mbminlen < DATA_MBMAX);
+		ut_ad(*mbmaxlen < DATA_MBMAX);
 	} else {
 		THD*	thd = current_thd;
 
@@ -1254,7 +1261,7 @@ innobase_mysql_tmpfile(void)
 		my_close(). */
 
 #ifdef _WIN32
-		/* Note that on Windows, the integer returned by mysql_tmpfile 
+		/* Note that on Windows, the integer returned by mysql_tmpfile
 		has no relation to C runtime file descriptor. Here, we need 
 		to call my_get_osfhandle to get the HANDLE and then convert it 
 		to C runtime filedescriptor. */
@@ -2444,6 +2451,12 @@ innobase_change_buffering_inited_ok:
 	/* Get the current high water mark format. */
 	innobase_file_format_max = (char*) trx_sys_file_format_max_get();
 
+	/* Currently, monitor counter information are not persistent. */
+	memset(monitor_set_tbl, 0, sizeof monitor_set_tbl);
+
+	memset(innodb_counter_value, 0, sizeof innodb_counter_value);
+
+	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
 	DBUG_RETURN(TRUE);
@@ -2956,9 +2969,9 @@ innobase_close_connection(
 		global_system_variables.log_warnings) {
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  %lu row modifications will "
+			"InnoDB transaction.  %llu row modifications will "
 			"roll back.",
-			(ulong) trx->undo_no.low);
+			(ullint) trx->undo_no);
 	}
 
 	innobase_rollback_trx(trx);
@@ -3667,6 +3680,8 @@ retry:
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+	MONITOR_INC(MONITOR_TABLE_OPEN);
 
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		sql_print_error("MySQL is trying to open a table handle but "
@@ -4427,15 +4442,14 @@ ha_innobase::store_key_val_for_row(
 			memcpy(buff, src_start, true_len);
 			buff += true_len;
 
-			/* Pad the unused space with spaces. Note that no
-			padding is ever needed for UCS-2 because in MySQL,
-			all UCS2 characters are 2 bytes, as MySQL does not
-			support surrogate pairs, which are needed to represent
-			characters in the range U+10000 to U+10FFFF. */
+			/* Pad the unused space with spaces. */
 
 			if (true_len < key_len) {
-				ulint pad_len = key_len - true_len;
-				memset(buff, ' ', pad_len);
+				ulint	pad_len = key_len - true_len;
+				ut_a(!(pad_len % cs->mbminlen));
+
+				cs->cset->fill(cs, buff, pad_len,
+					       0x20 /* space */);
 				buff += pad_len;
 			}
 		}
@@ -4544,6 +4558,7 @@ build_template(
 	/* Note that in InnoDB, i is the column number. MySQL calls columns
 	'fields'. */
 	for (i = 0; i < n_fields; i++) {
+		const dict_col_t* col = &index->table->cols[i];
 		templ = prebuilt->mysql_template + n_requested_fields;
 		field = table->field[i];
 
@@ -4592,7 +4607,7 @@ include_field:
 
 		if (index == clust_index) {
 			templ->rec_field_no = dict_col_get_clust_pos(
-				&index->table->cols[i], index);
+				col, index);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
@@ -4621,7 +4636,7 @@ include_field:
 			mysql_prefix_len = templ->mysql_col_offset
 				+ templ->mysql_col_len;
 		}
-		templ->type = index->table->cols[i].mtype;
+		templ->type = col->mtype;
 		templ->mysql_type = (ulint)field->type();
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -4629,12 +4644,10 @@ include_field:
 				(((Field_varstring*)field)->length_bytes);
 		}
 
-		templ->charset = dtype_get_charset_coll(
-			index->table->cols[i].prtype);
-		templ->mbminlen = index->table->cols[i].mbminlen;
-		templ->mbmaxlen = index->table->cols[i].mbmaxlen;
-		templ->is_unsigned = index->table->cols[i].prtype
-							& DATA_UNSIGNED;
+		templ->charset = dtype_get_charset_coll(col->prtype);
+		templ->mbminlen = dict_col_get_mbminlen(col);
+		templ->mbmaxlen = dict_col_get_mbmaxlen(col);
+		templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 		if (templ->type == DATA_BLOB) {
 			prebuilt->templ_contains_blob = TRUE;
 		}
@@ -5561,6 +5574,9 @@ ha_innobase::index_read(
 	if (UNIV_UNLIKELY(index == NULL)) {
 		prebuilt->index_usable = FALSE;
 		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
 	}
 
 	/* Note that if the index for which the search template is built is not
@@ -6655,6 +6671,7 @@ ha_innobase::create(
 	const ulint	file_format = srv_file_format;
 	const char*	stmt;
 	size_t		stmt_len;
+	enum row_type	row_type;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -6775,94 +6792,94 @@ ha_innobase::create(
 		}
 	}
 
-	if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) {
-		if (flags) {
-			/* KEY_BLOCK_SIZE was specified. */
-			if (form->s->row_type != ROW_TYPE_COMPRESSED) {
-				/* ROW_FORMAT other than COMPRESSED
-				ignores KEY_BLOCK_SIZE.  It does not
-				make sense to reject conflicting
-				KEY_BLOCK_SIZE and ROW_FORMAT, because
-				such combinations can be obtained
-				with ALTER TABLE anyway. */
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
-					" unless ROW_FORMAT=COMPRESSED.",
-					create_info->key_block_size);
-				flags = 0;
-			}
-		} else {
-			/* No KEY_BLOCK_SIZE */
-			if (form->s->row_type == ROW_TYPE_COMPRESSED) {
-				/* ROW_FORMAT=COMPRESSED without
-				KEY_BLOCK_SIZE implies half the
-				maximum KEY_BLOCK_SIZE. */
-				flags = (DICT_TF_ZSSIZE_MAX - 1)
-					<< DICT_TF_ZSSIZE_SHIFT
-					| DICT_TF_COMPACT
-					| DICT_TF_FORMAT_ZIP
-					<< DICT_TF_FORMAT_SHIFT;
+	row_type = form->s->row_type;
+
+	if (flags) {
+		/* KEY_BLOCK_SIZE was specified. */
+		if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
+			/* ROW_FORMAT was not specified;
+			default to ROW_FORMAT=COMPRESSED */
+			row_type = ROW_TYPE_COMPRESSED;
+		} else if (row_type != ROW_TYPE_COMPRESSED) {
+			/* ROW_FORMAT other than COMPRESSED
+			ignores KEY_BLOCK_SIZE.  It does not
+			make sense to reject conflicting
+			KEY_BLOCK_SIZE and ROW_FORMAT, because
+			such combinations can be obtained
+			with ALTER TABLE anyway. */
+			push_warning_printf(
+				thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
+				" unless ROW_FORMAT=COMPRESSED.",
+				create_info->key_block_size);
+			flags = 0;
+		}
+	} else {
+		/* No KEY_BLOCK_SIZE */
+		if (row_type == ROW_TYPE_COMPRESSED) {
+			/* ROW_FORMAT=COMPRESSED without
+			KEY_BLOCK_SIZE implies half the
+			maximum KEY_BLOCK_SIZE. */
+			flags = (DICT_TF_ZSSIZE_MAX - 1)
+				<< DICT_TF_ZSSIZE_SHIFT
+				| DICT_TF_COMPACT
+				| DICT_TF_FORMAT_ZIP
+				<< DICT_TF_FORMAT_SHIFT;
 #if DICT_TF_ZSSIZE_MAX < 1
 # error "DICT_TF_ZSSIZE_MAX < 1"
 #endif
-			}
 		}
+	}
 
-		switch (form->s->row_type) {
-			const char* row_format_name;
-		case ROW_TYPE_REDUNDANT:
-			break;
-		case ROW_TYPE_COMPRESSED:
-		case ROW_TYPE_DYNAMIC:
-			row_format_name
-				= form->s->row_type == ROW_TYPE_COMPRESSED
-				? "COMPRESSED"
-				: "DYNAMIC";
+	switch (row_type) {
+		const char* row_format_name;
+	case ROW_TYPE_REDUNDANT:
+		break;
+	case ROW_TYPE_COMPRESSED:
+	case ROW_TYPE_DYNAMIC:
+		row_format_name
+			= row_type == ROW_TYPE_COMPRESSED
+			? "COMPRESSED"
+			: "DYNAMIC";
 
-			if (!srv_file_per_table) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_per_table.",
-					row_format_name);
-			} else if (file_format < DICT_TF_FORMAT_ZIP) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_format >"
-					" Antelope.",
-					row_format_name);
-			} else {
-				flags |= DICT_TF_COMPACT
-					| (DICT_TF_FORMAT_ZIP
-					   << DICT_TF_FORMAT_SHIFT);
-				break;
-			}
-
-			/* fall through */
-		case ROW_TYPE_NOT_USED:
-		case ROW_TYPE_FIXED:
-		default:
-			push_warning(thd,
-				     MYSQL_ERROR::WARN_LEVEL_WARN,
-				     ER_ILLEGAL_HA_CREATE_OPTION,
-				     "InnoDB: assuming ROW_FORMAT=COMPACT.");
-		case ROW_TYPE_DEFAULT:
-		case ROW_TYPE_COMPACT:
-			flags = DICT_TF_COMPACT;
+		if (!srv_file_per_table) {
+			push_warning_printf(
+				thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s"
+				" requires innodb_file_per_table.",
+				row_format_name);
+		} else if (file_format < DICT_TF_FORMAT_ZIP) {
+			push_warning_printf(
+				thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s"
+				" requires innodb_file_format >"
+				" Antelope.",
+				row_format_name);
+		} else {
+			flags |= DICT_TF_COMPACT
+				| (DICT_TF_FORMAT_ZIP
+				   << DICT_TF_FORMAT_SHIFT);
 			break;
 		}
-	} else if (!flags) {
-		/* No KEY_BLOCK_SIZE or ROW_FORMAT specified:
-		use ROW_FORMAT=COMPACT by default. */
+
+		/* fall through */
+	case ROW_TYPE_NOT_USED:
+	case ROW_TYPE_FIXED:
+	default:
+		push_warning(thd,
+			     MYSQL_ERROR::WARN_LEVEL_WARN,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: assuming ROW_FORMAT=COMPACT.");
+	case ROW_TYPE_DEFAULT:
+	case ROW_TYPE_COMPACT:
 		flags = DICT_TF_COMPACT;
+		break;
 	}
 
 	/* Look for a primary key */
@@ -7417,6 +7434,10 @@ ha_innobase::records_in_range(
 	Necessary message should have been printed in innobase_get_index() */
 	if (UNIV_UNLIKELY(!index)) {
 		n_rows = HA_POS_ERROR;
+		goto func_exit;
+	}
+	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
+		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
 
@@ -10703,6 +10724,247 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+/*************************************************************//**
+Validate the passed in monitor name, find and save the
+corresponding monitor id in the function parameter "save".
+@return	0 if monitor name is valid */
+static
+int
+innodb_monitor_valid_byname(
+/*========================*/
+	void*			save,	/*!< out: immediate result
+					for update function */
+	const char*		name)	/*!< in: incoming monitor name */
+{
+	if (name) {
+		ulint	use;
+
+		for (use = 0; use < NUM_MONITOR; use++) {
+			if (!innobase_strcasecmp(
+				name, srv_mon_get_name((monitor_id_t)use))) {
+				*(ulint*) save = use;
+				return(0);
+			}
+		}
+	}
+
+	return(1);
+}
+/*************************************************************//**
+Validate passed-in "value" is a valid monitor counter name.
+This function is registered as a callback with MySQL.
+@return	0 for valid name */
+static
+int
+innodb_monitor_validate(
+/*====================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	monitor_name;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	monitor_name = value->val_str(value, buff, &len);
+
+	return(innodb_monitor_valid_byname(save, monitor_name));
+}
+
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_* according to
+the "set_option" and turn on/off or reset specified monitor counter. */
+static
+void
+innodb_monitor_update(
+/*==================*/
+	THD*			thd,		/*!< in: thread handle */
+	void*			var_ptr,	/*!< out: where the
+						formal string goes */
+	const void*		save,		/*!< in: immediate result
+						from check function */
+	mon_option_t		set_option)	/*!< in: the set option,
+						whether to turn on/off or
+						reset the counter */
+{
+	monitor_info_t*	monitor_info;
+	monitor_id_t	monitor_id;
+	ulint		temp_id;
+	ulint		err_monitor = 0;
+
+	ut_a(var_ptr != NULL);
+	ut_a(save != NULL);
+
+	temp_id = *(ulint *) save;
+	ut_a(temp_id <= NUM_MONITOR);
+
+	monitor_id = (monitor_id_t) temp_id;
+
+	if (monitor_id == MONITOR_DEFAULT_START) {
+		/* If user set the variable to "default", we will
+		print a message and make this set operation a "noop".
+		The check is being made here is because "set default"
+		does not go through validation function */
+		push_warning_printf(thd,
+				    MYSQL_ERROR::WARN_LEVEL_WARN,
+				    ER_NO_DEFAULT,
+				    "Default value is not defined for "
+				    "this set option. Please specify "
+				    "counter or module name to turn on/off "
+				    "or reset monitor counters.");
+		*(const char**) var_ptr = NULL;
+	} else {
+		monitor_info = srv_mon_get_info(monitor_id);
+
+		ut_a(monitor_info);
+
+		/* If monitor is already truned on, someone could already
+		collect monitor data, exit and ask user to turn off the
+		monitor before turn it on again. */
+		if (set_option == MONITOR_TURN_ON
+		    && MONITOR_IS_ON(monitor_id)) {
+			err_monitor = monitor_id;
+			goto exit;
+		}
+
+		*(const char**) var_ptr = monitor_info->monitor_name;
+
+		/* Depending on the monitor name is for a module or
+		a counter, process counters in the whole module or
+		individual counter. */
+		if (monitor_info->monitor_type & MONITOR_MODULE) {
+			err_monitor = srv_mon_set_module_control(monitor_id,
+								 set_option);
+		} else {
+			switch (set_option) {
+			case MONITOR_TURN_ON:
+				MONITOR_ON(monitor_id);
+				MONITOR_INIT(monitor_id);
+				MONITOR_SET_START(monitor_id);
+
+				/* If the monitor to be turned on uses
+				exisitng monitor counter (status variable),
+				make special processing to remember existing
+				counter value. */
+				if (monitor_info->monitor_type
+				    & MONITOR_EXISTING) {
+					srv_mon_process_existing_counter(
+						monitor_id, MONITOR_TURN_ON);
+				}
+			break;
+
+			case MONITOR_TURN_OFF:
+				if (monitor_info->monitor_type
+				    & MONITOR_EXISTING) {
+					srv_mon_process_existing_counter(
+						monitor_id, MONITOR_TURN_OFF);
+				}
+				MONITOR_OFF(monitor_id);
+				MONITOR_SET_OFF(monitor_id);
+				break;
+
+			case MONITOR_RESET_VALUE:
+				srv_mon_reset(monitor_id);
+				break;
+
+			case MONITOR_RESET_ALL_VALUE:
+				srv_mon_reset_all(monitor_id);
+				break;
+
+			default:
+				ut_error;
+			}
+		}
+	}
+exit:
+	/* Only if we are trying to turn on a monitor that already
+	been turned on, we will set err_monitor. Print related
+	information */
+	if (err_monitor) {
+		sql_print_warning("Monitor %s already turned on.",
+				  srv_mon_get_name((monitor_id_t)err_monitor));
+	}
+
+	return;
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_on and turn on
+specified monitor counter.
+This function is registered as a callback with MySQL. */
+static
+void
+innodb_monitor_on_update(
+/*=====================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_off and turn
+off specified monitor counter. */
+static
+void
+innodb_monitor_off_update(
+/*======================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF);
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_reset and reset
+specified monitor counter(s).
+This function is registered as a callback with MySQL. */
+static
+void
+innodb_monitor_reset_update(
+/*========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE);
+}
+/****************************************************************//**
+Update the system variable innodb_monitor_counter_reset_all and reset
+all value related monitor counter.
+This function is registered as a callback with MySQL. */
+static
+void
+innodb_monitor_reset_all_update(
+/*============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE);
+}
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -10826,7 +11088,7 @@ by the server. Can be set during server startup at command
 line or configure file, and a read only variable after
 server startup */
 static MYSQL_SYSVAR_BOOL(file_format_check, innobase_file_format_check,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Whether to perform system file format check.",
   NULL, NULL, TRUE);
 
@@ -10931,6 +11193,11 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+
+static MYSQL_SYSVAR_ULONG(page_hash_mutexes, srv_n_page_hash_mutexes,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Number of mutexes protecting buffer pool page_hash. Rounded up to the next power of 2",
+  NULL, NULL, 256, 1, MAX_PAGE_HASH_MUTEXES, 0);
 
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -11068,6 +11335,30 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
+static MYSQL_SYSVAR_STR(monitor_counter_on, innobase_monitor_counter_on,
+  PLUGIN_VAR_RQCMDARG,
+  "Turn on a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_on_update, NULL);
+
+static MYSQL_SYSVAR_STR(monitor_counter_off, innobase_monitor_counter_off,
+  PLUGIN_VAR_RQCMDARG,
+  "Turn off a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_off_update, NULL);
+
+static MYSQL_SYSVAR_STR(monitor_counter_reset, innobase_monitor_counter_reset,
+  PLUGIN_VAR_RQCMDARG,
+  "Reset a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_reset_update, NULL);
+
+static MYSQL_SYSVAR_STR(monitor_counter_reset_all, innobase_monitor_counter_reset_all,
+  PLUGIN_VAR_RQCMDARG,
+  "Reset all values for a monitor counter",
+  innodb_monitor_validate,
+  innodb_monitor_reset_all_update, NULL);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11127,8 +11418,13 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(monitor_counter_on),
+  MYSQL_SYSVAR(monitor_counter_off),
+  MYSQL_SYSVAR(monitor_counter_reset),
+  MYSQL_SYSVAR(monitor_counter_reset_all),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
+  MYSQL_SYSVAR(page_hash_mutexes),
   NULL
 };
 
@@ -11160,7 +11456,8 @@ i_s_innodb_sys_indexes,
 i_s_innodb_sys_columns,
 i_s_innodb_sys_fields,
 i_s_innodb_sys_foreign,
-i_s_innodb_sys_foreign_cols
+i_s_innodb_sys_foreign_cols,
+i_s_innodb_metrics
 
 mysql_declare_plugin_end;
 

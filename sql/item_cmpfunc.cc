@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -4720,8 +4720,6 @@ void Item_func_like::cleanup()
   Item_bool_func2::cleanup();
 }
 
-#ifdef USE_REGEX
-
 /**
   @brief Compile regular expression.
 
@@ -4797,8 +4795,8 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
 
   regex_lib_flags= (cmp_collation.collation->state &
                     (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                   REG_EXTENDED | REG_NOSUB :
-                   REG_EXTENDED | REG_NOSUB | REG_ICASE;
+                   MY_REG_EXTENDED | MY_REG_NOSUB :
+                   MY_REG_EXTENDED | MY_REG_NOSUB | MY_REG_ICASE;
   /*
     If the case of UCS2 and other non-ASCII character sets,
     we will convert patterns and strings to UTF8.
@@ -4871,9 +4869,6 @@ void Item_func_regex::cleanup()
   }
   DBUG_VOID_RETURN;
 }
-
-
-#endif /* USE_REGEX */
 
 
 #ifdef LIKE_CMP_TOUPPER

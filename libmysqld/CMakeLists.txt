@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,11 +54,12 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/log_event.cc ../sql/mf_iocache.cc ../sql/my_decimal.cc 
            ../sql/net_serv.cc ../sql/opt_range.cc ../sql/opt_sum.cc 
            ../sql/parse_file.cc ../sql/procedure.cc ../sql/protocol.cc 
-           ../sql/records.cc ../sql/repl_failsafe.cc ../sql/rpl_filter.cc
+           ../sql/records.cc ../sql/rpl_filter.cc
            ../sql/rpl_record.cc ../sql/sha2.cc ../sql/des_key_file.cc
            ../sql/rpl_injector.cc ../sql/set_var.cc ../sql/spatial.cc 
            ../sql/sp_cache.cc ../sql/sp.cc ../sql/sp_head.cc 
            ../sql/sp_pcontext.cc ../sql/sp_rcontext.cc ../sql/sql_acl.cc 
+           ../sql/sql_alloc_error_handler.cc
            ../sql/sql_analyse.cc ../sql/sql_base.cc ../sql/sql_cache.cc 
            ../sql/sql_class.cc ../sql/sql_crypt.cc ../sql/sql_cursor.cc 
            ../sql/sql_db.cc ../sql/sql_delete.cc ../sql/sql_derived.cc 
@@ -67,10 +68,10 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_truncate.cc
            ../sql/sql_lex.cc ../sql/keycaches.cc
            ../sql/sql_list.cc ../sql/sql_load.cc ../sql/sql_locale.cc 
-           ../sql/sql_binlog.cc ../sql/sql_manager.cc ../sql/sql_map.cc 
+           ../sql/sql_binlog.cc ../sql/sql_manager.cc
            ../sql/sql_parse.cc ../sql/sql_partition.cc ../sql/sql_plugin.cc 
            ../sql/debug_sync.cc
-           ../sql/sql_prepare.cc ../sql/sql_rename.cc ../sql/sql_repl.cc 
+           ../sql/sql_prepare.cc ../sql/sql_rename.cc
            ../sql/sql_select.cc ../sql/sql_servers.cc
            ../sql/sql_show.cc ../sql/sql_state.c ../sql/sql_string.cc
            ../sql/sql_tablespace.cc ../sql/sql_table.cc ../sql/sql_test.cc
@@ -80,12 +81,13 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/sql_audit.cc
+           ../sql/sql_alter_table.cc ../sql/sql_partition_admin.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
-	       ../sql/rpl_utility.cc
+	       ../sql/rpl_utility.cc ../sql/binlog.cc
            ../sql/sys_vars.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-           ../sql/mdl.cc ../sql/transaction.cc
+           ../sql/mdl.cc ../sql/transaction.cc ../sql/sql_bootstrap.cc
            ${GEN_SOURCES}
            ${MYSYS_LIBWRAP_SOURCE}
 )

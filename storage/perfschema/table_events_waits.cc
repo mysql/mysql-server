@@ -231,6 +231,7 @@ void table_events_waits_common::make_row(bool thread_own_wait,
 
   m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
   m_row.m_event_id= wait->m_event_id;
+  m_row.m_nesting_event_id= wait->m_nesting_event_id;
   m_row.m_timer_state= wait->m_timer_state;
   m_row.m_timer_start= wait->m_timer_start;
   m_row.m_timer_end= wait->m_timer_end;
@@ -257,8 +258,16 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     safe_class= sanitize_cond_class((PFS_cond_class*) wait->m_class);
     break;
   case WAIT_CLASS_TABLE:
-    m_row.m_object_type= "TABLE";
-    m_row.m_object_type_length= 5;
+    if (wait->m_object_type == OBJECT_TYPE_TABLE)
+    {
+      m_row.m_object_type= "TABLE";
+      m_row.m_object_type_length= 5;
+    }
+    else
+    {
+      m_row.m_object_type= "TEMPORARY TABLE";
+      m_row.m_object_type_length= 15;
+    }
     memcpy(m_row.m_object_schema, wait->m_schema_name,
            wait->m_schema_name_length);
     m_row.m_object_schema_length= wait->m_schema_name_length;
@@ -300,7 +309,7 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     m_row.m_source_length= sizeof(m_row.m_source);
   m_row.m_operation= wait->m_operation;
   m_row.m_number_of_bytes= wait->m_number_of_bytes;
-  m_row.m_flags= 0;
+  m_row.m_flags= wait->m_flags;
 
   if (thread_own_wait)
   {
@@ -361,7 +370,15 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("chsize") },
   { C_STRING_WITH_LEN("delete") },
   { C_STRING_WITH_LEN("rename") },
-  { C_STRING_WITH_LEN("sync") }
+  { C_STRING_WITH_LEN("sync") },
+
+  /* Table operations */
+  { C_STRING_WITH_LEN("lock") },
+  { C_STRING_WITH_LEN("external lock") },
+  { C_STRING_WITH_LEN("fetch") },
+  { C_STRING_WITH_LEN("insert") }, /* write row */
+  { C_STRING_WITH_LEN("update") }, /* update row */
+  { C_STRING_WITH_LEN("delete") }  /* delete row */
 };
 
 
@@ -463,7 +480,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         set_field_ulonglong(f, m_row.m_object_instance_addr);
         break;
       case 12: /* NESTING_EVENT_ID */
-        f->set_null();
+        set_field_ulonglong(f, m_row.m_nesting_event_id);
         break;
       case 13: /* OPERATION */
         operation= &operation_names_map[(int) m_row.m_operation - 1];
@@ -478,7 +495,11 @@ int table_events_waits_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 15: /* FLAGS */
-        set_field_ulong(f, m_row.m_flags);
+        if ((m_row.m_operation == OPERATION_TYPE_TABLE_LOCK) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_EXTERNAL_LOCK))
+          set_field_ulong(f, m_row.m_flags);
+        else
+          f->set_null();
         break;
       default:
         DBUG_ASSERT(false);
@@ -525,14 +546,26 @@ int table_events_waits_current::rnd_next(void)
       We do not show nested events for now,
       this will be revised with TABLE io
     */
-#define ONLY_SHOW_ONE_WAIT
+// #define ONLY_SHOW_ONE_WAIT
 
 #ifdef ONLY_SHOW_ONE_WAIT
     if (m_pos.m_index_2 >= 1)
       continue;
 #else
-    if (m_pos.m_index_2 >= pfs_thread->m_wait_locker_count)
-      continue;
+    uint safe_locker_count= pfs_thread->m_wait_locker_count;
+
+    if (safe_locker_count == 0)
+    {
+      /* Display the last top level wait, when completed */
+      if (m_pos.m_index_2 >= 1)
+        continue;
+    }
+    else
+    {
+      /* Display all pending waits, when in progress */
+      if (m_pos.m_index_2 >= safe_locker_count)
+        continue;
+    }
 #endif
 
     wait= &pfs_thread->m_wait_locker_stack[m_pos.m_index_2].m_waits_current;
@@ -567,9 +600,24 @@ int table_events_waits_current::rnd_pos(const void *pos)
   if (! pfs_thread->m_lock.is_populated())
     return HA_ERR_RECORD_DELETED;
 
-#ifdef ONLY_SHOW_CURRENT_WAITS
-  if (m_pos.m_index_2 >= pfs_thread->m_wait_locker_count)
+#ifdef ONLY_SHOW_ONE_WAIT
+  if (m_pos.m_index_2 >= 1)
     return HA_ERR_RECORD_DELETED;
+#else
+  uint safe_locker_count= pfs_thread->m_wait_locker_count;
+
+  if (safe_locker_count == 0)
+  {
+    /* Display the last top level wait, when completed */
+    if (m_pos.m_index_2 >= 1)
+      return HA_ERR_RECORD_DELETED;
+  }
+  else
+  {
+    /* Display all pending waits, when in progress */
+    if (m_pos.m_index_2 >= safe_locker_count)
+      return HA_ERR_RECORD_DELETED;
+  }
 #endif
 
   DBUG_ASSERT(m_pos.m_index_2 < LOCKER_STACK_SIZE);

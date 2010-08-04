@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,9 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include "unireg.h"         // REQUIRED: for other includes
@@ -23,7 +22,7 @@
 #ifdef HAVE_NDB_BINLOG
 #include "rpl_injector.h"
 #include "rpl_filter.h"
-#include "slave.h"
+#include "rpl_slave.h"
 #include "ha_ndbcluster_binlog.h"
 #include "NdbDictionary.hpp"
 #include "ndb_cluster_connection.hpp"
@@ -36,6 +35,7 @@
 #include "lock.h"                              // MYSQL_LOCK_IGNORE_FLUSH,
                                                // mysql_unlock_tables
 #include "sql_parse.h"                         // mysql_parse
+#include "transaction.h"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -298,13 +298,6 @@ static void run_query(THD *thd, char *buf, char *end,
                       thd_ndb->m_error_code,
                       (int) thd->is_error(), thd->is_slave_error);
   }
-
-  /*
-    After executing statement we should unlock and close tables open
-    by it as well as release meta-data locks obtained by it.
-  */
-  close_thread_tables(thd);
-
   /*
     XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
     can not be called from within a statement, and
@@ -2422,7 +2415,11 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
   }
 
 add_ndb_binlog_index_err:
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
   ndb_binlog_index= 0;
   thd->variables.option_bits= saved_options;
   return error;
@@ -3969,7 +3966,9 @@ restart:
     {
       if (ndb_binlog_index->s->needs_reopen())
       {
+        trans_commit_stmt(thd);
         close_thread_tables(thd);
+        thd->mdl_context.release_transactional_locks();
         ndb_binlog_index= 0;
       }
     }
@@ -4280,7 +4279,9 @@ restart:
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
   {
     ndb_binlog_tables_inited= FALSE;
+    trans_commit_stmt(thd);
     close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
     ndb_binlog_index= 0;
     goto restart;
   }
@@ -4288,7 +4289,11 @@ err:
   sql_print_information("Stopping Cluster Binlog");
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
   mysql_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;

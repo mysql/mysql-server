@@ -1,4 +1,4 @@
-# Copyright (C) 2006-2008 MySQL AB, 2009 Sun Microsystems, Inc
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -148,6 +148,9 @@ OPTION(ENABLED_PROFILING "Enable profiling" ON)
 OPTION(CYBOZU "" OFF)
 OPTION(BACKUP_TEST "" OFF)
 OPTION(WITHOUT_SERVER OFF)
+IF(UNIX)
+  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
+ENDIF()
 OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
@@ -260,6 +263,10 @@ IF(MYSQL_MAINTAINER_MODE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MY_MAINTAINER_CXX_WARNINGS}")
 ENDIF()
 
+IF(WITH_UNIT_TESTS)
+ ENABLE_TESTING()
+ENDIF()
+
 IF(NOT WITHOUT_SERVER)
 SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
  # Add storage engines and plugins.
@@ -274,13 +281,13 @@ ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
 
-
 IF(WITH_UNIT_TESTS)
- ENABLE_TESTING()
-ENDIF()
-IF(WITH_UNIT_TESTS)
+  ADD_SUBDIRECTORY(unittest)
+  ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
+  ADD_SUBDIRECTORY(unittest/mytap/t)
   ADD_SUBDIRECTORY(unittest/mysys)
+  ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)

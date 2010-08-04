@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /**
@@ -3078,6 +3078,61 @@ String *Item_func_collation::val_str(String *str)
   str->copy(cs->name, (uint) strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
+}
+
+
+void Item_func_weight_string::fix_length_and_dec()
+{
+  CHARSET_INFO *cs= args[0]->collation.collation;
+  collation.set(&my_charset_bin, args[0]->collation.derivation);
+  flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
+  /* 
+    Use result_length if it was given explicitly in constructor,
+    otherwise calculate max_length using argument's max_length
+    and "nweights".
+  */
+  max_length= result_length ? result_length :
+              cs->mbmaxlen * max(args[0]->max_length, nweights);
+  maybe_null= 1;
+}
+
+
+/* Return a weight_string according to collation */
+String *Item_func_weight_string::val_str(String *str)
+{
+  String *res;
+  CHARSET_INFO *cs= args[0]->collation.collation;
+  uint tmp_length, frm_length;
+  DBUG_ASSERT(fixed == 1);
+
+  if (args[0]->result_type() != STRING_RESULT ||
+      !(res= args[0]->val_str(str)))
+    goto nl;
+  
+  /*
+    Use result_length if it was given in constructor
+    explicitly, otherwise calculate result length
+    from argument and "nweights".
+  */
+  tmp_length= result_length ? result_length :
+              cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
+                                    max(res->length(), nweights));
+
+  if (tmp_value.alloc(tmp_length))
+    goto nl;
+
+  frm_length= cs->coll->strnxfrm(cs,
+                                 (uchar*) tmp_value.ptr(), tmp_length,
+                                 nweights ? nweights : tmp_length,
+                                 (const uchar*) res->ptr(), res->length(),
+                                 flags);
+  tmp_value.length(frm_length);
+  null_value= 0;
+  return &tmp_value;
+
+nl:
+  null_value= 1;
+  return 0;
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @addtogroup Replication
@@ -1782,8 +1782,7 @@ public:        /* !!! Public in this patch to allow old usage */
   @class Slave_log_event
 
   Note that this class is currently not used at all; no code writes a
-  @c Slave_log_event (though some code in @c repl_failsafe.cc reads @c
-  Slave_log_event).  So it's not a problem if this code is not
+  @c Slave_log_event.  So it's not a problem if this code is not
   maintained.
 
   @section Slave_log_event_binary_format Binary Format
@@ -4084,6 +4083,7 @@ private:
 
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
+bool sqlcom_can_generate_row_events(const THD *thd);
 
 /**
   @} (end of group Replication)

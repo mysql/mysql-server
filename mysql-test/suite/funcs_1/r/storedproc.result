@@ -9324,6 +9324,8 @@ insert into t2 values (1);
 set @x = 3;
 END//
 CALL sp1();
+Warnings:
+Error	1136	Column count doesn't match value count at row 1
 DROP PROCEDURE sp1;
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
@@ -13753,6 +13755,8 @@ END//
 CALL sp1();
 x	y	@x
 NULL	a	3
+Warnings:
+Error	1305	PROCEDURE db_storedproc.nonsexist does not exist
 SELECT @v1, @v2;
 @v1	@v2
 4	a
@@ -14937,6 +14941,8 @@ NULL	NULL
 NULL	NULL
 @x	@y
 NULL	NULL
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE sp1;
 
 Testcase 4.2.63:
@@ -15096,6 +15102,8 @@ END;
 fetch cur1 into newf1, newf2, newf4, newf3;
 END//
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE sp1;
 
 Testcase 4.2.70:
@@ -22446,6 +22454,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE h1;
 DROP PROCEDURE sp1;
 
@@ -22463,6 +22473,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1305	PROCEDURE db_storedproc.sp1 does not exist
 DROP PROCEDURE h1;
 
 Testcase 4.11.3:
@@ -22482,6 +22494,8 @@ CALL sp1 (1);
 set @x=0;
 END//
 CALL h1();
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 SELECT @x, @x2;
 @x	@x2
 1	1
@@ -22500,6 +22514,8 @@ CALL sp1 (1);
 set @x=0;
 END//
 CALL h1 ();
+Warnings:
+Error	1305	PROCEDURE db_storedproc.sp1 does not exist
 SELECT @x, @x2;
 @x	@x2
 1	1
@@ -22524,6 +22540,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE h1;
 DROP PROCEDURE sp1;
 
@@ -22546,6 +22564,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE h1;
 DROP PROCEDURE sp1;
 
@@ -22568,6 +22588,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE h1;
 DROP PROCEDURE sp1;
 
@@ -22585,6 +22607,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1305	PROCEDURE db_storedproc.sp1 does not exist
 DROP PROCEDURE h1;
 
 Testcase 4.11.9:
@@ -22604,6 +22628,8 @@ CALL sp1 (1);
 set @x=0;
 END//
 CALL h1();
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 SELECT @x, @x2;
 @x	@x2
 1	1
@@ -22622,6 +22648,8 @@ CALL sp1 (1);
 set @x=0;
 END//
 CALL h1 ();
+Warnings:
+Error	1305	PROCEDURE db_storedproc.sp1 does not exist
 SELECT @x, @x2;
 @x	@x2
 1	1
@@ -22646,6 +22674,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE h1;
 DROP PROCEDURE sp1;
 
@@ -22668,6 +22698,8 @@ END//
 CALL h1 ();
 @x	@x2
 1	1
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE h1;
 DROP PROCEDURE sp1;
 
@@ -22703,6 +22735,8 @@ done
 1
 done
 1
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22776,6 +22810,8 @@ done
 0
 done
 1
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22813,6 +22849,8 @@ done
 0
 done
 1
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22843,6 +22881,8 @@ done
 0
 done
 1
+Warnings:
+Error	1328	Incorrect number of FETCH variables
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22873,6 +22913,8 @@ done
 0
 done
 1
+Warnings:
+Error	1328	Incorrect number of FETCH variables
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22903,6 +22945,8 @@ END//
 CALL h1();
 done
 0
+Warnings:
+Error	1328	Incorrect number of FETCH variables
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22933,6 +22977,8 @@ END//
 CALL h1();
 done
 0
+Warnings:
+Error	1328	Incorrect number of FETCH variables
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22963,6 +23009,8 @@ done
 0
 done
 1
+Warnings:
+Error	1325	Cursor is already open
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -22994,6 +23042,8 @@ done
 0
 done	@x
 1	1
+Warnings:
+Error	1325	Cursor is already open
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -23024,6 +23074,8 @@ END//
 CALL h1();
 done
 0
+Warnings:
+Error	1325	Cursor is already open
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -23054,6 +23106,8 @@ END//
 CALL h1();
 done
 0
+Warnings:
+Error	1325	Cursor is already open
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -23081,6 +23135,8 @@ END//
 CALL h1();
 done	@x
 1	1
+Warnings:
+Error	1326	Cursor is not open
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -23108,6 +23164,8 @@ END//
 CALL h1();
 done	@x
 1	1
+Warnings:
+Error	1326	Cursor is not open
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -23133,6 +23191,8 @@ set @x=1;
 SELECT done, @x;
 END//
 CALL h1();
+Warnings:
+Error	1326	Cursor is not open
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -23158,6 +23218,8 @@ set @x=1;
 SELECT done, @x;
 END//
 CALL h1();
+Warnings:
+Error	1326	Cursor is not open
 DROP PROCEDURE IF EXISTS h1;
 drop table IF EXISTS res_t1;
 drop table IF EXISTS res_t2;
@@ -23188,6 +23250,8 @@ END//
 CALL h1();
 done	@x
 1	1
+Warnings:
+Error	1339	Case not found for CASE statement
 DROP PROCEDURE IF EXISTS h1;
 drop table IF EXISTS res_t1;
 drop table IF EXISTS res_t2;
@@ -23218,6 +23282,8 @@ END//
 CALL h1();
 done	@x
 1	1
+Warnings:
+Error	1339	Case not found for CASE statement
 DROP PROCEDURE IF EXISTS h1;
 drop table IF EXISTS res_t1;
 drop table IF EXISTS res_t2;
@@ -23246,6 +23312,8 @@ set @x=1;
 SELECT done, @x;
 END//
 CALL h1();
+Warnings:
+Error	1339	Case not found for CASE statement
 DROP PROCEDURE IF EXISTS h1;
 drop table IF EXISTS res_t1;
 drop table IF EXISTS res_t2;
@@ -23274,6 +23342,8 @@ set @x=1;
 SELECT done, @x;
 END//
 CALL h1();
+Warnings:
+Error	1339	Case not found for CASE statement
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 DROP TABLE IF EXISTS res_t2;
@@ -23422,6 +23492,9 @@ CREATE TABLE res_t1(w CHAR, x CHAR);
 INSERT INTO res_t1 VALUES('a', 'b');
 INSERT INTO res_t1 VALUES('c', 'd');
 CALL h1();
+Warnings:
+Warning	1265	Data truncated for column 'w' at row 1
+Warning	1265	Data truncated for column 'x' at row 1
 SELECT @done, @x;
 @done	@x
 1	1
@@ -23444,6 +23517,9 @@ CREATE TABLE res_t1(w CHAR, x CHAR);
 INSERT INTO res_t1 VALUES('a', 'b');
 INSERT INTO res_t1 VALUES('c', 'd');
 CALL h1();
+Warnings:
+Warning	1265	Data truncated for column 'w' at row 1
+Warning	1265	Data truncated for column 'x' at row 1
 SELECT @done, @x;
 @done	@x
 1	1
