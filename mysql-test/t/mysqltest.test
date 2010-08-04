@@ -1119,9 +1119,20 @@ if ($counter)
 {
   echo oops, space is true;
 }
+let $counter=-0;
+if ($counter)
+{
+  echo oops, -0 is true;
+}
 if (beta)
 {
   echo Beta is true;
+}
+let $counter=gamma;
+while ($counter)
+{
+  echo while with string, only once;
+  let $counter=000;
 }
 
 # ----------------------------------------------------------------------------
