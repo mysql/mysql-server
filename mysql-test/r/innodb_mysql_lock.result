@@ -116,3 +116,35 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 DROP TABLE t1;
+#
+# Bug#49891 View DDL breaks REPEATABLE READ
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v2;
+CREATE TABLE t1 ( f1 INTEGER ) ENGINE = innodb;
+CREATE TABLE t2 ( f1 INTEGER );
+CREATE VIEW v1 AS SELECT 1 FROM t1;
+# Connection con3
+LOCK TABLE t1 WRITE;
+# Connection default
+START TRANSACTION;
+# Sending:
+SELECT * FROM v1;
+# Connection con2
+# Waiting for 'SELECT * FROM v1' to sync in.
+# Sending:
+ALTER VIEW v1 AS SELECT 2 FROM t2;
+# Connection con3
+# Waiting for 'ALTER VIEW v1 AS SELECT 2 FROM t2' to sync in.
+UNLOCK TABLES;
+# Connection default;
+# Reaping: SELECT * FROM v1
+1
+SELECT * FROM v1;
+1
+COMMIT;
+# Connection con2
+# Reaping: ALTER VIEW v1 AS SELECT 2 FROM t2
+# Connection default
+DROP TABLE t1, t2;
+DROP VIEW v1;

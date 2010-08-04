@@ -173,7 +173,7 @@ type_long_blob longblob,
 index(type_short)
 ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed CHARSET=latin1;
 
-# Not tested above: RAID_# UNION INSERT_METHOD DATA DIRECTORY INDEX DIRECTORY
+# Not tested above: UNION INSERT_METHOD DATA DIRECTORY INDEX DIRECTORY
 show create table t1;
 insert into t1 (type_timestamp) values ("2003-02-07 10:00:01");
 select * from t1;
@@ -1244,6 +1244,85 @@ connection default;
 disconnect con1;
 UNLOCK TABLES;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#54905 Connection with WRITE lock cannot ALTER table due to
+--echo #           concurrent SHOW CREATE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+
+--echo # Connection con1
+connect (con1,localhost,root);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SHOW CREATE TABLE t1;
+
+--echo # Connection con1
+connection con1;
+# Used to block
+ALTER TABLE t1 CHARACTER SET = utf8;
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+COMMIT;
+disconnect con1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#55498 SHOW CREATE TRIGGER takes wrong type of metadata lock.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1;
+
+--echo # Test 1: SHOW CREATE TRIGGER with WRITE locked table.
+
+--echo # Connection con1
+connect (con1, localhost, root);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+# Should not block.
+SHOW CREATE TRIGGER t1_bi;
+
+--echo # Connection con1
+connection con1;
+UNLOCK TABLES;
+
+--echo # Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SHOW CREATE TRIGGER t1_bi;
+
+--echo # Connection con1
+connection con1;
+# Should not block.
+ALTER TABLE t1 CHARACTER SET = utf8;
+
+--echo # Connection default
+connection default;
+COMMIT;
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+disconnect con1;
 
 
 # Wait till all disconnects are completed

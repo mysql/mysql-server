@@ -499,18 +499,6 @@ bool Resignal_statement::execute(THD *thd)
   }
 
   /* RESIGNAL with signal_value */
-
-  /* Make room for 2 conditions */
-  thd->warning_info->reserve_space(thd, 2);
-
-  MYSQL_ERROR *raised= NULL;
-  raised= thd->raise_condition_no_handler(signaled->get_sql_errno(),
-                                          signaled->get_sqlstate(),
-                                          signaled->get_level(),
-                                          signaled->get_message_text());
-  if (raised)
-    raised->copy_opt_attributes(signaled);
-
   result= raise_condition(thd, signaled);
 
   DBUG_RETURN(result);

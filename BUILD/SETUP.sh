@@ -15,7 +15,7 @@ Usage: $0 [-h|-n] [configure-options]
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
   --with-debug=full       Build with full debug.
-  --warning-mode=[old|pedantic]
+  --warning-mode=[old|pedantic|maintainer]
                           Influences the debug flags. Old is default.
   --prefix=path           Build with prefix 'path'.
 
@@ -62,6 +62,7 @@ just_print=
 just_configure=
 full_debug=
 warning_mode=
+maintainer_mode=
 
 parse_options "$@"
 
@@ -88,7 +89,21 @@ AM_MAKEFLAGS="-j 6"
 # Ex --with-ssl=/usr
 SSL_LIBRARY=--with-ssl
 
-if [ "x$warning_mode" != "xpedantic" ]; then
+if [ "x$warning_mode" = "xpedantic" ]; then
+  warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
+  c_warnings="$warnings"
+  cxx_warnings="$warnings -std=c++98"
+# NOTE: warning mode should not influence optimize/debug mode.
+# Please feel free to add a separate option if you don't feel it's an overkill.
+  debug_extra_cflags="-O0"
+# Reset CPU flags (-mtune), they don't work in -pedantic mode
+  check_cpu_cflags=""
+elif [ "x$warning_mode" = "xmaintainer" ]; then
+  c_warnings="-Wall -Wextra"
+  cxx_warnings="$c_warnings -Wno-unused-parameter"
+  maintainer_mode="--enable-mysql-maintainer-mode"
+  debug_extra_cflags="-g3"
+else
 # Both C and C++ warnings
   warnings="-Wall -Wextra -Wunused -Wwrite-strings"
 
@@ -103,15 +118,6 @@ if [ "x$warning_mode" != "xpedantic" ]; then
   cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
 # Added unless --with-debug=full
   debug_extra_cflags="-O0 -g3 -gdwarf-2"
-else
-  warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
-  c_warnings="$warnings"
-  cxx_warnings="$warnings -std=c++98"
-# NOTE: warning mode should not influence optimize/debug mode.
-# Please feel free to add a separate option if you don't feel it's an overkill.
-  debug_extra_cflags="-O0"
-# Reset CPU flags (-mtune), they don't work in -pedantic mode
-  check_cpu_cflags=""
 fi
 
 # Set flags for various build configurations.
@@ -147,7 +153,7 @@ fi
 base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
-base_configs="$base_configs --with-big-tables"
+base_configs="$base_configs --with-big-tables $maintainer_mode"
 
 if test -d "$path/../cmd-line-utils/readline"
 then

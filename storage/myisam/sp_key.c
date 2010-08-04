@@ -47,7 +47,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
   pos = (uchar*)record + keyseg->start;
   
   dlen = _mi_calc_blob_length(keyseg->bit_start, pos);
-  memcpy_fixed(&dptr, pos + keyseg->bit_start, sizeof(char*));
+  memcpy(&dptr, pos + keyseg->bit_start, sizeof(char*));
   if (!dptr)
   {
     my_errno= HA_ERR_NULL_IN_SPATIAL;

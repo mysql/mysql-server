@@ -33,10 +33,6 @@
 #include <ft_global.h>
 #include <keycache.h>
 
-#ifndef NO_HASH
-#define NO_HASH				/* Not yet implemented */
-#endif
-
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -846,6 +842,7 @@ struct THD_TRANS
   bool modified_non_trans_table;
 
   void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
+  bool is_empty() const { return ha_list == NULL; }
 };
 
 
