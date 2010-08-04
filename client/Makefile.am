@@ -62,7 +62,6 @@ mysqlbinlog_SOURCES =		mysqlbinlog.cc \
 				$(top_srcdir)/mysys/my_new.cc \
 				$(top_srcdir)/mysys/my_bit.c \
 				$(top_srcdir)/mysys/my_bitmap.c \
-				$(top_srcdir)/mysys/my_vle.c \
 				$(top_srcdir)/mysys/base64.c
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 

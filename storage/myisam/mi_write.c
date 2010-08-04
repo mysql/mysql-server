@@ -61,11 +61,6 @@ int mi_write(MI_INFO *info, uchar *record)
   if (_mi_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
   dont_break();				/* Dont allow SIGHUP or SIGINT */
-#if !defined(NO_LOCKING) && defined(USE_RECORD_LOCK)
-  if (!info->locked && my_lock(info->dfile,F_WRLCK,0L,F_TO_EOF,
-			       MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
-    goto err;
-#endif
   filepos= ((share->state.dellink != HA_OFFSET_ERROR &&
              !info->append_insert_at_end) ?
 	    share->state.dellink :

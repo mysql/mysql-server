@@ -285,18 +285,6 @@ register struct parse *p;
 		EMIT(ORPAREN, subno);
 		if(MUSTEAT(')', REG_EPAREN)) {}
 		break;
-#ifndef POSIX_MISTAKE
-	case ')':		/* happens only if no current unmatched ( */
-		/*
-		 * You may ask, why the ifndef?  Because I didn't notice
-		 * this until slightly too late for 1003.2, and none of the
-		 * other 1003.2 regular-expression reviewers noticed it at
-		 * all.  So an unmatched ) is legal POSIX, at least until
-		 * we can get it fixed.
-		 */
-		SETERROR(REG_EPAREN);
-		break;
-#endif
 	case '^':
 		EMIT(OBOL, 0);
 		p->g->iflags |= USEBOL;
@@ -1225,66 +1213,6 @@ register char *cp;
 
 	(void) strcpy(cs->multis + oldend - 1, cp);
 	cs->multis[cs->smultis - 1] = '\0';
-}
-#endif
-
-#ifdef NOT_USED
-/*
- - mcsub - subtract a collating element from a cset
- == static void mcsub(register cset *cs, register char *cp);
- */
-static void
-mcsub(cs, cp)
-register cset *cs;
-register char *cp;
-{
-	register char *fp = mcfind(cs, cp);
-	register size_t len = strlen(fp);
-
-	assert(fp != NULL);
-	(void) memmove(fp, fp + len + 1,
-				cs->smultis - (fp + len + 1 - cs->multis));
-	cs->smultis -= len;
-
-	if (cs->smultis == 0) {
-		free(cs->multis);
-		cs->multis = NULL;
-		return;
-	}
-
-	cs->multis = realloc(cs->multis, cs->smultis);
-	assert(cs->multis != NULL);
-}
-
-/*
- - mcin - is a collating element in a cset?
- == static int mcin(register cset *cs, register char *cp);
- */
-static int
-mcin(cs, cp)
-register cset *cs;
-register char *cp;
-{
-	return(mcfind(cs, cp) != NULL);
-}
-
-/*
- - mcfind - find a collating element in a cset
- == static char *mcfind(register cset *cs, register char *cp);
- */
-static char *
-mcfind(cs, cp)
-register cset *cs;
-register char *cp;
-{
-	register char *p;
-
-	if (cs->multis == NULL)
-		return(NULL);
-	for (p = cs->multis; *p != '\0'; p += strlen(p) + 1)
-		if (strcmp(cp, p) == 0)
-			return(p);
-	return(NULL);
 }
 #endif
 
