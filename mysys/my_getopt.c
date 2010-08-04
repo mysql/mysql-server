@@ -603,18 +603,24 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       };
       break;
     case GET_ENUM:
-      if (((*(uint*)value)=
-             find_type(argument, opts->typelib, 2) - 1) == (uint)-1)
       {
-        /* Accept an integer representation of the enumerated item */
-        char *endptr;
-        uint arg= (uint) strtol(argument, &endptr, 10);
-        if (*endptr || arg >= opts->typelib->count)
+        int type= find_type(argument, opts->typelib, 2);
+        if (type == 0)
         {
-          res= EXIT_ARGUMENT_INVALID;
-          goto ret;
-        };
-        *(uint*)value= arg;
+          /*
+            Accept an integer representation of the enumerated item.
+          */
+          char *endptr;
+          uint arg= (uint) strtoul(argument, &endptr, 10);
+          if (*endptr || arg >= opts->typelib->count)
+          {
+            res= EXIT_ARGUMENT_INVALID;
+            goto ret;
+          }
+          *(uint*)value= arg;
+        }
+        else
+          *(uint*)value= type - 1;
       }
       break;
     case GET_SET:
