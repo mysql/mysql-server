@@ -1,3 +1,8 @@
+# The version number of NDB
+NDB_VERSION_MAJOR=7
+NDB_VERSION_MINOR=0
+NDB_VERSION_BUILD=17
+NDB_VERSION_STATUS=""
 
 NDB_MYSQL_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
 NDB_MYSQL_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
@@ -536,11 +541,13 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(NDB_SHARED_LIB_MAJOR_VERSION)
   AC_SUBST(NDB_SHARED_LIB_VERSION)
 
-
+  # Replace @NDB_VERSION_XX@ variables in the generated ndb_version.h
   AC_SUBST(NDB_VERSION_MAJOR)
   AC_SUBST(NDB_VERSION_MINOR)
   AC_SUBST(NDB_VERSION_BUILD)
   AC_SUBST(NDB_VERSION_STATUS)
+
+  # Define NDB_VERSION_XX variables in config.h/my_config.h
   AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR],
                      [NDB major version])
   AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR],
@@ -560,6 +567,9 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
                      [MySQL minor version])
   AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_BUILD], [$NDB_MYSQL_VERSION_BUILD],
                      [MySQL build version])
+
+  # Generate ndb_version.h from ndb_version.h.in
+  AC_CONFIG_FILES([storage/ndb/include/ndb_version.h])
 
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
@@ -586,9 +596,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST([NDB_SIZEOF_LONG])
   AC_SUBST([NDB_SIZEOF_LONG_LONG])
 
-  AC_CONFIG_FILES([
-   storage/ndb/include/ndb_version.h
-   storage/ndb/include/ndb_types.h
-  ])
+  AC_CONFIG_FILES([storage/ndb/include/ndb_types.h])
+
 ])
 
