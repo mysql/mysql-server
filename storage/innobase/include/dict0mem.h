@@ -283,6 +283,21 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_DELETE_NO_ACTION 16
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32
 
+/** Tables could be chained together with Foreign key constraint. When
+first load the parent table, we would load all of its descedents.
+This could result in rescursive calls and out of stack error eventually.
+DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
+when exceeded, the child table will not be loaded. It will be loaded when
+the foreign constraint check needs to be run. */
+#define DICT_FK_MAX_RECURSIVE_LOAD	250
+
+/** Similarly, when tables are chained together with foreign key constraints
+with on cascading delete/update clause, delete from parent table could
+result in recursive cascading calls. This defines the maximum number of
+such cascading deletes/updates allowed. When exceeded, the delete from
+parent table will fail, and user has to drop excessive foreign constraint
+before proceeds. */
+#define FK_MAX_CASCADE_DEL		300
 
 /* Data structure for a database table */
 struct dict_table_struct{
@@ -339,6 +354,12 @@ struct dict_table_struct{
 				NOT allowed until this count gets to zero;
 				MySQL does NOT itself check the number of
 				open handles at drop */
+	unsigned	fk_max_recusive_level:8;
+				/*!< maximum recursive level we support when
+				loading tables chained together with FK
+				constraints. If exceeds this level, we will
+				stop loading child table into memory along with
+				its parent table */
 	ulint		n_foreign_key_checks_running;
 				/* count of how many foreign key check
 				operations are currently being performed

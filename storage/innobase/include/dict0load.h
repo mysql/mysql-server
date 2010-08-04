@@ -82,6 +82,8 @@ dict_load_foreigns(
 /*===============*/
 					/* out: DB_SUCCESS or error code */
 	const char*	table_name,	/* in: table name */
+	ibool		check_recursive,/* in: Whether to check recursive
+					load of tables chained by FK */
 	ibool		check_charsets);/* in: TRUE=check charsets
 					compatibility */
 /************************************************************************
