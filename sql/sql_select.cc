@@ -1509,9 +1509,26 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         JOIN_TAB *jump_to= tab - 1;
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
-        if (!tab->emb_sj_nest)
-          jump_to= tab;         /// @todo fix this (BUG#51457)
-        tab_end->do_firstmatch= jump_to;
+        for (JOIN_TAB *j= tab; j <= tab_end; j++)
+        {
+          if (!j->emb_sj_nest)
+          {
+            /*
+              Let last non-correlated table be jump target for
+              subsequent inner tables.
+            */
+            jump_to= j;
+          }
+          else
+          {
+            /*
+              Assign jump target for last table in a consecutive range of 
+              inner tables.
+            */
+            if (j == tab_end || !(j+1)->emb_sj_nest)
+              j->do_firstmatch= jump_to;
+          }
+        }
         i+= pos->n_sj_tables;
         break;
       }
