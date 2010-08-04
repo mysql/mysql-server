@@ -313,7 +313,7 @@ int main(int argc, const char** argv)
 {
   printf("Checking NDB version defines and functions...\n\n");
 
-  printf(" version string: '%s'\n\n", VERSION);
+  printf(" version string: '%s'\n", MYSQL_SERVER_VERSION);
 
   printf(" NDB_MYSQL_VERSION_MAJOR: %d\n", NDB_MYSQL_VERSION_MAJOR);
   printf(" NDB_MYSQL_VERSION_MINOR: %d\n", NDB_MYSQL_VERSION_MINOR);
@@ -365,12 +365,6 @@ int main(int argc, const char** argv)
     OK(NDB_VERSION_MAJOR == ndb_major ||
        NDB_VERSION_MINOR == ndb_minor ||
        NDB_VERSION_BUILD == ndb_build);
-
-    if (matches_ndb == 4)
-    {
-      /* Check -status, which would normally be 'alpha' or 'beta' */
-      OK(strcmp(NDB_VERSION_STATUS, ndb_status) == 0);
-    }
 
   }
   else
@@ -432,6 +426,14 @@ int main(int argc, const char** argv)
   OK(NDB_MYSQL_VERSION_D == ndbMakeVersion(NDB_MYSQL_VERSION_MAJOR,
                                            NDB_MYSQL_VERSION_MINOR,
                                            NDB_MYSQL_VERSION_BUILD));
+
+  /* Check sanity of version defines(we don't own a time machine yet...) */
+  OK(ndbMakeVersion(NDB_MYSQL_VERSION_MAJOR,
+                    NDB_MYSQL_VERSION_MINOR,
+                    NDB_MYSQL_VERSION_BUILD) >= 0x0005012F); // 5.1.47
+  OK(ndbMakeVersion(NDB_VERSION_MAJOR,
+                    NDB_VERSION_MINOR,
+                    NDB_VERSION_BUILD) >= 0x00070011); // 7.0.17
 
   return 0;
 }
