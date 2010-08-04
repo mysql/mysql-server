@@ -103,6 +103,17 @@ row_mysql_read_blob_ref(
 	ulint		col_len);	/*!< in: BLOB reference length
 					(not BLOB length) */
 /**************************************************************//**
+Pad a column with spaces. */
+UNIV_INTERN
+void
+row_mysql_pad_col(
+/*==============*/
+	ulint	mbminlen,	/*!< in: minimum size of a character,
+				in bytes */
+	byte*	pad,		/*!< out: padded buffer */
+	ulint	len);		/*!< in: number of bytes to pad */
+
+/**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.c.
@@ -622,7 +633,11 @@ struct row_prebuilt_struct {
 					the secondary index, then this is
 					set to TRUE */
 	unsigned	templ_contains_blob:1;/*!< TRUE if the template contains
-					BLOB column(s) */
+					a column with DATA_BLOB ==
+					get_innobase_type_from_mysql_type();
+					not to be confused with InnoDB
+					externally stored columns
+					(VARCHAR can be off-page too) */
 	mysql_row_templ_t* mysql_template;/*!< template used to transform
 					rows fast between MySQL and Innobase
 					formats; memory for this template

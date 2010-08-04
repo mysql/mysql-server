@@ -55,9 +55,6 @@ const char* rpl_status_type[]=
   "AUTH_MASTER","IDLE_SLAVE","ACTIVE_SLAVE","LOST_SOLDIER","TROOP_SOLDIER",
   "RECOVERY_CAPTAIN","NULL",NullS
 };
-TYPELIB rpl_status_typelib= {array_elements(rpl_status_type)-1,"",
-			     rpl_status_type, NULL};
-
 
 static Slave_log_event* find_slave_event(IO_CACHE* log,
 					 const char* log_file_name,
@@ -70,42 +67,6 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   The used functions (to handle LOAD DATA FROM MASTER, plus some small
   functions like register_slave()) are working.
 */
-
-#if NOT_USED
-static int init_failsafe_rpl_thread(THD* thd)
-{
-  DBUG_ENTER("init_failsafe_rpl_thread");
-  thd->system_thread = SYSTEM_THREAD_DELAYED_INSERT;
-  /*
-    thd->bootstrap is to report errors barely to stderr; if this code is
-    enable again one day, one should check if bootstrap is still needed (maybe
-    this thread has no other error reporting method).
-  */
-  thd->bootstrap = 1;
-  thd->security_ctx->skip_grants();
-  my_net_init(&thd->net, 0);
-  thd->net.read_timeout = slave_net_timeout;
-  thd->max_client_packet_length=thd->net.max_packet;
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
-
-  if (init_thr_lock() || thd->store_globals())
-  {
-    /* purecov: begin inspected */
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1); // is this needed?
-    statistic_increment(aborted_connects,&LOCK_status);
-    one_thread_per_connection_end(thd,0);
-    DBUG_RETURN(-1);
-    /* purecov: end */
-  }
-
-  thd->mem_root->free= thd->mem_root->used= 0;
-  thd_proc_info(thd, "Thread initialized");
-  thd->set_time();
-  DBUG_RETURN(0);
-}
-#endif
 
 void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
 {
@@ -621,66 +582,6 @@ err:
   }
   DBUG_RETURN(0);
 }
-
-
-#if NOT_USED
-int find_recovery_captain(THD* thd, MYSQL* mysql)
-{
-  return 0;
-}
-#endif
-
-#if NOT_USED
-pthread_handler_t handle_failsafe_rpl(void *arg)
-{
-  DBUG_ENTER("handle_failsafe_rpl");
-  THD *thd = new THD;
-  thd->thread_stack = (char*)&thd;
-  MYSQL* recovery_captain = 0;
-  const char* msg;
-
-  pthread_detach_this_thread();
-  if (init_failsafe_rpl_thread(thd) || !(recovery_captain=mysql_init(0)))
-  {
-    sql_print_error("Could not initialize failsafe replication thread");
-    goto err;
-  }
-  mysql_mutex_lock(&LOCK_rpl_status);
-  msg= thd->enter_cond(&COND_rpl_status,
-                       &LOCK_rpl_status, "Waiting for request");
-  while (!thd->killed && !abort_loop)
-  {
-    bool break_req_chain = 0;
-    mysql_cond_wait(&COND_rpl_status, &LOCK_rpl_status);
-    thd_proc_info(thd, "Processing request");
-    while (!break_req_chain)
-    {
-      switch (rpl_status) {
-      case RPL_LOST_SOLDIER:
-	if (find_recovery_captain(thd, recovery_captain))
-	  rpl_status=RPL_TROOP_SOLDIER;
-	else
-	  rpl_status=RPL_RECOVERY_CAPTAIN;
-	break_req_chain=1; /* for now until other states are implemented */
-	break;
-      default:
-	break_req_chain=1;
-	break;
-      }
-    }
-  }
-  thd->exit_cond(msg);
-err:
-  if (recovery_captain)
-    mysql_close(recovery_captain);
-  delete thd;
-
-  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
-  my_thread_end();
-  pthread_exit(0);
-  return 0;                                     // Avoid compiler warnings
-}
-#endif
 
 
 /**
