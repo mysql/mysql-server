@@ -4,10 +4,6 @@ NDB_VERSION_MINOR=0
 NDB_VERSION_BUILD=17
 NDB_VERSION_STATUS=""
 
-NDB_MYSQL_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
-NDB_MYSQL_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
-NDB_MYSQL_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
-
 dnl for build ndb docs
 
 AC_PATH_PROG(DOXYGEN, doxygen, no)
@@ -556,17 +552,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
                      [NDB build version])
   AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"],
                      [NDB status version])
-
-
-  AC_SUBST(NDB_MYSQL_VERSION_MAJOR)
-  AC_SUBST(NDB_MYSQL_VERSION_MINOR)
-  AC_SUBST(NDB_MYSQL_VERSION_BUILD)
-  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_MAJOR], [$NDB_MYSQL_VERSION_MAJOR],
-                     [MySQL major version])
-  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_MINOR], [$NDB_MYSQL_VERSION_MINOR],
-                     [MySQL minor version])
-  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_BUILD], [$NDB_MYSQL_VERSION_BUILD],
-                     [MySQL build version])
 
   # Generate ndb_version.h from ndb_version.h.in
   AC_CONFIG_FILES([storage/ndb/include/ndb_version.h])

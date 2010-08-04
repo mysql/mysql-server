@@ -431,6 +431,11 @@ TAPTEST(ndb_version)
                     NDB_VERSION_MINOR,
                     NDB_VERSION_BUILD) >= 0x00070011); // 7.0.17
 
+  /* Check MYSQL_VERSION_ID matches NDB_MYSQL_VERSION_XX variables */
+  OK(MYSQL_VERSION_ID == (NDB_MYSQL_VERSION_MAJOR * 10000 +
+                          NDB_MYSQL_VERSION_MINOR * 100 +
+                          NDB_MYSQL_VERSION_BUILD));
+
   return 1; // OK
 }
 
