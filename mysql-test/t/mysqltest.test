@@ -1106,6 +1106,36 @@ if (!$counter)
 }
 
 # ----------------------------------------------------------------------------
+# Test if with some non-numerics
+# ----------------------------------------------------------------------------
+
+let $counter=alpha;
+if ($counter)
+{
+  echo Counter is true, (counter=alpha);
+}
+let $counter=   ;
+if ($counter)
+{
+  echo oops, space is true;
+}
+let $counter=-0;
+if ($counter)
+{
+  echo oops, -0 is true;
+}
+if (beta)
+{
+  echo Beta is true;
+}
+let $counter=gamma;
+while ($counter)
+{
+  echo while with string, only once;
+  let $counter=000;
+}
+
+# ----------------------------------------------------------------------------
 # Test while, { and }
 # ----------------------------------------------------------------------------
 
