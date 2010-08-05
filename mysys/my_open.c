@@ -49,8 +49,8 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   fd = open((char *) FileName, Flags);
 #endif
 
-  DBUG_RETURN(my_register_filename(fd, FileName, FILE_BY_OPEN,
-				   EE_FILENOTFOUND, MyFlags));
+  fd= my_register_filename(fd, FileName, FILE_BY_OPEN, EE_FILENOTFOUND, MyFlags);
+  DBUG_RETURN(fd);
 } /* my_open */
 
 

@@ -89,7 +89,7 @@ bool dd_check_storage_engine_flag(THD *thd,
   handlerton *table_type;
   LEX_STRING db_name = {(char *) db, strlen(db)};
 
-  if (check_db_name(&db_name))
+  if (check_and_convert_db_name(&db_name, FALSE))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), db_name.str);
     return TRUE;
