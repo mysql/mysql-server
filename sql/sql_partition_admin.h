@@ -60,8 +60,8 @@ public:
     Constructor, used to represent a ALTER TABLE EXCHANGE PARTITION statement.
     @param lex the LEX structure for this statement.
   */
-  Alter_table_exchange_partition_statement(LEX *lex)
-    : Alter_table_common(lex)
+  Alter_table_exchange_partition_statement()
+    : Alter_table_common()
   {}
 
   ~Alter_table_exchange_partition_statement()

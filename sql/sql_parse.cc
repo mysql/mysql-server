@@ -1618,7 +1618,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
 
-      if (check_db_name(&db))
+      if (check_and_convert_db_name(&db, FALSE))
       {
         my_error(ER_WRONG_DB_NAME, MYF(0), db.str);
         DBUG_RETURN(1);
@@ -3521,7 +3521,7 @@ end_with_restore_list:
     HA_CREATE_INFO create_info(lex->create_info);
     char *alias;
     if (!(alias=thd->strmake(lex->name.str, lex->name.length)) ||
-        check_db_name(&lex->name))
+        check_and_convert_db_name(&lex->name, FALSE))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
       break;
@@ -3550,7 +3550,7 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_DB:
   {
-    if (check_db_name(&lex->name))
+    if (check_and_convert_db_name(&lex->name, FALSE))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
       break;
@@ -3589,7 +3589,7 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_db_name(db))
+    if (check_and_convert_db_name(db, FALSE))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
@@ -3610,7 +3610,7 @@ end_with_restore_list:
   {
     LEX_STRING *db= &lex->name;
     HA_CREATE_INFO create_info(lex->create_info);
-    if (check_db_name(db))
+    if (check_and_convert_db_name(db, FALSE))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
@@ -3640,7 +3640,7 @@ end_with_restore_list:
   {
     DBUG_EXECUTE_IF("4x_server_emul",
                     my_error(ER_UNKNOWN_ERROR, MYF(0)); goto error;);
-    if (check_db_name(&lex->name))
+    if (check_and_convert_db_name(&lex->name, TRUE))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
       break;
@@ -4060,7 +4060,7 @@ end_with_restore_list:
       Verify that the database name is allowed, optionally
       lowercase it.
     */
-    if (check_db_name(&lex->sphead->m_db))
+    if (check_and_convert_db_name(&lex->sphead->m_db, FALSE))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->sphead->m_db.str);
       goto create_sp_error;
@@ -4644,8 +4644,8 @@ create_sp_error:
     /* fall through */
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
-    DBUG_ASSERT(lex->m_stmt != NULL);
-    res= lex->m_stmt->execute(thd);
+    DBUG_ASSERT(lex->m_sql_cmd != NULL);
+    res= lex->m_sql_cmd->execute(thd);
     break;
   default:
 #ifndef EMBEDDED_LIBRARY
@@ -4760,6 +4760,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
+  thd->thd_marker.emb_on_expr_nest= NULL;
   if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   {
     if (lex->describe)
@@ -4774,7 +4775,11 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         return 1;                               /* purecov: inspected */
       thd->send_explain_fields(result);
       res= mysql_explain_union(thd, &thd->lex->unit, result);
-      if (lex->describe & DESCRIBE_EXTENDED)
+      /*
+        The code which prints the extended description is not robust
+        against malformed queries, so skip it if we have an error.
+      */
+      if (!res && (lex->describe & DESCRIBE_EXTENDED))
       {
         char buff[1024];
         String str(buff,(uint32) sizeof(buff), system_charset_info);
@@ -5561,6 +5566,7 @@ void THD::reset_for_next_command()
   thd->warning_info->reset_for_next_command();
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
+  thd->thd_marker.emb_on_expr_nest= NULL;
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
@@ -5649,7 +5655,6 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->include_down(lex->current_select);
     unit->link_next= 0;
     unit->link_prev= 0;
-    unit->return_to= lex->current_select;
     select_lex->include_down(unit);
     /*
       By default we assume that it is usual subselect and we have outer name
@@ -6073,7 +6078,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   }
 
   if (table->is_derived_table() == FALSE && table->db.str &&
-      check_db_name(&table->db))
+      check_and_convert_db_name(&table->db, FALSE))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), table->db.str);
     DBUG_RETURN(0);
@@ -7778,7 +7783,7 @@ bool parse_sql(THD *thd,
 {
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
-  DBUG_ASSERT(thd->lex->m_stmt == NULL);
+  DBUG_ASSERT(thd->lex->m_sql_cmd == NULL);
 
   MYSQL_QUERY_PARSE_START(thd->query());
   /* Backup creation context. */

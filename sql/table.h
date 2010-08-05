@@ -881,6 +881,8 @@ public:
   */
   key_map covering_keys;
   key_map quick_keys, merge_keys;
+  key_map used_keys;  /* Indexes that cover all fields used by the query */
+
   /*
     A set of keys that can be used in the query that references this
     table.
@@ -1105,7 +1107,7 @@ public:
     }
   }
 
-  bool update_const_key_parts(COND *conds);
+  bool update_const_key_parts(Item *conds);
 };
 
 
@@ -1191,7 +1193,6 @@ typedef struct st_field_info
 
 
 struct TABLE_LIST;
-typedef class Item COND;
 
 typedef struct st_schema_table
 {
@@ -1200,7 +1201,7 @@ typedef struct st_schema_table
   /* Create information_schema table */
   TABLE *(*create_table)  (THD *thd, TABLE_LIST *table_list);
   /* Fill table with data */
-  int (*fill_table) (THD *thd, TABLE_LIST *tables, COND *cond);
+  int (*fill_table) (THD *thd, TABLE_LIST *tables, Item *cond);
   /* Handle fileds for old SHOW */
   int (*old_format) (THD *thd, struct st_schema_table *schema_table);
   int (*process_table) (THD *thd, TABLE_LIST *tables, TABLE *table,
@@ -1289,6 +1290,10 @@ enum enum_open_type
   OT_TEMPORARY_OR_BASE= 0, OT_TEMPORARY_ONLY, OT_BASE_ONLY
 };
 
+class SJ_MATERIALIZATION_INFO;
+class Index_hint;
+class Item_exists_subselect;
+
 
 /*
   Table reference in the FROM clause.
@@ -1320,10 +1325,11 @@ enum enum_open_type
        (TABLE_LIST::natural_join != NULL)
        - JOIN ... USING
          (TABLE_LIST::join_using_fields != NULL)
+     - semi-join
+       ;
 */
 
 struct LEX;
-class Index_hint;
 struct TABLE_LIST
 {
   TABLE_LIST() {}                          /* Remove gcc warning */
@@ -1362,6 +1368,17 @@ struct TABLE_LIST
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+  Item          *sj_on_expr;            /* Synthesized semijoin condition */
+  /*
+    (Valid only for semi-join nests) Bitmap of tables that are within the
+    semi-join (this is different from bitmap of all nest's children because
+    tables that were pulled out of the semi-join nest remain listed as
+    nest's children).
+  */
+  table_map     sj_inner_tables;
+  Item_exists_subselect  *sj_subq_pred;
+  SJ_MATERIALIZATION_INFO *sj_mat_info;
+
   /*
     The structure of ON expression presented in the member above
     can be changed during certain optimizations. This member
@@ -1766,6 +1783,27 @@ struct TABLE_LIST
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
 
+  /**
+    @brief Returns whether the table (or join nest) that this TABLE_LIST 
+    represents, is part of an outer-join nest.
+
+    @details There are two kinds of join nests, outer-join nests and semi-join 
+    nests.  This function returns @c TRUE in the following cases:
+      @li 1. If this table/nest is embedded in a nest and this nest IS NOT a 
+             semi-join nest.  (In other words, it is an outer-join nest.)
+      @li 2. If this table/nest is embedded in a nest and this nest IS a 
+             semi-join nest, but this semi-join nest is embedded in another 
+             nest. (This other nest will be an outer-join nest, since all inner 
+             joined nested semi-join nests have been merged in 
+             @c simplify_joins() ).
+    Note: This function assumes that @c simplify_joins() has been performed.
+    Before that, join nests will be present for all types of join.
+   */
+  bool in_outer_join_nest() const
+  { 
+    return (embedding && (!embedding->sj_on_expr || embedding->embedding)); 
+  }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1775,6 +1813,10 @@ private:
   ulong m_table_ref_version;
 };
 
+struct st_position;
+
+class SJ_MATERIALIZATION_INFO;
+  
 class Item;
 
 /*
@@ -1915,8 +1957,20 @@ typedef struct st_nested_join
        by the join optimizer. 
     Before each use the counters are zeroed by reset_nj_counters.
   */
-  uint              counter;
+  uint              counter_;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /*
+    Tables outside the semi-join that are used within the semi-join's
+    ON condition (ie. the subquery WHERE clause and optional IN equalities).
+  */
+  table_map         sj_depends_on;
+  /* Outer non-trivially correlated tables, a true subset of sj_depends_on */
+  table_map         sj_corr_tables;
+  /*
+    Lists of trivially-correlated expressions from the outer and inner tables
+    of the semi-join, respectively.
+  */
+  List<Item>        sj_outer_exprs, sj_inner_exprs;
   /**
      True if this join nest node is completely covered by the query execution
      plan. This means two things.
@@ -1925,7 +1979,7 @@ typedef struct st_nested_join
 
      2. All child join nest nodes are fully covered.
    */
-  bool is_fully_covered() const { return join_list.elements == counter; }
+  bool is_fully_covered() const { return join_list.elements == counter_; }
 } NESTED_JOIN;
 
 
@@ -2027,7 +2081,6 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 bool check_and_convert_db_name(LEX_STRING *db, bool preserve_lettercase);
-bool check_db_name(LEX_STRING *db);
 bool check_column_name(const char *name);
 bool check_table_name(const char *name, size_t length, bool check_for_path_chars);
 int rename_file_ext(const char * from,const char * to,const char * ext);
