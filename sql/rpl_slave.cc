@@ -1174,15 +1174,14 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   DBUG_RETURN(1);
 }
 
-int init_longvar_from_file(long* var, IO_CACHE* f, long default_val)
+int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val)
 {
   char buf[32];
-  DBUG_ENTER("init_longvar_from_file");
-
+  DBUG_ENTER("init_ulongvar_from_file");
 
   if (my_b_gets(f, buf, sizeof(buf)))
   {
-    *var = atol(buf);
+    *var = strtoul(buf, 0, 10);
     DBUG_RETURN(0);
   }
   else if (default_val)
@@ -2052,11 +2051,11 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Master_UUID", UUID_LENGTH));
   field_list.push_back(new Item_empty_string("Master_Info_File",
                                              2 * FN_REFLEN));
-  field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
-                                           MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("SQL_Remaining_Delay", 8, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
+  field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
+                                           MYSQL_TYPE_LONGLONG));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2228,8 +2227,6 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->master_uuid, &my_charset_bin);
     // Master_Info_File
     protocol->store(mi->get_description_info(), &my_charset_bin);
-    // Master_Retry_Count
-    protocol->store((ulonglong) mi->retry_count);
     // SQL_Delay
     protocol->store((uint32) mi->rli->get_sql_delay());
     // SQL_Remaining_Delay
@@ -2245,6 +2242,8 @@ bool show_master_info(THD* thd, Master_info* mi)
       protocol->store_null();
     // Slave_SQL_Running_State
     protocol->store(slave_sql_running_state, &my_charset_bin);
+    // Master_Retry_Count
+    protocol->store((ulonglong) mi->retry_count);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -5674,7 +5673,7 @@ bool change_master(THD* thd, Master_info* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
-  if (lex_mi->retry_count)
+  if (lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->retry_count = lex_mi->retry_count;
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;

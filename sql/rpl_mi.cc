@@ -31,16 +31,20 @@ enum {
   /* 5.5 added value of master_heartbeat_period */
   LINE_FOR_MASTER_HEARTBEAT_PERIOD= 16,
 
-  /* 5.5 added value of master_ignore_server_id */
-  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 17,
+  /* MySQL Cluster 6.3 added master_bind */
+  LINE_FOR_MASTER_BIND = 17,
 
-  /* line for master_retry_count */
-  LINE_FOR_MASTER_RETRY_COUNT= 18,
+  /* 6.0 added value of master_ignore_server_id */
+  LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 18,
 
+  /* 6.0 added value of master_uuid */
   LINE_FOR_MASTER_UUID= 19,
 
+  /* line for master_retry_count */
+  LINE_FOR_MASTER_RETRY_COUNT= 20,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_UUID
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_RETRY_COUNT
 };
 
 /*
@@ -66,9 +70,10 @@ const char *info_mi_fields []=
   "ssl_key",
   "ssl_verify_server_cert",
   "heartbeat_period",
+  "bind", 
   "ignore_server_ids",
-  "retry_count",
-  "uuid"
+  "uuid",
+  "retry_count"
 };
 
 Master_info::Master_info(PSI_mutex_key *param_key_info_run_lock,
@@ -362,6 +367,21 @@ bool Master_info::read_info(Rpl_info_handler *from)
   }
 
   /*
+    Starting from 5.5 master_bind might be in the file
+  */
+  if (lines >= LINE_FOR_MASTER_BIND)
+  {
+    /*
+      This is a placeholder for the bind option.
+      Please, update this after WL#3126 and
+      WL#3127.
+    */
+    char fake_bind[2];
+    if (from->get_info(fake_bind, sizeof(fake_bind), ""))
+      DBUG_RETURN(TRUE);
+  }
+
+  /*
     Starting from 5.5 list of server_id of ignorable servers might be
     in the file
   */
@@ -371,18 +391,18 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(TRUE);
   }
 
+  /* Starting from 5.5 the master_uuid may be in the repository. */
+  if (lines >= LINE_FOR_MASTER_UUID)
+  {
+    if (from->get_info(master_uuid, sizeof(master_uuid), 0))
+      DBUG_RETURN(TRUE);
+  }
+
   /* Starting from 5.5 the master_retry_count may be in the repository. */
   retry_count= master_retry_count;
   if (lines >= LINE_FOR_MASTER_RETRY_COUNT)
   {
     if (from->get_info(&retry_count, master_retry_count))
-      DBUG_RETURN(TRUE);
-  }
-
-  /* Starting from 5.5 the master_retry_count may be in the repository. */
-  if (lines >= LINE_FOR_MASTER_UUID)
-  {
-    if (from->get_info(master_uuid, sizeof(master_uuid), 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -427,9 +447,15 @@ bool Master_info::write_info(Rpl_info_handler *to, bool force)
       to->set_info(ssl_key) ||
       to->set_info(ssl_verify_server_cert) ||
       to->set_info(heartbeat_period) ||
+      /*
+        This is a placeholder for the bind option.
+        Please, update this after WL#3126 and
+        WL#3127.
+      */
+      to->set_info("") || 
       to->set_info(ignore_server_ids) ||
-      to->set_info(retry_count) ||
-      to->set_info(master_uuid))
+      to->set_info(master_uuid) ||
+      to->set_info(retry_count))
     DBUG_RETURN(TRUE);
 
   if (to->flush_info(force))

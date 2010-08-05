@@ -1905,7 +1905,8 @@ master_def:
           }
         | MASTER_RETRY_COUNT_SYM EQ ulong_num
           {
-            Lex->mi.retry_count = $3;
+            Lex->mi.retry_count= $3;
+            Lex->mi.retry_count_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
           }
         | MASTER_DELAY_SYM EQ ulong_num
           {
