@@ -284,6 +284,8 @@ read_view_open_now(
 
 	view = read_view_create_low(n_trx, heap);
 
+	n_trx = 0;
+
 	view->undo_no = 0;
 	view->type = VIEW_NORMAL;
 	view->creator_trx_id = cr_trx_id;
@@ -303,8 +305,9 @@ read_view_open_now(
 		    && (trx->lock.conc_state == TRX_ACTIVE
 			|| trx->lock.conc_state == TRX_PREPARED)) {
 
-			ut_ad(view->n_trx_ids < n_trx);
-			view->trx_ids[view->n_trx_ids++] = trx->id;
+			ut_ad(n_trx < view->n_trx_ids);
+
+			view->trx_ids[n_trx++] = trx->id;
 
 			/* NOTE that a transaction whose trx number is <
 			trx_sys->max_trx_id can still be active, if it is
@@ -318,6 +321,8 @@ read_view_open_now(
 			}
 		}
 	}
+
+	view->n_trx_ids = n_trx;
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
@@ -449,6 +454,8 @@ read_cursor_view_create_for_mysql(
 
 	curview->read_view = read_view_create_low(n_trx, curview->heap);
 
+	n_trx = 0;
+
 	view = curview->read_view;
 	view->undo_no = cr_trx->undo_no;
 	view->creator_trx_id = cr_trx->id;
@@ -468,9 +475,9 @@ read_cursor_view_create_for_mysql(
 		if (trx->lock.conc_state == TRX_ACTIVE
 		    || trx->lock.conc_state == TRX_PREPARED) {
 
-			ut_ad(view->n_trx_ids < n_trx);
+			ut_a(n_trx < view->n_trx_ids);
 
-			view->trx_ids[view->n_trx_ids++] = trx->id;
+			view->trx_ids[n_trx++] = trx->id;
 
 			/* NOTE that a transaction whose trx number is <
 			trx_sys->max_trx_id can still be active, if it is
@@ -484,6 +491,8 @@ read_cursor_view_create_for_mysql(
 			}
 		}
 	}
+
+	view->n_trx_ids = n_trx;
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
