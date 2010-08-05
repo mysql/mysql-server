@@ -46,7 +46,8 @@ OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON)
 SET(MANUFACTURER_DOCSTRING
   "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
 IF(NOT DEFINED MANUFACTURER) 
-  SET(MANUFACTURER "Built from Source" CACHE BOOL ${MANUFACTURER_DOCSTRING})
+  SET(MANUFACTURER "Built from Source" CACHE  STRING ${MANUFACTURER_DOCSTRING})
+  MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
