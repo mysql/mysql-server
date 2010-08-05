@@ -20,5 +20,5 @@ sleep(5)
 0
 set global long_query_time=2;
 set global use_global_long_query_time=0;
-cat MYSQLD_DATADIR/percona_slow_query_log-use_global_long_query_time.log | grep Query_time | wc -l
+cat MYSQLD_DATADIR/percona_slow_query_log-use_global_long_query_time.log | grep -c Query_time
 3

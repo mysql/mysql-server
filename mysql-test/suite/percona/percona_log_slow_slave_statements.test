@@ -126,10 +126,10 @@ let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
 -- echo # Analyse master slow_query_log
 let $i=7;
 let $k=1;
-let $cmd=cat $MASTER_DATADIR/percona_log_slow_slave_statements-master.log | grep;
+let $cmd=cat $MASTER_DATADIR/percona_log_slow_slave_statements-master.log | grep -c;
 while($i)
 {
-    let $current_cmd = $cmd "INSERT INTO t VALUES ($k)" | wc -l;
+    let $current_cmd = $cmd "INSERT INTO t VALUES ($k)";
     exec $current_cmd;
     dec $i;
     inc $k;
@@ -138,10 +138,10 @@ while($i)
 -- echo # Analyse slave slow_query_log
 let $i=7;
 let $k=1;
-let $cmd=cat $SLAVE_DATADIR/percona_log_slow_slave_statements-slave.log | grep;
+let $cmd=cat $SLAVE_DATADIR/percona_log_slow_slave_statements-slave.log | grep -c;
 while($i)
 {
-    let $current_cmd = $cmd "INSERT INTO t VALUES ($k)" | wc -l;
+    let $current_cmd = $cmd "INSERT INTO t VALUES ($k)";
     exec $current_cmd;
     dec $i;
     inc $k;

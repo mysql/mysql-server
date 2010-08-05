@@ -27,7 +27,7 @@ drop table if exists t;
 --enable_warnings
 
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $cmd = cat $MYSQLD_DATADIR/percona_slow_query_log-min_examined_row_limit.log | grep Query_time | wc -l;
+let $cmd = cat $MYSQLD_DATADIR/percona_slow_query_log-min_examined_row_limit.log | grep -c Query_time;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 exec echo '$cmd';
 exec $cmd;
