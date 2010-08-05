@@ -21,7 +21,7 @@
 #include "log.h"
 
 /* These functions are defined in slave.cc */
-int init_longvar_from_file(long* var, IO_CACHE* f, long default_val);
+int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                           const char *default_val);
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
@@ -186,7 +186,7 @@ bool Rpl_info_file::do_set_info(const int pos, const ulong value)
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
  
-  return (my_b_printf(&info_file, "%lu\n", (ulong) value) > (size_t) 0 ?
+  return (my_b_printf(&info_file, "%lu\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
@@ -256,8 +256,8 @@ bool Rpl_info_file::do_get_info(const int pos, ulong *value,
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
 
-  return (init_longvar_from_file((long *) value, &info_file, 
-                                 (long) default_value));
+  return (init_ulongvar_from_file(value, &info_file,
+                                  default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, int *value,

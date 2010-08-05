@@ -104,9 +104,10 @@ bool Rpl_info_table_access::open_table(THD* thd, const char *dbstr,
       altered the table.
     */
     my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
-             tables.table->alias, max_num_field,
-             tables.table->s->fields);
+             tables.table->s->db.str, tables.table->s->table_name.str,
+             max_num_field, tables.table->s->fields);
     close_thread_tables(thd);
+    thd->restore_backup_open_tables_state(backup);
     DBUG_RETURN(TRUE);
   }
 
