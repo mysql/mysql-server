@@ -17,3 +17,4 @@ innodb_bug53592 : Waiting for merge/fix from XtraDB
 innodb-use-sys-malloc : Waiting for bugfix from Percona for LP#612600
 innodb_bug53290 : Waiting for merge/fix from XtraDB
 innodb_bug54679 : Waiting for merge/fix from XtraDB
+innodb_bug52745 : Waiting for merge/fix from XtraDB

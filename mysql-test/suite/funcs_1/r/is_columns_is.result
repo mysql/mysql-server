@@ -41,7 +41,7 @@ NULL	information_schema	COLUMN_PRIVILEGES	PRIVILEGE_TYPE	6		NO	varchar	64	192	NU
 NULL	information_schema	COLUMN_PRIVILEGES	TABLE_CATALOG	2	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	TABLE_NAME	4		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	COLUMN_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	ENGINES	COMMENT	3		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
+NULL	information_schema	ENGINES	COMMENT	3		NO	varchar	160	480	NULL	NULL	utf8	utf8_general_ci	varchar(160)			select	
 NULL	information_schema	ENGINES	ENGINE	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ENGINES	SAVEPOINTS	6	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 NULL	information_schema	ENGINES	SUPPORT	2		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
@@ -516,7 +516,7 @@ NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	COLUMN_PRIVILEGES	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ENGINES	ENGINE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ENGINES	SUPPORT	varchar	8	24	utf8	utf8_general_ci	varchar(8)
-3.0000	information_schema	ENGINES	COMMENT	varchar	80	240	utf8	utf8_general_ci	varchar(80)
+3.0000	information_schema	ENGINES	COMMENT	varchar	160	480	utf8	utf8_general_ci	varchar(160)
 3.0000	information_schema	ENGINES	TRANSACTIONS	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ENGINES	XA	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ENGINES	SAVEPOINTS	varchar	3	9	utf8	utf8_general_ci	varchar(3)
