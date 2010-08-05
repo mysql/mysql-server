@@ -42,6 +42,7 @@ static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
 static my_bool opt_transaction_logging, opt_debug, opt_require_control_file;
+static my_bool opt_warning_for_wrong_transid;
 
 static const char *type_names[]=
 {
@@ -193,7 +194,7 @@ enum options_mc {
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
   OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN, OPT_REQUIRE_CONTROL_FILE,
-  OPT_LOG_DIR, OPT_DATADIR
+  OPT_LOG_DIR, OPT_DATADIR, OPT_WARNING_FOR_WRONG_TRANSID
 };
 
 static struct my_option my_long_options[] =
@@ -337,7 +338,9 @@ static struct my_option my_long_options[] =
    &opt_transaction_logging, &opt_transaction_logging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
-   "Mark tables as crashed if any errors were found.",
+   "Mark tables as crashed if any errors were found and clean if check didn't "
+   "find any errors. This allows one to get rid of warnings like 'table not "
+   "properly closed'",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unpack", 'u',
    "Unpack file packed with mariapack.",
@@ -349,6 +352,11 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"wait", 'w', "Wait if table is locked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"warning-for-wrong-transaction-id", OPT_WARNING_FOR_WRONG_TRANSID,
+   "Give a warning if we find a transaction id in the table that is bigger"
+   "than what exists in the control file. Use --skip-... to disable warning",
+   &opt_warning_for_wrong_transid, &opt_warning_for_wrong_transid,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   { "page_buffer_size", OPT_PAGE_BUFFER_SIZE,
     "Size of page buffer. Used by --safe-repair",
     &check_param.use_buffers, &check_param.use_buffers, 0,
@@ -1241,6 +1249,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
              llstr(info->state->records,llbuff),
              llstr(info->state->del,llbuff2));
     maria_chk_init_for_check(param, info);
+    if (opt_warning_for_wrong_transid == 0)
+      param->max_trid= ~ (ulonglong) 0;
     error= maria_chk_status(param,info);
     maria_intersect_keys_active(share->state.key_map, param->keys_in_use);
     error|= maria_chk_size(param,info);
@@ -1277,8 +1287,11 @@ static int maria_chk(HA_CHECK *param, char *filename)
     }
     if (!error)
     {
-      if ((share->state.changed & STATE_CHANGED) &&
-          (param->testflag & T_UPDATE_STATE))
+      if (((share->state.changed &
+            (STATE_CHANGED | STATE_CRASHED | STATE_CRASHED_ON_REPAIR |
+             STATE_IN_REPAIR)) ||
+           share->state.open_count != 0)
+          && (param->testflag & T_UPDATE_STATE))
         info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
