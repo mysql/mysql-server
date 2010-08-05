@@ -17,6 +17,7 @@ DROP TABLE t1;
 include/stop_slave.inc
 # assertion: show that error is preserved after stop slave as well as the timestamp
 CREATE TABLE  t1 (a INT, b blob, PRIMARY KEY(b(512)));
+Last_SQL_Errno: 1051
 include/start_slave.inc
 # assertion: show that the error is not reported anymore since replication
 #            has resumed correctly
@@ -35,5 +36,6 @@ START SLAVE;
 include/stop_slave.inc
 # assertion: show that error is preserved after stop slave as well as the timestamp
 change master to master_port=MASTER_PORT;
+Last_IO_Errno: 1593
 include/start_slave.inc
 # assertion: show that no error is reported anymore
