@@ -700,6 +700,22 @@ count(*)
 select count(*) from t1 where cat_code='E';
 count(*)
 0
+alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+ERROR 42000: Incorrect index name 'sca_pic'
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
+count(*)
+1
+select count(*) from t1 where sca_pic >= 'n';
+count(*)
+1
+select sca_pic from t1 where sca_pic is null;
+sca_pic
+NULL
+NULL
+update t1 set sca_pic="test" where sca_pic is null;
+delete from t1 where sca_code='pd';
 drop table t1;
 set @a:=now();
 CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) engine=innodb;
@@ -1657,13 +1673,13 @@ variable_value
 16384
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 variable_value - @innodb_rows_deleted_orig
-70
+71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1063
+1066
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
-863
+865
 SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 variable_value - @innodb_row_lock_waits_orig
 0

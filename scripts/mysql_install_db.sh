@@ -479,7 +479,7 @@ then
   echo "Support MariaDB development by buying support/new features from"
   echo "Monty Program Ab. You can contact us about this at sales@askmonty.org".
   echo "Alternatively consider joining our community based development effort:"
-  echo "http://askmonty.org/wiki/index.php/MariaDB#How_can_I_participate_in_the_development_of_MariaDB.3F"
+  echo "http://askmonty.org/wiki/index.php/MariaDB#How_can_I_participate_in_the_development_of_MariaDB"
   echo
 fi
 

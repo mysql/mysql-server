@@ -1,0 +1,65 @@
+# Uses GRANT commands that usually disabled in embedded server
+-- source include/not_embedded.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+#
+# Test of SHOW [GLOBAL] TEMPORARY TABLES [FROM/IN] DB and 
+# Information_schema.temporary_tables and global_temporary_tables
+#
+
+connect(stcon1,localhost,root,,test);
+connect(stcon2,localhost,root,,test);
+
+connection stcon1;
+
+--disable_warnings
+drop table if exists t1,t2,t3;
+drop database if exists showtemp;
+create database if not exists showtemp;
+--enable_warnings
+
+use test;
+create temporary table t1(id int);
+create temporary table t2(id int);
+create temporary table showtemp.t3(id int);
+insert into t1 values(10),(20),(30),(40);
+insert into showtemp.t3 values(999);
+
+show temporary tables;
+# "Session" is not same value always. mysql-test cannot test it always.
+#show global temporary tables;
+show temporary tables from test;
+show temporary tables in showtemp;
+select table_schema, table_name, engine, table_rows from Information_schema.temporary_tables;
+select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
+select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables where table_schema='showtemp';
+select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables where table_schema='temp';
+
+connection stcon2;
+
+--disable_warnings
+drop table if exists showtemp.t2;
+--enable_warnings
+create temporary table t1(id int);
+create temporary table showtemp.t2(id int);
+show temporary tables;
+select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
+drop table showtemp.t2;
+drop table t1;
+
+disconnect stcon2;
+
+connection stcon1;
+select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
+
+drop table t1, t2;
+drop table showtemp.t3;
+drop database showtemp;
+
+connection default;
+disconnect stcon1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -86,7 +86,9 @@ buf_read_page_low(
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
 
-	if (trx_doublewrite && space == TRX_SYS_SPACE
+	if (trx_doublewrite
+	    && (space == TRX_SYS_SPACE
+		|| (srv_doublewrite_file && space == TRX_DOUBLEWRITE_SPACE))
 	    && (   (offset >= trx_doublewrite->block1
 		    && offset < trx_doublewrite->block1
 		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
@@ -656,6 +658,50 @@ buf_read_recv_pages(
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
+		/* the log records should be treated here same reason
+		for http://bugs.mysql.com/bug.php?id=43948 */
+
+		if (recv_recovery_is_on()) {
+			recv_addr_t*    recv_addr;
+
+			mutex_enter(&(recv_sys->mutex));
+
+			if (recv_sys->apply_log_recs == FALSE) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			for (i = 0; i < n_stored; i++) {
+				/* recv_get_fil_addr_struct() */
+				recv_addr = HASH_GET_FIRST(recv_sys->addr_hash,
+						hash_calc_hash(ut_fold_ulint_pair(space, page_nos[i]),
+							recv_sys->addr_hash));
+				while (recv_addr) {
+					if ((recv_addr->space == space)
+						&& (recv_addr->page_no == page_nos[i])) {
+						break;
+					}
+					recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
+				}
+
+				if ((recv_addr == NULL)
+				    || (recv_addr->state == RECV_BEING_PROCESSED)
+				    || (recv_addr->state == RECV_PROCESSED)) {
+					continue;
+				}
+
+				recv_addr->state = RECV_PROCESSED;
+
+				ut_a(recv_sys->n_addrs);
+				recv_sys->n_addrs--;
+			}
+
+			mutex_exit(&(recv_sys->mutex));
+
+			fprintf(stderr, " (cannot find space: %lu)", space);
+		}
+not_to_recover:
+
 		return;
 	}
 
@@ -674,10 +720,10 @@ buf_read_recv_pages(
 
 			count++;
 
-			if (count > 5000) {
+			if (count > 1000) {
 				fprintf(stderr,
 					"InnoDB: Error: InnoDB has waited for"
-					" 50 seconds for pending\n"
+					" 10 seconds for pending\n"
 					"InnoDB: reads to the buffer pool to"
 					" be finished.\n"
 					"InnoDB: Number of pending reads %lu,"

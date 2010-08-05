@@ -70,6 +70,7 @@ term\.c : .*
 #
 .*/extra/libevent/.* : .*unused parameter.*
 .*/extra/libevent/select\.c : .*comparison between signed and unsigned.* : 270-280
+signal\.c : .*unused parameter.*
 
 #
 # Ignore warnings from system libraries

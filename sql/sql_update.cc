@@ -29,12 +29,12 @@
 
 bool compare_record(TABLE *table)
 {
-  if (table->s->blob_fields + table->s->varchar_fields == 0)
+  if (table->s->can_cmp_whole_record)
     return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,
 	     table->null_flags+table->s->rec_buff_length,
-	     table->s->null_bytes))
+	     table->s->null_bytes_for_compare))
     return TRUE;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr= table->field ; *ptr ; ptr++)
@@ -1988,9 +1988,11 @@ int multi_update::do_updates()
       Setup copy functions to copy fields from temporary table
     */
     List_iterator_fast<Item> field_it(*fields_for_table[offset]);
-    Field **field= tmp_table->field + 
-                   1 + unupdated_check_opt_tables.elements; // Skip row pointers
+    Field **field;
     Copy_field *copy_field_ptr= copy_field, *copy_field_end;
+
+    /* Skip row pointers */
+    field= tmp_table->field + 1 + unupdated_check_opt_tables.elements;
     for ( ; *field ; field++)
     {
       Item_field *item= (Item_field* ) field_it++;

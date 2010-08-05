@@ -691,14 +691,16 @@ count(*)
 select count(*) from t1 where sca_pic is null;
 count(*)
 2
-alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
 select count(*) from t1 where cat_code='E';
 count(*)
 0
-alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -1357,7 +1359,7 @@ insert t2 select * from t1;
 insert t3 select * from t1;
 checksum table t1, t2, t3, t4 quick;
 Table	Checksum
-test.t1	2948697075
+test.t1	3442722830
 test.t2	NULL
 test.t3	NULL
 test.t4	NULL
@@ -1365,17 +1367,17 @@ Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 checksum table t1, t2, t3, t4;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
-test.t3	2948697075
+test.t1	3442722830
+test.t2	3442722830
+test.t3	3442722830
 test.t4	NULL
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 checksum table t1, t2, t3, t4 extended;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
-test.t3	2948697075
+test.t1	3442722830
+test.t2	3442722830
+test.t3	3442722830
 test.t4	NULL
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist
@@ -1432,7 +1434,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop index id2 on t2;
 drop index id on t2;
-Got one of the listed errors
+ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1662,7 +1664,7 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-512
+8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
@@ -1690,9 +1692,10 @@ variable_value - @innodb_row_lock_time_max_orig
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
-innodb_sync_spin_loops	20
+innodb_sync_spin_loops	30
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
@@ -1705,10 +1708,11 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
 Warning	1292	Truncated incorrect thread_concurrency value: '1001'
@@ -2301,6 +2305,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

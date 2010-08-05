@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -430,6 +430,8 @@ buf_buddy_relocate_block(
 	}
 	mutex_exit(&flush_list_mutex);
 
+	UNIV_MEM_INVALID(bpage, sizeof *bpage);
+
 	mutex_exit(&buf_pool_zip_mutex);
 	mutex_exit(&zip_free_mutex);
 	return(TRUE);
@@ -567,7 +569,12 @@ success:
 		}
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
+#if UNIV_WORD_SIZE == 4
+		/* On 32-bit systems, there is no padding in
+		buf_page_t.  On other systems, Valgrind could complain
+		about uninitialized pad bytes. */
 		UNIV_MEM_ASSERT_RW(src, size);
+#endif
 
 		mutex_exit(&zip_free_mutex);
 
