@@ -1987,9 +1987,9 @@ static my_bool _ma_log_split(MARIA_PAGE *ma_page,
                              uint changed_length)
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+3+3+3+3+2];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+3+3+3+3+2 +7];
   uchar *log_pos;
-  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
   uint offset= (uint) (key_pos - ma_page->buff);
   uint translog_parts, extra_length;
   MARIA_HA *info= ma_page->info; 
@@ -2085,6 +2085,22 @@ static my_bool _ma_log_split(MARIA_PAGE *ma_page,
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  {
+    int page_length= ma_page->size;
+    ha_checksum crc;
+    crc= my_checksum(0, ma_page->buff + LSN_STORE_SIZE,
+                     page_length - LSN_STORE_SIZE);
+    log_pos[0]= KEY_OP_CHECK;
+    int2store(log_pos+1, page_length);
+    int4store(log_pos+3, crc);
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
+    extra_length+= 7;
+    translog_parts++;
+  }
+#endif
+
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
                                     (translog_size_t)
@@ -2122,8 +2138,8 @@ static my_bool _ma_log_del_prefix(MARIA_PAGE *ma_page,
                                   int move_length)
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 12], *log_pos;
-  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 12 + 7], *log_pos;
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   uint offset= (uint) (key_pos - ma_page->buff);
   uint diff_length= org_length + move_length - new_length;
   uint translog_parts, extra_length;
@@ -2190,6 +2206,22 @@ static my_bool _ma_log_del_prefix(MARIA_PAGE *ma_page,
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  {
+    int page_length= ma_page->size;
+    ha_checksum crc;
+    crc= my_checksum(0, ma_page->buff + LSN_STORE_SIZE,
+                     page_length - LSN_STORE_SIZE);
+    log_pos[0]= KEY_OP_CHECK;
+    int2store(log_pos+1, page_length);
+    int4store(log_pos+3, crc);
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
+    extra_length+= 7;
+    translog_parts++;
+  }
+#endif
+
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
                                     (translog_size_t)
@@ -2215,9 +2247,9 @@ static my_bool _ma_log_key_middle(MARIA_PAGE *ma_page,
                                   uint key_length, int move_length)
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+5+3+3+3];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+5+3+3+3 + 7];
   uchar *log_pos;
-  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 5];
   uint key_offset;
   uint translog_parts, extra_length;
   my_off_t page;
@@ -2300,6 +2332,22 @@ static my_bool _ma_log_key_middle(MARIA_PAGE *ma_page,
                            key_length);
   }
 
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  {
+    int page_length= ma_page->size;
+    ha_checksum crc;
+    crc= my_checksum(0, ma_page->buff + LSN_STORE_SIZE,
+                     page_length - LSN_STORE_SIZE);
+    log_pos[0]= KEY_OP_CHECK;
+    int2store(log_pos+1, page_length);
+    int4store(log_pos+3, crc);
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
+    extra_length+= 7;
+    translog_parts++;
+  }
+#endif
+
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
                                     (translog_size_t)
@@ -2327,6 +2375,7 @@ static my_bool _ma_log_middle(MARIA_PAGE *ma_page,
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3 + 5], *log_pos;
   MARIA_HA *info= ma_page->info;
   my_off_t page;
+  uint translog_parts, extra_length;
   DBUG_ENTER("_ma_log_middle");
   DBUG_PRINT("enter", ("page: %lu", (ulong) page));
 
@@ -2352,12 +2401,31 @@ static my_bool _ma_log_middle(MARIA_PAGE *ma_page,
   log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    ((char*) buff +
                                                   info->s->keypage_header);
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= data_changed_first;
+  translog_parts= 2;
+  extra_length= data_changed_first;
+
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  {
+    int page_length= ma_page->size;
+    ha_checksum crc;
+    crc= my_checksum(0, ma_page->buff + LSN_STORE_SIZE,
+                     page_length - LSN_STORE_SIZE);
+    log_pos[0]= KEY_OP_CHECK;
+    int2store(log_pos+1, page_length);
+    int4store(log_pos+3, crc);
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
+    extra_length+= 7;
+    translog_parts++;
+  }
+#endif
+
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
                                     (translog_size_t)
                                     log_array[TRANSLOG_INTERNAL_PARTS +
-                                              0].length + data_changed_first,
-                                    TRANSLOG_INTERNAL_PARTS + 2,
+                                              0].length + extra_length,
+                                    TRANSLOG_INTERNAL_PARTS + translog_parts,
                                     log_array, log_data, NULL));
 }
 #endif
