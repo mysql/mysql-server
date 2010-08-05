@@ -80,21 +80,11 @@ SET(XTRADB_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			trx/trx0i_s.c trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c
 			trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c
 			usr/usr0sess.c
-			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
+			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rbt.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
 			ut/ut0list.c ut/ut0wqueue.c)
-ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DIB_HAVE_PAUSE_INSTRUCTION)
+# Windows atomics do not perform well. Disable Windows atomics by default.
+# See bug#52102 for details.
+#ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
+ADD_DEFINITIONS(-DHAVE_IB_PAUSE_INSTRUCTION)
 
-IF (MYSQL_VERSION_ID GREATER "50137")
-	MYSQL_STORAGE_ENGINE(XTRADB)
-	GET_TARGET_PROPERTY(LIB_LOCATION ha_xtradb LOCATION)
-	IF(LIB_LOCATION)
-		SET_TARGET_PROPERTIES(ha_xtradb PROPERTIES OUTPUT_NAME ha_xtradb)
-	ENDIF(LIB_LOCATION)
-ELSE (MYSQL_VERSION_ID GREATER "50137")
-	IF (NOT SOURCE_SUBLIBS)
-		ADD_DEFINITIONS(-D_WIN32 -DMYSQL_SERVER)
-		ADD_LIBRARY(xtradb STATIC ${XTRADB_SOURCES})
-		# Require mysqld_error.h, which is built as part of the GenError
-		ADD_DEPENDENCIES(xtradb GenError)
-	ENDIF (NOT SOURCE_SUBLIBS)
-ENDIF (MYSQL_VERSION_ID GREATER "50137")
+MYSQL_STORAGE_ENGINE(XTRADB)

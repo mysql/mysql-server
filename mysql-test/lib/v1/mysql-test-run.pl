@@ -3970,7 +3970,7 @@ sub mysqld_arguments ($$$$) {
     }
   }
 
-  mtr_add_arg($args, "%s--character-set-server-set=latin1", $prefix);
+  mtr_add_arg($args, "%s--character-set-server=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 

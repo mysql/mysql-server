@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -277,6 +277,8 @@ the read requests for the whole area.
 #ifndef UNIV_HOTBACKUP
 /** Value in microseconds */
 static const int WAIT_FOR_READ	= 5000;
+/** Number of attemtps made to read in a page in the buffer pool */
+static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
 /** The buffer buf_pool of the database */
 UNIV_INTERN buf_pool_t*	buf_pool = NULL;
@@ -826,7 +828,7 @@ buf_chunk_init(
 
 		buf_block_init(block, frame);
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 		/* Wipe contents of frame to eliminate a Purify warning */
 		memset(block->frame, '\0', UNIV_PAGE_SIZE);
 #endif
@@ -1150,7 +1152,9 @@ buf_pool_drop_hash_index(void)
 				when we have an x-latch on btr_search_latch;
 				see the comment in buf0buf.h */
 
-				if (!block->is_hashed) {
+				if (buf_block_get_state(block)
+				    != BUF_BLOCK_FILE_PAGE
+				    || !block->is_hashed) {
 					continue;
 				}
 
@@ -1283,8 +1287,6 @@ buf_relocate(
 
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
-
-	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 }
 
 /********************************************************************//**
@@ -1980,14 +1982,14 @@ buf_zip_decompress(
 	buf_block_t*	block,	/*!< in/out: block */
 	ibool		check)	/*!< in: TRUE=verify the page checksum */
 {
-	const byte* frame = block->page.zip.data;
+	const byte*	frame		= block->page.zip.data;
+	ulint		stamp_checksum	= mach_read_from_4(
+		frame + FIL_PAGE_SPACE_OR_CHKSUM);
 
 	ut_ad(buf_block_get_zip_size(block));
 	ut_a(buf_block_get_space(block) != 0);
 
-	if (UNIV_LIKELY(check)) {
-		ulint	stamp_checksum	= mach_read_from_4(
-			frame + FIL_PAGE_SPACE_OR_CHKSUM);
+	if (UNIV_LIKELY(check && stamp_checksum != BUF_NO_CHECKSUM_MAGIC)) {
 		ulint	calc_checksum	= page_zip_calc_checksum(
 			frame, page_zip_get_size(&block->page.zip));
 
@@ -2196,6 +2198,7 @@ buf_page_get_gen(
 	unsigned	access_time;
 	ulint		fix_type;
 	ibool		must_read;
+	ulint		retries = 0;
 	mutex_t*	block_mutex;
 	trx_t*          trx = NULL;
 	ulint           sec;
@@ -2204,6 +2207,7 @@ buf_page_get_gen(
 	ib_uint64_t     finish_time;
 
 	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
@@ -2271,7 +2275,29 @@ loop2:
 			return(NULL);
 		}
 
-		buf_read_page(space, zip_size, offset, trx);
+		if (buf_read_page(space, zip_size, offset, trx)) {
+			retries = 0;
+		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
+			++retries;
+		} else {
+			fprintf(stderr, "InnoDB: Error: Unable"
+				" to read tablespace %lu page no"
+				" %lu into the buffer pool after"
+				" %lu attempts\n"
+				"InnoDB: The most probable cause"
+				" of this error may be that the"
+				" table has been corrupted.\n"
+				"InnoDB: You can try to fix this"
+				" problem by using"
+				" innodb_force_recovery.\n"
+				"InnoDB: Please see reference manual"
+				" for more details.\n"
+				"InnoDB: Aborting...\n",
+				space, offset,
+				BUF_PAGE_READ_MAX_RETRIES);
+
+			ut_error;
+		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(++buf_dbg_counter % 37 || buf_validate());
@@ -2414,22 +2440,8 @@ wait_until_unfixed:
 			ut_ad(!block->page.in_flush_list);
 		} else {
 			/* Relocate buf_pool->flush_list. */
-			buf_page_t*	b;
-
-			b = UT_LIST_GET_PREV(flush_list, &block->page);
-			ut_ad(block->page.in_flush_list);
-			UT_LIST_REMOVE(flush_list, buf_pool->flush_list,
-				       &block->page);
-
-			if (b) {
-				UT_LIST_INSERT_AFTER(
-					flush_list, buf_pool->flush_list, b,
-					&block->page);
-			} else {
-				UT_LIST_ADD_FIRST(
-					flush_list, buf_pool->flush_list,
-					&block->page);
-			}
+			buf_flush_relocate_on_flush_list(bpage,
+							 &block->page);
 		}
 
 		mutex_exit(&flush_list_mutex);
@@ -2447,6 +2459,9 @@ wait_until_unfixed:
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
 		rw_lock_x_lock(&block->lock);
+
+		UNIV_MEM_INVALID(bpage, sizeof *bpage);
+
 		mutex_exit(block_mutex);
 		mutex_exit(&buf_pool_zip_mutex);
 
@@ -2461,8 +2476,9 @@ wait_until_unfixed:
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool_mutex or block->mutex. */
 		success = buf_zip_decompress(block, srv_use_checksums);
+		ut_a(success);
 
-		if (UNIV_LIKELY(success)) {
+		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
 			ibuf_merge_or_delete_for_page(block, space, offset,
 						      zip_size, TRUE);
 		}
@@ -2478,14 +2494,6 @@ wait_until_unfixed:
 		buf_pool->n_pend_unzip--;
 		mutex_exit(&buf_pool_mutex);
 		rw_lock_x_unlock(&block->lock);
-
-		if (UNIV_UNLIKELY(!success)) {
-
-			//buf_pool_mutex_exit();
-			mutex_exit(block_mutex);
-			return(NULL);
-		}
-
 		break;
 
 	case BUF_BLOCK_ZIP_FREE:
@@ -2500,7 +2508,12 @@ wait_until_unfixed:
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	//mutex_enter(&block->mutex);
+#if UNIV_WORD_SIZE == 4
+	/* On 32-bit systems, there is no padding in buf_page_t.  On
+	other systems, Valgrind could complain about uninitialized pad
+	bytes. */
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
+#endif
 
 	buf_block_buf_fix_inc(block, file, line);
 
@@ -2603,8 +2616,8 @@ page.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-buf_page_optimistic_get_func(
-/*=========================*/
+buf_page_optimistic_get(
+/*====================*/
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/*!< in: guessed buffer block */
 	ib_uint64_t	modify_clock,/*!< in: modify clock value if mode is
@@ -2618,7 +2631,9 @@ buf_page_optimistic_get_func(
 	ulint		fix_type;
 	trx_t*		trx = NULL;
 
-	ut_ad(mtr && block);
+	ut_ad(block);
+	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	mutex_enter(&block->mutex);
@@ -2738,6 +2753,7 @@ buf_page_get_known_nowait(
 	trx_t*		trx = NULL;
 
 	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	mutex_enter(&block->mutex);
@@ -2845,6 +2861,9 @@ buf_page_try_get_func(
 	buf_block_t*	block;
 	ibool		success;
 	ulint		fix_type;
+
+	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 
 	//buf_pool_mutex_enter();
 	rw_lock_s_lock(&page_hash_latch);
@@ -3249,6 +3268,7 @@ buf_page_create(
 	ulint		time_ms		= ut_time_ms();
 
 	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(space || !zip_size);
 
 	free_block = buf_LRU_get_free_block(0);
@@ -3431,7 +3451,8 @@ buf_page_io_complete(
 		read_space_id = mach_read_from_4(
 			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-		if (bpage->space == TRX_SYS_SPACE
+		if ((bpage->space == TRX_SYS_SPACE
+		     || (srv_doublewrite_file && bpage->space == TRX_DOUBLEWRITE_SPACE))
 		    && trx_doublewrite_page_inside(bpage->offset)) {
 
 			ut_print_timestamp(stderr);
@@ -3503,7 +3524,7 @@ corrupt:
 			      REFMAN "forcing-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
-			if (srv_pass_corrupt_table && bpage->space > 0
+			if (srv_pass_corrupt_table && !trx_sys_sys_space(bpage->space)
 			    && bpage->space < SRV_LOG_SPACE_FIRST_ID) {
 				fprintf(stderr,
 					"InnoDB: space %u will be treated as corrupt.\n",

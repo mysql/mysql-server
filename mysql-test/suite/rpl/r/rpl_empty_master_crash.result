@@ -4,7 +4,6 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-SHOW SLAVE STATUS;
 load table t1 from master;
 ERROR 08S01: Error connecting to master: Master is not configured
 load table t1 from master;

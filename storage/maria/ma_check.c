@@ -154,6 +154,9 @@ int maria_chk_status(HA_CHECK *param, MARIA_HA *info)
   if (maria_is_crashed_on_repair(info))
     _ma_check_print_warning(param,
 			   "Table is marked as crashed and last repair failed");
+  else if (maria_in_repair(info))
+    _ma_check_print_warning(param,
+                            "Last repair was aborted before finishing");
   else if (maria_is_crashed(info))
     _ma_check_print_warning(param,
 			   "Table is marked as crashed");
@@ -2242,7 +2245,7 @@ static my_bool protect_against_repair_crash(MARIA_HA *info,
     if ((param->testflag & T_NO_CREATE_RENAME_LSN) == 0)
     {
       /* this can be true only for a transactional table */
-      maria_mark_crashed_on_repair(info);
+      maria_mark_in_repair(info);
       if (_ma_state_info_write(share,
                                MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
                                MA_STATE_INFO_WRITE_LOCK))

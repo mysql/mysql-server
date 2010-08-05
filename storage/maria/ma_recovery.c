@@ -1,4 +1,5 @@
 /* Copyright (C) 2006, 2007 MySQL AB
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +57,7 @@ static ulong skipped_undo_phase;
 static ulonglong now; /**< for tracking execution time of phases */
 static int (*save_error_handler_hook)(uint, const char *,myf);
 static uint recovery_warnings; /**< count of warnings */
+static uint recovery_found_crashed_tables;
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -107,7 +109,8 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE);
 prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
 prototype_undo_exec_hook(UNDO_BULK_INSERT);
 
-static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply);
+static int run_redo_phase(LSN lsn, LSN end_lsn,
+                          enum maria_apply_log_way apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
 static int run_undo_phase(uint uncommitted);
 static void display_record_position(const LOG_DESC *log_desc,
@@ -215,11 +218,11 @@ int maria_recovery_from_log(void)
 #endif
   tprint(trace_file, "TRACE of the last MARIA recovery from mysqld\n");
   DBUG_ASSERT(maria_pagecache->inited);
-  res= maria_apply_log(LSN_IMPOSSIBLE, MARIA_LOG_APPLY, trace_file,
-                       TRUE, TRUE, TRUE, &warnings_count);
+  res= maria_apply_log(LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, MARIA_LOG_APPLY,
+                       trace_file, TRUE, TRUE, TRUE, &warnings_count);
   if (!res)
   {
-    if (warnings_count == 0)
+    if (warnings_count == 0 && recovery_found_crashed_tables == 0)
       tprint(trace_file, "SUCCESS\n");
     else
       tprint(trace_file, "DOUBTFUL (%u warnings, check previous output)\n",
@@ -237,6 +240,7 @@ int maria_recovery_from_log(void)
 
    @param  from_lsn        LSN from which log reading/applying should start;
                            LSN_IMPOSSIBLE means "use last checkpoint"
+   @param  end_lsn         Apply until this. LSN_IMPOSSIBLE means until end.
    @param  apply           how log records should be applied or not
    @param  trace_file      trace file where progress/debug messages will go
    @param  skip_DDLs_arg   Should DDL records (CREATE/RENAME/DROP/REPAIR)
@@ -253,7 +257,8 @@ int maria_recovery_from_log(void)
      @retval !=0    Error
 */
 
-int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
+int maria_apply_log(LSN from_lsn, LSN end_lsn,
+                    enum maria_apply_log_way apply,
                     FILE *trace_file,
                     my_bool should_run_undo_phase, my_bool skip_DDLs_arg,
                     my_bool take_checkpoints, uint *warnings_count)
@@ -261,14 +266,16 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   int error= 0;
   uint uncommitted_trans;
   ulonglong old_now;
+  my_bool abort_message_printed= 0;
   DBUG_ENTER("maria_apply_log");
 
   DBUG_ASSERT(apply == MARIA_LOG_APPLY || !should_run_undo_phase);
   DBUG_ASSERT(!maria_multi_threaded);
-  recovery_warnings= 0;
+  recovery_warnings= recovery_found_crashed_tables= 0;
   maria_recovery_changed_data= 0;
   /* checkpoints can happen only if TRNs have been built */
   DBUG_ASSERT(should_run_undo_phase || !take_checkpoints);
+  DBUG_ASSERT(end_lsn == LSN_IMPOSSIBLE || should_run_undo_phase == 0);
   all_active_trans= (struct st_trn_for_recovery *)
     my_malloc((SHORT_TRID_MAX + 1) * sizeof(struct st_trn_for_recovery),
               MYF(MY_ZEROFILL));
@@ -314,13 +321,22 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   now= my_getsystime();
   in_redo_phase= TRUE;
   trnman_init(max_trid_in_control_file);
-  if (run_redo_phase(from_lsn, apply))
+  if (run_redo_phase(from_lsn, end_lsn, apply))
   {
     ma_message_no_user(0, "Redo phase failed");
     trnman_destroy();
     goto err;
   }
   trnman_destroy();
+
+  if (end_lsn != LSN_IMPOSSIBLE)
+  {
+    abort_message_printed= 1;
+    my_message(HA_ERR_INITIALIZATION,
+               "Maria recovery aborted as end_lsn/end of file was reached",
+               MYF(0));
+    goto err2;
+  }
 
   if ((uncommitted_trans=
        end_of_redo_phase(should_run_undo_phase)) == (uint)-1)
@@ -438,10 +454,15 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   goto end;
 err:
-  error= 1;
   tprint(tracef, "\nRecovery of tables with transaction logs FAILED\n");
+err2:
   if (trns_created)
     delete_all_transactions();
+  error= 1;
+  if (close_all_tables())
+  {
+    ma_message_no_user(0, "closing of tables failed");
+  }
 end:
   error_handler_hook= save_error_handler_hook;
   hash_free(&all_dirty_pages);
@@ -456,7 +477,7 @@ end:
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
-  *warnings_count= recovery_warnings;
+  *warnings_count= recovery_warnings + recovery_found_crashed_tables;
   if (recovery_message_printed != REC_MSG_NONE)
   {
     if (procent_printed)
@@ -478,7 +499,7 @@ end:
     maria_recovery_changed_data= 1;
   }
 
-  if (error)
+  if (error && !abort_message_printed)
     my_message(HA_ERR_INITIALIZATION,
                "Maria recovery failed. Please run maria_chk -r on all maria "
                "tables and delete all maria_log.######## files", MYF(0));
@@ -726,9 +747,12 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
     maria_close(info);
     info= NULL;
   }
-  else /* one or two files absent, or header corrupted... */
-    tprint(tracef, "Table '%s' can't be opened, probably does not exist\n",
-           name);
+  else
+  {
+    /* one or two files absent, or header corrupted... */
+    tprint(tracef, "Table '%s' can't be opened (Error: %d)\n",
+           name, my_errno);
+  }
   /* if does not exist, or is older, overwrite it */
   ptr= name + strlen(name) + 1;
   if ((flags= ptr[0] ? HA_DONT_TOUCH_DATA : 0))
@@ -1206,6 +1230,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     */
     tprint(tracef, ", record is corrupted");
     info= NULL;
+    recovery_warnings++;
     goto end;
   }
   tprint(tracef, "Table '%s', id %u", name, sid);
@@ -1215,6 +1240,8 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     tprint(tracef, ", is absent (must have been dropped later?)"
            " or its header is so corrupted that we cannot open it;"
            " we skip it");
+    if (my_errno != ENOENT)
+      recovery_found_crashed_tables++;
     error= 0;
     goto end;
   }
@@ -1238,6 +1265,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     */
     tprint(tracef, ", is not transactional.  Ignoring open request");
     error= -1;
+    recovery_warnings++;
     goto end;
   }
   if (cmp_translog_addr(lsn_of_file_id, share->state.create_rename_lsn) <= 0)
@@ -1246,6 +1274,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
            " LOGREC_FILE_ID's LSN (%lu,0x%lx), ignoring open request",
            LSN_IN_PARTS(share->state.create_rename_lsn),
            LSN_IN_PARTS(lsn_of_file_id));
+    recovery_warnings++;
     error= -1;
     goto end;
     /*
@@ -1257,6 +1286,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
   {
     eprint(tracef, "Table '%s' is crashed, skipping it. Please repair it with"
            " maria_chk -r", share->open_file_name.str);
+    recovery_found_crashed_tables++;
     error= -1; /* not fatal, try with other tables */
     goto end;
     /*
@@ -1275,6 +1305,7 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
       (kfile_len == MY_FILEPOS_ERROR))
   {
     tprint(tracef, ", length unknown\n");
+    recovery_warnings++;
     goto end;
   }
   if (share->state.state.data_file_length != dfile_len)
@@ -2358,7 +2389,7 @@ prototype_undo_exec_hook(UNDO_BULK_INSERT)
 }
 
 
-static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
+static int run_redo_phase(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply)
 {
   TRANSLOG_HEADER_BUFFER rec;
   struct st_translog_scanner_data scanner;
@@ -2486,6 +2517,17 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
             tprint(tracef, "Cannot find record where it should be\n");
             goto err;
           }
+          if (lsn_end != LSN_IMPOSSIBLE && rec2.lsn >= lsn_end)
+          {
+            tprint(tracef,
+                   "lsn_end reached at (%lu,0x%lx). "
+                   "Skipping rest of redo entries",
+                   LSN_IN_PARTS(rec2.lsn));
+            translog_destroy_scanner(&scanner);
+            translog_free_record_header(&rec);
+            return(0);
+          }
+
           if (translog_scanner_init(rec2.lsn, 1, &scanner2, 1))
           {
             tprint(tracef, "Scanner2 init failed\n");

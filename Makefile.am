@@ -161,8 +161,8 @@ test-bt:
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --comment=ndb+rpl_ndb+ps --force --timer \
-	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb,rpl_ndb ; \
+	      @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --comment=ndb+ps --force --timer \
+	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl $(MTR_EXTRA_OPTIONS) --comment=ndb --force --timer \
 	          --with-ndbcluster-only ; \

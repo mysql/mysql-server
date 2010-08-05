@@ -14,6 +14,7 @@ CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (c INT, d INT);
 INSERT INTO t1 VALUES (1,1),(2,4),(3,9);
 INSERT INTO t2 VALUES (1,1),(2,8),(3,27);
+let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
 UPDATE t1,t2 SET b = d, d = b * 2 WHERE a = c;
 source include/show_binlog_events.inc;
 
@@ -21,16 +22,17 @@ source include/show_binlog_events.inc;
 SELECT * FROM t1;
 SELECT * FROM t2;
 save_master_pos;
-
 --echo **** On Slave ****
 connection slave;
 
 # Stop when reaching the the first table map event.
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
+--replace_result $master_log_pos MASTER_LOG_POS
+eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #
-query_vertical SHOW SLAVE STATUS;
+let $slave_param= Exec_Master_Log_Pos;
+let $slave_param_value= $master_log_pos;
+source include/check_slave_param.inc;
+source include/check_slave_no_error.inc;
 
 # Now we skip *one* table map event. If the execution starts right
 # after that table map event, *one* of the involved tables will be
@@ -53,19 +55,18 @@ RESET MASTER;
 
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET @foo = 12;
+let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
 INSERT INTO t1 VALUES(@foo, 2*@foo);
 save_master_pos;
 source include/show_binlog_events.inc;
 
 connection slave;
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=106;
+--replace_result $master_log_pos MASTER_LOG_POS
+eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #
-query_vertical SHOW SLAVE STATUS;
 
 --echo **** On Master ****
 connection master;

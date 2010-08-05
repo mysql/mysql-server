@@ -611,6 +611,7 @@ struct st_maria_handler
 #define STATE_NOT_ZEROFILLED     128
 #define STATE_NOT_MOVABLE        256
 #define STATE_MOVED              512 /* set if base->uuid != maria_uuid */
+#define STATE_IN_REPAIR  	 1024 /* We are running repair on table */
 
 /* options to maria_read_cache */
 
@@ -666,11 +667,17 @@ struct st_maria_handler
 #define maria_mark_crashed_on_repair(x) do{(x)->s->state.changed|=      \
       STATE_CRASHED|STATE_CRASHED_ON_REPAIR;                            \
     (x)->update|= HA_STATE_CHANGED;                                     \
-    DBUG_PRINT("error",                                                 \
-               ("Marked table crashed"));                               \
+    DBUG_PRINT("error", ("Marked table crashed on repair"));            \
+  }while(0)
+#define maria_mark_in_repair(x) do{(x)->s->state.changed|=      \
+      STATE_CRASHED | STATE_IN_REPAIR;                          \
+    (x)->update|= HA_STATE_CHANGED;                             \
+    DBUG_PRINT("error", ("Marked table crashed for repair"));   \
   }while(0)
 #define maria_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define maria_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
+#define maria_in_repair(x) ((x)->s->state.changed & STATE_IN_REPAIR)
+
 #ifdef EXTRA_DEBUG
 /**
   Brings additional information in certain debug builds and in standalone

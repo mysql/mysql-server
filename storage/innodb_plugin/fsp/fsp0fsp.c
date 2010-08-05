@@ -869,12 +869,10 @@ fsp_init_file_page_low(
 		return;
 	}
 
-	UNIV_MEM_INVALID(page, UNIV_PAGE_SIZE);
+	memset(page, 0, UNIV_PAGE_SIZE);
 	mach_write_to_4(page + FIL_PAGE_OFFSET, buf_block_get_page_no(block));
-	memset(page + FIL_PAGE_LSN, 0, 8);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			buf_block_get_space(block));
-	memset(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 8);
 }
 
 #ifndef UNIV_HOTBACKUP

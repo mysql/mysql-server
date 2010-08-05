@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@
 
    @ingroup MyTAP_Internal
  */
-static TEST_DATA g_test = { 0, 0, 0, "" };
+static TEST_DATA g_test = { NO_PLAN, 0, 0, "" };
 
 /**
    Output stream for test report message.
@@ -84,6 +84,7 @@ vemit_tap(int pass, char const *fmt, va_list ap)
           (fmt && *fmt) ? " - " : "");
   if (fmt && *fmt)
     vfprintf(tapout, fmt, ap);
+  fflush(tapout);
 }
 
 
@@ -106,6 +107,7 @@ static void
 emit_dir(const char *dir, const char *why)
 {
   fprintf(tapout, " # %s %s", dir, why);
+  fflush(tapout);
 }
 
 
@@ -118,6 +120,7 @@ static void
 emit_endl()
 {
   fprintf(tapout, "\n");
+  fflush(tapout);
 }
 
 static void
@@ -204,7 +207,10 @@ plan(int count)
     break;
   default:
     if (count > 0)
+    {
       fprintf(tapout, "1..%d\n", count);
+      fflush(tapout);
+    }
     break;
   }
 }
@@ -217,6 +223,7 @@ skip_all(char const *reason, ...)
   va_start(ap, reason);
   fprintf(tapout, "1..0 # skip ");
   vfprintf(tapout, reason, ap);
+  fflush(tapout);
   va_end(ap);
   exit(0);
 }

@@ -4,6 +4,9 @@
 # Drop mysqltest1 database, as it can left from the previous tests.
 #
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
 --disable_warnings
 drop database if exists mysqltest1;
 --enable_warnings
@@ -12,3 +15,47 @@ create schema foo;
 show create schema foo;
 show schemas;
 drop schema foo;
+
+
+--echo #
+--echo # Bug#54360 Deadlock DROP/ALTER/CREATE DATABASE with open HANDLER
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+INSERT INTO db1.t1 VALUES (1), (2);
+
+--echo # Connection con1
+connect (con1, localhost, root);
+HANDLER db1.t1 OPEN;
+
+--echo # Connection default
+connection default;
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connect (con2, localhost, root);
+--echo # Waiting for 'DROP DATABASE db1' to sync in.
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table' AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+
+--echo # Connection con1
+connection con1;
+# All these statements before resulted in deadlock.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+disconnect con1;
+disconnect con2;
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

@@ -130,7 +130,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts,innodb,vcol,oqgraph";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts,innodb,innodb_plugin,percona,vcol,oqgraph";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -234,10 +234,12 @@ my $opt_strace_client;
 our $opt_user = "root";
 
 my $opt_valgrind= 0;
-our $opt_valgrind_mysqld= 0;
-my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
+our $opt_valgrind_mysqld= 0;
+my $opt_valgrind_mysqltest= 0;
+my $opt_strace= 0;
+my @strace_args;
 my $opt_valgrind_path;
 my $opt_callgrind;
 my %mysqld_logs;
@@ -929,7 +931,9 @@ sub command_line_setup {
              'manual-ddd'               => \$opt_manual_ddd,
 	     'debugger=s'               => \$opt_debugger,
 	     'client-debugger=s'        => \$opt_client_debugger,
+             'strace'			=> \$opt_strace,
              'strace-client:s'          => \$opt_strace_client,
+             'strace-option=s'          => \@strace_args,
              'max-save-core=i'          => \$opt_max_save_core,
              'max-save-datadir=i'       => \$opt_max_save_datadir,
              'max-test-fail=i'          => \$opt_max_test_fail,
@@ -1470,6 +1474,11 @@ sub command_line_setup {
 	       join(" ", @valgrind_args), "\"");
   }
 
+  if (@strace_args)
+  {
+    $opt_strace=1;
+  }
+
   # InnoDB does not bother to do individual de-allocations at exit. Instead it
   # relies on a custom allocator to track every allocation, and frees all at
   # once during exit.
@@ -1598,7 +1607,7 @@ sub collect_mysqld_features {
 	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
 	#print "mysql_version_id: $mysql_version_id\n";
-	mtr_report("MySQL Version $1.$2.$3");
+	mtr_report("MariaDB Version $1.$2.$3");
       }
     }
     else
@@ -1721,9 +1730,9 @@ sub executable_setup () {
   if ( -x "../libtool")
   {
     $exe_libtool= "../libtool";
-    if ($opt_valgrind or $glob_debugger)
+    if ($opt_valgrind or $glob_debugger or $opt_strace)
     {
-      mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
+      mtr_report("Using \"$exe_libtool\" when running valgrind, strace or debugger");
     }
   }
 
@@ -2117,6 +2126,15 @@ sub environment_setup {
     $ENV{'MARIA_CHK'}= tool_arguments("storage/maria", "maria_chk");
     $ENV{'MARIA_PACK'}= tool_arguments("storage/maria", "maria_pack");
   }
+
+  # ----------------------------------------------------
+  # mysqlhotcopy
+  # ----------------------------------------------------
+  my $mysqlhotcopy=
+    mtr_pl_maybe_exists("$basedir/scripts/mysqlhotcopy");
+  # Since mysqltest interprets the real path as "false" in an if,
+  # use 1 ("true") to indicate "not exists" so it can be tested for
+  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
 
   # ----------------------------------------------------
   # perror
@@ -4032,6 +4050,7 @@ sub extract_warning_lines ($) {
      qr/Slave: Can't drop database.* database doesn't exist/,
      qr/Slave: Operation DROP USER failed for 'create_rout_db'/,
      qr|Checking table:   '\./mtr/test_suppressions'|,
+     qr|Table \./test/bug53592 has a primary key in InnoDB data dictionary, but not in MySQL|,
      qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|
     );
 
@@ -4622,6 +4641,10 @@ sub mysqld_start ($$) {
   if ( $opt_valgrind_mysqld )
   {
     valgrind_arguments($args, \$exe);
+  }
+  if ( $opt_strace)
+  {
+    strace_arguments($args, \$exe, $mysqld->name());
   }
 
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
@@ -5546,6 +5569,33 @@ sub valgrind_arguments {
   }
 }
 
+#
+# Modify the exe and args so that program is run in strace
+#
+sub strace_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $mysqld_name= shift;
+
+  mtr_add_arg($args, "-f");
+  mtr_add_arg($args, "-o%s/var/log/%s.strace", $glob_mysql_test_dir, $mysqld_name);
+
+  # Add strace options, can be overriden by user
+  mtr_add_arg($args, '%s', $_) for (@strace_args);
+
+  mtr_add_arg($args, $$exe);
+
+  $$exe= "strace";
+
+  if ($exe_libtool)
+  {
+    # Add "libtool --mode-execute" before the test to execute
+    # if running in valgrind(to avoid valgrinding bash)
+    unshift(@$args, "--mode=execute", $$exe);
+    $$exe= $exe_libtool;
+  }
+}
+
 
 #
 # Usage
@@ -5673,9 +5723,6 @@ Options for debugging the product
                         test(s)
   manual-ddd            Let user manually start mysqld in ddd, before running
                         test(s)
-  strace-client=[path]  Create strace output for mysqltest client, optionally
-                        specifying name and path to the trace program to use.
-                        Example: $0 --strace-client=ktrace
   max-save-core         Limit the number of core files saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_core, set to 0 for no limit. Set
@@ -5702,6 +5749,15 @@ Options for valgrind
                         can be specified more then once
   valgrind-path=<EXE>   Path to the valgrind executable
   callgrind             Instruct valgrind to use callgrind
+
+Options for strace
+
+  strace                Run the "mysqld" executables using strace. Default
+                        options are -f -o var/log/'mysqld-name'.strace
+  strace-option=ARGS    Option to give strace, replaces default option(s),
+  strace-client=[path]  Create strace output for mysqltest client, optionally
+                        specifying name and path to the trace program to use.
+                        Example: $0 --strace-client=ktrace
 
 Misc options
   user=USER             User for connecting to mysqld(default: $opt_user)

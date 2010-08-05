@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
+#include "page0page.h"
 #include "page0zip.h"
 #include "trx0trx.h"
 #include "trx0sys.h"
@@ -675,14 +676,14 @@ fil_node_open_file(
 		size_bytes = (((ib_uint64_t)size_high) << 32)
 			+ (ib_uint64_t)size_low;
 #ifdef UNIV_HOTBACKUP
-		if (space->id == 0) {
+		if (trx_sys_sys_space(space->id)) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 			os_file_close(node->handle);
 			goto add_size;
 		}
 #endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_LOG);
-		ut_a(space->id != 0);
+		ut_a(!trx_sys_sys_space(space->id));
 
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 			fprintf(stderr,
@@ -728,7 +729,7 @@ fil_node_open_file(
 		}
 
 		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
-				  || space_id == 0)) {
+				  || trx_sys_sys_space(space_id))) {
 			fprintf(stderr,
 				"InnoDB: Error: tablespace id %lu"
 				" in file %s is not sensible\n",
@@ -790,7 +791,7 @@ add_size:
 
 	system->n_open++;
 
-	if (space->purpose == FIL_TABLESPACE && space->id != 0) {
+	if (space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(space->id)) {
 		/* Put the node to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
@@ -823,7 +824,7 @@ fil_node_close_file(
 	ut_a(system->n_open > 0);
 	system->n_open--;
 
-	if (node->space->purpose == FIL_TABLESPACE && node->space->id != 0) {
+	if (node->space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(node->space->id)) {
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
 		/* The node is in the LRU list, remove it */
@@ -909,7 +910,7 @@ fil_mutex_enter_and_prepare_for_io(
 retry:
 	mutex_enter(&fil_system->mutex);
 
-	if (space_id == 0 || space_id >= SRV_LOG_SPACE_FIRST_ID) {
+	if (trx_sys_sys_space(space_id) || space_id >= SRV_LOG_SPACE_FIRST_ID) {
 		/* We keep log files and system tablespace files always open;
 		this is important in preventing deadlocks in this module, as
 		a page read completion often performs another read from the
@@ -1104,10 +1105,13 @@ fil_space_create(
 	fil_space_t*	space;
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 try_again:
 	/*printf(
@@ -1136,7 +1140,7 @@ try_again:
 			" tablespace memory cache!\n",
 			(ulong) space->id);
 
-		if (id == 0 || purpose != FIL_TABLESPACE) {
+		if (trx_sys_sys_space(id) || purpose != FIL_TABLESPACE) {
 
 			mutex_exit(&fil_system->mutex);
 
@@ -1530,7 +1534,7 @@ fil_init(
 	fil_system->max_n_open = max_n_open;
 
 	fil_system->modification_counter = 0;
-	fil_system->max_assigned_id = 0;
+	fil_system->max_assigned_id = TRX_SYS_SPACE_MAX;
 
 	fil_system->tablespace_version = 0;
 
@@ -1557,7 +1561,7 @@ fil_open_log_and_system_tablespace_files(void)
 	space = UT_LIST_GET_FIRST(fil_system->space_list);
 
 	while (space != NULL) {
-		if (space->purpose != FIL_TABLESPACE || space->id == 0) {
+		if (space->purpose != FIL_TABLESPACE || trx_sys_sys_space(space->id)) {
 			node = UT_LIST_GET_FIRST(space->chain);
 
 			while (node != NULL) {
@@ -2591,10 +2595,13 @@ fil_create_new_single_table_tablespace(
 
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -2795,6 +2802,7 @@ fil_reset_too_high_lsns(
 	ib_int64_t	offset;
 	ulint		zip_size;
 	ibool		success;
+	page_zip_des_t	page_zip;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -2842,6 +2850,12 @@ fil_reset_too_high_lsns(
 	space_id = fsp_header_get_space_id(page);
 	zip_size = fsp_header_get_zip_size(page);
 
+	page_zip_des_init(&page_zip);
+	page_zip_set_size(&page_zip, zip_size);
+	if (zip_size) {
+		page_zip.data = page + UNIV_PAGE_SIZE;
+	}
+
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Flush lsn in the tablespace file %lu"
@@ -2876,20 +2890,23 @@ fil_reset_too_high_lsns(
 			/* We have to reset the lsn */
 
 			if (zip_size) {
-				memcpy(page + UNIV_PAGE_SIZE, page, zip_size);
+				memcpy(page_zip.data, page, zip_size);
 				buf_flush_init_for_writing(
-					page, page + UNIV_PAGE_SIZE,
-					current_lsn);
+					page, &page_zip, current_lsn);
+				success = os_file_write(
+					filepath, file, page_zip.data,
+					(ulint) offset & 0xFFFFFFFFUL,
+					(ulint) (offset >> 32), zip_size);
 			} else {
 				buf_flush_init_for_writing(
 					page, NULL, current_lsn);
+				success = os_file_write(
+					filepath, file, page,
+					(ulint)(offset & 0xFFFFFFFFUL),
+					(ulint)(offset >> 32),
+					UNIV_PAGE_SIZE);
 			}
-			success = os_file_write(filepath, file, page,
-						(ulint)(offset & 0xFFFFFFFFUL),
-						(ulint)(offset >> 32),
-						zip_size
-						? zip_size
-						: UNIV_PAGE_SIZE);
+
 			if (!success) {
 
 				goto func_exit;
@@ -2965,10 +2982,13 @@ fil_open_single_table_tablespace(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	file = os_file_create_simple_no_error_handling(
 		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
@@ -3018,7 +3038,8 @@ fil_open_single_table_tablespace(
 	space_id = fsp_header_get_space_id(page);
 	space_flags = fsp_header_get_flags(page);
 
-	if (srv_expand_import && (space_id != id || space_flags != flags)) {
+	if (srv_expand_import
+	    && (space_id != id || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
 		dulint		old_id[31];
 		dulint		new_id[31];
 		ulint		root_page[31];
@@ -3359,7 +3380,8 @@ skip_write:
 
 	ut_free(buf2);
 
-	if (UNIV_UNLIKELY(space_id != id || space_flags != flags)) {
+	if (UNIV_UNLIKELY(space_id != id
+			  || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
 		ut_print_timestamp(stderr);
 
 		fputs("  InnoDB: Error: tablespace id and flags in file ",
@@ -3598,7 +3620,7 @@ fil_load_single_table_tablespace(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (space_id == ULINT_UNDEFINED || space_id == 0) {
+	if (space_id == ULINT_UNDEFINED || trx_sys_sys_space(space_id)) {
 		fprintf(stderr,
 			"InnoDB: Error: tablespace id %lu in file %s"
 			" is not sensible\n",
@@ -3607,7 +3629,7 @@ fil_load_single_table_tablespace(
 		goto func_exit;
 	}
 #else
-	if (space_id == ULINT_UNDEFINED || space_id == 0) {
+	if (space_id == ULINT_UNDEFINED || trx_sys_sys_space(space_id)) {
 		char*	new_path;
 
 		fprintf(stderr,
@@ -3886,7 +3908,7 @@ fil_print_orphaned_tablespaces(void)
 	space = UT_LIST_GET_FIRST(fil_system->space_list);
 
 	while (space) {
-		if (space->purpose == FIL_TABLESPACE && space->id != 0
+		if (space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(space->id)
 		    && !space->mark) {
 			fputs("InnoDB: Warning: tablespace ", stderr);
 			ut_print_filename(stderr, space->name);
@@ -4461,7 +4483,7 @@ fil_node_prepare_for_io(
 	}
 
 	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
-	    && space->id != 0) {
+	    && !trx_sys_sys_space(space->id)) {
 		/* The node is in the LRU list, remove it */
 
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
@@ -4507,7 +4529,7 @@ fil_node_complete_io(
 	}
 
 	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
-	    && node->space->id != 0) {
+	    && !trx_sys_sys_space(node->space->id)) {
 		/* The node must be put back to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
@@ -5141,7 +5163,7 @@ fil_validate(void)
 		ut_a(fil_node->n_pending == 0);
 		ut_a(fil_node->open);
 		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
-		ut_a(fil_node->space->id != 0);
+		ut_a(!trx_sys_sys_space(fil_node->space->id));
 
 		fil_node = UT_LIST_GET_NEXT(LRU, fil_node);
 	}
@@ -5223,8 +5245,10 @@ void
 fil_close(void)
 /*===========*/
 {
+#ifndef UNIV_HOTBACKUP
 	/* The mutex should already have been freed. */
 	ut_ad(fil_system->mutex.magic_n == 0);
+#endif /* !UNIV_HOTBACKUP */
 
 	hash_table_free(fil_system->spaces);
 

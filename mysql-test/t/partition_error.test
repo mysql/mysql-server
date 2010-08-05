@@ -7,7 +7,36 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
- 
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo #
+--echo # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
+--echo #
+CREATE TABLE t1 (a INT) PARTITION BY HASH (a);
+FLUSH TABLES;
+--remove_file $MYSQLD_DATADIR/test/t1.par
+--replace_result $MYSQLD_DATADIR ./
+CHECK TABLE t1;
+--error ER_UNKNOWN_ERROR
+SELECT * FROM t1;
+--echo # Note that it is currently impossible to drop a partitioned table
+--echo # without the .par file
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/test/t1.frm
+--remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYI
+--remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYD
+
+--echo #
+--echo # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
+--echo # with temporary table and partitions
+--echo #
+CREATE TABLE t1 (a INT) PARTITION BY HASH(a);
+--error ER_PARTITION_NO_TEMPORARY
+CREATE TEMPORARY TABLE tmp_t1 LIKE t1;
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#50392: insert_id is not reset for partitioned tables
 --echo #            auto_increment on duplicate entry
@@ -158,7 +187,6 @@ partitions 3
  partition x2 tablespace ts2,
  partition x3 tablespace ts3);
 
-let $MYSQLD_DATADIR= `select @@datadir`;
 select load_file('$MYSQLD_DATADIR/test/t1.par');
 #
 # Partition by hash, invalid field in function

@@ -1,0 +1,8 @@
+# Test of mysqlhotcopy (perl script)
+# Author: Horst Hunger
+# Created: 2010-05-10
+
+--source include/have_archive.inc
+let $engine= archive;
+--source include/mysqlhotcopy.inc
+--exit

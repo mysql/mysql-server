@@ -1,0 +1,4 @@
+show variables like 'innodb_doublewrite%';
+Variable_name	Value
+innodb_doublewrite	ON
+innodb_doublewrite_file	ib_doublewrite

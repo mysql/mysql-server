@@ -22,9 +22,7 @@ drop table if exists t1;
 --enable_warnings
 create table t1 (n int);
 insert into t1 values (1);
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t1;
 
 # 3. Delete new replication user
@@ -40,12 +38,8 @@ stop slave;
 start slave;
 
 # 5. Make sure Slave_IO_Running = No
---replace_result $MASTER_MYPORT MASTER_MYPORT
-# Column 1 is replaced, since the output can be either
-# "Connecting to master" or "Waiting for master update"
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 35 # 36 #
---vertical_results
-show slave status;
+let $slave_io_errno= 1045;
+source include/wait_for_slave_io_error.inc;
 
 # Cleanup (Note that slave IO thread is not running)
 connection slave;

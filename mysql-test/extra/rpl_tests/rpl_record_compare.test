@@ -1,0 +1,68 @@
+
+#
+# BUG#52868: Wrong handling of NULL value during update, replication out of sync
+#
+-- echo ## case #1 - last_null_bit_pos==0 in record_compare without X bit
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+-- eval CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 varchar(1) DEFAULT '', c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0, c8 bigint(20) DEFAULT 0) ENGINE=$engine DEFAULT CHARSET=latin1
+
+INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
+INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
+-- disable_warnings
+UPDATE t1 SET c5 = 'a';
+-- enable_warnings
+-- sync_slave_with_master
+
+-- let $diff_table_1= master:test.t1
+-- let $diff_table_2= slave:test.t1
+-- source include/diff_tables.inc
+
+--connection master
+DROP TABLE t1;
+-- sync_slave_with_master
+
+-- echo ## case #1.1 - last_null_bit_pos==0 in record_compare with X bit
+-- echo ##             (1 column less and no varchar)
+-- source include/master-slave-reset.inc
+-- connection master
+
+-- eval CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 bigint(20) DEFAULT 0, c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0) ENGINE=$engine DEFAULT CHARSET=latin1
+
+INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
+INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
+-- disable_warnings
+UPDATE t1 SET c5 = 'a';
+-- enable_warnings
+-- sync_slave_with_master
+
+-- let $diff_table_1= master:test.t1
+-- let $diff_table_2= slave:test.t1
+-- source include/diff_tables.inc
+
+--connection master
+DROP TABLE t1;
+-- sync_slave_with_master
+
+-- echo ## case #2 - X bit is wrongly set.
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+-- eval CREATE TABLE t1 (c1 int, c2 varchar(1) default '') ENGINE=$engine DEFAULT CHARSET= latin1
+INSERT INTO t1(c1) VALUES (10);
+INSERT INTO t1(c1) VALUES (NULL);
+UPDATE t1 SET c1= 0;
+-- sync_slave_with_master
+
+-- let $diff_table_1= master:test.t1
+-- let $diff_table_2= slave:test.t1
+-- source include/diff_tables.inc
+
+-- connection master
+DROP TABLE t1; 
+-- sync_slave_with_master
+
+

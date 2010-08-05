@@ -1959,9 +1959,8 @@ any_extern:
 	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
-err_exit:
-		mem_heap_free(heap);
-		return(err);
+
+		goto err_exit;
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2007,9 +2006,10 @@ err_exit:
 
 	page_cur_move_to_next(page_cursor);
 
+	err = DB_SUCCESS;
+err_exit:
 	mem_heap_free(heap);
-
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*************************************************************//**
@@ -3871,6 +3871,8 @@ btr_store_big_rec_extern_fields(
 			field_ref += local_len;
 		}
 		extern_len = big_rec_vec->fields[i].len;
+		UNIV_MEM_ASSERT_RW(big_rec_vec->fields[i].data,
+				   extern_len);
 
 		ut_a(extern_len > 0);
 
@@ -4507,6 +4509,7 @@ btr_copy_blob_prefix(
 		mtr_commit(&mtr);
 
 		if (page_no == FIL_NULL || copy_len != part_len) {
+			UNIV_MEM_ASSERT_RW(buf, copied_len);
 			return(copied_len);
 		}
 
@@ -4690,6 +4693,7 @@ btr_copy_externally_stored_field_prefix_low(
 				      space_id, page_no, offset);
 		inflateEnd(&d_stream);
 		mem_heap_free(heap);
+		UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
 		return(d_stream.total_out);
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,

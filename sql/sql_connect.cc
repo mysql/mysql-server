@@ -257,6 +257,7 @@ end:
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
+
 /*
   Check for maximum allowable user connections, if the mysqld server is
   started with corresponding variable that is greater then 0.

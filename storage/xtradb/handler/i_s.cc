@@ -3538,6 +3538,9 @@ i_s_innodb_index_stats_fill(
 			i_s_table->field[3]->store(index->n_uniq);
 
 			row_per_keys[0] = '\0';
+
+			/* It is remained optimistic operation still for now */
+			//dict_index_stat_mutex_enter(index);
 			if (index->stat_n_diff_key_vals) {
 				for (i = 1; i <= index->n_uniq; i++) {
 					ib_int64_t	rec_per_key;
@@ -3551,6 +3554,8 @@ i_s_innodb_index_stats_fill(
 					strncat(row_per_keys, buff, 256 - strlen(row_per_keys));
 				}
 			}
+			//dict_index_stat_mutex_exit(index);
+
 			field_store_string(i_s_table->field[4], row_per_keys);
 
 			i_s_table->field[5]->store(index->stat_index_size);
@@ -3857,6 +3862,14 @@ UNIV_INTERN struct st_maria_plugin      i_s_innodb_admin_command_maria =
 
 static ST_FIELD_INFO	i_s_innodb_sys_tables_info[] =
 {
+	{STRUCT_FLD(field_name,		"SCHEMA"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"NAME"),
 	 STRUCT_FLD(field_length,	NAME_LEN),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -4015,6 +4028,54 @@ copy_string_field(
 
 static
 int
+copy_name_fields(
+/*=============*/
+	TABLE*			table,
+	int			table_field_1,
+	const rec_t*		rec,
+	int			rec_field)
+{
+	int		status;
+	const byte*	data;
+	ulint		len;
+
+	data = rec_get_nth_field_old(rec, rec_field, &len);
+	if (len == UNIV_SQL_NULL) {
+		table->field[table_field_1]->set_null();
+		table->field[table_field_1 + 1]->set_null();
+		status = 0; /* success */
+	} else {
+		char	buf[NAME_LEN * 2 + 2];
+		char*	ptr;
+
+		if (len > NAME_LEN * 2 + 1) {
+			table->field[table_field_1]->set_null();
+			status = field_store_string(table->field[table_field_1 + 1],
+						    "###TOO LONG NAME###");
+			goto end_func;
+		}
+
+		strncpy(buf, (char*)data, len);
+		buf[len] = '\0';
+		ptr = strchr(buf, '/');
+		if (ptr) {
+			*ptr = '\0';
+			++ptr;
+
+			status = field_store_string(table->field[table_field_1], buf);
+			status |= field_store_string(table->field[table_field_1 + 1], ptr);
+		} else {
+			table->field[table_field_1]->set_null();
+			status = field_store_string(table->field[table_field_1 + 1], buf);
+		}
+	}
+
+end_func:
+	return status;
+}
+
+static
+int
 copy_int_field(
 /*===========*/
 	TABLE*			table,
@@ -4083,49 +4144,49 @@ copy_sys_tables_rec(
 
 	/* NAME */
 	field = dict_index_get_nth_col_pos(index, 0);
-	status = copy_string_field(table, 0, rec, field);
+	status = copy_name_fields(table, 0, rec, field);
 	if (status) {
 		return status;
 	}
 	/* ID */
 	field = dict_index_get_nth_col_pos(index, 1);
-	status = copy_id_field(table, 1, rec, field);
+	status = copy_id_field(table, 2, rec, field);
 	if (status) {
 		return status;
 	}
 	/* N_COLS */
 	field = dict_index_get_nth_col_pos(index, 2);
-	status = copy_int_field(table, 2, rec, field);
+	status = copy_int_field(table, 3, rec, field);
 	if (status) {
 		return status;
 	}
 	/* TYPE */
 	field = dict_index_get_nth_col_pos(index, 3);
-	status = copy_int_field(table, 3, rec, field);
+	status = copy_int_field(table, 4, rec, field);
 	if (status) {
 		return status;
 	}
 	/* MIX_ID */
 	field = dict_index_get_nth_col_pos(index, 4);
-	status = copy_id_field(table, 4, rec, field);
+	status = copy_id_field(table, 5, rec, field);
 	if (status) {
 		return status;
 	}
 	/* MIX_LEN */
 	field = dict_index_get_nth_col_pos(index, 5);
-	status = copy_int_field(table, 5, rec, field);
+	status = copy_int_field(table, 6, rec, field);
 	if (status) {
 		return status;
 	}
 	/* CLUSTER_NAME */
 	field = dict_index_get_nth_col_pos(index, 6);
-	status = copy_string_field(table, 6, rec, field);
+	status = copy_string_field(table, 7, rec, field);
 	if (status) {
 		return status;
 	}
 	/* SPACE */
 	field = dict_index_get_nth_col_pos(index, 7);
-	status = copy_int_field(table, 7, rec, field);
+	status = copy_int_field(table, 8, rec, field);
 	if (status) {
 		return status;
 	}
