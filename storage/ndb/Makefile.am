@@ -35,5 +35,3 @@ dist-hook:
 	  fi; \
 	done
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
