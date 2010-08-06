@@ -153,6 +153,11 @@ mySTL/algorithm\.hpp: is used uninitialized in this function
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
 net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
 
+#
+# Ignorable warnings from header files
+#
+backward_warning\.h : This file includes at least one
+
 # allow a little moving space for the warning below
 mi_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
 ma_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 550-650

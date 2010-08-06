@@ -13,8 +13,8 @@ dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
 dnl
-dnl When merging new MySQL releases, update the version number to match the
-dnl MySQL version number.
+dnl When merging new MariaDB releases, update the version number to match the
+dnl MariaDB version number.
 dnl
 dnl Note: the following line must be parseable by win/configure.js:GetVersion()
 AC_INIT([MariaDB Server], [5.2.1-MariaDB-beta], [], [mysql])
