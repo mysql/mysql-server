@@ -2607,3 +2607,9 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
+CREATE TABLE t1 ( f1 DOUBLE , f2 DOUBLE , f3 DOUBLE , f4 DOUBLE , v3 DOUBLE , v4 DOUBLE , KEY ( v3 ) , KEY ( v4 ) ) engine=maria;
+REPLACE t1 ( f2 , f1 ) VALUES ( f2 , 56 ) ;
+INSERT t1 ( f1 , f2 , f3 , f4 ) VALUES ( 0 , f2 , 8 , f3 ) ;
+INSERT t1 ( f4 , f2 ) VALUES ( 4 , 92 ) ;
+DELETE FROM t1 WHERE v3 = 173 OR v4 = 9 ;
+drop table t1;
