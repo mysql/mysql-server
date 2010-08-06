@@ -498,12 +498,20 @@ drop table t1,t2,t3,t4;
 set query_cache_wlock_invalidate=1;
 create table t1 (a int not null);
 create table t2 (a int not null);
+create view v1 as select * from t1;
 select * from t1;
 select * from t2;
 show status like "Qcache_queries_in_cache";
 lock table t1 write, t2 read;
 show status like "Qcache_queries_in_cache";
 unlock table;
+select * from t1;
+# Implicit locking of t1 does not invalidate QC
+show status like "Qcache_queries_in_cache";
+lock table v1 write;
+show status like "Qcache_queries_in_cache";
+unlock table;
+drop view v1;
 drop table t1,t2;
 set query_cache_wlock_invalidate=default;
 
