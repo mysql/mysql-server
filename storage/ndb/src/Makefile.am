@@ -44,5 +44,3 @@ libndbclient_la_LIBADD =  \
               @NDBJTIE_LIBS@ \
               @ZLIB_LIBS@ 
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%

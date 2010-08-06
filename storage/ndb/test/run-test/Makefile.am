@@ -54,5 +54,3 @@ wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run atrt-mysqltest
 
 EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT atrt.hpp CMakeLists.txt
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
