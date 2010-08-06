@@ -1160,9 +1160,17 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_use_native_aio = FALSE;
 		break;
-	default:
-		/* On Win 2000 and XP use async i/o */
+
+	case OS_WIN2000:
+	case OS_WINXP:
+		/* On 2000 and XP, async IO is available. */
 		srv_use_native_aio = TRUE;
+		break;
+
+	default:
+		/* Vista and later have both async IO and condition variables */
+		srv_use_native_aio = TRUE;
+		srv_use_native_conditions = TRUE;
 		break;
 	}
 
@@ -1695,6 +1703,27 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
+	if (trx_doublewrite == NULL) {
+		/* Create the doublewrite buffer to a new tablespace */
+
+		trx_sys_create_doublewrite_buf();
+	}
+
+	/* Here the double write buffer has already been created and so
+	any new rollback segments will be allocated after the double
+	write buffer. The default segment should already exist.
+	We create the new segments only if it's a new database or
+	the database was shutdown cleanly. */
+
+	/* Note: When creating the extra rollback segments during an upgrade
+	we violate the latching order, even if the change buffer is empty.
+	We make an exception in sync0sync.c and check srv_is_being_started
+	for that violation. It cannot create a deadlock because we are still
+	running in single threaded mode essentially. Only the IO threads
+	should be running at this stage. */
+
+	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
+
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(&srv_lock_timeout_thread, NULL,
 			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
@@ -1708,20 +1737,6 @@ innobase_start_or_create_for_mysql(void)
 			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
 
 	srv_is_being_started = FALSE;
-
-	if (trx_doublewrite == NULL) {
-		/* Create the doublewrite buffer to a new tablespace */
-
-		trx_sys_create_doublewrite_buf();
-	}
-
-	/* Here the double write buffer has already been created and so
-	any new rollback segments will be allocated after the double
-	write buffer. The default segment should already exist.
-	We create the new segments only if it's a new database or
-	the database was shutdown cleanly. */
-
-	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
 
 	err = dict_create_or_check_foreign_constraint_tables();
 
