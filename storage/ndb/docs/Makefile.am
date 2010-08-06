@@ -127,5 +127,3 @@ testdoc: DUMMY
 	mkdir -p $(OUTDIR)
 	cd $(top_srcdir)/storage/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.test
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%

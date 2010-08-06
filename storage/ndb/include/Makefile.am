@@ -61,8 +61,3 @@ ndb_net.h
 EXTRA_DIST = debugger editline kernel logger mgmcommon \
 portlib transporter util CMakeLists.txt
 
-dist-hook:
-	-rm -rf `find $(distdir) -type d -name SCCS`
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

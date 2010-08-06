@@ -70,6 +70,3 @@ LIBS= \
 
 ndbd_LDADD = $(LIBS) vm/libsched.a
 ndbmtd_LDADD = $(LIBS) vm/libsched_mt.a
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
