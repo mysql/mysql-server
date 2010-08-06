@@ -61,6 +61,37 @@ const char * fileopsdirectory = "tokudb.directory";
 
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 
+static const char single_process_lock_file[] = "/__tokudb_lock_dont_delete_me_";
+
+static int
+single_process_lock(const char *lock_dir, const char *which, int *lockfd) {
+    if (!lock_dir)
+        return ENOENT;
+    int namelen=strlen(lock_dir)+strlen(which);
+    char lockfname[namelen+sizeof(single_process_lock_file)];
+
+    int l = snprintf(lockfname, sizeof(lockfname), "%s%s%s", lock_dir, single_process_lock_file, which);
+    assert(l+1 == (signed)(sizeof(lockfname)));
+    *lockfd = toku_os_lock_file(lockfname);
+    if (*lockfd < 0) {
+        int e = errno;
+        fprintf(stderr, "Couldn't start tokudb because some other tokudb process is using the same directory [%s] for [%s]\n", lock_dir, which);
+        return e;
+    }
+    return 0;
+}
+
+static int
+single_process_unlock(int *lockfd) {
+    int fd = *lockfd;
+    *lockfd = -1;
+    if (fd>=0) {
+        int r = toku_os_unlock_file(fd);
+        if (r != 0)
+            return errno;
+    }
+    return 0;
+}
 
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
@@ -712,7 +743,18 @@ ydb_maybe_upgrade_env (DB_ENV *env) {
 }
 
 
-
+static void
+unlock_single_process(DB_ENV *env) {
+    int r;
+    r = single_process_unlock(&env->i->envdir_lockfd);
+    lazy_assert(r==0);
+    r = single_process_unlock(&env->i->datadir_lockfd);
+    lazy_assert(r==0);
+    r = single_process_unlock(&env->i->logdir_lockfd);
+    lazy_assert(r==0);
+    r = single_process_unlock(&env->i->tmpdir_lockfd);
+    lazy_assert(r==0);
+}
 
 // Open the environment.
 // If this is a new environment, then create the necessary files.
@@ -726,7 +768,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     u_int32_t unused_flags=flags;
 
     if (env_opened(env)) {
-	return toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
+	r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
+        goto cleanup;
     }
 
     HANDLE_EXTRA_FLAGS(env, flags, 
@@ -736,15 +779,19 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     // DB_CREATE means create if env does not exist, and Tokudb requires it because
     // Tokudb requries DB_PRIVATE.
     if ((flags & DB_PRIVATE) && !(flags & DB_CREATE)) {
-	return toku_ydb_do_error(env, ENOENT, "DB_PRIVATE requires DB_CREATE (seems gratuitous to us, but that's BDB's behavior\n");
+	r = toku_ydb_do_error(env, ENOENT, "DB_PRIVATE requires DB_CREATE (seems gratuitous to us, but that's BDB's behavior\n");
+        goto cleanup;
     }
 
     if (!(flags & DB_PRIVATE)) {
-	return toku_ydb_do_error(env, ENOENT, "TokuDB requires DB_PRIVATE\n");
+	r = toku_ydb_do_error(env, ENOENT, "TokuDB requires DB_PRIVATE\n");
+        goto cleanup;
     }
 
-    if ((flags & DB_INIT_LOG) && !(flags & DB_INIT_TXN)) 
-	return toku_ydb_do_error(env, EINVAL, "TokuDB requires transactions for logging\n");
+    if ((flags & DB_INIT_LOG) && !(flags & DB_INIT_TXN)) {
+	r = toku_ydb_do_error(env, EINVAL, "TokuDB requires transactions for logging\n");
+        goto cleanup;
+    }
 
     if (!home) home = ".";
 
@@ -764,7 +811,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
             toku_free(new_home);
         }
     	if (r!=0) {
-    	    return toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
+    	    r = toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
+            goto cleanup;
     	}
     }
     unused_flags &= ~DB_PRIVATE;
@@ -773,13 +821,14 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         toku_free(env->i->dir);
     env->i->dir = toku_strdup(home);
     if (env->i->dir == 0) {
-	return toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
+	r = toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
+        goto cleanup;
     }
     if (0) {
         died1:
         toku_free(env->i->dir);
         env->i->dir = NULL;
-        return r;
+        goto cleanup;
     }
     env->i->open_flags = flags;
     env->i->open_mode = mode;
@@ -788,16 +837,26 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     env_setup_real_log_dir(env);
     env_setup_real_tmp_dir(env);
 
+    r = single_process_lock(env->i->dir, "environment", &env->i->envdir_lockfd);
+    if (r!=0) goto cleanup;
+    r = single_process_lock(env->i->dir, "data", &env->i->datadir_lockfd);
+    if (r!=0) goto cleanup;
+    r = single_process_lock(env->i->dir, "logs", &env->i->logdir_lockfd);
+    if (r!=0) goto cleanup;
+    r = single_process_lock(env->i->dir, "temp", &env->i->tmpdir_lockfd);
+    if (r!=0) goto cleanup;
+
+
     BOOL need_rollback_cachefile = FALSE;
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         need_rollback_cachefile = TRUE;
     }
 
     r = ydb_maybe_upgrade_env(env);
-    if (r!=0) return r;
+    if (r!=0) goto cleanup;
 
     r = validate_env(env, &newenv, need_rollback_cachefile);  // make sure that environment is either new or complete
-    if (r != 0) return r;
+    if (r != 0) goto cleanup;
 
     unused_flags &= ~DB_INIT_TXN & ~DB_INIT_LOG;
 
@@ -808,11 +867,11 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
             // the log does exist
             if (flags & DB_RECOVER) {
                 r = ydb_do_recovery(env);
-                if (r != 0) return r;
+                if (r != 0) goto cleanup;
             } else {
                 // the log is required to have clean shutdown if recovery is not requested
                 r = needs_recovery(env);
-                if (r != 0) return r;
+                if (r != 0) goto cleanup;
             }
         }
     }
@@ -841,12 +900,14 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
 // This is probably correct, but it will be pain...
 //    if ((flags & DB_THREAD)==0) {
-//	return toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_THREAD");
+//	r = toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_THREAD");
+//	goto cleanup;
 //    }
     unused_flags &= ~DB_THREAD;
 
     if (unused_flags!=0) {
-	return toku_ydb_do_error(env, EINVAL, "Extra flags not understood by tokudb: %u\n", unused_flags);
+	r = toku_ydb_do_error(env, EINVAL, "Extra flags not understood by tokudb: %u\n", unused_flags);
+        goto cleanup;
     }
 
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
@@ -916,9 +977,14 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     toku_ydb_lock();
     env_fs_poller(env);          // get the file system state at startup
     env_fs_init_minicron(env); 
-    return 0;
+cleanup:
+    if (r!=0) {
+        if (env && env->i) {
+            unlock_single_process(env);
+        }
+    }
+    return r;
 }
-
 
 static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     int r = 0;
@@ -1014,6 +1080,9 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 	assert(env->i->panic_string==0);
 
     env_fs_destroy(env);
+    toku_ltm_close(env->i->ltm);
+    //Immediately before freeing directories we release lock files.
+    unlock_single_process(env);
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
     if (env->i->lg_dir)
@@ -1030,7 +1099,6 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
         toku_omt_destroy(&env->i->open_dbs);
     if (env->i->dir)
 	toku_free(env->i->dir);
-    toku_ltm_close(env->i->ltm);
     toku_free(env->i);
     env->i = NULL;
     toku_free(env);
@@ -1041,6 +1109,8 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     return r;
 
 panic_and_quit_early:
+    //release lock files.
+    unlock_single_process(env);
     //r is the panic error
     if (toku_env_is_panicked(env)) {
         char *panic_string = env->i->panic_string;
@@ -1896,6 +1966,10 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
     memset(result->i, 0, sizeof *result->i);
+    result->i->envdir_lockfd  = -1;
+    result->i->datadir_lockfd = -1;
+    result->i->logdir_lockfd  = -1;
+    result->i->tmpdir_lockfd  = -1;
     env_init_open_txn(result);
     env_fs_init(result);
 
