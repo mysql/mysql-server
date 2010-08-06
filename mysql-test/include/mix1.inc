@@ -1583,7 +1583,7 @@ connect (con1, localhost, root,,);
 --echo # Connection default
 connection default;
 let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for table' AND info='TRUNCATE TABLE t1';
+  WHERE state='Waiting for table metadata lock' AND info='TRUNCATE TABLE t1';
 --source include/wait_condition.inc
 SELECT * FROM t1 ORDER BY a;
 ROLLBACK;

@@ -8772,7 +8772,8 @@ tdc_wait_for_old_versions(THD *thd, MDL_request_list *mdl_requests,
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       break;
     }
-    old_msg= thd->enter_cond(&COND_refresh, &LOCK_open, "Waiting for table");
+    old_msg= thd->enter_cond(&COND_refresh, &LOCK_open,
+                             "Waiting for table flush");
     wait_result= mysql_cond_timedwait(&COND_refresh, &LOCK_open, &abstime);
     /* LOCK_open mutex is unlocked by THD::exit_cond() as side-effect. */
     thd->exit_cond(old_msg);
