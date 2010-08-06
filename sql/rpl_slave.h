@@ -212,13 +212,6 @@ void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 void rotate_relay_log(Master_info* mi);
 
-int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val);
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-                          const char *default_val);
-int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
-
 pthread_handler_t handle_slave_io(void *arg);
 pthread_handler_t handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
