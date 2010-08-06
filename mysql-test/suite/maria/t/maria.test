@@ -1873,6 +1873,14 @@ insert into t1 values(1,repeat('a',100), repeat('b',657860));
 check table t1;
 drop table t1;
 
+#
+# Check we can create a table with the 'Aria' alias
+#
+
+Create table t1 (a int) engine="aria";
+show create table t1;
+drop table t1;
+
 # Set defaults back
 --disable_result_log
 --disable_query_log

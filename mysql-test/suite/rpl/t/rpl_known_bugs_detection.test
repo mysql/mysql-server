@@ -26,9 +26,11 @@ INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1;
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
-# show the error message
---replace_column 1 # 4 # 7 # 8 # 9 # 23 # 33 #
---query_vertical show slave status;
+# show the error message 
+#1105 = ER_UNKNOWN_ERROR
+--let $slave_sql_errno= 1105
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 # show that it was not replicated
 SELECT * FROM t1;
 
@@ -81,8 +83,10 @@ SELECT * FROM t1;
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 # show the error message
---replace_column 1 # 4 # 7 # 8 # 9 # 23 # 33 #
---query_vertical show slave status;
+#1105 = ER_UNKNOWN_ERROR
+--let $slave_sql_errno= 1105
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 # show that it was not replicated
 SELECT * FROM t1;
 connection master;

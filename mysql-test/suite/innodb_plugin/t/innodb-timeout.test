@@ -48,7 +48,7 @@ connection b;
 select * from t1 for update;
 
 connection a;
-sleep 2;
+sleep 3;
 commit;
 
 connection b;

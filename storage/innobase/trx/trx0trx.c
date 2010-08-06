@@ -131,6 +131,8 @@ trx_create(
 
 	trx->mysql_thd = NULL;
 	trx->mysql_query_str = NULL;
+	trx->mysql_query_len = NULL;
+
 	trx->active_trans = 0;
 	trx->duplicates = 0;
 
@@ -936,6 +938,7 @@ trx_commit_off_kernel(
 	trx->undo_no = ut_dulint_zero;
 	trx->last_sql_stat_start.least_undo_no = ut_dulint_zero;
 	trx->mysql_query_str = NULL;
+	trx->mysql_query_len = NULL;
 
 	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 	ut_ad(UT_LIST_GET_LEN(trx->trx_locks) == 0);

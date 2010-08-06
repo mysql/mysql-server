@@ -868,3 +868,24 @@ DROP TABLE nt_4;
 DROP PROCEDURE pc_i_tt_3;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE `t1` ( 
+`c1` int(10) unsigned NOT NULL AUTO_INCREMENT, 
+`c2` tinyint(1) unsigned DEFAULT NULL, 
+`c3` varchar(300) DEFAULT NULL, 
+`c4` int(10) unsigned NOT NULL, 
+`c5` int(10) unsigned DEFAULT NULL, 
+PRIMARY KEY (`c1`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+ALTER TABLE `t1` Engine=InnoDB;
+SET AUTOCOMMIT=0;
+INSERT INTO t1 (c1,c2,c3,c4,c5) VALUES (1, 1, 'X', 1, NULL);
+COMMIT;
+ROLLBACK;
+SET AUTOCOMMIT=1;
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE `t1`;

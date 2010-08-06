@@ -364,6 +364,9 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (10,10)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (101,101)
+master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1,t2
 reset master;
 create table t1 (a int) engine=innodb;
@@ -802,7 +805,7 @@ delete from t4;
 insert into t3 values (1,1),(2,2);
 insert into t4 values (1,1),(2,2);
 reset master;
-UPDATE t3,t4 SET t3.a=t4.a + bug27417(1);
+UPDATE t3,t4 SET t3.a = t4.a + bug27417(1) where t3.a = 1;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 select count(*) from t1 /* must be 1 */;
 count(*)

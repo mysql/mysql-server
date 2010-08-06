@@ -1,0 +1,22 @@
+-- source include/have_query_cache.inc
+set GLOBAL query_cache_size=1355776;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+flush query cache; # This crashed in some versions
+flush query cache; # This crashed in some versions
+reset query cache;
+flush status;
+( select * from t1 );
+/*!40101 SET @OLD_SQL_MODE := @@SQL_MODE, @@SQL_MODE := REPLACE(REPLACE(@@SQL_MODE, 'ANSI_QUOTES', ''), ',,', ','), @OLD_QUOTE := @@SQL_QUOTE_SHOW_CREATE, @@SQL_QUOTE_SHOW_CREATE := 1 */;
+/* only comment */;
+let query=# only comment
+;
+eval $query;
+let query=-- only comment
+;
+eval $query;
+DROP TABLE t1;
+SET GLOBAL query_cache_size= default;

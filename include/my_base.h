@@ -272,7 +272,7 @@ enum ha_base_keytype {
 #define HA_USES_PARSER           16384  /* Fulltext index uses [pre]parser */
 #define HA_USES_BLOCK_SIZE	 ((uint) 32768)
 #define HA_SORT_ALLOWS_SAME      512    /* Intern bit when sorting records */
-#if MYSQL_VERSION_ID < 0x50200
+#if MYSQL_VERSION_ID < 50200
 /*
   Key has a part that can have end space.  If this is an unique key
   we have to handle it differently from other unique keys as we can find

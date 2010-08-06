@@ -349,4 +349,13 @@ END |
 DELETE IGNORE FROM t1;
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 DROP TABLE t1;
+#
+# Bug #53450: Crash/assertion
+#    "virtual int ha_myisam::index_first(uchar*)") at assert.c:81
+#
+CREATE TABLE t1 (a INT,    b INT,    c INT,
+INDEX(a), INDEX(b), INDEX(c));
+INSERT INTO t1 VALUES (1,2,3), (4,5,6), (7,8,9);
+DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
+DROP TABLE t1;
 End of 5.1 tests

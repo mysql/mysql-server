@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -193,6 +193,10 @@ btr_leaf_page_release(
 	mtr_t*		mtr);		/*!< in: mtr */
 /**************************************************************//**
 Gets the child node file address in a node pointer.
+NOTE: the offsets array must contain all offsets for the record since
+we read the last field according to offsets and assume that it contains
+the child page number. In other words offsets must have been retrieved
+with rec_get_offsets(n_fields=ULINT_UNDEFINED).
 @return	child node address */
 UNIV_INLINE
 ulint
@@ -317,12 +321,16 @@ Inserts a data tuple to a tree on a non-leaf level. It is assumed
 that mtr holds an x-latch on the tree. */
 UNIV_INTERN
 void
-btr_insert_on_non_leaf_level(
-/*=========================*/
+btr_insert_on_non_leaf_level_func(
+/*==============================*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level, must be > 0 */
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
+# define btr_insert_on_non_leaf_level(i,l,t,m)				\
+	btr_insert_on_non_leaf_level_func(i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */

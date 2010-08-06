@@ -33,7 +33,7 @@ static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent;
 static my_bool opt_check;
 static const char *opt_tmpdir;
 static ulong opt_page_buffer_size;
-static ulonglong opt_start_from_lsn;
+static ulonglong opt_start_from_lsn, opt_end_lsn;
 static MY_TMPDIR maria_chk_tmpdir;
 
 
@@ -120,8 +120,14 @@ int main(int argc, char **argv)
             LSN_IN_PARTS(lsn));
   }
 
+  if (opt_end_lsn != LSN_IMPOSSIBLE)
+  {
+    /* We can't apply undo if we use end_lsn */
+    opt_apply_undo= 0;
+  }
+
   fprintf(stdout, "TRACE of the last maria_read_log\n");
-  if (maria_apply_log(lsn, opt_apply ?  MARIA_LOG_APPLY :
+  if (maria_apply_log(lsn, opt_end_lsn, opt_apply ?  MARIA_LOG_APPLY :
                       (opt_check ? MARIA_LOG_CHECK :
                        MARIA_LOG_DISPLAY_HEADER), opt_silent ? NULL : stdout,
                       opt_apply_undo, FALSE, FALSE, &warnings_count))
@@ -164,7 +170,7 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
-   (uchar**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (char**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "if --display-only, check if record is fully readable (for debugging)",
    (uchar **) &opt_check, (uchar **) &opt_check, 0,
@@ -178,17 +184,20 @@ static struct my_option my_long_options[] =
   {"display-only", 'd', "display brief info read from records' header",
    (uchar **) &opt_display_only, (uchar **) &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
-  {"maria_log_dir_path", 'l',
+  {"maria-log-dir-path", 'l',
     "Path to the directory where to store transactional log",
     (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "page_buffer_size", 'P', "",
-    (uchar**) &opt_page_buffer_size, (uchar**) &opt_page_buffer_size, 0,
+  { "page-buffer-size", 'P', "",
+    &opt_page_buffer_size, &opt_page_buffer_size, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
     (long) USE_BUFFER_INIT, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
     (long) IO_SIZE, 0},
-  { "start_from_lsn", 'o', "Start reading log from this lsn",
-    (uchar**) &opt_start_from_lsn, (uchar**) &opt_start_from_lsn,
+  { "start-from-lsn", 'o', "Start reading log from this lsn",
+    &opt_start_from_lsn, &opt_start_from_lsn,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
+  { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
+    "will not be applied", &opt_end_lsn, &opt_end_lsn,
     0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
    (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
@@ -200,7 +209,7 @@ static struct my_option my_long_options[] =
 #else
    "colon (:)"
 #endif
-   , (uchar**) &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   , (char**) &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},

@@ -511,7 +511,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
-            d.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
 	    (void) mysql_bin_log.write(&d);
 	  }
 	}
@@ -691,7 +690,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, errcode);
-  e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }
 
@@ -929,6 +927,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         DBUG_RETURN(1);
       }
     }
+
+    if (thd->is_error())
+      read_info.error= 1;
+
     if (read_info.error)
       break;
     if (skip_lines)
@@ -1052,7 +1054,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par),escape_char(escape)
+  :file(file_par),buffer(0),escape_char(escape)
 {
   read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
@@ -1101,6 +1103,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free((uchar*) buffer,MYF(0)); /* purecov: inspected */
+      buffer= 0;
       error=1;
     }
     else
@@ -1131,9 +1134,8 @@ READ_INFO::~READ_INFO()
   {
     if (need_end_io_cache)
       ::end_io_cache(&cache);
-    my_free((uchar*) buffer,MYF(0));
-    error=1;
   }
+  my_free((uchar*) buffer,MYF(MY_ALLOW_ZERO_PTR));
 }
 
 

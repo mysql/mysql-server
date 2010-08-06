@@ -2600,3 +2600,10 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+Create table t1 (a int) engine="aria";
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+drop table t1;

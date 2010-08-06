@@ -1,0 +1,20 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+
+innodb_bug48024 : Waiting for merge/fix from XtraDB
+innodb_bug53590 : Waiting for merge/fix from XtraDB
+innodb_bug53591 : Waiting for merge/fix from XtraDB
+innodb_bug53592 : Waiting for merge/fix from XtraDB
+innodb-use-sys-malloc : Waiting for bugfix from Percona for LP#612600
+innodb_bug53290 : Waiting for merge/fix from XtraDB
+innodb_bug54679 : Waiting for merge/fix from XtraDB
+innodb_bug52745 : Waiting for merge/fix from XtraDB

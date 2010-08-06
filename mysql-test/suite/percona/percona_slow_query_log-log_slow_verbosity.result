@@ -1,0 +1,9 @@
+SELECT sleep(2);
+sleep(2)
+0
+set log_slow_verbosity=innodb;
+SELECT sleep(2);
+sleep(2)
+0
+cat MYSQLD_DATADIR/percona_slow_query_log-log_slow_verbosity.log | grep -c "No InnoDB statistics available for this query"
+1
