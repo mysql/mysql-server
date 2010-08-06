@@ -44,8 +44,3 @@ ndbapi/NdbRecAttr.i \
 ndbapi/NdbTransaction.i \
 globals.i
 
-dist-hook:
-	-rm -rf `find $(distdir) -type d -name SCCS`
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
