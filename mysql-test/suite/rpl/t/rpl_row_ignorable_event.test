@@ -9,6 +9,7 @@
 
 source include/have_binlog_format_row.inc;
 source include/master-slave.inc;
+source include/have_binlog_rows_query.inc;
 source include/have_innodb.inc;
 
 --echo # Test non-transaction
@@ -80,6 +81,25 @@ let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 --exec $MYSQL_BINLOG -v -v --stop-position=$end_pos $MYSQLD_DATADIR/$master_binlog | $MYSQL test 2>&1
 
 --echo # SHOW BINLOG EVENTS ON MASTER after '--exec MYSQL_BINLOG'
+source include/show_binlog_events.inc;
+
+connect (master2,localhost,root,,);
+connection master2;
+--echo # SHOW BINLOG EVENTS ON 2nd CONNECTION TO MASTE
+set @@session.binlog_rows_query_log_events= off;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+--echo # Test statements from the 2nd connection have no comment event
+--echo # when setting binlog_rows_query_log_events= off
+create table t7(a bigint) engine= myisam;
+insert into t7(a) values(1),(2);
+delete from t7 where a = 1;
+
+set session binlog_format=mixed;
+set @@session.binlog_rows_query_log_events= on;
+--echo # Test the comment event is sent in mixed mode for special
+--echo # functions when setting binlog_rows_query_log_events= on
+insert into t7(a) values(UUID_SHORT());
+drop table t7;
 source include/show_binlog_events.inc;
 
 sync_slave_with_master;
