@@ -1735,5 +1735,3 @@ MAX(c1)
 838:59:59
 DROP TABLE t1;
 # End of the bug#55648
-
-End of 6.0 tests
