@@ -20,7 +20,6 @@
 #include "mysqld.h"
 #include "log.h"
 
-/* These functions are defined in slave.cc */
 int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                           const char *default_val);
@@ -174,39 +173,36 @@ int Rpl_info_file::do_reset_info()
 
 bool Rpl_info_file::do_set_info(const int pos, const char *value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-  
   return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const ulong value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
- 
   return (my_b_printf(&info_file, "%lu\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const int value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
- 
   return (my_b_printf(&info_file, "%d\n", value) > (size_t) 0 ?
           FALSE : TRUE);
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const float value)
 {
-  /* This is enough to handle the float conversion */
-  const int array_size= sizeof(value) * 32;
-  char buffer[array_size];
+  /*
+    64 bytes provide enough space considering that the precision is 3
+    bytes (See the appropriate set funciton):
 
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
+    FLT_MAX  The value of this macro is the maximum number representable
+             in type float. It is supposed to be at least 1E+37.
+    FLT_MIN  Similar to the FLT_MAX, we have 1E-37.
+
+    If a file is manually and not properly changed, this function may
+    crash the server.
+  */
+  char buffer[64];
 
   sprintf(buffer, "%.3f", value);
 
@@ -223,9 +219,6 @@ bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
   if (server_ids_buffer == NULL)
     return error;
 
-  if (pos >= ninfo || pos != cursor || prv_error)
-    goto err;
-    
   /*
     This produces a line listing the total number and all the server_ids.
   */
@@ -243,9 +236,6 @@ err:
 bool Rpl_info_file::do_get_info(const int pos, char *value, const size_t size,
                                 const char *default_value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-      
   return (init_strvar_from_file(value, size, &info_file,
                                 default_value));
 }
@@ -253,9 +243,6 @@ bool Rpl_info_file::do_get_info(const int pos, char *value, const size_t size,
 bool Rpl_info_file::do_get_info(const int pos, ulong *value,
                                 const ulong default_value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-
   return (init_ulongvar_from_file(value, &info_file,
                                   default_value));
 }
@@ -263,9 +250,6 @@ bool Rpl_info_file::do_get_info(const int pos, ulong *value,
 bool Rpl_info_file::do_get_info(const int pos, int *value,
                                 const int default_value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-
   return (init_intvar_from_file((int *) value, &info_file, 
                                 (int) default_value));
 }
@@ -273,9 +257,6 @@ bool Rpl_info_file::do_get_info(const int pos, int *value,
 bool Rpl_info_file::do_get_info(const int pos, float *value,
                                 const float default_value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-
   return (init_floatvar_from_file(value, &info_file,
                                   default_value));
 }
@@ -283,18 +264,16 @@ bool Rpl_info_file::do_get_info(const int pos, float *value,
 bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
                                 const Server_ids *default_value __attribute__((unused)))
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
   /*
-    Static buffer to use most of times. However, if it is not big
+    Static buffer to use most of the times. However, if it is not big
     enough to accommodate the server ids, a new buffer is allocated.
   */
-  const int array_size= 16 * (sizeof(long)*4 + 1);
+  const int array_size= 16 * (sizeof(long) * 4 + 1);
   char buffer[array_size];
   char *buffer_act= buffer;
 
   bool error= init_dynarray_intvar_from_file(buffer, &buffer_act,
-                                                       &info_file);
+                                             &info_file);
   if (!error)
     value->unpack_server_ids(buffer_act);
 
@@ -318,4 +297,173 @@ char* Rpl_info_file::do_get_description_info()
 bool Rpl_info_file::do_is_transactional()
 {
   return FALSE;
+}
+
+int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+                          const char *default_val)
+{
+  uint length;
+  DBUG_ENTER("init_strvar_from_file");
+
+  if ((length=my_b_gets(f,var, max_size)))
+  {
+    char* last_p = var + length -1;
+    if (*last_p == '\n')
+      *last_p = 0; // if we stopped on newline, kill it
+    else
+    {
+      /*
+        If we truncated a line or stopped on last char, remove all chars
+        up to and including newline.
+      */
+      int c;
+      while (((c=my_b_get(f)) != '\n' && c != my_b_EOF)) ;
+    }
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    strmake(var,  default_val, max_size-1);
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
+int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
+{
+  /*
+    32 bytes provide enough space:
+
+    INT_MIN    –2,147,483,648
+    INT_MAX    +2,147,483,647
+  */
+  char buf[32];
+  DBUG_ENTER("init_intvar_from_file");
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    *var = atoi(buf);
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
+int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val)
+{
+  /* 
+    32 bytes provide enough space:
+
+    ULONG_MAX   32 bit compiler   +4,294,967,295
+                64 bit compiler   +18,446,744,073,709,551,615
+  */
+  char buf[32];
+  DBUG_ENTER("init_ulongvar_from_file");
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    *var = strtoul(buf, 0, 10);
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
+int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
+{
+  /*
+    64 bytes provide enough space considering that the precision is 3
+    bytes (See the appropriate set funciton):
+
+    FLT_MAX  The value of this macro is the maximum number representable
+             in type float. It is supposed to be at least 1E+37.
+    FLT_MIN  Similar to the FLT_MAX, we have 1E-37.
+
+    If a file is manually and not properly changed, this function may
+    crash the server.
+  */
+  char buf[64];
+  DBUG_ENTER("init_floatvar_from_file");
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    if (sscanf(buf, "%f", var) != 1)
+      DBUG_RETURN(1);
+    else
+      DBUG_RETURN(0);
+  }
+  else if (default_val != 0.0)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
+/**
+   Particularly, this function is responsible for restoring IGNORE_SERVER_IDS
+   list of servers whose events the slave is going to ignore (to not log them
+   in the relay log).
+
+   Items being read are supposed to be decimal output of values of a  type
+   shorter or equal of @c long and separated by the single space.
+
+   @param  buffer      Put the read values in this static buffer
+   @param  buffer_act  Points to the final buffer as dynamic buffer may
+                       be used if the static buffer is not big enough.
+
+   @retval 0           All OK
+   @retval non-zero  An error
+*/
+bool init_dynarray_intvar_from_file(char *buffer, char **buffer_act, IO_CACHE* f)
+{
+  char *buf= buffer; // actual buffer can be dynamic if static is short
+  char *buf_act= buffer;
+  char *last;
+  uint num_items;     // number of items of `arr'
+  size_t read_size;
+
+  DBUG_ENTER("init_dynarray_intvar_from_file");
+
+  if ((read_size= my_b_gets(f, buf_act, sizeof(buf))) == 0)
+  {
+    DBUG_RETURN(FALSE); // no line in master.info
+  }
+  if (read_size + 1 == sizeof(buf) && buf[sizeof(buf) - 2] != '\n')
+  {
+    /*
+      short read happend; allocate sufficient memory and make the 2nd read
+    */
+    char buf_work[(sizeof(long)*3 + 1)*16];
+    memcpy(buf_work, buf, sizeof(buf_work));
+    num_items= atoi(strtok_r(buf_work, " ", &last));
+    size_t snd_size;
+    /*
+      max size lower bound approximate estimation bases on the formula:
+      (the items number + items themselves) * 
+          (decimal size + space) - 1 + `\n' + '\0'
+    */
+    size_t max_size= (1 + num_items) * (sizeof(long)*3 + 1) + 1;
+    buf_act= (char*) my_malloc(max_size, MYF(MY_WME));
+    buffer_act= &buf_act;
+    memcpy(buf_act, buf, read_size);
+    snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
+    if (snd_size == 0 ||
+        ((snd_size + 1 == max_size - read_size) &&  buf[max_size - 2] != '\n'))
+    {
+      /*
+        failure to make the 2nd read or short read again
+      */
+      DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
 }

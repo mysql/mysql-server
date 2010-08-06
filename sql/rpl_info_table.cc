@@ -312,9 +312,6 @@ int Rpl_info_table::do_prepare_info_for_write()
 
 bool Rpl_info_table::do_set_info(const int pos, const char *value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   /*
     Note that we did not need to copy any information at this point.
   */
@@ -326,9 +323,6 @@ bool Rpl_info_table::do_set_info(const int pos, const char *value)
 
 bool Rpl_info_table::do_set_info(const int pos, const ulong value)
 {
-  if (pos >= ninfo || pos != cursor || prv_error)
-    return TRUE;
-
   /*
     There is no need to check if the information fits in the reserved
     space:
@@ -344,9 +338,6 @@ bool Rpl_info_table::do_set_info(const int pos, const ulong value)
 
 bool Rpl_info_table::do_set_info(const int pos, const int value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   /*
     There is no need to check if the information fits in the reserved
     space:
@@ -362,15 +353,17 @@ bool Rpl_info_table::do_set_info(const int pos, const int value)
 
 bool Rpl_info_table::do_set_info(const int pos, const float value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   /*
     There is no need to check if the information fits in the reserved
-    space:
+    space. We are assuming that the precision is 3 bytes (See the
+    appropriate set function):
+
     FLT_MAX  The value of this macro is the maximum number representable
              in type float. It is supposed to be at least 1E+37.
     FLT_MIN  Similar to the FLT_MAX, we have 1E-37.
+
+    If a file is manually and not properly changed, this function may
+    crash the server.
   */
   if (sprintf(field_values->field[pos].use.str, "%.3f", value) < 0)
     return TRUE;
@@ -382,9 +375,6 @@ bool Rpl_info_table::do_set_info(const int pos, const float value)
 
 bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   int needed_size= (sizeof(::server_id) * 3 + 1) *
                     (1 + value->server_ids.elements);
   /*
@@ -407,9 +397,6 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
                                  const char *default_value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   if (use_default)
     strmov(value, default_value ? default_value : "");
   else
@@ -422,9 +409,6 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
 bool Rpl_info_table::do_get_info(const int pos, ulong *value,
                                  const ulong default_value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   *value= (use_default ? default_value :
            (int) strtoul(field_values->field[pos].use.str, 0, 10));
 
@@ -434,9 +418,6 @@ bool Rpl_info_table::do_get_info(const int pos, ulong *value,
 bool Rpl_info_table::do_get_info(const int pos, int *value,
                                  const int default_value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   *value= (use_default ? default_value :
            (int) strtol(field_values->field[pos].use.str, 0, 10));
 
@@ -446,9 +427,6 @@ bool Rpl_info_table::do_get_info(const int pos, int *value,
 bool Rpl_info_table::do_get_info(const int pos, float *value,
                                  const float default_value)
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   *value= default_value;
   if (!use_default &&
       sscanf(field_values->field[pos].use.str, "%f", value) != 1)
@@ -460,9 +438,6 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
 bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
                                  const Server_ids *default_value __attribute__((unused)))
 {
-  if (pos >= ninfo || prv_error)
-    return TRUE;
-
   if (value->unpack_server_ids(field_values->field[pos].use.str))
     return TRUE;
 
