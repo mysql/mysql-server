@@ -1,6 +1,7 @@
 # Testing if "flush logs" command bouncing resulting in logs created in a loop 
 # in case of bi-directional replication
 -- source include/master-slave.inc
+-- source include/not_relay_log_info_table.inc
 # Use wait_for_slave_to_(start|stop) for current connections
 let $keep_connection= 1;
 
