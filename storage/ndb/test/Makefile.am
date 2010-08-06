@@ -18,8 +18,3 @@ SUBDIRS = src tools ndbapi run-test
 
 EXTRA_DIST = include CMakeLists.txt
 
-dist-hook:
-	-rm -rf `find $(distdir) -type d -name SCCS`
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
