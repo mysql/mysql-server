@@ -839,11 +839,11 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     r = single_process_lock(env->i->dir, "environment", &env->i->envdir_lockfd);
     if (r!=0) goto cleanup;
-    r = single_process_lock(env->i->dir, "data", &env->i->datadir_lockfd);
+    r = single_process_lock(env->i->real_data_dir, "data", &env->i->datadir_lockfd);
     if (r!=0) goto cleanup;
-    r = single_process_lock(env->i->dir, "logs", &env->i->logdir_lockfd);
+    r = single_process_lock(env->i->real_log_dir, "logs", &env->i->logdir_lockfd);
     if (r!=0) goto cleanup;
-    r = single_process_lock(env->i->dir, "temp", &env->i->tmpdir_lockfd);
+    r = single_process_lock(env->i->real_tmp_dir, "temp", &env->i->tmpdir_lockfd);
     if (r!=0) goto cleanup;
 
 
@@ -1081,8 +1081,6 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 
     env_fs_destroy(env);
     toku_ltm_close(env->i->ltm);
-    //Immediately before freeing directories we release lock files.
-    unlock_single_process(env);
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
     if (env->i->lg_dir)
@@ -1099,6 +1097,8 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
         toku_omt_destroy(&env->i->open_dbs);
     if (env->i->dir)
 	toku_free(env->i->dir);
+    //Immediately before freeing internal environment unlock the directories
+    unlock_single_process(env);
     toku_free(env->i);
     env->i = NULL;
     toku_free(env);
