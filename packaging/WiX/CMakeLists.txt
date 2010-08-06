@@ -41,11 +41,13 @@ FOREACH(dir mysql performance_schema)
  FILE(GLOB files ${CMAKE_BINARY_DIR}/sql/data/${dir}/*)
  SET(filelist)
  FOREACH(f ${files})
+   IF(NOT f MATCHES ".rule")
    FILE(TO_NATIVE_PATH "${f}" file_native_path)
    GET_FILENAME_COMPONENT(file_name "${f}" NAME)
    SET(filelist 
 "${filelist}
 <File Id='${file_name}' Source='${file_native_path}'/>")
+   ENDIF()
  ENDFOREACH()
  STRING(TOUPPER ${dir} DIR_UPPER)
  SET(DATADIR_${DIR_UPPER}_FILES "${filelist}")
@@ -71,7 +73,7 @@ ELSE()
 ENDIF()
 GET_TARGET_PROPERTY(WIXCA_LOCATION wixca LOCATION)
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
-SET(CPACK_WIX_INCLUDE ${CMAKE_CURRENT_BINARY_DIR}/extra.wxs)
+SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake

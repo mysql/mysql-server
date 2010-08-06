@@ -39,7 +39,7 @@ static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
 {
     word->weight=LWS_IN_USE;
     docstat->sum+=word->weight;
-    memcpy_fixed((docstat->list)++,word,sizeof(FT_WORD));
+    memcpy((docstat->list)++, word, sizeof(FT_WORD));
     return 0;
 }
 

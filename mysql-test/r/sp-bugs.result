@@ -43,6 +43,8 @@ END|
 SELECT f2 ();
 f2 ()
 NULL
+Warnings:
+Error	1305	FUNCTION testdb.f_not_exists does not exist
 DROP SCHEMA testdb;
 USE test;
 #

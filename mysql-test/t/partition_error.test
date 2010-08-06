@@ -205,6 +205,23 @@ partitions 3
  partition x3 tablespace ts3);
 
 #
+# Partition by range columns, invalid field in field list
+#
+--error ER_FIELD_NOT_FOUND_PART_ERROR
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by range columns (a,d)
+(partition x1 VALUES LESS THAN (1,1),
+ partition x2 VALUES LESS THAN (2,2),
+ partition x3 VALUES LESS THAN (3,3));
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+select load_file('$MYSQLD_DATADIR/test/t1.par');
+
+#
 # Partition by key, invalid field in field list
 #
 --error ER_FIELD_NOT_FOUND_PART_ERROR

@@ -281,29 +281,6 @@ sf_fo:	movl	%edx,%eax		#  Char found here
 .strstr_end:	
 	.size strstr,.strstr_end-strstr
 
-
-	# Find a substring in string, return index
-	# Arg: str,search
-
-.globl strinstr
-	.type strinstr,@function
-
-strinstr:
-	pushl	%ebp
-	movl	%esp,%ebp
-	pushl	12(%ebp)		#  search
-	pushl	8(%ebp)			#  str
-	call	strstr
-	add	$8,%esp
-	or	%eax,%eax
-	jz	si_99			#  Not found, return NULL
-	sub	8(%ebp),%eax		#  Pos from start
-	inc	%eax			#  And first pos = 1
-si_99:	popl	%ebp
-	ret
-.strinstr_end:	
-	.size strinstr,.strinstr_end-strinstr
-
 	# Make a string of len length from another string
 	# Arg: dst,src,length
 	# ret: end of dst
