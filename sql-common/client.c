@@ -2559,6 +2559,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
   init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
+  LINT_INIT(pkt_scramble_len);
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",

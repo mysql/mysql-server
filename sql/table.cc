@@ -699,6 +699,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   bool null_bits_are_used;
   DBUG_ENTER("open_binary_frm");
 
+  LINT_INIT(options);
+  LINT_INIT(options_len);
+
   new_field_pack_flag= head[27];
   new_frm_ver= (head[2] - FRM_VER);
   field_pack_length= new_frm_ver < 2 ? 11 : 17;
@@ -1943,10 +1946,13 @@ bool unpack_vcol_info_from_frm(THD *thd,
   CHARSET_INFO *old_character_set_client;
   Query_arena *backup_stmt_arena_ptr;
   Query_arena backup_arena;
-  Query_arena *vcol_arena;
+  Query_arena *vcol_arena= 0;
   Parser_state parser_state;
   DBUG_ENTER("unpack_vcol_info_from_frm");
   DBUG_ASSERT(vcol_expr);
+
+  old_character_set_client= thd->variables.character_set_client;
+  backup_stmt_arena_ptr= thd->stmt_arena;
 
   /* 
     Step 1: Construct the input string for the parser.
@@ -1981,7 +1987,6 @@ bool unpack_vcol_info_from_frm(THD *thd,
   /* 
     Step 2: Setup thd for parsing.
   */
-  backup_stmt_arena_ptr= thd->stmt_arena;
   vcol_arena= table->expr_arena;
   if (!vcol_arena)
   {
@@ -1996,7 +2001,6 @@ bool unpack_vcol_info_from_frm(THD *thd,
   thd->stmt_arena= vcol_arena;
 
   thd->lex->parse_vcol_expr= TRUE;
-  old_character_set_client= thd->variables.character_set_client;
 
   /* 
     Step 3: Use the parser to build an Item object from vcol_expr_str.

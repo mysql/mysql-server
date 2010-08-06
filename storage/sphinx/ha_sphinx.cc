@@ -2616,7 +2616,7 @@ int ha_sphinx::get_rec ( byte * buf, const byte *, uint )
 
 	for ( uint32 i=0; i<m_iAttrs; i++ )
 	{
-		longlong iValue64;
+		longlong iValue64= 0;
 		uint32 uValue = UnpackDword ();
 		if ( m_dAttrs[i].m_uType == SPH_ATTR_BIGINT )
 			iValue64 = ( (longlong)uValue<<32 ) | UnpackDword();

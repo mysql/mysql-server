@@ -600,6 +600,7 @@ engine_option_value *merge_engine_table_options(engine_option_value *first,
 {
   engine_option_value *end, *opt;
   DBUG_ENTER("merge_engine_table_options");
+  LINT_INIT(end);
 
   /* find last element */
   if (first && second)

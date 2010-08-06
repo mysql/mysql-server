@@ -49,7 +49,7 @@
 using namespace open_query;
 using namespace boost;
 
-static const row empty_row = { 0 };
+static const row empty_row = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 namespace open_query
 {
