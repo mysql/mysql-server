@@ -34,7 +34,6 @@ ENDIF()
 SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
-OPTION(WITH_DEBUG_FULL "Use dbug and safemutex. Slow." OFF)
 
 # Distinguish between community and non-community builds, with the
 # default being a community build. This does not impact the feature
@@ -60,7 +59,7 @@ SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
  
-IF(WITH_DEBUG OR WITH_DEBUG_FULL)
+IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
   SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
 ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
@@ -202,15 +201,10 @@ ENDIF()
 
 # Add safemutex for debug configurations, except on Windows
 # (safemutex has never worked on Windows)
-IF(WITH_DEBUG OR WITH_DEBUG_FULL AND NOT WIN32)
+IF(WITH_DEBUG AND NOT WIN32)
   FOREACH(LANG C CXX)
-    IF(WITH_DEBUG_FULL)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG 
-        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
-    ELSE()
-      SET(CMAKE_${LANG}_FLAGS_DEBUG 
-        "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
-    ENDIF()
+      SET(CMAKE_${LANG}_FLAGS_DEBUG
+          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
   ENDFOREACH()
 ENDIF()
 
