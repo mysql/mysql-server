@@ -184,7 +184,9 @@ public:
                             TABLE,
                             FUNCTION,
                             PROCEDURE,
-                            TRIGGER };
+                            TRIGGER,
+                            /* This should be the last ! */
+                            NAMESPACE_END };
 
   const uchar *ptr() const { return (uchar*) m_ptr; }
   uint length() const { return m_length; }
@@ -251,10 +253,20 @@ public:
   }
   MDL_key() {} /* To use when part of MDL_request. */
 
+  /**
+    Get thread state name to be used in case when we have to
+    wait on resource identified by key.
+  */
+  const char * get_wait_state_name() const
+  {
+    return m_namespace_to_wait_state_name[(int)mdl_namespace()];
+  }
+
 private:
   uint16 m_length;
   uint16 m_db_name_length;
   char m_ptr[MAX_MDLKEY_LENGTH];
+  static const char * m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
   MDL_key(const MDL_key &);                     /* not implemented */
   MDL_key &operator=(const MDL_key &);          /* not implemented */
@@ -462,7 +474,7 @@ public:
   enum_wait_status get_status();
   void reset_status();
   enum_wait_status timed_wait(THD *thd, struct timespec *abs_timeout,
-                             bool signal_timeout);
+                              bool signal_timeout, const char *wait_state_name);
 private:
   /**
     Condvar which is used for waiting until this context's pending

@@ -71,6 +71,21 @@ static void init_mdl_psi_keys(void)
 void notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket);
 
 
+/**
+  Thread state names to be used in case when we have to wait on resource
+  belonging to certain namespace.
+*/
+
+const char *MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
+{
+  "Waiting for global metadata lock",
+  "Waiting for schema metadata lock",
+  "Waiting for table metadata lock",
+  "Waiting for stored function metadata lock",
+  "Waiting for stored procedure metadata lock",
+  NULL
+};
+
 static bool mdl_initialized= 0;
 
 
@@ -946,17 +961,18 @@ void MDL_wait::reset_status()
   Wait for the status to be assigned to this wait slot.
 
   @param abs_timeout     Absolute time after which waiting should stop.
-  @param set_status_on_tiemout TRUE  - If in case of timeout waiting
-                                 context should close the wait slot by
-                                 sending TIMEOUT to itself.
-                         FALSE - Otherwise.
+  @param set_status_on_timeout TRUE  - If in case of timeout waiting
+                                       context should close the wait slot by
+                                       sending TIMEOUT to itself.
+                               FALSE - Otherwise.
+  @param wait_state_name  Thread state name to be set for duration of wait.
 
   @returns Signal posted.
 */
 
 MDL_wait::enum_wait_status
 MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
-                     bool set_status_on_timeout)
+                     bool set_status_on_timeout, const char *wait_state_name)
 {
   const char *old_msg;
   enum_wait_status result;
@@ -965,7 +981,7 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
   mysql_mutex_lock(&m_LOCK_wait_status);
 
   old_msg= thd_enter_cond(thd, &m_COND_wait_status, &m_LOCK_wait_status,
-                          "Waiting for table");
+                          wait_state_name);
 
   while (!m_wait_status && !thd_killed(thd) &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
@@ -1746,7 +1762,8 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
     while (cmp_timespec(abs_shortwait, abs_timeout) <= 0)
     {
       /* abs_timeout is far away. Wait a short while and notify locks. */
-      wait_status= m_wait.timed_wait(m_thd, &abs_shortwait, FALSE);
+      wait_status= m_wait.timed_wait(m_thd, &abs_shortwait, FALSE,
+                                     mdl_request->key.get_wait_state_name());
 
       if (wait_status != MDL_wait::EMPTY)
         break;
@@ -1757,10 +1774,12 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       set_timespec(abs_shortwait, 1);
     }
     if (wait_status == MDL_wait::EMPTY)
-      wait_status= m_wait.timed_wait(m_thd, &abs_timeout, TRUE);
+      wait_status= m_wait.timed_wait(m_thd, &abs_timeout, TRUE,
+                                     mdl_request->key.get_wait_state_name());
   }
   else
-    wait_status= m_wait.timed_wait(m_thd, &abs_timeout, TRUE);
+    wait_status= m_wait.timed_wait(m_thd, &abs_timeout, TRUE,
+                                   mdl_request->key.get_wait_state_name());
 
   done_waiting_for();
 

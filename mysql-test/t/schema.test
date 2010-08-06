@@ -45,7 +45,7 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
-                     WHERE state= 'Waiting for table' 
+                     WHERE state= 'Waiting for table metadata lock' 
                      AND info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
 ALTER SCHEMA schema2 DEFAULT CHARACTER SET utf8;
@@ -84,7 +84,7 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='Waiting for table' and info='DROP SCHEMA schema1';
+  WHERE state='Waiting for schema metadata lock' and info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
 
 --echo # CREATE SCHEMA used to give a deadlock.
@@ -124,7 +124,7 @@ connection default;
 --echo # Connection con2
 connect (con2, localhost, root);
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for table' AND info='DROP DATABASE db1';
+  WHERE state='Waiting for table metadata lock' AND info='DROP DATABASE db1';
 --source include/wait_condition.inc
 
 --echo # Connection con1
@@ -172,7 +172,7 @@ connection con2;
 --echo # Connection 3
 connection con3;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='Waiting for table' and info='DROP DATABASE db1';
+  WHERE state='Waiting for table metadata lock' and info='DROP DATABASE db1';
 --source include/wait_condition.inc
 --echo # But it should still be possible to CREATE/ALTER/DROP other databases.
 CREATE DATABASE db2;
