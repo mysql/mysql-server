@@ -707,7 +707,9 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_ROW_IS_REFERENCED);
 
-	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
+	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT
+		   || error == (int) DB_FOREIGN_NO_INDEX
+		   || error == (int) DB_REFERENCING_NO_INDEX) {
 
 		return(HA_ERR_CANNOT_ADD_FOREIGN);
 
@@ -6099,6 +6101,8 @@ ha_innobase::rename_table(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 
+	switch (error) {
+	case DB_DUPLICATE_KEY:
 	/* Add a special case to handle the Duplicated Key error
 	and return DB_ERROR instead.
 	This is to avoid a possible SIGSEGV error from mysql error
@@ -6111,10 +6115,28 @@ ha_innobase::rename_table(
 	the dup key error here is due to an existing table whose name
 	is the one we are trying to rename to) and return the generic
 	error code. */
-	if (error == (int) DB_DUPLICATE_KEY) {
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
 
 		error = DB_ERROR;
+		break;
+	case DB_FOREIGN_NO_INDEX:
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_CANNOT_ADD_FOREIGN,
+				    "Alter or rename of table '%s' failed"
+				    " because the new table is a child table"
+				    " in a FK relationship and it does not"
+				    " have an index that contains foreign"
+				    " keys as its prefix columns.", norm_to);
+		break;
+	case DB_REFERENCING_NO_INDEX:
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_CANNOT_ADD_FOREIGN,
+				    "Alter or rename of table '%s' failed"
+				    " because the new table is a parent table"
+				    " in a FK relationship and it does not"
+				    " have an index that contains foreign"
+				    " keys as its prefix columns.", norm_to);
+		break;
 	}
 
 	error = convert_error_code_to_mysql(error, NULL);
