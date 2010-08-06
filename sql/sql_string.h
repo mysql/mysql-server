@@ -97,7 +97,7 @@ public:
   inline uint32 alloced_length() const { return Alloced_length;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
   inline void length(uint32 len) { str_length=len ; }
-  inline bool is_empty() { return (str_length == 0); }
+  inline bool is_empty() const { return (str_length == 0); }
   inline void mark_as_const() { Alloced_length= 0;}
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
