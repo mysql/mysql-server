@@ -830,6 +830,7 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   returnErrIf(op==0, Err_MemoryAlloc);
 
   m_pimpl->m_operations.push_back(op);
+  op->markScanAncestors();
   return &op->m_interface;
 }
 
@@ -905,6 +906,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
   }
 
   m_pimpl->m_operations.push_back(op);
+  op->markScanAncestors();
   return &op->m_interface;
 }
 
@@ -1723,6 +1725,8 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
 
 void NdbQueryOperationDefImpl::markScanAncestors()
 {
+  // Verify that parent links have been established.
+  assert(m_ix == 0 || m_parent != NULL);
   NdbQueryOperationDefImpl* operation = this;
   do
   {
@@ -2248,9 +2252,7 @@ NdbQueryScanOperationDefImpl::NdbQueryScanOperationDefImpl (
                            const char* ident,
                            Uint32      ix)
   : NdbQueryOperationDefImpl(table,options,ident,ix)
-{
-  markScanAncestors();
-}
+{}
 
 int
 NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
