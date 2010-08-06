@@ -826,7 +826,11 @@ handler *ha_maria::clone(MEM_ROOT *mem_root)
 {
   ha_maria *new_handler= static_cast <ha_maria *>(handler::clone(mem_root));
   if (new_handler)
+  {
     new_handler->file->state= file->state;
+    /* maria_create_trn_for_mysql() is never called for clone() tables */
+    new_handler->file->trn= file->trn;
+  }
   return new_handler;
 }
 
@@ -1078,6 +1082,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   HA_CHECK param;
   MARIA_SHARE *share= file->s;
   const char *old_proc_info= thd_proc_info(thd, "Checking table");
+  TRN *old_trn= file->trn;
 
   maria_chk_init(&param);
   param.thd= thd;
@@ -1156,6 +1161,8 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
   }
 
+  /* Reset trn, that may have been set by repair */
+  _ma_set_trn_for_table(file, old_trn);
   thd_proc_info(thd, old_proc_info);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
@@ -1379,17 +1386,22 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   HA_CHECK param;
+  TRN *old_trn;
   MARIA_SHARE *share= file->s;
 
   if (!file)
     return HA_ADMIN_INTERNAL_ERROR;
 
+  old_trn= file->trn;
   maria_chk_init(&param);
   param.thd= thd;
   param.op_name= "zerofill";
   param.testflag= check_opt->flags | T_SILENT | T_ZEROFILL;
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
   error=maria_zerofill(&param, file, share->open_file_name.str);
+
+  /* Reset trn, that may have been set by repair */
+  _ma_set_trn_for_table(file, old_trn);
 
   if (!error)
   {
@@ -1404,6 +1416,7 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   HA_CHECK param;
+
   if (!file)
     return HA_ADMIN_INTERNAL_ERROR;
 
@@ -1420,6 +1433,7 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
     param.testflag &= ~T_REP_BY_SORT;
     error= repair(thd, &param, 1);
   }
+
   return error;
 }
 
@@ -1433,6 +1447,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   char fixed_name[FN_REFLEN];
   MARIA_SHARE *share= file->s;
   ha_rows rows= file->state->records;
+  TRN *old_trn= file->trn;
   DBUG_ENTER("ha_maria::repair");
 
   /*
@@ -1594,6 +1609,9 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   thd_proc_info(thd, old_proc_info);
   if (!thd->locked_tables)
     maria_lock_database(file, F_UNLCK);
+
+  /* Reset trn, that may have been set by repair */
+  _ma_set_trn_for_table(file, old_trn);
   error= error ? HA_ADMIN_FAILED :
     (optimize_done ?
      (write_log_record_for_repair(param, file) ? HA_ADMIN_FAILED :
@@ -2331,6 +2349,8 @@ int ha_maria::info(uint flag, my_bool lock_table_share)
 
 int ha_maria::extra(enum ha_extra_function operation)
 {
+  int tmp;
+  TRN *old_trn= file->trn;
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
     return 0;
 #ifdef NOT_USED
@@ -2356,7 +2376,9 @@ int ha_maria::extra(enum ha_extra_function operation)
     TRN *trn= THD_TRN;
     _ma_set_trn_for_table(file, trn);
   }
-  return maria_extra(file, operation, 0);
+  tmp= maria_extra(file, operation, 0);
+  file->trn= old_trn;                           // Reset trn if was used
+  return tmp;
 }
 
 int ha_maria::reset(void)
@@ -2449,6 +2471,13 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         */
         file->state=  file->state_start;
         *file->state= file->s->state.state;
+      }
+
+      if (file->trn)
+      {
+        /* This can only happen with tables created with clone() */
+        DBUG_ASSERT(cloned);
+        trnman_increment_locked_tables(file->trn);
       }
 
       if (!thd->transaction.on)

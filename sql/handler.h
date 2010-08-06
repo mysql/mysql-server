@@ -1245,6 +1245,7 @@ public:
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   bool mark_trx_done;
+  bool cloned;                          /* 1 if this was created with clone */
   const COND *pushed_cond;
   /**
     next_insert_id is the next value which should be inserted into the
@@ -1288,7 +1289,7 @@ public:
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(FALSE), mark_trx_done(FALSE), 
+    locked(FALSE), implicit_emptied(FALSE), mark_trx_done(FALSE), cloned(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0)
     {
