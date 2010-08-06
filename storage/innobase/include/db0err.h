@@ -73,6 +73,12 @@ Created 5/24/1996 Heikki Tuuri
 					a later version of the engine. */
 #define DB_INTERRUPTED		49	/* the query has been interrupted with
 					"KILL QUERY N;" */
+#define DB_FOREIGN_NO_INDEX	50	/* the child (foreign) table does not
+					have an index that contains the
+					foreign keys as its prefix columns */
+#define DB_REFERENCING_NO_INDEX	51	/* the parent (referencing) table does
+					not have an index that contains the
+					foreign keys as its prefix columns */
 
 /* The following are partial failure codes */
 #define DB_FAIL			1000
