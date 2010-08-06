@@ -838,6 +838,36 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; drop table t1, t2
+# SHOW BINLOG EVENTS ON 2nd CONNECTION TO MASTE
+set @@session.binlog_rows_query_log_events= off;
+# Test statements from the 2nd connection have no comment event
+# when setting binlog_rows_query_log_events= off
+create table t7(a bigint) engine= myisam;
+insert into t7(a) values(1),(2);
+delete from t7 where a = 1;
+set session binlog_format=mixed;
+set @@session.binlog_rows_query_log_events= on;
+# Test the comment event is sent in mixed mode for special
+# functions when setting binlog_rows_query_log_events= on
+insert into t7(a) values(UUID_SHORT());
+drop table t7;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; create table t7(a bigint) engine= myisam
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Rows_query	#	#	# insert into t7(a) values(UUID_SHORT())
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; drop table t7
 # Test The Rows_query log event can be relayed.
 # SHOW BINLOG EVENTS ON SLAVE
 show binlog events from <binlog_start>;
@@ -960,3 +990,18 @@ slave-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	use `test`; drop table t1, t2
+slave-bin.000001	#	Query	#	#	use `test`; create table t7(a bigint) engine= myisam
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+slave-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Rows_query	#	#	# insert into t7(a) values(UUID_SHORT())
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t7)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	use `test`; drop table t7
