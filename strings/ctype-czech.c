@@ -291,7 +291,8 @@ my_strnxfrmlen_czech(CHARSET_INFO *cs __attribute__((unused)), size_t len)
 
 static size_t
 my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
-                  uchar *dest, size_t len, uint nweights_arg,
+                  uchar *dest, size_t len,
+                  uint nweights_arg __attribute__((unused)),
                   const uchar *src, size_t srclen, uint flags)
 {
   int value;
@@ -609,11 +610,10 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
-    my_unicase_default, /* caseinfo     */
+    &my_unicase_default,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     4,			/* strxfrm_multiply */

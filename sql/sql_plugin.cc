@@ -901,19 +901,6 @@ static void plugin_del(struct st_plugin_int *plugin)
   DBUG_VOID_RETURN;
 }
 
-#ifdef NOT_USED
-
-static void plugin_del(const LEX_STRING *name)
-{
-  struct st_plugin_int *plugin;
-  DBUG_ENTER("plugin_del(name)");
-  if ((plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
-    plugin_del(plugin);
-  DBUG_VOID_RETURN;
-}
-
-#endif
-
 static void reap_plugins(void)
 {
   uint count, idx;
@@ -1393,51 +1380,6 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
 
   DBUG_RETURN(0);
 }
-
-#ifdef NOT_USED_YET
-/*
-  Register a plugin at run time. (note, this doesn't initialize a plugin)
-  Will be useful for embedded applications.
-
-  SYNOPSIS
-    plugin_register_builtin()
-    thd         current thread (used to store scratch data in mem_root)
-    plugin      static plugin to install
-
-  RETURN
-    false - plugin registered successfully
-*/
-bool plugin_register_builtin(THD *thd, struct st_mysql_plugin *plugin)
-{
-  struct st_plugin_int tmp, *ptr;
-  bool result= true;
-  int dummy_argc= 0;
-  DBUG_ENTER("plugin_register_builtin");
-
-  bzero(&tmp, sizeof(tmp));
-  tmp.plugin= plugin;
-  tmp.name.str= (char *)plugin->name;
-  tmp.name.length= strlen(plugin->name);
-
-  mysql_mutex_lock(&LOCK_plugin);
-  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-
-  if (test_plugin_options(thd->mem_root, &tmp, &dummy_argc, NULL))
-    goto end;
-  tmp.state= PLUGIN_IS_UNINITIALIZED;
-  if ((result= register_builtin(plugin, &tmp, &ptr)))
-  {
-    mysql_del_sys_var_chain(tmp.system_vars);
-    restore_pluginvar_names(tmp.system_vars);
-  }
-
-end:
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
-  mysql_mutex_unlock(&LOCK_plugin);
-
-  DBUG_RETURN(result);;
-}
-#endif /* NOT_USED_YET */
 
 
 /*

@@ -1,15 +1,15 @@
 /*
  * First, the stuff that ends up in the outside-world include file
- = typedef off_t regoff_t;
+ = typedef off_t my_regoff_t;
  = typedef struct {
  = 	int re_magic;
  = 	size_t re_nsub;		// number of parenthesized subexpressions
- = 	const char *re_endp;	// end pointer for REG_PEND
+ = 	const char *re_endp;	// end pointer for MY_REG_PEND
  = 	struct re_guts *re_g;	// none of your business :-)
  = } regex_t;
  = typedef struct {
- = 	regoff_t rm_so;		// start of match
- = 	regoff_t rm_eo;		// end of match
+ = 	my_regoff_t rm_so;		// start of match
+ = 	my_regoff_t rm_eo;		// end of match
  = } regmatch_t;
  */
 /*

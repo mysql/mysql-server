@@ -173,6 +173,7 @@ insert into t1 values (0x01fc),(0x01fd),(0x01fe),(0x01ff);
 
 
 insert into t1 values ('AA'),('Aa'),('aa'),('aA');
+insert into t1 values ('AE'),('Ae'),('ae'),('aE');
 insert into t1 values ('CH'),('Ch'),('ch'),('cH');
 insert into t1 values ('DZ'),('Dz'),('dz'),('dZ');
 insert into t1 values ('IJ'),('Ij'),('ij'),('iJ');
@@ -201,6 +202,8 @@ select group_concat(c1 order by binary c1 separator '') from t1 group by c1 coll
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_roman_ci;
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_esperanto_ci;
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_hungarian_ci;
+select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_german2_ci;
+select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_unicode_520_ci;
 
 drop table t1;
 
@@ -316,6 +319,12 @@ SET NAMES utf8;
 SET collation_connection=utf16_german2_ci;
 --source include/ctype_german.inc
 
+--echo #
+--echo # WL#2673 Unicode Collation Algorithm new version
+--echo #
+SET NAMES utf8mb4;
+SET collation_connection=utf16_unicode_520_ci;
+--source include/ctype_unicode520.inc 
 
 --echo #
 --echo # End of 5.6 tests

@@ -276,6 +276,15 @@ static monitor_info_t	innodb_counter_info[] =
 	{"index_num_merge", "Index", "Number of index merge",
 	 0, MONITOR_INDEX_MERGE},
 
+	/* ========== Counters for tablespace ========== */
+	{"module_fil_system", "Tablespace", "Tablespace Manager",
+	 MONITOR_MODULE, MONITOR_MODULE_FIL_SYSTEM},
+
+	{"fil_system_num_open_file", "Tablespace",
+	 "Number of files currently open",
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT,
+	 MONITOR_OVLD_N_FILE_OPENED},
+
 	/* ========== Counters for DML operations ========== */
 	{"module_dml", "DML", "Statistics for DMLs",
 	 MONITOR_MODULE, MONITOR_MODULE_DMLSTATS},
@@ -633,6 +642,10 @@ srv_mon_process_existing_counter(
 
 	case MONITOR_RSEG_HISTORY_LEN:
 		value = trx_sys->rseg_history_len;
+		break;
+
+	case MONITOR_OVLD_N_FILE_OPENED:
+		value = fil_n_file_opened;
 		break;
 
 	default:

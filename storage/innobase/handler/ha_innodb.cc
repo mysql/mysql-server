@@ -685,6 +685,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
+  {"num_open_files",
+  (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 

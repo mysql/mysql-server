@@ -216,7 +216,7 @@ static uint mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
 }
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -421,7 +421,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA5[256]=
+static MY_UNICASE_CHARACTER cA5[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -626,7 +626,7 @@ static MY_UNICASE_INFO cA5[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -831,7 +831,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
 
 
-static MY_UNICASE_INFO cA8[256]=
+static MY_UNICASE_CHARACTER cA8[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1036,7 +1036,7 @@ static MY_UNICASE_INFO cA8[256]=
 };
 
 
-static MY_UNICASE_INFO cA9[256]=
+static MY_UNICASE_CHARACTER cA9[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1241,7 +1241,7 @@ static MY_UNICASE_INFO cA9[256]=
 };  
 
 
-static MY_UNICASE_INFO cAC[256]=
+static MY_UNICASE_CHARACTER cAC[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1446,7 +1446,7 @@ static MY_UNICASE_INFO cAC[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_euckr[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_euckr[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1480,6 +1480,13 @@ static MY_UNICASE_INFO *my_caseinfo_euckr[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_euckr=
+{
+  0xFFFF,
+  my_caseinfo_pages_euckr
 };
 
 
@@ -10016,11 +10023,10 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_euckr,  /* caseinfo     */
+    &my_caseinfo_euckr, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10051,11 +10057,10 @@ CHARSET_INFO my_charset_euckr_bin=
     to_lower_euc_kr,
     to_upper_euc_kr,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_euckr,  /* caseinfo     */
+    &my_caseinfo_euckr, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

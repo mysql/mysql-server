@@ -5700,52 +5700,6 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-#ifdef NOT_USED
-static interval_type get_real_interval_type(interval_type i_type)
-{
-  switch (i_type) {
-  case INTERVAL_YEAR:
-    return INTERVAL_YEAR;
-
-  case INTERVAL_QUARTER:
-  case INTERVAL_YEAR_MONTH:
-  case INTERVAL_MONTH:
-    return INTERVAL_MONTH;
-
-  case INTERVAL_WEEK:
-  case INTERVAL_DAY:
-    return INTERVAL_DAY;
-
-  case INTERVAL_DAY_HOUR:
-  case INTERVAL_HOUR:
-    return INTERVAL_HOUR;
-
-  case INTERVAL_DAY_MINUTE:
-  case INTERVAL_HOUR_MINUTE:
-  case INTERVAL_MINUTE:
-    return INTERVAL_MINUTE;
-
-  case INTERVAL_DAY_SECOND:
-  case INTERVAL_HOUR_SECOND:
-  case INTERVAL_MINUTE_SECOND:
-  case INTERVAL_SECOND:
-    return INTERVAL_SECOND;
-
-  case INTERVAL_DAY_MICROSECOND:
-  case INTERVAL_HOUR_MICROSECOND:
-  case INTERVAL_MINUTE_MICROSECOND:
-  case INTERVAL_SECOND_MICROSECOND:
-  case INTERVAL_MICROSECOND:
-    return INTERVAL_MICROSECOND;
-  case INTERVAL_LAST:
-    DBUG_ASSERT(0);
-  }
-  DBUG_ASSERT(0);
-  return INTERVAL_SECOND;
-}
-
-#endif
-
 #ifdef HAVE_EVENT_SCHEDULER
 /*
   Loads an event from mysql.event and copies it's data to a row of

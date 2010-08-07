@@ -5932,7 +5932,8 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
       a subselect (they use their own cache).
     */
     if (const_item() &&
-        !(item->basic_const_item() || item->type() == Item::FIELD_ITEM ||
+        !(basic_const_item() || item->basic_const_item() ||
+          item->type() == Item::FIELD_ITEM ||
           item->type() == SUBSELECT_ITEM ||
            /*
              Do not cache GET_USER_VAR() function as its const_item() may

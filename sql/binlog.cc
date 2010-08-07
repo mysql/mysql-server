@@ -30,10 +30,6 @@ handlerton *binlog_hton;
 
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
-static bool purge_error_message(THD* thd, int res);
-static void adjust_linfo_offsets(my_off_t purge_offset);
-static bool log_in_use(const char* log_name);
-
 static int binlog_init(void *p);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
@@ -740,6 +736,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   DBUG_RETURN(0);
 }
 
+#ifdef HAVE_REPLICATION
 
 /*
   Adjust the position pointer in the binary log file for all running slaves
@@ -762,7 +759,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
       Now they sync is done for next read.
 */
 
-void adjust_linfo_offsets(my_off_t purge_offset)
+static void adjust_linfo_offsets(my_off_t purge_offset)
 {
   THD *tmp;
 
@@ -791,7 +788,7 @@ void adjust_linfo_offsets(my_off_t purge_offset)
 }
 
 
-bool log_in_use(const char* log_name)
+static bool log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
   THD *tmp;
@@ -817,7 +814,7 @@ bool log_in_use(const char* log_name)
   return result;
 }
 
-bool purge_error_message(THD* thd, int res)
+static bool purge_error_message(THD* thd, int res)
 {
   uint errcode;
 
@@ -830,6 +827,7 @@ bool purge_error_message(THD* thd, int res)
   return FALSE;
 }
 
+#endif /* HAVE_REPLICATION */
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 {

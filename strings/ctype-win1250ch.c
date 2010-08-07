@@ -688,11 +688,10 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   to_lower_win1250ch,
   to_upper_win1250ch,
   sort_order_win1250ch,
-  NULL,				/* contractions */
-  NULL,				/* sort_order_big*/
+  NULL,				/* uca          */
   tab_cp1250_uni,		/* tab_to_uni   */
   idx_uni_cp1250,		/* tab_from_uni */
-  my_unicase_default,           /* caseinfo     */
+  &my_unicase_default,          /* caseinfo     */
   NULL,				/* state_map    */
   NULL,				/* ident_map    */
   2,				/* strxfrm_multiply */

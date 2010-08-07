@@ -390,7 +390,7 @@ int ha_heap::rnd_pos(uchar * buf, uchar *pos)
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        FALSE);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
-  memcpy_fixed((char*) &heap_position, pos, sizeof(HEAP_PTR));
+  memcpy(&heap_position, pos, sizeof(HEAP_PTR));
   error=heap_rrnd(file, buf, heap_position);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_READ_ROW_DONE(error);
@@ -654,7 +654,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
 				       parts * sizeof(HA_KEYSEG),
 				       MYF(MY_WME))))
     return my_errno;
-  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + keys);
+  seg= reinterpret_cast<HA_KEYSEG*>(keydef + keys);
   for (key= 0; key < keys; key++)
   {
     KEY *pos= table_arg->key_info+key;

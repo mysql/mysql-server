@@ -796,7 +796,11 @@ static Sys_var_lexstring Sys_init_connect(
 static Sys_var_charptr Sys_init_file(
        "init_file", "Read SQL commands from this file at startup",
        READ_ONLY GLOBAL_VAR(opt_init_file),
-       IF_DISABLE_GRANT_OPTIONS(NO_CMD_LINE, CMD_LINE(REQUIRED_ARG)),
+#ifdef DISABLE_GRANT_OPTIONS
+       NO_CMD_LINE,
+#else
+       CMD_LINE(REQUIRED_ARG),
+#endif
        IN_FS_CHARSET, DEFAULT(0));
 
 static PolyLock_rwlock PLock_sys_init_slave(&LOCK_sys_init_slave);
@@ -2849,6 +2853,8 @@ static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
   logger.unlock();
   return false;
 }
+
+static const char *log_output_names[] = { "NONE", "FILE", "TABLE", NULL};
 
 static Sys_var_set Sys_log_output(
        "log_output", "Syntax: log-output=value[,value...], "
