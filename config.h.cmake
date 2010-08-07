@@ -103,7 +103,6 @@
 #cmakedefine HAVE_SYS_UTIME_H 1
 #cmakedefine HAVE_SYS_WAIT_H 1
 #cmakedefine HAVE_SYS_PARAM_H 1
-#cmakedefine HAVE_XFS_XFS_H 1
 
 /* Libraries */
 #cmakedefine HAVE_LIBPTHREAD 1
@@ -252,15 +251,6 @@
 #cmakedefine HAVE_SIGWAIT 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_SNPRINTF 1
-/* Some that currently are not real defines, internal to CMake setup */
-/* #cmakedefine HAVE_FCNTL_NONBLOCK 1 */
-/* #cmakedefine HAVE_FINITE_IN_MATH_H 1 */
-/* #cmakedefine HAVE_SOCKADDR_STORAGE_SS_FAMILY 1 */
-/* #cmakedefine HAVE_SOCKADDR_STORAGE___SS_FAMILY 1 */
-/* #cmakedefine HAVE_SOCKET_SIZE_T_AS_int 1 */
-/* #cmakedefine HAVE_SOCKET_SIZE_T_AS_size_t 1 */
-/* #cmakedefine HAVE_SOCKET_SIZE_T_AS_socklen_t */
-/* #cmakedefine HAVE_SOCKET_TIMEOUT */
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STRERROR 1
 #cmakedefine HAVE_STRCOLL 1
@@ -343,13 +333,13 @@
 #endif
 
 #cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
-#cmakedefine HAVE_CHAR 1
-#cmakedefine HAVE_LONG 1
-#cmakedefine HAVE_CHARP 1
+#define HAVE_CHAR 1
+#define HAVE_LONG 1
+#define HAVE_CHARP 1
 #cmakedefine SIZEOF_SHORT @SIZEOF_SHORT@
-#cmakedefine HAVE_SHORT 1
+#define HAVE_SHORT 1
 #cmakedefine SIZEOF_INT @SIZEOF_INT@
-#cmakedefine HAVE_INT 1
+#define HAVE_INT 1
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
 #cmakedefine HAVE_LONG_LONG 1
 #cmakedefine SIZEOF_OFF_T @SIZEOF_OFF_T@
@@ -581,23 +571,6 @@
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
 
-/*
-  Hard coded platform settings
-*/
-
-/* This is ugly, but we need lots of tweaks for HP-UX */
-#cmakedefine HPUX11 1
-#cmakedefine DO_NOT_REMOVE_THREAD_WRAPPERS 1
-#cmakedefine HAVE_BROKEN_PREAD 1
-#cmakedefine HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT 1
-#cmakedefine SNPRINTF_RETURN_TRUNC 1
-#cmakedefine _INCLUDE_LONGLONG 1
-
-/* Mac OS X */
-#cmakedefine SIGNALS_DONT_BREAK_READ 1
-#cmakedefine IGNORE_SIGHUP_SIGQUIT 1
-#cmakedefine _P1003_1B_VISIBLE 1
-#cmakedefine DONT_DECLARE_CXA_PURE_VIRTUAL 1
 
 /*
   Stuff that always need to be defined (compile breaks without it)

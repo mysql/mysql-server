@@ -21,6 +21,7 @@
    numbers in case of failures.
  */
 
+#include "my_config.h"
 #include <string>
 #include <iostream>
 #include <stdio.h>

@@ -257,7 +257,6 @@ CHECK_INCLUDE_FILES ("stdlib.h;sys/un.h" HAVE_SYS_UN_H)
 CHECK_INCLUDE_FILES (vis.h HAVE_VIS_H)
 CHECK_INCLUDE_FILES (wchar.h HAVE_WCHAR_H)
 CHECK_INCLUDE_FILES (wctype.h HAVE_WCTYPE_H)
-CHECK_INCLUDE_FILES (xfs/xfs.h HAVE_XFS_XFS_H)
 
 IF(HAVE_SYS_STREAM_H)
   # Needs sys/stream.h on Solaris
@@ -502,14 +501,17 @@ IF(HAVE_STDINT_H)
   SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h)
 ENDIF(HAVE_STDINT_H)
 
-# These first four SIZE_* values are not really used on Mac OS X,
-# as we only know at comile time what architecture to build for,
-# see "config.h.cmake". But as same macro MY_CHECK_TYPE_SIZE also
-# sets HAVE_* macros, we run the check here, doesn't hurt.
+SET(HAVE_VOIDP 1)
+SET(HAVE_CHARP 1)
+SET(HAVE_LONG 1)
+SET(HAVE_SIZE_T 1)
+
+IF(NOT APPLE)
 MY_CHECK_TYPE_SIZE("void *" VOIDP)
 MY_CHECK_TYPE_SIZE("char *" CHARP)
 MY_CHECK_TYPE_SIZE(long LONG)
 MY_CHECK_TYPE_SIZE(size_t SIZE_T)
+ENDIF()
 
 MY_CHECK_TYPE_SIZE(char CHAR)
 MY_CHECK_TYPE_SIZE(short SHORT)
@@ -1054,26 +1056,3 @@ SET(CMAKE_EXTRA_INCLUDE_FILES)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_ino "dirent.h"  STRUCT_DIRENT_HAS_D_INO)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_namlen "dirent.h"  STRUCT_DIRENT_HAS_D_NAMLEN)
 SET(SPRINTF_RETURNS_INT 1)
-
-#--------------------------------------------------------------------
-# Hard coded platform settings
-#--------------------------------------------------------------------
-
-# This is ugly, but we need lots of tweaks for HP-UX
-IF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
-  SET(HPUX11 1)
-  SET(DO_NOT_REMOVE_THREAD_WRAPPERS 1)
-  SET(HAVE_BROKEN_PREAD 1)
-  SET(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT 1)
-  SET(NO_FCNTL_NONBLOCK 1)   # Set conditionally in code above
-  SET(SNPRINTF_RETURN_TRUNC 1)
-  SET(_INCLUDE_LONGLONG 1)
-ENDIF()
-
-IF(APPLE)
-  SET(DONT_DECLARE_CXA_PURE_VIRTUAL 1)
-  SET(IGNORE_SIGHUP_SIGQUIT 1)
-  SET(SIGNALS_DONT_BREAK_READ 1)
-  SET(SIGNAL_WITH_VIO_CLOSE 1)  # FIXME better handled in mysql-trunk
-  SET(_P1003_1B_VISIBLE 1)
-ENDIF()
