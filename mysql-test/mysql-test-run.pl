@@ -4540,7 +4540,7 @@ sub mysqld_stop {
      name          => "mysqladmin shutdown ".$mysqld->name(),
      path          => $exe_mysqladmin,
      args          => \$args,
-     error         => "/dev/null",
+     error         => "$opt_vardir/log/mysqladmin.err",
 
     );
 }

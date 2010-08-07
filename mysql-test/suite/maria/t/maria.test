@@ -1894,6 +1894,23 @@ DELETE FROM t1 WHERE v3 = 173 OR v4 = 9 ;
 drop table t1;
 
 #
+# Test for LP#61465 Memory corruption with (M)aria storage engine and
+# virtual columns
+#
+
+CREATE TABLE t1 (
+         f1 CHAR(255) BINARY ,
+         f2 CHAR(255) BINARY NOT NULL DEFAULT '0',
+         f3 CHAR(255) BINARY NOT NULL ,
+         f4 CHAR(255) BINARY NOT NULL DEFAULT '0' ,
+         v3 CHAR(255) BINARY NOT NULL DEFAULT '0' ,
+         KEY (v3)
+) ENGINE=Maria;
+INSERT INTO t1 ( f1 , f2 , f3 , f4 ) SELECT f1 , f4 , f1 , f4 FROM t1;
+DELETE FROM t1;
+drop table t1;
+
+#
 # End of test
 #
 # Set defaults back
