@@ -4410,8 +4410,7 @@ static my_bool read_long_data2(MARIA_HA *info, uchar *to, ulong length,
                               MARIA_EXTENT_CURSOR *extent,
                               uchar **data, uchar **end_of_data)
 {
-  uint left_length;
-  left_length= (uint) (*end_of_data - *data);
+  uint left_length= (uint) (*end_of_data - *data);
   DBUG_ENTER("read_long_data2");
   DBUG_PRINT("enter", ("length: %lu  left_length: %u",
                        length, left_length));

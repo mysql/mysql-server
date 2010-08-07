@@ -1,3 +1,5 @@
+-- source include/not_windows.inc
+
 -- echo # Activate master-slave replication
 -- source include/master-slave.inc
 

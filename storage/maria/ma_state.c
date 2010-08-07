@@ -678,6 +678,7 @@ void maria_versioning(MARIA_HA *info, my_bool versioning)
     info->lock.type= versioning ? TL_WRITE_CONCURRENT_INSERT : TL_WRITE;
     _ma_block_get_status((void*) info, versioning);
     info->lock.type= save_lock_type;
+    info->state= info->state_start= &info->s->state.common;
   }
 }
 

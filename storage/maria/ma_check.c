@@ -2270,9 +2270,13 @@ static int initialize_variables_for_repair(HA_CHECK *param,
                                            MARIA_SORT_INFO *sort_info,
                                            MARIA_SORT_PARAM *sort_param,
                                            MARIA_HA *info,
-                                           my_bool rep_quick)
+                                           my_bool rep_quick,
+                                           MARIA_SHARE *org_share)
 {
   MARIA_SHARE *share= info->s;
+
+  /* Ro allow us to restore state and check how state changed */
+  memcpy(org_share, share, sizeof(*share));
 
   /* Repair code relies on share->state.state so we have to update it here */
   if (share->lock.update_status)
@@ -2331,6 +2335,23 @@ static int initialize_variables_for_repair(HA_CHECK *param,
   maria_versioning(info, 0);
   return 0;
 }
+
+
+/*
+  During initialize_variables_for_repair and related functions we set some
+  variables to values that makes sence during repair.
+  This function restores these values to their original values so that we can
+  use the handler in MariaDB without having to close and open the table.
+*/
+
+static void restore_table_state_after_repair(MARIA_HA *info,
+                                             MARIA_SHARE *org_share)
+{
+  maria_versioning(info, info->s->have_versioning);
+  info->s->lock_key_trees= org_share->lock_key_trees;
+}
+
+
 
 
 /**
@@ -2481,11 +2502,11 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   char llbuff[22],llbuff2[22];
   MARIA_SORT_INFO sort_info;
   MARIA_SORT_PARAM sort_param;
-  my_bool block_record, scan_inited= 0,
-    reenable_logging= share->now_transactional;
+  my_bool block_record, scan_inited= 0, reenable_logging= 0;
   enum data_file_type org_data_file_type= share->data_file_type;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
+  MARIA_SHARE backup_share;
   DBUG_ENTER("maria_repair");
 
   got_error= 1;
@@ -2498,10 +2519,10 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   }
 
   if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
-                                      rep_quick))
+                                      rep_quick, &backup_share))
     goto err;
 
-  if (reenable_logging)
+  if ((reenable_logging= share->now_transactional))
     _ma_tmp_disable_logging_for_table(info, 0);
 
   sort_param.current_filepos= sort_param.filepos= new_header_length=
@@ -2780,6 +2801,7 @@ err:
   /* If caller had disabled logging it's not up to us to re-enable it */
   if (reenable_logging)
     _ma_reenable_logging_for_table(info, FALSE);
+  restore_table_state_after_repair(info, &backup_share);
 
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
@@ -3550,7 +3572,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   ulonglong key_map;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
-  my_bool scan_inited= 0;
+  my_bool scan_inited= 0, reenable_logging= 0;
+  MARIA_SHARE backup_share;
   DBUG_ENTER("maria_repair_by_sort");
   LINT_INIT(key_map);
 
@@ -3564,8 +3587,11 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   }
 
   if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
-                                      rep_quick))
+                                      rep_quick, &backup_share))
     goto err;
+
+  if ((reenable_logging= share->now_transactional))
+    _ma_tmp_disable_logging_for_table(info, 0);
 
   org_header_length= share->pack.header_length;
   new_header_length= (param->testflag & T_UNPACK) ? 0 : org_header_length;
@@ -3972,6 +3998,11 @@ err:
     share->state.changed&= ~(STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_ZEROFILLED |
                              STATE_NOT_MOVABLE);
 
+  /* If caller had disabled logging it's not up to us to re-enable it */
+  if (reenable_logging)
+    _ma_reenable_logging_for_table(info, FALSE);
+  restore_table_state_after_repair(info, &backup_share);
+
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.key_block, MYF(MY_ALLOW_ZERO_PTR));
@@ -4042,10 +4073,12 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   IO_CACHE new_data_cache; /* For non-quick repair. */
   IO_CACHE_SHARE io_share;
   MARIA_SORT_INFO sort_info;
+  MARIA_SHARE backup_share;
   ulonglong key_map;
   pthread_attr_t thr_attr;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
+  my_bool reenable_logging= 0;
   DBUG_ENTER("maria_repair_parallel");
   LINT_INIT(key_map);
 
@@ -4059,8 +4092,11 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   }
 
   if (initialize_variables_for_repair(param, &sort_info, &tmp_sort_param, info,
-                                      rep_quick))
+                                      rep_quick, &backup_share))
     goto err;
+
+  if ((reenable_logging= share->now_transactional))
+    _ma_tmp_disable_logging_for_table(info, 0);
 
   new_header_length= ((param->testflag & T_UNPACK) ? 0 :
                       share->pack.header_length);
@@ -4488,6 +4524,11 @@ err:
 
   pthread_cond_destroy (&sort_info.cond);
   pthread_mutex_destroy(&sort_info.mutex);
+
+  /* If caller had disabled logging it's not up to us to re-enable it */
+  if (reenable_logging)
+    _ma_reenable_logging_for_table(info, FALSE);
+  restore_table_state_after_repair(info, &backup_share);
 
   my_free(sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));

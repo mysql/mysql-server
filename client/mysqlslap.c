@@ -600,7 +600,7 @@ static struct my_option my_long_options[] =
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
-    &delimiter, &delimiter, 0, GET_STR, REQUIRED_ARG,
+   (char**) &delimiter, (char**) &delimiter, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"detach", OPT_SLAP_DETACH,
     "Detach (close and reopen) connections after X number of requests.",
