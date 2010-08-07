@@ -162,7 +162,7 @@ public:
   my_bool is_subset(const Bitmap<64>& map2) const { return !(map & ~map2.map); }
   my_bool is_overlapping(const Bitmap<64>& map2) const { return (map & map2.map)!= 0; }
   my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
-  char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
+  char *print(char *buf) const { longlong2str(map,buf,16,1); return buf; }
   ulonglong to_ulonglong() const { return map; }
   class Iterator : public Table_map_iterator
   {

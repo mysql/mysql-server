@@ -1171,7 +1171,7 @@ static bool get_field_default_value(THD *thd, TABLE *table,
       if (field_type == MYSQL_TYPE_BIT)
       {
         longlong dec= field->val_int();
-        char *ptr= longlong2str(dec, tmp + 2, 2);
+        char *ptr= longlong2str(dec, tmp + 2, 2, 1);
         uint32 length= (uint32) (ptr - tmp);
         tmp[0]= 'b';
         tmp[1]= '\'';

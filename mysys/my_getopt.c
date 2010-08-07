@@ -1271,7 +1271,7 @@ void my_print_variables(const struct my_option *options)
 	printf("%s\n", llstr(*((longlong*) value), buff));
 	break;
       case GET_ULL:
-	longlong2str(*((ulonglong*) value), buff, 10);
+	longlong10_to_str(*((ulonglong*) value), buff, 10);
 	printf("%s\n", buff);
 	break;
       case GET_DOUBLE:

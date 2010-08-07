@@ -1512,7 +1512,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   printf("Recordlength:        %16d\n",(int) share->base.pack_reclength);
   if (! maria_is_all_keys_active(share->state.key_map, share->base.keys))
   {
-    longlong2str(share->state.key_map,buff,2);
+    longlong2str(share->state.key_map,buff,2,1);
     printf("Using only keys '%s' of %d possibly keys\n",
 	   buff, share->base.keys);
   }

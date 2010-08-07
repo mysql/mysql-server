@@ -2459,11 +2459,11 @@ innobase_change_buffering_inited_ok:
 		my_b_seek(&info_file, 0L);
 		pos=strmov(buff, trx_sys_mysql_relay_log_name);
 		*pos++='\n';
-		pos=longlong2str(trx_sys_mysql_relay_log_pos, pos, 10);
+		pos=longlong10_to_str(trx_sys_mysql_relay_log_pos, pos, 10);
 		*pos++='\n';
 		pos=strmov(pos, trx_sys_mysql_master_log_name);
 		*pos++='\n';
-		pos=longlong2str(trx_sys_mysql_master_log_pos, pos, 10);
+		pos=longlong10_to_str(trx_sys_mysql_master_log_pos, pos, 10);
 		*pos='\n';
 
 		if (my_b_write(&info_file, (uchar*) buff, (size_t) (pos-buff)+1))
@@ -2931,7 +2931,7 @@ innobase_rollback_to_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
-	longlong2str((ulint)savepoint, name, 36);
+	longlong2str((ulint)savepoint, name, 36, 1);
 
 	error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
@@ -2962,7 +2962,7 @@ innobase_release_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
-	longlong2str((ulint)savepoint, name, 36);
+	longlong2str((ulint)savepoint, name, 36, 1);
 
 	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
@@ -3009,7 +3009,7 @@ innobase_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 	char name[64];
-	longlong2str((ulint)savepoint,name,36);
+	longlong2str((ulint)savepoint,name,36,1);
 
 	error = (int) trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
 

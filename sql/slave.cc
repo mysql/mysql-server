@@ -3969,11 +3969,11 @@ bool flush_relay_log_info(Relay_log_info* rli)
   my_b_seek(file, 0L);
   pos=strmov(buff, rli->group_relay_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->group_relay_log_pos, pos, 10);
+  pos= longlong10_to_str(rli->group_relay_log_pos, pos, 10);
   *pos++='\n';
   pos=strmov(pos, rli->group_master_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->group_master_log_pos, pos, 10);
+  pos=longlong10_to_str(rli->group_master_log_pos, pos, 10);
   *pos='\n';
   if (my_b_write(file, (uchar*) buff, (size_t) (pos-buff)+1))
     error=1;

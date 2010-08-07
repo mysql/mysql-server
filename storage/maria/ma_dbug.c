@@ -124,7 +124,7 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
     case HA_KEYTYPE_LONGLONG:
     {
       char buff[21];
-      longlong2str(mi_sint8korr(key),buff,-10);
+      longlong10_to_str(mi_sint8korr(key),buff,-10);
       VOID(fprintf(stream,"%s",buff));
       key=end;
       break;
@@ -132,7 +132,7 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
     case HA_KEYTYPE_ULONGLONG:
     {
       char buff[21];
-      longlong2str(mi_sint8korr(key),buff,10);
+      longlong10_to_str(mi_sint8korr(key),buff,10);
       VOID(fprintf(stream,"%s",buff));
       key=end;
       break;

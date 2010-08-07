@@ -235,19 +235,19 @@ static char *process_int_arg(char *to, char *end, size_t length,
     store_start= buff;
 
   if (arg_type == 'd')
-    store_end= int10_to_str(par, store_start, -10);
+    store_end= longlong10_to_str(par, store_start, -10);
   else if (arg_type == 'u')
-    store_end= int10_to_str(par, store_start, 10);
+    store_end= longlong10_to_str(par, store_start, 10);
   else if (arg_type == 'p')
   {
     store_start[0]= '0';
     store_start[1]= 'x';
-    store_end= int2str(par, store_start + 2, 16, 0);
+    store_end= longlong2str(par, store_start + 2, 16, 0);
   }
   else
   {
     DBUG_ASSERT(arg_type == 'X' || arg_type =='x');
-    store_end= int2str(par, store_start, 16, (arg_type == 'X'));
+    store_end= longlong2str(par, store_start, 16, (arg_type == 'X'));
   }
 
   if ((res_length= (size_t) (store_end - store_start)) > to_length)
@@ -430,9 +430,9 @@ start:
       {
         /* Integer parameter */
         longlong larg;
-        length= ((print_arr[i].flags & LENGTH_ARG) ?
-                 args_arr[print_arr[i].length].longlong_arg :
-                 (longlong) print_arr[i].length);
+        length= (int) ((print_arr[i].flags & LENGTH_ARG) ?
+                       args_arr[print_arr[i].length].longlong_arg :
+                       (longlong) print_arr[i].length);
 
         if (args_arr[print_arr[i].arg_idx].have_longlong)
           larg = args_arr[print_arr[i].arg_idx].longlong_arg;

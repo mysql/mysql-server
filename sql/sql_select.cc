@@ -16859,8 +16859,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(key_info->name,
 					    strlen(key_info->name),
 					    system_charset_info));
-        length= longlong2str(tab->ref.key_length, keylen_str_buf, 10) - 
-                keylen_str_buf;
+        length= (longlong10_to_str(tab->ref.key_length, keylen_str_buf, 10) - 
+                 keylen_str_buf);
         item_list.push_back(new Item_string(keylen_str_buf, length,
                                             system_charset_info));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
@@ -16878,8 +16878,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         register uint length;
 	item_list.push_back(new Item_string(key_info->name,
 					    strlen(key_info->name),cs));
-        length= longlong2str(key_info->key_length, keylen_str_buf, 10) - 
-                keylen_str_buf;
+        length= (longlong10_to_str(key_info->key_length, keylen_str_buf, 10) - 
+                 keylen_str_buf);
         item_list.push_back(new Item_string(keylen_str_buf, 
                                             length,
                                             system_charset_info));
