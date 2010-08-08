@@ -820,7 +820,8 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_key_buffer");
 
   // reset the buffer for writing.
-  key_buffer.reset_for_writing();
+  if (key_tuple_length)
+    key_buffer.reset_for_writing();
 
   while ((key_tuple_length == 0 || 
           key_buffer.have_space_for(key_buff_elem_size)) && 
