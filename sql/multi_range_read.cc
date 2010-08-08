@@ -830,7 +830,7 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
     if (!key_tuple_length)
     {
       /* This only happens when we've just started filling the buffer */
-      DBUG_ASSERT(key_buffer.used_size() == 0);
+      //DBUG_ASSERT(key_buffer.used_size() == 0);
       setup_buffer_sizes(&cur_range.start_key);
     }
 
