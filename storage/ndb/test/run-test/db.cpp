@@ -186,7 +186,7 @@ run_sql(atrt_process * proc, const char * sql)
   int sres = system(tmp.c_str());
   if (sres != 0)
   {
-    g_logger.error("Failed to run sql: %s, return: %d, error %d: '%s' (command: '%s', directory: '%s')", sres, sql, errno, strerror(errno), tmp.c_str(), proc->m_proc.m_cwd.c_str());
+    g_logger.error("Failed to run sql: %s, return: %d, error %d: '%s' (command: '%s', directory: '%s')", sql, sres, errno, strerror(errno), tmp.c_str(), proc->m_proc.m_cwd.c_str());
     res = false;
     abort();
   }
