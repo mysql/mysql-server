@@ -96,21 +96,38 @@ static uint field_enumerator(uchar *arg)
 
 void Expression_cache_tmptable::init()
 {
-  List_iterator_fast<Item*> li(*list);
+  List_iterator<Item*> li(*list);
   Item_iterator_ref_list it(li);
   Item **item;
   uint field_counter;
   DBUG_ENTER("Expression_cache_tmptable::init");
   DBUG_ASSERT(!inited);
   inited= TRUE;
+  cache_table= NULL;
 
-  if (!(ULONGLONG_MAX >> (list->elements + 1)))
+  while ((item= li++))
   {
-    DBUG_PRINT("info", ("Too many dependencies"));
-    DBUG_VOID_RETURN;
+    DBUG_ASSERT(item);
+    if (*item)
+    {
+      DBUG_ASSERT((*item)->fixed);
+      items.push_back((*item));
+    }
+    else
+    {
+      /*
+        This is possible when optimizer already executed this subquery and
+        optimized out the condition predicate.
+      */
+      li.remove();
+    }
   }
 
-  cache_table= NULL;
+  if (list->elements == 0)
+  {
+    DBUG_PRINT("info", ("All parameters were removed by optimizer."));
+    DBUG_VOID_RETURN;
+  }
 
   cache_table_param.init();
   /* dependent items and result */
@@ -119,13 +136,6 @@ void Expression_cache_tmptable::init()
   cache_table_param.skip_create_table= 1;
   cache_table= NULL;
 
-  while ((item= li++))
-  {
-    DBUG_ASSERT(item);
-    DBUG_ASSERT(*item);
-    DBUG_ASSERT((*item)->fixed);
-    items.push_back((*item));
-  }
   items.push_front(val);
 
   if (!(cache_table= create_tmp_table(table_thd, &cache_table_param,

@@ -62,9 +62,9 @@ public:
 
 class Item_iterator_ref_list: public Item_iterator
 {
-  List_iterator_fast<Item*> list;
+  List_iterator<Item*> list;
 public:
-  Item_iterator_ref_list(List_iterator_fast<Item*> &arg_list):
+  Item_iterator_ref_list(List_iterator<Item*> &arg_list):
     list(arg_list) {}
   void open() { list.rewind(); }
   Item *next() { return *(list++); }
