@@ -8073,7 +8073,7 @@ retest:
   }
   else
   {
-    soft_sync_max= lsn;
+    soft_sync_max= LSN_FILE_NO(lsn);
     soft_need_sync= 1;
   }
 
