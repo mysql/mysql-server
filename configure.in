@@ -1775,21 +1775,6 @@ else
   AC_MSG_RESULT([no])
 fi
 
-# If we should allow error injection tests
-AC_ARG_WITH(error-inject,
-    AC_HELP_STRING([--with-error-inject],[Enable error injection in MySQL Server]),
-    [ with_error_inject=$withval ],
-    [ with_error_inject=no ])
-
-if test $with_debug != "no"
-then
-  if test "$with_error_inject" = "yes"
-  then
-    AC_DEFINE([ERROR_INJECT_SUPPORT], [1],
-              [Enable error injection in MySQL Server])
-  fi
-fi
-
 AC_ARG_WITH([fast-mutexes],
 	    AC_HELP_STRING([--with-fast-mutexes], 
 	    [Compile with fast mutexes (default is disabled)]),
