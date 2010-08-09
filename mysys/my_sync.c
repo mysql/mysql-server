@@ -48,6 +48,9 @@ int my_sync(File fd, myf my_flags)
   DBUG_ENTER("my_sync");
   DBUG_PRINT("my",("fd: %d  my_flags: %d", fd, my_flags));
 
+  if (my_disable_sync)
+    DBUG_RETURN(0);
+
   statistic_increment(my_sync_count,&THR_LOCK_open);
   do
   {

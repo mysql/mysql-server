@@ -165,7 +165,20 @@ enum en_key_op
   KEY_OP_CHECK,         /* For debugging; CRC of used part of page */
   KEY_OP_MULTI_COPY,    /* List of memcpy()s with fixed-len sources in page */
   KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
-  KEY_OP_COMPACT_PAGE   /* Compact key page */
+  KEY_OP_COMPACT_PAGE,	/* Compact key page */
+  KEY_OP_MAX_PAGELENGTH, /* Set page to max page length */
+  KEY_OP_DEBUG		/* Entry for storing what triggered redo_index */
+};
+
+enum en_key_debug
+{
+  KEY_OP_DEBUG_RTREE_COMBINE,
+  KEY_OP_DEBUG_RTREE_SPLIT,
+  KEY_OP_DEBUG_RTREE_SET_KEY,
+  KEY_OP_DEBUG_FATHER_CHANGED_1,
+  KEY_OP_DEBUG_FATHER_CHANGED_2,
+  KEY_OP_DEBUG_LOG_SPLIT,
+  KEY_OP_DEBUG_LOG_ADD
 };
 
 
