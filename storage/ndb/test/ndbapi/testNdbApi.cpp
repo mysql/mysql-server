@@ -2581,6 +2581,8 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
      trans->close();
   }
 
+  pNdb->getDictionary()->dropTable(tab.getName());
+
   return NDBT_OK;
   
 }
