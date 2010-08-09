@@ -226,16 +226,15 @@ TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
                                      Open_tables_state *backup);
 void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
-bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh);
+bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh);
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
-                                    LEX_STRING *connect_string,
-                                    bool have_lock = FALSE);
+                                    LEX_STRING *connect_string);
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                                bool remove_from_locked_tables);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
-                      const char *db, const char *table_name);
+                      const char *db, const char *table_name,
+                      bool has_lock);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);

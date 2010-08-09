@@ -494,14 +494,6 @@ mdl_locks_key(const uchar *record, size_t *length,
   the associated condition variable: LOCK_mdl and COND_mdl.
   These locking primitives are implementation details of the MDL
   subsystem and are private to it.
-
-  Note, that even though the new implementation adds acquisition
-  of a new global mutex to the execution flow of almost every SQL
-  statement, the design capitalizes on that to later save on
-  look ups in the table definition cache. This leads to reduced
-  contention overall and on LOCK_open in particular.
-  Please see the description of MDL_context::acquire_lock()
-  for details.
 */
 
 void mdl_init()
