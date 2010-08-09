@@ -1350,10 +1350,18 @@ ibuf_add_ops(
 	const ulint*	ops)	/*!< in: operation counts */
 
 {
+#ifndef HAVE_ATOMIC_BUILTINS
+	ut_ad(mutex_own(&ibuf_mutex));
+#endif /* !HAVE_ATOMIC_BUILTINS */
+
 	ulint	i;
 
 	for (i = 0; i < IBUF_OP_COUNT; i++) {
+#ifdef HAVE_ATOMIC_BUILTINS
+		os_atomic_increment_ulint(&arr[i], ops[i]);
+#else /* HAVE_ATOMIC_BUILTINS */
 		arr[i] += ops[i];
+#endif /* HAVE_ATOMIC_BUILTINS */
 	}
 }
 
@@ -2096,12 +2104,12 @@ ibuf_add_free_page(void)
 	bitmap_page = ibuf_bitmap_get_map_page(
 		IBUF_SPACE_ID, page_no, zip_size, &mtr);
 
+	mutex_exit(&ibuf_mutex);
+
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, TRUE, &mtr);
 
 	mtr_commit(&mtr);
-
-	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
 
@@ -2158,6 +2166,8 @@ ibuf_remove_free_page(void)
 
 	root = ibuf_tree_root_get(&mtr2);
 
+	mutex_exit(&ibuf_mutex);
+
 	page_no = flst_get_last(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 				&mtr2).page;
 
@@ -2166,7 +2176,6 @@ ibuf_remove_free_page(void)
 	is a level 2 page. */
 
 	mtr_commit(&mtr2);
-	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
 
@@ -2220,6 +2229,8 @@ ibuf_remove_free_page(void)
 	bitmap_page = ibuf_bitmap_get_map_page(
 		IBUF_SPACE_ID, page_no, zip_size, &mtr);
 
+	mutex_exit(&ibuf_mutex);
+
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, FALSE, &mtr);
 
@@ -2227,8 +2238,6 @@ ibuf_remove_free_page(void)
 	buf_page_set_file_page_was_freed(IBUF_SPACE_ID, page_no);
 #endif
 	mtr_commit(&mtr);
-
-	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
 }
@@ -2270,16 +2279,15 @@ ibuf_free_excess_pages(void)
 
 	for (i = 0; i < 4; i++) {
 
+		ibool	too_much_free;
+
 		mutex_enter(&ibuf_mutex);
+		too_much_free = ibuf_data_too_much_free();
+		mutex_exit(&ibuf_mutex);
 
-		if (!ibuf_data_too_much_free()) {
-
-			mutex_exit(&ibuf_mutex);
-
+		if (!too_much_free) {
 			return;
 		}
-
-		mutex_exit(&ibuf_mutex);
 
 		ibuf_remove_free_page();
 	}
@@ -2486,8 +2494,8 @@ ibuf_contract_ext(
 	mutex_enter(&ibuf_mutex);
 
 	if (ibuf->empty) {
-ibuf_is_empty:
 		mutex_exit(&ibuf_mutex);
+ibuf_is_empty:
 
 #if 0 /* TODO */
 		if (srv_shutdown_state) {
@@ -2515,6 +2523,7 @@ ibuf_is_empty:
 	position within the leaf */
 
 	btr_pcur_open_at_rnd_pos(ibuf->index, BTR_SEARCH_LEAF, &pcur, &mtr);
+	mutex_exit(&ibuf_mutex);
 
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 
@@ -2534,8 +2543,6 @@ ibuf_is_empty:
 
 		goto ibuf_is_empty;
 	}
-
-	mutex_exit(&ibuf_mutex);
 
 	sum_sizes = ibuf_get_merge_page_nos(TRUE, btr_pcur_get_rec(&pcur),
 					    space_ids, space_versions,
@@ -3304,6 +3311,7 @@ ibuf_insert_low(
 	ulint		n_stored;
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
+	ibool		too_big;
 
 	ut_a(!dict_index_is_clust(index));
 	ut_ad(dtuple_check_typed(entry));
@@ -3316,12 +3324,13 @@ ibuf_insert_low(
 	do_merge = FALSE;
 
 	mutex_enter(&ibuf_mutex);
+	too_big = ibuf->size >= ibuf->max_size + IBUF_CONTRACT_DO_NOT_INSERT;
+	mutex_exit(&ibuf_mutex);
 
-	if (ibuf->size >= ibuf->max_size + IBUF_CONTRACT_DO_NOT_INSERT) {
+	if (too_big) {
 		/* Insert buffer is now too big, contract it but do not try
 		to insert */
 
-		mutex_exit(&ibuf_mutex);
 
 #ifdef UNIV_IBUF_DEBUG
 		fputs("Ibuf too big\n", stderr);
@@ -3330,40 +3339,6 @@ ibuf_insert_low(
 		ibuf_contract(TRUE);
 
 		return(DB_STRONG_FAIL);
-	}
-
-	mutex_exit(&ibuf_mutex);
-
-	if (mode == BTR_MODIFY_TREE) {
-		mutex_enter(&ibuf_pessimistic_insert_mutex);
-
-		ibuf_enter();
-
-		mutex_enter(&ibuf_mutex);
-
-		while (!ibuf_data_enough_free_for_insert()) {
-
-			mutex_exit(&ibuf_mutex);
-
-			ibuf_exit();
-
-			mutex_exit(&ibuf_pessimistic_insert_mutex);
-
-			err = ibuf_add_free_page();
-
-			if (err == DB_STRONG_FAIL) {
-
-				return(err);
-			}
-
-			mutex_enter(&ibuf_pessimistic_insert_mutex);
-
-			ibuf_enter();
-
-			mutex_enter(&ibuf_mutex);
-		}
-	} else {
-		ibuf_enter();
 	}
 
 	heap = mem_heap_create(512);
@@ -3383,6 +3358,37 @@ ibuf_insert_low(
 	/* Open a cursor to the insert buffer tree to calculate if we can add
 	the new entry to it without exceeding the free space limit for the
 	page. */
+
+	if (mode == BTR_MODIFY_TREE) {
+		for (;;) {
+			mutex_enter(&ibuf_pessimistic_insert_mutex);
+
+			ibuf_enter();
+
+			mutex_enter(&ibuf_mutex);
+
+			if (UNIV_LIKELY(ibuf_data_enough_free_for_insert())) {
+
+				break;
+			}
+
+			mutex_exit(&ibuf_mutex);
+
+			ibuf_exit();
+
+			mutex_exit(&ibuf_pessimistic_insert_mutex);
+
+			err = ibuf_add_free_page();
+
+			if (UNIV_UNLIKELY(err == DB_STRONG_FAIL)) {
+
+				mem_heap_free(heap);
+				return(err);
+			}
+		}
+	} else {
+		ibuf_enter();
+	}
 
 	mtr_start(&mtr);
 
@@ -4118,9 +4124,8 @@ ibuf_delete_rec(
 	btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
-	btr_pcur_close(pcur);
-
 	mutex_exit(&ibuf_mutex);
+	btr_pcur_close(pcur);
 
 	return(TRUE);
 }
@@ -4495,6 +4500,11 @@ reset_bit:
 	btr_pcur_close(&pcur);
 	mem_heap_free(heap);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_atomic_increment_ulint(&ibuf->n_merges, 1);
+	ibuf_add_ops(ibuf->n_merged_ops, mops);
+	ibuf_add_ops(ibuf->n_discarded_ops, dops);
+#else /* HAVE_ATOMIC_BUILTINS */
 	/* Protect our statistics keeping from race conditions */
 	mutex_enter(&ibuf_mutex);
 
@@ -4503,6 +4513,7 @@ reset_bit:
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
 
 	mutex_exit(&ibuf_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (update_ibuf_bitmap && !tablespace_being_deleted) {
 
@@ -4604,10 +4615,14 @@ leave_loop:
 	mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
 
+#ifdef HAVE_ATOMIC_BUILTINS
+	ibuf_add_ops(ibuf->n_discarded_ops, dops);
+#else /* HAVE_ATOMIC_BUILTINS */
 	/* Protect our statistics keeping from race conditions */
 	mutex_enter(&ibuf_mutex);
 	ibuf_add_ops(ibuf->n_discarded_ops, dops);
 	mutex_exit(&ibuf_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	ibuf_exit();
 
@@ -4652,9 +4667,9 @@ ibuf_is_empty(void)
 		is_empty = FALSE;
 	}
 
-	mtr_commit(&mtr);
-
 	mutex_exit(&ibuf_mutex);
+
+	mtr_commit(&mtr);
 
 	ibuf_exit();
 
