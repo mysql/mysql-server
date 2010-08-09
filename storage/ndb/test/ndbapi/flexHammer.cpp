@@ -106,6 +106,7 @@ static int setAttrNames(void);
 static int setTableNames(void);
 static int readArguments(int, const char**);
 static int createTables(Ndb*);
+static int dropTables(Ndb*);
 static void sleepBeforeStartingTest(int seconds);
 static int checkThreadResults(ThreadNdb *threadArrayP, const char* phase);
 
@@ -129,8 +130,6 @@ static int			tAttributeSize;
 static int			tNoOfOperations;
 static int			tNoOfRecords;
 static int			tNoOfLoops;
-static				ReadyType ThreadReady[NDB_MAXTHREADS];
-static				StartType ThreadStart[NDB_MAXTHREADS];
 static char			tableName[MAXTABLES][MAXSTRLEN];
 static char			attrName[MAXATTR][MAXSTRLEN];
 static int			theSimpleFlag = 0;
@@ -320,6 +319,9 @@ NDB_COMMAND(flexHammer, "flexHammer", "flexHammer", "flexHammer", 65535)
     NdbThread_WaitFor(pThreads[i].threadLife, &tmp);
     NdbThread_Destroy(&pThreads[i].threadLife);
   }
+
+  dropTables(pMyNdb);
+
   delete flexHammerErrorData;
   delete [] pThreads;
   delete pMyNdb;
@@ -334,7 +336,7 @@ void*
 flexHammerThread(void* pArg)
 {
   ThreadNdb* pThreadData = (ThreadNdb*)pArg;
-  unsigned int threadNo = pThreadData->threadNo;
+  //unsigned int threadNo = pThreadData->threadNo;
   Ndb* pMyNdb = NULL ;
   NdbConnection *pMyTransaction = NULL ;
   //  NdbOperation*	pMyOperation[MAXTABLES] = {NULL};
@@ -348,7 +350,6 @@ flexHammerThread(void* pArg)
   int count_tables = 0;
   int count_attributes = 0;
   int i = 0;
-  int j = 0;
   int tThreadResult = 0;
   MyOpType tMyOpType = otLast;
   int pkValue = 0;
@@ -827,6 +828,25 @@ createTables(Ndb* pMyNdb)
       NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
     } // for
   } // if
+
+  return(0);
+
+} // createTables 
+
+static int
+dropTables(Ndb* pMyNdb)
+{
+  int i = 0;
+
+  if (theTableCreateFlag == 0)
+  {
+    for (i = 0; i < tNoOfTables; i++)
+    {
+      ndbout << "Dropping " << tableName[i] << "...";
+      pMyNdb->getDictionary()->dropTable(tableName[i]);
+      ndbout << "done" << endl;
+    }
+  }
 
   return(0);
 
