@@ -231,7 +231,7 @@ max-time: 500
 cmd: testBasic
 args: -n InsertError2 T1
 
-max-time: 500
+max-time: 600
 cmd: testTimeout
 args: T1 
 
