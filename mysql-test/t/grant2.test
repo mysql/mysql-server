@@ -31,7 +31,7 @@ create user mysqltest_2@localhost;
 connect (user_a,localhost,mysqltest_1,,);
 connection user_a;
 grant select on `my\_1`.* to mysqltest_2@localhost;
---error ER_PASSWORD_NOT_ALLOWED
+--error ER_DBACCESS_DENIED_ERROR
 grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
 disconnect user_a;
 connection default;
@@ -405,7 +405,7 @@ drop database mysqltest_1;
 # But anonymous users can't change their password
 connect (n5,localhost,test,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection n5;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_PASSWORD_NO_MATCH
 set password = password("changed");
 disconnect n5;
 connection default;

@@ -17,6 +17,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxy_priv                                   OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -49,6 +50,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxy_priv                                   OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -81,6 +83,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxy_priv                                   OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -115,6 +118,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxy_priv                                   OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -153,6 +157,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxy_priv                                   OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.
@@ -194,6 +199,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxy_priv                                   OK
 mysql.servers                                      OK
 mysql.slow_log
 Error    : You can't use locks with log tables.

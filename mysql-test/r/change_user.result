@@ -1,3 +1,39 @@
+grant select on test.* to test_nopw;
+grant select on test.* to test_oldpw identified by password "09301740536db389";
+grant select on test.* to test_newpw identified by "newpw";
+select user(), current_user(), database();
+user()	current_user()	database()
+root@localhost	root@localhost	test
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<root@localhost>	<root@localhost>	test
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<test_nopw@localhost>	<test_nopw@%>	NULL
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<test_oldpw@localhost>	<test_oldpw@%>	NULL
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<test_newpw@localhost>	<test_newpw@%>	NULL
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<root@localhost>	<root@localhost>	NULL
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<test_nopw@localhost>	<test_nopw@%>	test
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<test_oldpw@localhost>	<test_oldpw@%>	test
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<test_newpw@localhost>	<test_newpw@%>	test
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+concat('<', user(), '>')	concat('<', current_user(), '>')	database()
+<root@localhost>	<root@localhost>	test
+drop user test_nopw;
+drop user test_oldpw;
+drop user test_newpw;
 Bug#20023
 SELECT @@session.sql_big_selects;
 @@session.sql_big_selects

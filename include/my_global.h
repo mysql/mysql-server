@@ -452,6 +452,16 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define LINT_INIT(var)
 #endif
 
+#ifndef SO_EXT
+#ifdef _WIN32
+#define SO_EXT ".dll"
+#elif defined(__APPLE__)
+#define SO_EXT ".dylib"
+#else
+#define SO_EXT ".so"
+#endif
+#endif
+
 /*
    Suppress uninitialized variable warning without generating code.
 
@@ -1365,7 +1375,7 @@ do { doubleget_union _tmp; \
 #endif
 
 #ifndef HAVE_DLERROR
-#define dlerror() ""
+#define dlerror() "No support for dynamic loading (static build?)"
 #endif
 
 

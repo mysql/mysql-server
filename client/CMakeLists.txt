@@ -69,3 +69,5 @@ ADD_EXECUTABLE(echo echo.c)
 SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap 
 PROPERTIES HAS_CXX TRUE)
 
+ADD_DEFINITIONS(-DHAVE_DLOPEN)
+

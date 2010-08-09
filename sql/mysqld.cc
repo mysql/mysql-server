@@ -58,6 +58,7 @@
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
+#include <sql_common.h>
 #include <my_stacktrace.h>
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
@@ -1479,6 +1480,7 @@ void clean_up(bool print_message)
     sql_print_information(ER_DEFAULT(ER_SHUTDOWN_COMPLETE),my_progname);
   cleanup_errmsgs();
   thread_scheduler.end();
+  mysql_client_plugin_deinit();
   finish_client_errs();
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
@@ -3335,6 +3337,7 @@ static int init_common_variables()
   if (init_errmessage())	/* Read error messages from file */
     return 1;
   init_client_errs();
+  mysql_client_plugin_init();
   lex_init();
   if (item_create_init())
     return 1;
