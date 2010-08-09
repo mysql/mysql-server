@@ -310,10 +310,8 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
           upgrade_shared_lock_to_exclusive(table_ref->mdl_request.ticket,
                                            timeout))
         DBUG_RETURN(TRUE);
-      mysql_mutex_lock(&LOCK_open);
       tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db,
-                       table_ref->table_name);
-      mysql_mutex_unlock(&LOCK_open);
+                       table_ref->table_name, FALSE);
     }
   }
   else
