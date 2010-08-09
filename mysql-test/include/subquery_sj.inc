@@ -2744,3 +2744,34 @@ explain extended SELECT * FROM t1 WHERE (t1.i) IN
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 drop table t1,t2,t3;
+
+--echo #
+--echo # BUG#49453: re-execution of prepared statement with view 
+--echo #            and semijoin crashes
+--echo #
+CREATE TABLE t1 (city VARCHAR(50), country_id INT);
+CREATE TABLE t2 (country_id INT, country VARCHAR(50));
+
+INSERT INTO t1 VALUES 
+  ('Batna',2),('Bchar',2),('Skikda',2),('Tafuna',3),('Algeria',2) ;
+INSERT INTO t2 VALUES (2,'Algeria'),(2,'AlgeriaDup'),(3,'XAmerican Samoa');
+
+CREATE VIEW v1 AS 
+  SELECT country_id as vf_country_id
+  FROM t2
+  WHERE LEFT(country,1) = "A"; 
+
+PREPARE stmt FROM "
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (SELECT vf_country_id FROM v1);
+";
+
+--echo
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2;
+DROP VIEW v1;
+
+
