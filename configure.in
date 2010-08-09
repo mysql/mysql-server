@@ -1734,7 +1734,7 @@ then
 fi
 
 AC_ARG_WITH(debug,
-    [AS_HELP_STRING([--with-debug], [Add debug code @<:@default=no@:>@])]
+    [AS_HELP_STRING([--with-debug], [Add debug code @<:@default=no@:>@])],
     [with_debug=$withval],
     [with_debug=no])
 if test "$with_debug" = "yes"
@@ -1775,21 +1775,6 @@ then
   AC_MSG_RESULT([yes]) 
 else
   AC_MSG_RESULT([no])
-fi
-
-# If we should allow error injection tests
-AC_ARG_WITH(error-inject,
-    AC_HELP_STRING([--with-error-inject],[Enable error injection in MySQL Server]),
-    [ with_error_inject=$withval ],
-    [ with_error_inject=no ])
-
-if test $with_debug != "no"
-then
-  if test "$with_error_inject" = "yes"
-  then
-    AC_DEFINE([ERROR_INJECT_SUPPORT], [1],
-              [Enable error injection in MySQL Server])
-  fi
 fi
 
 AC_ARG_WITH([fast-mutexes],
