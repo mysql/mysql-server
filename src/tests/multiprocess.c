@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id: checkpoint_1.c 18673 2010-03-21 04:18:21Z bkuszmaul $"
+#ident "$Id$"
 #include "test.h"
 #include <db.h>
 #include <sys/stat.h>
