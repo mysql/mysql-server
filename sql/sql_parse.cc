@@ -1789,11 +1789,9 @@ static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
        table_list= table_list->next_global)
   {
     /* Remove the table from cache. */
-    mysql_mutex_lock(&LOCK_open);
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
                      table_list->db,
-                     table_list->table_name);
-    mysql_mutex_unlock(&LOCK_open);
+                     table_list->table_name, FALSE);
 
     /* Skip views and temporary tables. */
     table_list->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
@@ -3414,7 +3412,7 @@ end_with_restore_list:
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
-    /* DDL and binlog write order protected by LOCK_open */
+    /* DDL and binlog write order are protected by metadata locks. */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
   }
@@ -6854,7 +6852,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (thd->global_read_lock.lock_global_read_lock(thd))
 	return 1;                               // Killed
-      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+      if (close_cached_tables(thd, tables, (options & REFRESH_FAST) ?
                               FALSE : TRUE))
           result= 1;
       
@@ -6894,7 +6892,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         }
       }
 
-      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+      if (close_cached_tables(thd, tables, (options & REFRESH_FAST) ?
                               FALSE : TRUE))
         result= 1;
     }

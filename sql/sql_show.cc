@@ -7657,7 +7657,7 @@ static bool show_create_trigger_impl(THD *thd,
 */
 
 static
-TABLE_LIST *get_trigger_table_impl(THD *thd, const sp_name *trg_name)
+TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   char trn_path_buff[FN_REFLEN];
   LEX_STRING trn_path= { trn_path_buff, 0 };
@@ -7692,39 +7692,6 @@ TABLE_LIST *get_trigger_table_impl(THD *thd, const sp_name *trg_name)
                         tbl_name.str, TL_IGNORE);
 
   return table;
-}
-
-/**
-  Read TRN and TRG files to obtain base table name for the specified
-  trigger name and construct TABE_LIST object for the base table. Acquire
-  LOCK_open when doing this.
-
-  @param thd      Thread context.
-  @param trg_name Trigger name.
-
-  @return TABLE_LIST object corresponding to the base table.
-*/
-
-static
-TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
-{
-  /* Acquire LOCK_open (stop the server). */
-
-  mysql_mutex_lock(&LOCK_open);
-
-  /*
-    Load base table name from the TRN-file and create TABLE_LIST object.
-  */
-
-  TABLE_LIST *lst= get_trigger_table_impl(thd, trg_name);
-
-  /* Release LOCK_open (continue the server). */
-
-  mysql_mutex_unlock(&LOCK_open);
-
-  /* That's it. */
-
-  return lst;
 }
 
 
