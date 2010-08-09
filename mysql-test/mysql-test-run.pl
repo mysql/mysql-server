@@ -1799,6 +1799,7 @@ sub mysql_fix_arguments () {
   mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--bindir=%s", $path_client_bindir);
   mtr_add_arg($args, "--verbose");
+  mtr_add_arg($args, "--sync-sys=0"); # Speed up test suite
   return mtr_args2str($exe, @$args);
 }
 
