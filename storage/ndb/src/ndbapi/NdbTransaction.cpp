@@ -812,9 +812,8 @@ void NdbTransaction::close()
 
 int NdbTransaction::refresh()
 {
-  for(NdbIndexScanOperation* scan_op = m_theFirstScanOperation;
-      scan_op != m_theLastScanOperation;
-      scan_op = (NdbIndexScanOperation *) scan_op->theNext)
+  for(NdbIndexScanOperation* scan_op = m_firstExecutedScanOp;
+      scan_op != 0; scan_op = (NdbIndexScanOperation *) scan_op->theNext)
   {
     NdbTransaction* scan_trans = scan_op->theNdbCon;
     scan_trans->sendTC_HBREP();
