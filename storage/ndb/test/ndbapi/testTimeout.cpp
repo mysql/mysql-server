@@ -401,8 +401,8 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
 int runBuddyTransTimeout(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  int stepNo = step->getStepNo();
+  //int records = ctx->getNumRecords();
+  //int stepNo = step->getStepNo();
   ndbout << "TransactionInactiveTimeout="<< TIMEOUT <<endl;
 
   HugoOperations hugoOps(*ctx->getTab());
@@ -434,6 +434,67 @@ int runBuddyTransTimeout(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
   
+  return result;
+}
+
+int runScanRefreshNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int stepNo = step->getStepNo();
+  int maxSleep = (int)(TIMEOUT * 0.3);
+  ndbout << "TransactionInactiveTimeout="<< TIMEOUT
+	 << ", maxSleep="<<maxSleep<<endl;
+
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  for (int l = 1; l < loops && result == NDBT_OK; l++){
+
+    do{
+      // Start an insert trans
+      CHECK(hugoOps.startTransaction(pNdb) == 0);
+      int recordNo = records + (stepNo*loops) + l;
+      CHECK(hugoOps.pkInsertRecord(pNdb, recordNo) == 0);
+      CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+      
+      for (int i = 0; i < 3; i++)
+      {
+        NdbTransaction* pTrans = hugoOps.getTransaction();
+
+        Vector<NdbScanOperation*> ops;
+        for (int j = 0; j <= i; j++)
+        {
+          // Perform buddy scan reads
+          NdbScanOperation* pOp = pTrans->getNdbScanOperation(ctx->getTab());
+          CHECK(pOp != 0);
+          CHECK(pOp->readTuples(NdbOperation::LM_Read, 0, 0, 1) == 0);
+          ops.push_back(pOp);
+        }
+        CHECK(pTrans->execute(NoCommit) == 0);
+
+        for (unsigned i = 0; i<TIMEOUT; i += 1000)
+        {
+          pTrans->refresh();
+          NdbSleep_MilliSleep(1000);
+        }
+
+        int res;
+        for (size_t j = 0; j < ops.size(); j++)
+        {
+          while((res = ops[j]->nextResult()) == 0);
+          CHECK(res != -1);
+        }
+      }
+
+      // Expect that transaction has NOT timed-out
+      CHECK(hugoOps.execute_Commit(pNdb) == 0); 
+    
+    } while(false);
+
+    hugoOps.closeTransaction(pNdb);
+  }
+
   return result;
 }
 
@@ -552,6 +613,15 @@ TESTCASE("BuddyTransTimeout1",
   FINALIZER(resetTransactionTimeout);
   FINALIZER(runClearTable);
 }
+TESTCASE("ScanRefreshNoTimeout", 
+	 "")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(setTransactionTimeout);
+  STEPS(runScanRefreshNoTimeout, 1);
+  FINALIZER(resetTransactionTimeout);
+  FINALIZER(runClearTable);
+}
 #if 0
 TESTCASE("Error4012", ""){
   TC_PROPERTY("TransactionDeadlockTimeout", 120000);
@@ -570,3 +640,4 @@ int main(int argc, const char** argv){
   return testTimeout.execute(argc, argv);
 }
 
+template class Vector<NdbScanOperation*>;
