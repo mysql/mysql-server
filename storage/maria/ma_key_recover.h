@@ -72,7 +72,8 @@ my_bool _ma_log_add(MARIA_PAGE *page, uint buff_length, uchar *key_pos,
                     my_bool handle_overflow);
 my_bool _ma_log_delete(MARIA_PAGE *page, const uchar *key_pos,
                        uint changed_length, uint move_length);
-my_bool _ma_log_change(MARIA_PAGE *page, const uchar *key_pos, uint length);
+my_bool _ma_log_change(MARIA_PAGE *page, const uchar *key_pos, uint length,
+                       enum en_key_debug debug_marker);
 my_bool _ma_log_new(MARIA_PAGE *page, my_bool root_page);
 
 uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,

@@ -429,6 +429,7 @@ static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
+static my_bool opt_sync= 0;
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 uint thread_handling;
@@ -5945,7 +5946,7 @@ enum options_mysqld
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
-  OPT_SYNC_FRM, OPT_SYNC_BINLOG,
+  OPT_SYNC_FRM, OPT_SYNC_BINLOG, OPT_SYNC,
   OPT_SYNC_REPLICATION,
   OPT_SYNC_REPLICATION_SLAVE_ID,
   OPT_SYNC_REPLICATION_TIMEOUT,
@@ -7474,6 +7475,10 @@ thread is in the relay logs.",
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    &opt_sync_frm, &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
+  {"sync-sys", OPT_SYNC,
+   "Enable/disable system sync calls. Should only be turned off when running "
+   "tests or debugging!!",
+   &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"table_cache", OPT_TABLE_OPEN_CACHE,
    "Deprecated; use --table_open_cache instead.",
    &table_cache_size, &table_cache_size, 0, GET_ULONG,
@@ -9230,6 +9235,7 @@ static int get_options(int *argc,char **argv)
     In most cases the global variables will not be used
   */
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
+  my_disable_sync= opt_sync == 0;
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
     (my_off_t) global_system_variables.myisam_max_sort_file_size;

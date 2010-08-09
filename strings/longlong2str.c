@@ -81,14 +81,14 @@ char *longlong2str(longlong val,char *dst,int radix, int upcase)
   {
     ulonglong quo= uval/(uint) radix;
     uint rem= (uint) (uval- quo* (uint) radix);
-    *--p = _dig_vec[rem];
+    *--p = dig_vec[rem];
     uval= quo;
   }
   long_val= (long) uval;
   while (long_val != 0)
   {
     long quo= long_val/radix;
-    *--p = _dig_vec[(uchar) (long_val - quo*radix)];
+    *--p = dig_vec[(uchar) (long_val - quo*radix)];
     long_val= quo;
   }
   while ((*dst++ = *p++) != 0) ;
