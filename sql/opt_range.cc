@@ -8005,6 +8005,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 
   quick->mrr_buf_size= thd->variables.mrr_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, (uint)records,
+                                         uint(-1), 
                                          &quick->mrr_buf_size,
                                          &quick->mrr_flags, &cost))
     goto err;

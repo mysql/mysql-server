@@ -1,0 +1,137 @@
+# 
+# Tests for DS-MRR over clustered primary key. The only engine that supports
+# this is InnoDB/XtraDB.
+#
+# Basic idea about testing
+#  - DS-MRR/CPK works only with BKA
+#  - Should also test index condition pushdown
+#  - Should also test whatever uses RANGE_SEQ_IF::skip_record() for filtering
+#  - Also test access using prefix of primary key
+# 
+#  - Forget about cost model, BKA's multi_range_read_info() call passes 10 for
+#    #rows, the call is there at all only for applicability check
+# 
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t0,t1,t2,t3;
+--enable_warnings
+
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=6;
+
+set @save_storage_engine=@@storage_engine;
+set storage_engine=innodb;
+
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1(a char(8), b char(8), filler char(100), primary key(a));
+show create table t1;
+
+insert into t1 select 
+  concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+  concat('b-', 1000 + A.a + B.a*10 + C.a*100, '=B'),
+  'filler'
+from t0 A, t0 B, t0 C;
+
+create table t2 (a char(8));
+insert into t2 values ('a-1010=A'), ('a-1030=A'), ('a-1020=A');
+
+--echo This should use join buffer:
+explain select * from t1, t2 where t1.a=t2.a;
+
+--echo This output must be sorted by value of t1.a:
+select * from t1, t2 where t1.a=t2.a;
+drop table t1, t2;
+
+# Try multi-column indexes
+create table t1(
+  a char(8) character set utf8, b int, filler char(100), 
+  primary key(a,b)
+);
+
+insert into t1 select 
+  concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+  1000 + A.a + B.a*10 + C.a*100,
+  'filler'
+from t0 A, t0 B, t0 C;
+
+create table t2 (a char(8) character set utf8, b int);
+insert into t2 values ('a-1010=A', 1010), ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+
+# Try with dataset that causes identical lookup keys:
+insert into t2 values ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+
+drop table t1, t2;
+
+create table t1(
+  a varchar(8) character set utf8, b int, filler char(100), 
+  primary key(a,b)
+);
+
+insert into t1 select 
+  concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+  1000 + A.a + B.a*10 + C.a*100,
+  'filler'
+from t0 A, t0 B, t0 C;
+
+create table t2 (a char(8) character set utf8, b int);
+insert into t2 values ('a-1010=A', 1010), ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+
+# 
+# Try scanning on a CPK prefix
+#
+explain select * from t1, t2 where t1.a=t2.a;
+select * from t1, t2 where t1.a=t2.a;
+drop table t1, t2;
+
+#
+# The above example is not very interesting, as CPK prefix has 
+# only one match.  Create a dataset where scan on CPK prefix 
+# would produce multiple matches:
+#
+create table t1 (a int, b int, c int, filler char(100), primary key(a,b,c));
+insert into t1 select A.a, B.a, C.a, 'filler' from t0 A, t0 B, t0 C;
+
+insert into t1 values (11, 11, 11,   'filler');
+insert into t1 values (11, 11, 12,   'filler');
+insert into t1 values (11, 11, 13,   'filler');
+insert into t1 values (11, 22, 1234, 'filler');
+insert into t1 values (11, 33, 124,  'filler');
+insert into t1 values (11, 33, 125,  'filler');
+
+create table t2 (a int, b int);
+insert into t2 values (11,33), (11,22), (11,11);
+
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+
+# Check a real resultset for comaprison:
+set join_cache_level=0;
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+set join_cache_level=6;
+
+
+#
+# Check that Index Condition Pushdown (BKA) actually works:
+#
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+
+set optimizer_switch='index_condition_pushdown=off';
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+set optimizer_switch='index_condition_pushdown=on';
+
+drop table t1,t2;
+
+set @@join_cache_level= @save_join_cache_level;
+set storage_engine=@save_storage_engine;
+drop table t0;
+
