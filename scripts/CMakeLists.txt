@@ -24,6 +24,7 @@ ENDIF()
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
 IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
   FIND_PROGRAM(CAT_EXECUTABLE cat DOC "path to the executable")
+  MARK_AS_ADVANCED(CAT_EXECUTABLE)
 ENDIF()
 
 IF(CAT_EXECUTABLE)
