@@ -4938,8 +4938,7 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
         sjm->materialization_cost.convert_from_cost(subjoin_read_time);
         sjm->rows= subjoin_out_rows;
 
-        List<Item> &right_expr_list= 
-          sj_nest->sj_subq_pred->unit->first_select()->item_list;
+        List<Item> &inner_expr_list= sj_nest->nested_join->sj_inner_exprs;
         /*
           Adjust output cardinality estimates. If the subquery has form
 
@@ -4961,7 +4960,7 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
             JOIN_TAB *tab= join->best_positions[i].table;
             join->map2table[tab->table->tablenr]= tab;
           }
-          List_iterator<Item> it(right_expr_list);
+          List_iterator<Item> it(inner_expr_list);
           Item *item;
           table_map map= 0;
           while ((item= it++))
@@ -4980,7 +4979,7 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
         /*
           Calculate temporary table parameters and usage costs
         */
-        uint rowlen= get_tmp_table_rec_length(right_expr_list);
+        uint rowlen= get_tmp_table_rec_length(inner_expr_list);
         double lookup_cost;
         if (rowlen * subjoin_out_rows< join->thd->variables.max_heap_table_size)
           lookup_cost= HEAP_TEMPTABLE_LOOKUP_COST;
