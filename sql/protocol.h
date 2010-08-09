@@ -204,7 +204,6 @@ public:
 void send_warning(THD *thd, uint sql_errno, const char *err=0);
 bool net_send_error(THD *thd, uint sql_errno, const char *err,
                     const char* sqlstate);
-bool send_old_password_request(THD *thd);
 uchar *net_store_data(uchar *to,const uchar *from, size_t length);
 uchar *net_store_data(uchar *to,int32 from);
 uchar *net_store_data(uchar *to,longlong from);

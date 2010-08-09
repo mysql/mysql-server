@@ -69,46 +69,436 @@ GRANT UPDATE ON *.* TO 'testuser2'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 #
 # Add GRANT OPTION db_datadict.* to testuser1;
 GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -123,46 +513,436 @@ GRANT SELECT ON *.* TO 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	SELECT	NO
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	SELECT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	Y
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 #
 # Here <SELECT YES> is shown correctly for testuser1;
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	SELECT	YES
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	SELECT
+IS_GRANTABLE	YES
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		Y	N	N	N	N	N	N	N	N	N	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	Y
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	Y
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	SELECT	YES
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	SELECT
+IS_GRANTABLE	YES
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		Y	N	N	N	N	N	N	N	N	N	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	Y
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	Y
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION
@@ -172,9 +952,14 @@ GRANT SELECT ON `mysql`.`user` TO 'testuser1'@'localhost'
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser2'@'localhost' for table 'user'
@@ -185,8 +970,10 @@ GRANT INSERT, UPDATE ON *.* TO 'testuser2'@'localhost'
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser3'@'localhost' for table 'user'
@@ -200,23 +987,158 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
@@ -228,8 +1150,10 @@ ERROR 42000: CREATE command denied to user 'testuser1'@'localhost' for table 'tb
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
@@ -246,29 +1170,286 @@ GRANT SELECT ON mysql.user TO 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -280,14 +1461,138 @@ USE db_datadict;
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -302,23 +1607,158 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
-'testuser2'@'localhost'	def	INSERT	NO
-'testuser2'@'localhost'	def	UPDATE	NO
-'testuser3'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	INSERT
+IS_GRANTABLE	NO
+GRANTEE	'testuser2'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	UPDATE
+IS_GRANTABLE	NO
+GRANTEE	'testuser3'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	testuser1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser2		N	Y	Y	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
-localhost	testuser3		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0
+Host	localhost
+User	testuser1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser2
+Password	
+Select_priv	N
+Insert_priv	Y
+Update_priv	Y
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
+Host	localhost
+User	testuser3
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
 ORDER BY grantee, table_catalog, privilege_type;
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 'user'
@@ -341,31 +1781,36 @@ DROP DATABASE IF EXISTS db_datadict;
 ########################################################################################
 SELECT * FROM information_schema.user_privileges
 WHERE grantee = '''testuser1''@''localhost''';
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
 ERROR 42000: There is no such grant defined for user 'testuser1' on host 'localhost'
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee = '''testuser1''@''localhost''';
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	USAGE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	USAGE
+IS_GRANTABLE	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
 GRANT SELECT, FILE ON *.* TO 'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee = '''testuser1''@''localhost''';
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'testuser1'@'localhost'	def	SELECT	NO
-'testuser1'@'localhost'	def	FILE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	SELECT
+IS_GRANTABLE	NO
+GRANTEE	'testuser1'@'localhost'
+TABLE_CATALOG	def
+PRIVILEGE_TYPE	FILE
+IS_GRANTABLE	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT SELECT, FILE ON *.* TO 'testuser1'@'localhost'
 DROP USER   'testuser1'@'localhost';
 SELECT * FROM information_schema.user_privileges
 WHERE grantee = '''testuser1''@''localhost''';
-GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 SHOW GRANTS FOR 'testuser1'@'localhost';
 ERROR 42000: There is no such grant defined for user 'testuser1' on host 'localhost'
 ########################################################################
