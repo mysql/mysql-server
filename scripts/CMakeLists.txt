@@ -253,24 +253,26 @@ ENDIF()
 # Extract dependencies using CMake's internal ${target}_LIB_DEPENDS variable
 # returned string in ${var} is can be passed to linker's command line
 MACRO(EXTRACT_LINK_LIBRARIES target var)
-  LIST(REMOVE_ITEM ${target}_LIB_DEPENDS "")
-  LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
-  FOREACH(lib ${${target}_LIB_DEPENDS})
-    # Filter out "general", it is not a library, just CMake hint
-    # Also, remove duplicates
-    IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
-      IF (lib MATCHES "^\\-l")
-        SET(${var} "${${var}} ${lib} ") 
-      ELSEIF(lib MATCHES "^/")
-        # Full path, convert to just filename, strip "lib" prefix and extension
-        GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
-        STRING(REGEX REPLACE "^lib" "" lib "${lib}")
-        SET(${var} "${${var}}-l${lib} " ) 
-      ELSE()
-        SET(${var} "${${var}}-l${lib} " ) 
+  IF(${target}_LIB_DEPENDS)
+    LIST(REMOVE_ITEM ${target}_LIB_DEPENDS "")
+    LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
+    FOREACH(lib ${${target}_LIB_DEPENDS})
+      # Filter out "general", it is not a library, just CMake hint
+      # Also, remove duplicates
+      IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
+        IF (lib MATCHES "^\\-l")
+          SET(${var} "${${var}} ${lib} ") 
+        ELSEIF(lib MATCHES "^/")
+          # Full path, convert to just filename, strip "lib" prefix and extension
+          GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+          STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+          SET(${var} "${${var}}-l${lib} " ) 
+        ELSE()
+          SET(${var} "${${var}}-l${lib} " ) 
+        ENDIF()
       ENDIF()
-    ENDIF()
-  ENDFOREACH()
+    ENDFOREACH()
+  ENDIF()
   IF(MSVC)
     STRING(REPLACE "-l" "" ${var} "${${var}}")
   ENDIF()
