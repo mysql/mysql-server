@@ -118,18 +118,23 @@ row_vers_impl_x_locked(
 
 	trx = trx_is_active_low(trx_id, &corrupt);
 
-	if (trx == NULL && !corrupt) {
+	trx_sys_mutex_exit();
+
+	if (trx == NULL) {
 
 		/* The transaction that modified or inserted clust_rec is no
-		longer active: no implicit lock on rec */
+		longer active or corrupt: no implicit lock on rec */
 
-		goto exit_func;
+		if (corrupt) {
+			ibool	is_ok;
 
-	} else if (corrupt
-		   && !lock_check_trx_id_sanity(
-			trx_id, clust_rec, clust_index, clust_offsets)) {
+		   	is_ok = lock_check_trx_id_sanity(
+				trx_id, clust_rec, clust_index, clust_offsets);
 
-		/* Corruption noticed: try to avoid a crash by returning */
+			ut_a(!is_ok == corrupt);
+		}
+
+		trx_id = 0;
 
 		goto exit_func;
 	}
@@ -164,8 +169,6 @@ row_vers_impl_x_locked(
 	       	in mtr on the clust_rec page, so that no other transaction
 	       	can update it and get an implicit x-lock on rec. */
 
-		trx_sys_mutex_exit();
-
 		heap2 = heap;
 		heap = mem_heap_create(1024);
 		err = trx_undo_prev_version_build(clust_rec, &mtr, version,
@@ -173,17 +176,7 @@ row_vers_impl_x_locked(
 						  heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
-		trx_sys_mutex_enter();
-
 		if (prev_version == NULL) {
-			trx = trx_is_active_low(trx_id, &corrupt);
-
-			if (trx == NULL) {
-				/* Transaction no longer active: no
-				implicit x-lock */
-
-				break;
-			}
 
 			/* If the transaction is still active,
 			clust_rec must be a fresh insert, because no
@@ -235,11 +228,11 @@ row_vers_impl_x_locked(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		trx = trx_is_active_low(trx_id, &corrupt);
-
-		if (trx == NULL) {
+		if (trx_is_active(trx_id) == NULL) {
 
 			/* Transaction no longer active: no implicit x-lock */
+
+			trx_id = 0;
 
 			break;
 
@@ -266,8 +259,6 @@ row_vers_impl_x_locked(
 				break;
 			}
 
-			trx = NULL;
-
 		} else if (!rec_del) {
 			/* The delete mark should be set in rec for it to be
 			in the state required by prev_version */
@@ -278,7 +269,7 @@ row_vers_impl_x_locked(
 			/* The versions modified by the trx_id transaction end
 			to prev_version: no implicit x-lock */
 
-			trx = NULL;
+			trx_id = 0;
 
 			break;
 		}
@@ -287,10 +278,6 @@ row_vers_impl_x_locked(
 	}/* for (;;) */
 
 exit_func:
-
-	trx_id = (trx == NULL) ? trx->id : 0;
-
-	trx_sys_mutex_exit();
 
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
