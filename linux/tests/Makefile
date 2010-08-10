@@ -1,7 +1,8 @@
 # -*- Mode: Makefile -*-
 CPPFLAGS = -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 CPPFLAGS += -I../../toku_include -I.. -I.
-CFLAGS = -Wall -Werror -g -O0 -std=c99
+OPTFLAGS = -O0 
+CFLAGS = -W -Wall -Werror -g $(OPTFLAGS) -std=c99
 ifeq ($(GCCVERSION),4.4.2)
 	CFLAGS += -Wno-deprecated
 else ifeq ($(GCCVERSION),4.4.1)
@@ -37,6 +38,9 @@ all: $(TARGETS)
 .PHONY: check build
 build: $(TARGETS)
 check: $(TARGETS) $(RUNTARGETS);
+
+test-rwlock: OPTFLAGS=-O3
+test-rwlock: ../toku_pthread.h
 
 # pwrite4g needs an argument to tell it which directory to write temporary files
 test-pwrite4g.tdbrun: TEST_EXTRA_ARGS=.

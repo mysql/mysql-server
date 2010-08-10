@@ -168,6 +168,22 @@ toku_pthread_setspecific(toku_pthread_key_t key, void *data) {
     return pthread_setspecific(key, data);
 }
 
+// Fair readers/writer locks.  These are fair (meaning first-come first-served.  No reader starvation, and no writer starvation).  And they are
+// probably faster than the linux readers/writer locks (pthread_rwlock_t).
+struct toku_fair_rwlock_waiter_state; // this structure is used internally.
+typedef struct toku_fair_rwlock_s {
+    toku_pthread_mutex_t                  mutex;
+    int                                   state; // 0 means no locks, + is number of readers locked, -1 is a writer
+    struct toku_fair_rwlock_waiter_state *waiters_head, *waiters_tail;
+} toku_fair_rwlock_t;
+
+int toku_fair_rwlock_init (toku_fair_rwlock_t *rwlock);
+int toku_fair_rwlock_destroy (toku_fair_rwlock_t *rwlock);
+int toku_fair_rwlock_rdlock (toku_fair_rwlock_t *rwlock);
+int toku_fair_rwlock_wrlock (toku_fair_rwlock_t *rwlock);
+int toku_fair_rwlock_unlock (toku_fair_rwlock_t *rwlock);
+
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

@@ -37,7 +37,7 @@ check_snprintf(int i) {
 }
 
 
-int test_main(int argc, char *const argv[]) {
+int test_main(int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
     int i;
     for (i = 0; i < 8; i++) {
         check_snprintf(i);
