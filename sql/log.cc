@@ -4704,7 +4704,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);
       cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
 
-      if (thd->stmt_accessed_non_trans_temp_table())
+      if (thd->lex->stmt_accessed_non_trans_temp_table())
         cache_data->set_changes_to_non_trans_temp_table();
 
       thd->binlog_start_trans_and_stmt();

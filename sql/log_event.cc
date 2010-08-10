@@ -679,7 +679,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   server_id=	thd->server_id;
   when=		thd->start_time;
   cache_type= ((using_trans || stmt_has_updated_trans_table(thd) ||
-               (thd->stmt_accessed_temp_table() &&
+               (thd->lex->stmt_accessed_temp_table() &&
                trans_has_updated_trans_table(thd)))
                ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                Log_event::EVENT_STMT_CACHE);
@@ -2573,7 +2573,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
   {
     cache_type= ((using_trans || stmt_has_updated_trans_table(thd) || trx_cache ||
-                 (thd->stmt_accessed_temp_table() &&
+                 (thd->lex->stmt_accessed_temp_table() &&
                  trans_has_updated_trans_table(thd)))
                  ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                  Log_event::EVENT_STMT_CACHE);
