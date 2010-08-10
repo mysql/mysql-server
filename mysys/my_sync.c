@@ -68,6 +68,8 @@ int my_sync(File fd, myf my_flags)
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
+    if (res == -1 and errno == ENOLCK)
+      res= 0;                                   /* Result Bug in Old FreeBSD */
 #elif defined(__WIN__)
     res= _commit(fd);
 #else
