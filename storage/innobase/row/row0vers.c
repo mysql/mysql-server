@@ -81,9 +81,9 @@ row_vers_impl_x_locked(
 	mtr_start(&mtr);
 
 	/* Search for the clustered index record: this is a time-consuming
-	operation: therefore we release the kernel mutex; also, the release
-	is required by the latching order convention. The latch on the
-	clustered index locks the top of the stack of versions. We also
+	operation: therefore we release the trx_sys_t::mutex; also, the
+       	release is required by the latching order convention. The latch on
+       	the clustered index locks the top of the stack of versions. We also
 	reserve purge_latch to lock the bottom of the version stack. */
 
 	clust_rec = row_get_clust_rec(BTR_SEARCH_LEAF, rec, index,
@@ -156,11 +156,13 @@ row_vers_impl_x_locked(
 		trx_id_t	prev_trx_id;
 
 		/* While we retrieve an earlier version of clust_rec, we
-		release the kernel mutex, because it may take time to access
-		the disk. After the release, we have to check if the trx_id
-		transaction is still active. We keep the semaphore in mtr on
-		the clust_rec page, so that no other transaction can update
-		it and get an implicit x-lock on rec. */
+		release the trx_sys_t::mutex, because it may take time to
+	       	access the disk. After the release, we have to check if the
+	       	trx_id transaction is still active. We keep the semaphore
+	       	in mtr on the clust_rec page, so that no other transaction
+	       	can update it and get an implicit x-lock on rec. */
+
+		trx_sys_mutex_exit();
 
 		heap2 = heap;
 		heap = mem_heap_create(1024);
@@ -168,6 +170,8 @@ row_vers_impl_x_locked(
 						  clust_index, clust_offsets,
 						  heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
+
+		trx_sys_mutex_enter();
 
 		if (prev_version == NULL) {
 			trx = trx_is_active_low(trx_id);
