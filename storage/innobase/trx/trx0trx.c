@@ -601,12 +601,7 @@ trx_assign_rseg(void)
 
 		i = (rseg == NULL) ? 0 : i + 1;
 
-		/* If it is the SYSTEM rollback segment, and there
-		exist others, skip it */
-
-	} while (rseg == NULL
-		 && rseg->id == TRX_SYS_SYSTEM_RSEG_ID
-	         && trx_sys->rseg_array[1] != NULL);
+	} while (rseg == NULL);
 
 	trx_sys_mutex_enter();
 
