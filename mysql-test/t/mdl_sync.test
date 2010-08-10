@@ -4041,7 +4041,9 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
---error 1,1 # Wrong error pending followup patch for bug#54360
+# Error 1 is from ALTER DATABASE when the database does not exist.
+# Listing the error twice to prevent result diffences based on filename.
+--error 1,1
 --reap
 
 
@@ -4153,7 +4155,9 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: RENAME TABLE test.t2 TO db1.t2
---error 7, 7 # Wrong error pending followup patch for bug#54360
+# Error 7 is from RENAME TABLE where the target database does not exist.
+# Listing the error twice to prevent result diffences based on filename.
+--error 7, 7
 --reap
 DROP TABLE test.t2;
 
