@@ -154,6 +154,8 @@ private:
   */
   bool m_extra_cache;
   uint m_extra_cache_size;
+  /* The same goes for HA_EXTRA_PREPARE_FOR_UPDATE */
+  bool m_extra_prepare_for_update;
 
   void init_handler_variables();
   /*
