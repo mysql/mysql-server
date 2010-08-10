@@ -1783,6 +1783,7 @@ err:
     part_info->frm_log_entry= NULL;
     (void) sync_ddl_log();
 #endif
+    ;
   }
 
 end:
