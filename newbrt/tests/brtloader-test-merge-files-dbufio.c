@@ -31,6 +31,7 @@ static int loader_poll_callback(void *UU(extra), float UU(progress)) {
     event_count++;
     if (event_count_trigger == event_count) {
         event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
         r = TOKUDB_CANCELED;
     } else {
         r = 0;
@@ -43,6 +44,7 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
     size_t r;
     if (event_count_trigger == event_count) {
         event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -59,6 +61,7 @@ static ssize_t bad_write(int fd, const void * bp, size_t len) {
     event_count++;
     if (event_count_trigger == event_count) {
         event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -72,6 +75,7 @@ static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
     event_count++;
     if (event_count_trigger == event_count) {
         event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -86,6 +90,7 @@ bad_fdopen(int fd, const char * mode) {
     event_count++;
     if (event_count_trigger == event_count) {
 	event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -100,6 +105,7 @@ bad_fopen(const char *filename, const char *mode) {
     event_count++;
     if (event_count_trigger == event_count) {
 	event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -115,6 +121,7 @@ bad_open(const char *path, int oflag, int mode) {
     event_count++;
     if (event_count_trigger == event_count) {
 	event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	errno = EINVAL;
 	rval = -1;
     } else {
@@ -133,6 +140,7 @@ bad_fclose(FILE * stream) {
     rval = fclose(stream);
     if (rval==0) {
 	if (event_count_trigger == event_count) {
+            if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
 	    errno = ENOSPC;
 	    rval = -1;
 	}
@@ -181,6 +189,7 @@ static void *my_malloc(size_t n) {
             event_count++;
             if (event_count == event_count_trigger) {
                 event_hit();
+                if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
                 errno = ENOMEM;
                 return NULL;
             }
@@ -206,6 +215,7 @@ static void *my_realloc(void *p, size_t n) {
             event_count++;
             if (event_count == event_count_trigger) {
                 event_hit();
+                if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
                 errno = ENOMEM;
                 return NULL;
             }
@@ -391,6 +401,8 @@ static void test (const char *directory, BOOL is_error) {
 	    if (r!=0) printf("%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, errorstr_static(r));
 	    assert(r==0);
 	}
+        if (r)
+            panic_dbufio_fileset(bfs, r);
     }
     {
 	int r = queue_eof(q);
