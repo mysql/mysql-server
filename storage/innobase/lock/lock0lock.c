@@ -1594,15 +1594,15 @@ lock_sec_rec_some_has_impl(
 
 		trx_id = 0;
 
-	/* In this case it is possible that some transaction has an implicit
-       	x-lock. We have to look in the clustered index. */
-
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
 
 		buf_page_print(page, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
 		trx_id = 0;
+
+	/* In this case it is possible that some transaction has an implicit
+       	x-lock. We have to look in the clustered index. */
 
 	} else {
 		trx_id = row_vers_impl_x_locked(rec, index, offsets);

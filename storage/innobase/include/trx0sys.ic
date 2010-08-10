@@ -353,11 +353,10 @@ trx_is_active_low(
 		trx = NULL;
 	} else if (trx_id >= trx_sys->max_trx_id) {
 
-		/* There must be corruption: we return TRUE because this
-		function is only called by lock_clust_rec_some_has_impl()
-		and row_vers_impl_x_locked_off_kernel() and they have
-		diagnostic prints in this case */
+		/* There must be corruption: we let the caller handle the
+	       	diagnostic prints in this case. */
 
+		trx = NULL;
 		*corrupt = TRUE;
 	} else {
 		trx = trx_get_on_id_low(trx_id);
