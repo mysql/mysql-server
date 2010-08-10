@@ -250,7 +250,7 @@ sync_array_create(
 
 	/* Then create the mutex to protect the wait array complex */
 	if (protection == SYNC_ARRAY_OS_MUTEX) {
-		arr->os_mutex = os_mutex_create(NULL);
+		arr->os_mutex = os_mutex_create();
 	} else if (protection == SYNC_ARRAY_MUTEX) {
 		mutex_create(syn_arr_mutex_key,
 			     &arr->mutex, SYNC_NO_ORDER_CHECK);

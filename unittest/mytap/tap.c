@@ -30,9 +30,9 @@
 
 /*
   Visual Studio 2003 does not know vsnprintf but knows _vsnprintf.
-  We don't put this #define in config-win.h because we prefer
-  my_vsnprintf everywhere instead, except when linking with libmysys
-  is not desirable - the case here.
+  We don't put this #define elsewhere because we prefer my_vsnprintf
+  everywhere instead, except when linking with libmysys is not
+  desirable - the case here.
 */
 #if defined(_MSC_VER) && ( _MSC_VER == 1310 )
 #define vsnprintf _vsnprintf

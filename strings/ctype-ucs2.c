@@ -134,11 +134,6 @@ my_strntol_mb2_or_mb4(CHARSET_INFO *cs,
   
 bs:
 
-#ifdef NOT_USED  
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
-  
   overflow= 0;
   res= 0;
   save= s;
@@ -250,11 +245,6 @@ my_strntoul_mb2_or_mb4(CHARSET_INFO *cs,
   
 bs:
 
-#ifdef NOT_USED
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
-
   overflow= 0;
   res= 0;
   save= s;
@@ -358,11 +348,6 @@ my_strntoll_mb2_or_mb4(CHARSET_INFO *cs,
   } while (1);
   
 bs:
-
-#ifdef NOT_USED  
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   overflow = 0;
   res = 0;
@@ -474,11 +459,6 @@ my_strntoull_mb2_or_mb4(CHARSET_INFO *cs,
   } while (1);
   
 bs:
-  
-#ifdef NOT_USED
-  if (base <= 0 || base == 1 || base > 36)
-    base = 10;
-#endif
 
   overflow = 0;
   res = 0;
@@ -1640,7 +1620,8 @@ my_like_range_utf16(CHARSET_INFO *cs,
       int chlen;
       *min_str++= (char) (cs->min_sort_char >> 8);
       *min_str++= (char) (cs->min_sort_char & 255);
-      chlen= my_uni_utf16(cs, cs->max_sort_char, max_str, max_end);
+      chlen= my_uni_utf16(cs, cs->max_sort_char, (uchar *) max_str,
+                          (uchar *) max_end);
       if (chlen <= 0)
         goto end;
       max_str+= chlen;
@@ -1660,7 +1641,8 @@ my_like_range_utf16(CHARSET_INFO *cs,
         int chlen;
         *min_str++ = (char) (cs->min_sort_char >> 8);
         *min_str++ = (char) (cs->min_sort_char & 255);
-        chlen= my_uni_utf16(cs, cs->max_sort_char, max_str, max_end);
+        chlen= my_uni_utf16(cs, cs->max_sort_char, (uchar *) max_str,
+                            (uchar *) max_end);
         if (chlen <= 0)
           break;
         max_str+= chlen;

@@ -627,10 +627,6 @@ static COMMANDS commands[] = {
   { "QUARTER", 0, 0, 0, ""},
   { "QUERY", 0, 0, 0, ""},
   { "QUICK", 0, 0, 0, ""},
-  { "RAID0", 0, 0, 0, ""},
-  { "RAID_CHUNKS", 0, 0, 0, ""},
-  { "RAID_CHUNKSIZE", 0, 0, 0, ""},
-  { "RAID_TYPE", 0, 0, 0, ""},
   { "READ", 0, 0, 0, ""},
   { "READS", 0, 0, 0, ""},
   { "REAL", 0, 0, 0, ""},
@@ -3656,7 +3652,7 @@ xmlencode_print(const char *src, uint length)
     tee_fputs("NULL", PAGER);
   else
   {
-    for (const char *p = src; length; *p++, length--)
+    for (const char *p = src; length; p++, length--)
     {
       const char *t;
       if ((t = array_value(xmlmeta, *p)))
@@ -4744,7 +4740,7 @@ static const char* construct_prompt()
   struct tm *t = localtime(&lclock);
 
   /* parse thru the settings for the prompt */
-  for (char *c = current_prompt; *c ; *c++)
+  for (char *c = current_prompt; *c ; c++)
   {
     if (*c != PROMPT_CHAR)
 	processed_prompt.append(*c);
