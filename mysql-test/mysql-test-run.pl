@@ -4039,6 +4039,7 @@ sub extract_warning_lines ($) {
      qr/Now setting lower_case_table_names to [02]/,
      qr/Setting lower_case_table_names=2/,
      qr/You have forced lower_case_table_names to 0/,
+     qr/Plugin 'ndbcluster' will be forced to shutdow/,
      qr/deprecated/,
      qr/Slave SQL thread retried transaction/,
      qr/Slave \(additional info\)/,
