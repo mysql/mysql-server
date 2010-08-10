@@ -1670,3 +1670,25 @@ SET @@sql_quote_show_create = @sql_quote_show_create_saved;
 
 # End of Bug#34828.
 
+# Make sure we can manipulate with autocommit in the
+# along with other variables.
+drop table if exists t1;
+drop function if exists t1_max;
+drop function if exists t1_min;
+create table t1 (a int) engine=innodb;
+insert into t1(a) values (0), (1);
+create function t1_max() returns int return (select max(a) from t1);
+create function t1_min() returns int return (select min(a) from t1);
+select t1_min();
+t1_min()
+0
+select t1_max();
+t1_max()
+1
+set @@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+@@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+@@session.autocommit=t1_min(), @@session.autocommit=t1_max();
+# Cleanup.
+drop table t1;
+drop function t1_min;
+drop function t1_max;

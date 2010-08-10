@@ -286,7 +286,7 @@ static void do_copy_blob(Copy_field *copy)
 {
   ulong length=((Field_blob*) copy->from_field)->get_length();
   ((Field_blob*) copy->to_field)->store_length(length);
-  memcpy_fixed(copy->to_ptr,copy->from_ptr,sizeof(char*));
+  memcpy(copy->to_ptr, copy->from_ptr, sizeof(char*));
 }
 
 static void do_conv_blob(Copy_field *copy)

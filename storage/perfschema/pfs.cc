@@ -1051,10 +1051,10 @@ void* pfs_spawn_thread(void *arg)
 
       pfs->m_parent_thread_internal_id= parent->m_thread_internal_id;
 
-      memcpy_fixed(pfs->m_username, parent->m_username, sizeof(pfs->m_username));
+      memcpy(pfs->m_username, parent->m_username, sizeof(pfs->m_username));
       pfs->m_username_length= parent->m_username_length;
 
-      memcpy_fixed(pfs->m_hostname, parent->m_hostname, sizeof(pfs->m_hostname));
+      memcpy(pfs->m_hostname, parent->m_hostname, sizeof(pfs->m_hostname));
       pfs->m_hostname_length= parent->m_hostname_length;
     }
   }

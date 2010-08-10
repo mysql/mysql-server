@@ -38,6 +38,8 @@ INSERT INTO t1 VALUES ('MySQL','1993-02-04'),('ROCKS', '1990-08-27'),('Texas', '
 END|
 CALL p2();
 CALL p1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE p1;

@@ -32,6 +32,9 @@
 # windows does not support symlink for DATA/INDEX DIRECTORY.
 --source include/not_windows.inc
 
+# Does not work with --embedded
+--source include/not_embedded.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings

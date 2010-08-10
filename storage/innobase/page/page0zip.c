@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,6 +42,7 @@ Created June 2005 by Marko Makela
 # include "btr0sea.h"
 # include "dict0boot.h"
 # include "lock0lock.h"
+# include "srv0mon.h"
 #else /* !UNIV_HOTBACKUP */
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
@@ -1214,6 +1215,7 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
+	MONITOR_INC(MONITOR_PAGE_COMPRESS);
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1464,6 +1466,7 @@ page_zip_fields_free(
 		dict_table_t*	table = index->table;
 		mem_heap_free(index->heap);
 		mutex_free(&(table->autoinc_mutex));
+		ut_free(table->name);
 		mem_heap_free(table->heap);
 	}
 }
@@ -3021,6 +3024,7 @@ err_exit:
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->decompressed++;
 		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
+		MONITOR_INC(MONITOR_PAGE_DECOMPRESS);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4467,7 +4471,7 @@ page_zip_reorganize(
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
 		page_set_max_trx_id(block, NULL, max_trx_id, NULL);
-		ut_ad(!ut_dulint_is_zero(max_trx_id));
+		ut_ad(max_trx_id != 0);
 	}
 
 	/* Restore logging. */
@@ -4527,7 +4531,7 @@ page_zip_copy_recs(
 	/* The PAGE_MAX_TRX_ID must be set on leaf pages of secondary
 	indexes.  It does not matter on other pages. */
 	ut_a(dict_index_is_clust(index) || !page_is_leaf(src)
-	     || !ut_dulint_is_zero(page_get_max_trx_id(src)));
+	     || page_get_max_trx_id(src));
 
 	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_W(page_zip->data, page_zip_get_size(page_zip));
