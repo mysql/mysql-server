@@ -29,7 +29,6 @@ struct dbufio_file {
     int    error_code[2]; // includes errno or eof. [0] is the error code associated with buf[0], [1] is the code for buf[1]
 
     BOOL io_done;
-
 };
 
 
@@ -128,11 +127,13 @@ static void* io_thread (void *v)
 	    }
 	    //printf("%s:%d Doing read fd=%d\n", __FILE__, __LINE__, dbf->fd);
 	    {
-		ssize_t readcode = read(dbf->fd, dbf->buf[1], bfs->bufsize);
+		ssize_t readcode = toku_os_read(dbf->fd, dbf->buf[1], bfs->bufsize);
 		//printf("%s:%d readcode=%ld\n", __FILE__, __LINE__, readcode);
 		if (readcode==-1) {
 		    // a real error.  Save the real error.
-		    dbf->error_code[1] = errno;
+                    int the_errno = errno;
+                    fprintf(stderr, "%s:%d dbf=%p fd=%d errno=%d\n", __FILE__, __LINE__, dbf, dbf->fd, the_errno);
+		    dbf->error_code[1] = the_errno;
 		    dbf->n_in_buf[1] = 0;
 		} else if (readcode==0) {
 		    // End of file.  Save it.
@@ -219,7 +220,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 	    }
 	    bfs->files[i].io_done = FALSE;
 	    {
-		ssize_t r = read(bfs->files[i].fd, bfs->files[i].buf[0], bufsize);
+		ssize_t r = toku_os_read(bfs->files[i].fd, bfs->files[i].buf[0], bufsize);
 		if (r<0) {
 		    result=errno;
 		    break;
@@ -370,4 +371,19 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 	}
 	assert(0); // cannot get here.
     }
+}
+
+void
+dbufio_print(DBUFIO_FILESET bfs) {
+    fprintf(stderr, "%s:%d bfs=%p", __FILE__, __LINE__, bfs);
+    if (bfs->panic)
+        fprintf(stderr, " panic=%d", bfs->panic_errno);
+    fprintf(stderr, " N=%d %d %"PRIuMAX, bfs->N, bfs->n_not_done, bfs->bufsize);
+    for (int i = 0; i < bfs->N; i++) {
+        struct dbufio_file *dbf = &bfs->files[i];
+        if (dbf->error_code[0] || dbf->error_code[1])
+            fprintf(stderr, " %d=[%d,%d]", i, dbf->error_code[0], dbf->error_code[1]);
+    }
+    fprintf(stderr, "\n");
+                
 }

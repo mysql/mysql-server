@@ -140,7 +140,21 @@ bad_fclose(FILE * stream) {
     return rval;
 }
 
+int bad_read_errno = 0;
 
+static ssize_t
+bad_read(int fd, void *buf, size_t count) {
+    ssize_t rval;
+    event_count++;
+    if (event_count_trigger == event_count) {
+        event_hit();
+        if (verbose) printf("%s %d\n", __FUNCTION__, event_count);
+        errno = bad_read_errno;
+        rval = -1;
+    } else
+        rval = read(fd, buf, count);
+    return rval;
+}
 
 static int my_malloc_event = 1;
 static int my_malloc_count = 0, my_big_malloc_count = 0;
@@ -366,7 +380,7 @@ static void test (const char *directory, BOOL is_error) {
     toku_set_func_fopen(bad_fopen);
     toku_set_func_open(bad_open);
     toku_set_func_fclose(bad_fclose);
-
+    if (bad_read_errno) toku_set_func_read(bad_read);
 
     int result = 0;
     {
@@ -392,6 +406,7 @@ static void test (const char *directory, BOOL is_error) {
     toku_set_func_fopen(NULL);
     toku_set_func_open(NULL);
     toku_set_func_fclose(NULL);
+    toku_set_func_read(NULL);
     do_assert_hook = my_assert_hook;
 
     {
@@ -445,6 +460,7 @@ static int usage(const char *progname, int n) {
     fprintf(stderr, "[-s] set the small loader size factor\n");
     fprintf(stderr, "[-m] inject big malloc failures\n");
     fprintf(stderr, "[-tend NEVENTS] stop testing after N events\n");
+    fprintf(stderr, "[-bad_read_errno ERRNO]\n");
     return 1;
 }
 
@@ -467,12 +483,15 @@ int test_main (int argc, const char *argv[]) {
             toku_brtloader_set_size_factor(1);
         } else if (strcmp(argv[0],"-m") == 0) {
             my_malloc_event = 1;
-	} else if (strcmp(argv[0],"-tend") == 0) {
+	} else if (strcmp(argv[0],"-tend") == 0 && argc > 1) {
             argc--; argv++;
 	    tend = atoi(argv[0]);
-	} else if (strcmp(argv[0],"-tstart") == 0) {
+	} else if (strcmp(argv[0],"-tstart") == 0 && argc > 1) {
             argc--; argv++;
 	    tstart = atoi(argv[0]);
+        } else if (strcmp(argv[0], "-bad_read_errno") == 0 && argc > 1) {
+            argc--; argv++;
+            bad_read_errno = atoi(argv[0]);
 	} else if (argc!=1) {
             return usage(progname, N_RECORDS);
 	}
@@ -514,7 +533,7 @@ int test_main (int argc, const char *argv[]) {
         event_count_trigger = i;
         r = system(unlink_all); CKERR(r);
         r = toku_os_mkdir(directory, 0755); CKERR(r);
-
+        if (verbose) printf("event=%d\n", i);
 	test(directory, TRUE);
     }
     }

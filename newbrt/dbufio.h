@@ -24,6 +24,8 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 
 int panic_dbufio_fileset(DBUFIO_FILESET, int error);
 
+void dbufio_print(DBUFIO_FILESET);
+
 C_END
 
 #endif
