@@ -334,16 +334,19 @@ trx_list_get_min_trx_id(void)
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
 the trx_sys_t::mutex.
-@return	TRUE if active */
+@return	transaction instance if active */
 UNIV_INLINE
 trx_t*
 trx_is_active_low(
 /*==============*/
-	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
+	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
+	ibool*		corrupt)	/*!< out: TRUE if corrupt */
 {
 	trx_t*		trx;
 
 	ut_ad(trx_sys_mutex_own());
+
+	*corrupt = FALSE;
 
 	if (trx_id < trx_list_get_min_trx_id_low()) {
 
@@ -355,6 +358,7 @@ trx_is_active_low(
 		and row_vers_impl_x_locked_off_kernel() and they have
 		diagnostic prints in this case */
 
+		*corrupt = TRUE;
 	} else {
 		trx = trx_get_on_id_low(trx_id);
 
@@ -379,10 +383,11 @@ trx_is_active(
 	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
 {
 	trx_t*		trx;
+	ibool		corrupt;
 
 	trx_sys_mutex_enter();
 
-	trx = trx_is_active_low(trx_id);
+	trx = trx_is_active_low(trx_id, &corrupt);
 
 	trx_sys_mutex_exit();
 
