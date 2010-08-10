@@ -1914,7 +1914,6 @@ my_bool _ma_log_change(MARIA_PAGE *ma_page, const uchar *key_pos, uint length,
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 6 + 7], *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   uint offset= (uint) (key_pos - ma_page->buff), translog_parts;
-  uint extra_length= 0;
   my_off_t page;
   MARIA_HA *info= ma_page->info;
   DBUG_ENTER("_ma_log_change");
@@ -1956,15 +1955,14 @@ my_bool _ma_log_change(MARIA_PAGE *ma_page, const uchar *key_pos, uint length,
     int4store(log_pos+3, crc);
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
-    extra_length+= 7;
+    log_pos+= 7;
     translog_parts++;
   }
 #endif
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
-                            (translog_size_t) (sizeof(log_data) - 7 + length +
-                                               extra_length),
+                            (translog_size_t) (log_pos - log_data) + length,
                             TRANSLOG_INTERNAL_PARTS + translog_parts,
                             log_array, log_data, NULL))
     DBUG_RETURN(1);
