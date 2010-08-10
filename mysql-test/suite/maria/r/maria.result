@@ -2139,7 +2139,7 @@ Data records:                       0  Deleted blocks:                      0
 Block_size:                      8192
 Recordlength:                      99
 
-table description:
+Table description:
 Key Start Len Index   Type
 1   2     30  multip. varchar                
 2   33    30  multip. char NULL              

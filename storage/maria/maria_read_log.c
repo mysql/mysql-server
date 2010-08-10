@@ -56,6 +56,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "Can't init Maria engine (%d)\n", errno);
     goto err;
   }
+  maria_block_size= 0;                          /* Use block size from file */
   /* we don't want to create a control file, it MUST exist */
   if (ma_control_file_open(FALSE, TRUE))
   {
@@ -68,7 +69,7 @@ int main(int argc, char **argv)
     goto err;
   }
   if (init_pagecache(maria_pagecache, opt_page_buffer_size, 0, 0,
-                     TRANSLOG_PAGE_SIZE, MY_WME) == 0)
+                     maria_block_size, MY_WME) == 0)
   {
     fprintf(stderr, "Got error in init_pagecache() (errno: %d)\n", errno);
     goto err;

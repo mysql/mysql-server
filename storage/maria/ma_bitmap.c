@@ -2393,6 +2393,8 @@ my_bool _ma_bitmap_set(MARIA_HA *info, pgcache_page_no_t page, my_bool head,
   uint bits;
   my_bool res;
   DBUG_ENTER("_ma_bitmap_set");
+  DBUG_PRINT("enter", ("page: %lu  head: %d  empty_space: %u",
+                       (ulong) page, head, empty_space));
 
   pthread_mutex_lock(&info->s->bitmap.bitmap_lock);
   bits= (head ?
