@@ -73,6 +73,7 @@ row_vers_impl_x_locked(
 	ulint		err;
 	mtr_t		mtr;
 	ulint		comp;
+	ibool		corrupt;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -115,16 +116,17 @@ row_vers_impl_x_locked(
 
 	trx_sys_mutex_enter();
 
-	trx = trx_is_active_low(trx_id);
+	trx = trx_is_active_low(trx_id, &corrupt);
 
-	if (trx == NULL) {
+	if (trx == NULL && !corrupt) {
 
 		/* The transaction that modified or inserted clust_rec is no
 		longer active: no implicit lock on rec */
 
 		goto exit_func;
 
-	} else if (!lock_check_trx_id_sanity(
+	} else if (corrupt
+		   && !lock_check_trx_id_sanity(
 			trx_id, clust_rec, clust_index, clust_offsets)) {
 
 		/* Corruption noticed: try to avoid a crash by returning */
@@ -174,7 +176,7 @@ row_vers_impl_x_locked(
 		trx_sys_mutex_enter();
 
 		if (prev_version == NULL) {
-			trx = trx_is_active_low(trx_id);
+			trx = trx_is_active_low(trx_id, &corrupt);
 
 			if (trx == NULL) {
 				/* Transaction no longer active: no
@@ -233,7 +235,7 @@ row_vers_impl_x_locked(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		trx = trx_is_active_low(trx_id);
+		trx = trx_is_active_low(trx_id, &corrupt);
 
 		if (trx == NULL) {
 

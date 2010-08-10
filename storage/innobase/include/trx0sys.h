@@ -295,7 +295,8 @@ UNIV_INLINE
 trx_t*
 trx_is_active_low(
 /*==============*/
-	trx_id_t	trx_id);/*!< in: trx id of the transaction */
+	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
+	ibool*		corrupt);	/*!< out: TRUE if corrupt */
 /****************************************************************//**
 Checks if a transaction with the given id is active.
 @return	transaction instance if active */
