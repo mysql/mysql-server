@@ -8654,7 +8654,9 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   if (! has_lock)
     mysql_mutex_lock(&LOCK_open);
   else
+  {
     mysql_mutex_assert_owner(&LOCK_open);
+  }
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
