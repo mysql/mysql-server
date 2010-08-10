@@ -188,8 +188,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (!error)
     query_cache_invalidate3(thd, table_list, 0);
 
-  thd->mdl_context.release_transactional_locks();
-
 err:
   thd->global_read_lock.start_waiting_global_read_lock(thd);
   DBUG_RETURN(error || binlog_error);
