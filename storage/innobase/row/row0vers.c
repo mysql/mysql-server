@@ -49,9 +49,9 @@ Created 2/6/1997 Heikki Tuuri
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
-@return NULL if committed, else the active transaction */
+@return 0 if committed, else the active transaction */
 UNIV_INTERN
-trx_t*
+trx_id_t
 row_vers_impl_x_locked(
 /*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */
@@ -62,7 +62,7 @@ row_vers_impl_x_locked(
 	rec_t*		clust_rec;
 	ulint*		clust_offsets;
 	rec_t*		version;
-	trx_id_t	trx_id;
+	trx_id_t	trx_id = 0;
 	mem_heap_t*	heap;
 	mem_heap_t*	heap2;
 	dtuple_t*	row;
@@ -103,7 +103,7 @@ row_vers_impl_x_locked(
 
 		mtr_commit(&mtr);
 
-		return(NULL);
+		return(0);
 	}
 
 	heap = mem_heap_create(1024);
@@ -113,16 +113,22 @@ row_vers_impl_x_locked(
 
 	mtr_s_lock(&purge_sys->latch, &mtr);
 
-	trx = NULL;
-	if (!trx_is_active(trx_id)) {
+	trx_sys_mutex_enter();
+
+	trx = trx_is_active_low(trx_id);
+
+	if (trx == NULL) {
+
 		/* The transaction that modified or inserted clust_rec is no
 		longer active: no implicit lock on rec */
-		goto exit_func;
-	}
 
-	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index,
-				      clust_offsets)) {
+		goto exit_func;
+
+	} else if (!lock_check_trx_id_sanity(
+			trx_id, clust_rec, clust_index, clust_offsets)) {
+
 		/* Corruption noticed: try to avoid a crash by returning */
+
 		goto exit_func;
 	}
 
@@ -141,8 +147,6 @@ row_vers_impl_x_locked(
 	modify rec, and does not necessarily have an implicit x-lock on rec. */
 
 	rec_del = rec_get_deleted_flag(rec, comp);
-	trx = NULL;
-
 	version = clust_rec;
 
 	for (;;) {
@@ -166,7 +170,9 @@ row_vers_impl_x_locked(
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version == NULL) {
-			if (!trx_is_active(trx_id)) {
+			trx = trx_is_active_low(trx_id);
+
+			if (trx == NULL) {
 				/* Transaction no longer active: no
 				implicit x-lock */
 
@@ -177,11 +183,6 @@ row_vers_impl_x_locked(
 			clust_rec must be a fresh insert, because no
 			previous version was found. */
 			ut_ad(err == DB_SUCCESS);
-
-			/* It was a freshly inserted version: there is an
-			implicit x-lock on rec */
-
-			trx = trx_get_on_id(trx_id);
 
 			break;
 		}
@@ -208,18 +209,13 @@ row_vers_impl_x_locked(
 		columns. */
 		row = row_build(ROW_COPY_POINTERS, clust_index, prev_version,
 				clust_offsets, NULL, &ext, heap);
+
 		entry = row_build_index_entry(row, ext, index, heap);
 		/* entry may be NULL if a record was inserted in place
 		of a deleted record, and the BLOB pointers of the new
 		record were not initialized yet.  But in that case,
 		prev_version should be NULL. */
 		ut_a(entry);
-
-		if (!trx_is_active(trx_id)) {
-			/* Transaction no longer active: no implicit x-lock */
-
-			break;
-		}
 
 		/* If we get here, we know that the trx_id transaction is
 		still active and it has modified prev_version. Let us check
@@ -233,13 +229,20 @@ row_vers_impl_x_locked(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		trx = trx_is_active_low(trx_id);
+
+		if (trx == NULL) {
+
+			/* Transaction no longer active: no implicit x-lock */
+
+			break;
+
+		} else if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
 
 			if (rec_del != vers_del) {
-				trx = trx_get_on_id(trx_id);
 
 				break;
 			}
@@ -249,26 +252,27 @@ row_vers_impl_x_locked(
 			alphabetical ordering, but the field values changed
 			still. For example, 'abc' -> 'ABC'. Check also that. */
 
-			dtuple_set_types_binary(entry,
-						dtuple_get_n_fields(entry));
-			if (0 != cmp_dtuple_rec(entry, rec, offsets)) {
+			dtuple_set_types_binary(
+				entry, dtuple_get_n_fields(entry));
 
-				trx = trx_get_on_id(trx_id);
+			if (0 != cmp_dtuple_rec(entry, rec, offsets)) {
 
 				break;
 			}
+
+			trx = NULL;
+
 		} else if (!rec_del) {
 			/* The delete mark should be set in rec for it to be
 			in the state required by prev_version */
 
-			trx = trx_get_on_id(trx_id);
-
 			break;
-		}
 
-		if (trx_id != prev_trx_id) {
+		} else if (trx_id != prev_trx_id) {
 			/* The versions modified by the trx_id transaction end
 			to prev_version: no implicit x-lock */
+
+			trx = NULL;
 
 			break;
 		}
@@ -277,10 +281,15 @@ row_vers_impl_x_locked(
 	}/* for (;;) */
 
 exit_func:
+
+	trx_id = (trx == NULL) ? trx->id : 0;
+
+	trx_sys_mutex_exit();
+
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
-	return(trx);
+	return(trx_id);
 }
 
 /*****************************************************************//**

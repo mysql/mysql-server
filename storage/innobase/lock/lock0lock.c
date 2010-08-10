@@ -1565,20 +1565,24 @@ lock_rec_find_similar_on_page(
 /*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a secondary
 index.
-@return	transaction which has the x-lock, or NULL */
+@return	transaction id of the transaction which has the x-lock, or 0 */
 static
-trx_t*
+trx_id_t
 lock_sec_rec_some_has_impl(
 /*=======================*/
 	const rec_t*	rec,	/*!< in: user record */
 	dict_index_t*	index,	/*!< in: secondary index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
+	trx_id_t	trx_id;
+	trx_id_t	max_trx_id;
 	const page_t*	page = page_align(rec);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
+
+	max_trx_id = page_get_max_trx_id(page);
 
 	/* Some transaction may have an implicit x-lock on the record only
 	if the max trx id for the page >= min trx id for the trx list, or
@@ -1586,25 +1590,25 @@ lock_sec_rec_some_has_impl(
 	max trx id to the log, and therefore during recovery, this value
 	for a page may be incorrect. */
 
-	if (page_get_max_trx_id(page) < trx_list_get_min_trx_id()
-	    && !recv_recovery_is_on()) {
+	if (max_trx_id < trx_list_get_min_trx_id() && !recv_recovery_is_on()) {
 
-		return(NULL);
-	}
+		trx_id = 0;
 
-	/* Ok, in this case it is possible that some transaction has an
-	implicit x-lock. We have to look in the clustered index. */
+	/* In this case it is possible that some transaction has an implicit
+       	x-lock. We have to look in the clustered index. */
 
-	if (!lock_check_trx_id_sanity(page_get_max_trx_id(page),
-				      rec, index, offsets)) {
+	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
+
 		buf_page_print(page, 0);
 
-		/* The page is corrupt: try to avoid a crash by returning
-		NULL */
-		return(NULL);
+		/* The page is corrupt: try to avoid a crash by returning 0 */
+		trx_id = 0;
+
+	} else {
+		trx_id = row_vers_impl_x_locked(rec, index, offsets);
 	}
 
-	return(row_vers_impl_x_locked(rec, index, offsets));
+	return(trx_id);
 }
 
 /*********************************************************************//**
@@ -4802,13 +4806,17 @@ lock_rec_queue_validate(
 
 	if (!index);
 	else if (dict_index_is_clust(index)) {
+		trx_id_t	trx;
 
 		/* Unlike the non-debug code, this invariant can only succeed
 		if the check and assertion are covered by the lock mutex. */
 
-		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
+		trx_id  = lock_clust_rec_some_has_impl(rec, index, offsets);
 
-		if (impl_trx
+
+		impl_trx = trx_is_active_low(trx_id);
+
+		if (impl_trx != NULL
 		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
 						   block, heap_no, impl_trx)) {
 
@@ -5256,7 +5264,7 @@ lock_rec_convert_impl_to_expl(
 	dict_index_t*		index,	/*!< in: index of record */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	trx_t*	impl_trx;
+	trx_id_t		trx_id;
 
 	ut_ad(!lock_mutex_own());
 	ut_ad(page_rec_is_user_rec(rec));
@@ -5266,14 +5274,17 @@ lock_rec_convert_impl_to_expl(
 	if (dict_index_is_clust(index)) {
 		trx_sys_mutex_enter();
 
-		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
+		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
 
 		trx_sys_mutex_exit();
 	} else {
-		impl_trx = lock_sec_rec_some_has_impl(rec, index, offsets);
+		trx_id  = lock_sec_rec_some_has_impl(rec, index, offsets);
 	}
 
-	if (impl_trx) {
+	/* The state of the transaction can change after the check above. */
+
+	if (trx_id != 0) {
+		trx_t*	impl_trx;
 		ulint	heap_no = page_rec_get_heap_no(rec);
 
 		lock_mutex_enter();
@@ -5281,7 +5292,10 @@ lock_rec_convert_impl_to_expl(
 		/* If the transaction has no explicit x-lock set on the
 		record, set one for it */
 
-		if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block,
+		impl_trx = trx_is_active(trx_id);
+
+		if (impl_trx != NULL
+		    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block,
 				       heap_no, impl_trx)) {
 
 			lock_rec_add_to_queue(

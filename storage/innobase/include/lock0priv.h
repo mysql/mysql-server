@@ -113,9 +113,9 @@ lock_cancel_waiting_and_release(
 /*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a clustered
 index.
-@return	transaction which has the x-lock, or NULL */
+@return	transaction id of the transaction which has the x-lock, or 0 */
 UNIV_INLINE
-trx_t*
+trx_id_t
 lock_clust_rec_some_has_impl(
 /*=========================*/
 	const rec_t*	rec,		/*!< in: user record */
