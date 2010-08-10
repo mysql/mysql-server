@@ -463,6 +463,8 @@ NdbResultStream::reset()
 
   // Root scan-operation need a ScanTabConf to complete
   m_rowCount = 0;
+  m_iterState = Iter_notStarted;
+  m_currentRow = 0;
 
   clearParentChildMap();
 
