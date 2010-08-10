@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 
 MACRO (MY_ADD_TEST name)
   ADD_EXECUTABLE(${name}-t ${name}-t.c)
-  TARGET_LINK_LIBRARIES(${name}-t mytap mysys)
+  TARGET_LINK_LIBRARIES(${name}-t mytap mysys strings)
   ADD_TEST(${name} ${name}-t)
 ENDMACRO()
 
