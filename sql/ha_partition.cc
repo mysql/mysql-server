@@ -232,6 +232,7 @@ void ha_partition::init_handler_variables()
   m_innodb= FALSE;
   m_extra_cache= FALSE;
   m_extra_cache_size= 0;
+  m_extra_prepare_for_update= FALSE;
   m_handler_status= handler_not_initialized;
   m_low_byte_first= 1;
   m_part_field_array= NULL;
@@ -5549,9 +5550,20 @@ int ha_partition::extra(enum ha_extra_function operation)
   case HA_EXTRA_PREPARE_FOR_RENAME:
     DBUG_RETURN(prepare_for_rename());
     break;
+  case HA_EXTRA_PREPARE_FOR_UPDATE:
+    DBUG_ASSERT(m_extra_cache);
+    /*
+      Needs to be run on the first partition in the range now, and 
+      later in late_extra_cache, when switching to a new partition to scan.
+    */
+    m_extra_prepare_for_update= TRUE;
+    if (m_part_spec.start_part != NO_CURRENT_PART_ID)
+    {
+      VOID(m_file[m_part_spec.start_part]->extra(HA_EXTRA_PREPARE_FOR_UPDATE));
+    }
+    break;
   case HA_EXTRA_NORMAL:
   case HA_EXTRA_QUICK:
-  case HA_EXTRA_PREPARE_FOR_UPDATE:
   case HA_EXTRA_FORCE_REOPEN:
   case HA_EXTRA_PREPARE_FOR_DROP:
   case HA_EXTRA_FLUSH_CACHE:
@@ -5578,6 +5590,7 @@ int ha_partition::extra(enum ha_extra_function operation)
   {
     m_extra_cache= FALSE;
     m_extra_cache_size= 0;
+    m_extra_prepare_for_update= FALSE;
     DBUG_RETURN(loop_extra(operation));
   }
   case HA_EXTRA_IGNORE_NO_KEY:
@@ -5705,6 +5718,7 @@ int ha_partition::extra_opt(enum ha_extra_function operation, ulong cachesize)
 void ha_partition::prepare_extra_cache(uint cachesize)
 {
   DBUG_ENTER("ha_partition::prepare_extra_cache()");
+  DBUG_PRINT("info", ("cachesize %u", cachesize));
 
   m_extra_cache= TRUE;
   m_extra_cache_size= cachesize;
@@ -5793,14 +5807,21 @@ void ha_partition::late_extra_cache(uint partition_id)
 {
   handler *file;
   DBUG_ENTER("ha_partition::late_extra_cache");
+  DBUG_PRINT("info", ("extra_cache %u partid %u size %u", m_extra_cache,
+                      partition_id, m_extra_cache_size));
 
-  if (!m_extra_cache)
+  if (!m_extra_cache && !m_extra_prepare_for_update)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
   if (m_extra_cache_size == 0)
     VOID(file->extra(HA_EXTRA_CACHE));
   else
     VOID(file->extra_opt(HA_EXTRA_CACHE, m_extra_cache_size));
+  if (m_extra_prepare_for_update)
+  {
+    DBUG_ASSERT(m_extra_cache);
+    VOID(file->extra(HA_EXTRA_PREPARE_FOR_UPDATE));
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -5821,7 +5842,7 @@ void ha_partition::late_extra_no_cache(uint partition_id)
   handler *file;
   DBUG_ENTER("ha_partition::late_extra_no_cache");
 
-  if (!m_extra_cache)
+  if (!m_extra_cache && !m_extra_prepare_for_update)
     DBUG_VOID_RETURN;
   file= m_file[partition_id];
   VOID(file->extra(HA_EXTRA_NO_CACHE));
