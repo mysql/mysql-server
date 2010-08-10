@@ -38,9 +38,9 @@ Created 2/6/1997 Heikki Tuuri
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
-@return NULL if committed, else the active transaction */
+@return 0 if committed, else the active transaction id */
 UNIV_INTERN
-trx_t*
+trx_id_t
 row_vers_impl_x_locked(
 /*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */

@@ -290,17 +290,17 @@ trx_list_get_min_trx_id(void);
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
 the trx_sys_t::mutex.
-@return	TRUE if active */
+@return	transaction instance if active or NULL */
 UNIV_INLINE
-ibool
+trx_t*
 trx_is_active_low(
 /*==============*/
 	trx_id_t	trx_id);/*!< in: trx id of the transaction */
 /****************************************************************//**
 Checks if a transaction with the given id is active.
-@return	TRUE if active */
+@return	transaction instance if active */
 UNIV_INLINE
-ibool
+trx_t*
 trx_is_active(
 /*==========*/
 	trx_id_t	trx_id);/*!< in: trx id of the transaction */

@@ -336,18 +336,18 @@ Checks if a transaction with the given id is active. Caller must hold
 the trx_sys_t::mutex.
 @return	TRUE if active */
 UNIV_INLINE
-ibool
+trx_t*
 trx_is_active_low(
 /*==============*/
 	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
 {
-	ibool		is_active;
+	trx_t*		trx;
 
 	ut_ad(trx_sys_mutex_own());
 
 	if (trx_id < trx_list_get_min_trx_id_low()) {
 
-		is_active = FALSE;
+		trx = NULL;
 	} else if (trx_id >= trx_sys->max_trx_id) {
 
 		/* There must be corruption: we return TRUE because this
@@ -355,43 +355,38 @@ trx_is_active_low(
 		and row_vers_impl_x_locked_off_kernel() and they have
 		diagnostic prints in this case */
 
-		is_active = TRUE;
 	} else {
-		trx_t*	trx;
-
 		trx = trx_get_on_id_low(trx_id);
 
 		if (trx != NULL
-		    && (trx->lock.conc_state == TRX_ACTIVE
-			|| trx->lock.conc_state == TRX_PREPARED)) {
+		    && (trx->lock.conc_state != TRX_ACTIVE
+			&& trx->lock.conc_state != TRX_PREPARED)) {
 
-			is_active = TRUE;
-		} else {
-			is_active = FALSE;
+			trx = NULL;
 		}
 	}
 
-	return(is_active);
+	return(trx);
 }
 
 /****************************************************************//**
 Checks if a transaction with the given id is active.
 @return	TRUE if active */
 UNIV_INLINE
-ibool
+trx_t*
 trx_is_active(
 /*==========*/
 	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
 {
-	ibool		is_active;
+	trx_t*		trx;
 
 	trx_sys_mutex_enter();
 
-	is_active = trx_is_active_low(trx_id);
+	trx = trx_is_active_low(trx_id);
 
 	trx_sys_mutex_exit();
 
-	return(is_active);
+	return(trx);
 }
 
 /*****************************************************************//**
