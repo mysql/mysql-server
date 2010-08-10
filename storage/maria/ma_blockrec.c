@@ -698,7 +698,8 @@ static void check_directory(uchar *buff, uint block_size, uint min_row_length)
    @brief Calculate if there is enough entries on the page
 */
 
-my_bool enough_free_entries(uchar *buff, uint block_size, uint wanted_entries)
+static my_bool enough_free_entries(uchar *buff, uint block_size,
+                                   uint wanted_entries)
 {
   uint entries= (uint) buff[DIR_COUNT_OFFSET];
   uint needed_free_entries, free_entry;
@@ -719,6 +720,33 @@ my_bool enough_free_entries(uchar *buff, uint block_size, uint wanted_entries)
     free_entry= dir[3];
   }
   return 0;                                     /* Not enough entries */
+}
+
+
+/**
+   @brief Check if there is room for more rows on page
+
+   @fn enough_free_entries_on_page
+
+   @return 0    Directory is full
+   @return 1	There is room for more entries on the page
+*/
+
+static my_bool enough_free_entries_on_page(MARIA_SHARE *share,
+                                           uchar *page_buff)
+{
+  enum en_page_type page_type;
+  page_type= (enum en_page_type) (page_buff[PAGE_TYPE_OFFSET] &
+                                  ~(uchar) PAGE_CAN_BE_COMPACTED);
+
+  if (page_type == HEAD_PAGE)
+  {
+    uint row_count= (uint) page_buff[DIR_COUNT_OFFSET];
+    return !(row_count == MAX_ROWS_PER_PAGE &&
+             page_buff[DIR_FREE_OFFSET] == END_OF_DIR_FREE_LIST);
+  }
+  return enough_free_entries(page_buff, share->block_size,
+                             1 + share->base.blobs);
 }
 
 
@@ -6106,6 +6134,9 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     {
       /* Fix bitmap, just in case */
       empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
+      if (!enough_free_entries_on_page(share, buff))
+        empty_space= 0;                         /* Page is full */
+
       if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
         goto err;
       pagecache_unlock_by_link(share->pagecache, page_link.link,
@@ -6178,6 +6209,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     result= my_errno;
 
   /* Fix bitmap */
+  if (!enough_free_entries_on_page(share, buff))
+    empty_space= 0;                         /* Page is full */
   if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
     goto err;
 
@@ -6265,6 +6298,8 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
     if ((uint) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type)
     {
       empty_space= uint2korr(buff+EMPTY_SPACE_OFFSET);
+      if (!enough_free_entries_on_page(share, buff))
+        empty_space= 0;                         /* Page is full */
       if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE,
                          empty_space))
         goto err;
@@ -6289,6 +6324,8 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
   push_dynamic(&info->pinned_pages, (void*) &page_link);
 
   result= 0;
+  if (!enough_free_entries_on_page(share, buff))
+    empty_space= 0;                         /* Page is full */
   /* This will work even if the page was marked as UNALLOCATED_PAGE */
   if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
     result= my_errno;

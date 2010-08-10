@@ -1929,8 +1929,8 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       else
         _ma_check_print_error(param,
                               "Page %9s:  Wrong data in bitmap.  Page_type: "
-                              "%d  empty_space: %u  Bitmap-bits: %d",
-                              llstr(page, llbuff), page_type,
+                              "%d  full: %d  empty_space: %u  Bitmap-bits: %d",
+                              llstr(page, llbuff), full_dir, page_type,
                               empty_space, bitmap_pattern);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;
@@ -6762,7 +6762,7 @@ static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid)
     {
       _ma_check_print_warning(param,
                               "Found row with transaction id %s but no "
-                              "maria_control_file was specified.  "
+                              "maria_control_file was used or specified.  "
                               "The table may be corrupted",
                               llstr(used_trid, buff));
     }
