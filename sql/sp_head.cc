@@ -1950,6 +1950,14 @@ err_with_cleanup:
   free_root(&call_mem_root, MYF(0));
   thd->spcont= octx;
 
+  /*
+    If not insided a procedure and a function printing warning
+    messsages.
+  */
+  if (need_binlog_call && 
+      thd->spcont == NULL && !thd->binlog_evt_union.do_union)
+    thd->issue_unsafe_warnings();
+
   DBUG_RETURN(err_status);
 }
 
@@ -2194,6 +2202,17 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   delete nctx;
   thd->spcont= save_spcont;
   thd->utime_after_lock= utime_before_sp_exec;
+
+  /*
+    If not insided a procedure and a function printing warning
+    messsages.
+  */ 
+  bool need_binlog_call= mysql_bin_log.is_open() &&
+                         (thd->variables.option_bits & OPTION_BIN_LOG) &&
+                         !thd->is_current_stmt_binlog_format_row();
+  if (need_binlog_call && thd->spcont == NULL &&
+      !thd->binlog_evt_union.do_union)
+    thd->issue_unsafe_warnings();
 
   DBUG_RETURN(err_status);
 }
