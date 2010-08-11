@@ -6594,7 +6594,13 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
         time_passed > (10 * ctimeOutValue))
     {
       jam();
-      systemErrorLab(signal, __LINE__);
+      ndbout_c("timeOutFoundLab trans: 0x%x 0x%x state: %u",
+               apiConnectptr.p->transid[0],
+               apiConnectptr.p->transid[1],
+               (Uint32)apiConnectptr.p->apiConnectstate);
+
+      // Reset timeout to not flood log...
+      setApiConTimer(apiConnectptr.i, 0, __LINE__);
     }//if
     break;
   }
