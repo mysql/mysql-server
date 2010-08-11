@@ -2826,6 +2826,8 @@ srv_purge_coordinator_thread(
 					0, srv_purge_batch_size);
 
 				if (srv_check_activity(count)) {
+					sleep_ms = 500000;
+				} else if (n_pages_purged == 0) {
 					sleep_ms = 1000000;
 				} else {
 					sleep_ms = 0;
