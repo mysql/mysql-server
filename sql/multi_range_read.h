@@ -118,7 +118,7 @@ public:
       }
       else
       {
-        if (pos - nbytes <= sb->write_pos)
+        if (pos - nbytes < sb->write_pos)
           return NULL;
         pos -= nbytes;
         return pos;

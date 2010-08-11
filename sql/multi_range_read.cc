@@ -420,7 +420,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   }
 
   do_rowid_fetch= FALSE;
-  doing_cpk_scan= check_cpk_scan(h->active_index, mode);
+  doing_cpk_scan= check_cpk_scan(h->inited == handler::INDEX? 
+                                 h->active_index: h2->active_index, mode);
   if (!doing_cpk_scan /* && !index_only_read */)
   {
     /* Will use rowid buffer to store/sort rowids, etc */
@@ -754,7 +755,21 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
                                        key_tuple_length;
   key_buff_elem_size= key_size_in_keybuf + 
                       (int)is_mrr_assoc * sizeof(void*);
+  
+  if (!do_rowid_fetch)
+  {
+    /* Give all space to key buffer. */
+    key_buffer.set_buffer_space(full_buf, full_buf_end, 1);
 
+    /* Just in case, tell rowid buffer that it has zero size: */
+    rowid_buffer.set_buffer_space(full_buf_end, full_buf_end, 1);
+    return;
+  }
+  
+  /* 
+    Ok if we got here we need to allocate one part of the buffer 
+    for keys and another part for rowids.
+  */
   uint rowid_buf_elem_size= h->ref_length + 
                             (int)is_mrr_assoc * sizeof(char*);
   
@@ -790,9 +805,11 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
                 (h->ref_length + (int)is_mrr_assoc * sizeof(char*) + 1));
   }
 
+  //rowid_buffer.set_buffer_space(full_buf, full_buf + bytes_for_rowids, 1);
+  //key_buffer.set_buffer_space(full_buf + bytes_for_rowids, full_buf_end, 1);
   rowid_buffer.set_buffer_space(full_buf, full_buf + bytes_for_rowids, 1);
-  key_buffer.set_buffer_space(full_buf + bytes_for_rowids, full_buf_end, 1);
-
+  key_buffer.set_buffer_space(full_buf + bytes_for_rowids, full_buf_end, -1);
+  
   index_ranges_unique= test(key_info->flags & HA_NOSAME && 
                             key_info->key_parts == 
                               my_count_bits(sample_key->keypart_map));
