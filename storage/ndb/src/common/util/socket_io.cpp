@@ -18,10 +18,36 @@
 
 #include <ndb_global.h>
 
-#include <NdbTCP.h>
-#include <socket_io.h>
-#include <NdbOut.hpp>
-#include <NdbTick.h>
+#include <portlib/NdbTCP.h>
+#include <portlib/NdbTick.h>
+#include <util/socket_io.h>
+#include <util/BaseString.hpp>
+
+static inline
+int
+poll_socket(ndb_socket_t socket, bool read, bool write,
+            int timeout_millis, int* total_elapsed_millis)
+{
+  const NDB_TICKS start = NdbTick_CurrentMillisecond();
+
+  timeout_millis -= *total_elapsed_millis;
+
+  if (timeout_millis <= 0)
+    return 0; // Timeout occured
+
+  const int res =
+    ndb_poll(socket, read, write, false, timeout_millis);
+
+  // Calculate elapsed time in this function
+  const int elapsed_millis = (int)(NdbTick_CurrentMillisecond() - start);
+  assert(elapsed_millis >= 0);
+
+  // Update the total elapsed time
+  *total_elapsed_millis += elapsed_millis;
+
+  return res;
+}
+
 
 extern "C"
 int
@@ -30,13 +56,11 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   if(buflen < 1)
     return 0;
 
-  const int selectRes = ndb_poll(socket, true, false, false, timeout_millis);
-  if(selectRes == 0)
-    return 0;
-
-  if(selectRes == -1){
-    return -1;
-  }
+  int elapsed_millis = 0;
+  const int res = poll_socket(socket, true, false,
+                              timeout_millis, &elapsed_millis);
+  if (res <= 0)
+    return res;
 
   return my_recv(socket, &buf[0], buflen, 0);
 }
@@ -50,19 +74,15 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 
   if(mutex)
     NdbMutex_Unlock(mutex);
-  Uint64 tick= NdbTick_CurrentMillisecond();
-  int selectRes = ndb_poll(socket, true, false, false, timeout_millis);
-  *time= (int)(NdbTick_CurrentMillisecond() - tick);
+
+  const int res = poll_socket(socket, true, false,
+                              timeout_millis, time);
+
   if(mutex)
     NdbMutex_Lock(mutex);
 
-  if(selectRes == 0){
-    return 0;
-  }
-
-  if(selectRes == -1){
-    return -1;
-  }
+  if (res <= 0)
+    return res;
 
   char* ptr = buf;
   int len = buflen;
@@ -125,14 +145,13 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
       }
     }
 
-    tick= NdbTick_CurrentMillisecond();
-    int selectRes = ndb_poll(socket, true, false, false,
-                             timeout_millis - *time);
-    *time= (int)(NdbTick_CurrentMillisecond() - tick);
-
-    if(selectRes != 1){
+    if (poll_socket(socket, true, false, timeout_millis, time) != 1)
+    {
+      // Read some bytes but didn't find newline before all time was
+      // used up => return error
       return -1;
     }
+
   } while (len > 0);
   
   return -1;
@@ -143,13 +162,8 @@ int
 write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	     const char buf[], int len){
 
-  Uint64 tick= NdbTick_CurrentMillisecond();
-  const int selectRes = ndb_poll(socket, false, true, false, timeout_millis);
-  *time= (int)(NdbTick_CurrentMillisecond() - tick);
-
-  if(selectRes != 1){
+  if (poll_socket(socket, false, true, timeout_millis, time) != 1)
     return -1;
-  }
 
   const char * tmp = &buf[0];
   while(len > 0){
@@ -163,14 +177,8 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
     if(len == 0)
       break;
 
-    Uint64 tick= NdbTick_CurrentMillisecond();
-    const int selectRes2 = ndb_poll(socket, false, true, false,
-                                    timeout_millis - *time);
-    *time= (int)(NdbTick_CurrentMillisecond() - tick);
-
-    if(selectRes2 != 1){
+    if (poll_socket(socket, false, true, timeout_millis, time) != 1)
       return -1;
-    }
   }
   
   return 0;
