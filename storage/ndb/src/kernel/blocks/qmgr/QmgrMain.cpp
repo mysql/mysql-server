@@ -2430,11 +2430,16 @@ void Qmgr::timerHandlingLab(Signal* signal)
   Uint32 sentLo = signal->theData[2];
   Uint64 sent = (Uint64(sentHi) << 32) + sentLo;
 
-  if (TcurrentTime >= sent + 50 || (TcurrentTime < sent))
+  if (TcurrentTime >= sent + 1000 || (TcurrentTime < sent))
   {
     jam();
-    ndbout_c("WARNING: timerHandlingLab now: %llu sent: %llu diff: %d",
-             TcurrentTime, sent, int(TcurrentTime - sent));
+    g_eventLogger->warning("timerHandlingLab now: %llu sent: %llu diff: %d",
+                           TcurrentTime, sent, int(TcurrentTime - sent));
+  }
+  else if (TcurrentTime >= sent + 150)
+  {
+    g_eventLogger->info("timerHandlingLab now: %llu sent: %llu diff: %d",
+                        TcurrentTime, sent, int(TcurrentTime - sent));
   }
 
   if (myNodePtr.p->phase == ZRUNNING) {
