@@ -2781,16 +2781,31 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
         signal->theData[0] = 0;
         signal->theData[1] = nodePtr.i;
         sendSignal(CMVMI_REF, GSN_OPEN_COMREQ, signal, 2, JBA);
-      } else {
-	if(((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 60) == 0){
+      }
+      else
+      {
+        jam();
+        if(((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 60) == 0)
+        {
+          jam();
 	  char buf[100];
 	  BaseString::snprintf(buf, sizeof(buf), 
-		   "Failure handling of node %d has not completed in %d min."
-		   " - state = %d",
-		   nodePtr.i, 
-		   (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
-		   nodePtr.p->failState);
+                               "Failure handling of node %d has not completed"
+                               " in %d min - state = %d",
+                               nodePtr.i, 
+                               (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
+                               nodePtr.p->failState);
 	  warningEvent(buf);
+          if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
+          {
+            jam();
+            /**
+             * Also dump DIH nf-state
+             */
+            signal->theData[0] = 7019;
+            signal->theData[1] = nodePtr.i;
+            sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+          }
 	}
       }
     }
