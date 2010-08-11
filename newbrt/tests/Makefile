@@ -205,5 +205,8 @@ clean:
 	rm -f test_oexcl.c.tmp
 	rm -f *.brt *.clean *.dirty *.tdb *.dat *.data *.out *.check.valgrind
 
-$(BINS): LDFLAGS=-L../ -lnewbrt -lz -lpthread
+$(BINS): LDFLAGS=-L../ -lnewbrt -lz -lpthread -Wl,-rpath,../
 $(BINS): test.h
+
+foo:
+	echo $(LDFLAGS)
