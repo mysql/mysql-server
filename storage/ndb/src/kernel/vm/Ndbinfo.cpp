@@ -55,7 +55,7 @@ Ndbinfo::Row::check_attribute_type(AttributeHeader& ah, ColumnType type) const
 {
   const Table& tab = getTable(m_req.tableId);
   const Uint32 colid = ah.getAttributeId();
-  assert(colid < tab.m.ncols);
+  assert(colid < (Uint32)tab.m.ncols);
   assert(tab.col[colid].coltype == type);
 }
 
