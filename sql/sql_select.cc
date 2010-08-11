@@ -6650,7 +6650,7 @@ best_access_path(JOIN      *join,
     This isn't unlikely at all, but unlikely() cuts 6% CPU time on a 20-table
     search when s->keyuse==0, and has no cost when s->keyuse!=0.
   */
-  if (s->keyuse)
+  if (unlikely(s->keyuse != NULL))
   {                                            /* Use key if possible */
     TABLE *table= s->table;
     KEYUSE *keyuse;
