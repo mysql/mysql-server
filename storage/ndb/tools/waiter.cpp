@@ -86,6 +86,10 @@ static void usage()
   my_print_variables(my_long_options);
 }
 
+extern "C"
+void catch_signal(int signum)
+{
+}
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
@@ -94,6 +98,12 @@ int main(int argc, char** argv){
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_waiter.trace";
+#endif
+
+#ifndef _WIN32
+  // Catching signal to allow testing of EINTR safeness
+  // with "while killall -USR1 ndbwaiter; do true; done"
+  signal(SIGUSR1, catch_signal);
 #endif
 
   if (handle_options(&argc, &argv, my_long_options,

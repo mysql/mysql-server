@@ -902,7 +902,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     hasdata |= t->hasReceiveData();
   }
 
-  tcpReadSelectReply = m_socket_poller.poll(hasdata ? 0 : timeOutMillis);
+  tcpReadSelectReply = m_socket_poller.poll_unsafe(hasdata ? 0 : timeOutMillis);
 
   return tcpReadSelectReply || hasdata;
 }

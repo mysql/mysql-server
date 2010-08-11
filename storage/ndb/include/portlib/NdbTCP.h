@@ -72,6 +72,12 @@ ndb_socket_get_native(ndb_socket_t s)
   return s;
 }
 
+static inline int
+my_socket_errno()
+{
+  return errno;
+}
+
 #include <portlib/ndb_socket_poller.h>
 
 #ifdef	__cplusplus
