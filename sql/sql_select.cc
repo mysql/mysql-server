@@ -9955,8 +9955,6 @@ pick_table_access_method(JOIN_TAB *tab)
 static uint make_join_orderinfo(JOIN *join)
 {
   JOIN_TAB *tab;
-  if (join->need_tmp)
-    return join->tables;
   tab= join->get_sort_by_join_tab();
   return tab ? tab-join->join_tab : join->tables;
 }
@@ -10838,15 +10836,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     if (tab->use_join_cache)
     {
       JOIN_TAB *sort_by_tab= join->get_sort_by_join_tab();
-      if (sort_by_tab && !join->need_tmp)
+      if (sort_by_tab)
       {
         join->need_tmp= 1;
         join->simple_order= join->simple_group= 0;
-        if (sort_by_tab->type == JT_NEXT)
-        {
-          sort_by_tab->type= JT_ALL;
-          sort_by_tab->read_first_record= join_init_read_record;
-        }
       }
       break;
     }
