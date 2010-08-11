@@ -166,7 +166,7 @@ BufferedSockOutputStream::println(const char * fmt, ...){
 }
 
 void BufferedSockOutputStream::flush(){
-  int elapsed;
+  int elapsed = 0;
   if (write_socket(m_socket, m_timeout_ms, &elapsed,
                    (const char*)m_buffer.get_data(), m_buffer.length()) != 0)
   {
