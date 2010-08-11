@@ -2810,6 +2810,7 @@ srv_purge_coordinator_thread(
 		ulint	iterations = 0;
 		ulint	last_time = ut_time();
 		ulint	count = srv_sys->activity_count;
+		ulint	batch_size = srv_purge_batch_size;
 		ulint	sleep_ms = ut_rnd_gen_ulint() % 10000;
 
 		if (srv_shutdown_state != 0 && srv_fast_shutdown) {
@@ -2822,15 +2823,17 @@ srv_purge_coordinator_thread(
 			ulint	n_pages_purged;
 
 			do {
-				n_pages_purged = trx_purge(
-					0, srv_purge_batch_size);
+				n_pages_purged = trx_purge(0, batch_size);
 
 				if (srv_check_activity(count)) {
-					sleep_ms = 500000;
-				} else if (n_pages_purged == 0) {
 					sleep_ms = 1000000;
+					batch_size = srv_purge_batch_size;
+				} else if (n_pages_purged == 0) {
+					sleep_ms = 5000000;
+					batch_size = srv_purge_batch_size;
 				} else {
 					sleep_ms = 0;
+					batch_size = 5000;
 				}
 
 				/* No point in sleeping during shutdown. */
@@ -2850,8 +2853,6 @@ srv_purge_coordinator_thread(
 			}
 
 		} else {
-			ulint	batch_size = srv_purge_batch_size;
-
 			do {
 				ulint	n_purged;
 
