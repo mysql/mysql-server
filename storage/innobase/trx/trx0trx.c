@@ -848,6 +848,12 @@ trx_commit(
 
 	trx->lock.conc_state = TRX_NOT_STARTED;
 
+	/* TODO: We should remove the transaction from the active
+	list earlier rather than here. This should simplify rules
+	about the transaction's state. One we enter this function
+	there is no going back and I don't see why need to wait
+	till the end to remove it from the sys list. */
+
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
 	trx_mutex_exit(trx);
