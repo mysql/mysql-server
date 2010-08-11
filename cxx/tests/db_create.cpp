@@ -5,7 +5,7 @@
 #define DB_YESOVERWRITE 0
 #endif
 
-char *data_dir;
+char *data_dir, *env_dir=NULL;
 
 static int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
     int r;
@@ -13,7 +13,8 @@ static int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *arg
     if (data_dir) {
         r = env->set_data_dir(data_dir); assert(r == 0);
     }
-    r = env->open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
+    r = env->set_redzone(0); assert(r==0);
+    r = env->open(env_dir ? env_dir : ".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
 
     Db *db = new Db(env, DB_CXX_NO_EXCEPTIONS);
     r = db->set_flags(dbflags); assert(r == 0);
@@ -72,12 +73,22 @@ int main(int argc, char *argv[]) {
             dbflags += DB_DUPSORT;
             continue;
         }
+	if (0 == strcmp(arg, "--env_dir")) {
+            if (i+1 >= argc)
+                return usage();
+	    env_dir = argv[++i];
+	    continue;
+	}
         if (0 == strcmp(arg, "--set_data_dir")) {
             if (i+1 >= argc)
                 return usage();
             data_dir = argv[++i];
             continue;
         }
+	if (arg[0]=='-') {
+	    printf("I don't understand this argument: %s\n", arg);
+	    return 1;
+	}
         break;
     }
 

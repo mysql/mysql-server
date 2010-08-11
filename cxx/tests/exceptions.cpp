@@ -42,16 +42,19 @@ int verbose = 0;
 static void test_env_exceptions (void) {
     {
 	DbEnv env(0);
+	int r = env.set_redzone(0); assert(r==0);
 	TC(env.open(DIR "no.such.dir", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),        ENOENT);
     }
     {
 	DbEnv env(0);
+	int r = env.set_redzone(0); assert(r==0);
 	TC(env.open(DIR "no.such.dir", -1, 0777),                                            EINVAL);
     }
     {
 	system("rm -rf " DIR);
 	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
+	int r = env.set_redzone(0); assert(r==0);
 	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),                  0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    EINVAL); // not configured for transactions
@@ -60,12 +63,14 @@ static void test_env_exceptions (void) {
 	system("rm -rf " DIR);
 	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
+	int r = env.set_redzone(0); assert(r==0);
 	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG, 0777),    EINVAL); // cannot do logging without txns
     }
     {
 	system("rm -rf " DIR);
 	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
+	int r = env.set_redzone(0); assert(r==0);
 	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
@@ -77,6 +82,7 @@ static void test_env_exceptions (void) {
 	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
 	env.set_errfile(stderr);
+	int r = env.set_redzone(0); assert(r==0);
 	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
@@ -87,6 +93,7 @@ static void test_env_exceptions (void) {
 	system("rm -rf " DIR);
 	toku_os_mkdir(DIR, 0777);
 	DbEnv env(0);
+	int r = env.set_redzone(0); assert(r==0);
 	TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
@@ -101,6 +108,7 @@ static void test_db_exceptions (void) {
     system("rm -rf " DIR);
     toku_os_mkdir(DIR, 0777);
     DbEnv env(0);
+    int r = env.set_redzone(0); assert(r==0);
     TC(env.open(DIR, DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
     env.set_errfile(stderr);
     TC( ({ Db db(&env, -1); assert(0); }),   EINVAL); // Create with flags=-1 should do an EINVAL

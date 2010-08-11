@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include <iostream>
 using namespace std;
@@ -10,9 +11,14 @@ int cmp(DB *db, const DBT *dbt1, const DBT *dbt2) {
     return 0;
 }
 
+#define DIR "test1e.dir"
+
 void test_db(void) {
+    system("rm -rf " DIR);
+    mkdir(DIR, 0777);
     DbEnv env(0);
-    env.open(NULL, DB_CREATE|DB_PRIVATE, 0666);
+    { int r = env.set_redzone(0); assert(r==0); }
+    env.open(DIR, DB_CREATE|DB_PRIVATE, 0666);
     Db db(&env, 0);
     
     int r;

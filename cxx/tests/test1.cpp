@@ -1,7 +1,8 @@
 #include <db_cxx.h>
 #include <errno.h>
 #include <assert.h>
-
+#include <stdlib.h>
+#include <sys/stat.h>
 
 #include <iostream>
 using namespace std;
@@ -29,7 +30,8 @@ int cmp(DB *db, const DBT *dbt1, const DBT *dbt2) {
 
 void test_db(void) {
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    int r = env.open(NULL, DB_CREATE|DB_PRIVATE, 0666);
+    { int r = env.set_redzone(0); assert(r==0); }
+    int r = env.open("test1.dir", DB_CREATE|DB_PRIVATE, 0666);
     assert(r==0);
     Db db(&env, 0);
     
@@ -41,6 +43,8 @@ void test_db(void) {
 
 int main()
 {
+    system("rm -rf test1.dir");
+    mkdir("test1.dir", 0777);
     test_dbt();
     test_db();
     return 0;
