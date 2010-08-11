@@ -31,6 +31,9 @@
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 #include <signaldata/StartOrd.hpp>
 
 ThreadConfig::ThreadConfig()
@@ -60,9 +63,8 @@ ThreadConfig::scanTimeQueue()
 // time backwards. We cannot know how long time has past since last
 // time and we make a best try with 0 milliseconds.
 //--------------------------------------------------------------------
-    ndbout << "Time moved backwards with ";
-    ndbout << (globalData.internalMillisecCounter - currMilliSecond);
-    ndbout << " milliseconds" << endl;
+    g_eventLogger->warning("Time moved backwards with %llu ms",
+                           globalData.internalMillisecCounter-currMilliSecond);
     globalData.internalMillisecCounter = currMilliSecond;
   }//if
   if (currMilliSecond > (globalData.internalMillisecCounter + 1500)) {
@@ -71,9 +73,8 @@ ThreadConfig::scanTimeQueue()
 // if operator changed the time or if the OS has misbehaved badly.
 // We set the new time to one second from the past.
 //--------------------------------------------------------------------
-    ndbout << "Time moved forward with ";
-    ndbout << (currMilliSecond - globalData.internalMillisecCounter);
-    ndbout << " milliseconds" << endl;
+    g_eventLogger->warning("Time moved forward with %llu ms",
+                           currMilliSecond-globalData.internalMillisecCounter);
     globalData.internalMillisecCounter = currMilliSecond - 1000;
   }//if
   while (((currMilliSecond - globalData.internalMillisecCounter) > 0) &&
