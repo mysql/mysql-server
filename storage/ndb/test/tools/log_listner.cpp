@@ -20,6 +20,11 @@ int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
 		 15, NDB_MGM_EVENT_CATEGORY_CONGESTION,
 		 0 };
 
+extern "C"
+void catch_signal(int signum)
+{
+}
+
 int 
 main(int argc, char** argv)
 {
@@ -30,6 +35,13 @@ main(int argc, char** argv)
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/eventlog.trace";
 #endif
+
+#ifndef _WIN32
+  // Catching signal to allow testing of EINTR safeness
+  // with "while killall -USR1 eventlog; do true; done"
+  signal(SIGUSR1, catch_signal);
+#endif
+
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);

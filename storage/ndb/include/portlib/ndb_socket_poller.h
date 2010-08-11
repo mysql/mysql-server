@@ -18,6 +18,8 @@
 #ifndef NDB_SOCKET_POLLER_H
 #define NDB_SOCKET_POLLER_H
 
+#include <portlib/NdbTick.h>
+
 /*
   Portability layer used for waiting on socket events
 */
@@ -243,7 +245,11 @@ public:
 #endif
   }
 
-  int poll(int timeout) {
+  /*
+    Wait for event(s) on socket(s) without retry of interrupted wait
+  */
+  int poll_unsafe(int timeout)
+  {
 #ifdef HAVE_POLL
     return ::poll(m_pfds, m_count, timeout);
 #else
@@ -265,8 +271,55 @@ public:
                   timeout == -1 ? NULL : &tv);
 #endif
   }
+
+  /*
+    Wait for event(s) on socket(s), retry interrupted wait
+    if there is still time left
+  */
+  int poll(int timeout)
+  {
+    do
+    {
+      const NDB_TICKS start = NdbTick_CurrentMillisecond();
+
+      const int res = poll_unsafe(timeout);
+      if (likely(res >= 0))
+        return res; // Default return path
+
+      const int error = my_socket_errno();
+      if (res == -1 &&
+          (error == EINTR || error == EAGAIN))
+      {
+        // Retry if any time left of timeout
+
+        // Subtract function call time from remaining timeout
+        timeout -= (int)(NdbTick_CurrentMillisecond() - start);
+
+        if (timeout <= 0)
+          return 0; // Timeout occured
+
+        //fprintf(stderr, "Got interrupted, retrying... timeout left: %d\n",
+        //        timeout_millis);
+
+        continue; // Retry interrupted poll
+      }
+
+      // Unhandled error code, return it
+      return res;
+
+    } while (true);
+
+    abort(); // Never reached
+  }
+
 };
 
+
+/*
+  ndb_poll
+  - Utility function for waiting on events on one socket
+    with retry of interrupted wait
+*/
 
 static inline
 int
