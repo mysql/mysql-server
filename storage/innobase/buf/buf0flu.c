@@ -1268,7 +1268,8 @@ buf_flush_try_neighbors(
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
+	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN
+	    || space == 0) {
 		/* If there is little space, it is better not to flush
 		any block except from the end of the LRU list */
 
