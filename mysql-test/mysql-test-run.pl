@@ -4038,6 +4038,7 @@ sub extract_warning_lines ($) {
      qr/unknown variable 'loose-/,
      qr/Now setting lower_case_table_names to [02]/,
      qr/Setting lower_case_table_names=2/,
+     qr/You have forced lower_case_table_names to 0/,
      qr/deprecated/,
      qr/Slave SQL thread retried transaction/,
      qr/Slave \(additional info\)/,
