@@ -644,6 +644,8 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
   
   rowid_buffer.reset_for_writing();
   identical_rowid_ptr= NULL;
+  if (do_sort_keys)
+    key_buffer.flip();
 
   while (rowid_buffer.have_space_for(rowid_buff_elem_size))
   {
@@ -860,13 +862,16 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
       setup_buffer_sizes(&cur_range.start_key);
     }
 
+    if (key_buffer.is_reverse() && is_mrr_assoc)
+      key_buffer.write((uchar*)&cur_range.ptr, sizeof(void*));
+
     /* Put key, or {key, range_id} pair into the buffer */
     if (use_key_pointers)
       key_buffer.write((uchar*)&cur_range.start_key.key, sizeof(char*));
     else
       key_buffer.write(cur_range.start_key.key, key_tuple_length);
  
-    if (is_mrr_assoc)
+    if (!key_buffer.is_reverse() && is_mrr_assoc)
       key_buffer.write((uchar*)&cur_range.ptr, sizeof(void*));
   }
 
@@ -966,7 +971,6 @@ check_record:
     }
 
     goto check_record;
-   //  goto read_and_check;
   }
 
   while(1)
@@ -999,7 +1003,8 @@ check_record:
         res= HA_ERR_END_OF_FILE;
         goto end;
       }
-      dsmrr_fill_key_buffer();
+      if (!do_rowid_fetch)
+        dsmrr_fill_key_buffer();
       if (!key_buffer.have_data(key_buff_elem_size))
       {
         res= HA_ERR_END_OF_FILE;

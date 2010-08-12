@@ -102,13 +102,24 @@ public:
     {
       *unused_start= start;
       *unused_end= read_pos;
+      start= read_pos;
     }
     else
     {
-      *unused_start=read_pos;
-      *unused_end=end;
+      *unused_start= read_pos;
+      *unused_end= end;
+      end= read_pos;
     }
   }
+
+  void flip()
+  {
+    uchar *tmp= read_pos;
+    read_pos= write_pos;
+    write_pos= tmp;
+    direction= -direction;
+  }
+  bool is_reverse() { return direction == -1; }
 
   void grow(uchar *unused_start, uchar *unused_end)
   {
