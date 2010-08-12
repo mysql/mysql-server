@@ -508,7 +508,46 @@ public:
 };
 
 
-/*
+/**
+  Class representing the fact that some thread waits for table
+  share to be flushed. Is used to represent information about
+  such waits in MDL deadlock detector.
+*/
+
+class Wait_for_flush : public MDL_wait_for_subgraph
+{
+  MDL_context *m_ctx;
+  TABLE_SHARE *m_share;
+  uint m_deadlock_weight;
+public:
+  Wait_for_flush(MDL_context *ctx_arg, TABLE_SHARE *share_arg,
+               uint deadlock_weight_arg)
+    : m_ctx(ctx_arg), m_share(share_arg),
+      m_deadlock_weight(deadlock_weight_arg)
+  {}
+
+  MDL_context *get_ctx() const { return m_ctx; }
+
+  virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
+
+  virtual uint get_deadlock_weight() const;
+
+  /**
+    Pointers for participating in the list of waiters for table share.
+  */
+  Wait_for_flush *next_in_share;
+  Wait_for_flush **prev_in_share;
+};
+
+
+typedef I_P_List <Wait_for_flush,
+                  I_P_List_adapter<Wait_for_flush,
+                                   &Wait_for_flush::next_in_share,
+                                   &Wait_for_flush::prev_in_share> >
+                 Wait_for_flush_list;
+
+
+/**
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
 */
@@ -662,6 +701,11 @@ struct TABLE_SHARE
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
 
+  /**
+    List of tickets representing threads waiting for the share to be flushed.
+  */
+  Wait_for_flush_list m_flush_tickets;
+
   /*
     Set share's table cache key and update its db and table name appropriately.
 
@@ -731,10 +775,8 @@ struct TABLE_SHARE
   }
 
 
-  /*
-    Must all TABLEs be reopened?
-  */
-  inline bool needs_reopen() const
+  /** Is this table share being expelled from the table definition cache?  */
+  inline bool has_old_version() const
   {
     return version != refresh_version;
   }
@@ -837,6 +879,13 @@ struct TABLE_SHARE
     return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
   }
 
+  bool visit_subgraph(Wait_for_flush *waiting_ticket,
+                      MDL_wait_for_graph_visitor *gvisitor);
+
+  bool wait_for_old_version(THD *thd, struct timespec *abstime,
+                            uint deadlock_weight);
+  /** Release resources and free memory occupied by the table share. */
+  void destroy();
 };
 
 
@@ -1084,9 +1133,7 @@ public:
     read_set= &def_read_set;
     write_set= &def_write_set;
   }
-  /*
-    Is this instance of the table should be reopen?
-  */
+  /** Should this instance of the table be reopened? */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
 

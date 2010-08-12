@@ -318,6 +318,58 @@ insert into t2 (a) values (3);
 --echo # --> connection default;
 connection default;
 unlock tables;
+--echo #
+--echo # Check that "FLUSH TABLES <list> WITH READ LOCK" is
+--echo # compatible with active "FLUSH TABLES WITH READ LOCK".
+--echo # Vice versa it is not true, since tables read-locked by
+--echo # "FLUSH TABLES <list> WITH READ LOCK" can't be flushed.
+flush tables with read lock;
+--echo # --> connection con1;
+connection con1;
+flush table t1 with read lock;
+select * from t1;
+unlock tables;
+--echo # --> connection default;
+connection default;
+unlock tables;
+--echo #
+--echo # Check that FLUSH TABLES t1 WITH READ LOCK
+--echo # does not conflict with an existing FLUSH TABLES t2
+--echo # WITH READ LOCK.
+--echo #
+flush table t1 with read lock;
+--echo # --> connection con1
+connection con1;
+flush table t2 with read lock;
+unlock tables;
+--echo # --> connection default
+connection default;
+unlock tables;
+--echo #
+--echo # Check that FLUSH TABLES t1 WITH READ LOCK
+--echo # does not conflict with SET GLOBAL read_only=1.
+--echo #
+set global read_only=1;
+--echo # connection con1
+connection con1;
+flush table t1 with read lock;
+unlock tables;
+--echo # connection default
+connection default;
+set global read_only=0;
+--echo #
+--echo # Check that it's possible to read-lock 
+--echo # tables locked with FLUSH TABLE <list> WITH READ LOCK.
+--echo #
+flush tables t1, t2 with read lock;
+--echo # connection con1
+connection con1;
+lock table t1 read, t2 read;
+unlock tables;
+--echo # connection default
+connection default;
+unlock tables;
+
 --echo # --> connection con1
 connection con1;
 disconnect con1;

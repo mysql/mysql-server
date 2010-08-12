@@ -3273,8 +3273,8 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   /*
     TODO: investigate if in this particular situation we can get by
-          simply obtaining internal lock of data-dictionary (ATM it
-          is LOCK_open) instead of obtaning full-blown metadata lock.
+          simply obtaining internal lock of the data-dictionary
+          instead of obtaining full-blown metadata lock.
   */
   if (try_acquire_high_prio_shared_mdl_lock(thd, &table_list, can_deadlock))
   {
