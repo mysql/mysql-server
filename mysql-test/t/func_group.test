@@ -1095,7 +1095,6 @@ CREATE TABLE t1(a int, KEY(a));
 INSERT INTO t1 VALUES (1), (2);
 SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
 DROP TABLE t1;
---echo End of 6.0 tests
 
 --echo #
 --echo # Bug#55648: Server crash on MIX/MAX on maximum time value
