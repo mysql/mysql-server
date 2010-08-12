@@ -217,16 +217,8 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     or 8 atomics per recorded event.
     The problem is that we record a *lot* of events ...
 
-    Instead, a *dirty* marking is done using m_wait_class.
-    Using m_wait_class alone does not guarantee anything, it just filters
-    out most of the bad data.
-    This is acceptable because this code is garbage-proof,
-    and won't crash on bad data, only display it,
-    very rarely (which is accepted).
-
-    If a bad record is displayed, it's a very transient failure:
-    the next select * from EVENTS_WAITS_CURRENT/_HISTORY/_HISTORY_LONG will
-    show clean data again.
+    This code is prepared to accept *dirty* records,
+    and sanitizes all the data before returning a row.
   */
 
   m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
