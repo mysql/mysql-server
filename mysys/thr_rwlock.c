@@ -127,7 +127,7 @@ int my_rw_wrlock(my_rw_lock_t *rwp)
   pthread_mutex_lock(&rwp->lock);
   rwp->waiters++;				/* another writer queued */
 
-  my_rw_lock_assert_not_owner(rwp);
+  my_rw_lock_assert_not_write_owner(rwp);
 
   while (rwp->state)
     pthread_cond_wait(&rwp->writers, &rwp->lock);

@@ -205,6 +205,51 @@ a
 insert into t2 (a) values (3);
 # --> connection default;
 unlock tables;
+#
+# Check that "FLUSH TABLES <list> WITH READ LOCK" is
+# compatible with active "FLUSH TABLES WITH READ LOCK".
+# Vice versa it is not true, since tables read-locked by
+# "FLUSH TABLES <list> WITH READ LOCK" can't be flushed.
+flush tables with read lock;
+# --> connection con1;
+flush table t1 with read lock;
+select * from t1;
+a
+1
+unlock tables;
+# --> connection default;
+unlock tables;
+#
+# Check that FLUSH TABLES t1 WITH READ LOCK
+# does not conflict with an existing FLUSH TABLES t2
+# WITH READ LOCK.
+#
+flush table t1 with read lock;
+# --> connection con1
+flush table t2 with read lock;
+unlock tables;
+# --> connection default
+unlock tables;
+#
+# Check that FLUSH TABLES t1 WITH READ LOCK
+# does not conflict with SET GLOBAL read_only=1.
+#
+set global read_only=1;
+# connection con1
+flush table t1 with read lock;
+unlock tables;
+# connection default
+set global read_only=0;
+#
+# Check that it's possible to read-lock 
+# tables locked with FLUSH TABLE <list> WITH READ LOCK.
+#
+flush tables t1, t2 with read lock;
+# connection con1
+lock table t1 read, t2 read;
+unlock tables;
+# connection default
+unlock tables;
 # --> connection con1
 drop table t1, t2, t3;
 #

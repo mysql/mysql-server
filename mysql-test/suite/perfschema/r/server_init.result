@@ -182,7 +182,7 @@ count(name)
 select count(name) from COND_INSTANCES
 where name like "wait/synch/cond/sql/COND_refresh";
 count(name)
-1
+0
 select count(name) from COND_INSTANCES
 where name like "wait/synch/cond/sql/COND_thread_count";
 count(name)
