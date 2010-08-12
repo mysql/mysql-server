@@ -97,5 +97,8 @@ test_main (int argc, const char *argv[]) {
     r = toku_logcursor_destroy(&lc);
     assert(r == 0 && lc == NULL);
 
+    r = system(rmrf);
+    CKERR(r);
+
     return 0;
 }

@@ -193,6 +193,7 @@ test_main (int argc, const char *argv[]) {
 	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", toku_tdiff(&t3, &t1), f*total_n_items, f*total_n_items/toku_tdiff(&t3, &t1));
         fflush(stdout);
     }
+    unlink(fname);
     if (verbose>1) {
 	toku_malloc_report();
     }

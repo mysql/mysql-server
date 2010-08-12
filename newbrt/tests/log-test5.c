@@ -62,5 +62,7 @@ test_main (int argc __attribute__((__unused__)),
 	r = closedir(dir);
 	assert(r==0);
     }
+    r = system(rmrf);
+    CKERR(r);
     return 0;
 }

@@ -63,5 +63,7 @@ test_main (int argc __attribute__((__unused__)),
 	assert(r==0);
 	assert(statbuf.st_size<=LSIZE);
     }
+    r = system(rmrf);
+    CKERR(r);
     return 0;
 }

@@ -378,6 +378,13 @@ int test_main (int argc, const char *argv[]) {
     test_mergesort_row_array();
     test_merge_files(template, output_name);
     
+    {
+	char deletecmd[templen];
+	int n =  snprintf(deletecmd, templen, "rm -rf %s", directory);
+	assert(n>0 && n<templen);
+	system(deletecmd);
+    }
+
     return 0;
 }
 

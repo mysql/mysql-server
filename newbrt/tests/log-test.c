@@ -40,6 +40,9 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logger_find_next_unused_log_file(dname,&lognum);
     assert(r==0 && lognum==123456789012346LL);
 
+    r = system(rmrf);
+    CKERR(r);
+
     return 0;
 }
 

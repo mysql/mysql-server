@@ -61,6 +61,8 @@ run_test(void) {
         
         trim += 1;
     }
+    r = system("rm -rf " TESTDIR);
+    CKERR(r);
     return 0;
 }
 

@@ -408,6 +408,8 @@ int test_main (int argc, const char *argv[]) {
     // run test
     test_extractor(nrows, nrowsets, testdir);
 
+    r = system(unlink_all); CKERR(r);
+
     return 0;
 }
 
