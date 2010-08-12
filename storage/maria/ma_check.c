@@ -1930,7 +1930,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
         _ma_check_print_error(param,
                               "Page %9s:  Wrong data in bitmap.  Page_type: "
                               "%d  full: %d  empty_space: %u  Bitmap-bits: %d",
-                              llstr(page, llbuff), full_dir, page_type,
+                              llstr(page, llbuff), page_type, full_dir,
                               empty_space, bitmap_pattern);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;

@@ -1252,7 +1252,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
   }
   else if ((param->testflag & T_CHECK) || !(param->testflag & T_AUTO_INC))
   {
-    if (!(param->testflag & T_SILENT) || param->testflag & T_INFO)
+    if (!(param->testflag & T_VERY_SILENT) || param->testflag & T_INFO)
       printf("Checking MARIA file: %s\n",filename);
     if (!(param->testflag & T_SILENT))
       printf("Data records: %7s   Deleted blocks: %7s\n",

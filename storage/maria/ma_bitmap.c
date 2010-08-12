@@ -2142,12 +2142,12 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     DBUG_VOID_RETURN;
 
   bitmap= &share->bitmap;
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+
   if (non_flushable_inc == -1)
   {
-    pthread_mutex_lock(&bitmap->bitmap_lock);
     DBUG_ASSERT((int) bitmap->non_flushable > 0);
     DBUG_ASSERT(info->non_flushable_state == 1);
-    info->non_flushable_state= 0;
     if (--bitmap->non_flushable == 0)
     {
       /*
@@ -2164,11 +2164,11 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     }
     DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
     pthread_mutex_unlock(&bitmap->bitmap_lock);
+    info->non_flushable_state= 0;
     DBUG_VOID_RETURN;
   }
   DBUG_ASSERT(non_flushable_inc == 1);
   DBUG_ASSERT(info->non_flushable_state == 0);
-  pthread_mutex_lock(&bitmap->bitmap_lock);
   while (unlikely(bitmap->flush_all_requested))
   {
     /*
@@ -2186,9 +2186,9 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
   }
   bitmap->non_flushable++;
-  info->non_flushable_state= 1;
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
   pthread_mutex_unlock(&bitmap->bitmap_lock);
+  info->non_flushable_state= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -2216,6 +2216,8 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
 
   Note that we may have 'filler blocks' that are used to split a block
   in half; These can be recognized by that they have page_count == 0.
+
+  This code also reverse the effect of ma_bitmap_flushable(.., 1);
 
   RETURN
     0  ok
