@@ -1762,7 +1762,7 @@ release_list(thread_local_pool<thr_send_page>* pool,
 static
 Uint32
 bytes_sent(thread_local_pool<thr_send_page>* pool,
-           thr_repository::send_buffer* sb, NodeId node, Uint32 bytes)
+           thr_repository::send_buffer* sb, Uint32 bytes)
 {
   assert(bytes);
 
@@ -1831,7 +1831,7 @@ trp_callback::bytes_sent(NodeId node, Uint32 bytes)
   Uint32 thr_no = sb->m_send_thread;
   assert(thr_no != NO_SEND_THREAD);
   return ::bytes_sent(&g_thr_repository.m_thread[thr_no].m_send_buffer_pool,
-                      sb, node, bytes);
+                      sb, bytes);
 }
 
 bool
@@ -1872,7 +1872,7 @@ trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
     for (Uint32 i = 0; i < count; i++)
       bytes += v[i].iov_len;
 
-    ::bytes_sent(&pool, sb, node, bytes);
+    ::bytes_sent(&pool, sb, bytes);
   }
 
   unlock(&sb->m_send_lock);
