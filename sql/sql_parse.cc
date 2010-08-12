@@ -1750,6 +1750,17 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   If a temporary table with such name exists, it's ignored:
   if there is a base table, it's used, otherwise ER_NO_SUCH_TABLE
   is returned.
+
+  Implicit commit
+  ---------------
+  This statement causes an implicit commit before and
+  after it.
+
+  HANDLER SQL
+  -----------
+  If this connection has HANDLERs open against
+  some of the tables being FLUSHed, these handlers
+  are implicitly flushed (lose their position).
 */
 
 static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
