@@ -45,7 +45,7 @@ LIMIT 1;
 --replace_column 1 [EVENT_ID]
 SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
 WHERE THREAD_ID IN
-  (SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+  (SELECT THREAD_ID FROM performance_schema.THREADS)
 AND EVENT_NAME IN
   (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
    WHERE NAME LIKE "wait/synch/%")
@@ -138,7 +138,7 @@ delimiter |;
 
 CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
 BEGIN
-   SELECT id FROM performance_schema.PROCESSLIST
+   SELECT id FROM performance_schema.THREADS
    WHERE THREAD_ID = tid INTO pid;
 END;
 
@@ -157,7 +157,7 @@ delimiter |;
 
 CREATE FUNCTION t_ps_func(tid INT) RETURNS int
 BEGIN
-   return (SELECT id FROM performance_schema.PROCESSLIST
+   return (SELECT id FROM performance_schema.THREADS
            WHERE THREAD_ID = tid);
 END;
 
