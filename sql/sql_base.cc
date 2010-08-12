@@ -1150,13 +1150,12 @@ err_with_reopen:
 }
 
 
-/*
+/**
   Close all tables which match specified connection string or
   if specified string is NULL, then any table with a connection string.
 */
 
-bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
-                                    LEX_STRING *connection)
+bool close_cached_connection_tables(THD *thd, LEX_STRING *connection)
 {
   uint idx;
   TABLE_LIST tmp, *tables= NULL;
@@ -1198,15 +1197,6 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
 
   if (tables)
     result= close_cached_tables(thd, tables, FALSE, LONG_TIMEOUT);
-
-  if (if_wait_for_refresh)
-  {
-    mysql_mutex_lock(&thd->mysys_var->mutex);
-    thd->mysys_var->current_mutex= 0;
-    thd->mysys_var->current_cond= 0;
-    thd->proc_info=0;
-    mysql_mutex_unlock(&thd->mysys_var->mutex);
-  }
 
   DBUG_RETURN(result);
 }
