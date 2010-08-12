@@ -792,7 +792,7 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
     ((double) rowid_buf_elem_size / 
          ((double)rowid_buf_elem_size + key_buff_elem_size));
 
-  uint bytes_for_rowids= 
+  size_t bytes_for_rowids= 
     round(fraction_for_rowids * (full_buf_end - full_buf));
   
   uint bytes_for_keys= (full_buf_end - full_buf) - bytes_for_rowids;
@@ -805,10 +805,10 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
                 (h->ref_length + (int)is_mrr_assoc * sizeof(char*) + 1));
   }
 
-  //rowid_buffer.set_buffer_space(full_buf, full_buf + bytes_for_rowids, 1);
-  //key_buffer.set_buffer_space(full_buf + bytes_for_rowids, full_buf_end, 1);
-  rowid_buffer.set_buffer_space(full_buf, full_buf + bytes_for_rowids, 1);
-  key_buffer.set_buffer_space(full_buf + bytes_for_rowids, full_buf_end, -1);
+  rowid_buffer_end= full_buf + bytes_for_rowids;
+  rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 1);
+  key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1);
+
   
   index_ranges_unique= test(key_info->flags & HA_NOSAME && 
                             key_info->key_parts == 
@@ -838,7 +838,15 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
 
   // reset the buffer for writing.
   if (key_tuple_length)
+  {
+    if (do_rowid_fetch)
+    {
+      /* Restore original buffer sizes */
+      rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 1);
+      key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1);
+    }
     key_buffer.reset_for_writing();
+  }
 
   while ((key_tuple_length == 0 || 
           key_buffer.have_space_for(key_buff_elem_size)) && 
@@ -912,7 +920,6 @@ int DsMrr_impl::dsmrr_next_from_index(char **range_info_arg)
 
   while (in_identical_keys_range)
   {
-//read_and_check:
     /* Read record/key pointer from the buffer */
     key_in_buf= identical_key_it.get_next(key_size_in_keybuf);
     if (is_mrr_assoc)
@@ -980,6 +987,11 @@ check_record:
     }
 
     /* First, make sure we have a range at start of the buffer */
+
+    //psergey-todo: why would we re-fill it here in the case when
+    // we're doing rowid retrieval?
+    // - need to check if this is really happening.
+
     if (!key_buffer.have_data(key_buff_elem_size))
     {
       if (dsmrr_eof)
@@ -995,6 +1007,18 @@ check_record:
       }
     }
     
+    if (do_rowid_fetch)
+    {
+      /*
+        At this point we're not using anything beyond what we've read from key
+        buffer. Shrik the key buffer and grow the rowid buffer.
+      */
+      uchar *unused_start;
+      uchar *unused_end;
+      key_buffer.remove_unused_space(&unused_start, &unused_end);
+      rowid_buffer.grow(unused_start, unused_end);
+    }
+
     /* Get the next range to scan*/
     cur_index_tuple= key_in_buf= key_buffer.read(key_size_in_keybuf);
     if (use_key_pointers)
@@ -1002,7 +1026,8 @@ check_record:
 
     if (is_mrr_assoc)
       cur_range_info= (char*)key_buffer.read(sizeof(void*));
-      
+    
+
     /* Do index lookup */
     if ((res= file->ha_index_read_map(table->record[0], cur_index_tuple, 
                                       key_tuple_map, HA_READ_KEY_EXACT)))

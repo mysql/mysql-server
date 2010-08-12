@@ -91,6 +91,46 @@ public:
     direction= direction_arg;
     reset_for_writing();
   }
+  
+  /*
+    Stop/return the unneded space (the one that we have wrote to and have read
+    from.
+  */
+  void remove_unused_space(uchar **unused_start, uchar **unused_end)
+  {
+    if (direction == 1)
+    {
+      *unused_start= start;
+      *unused_end= read_pos;
+    }
+    else
+    {
+      *unused_start=read_pos;
+      *unused_end=end;
+    }
+  }
+
+  void grow(uchar *unused_start, uchar *unused_end)
+  {
+    /*
+      Passed memory area can be meaningfully used for growing the buffer if:
+      - it is adjacent to buffer space we're using
+      - it is on the end towards which we grow.
+    */
+    if (direction == 1 && end == unused_start)
+    {
+      end= unused_end;
+    }
+    else if (direction == -1 && start == unused_end)
+    {
+      start= unused_start;
+    }
+    else
+      DBUG_ASSERT(0); /* Attempt to grow buffer in wrong direction */
+  }
+  
+  /* */
+  void grow();
 
   friend class PeekIterator;
   class PeekIterator
@@ -202,6 +242,9 @@ private:
 
   uchar *full_buf;
   uchar *full_buf_end;
+  
+  /* Valid when using both rowid and key buffer: the original bound between them */
+  uchar *rowid_buffer_end;
 
   /* Buffer to store rowids, or (rowid, range_id) pairs */
   SimpleBuffer rowid_buffer;
@@ -248,7 +291,7 @@ private:
   
   /* = h->ref_length  [ + sizeof(range_assoc_info) ] */
   uint rowid_buff_elem_size;
-
+  
   /*
     TRUE <=> We're scanning on a full primary key (and not on prefix), and so 
     can get max. one match for each key 
