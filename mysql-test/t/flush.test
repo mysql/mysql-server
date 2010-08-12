@@ -407,3 +407,26 @@ drop temporary table v1;
 unlock tables;
 drop view v2, v3;
 drop table t1, v1;
+
+
+--echo # 
+--echo # FLUSH TABLES <list> WITH READ LOCK and HANDLER
+--echo # 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, key a (a));
+insert into t1 (a) values (1), (2), (3);
+handler t1 open;
+handler t1 read a next;
+handler t1 read a next;
+flush tables t1 with read lock;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t1 read a next;
+unlock tables;
+--echo #
+--echo # Sic: lost handler position.
+--echo #
+handler t1 read a next;
+handler t1 close;
+drop table t1;

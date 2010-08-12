@@ -279,3 +279,28 @@ drop temporary table v1;
 unlock tables;
 drop view v2, v3;
 drop table t1, v1;
+# 
+# FLUSH TABLES <list> WITH READ LOCK and HANDLER
+# 
+drop table if exists t1;
+create table t1 (a int, key a (a));
+insert into t1 (a) values (1), (2), (3);
+handler t1 open;
+handler t1 read a next;
+a
+1
+handler t1 read a next;
+a
+2
+flush tables t1 with read lock;
+handler t1 read a next;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+#
+# Sic: lost handler position.
+#
+handler t1 read a next;
+a
+1
+handler t1 close;
+drop table t1;
