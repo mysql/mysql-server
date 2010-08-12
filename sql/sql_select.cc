@@ -17257,7 +17257,16 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
         if (tab->table->reginfo.not_exists_optimize)
+        {
+          /*
+            When not_exists_optimizer is set and a matching row is found, the
+            outer row should be excluded from the result set: no need to
+            explore this record and other records of 'tab', so we return "no
+            records". But as we set 'found' above, evaluate_join_record() at
+            the upper level will not yield a NULL-complemented record.
+          */
           DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+        }
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -17428,40 +17437,28 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
     if (select_cond && !select_cond->val_int())
       DBUG_RETURN(NESTED_LOOP_OK);
   }
-  join_tab--;
+  join_tab= last_inner_tab;
   /*
-    The row complemented by nulls might be the first row
-    of embedding outer joins.
-    If so, perform the same actions as in the code
-    for the first regular outer join row above.
+    From the point of view of the rest of execution, this record matches
+    (it has been built and satisfies conditions, no need to do more evaluation
+    on it). See similar code in evaluate_join_record().
   */
-  for ( ; ; )
-  {
-    JOIN_TAB *first_unmatched= join_tab->first_unmatched;
-    if ((first_unmatched= first_unmatched->first_upper) &&
-        first_unmatched->last_inner != join_tab)
-      first_unmatched= 0;
-    join_tab->first_unmatched= first_unmatched;
-    if (!first_unmatched)
-      break;
-    first_unmatched->found= 1;
-    for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
-    {
-      if (tab->select_cond && !tab->select_cond->val_int())
-      {
-        join->return_tab= tab;
-        DBUG_RETURN(NESTED_LOOP_OK);
-      }
-    }
-  }
+  JOIN_TAB *first_unmatched= join_tab->first_unmatched->first_upper;
+  if (first_unmatched != NULL &&
+      first_unmatched->last_inner != join_tab)
+    first_unmatched= NULL;
+  join_tab->first_unmatched= first_unmatched;
   /*
     The row complemented by nulls satisfies all conditions
     attached to inner tables.
-    Send the row complemented by nulls to be joined with the
+    Finish evaluation of record and send it to be joined with
     remaining tables.
+    Note that evaluate_join_record will re-evaluate the condition attached
+    to the last inner table of the current outer join. This is not deemed to
+    have a significant performance impact.
   */
-  enum_nested_loop_state nls= (*join_tab->next_select)(join, join_tab+1, 0);
-  DBUG_RETURN(nls);
+  const enum_nested_loop_state rc= evaluate_join_record(join, join_tab, 0);
+  DBUG_RETURN(rc);
 }
 
 
