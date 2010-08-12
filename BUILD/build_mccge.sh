@@ -148,7 +148,6 @@ Usage: $0 [options]
   --extended-help         Show extended help message
   --without-debug         Build non-debug version
   --with-debug            Build debug version
-  --with-debug=full       Build with full debug.
   --configure-only        Stop after running configure.
   --use-autotools         Start by running autoconf, automake,.. tools
   --no-autotools          Start from configure
@@ -261,10 +260,6 @@ extended_usage()
   --commercial
     This flag prevents the use of GPL libraries which cannot be used
     under a commercial license, such as the readline library.
-
-  --with-debug[=full]
-    This option will ensure that the version is built with debug
-    information enabled; the optimisation level is decreased to -O.
 
   --developer
     This option changes a number of things to make the version built
@@ -658,11 +653,6 @@ parse_options()
     --datadir=*)
       datadir=`get_key_value "$1"`
       ;;
-    --with-debug=full)
-      full_debug="=full"
-      with_debug_flag="yes"
-      fast_flag="no"
-      ;;
     --without-debug)
       with_debug_flag="no"
       if test "x$fast_flag" != "xyes" ; then
@@ -1044,10 +1034,7 @@ set_warning_flags()
 # C++ warnings
       cxx_warnings="$warnings -Woverloaded-virtual -Wsign-promo -Wreorder"
       cxx_warnings="$warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
-# Added unless --with-debug=full
-      if test "x$full_debug" = "x" ; then
-        compiler_flags="$compiler_flags -Wuninitialized"
-      fi
+      compiler_flags="$compiler_flags -Wuninitialized"
     elif test "x$warning_mode" = "xpedantic" ; then
       warnings="-W -Wall -ansi -pedantic -Wno-long-long -D_POSIX_SOURCE"
       c_warnings="$warnings"
@@ -1113,7 +1100,7 @@ set_base_configs()
     base_configs="$base_configs --localstatedir=$datadir"
   fi
   if test "x$with_debug_flag" = "xyes" ; then
-    base_configs="$base_configs --with-debug$full_debug"
+    base_configs="$base_configs --with-debug"
   fi
   base_configs="$base_configs --enable-local-infile"
   base_configs="$base_configs --enable-thread-safe-client"
@@ -1546,7 +1533,6 @@ gpl="yes"
 version_text=
 developer_flag="no"
 just_configure=
-full_debug=
 warning_mode=
 with_flags=
 error_inject_flag=
