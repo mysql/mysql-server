@@ -912,7 +912,7 @@ int ha_example::create(const char *name, TABLE *table_arg,
 struct st_mysql_storage_engine example_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-static uint srv_enum_var= 0;
+static ulong srv_enum_var= 0;
 static ulong srv_ulong_var= 0;
 
 const char *enum_var_names[]=
