@@ -365,8 +365,8 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
     */
     if (bitmap->changed)
     {
-      res= write_changed_bitmap(share, bitmap);
       bitmap->changed= FALSE;
+      res= write_changed_bitmap(share, bitmap);
     }
     /*
       We do NOT use FLUSH_KEEP_LAZY because we must be sure that bitmap
