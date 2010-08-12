@@ -96,6 +96,11 @@ public:
                                       unsigned int column);
   virtual bool is_column_null(const FEDERATEDX_IO_ROW *row,
                               unsigned int column) const;
+  virtual size_t get_ref_length() const;
+  virtual void mark_position(FEDERATEDX_IO_RESULT *io_result,
+                             void *ref);
+  virtual int seek_position(FEDERATEDX_IO_RESULT **io_result,
+                            const void *ref);
 };
 
 
@@ -273,5 +278,22 @@ bool federatedx_io_null::table_metadata(ha_statistics *stats,
   stats->update_time= (time_t) 0;
   stats->check_time= (time_t) 0;
 
+  return 0;
+}
+
+size_t federatedx_io_null::get_ref_length() const
+{
+  return sizeof(int);
+}
+
+
+void federatedx_io_null::mark_position(FEDERATEDX_IO_RESULT *io_result,
+                                       void *ref)
+{
+}
+
+int federatedx_io_null::seek_position(FEDERATEDX_IO_RESULT **io_result,
+                                      const void *ref)
+{
   return 0;
 }
