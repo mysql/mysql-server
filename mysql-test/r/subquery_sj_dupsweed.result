@@ -4490,7 +4490,6 @@ DROP VIEW v1;
 # Bug#54437 Extra rows with LEFT JOIN + semijoin (firstmatch
 # and duplicates weedout)
 #
-set storage_engine=innodb;
 create table t1 (a int);
 create table t2 (a int);
 create table t3 (a int);
