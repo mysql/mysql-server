@@ -2774,4 +2774,19 @@ EXECUTE stmt;
 DROP TABLE t1,t2;
 DROP VIEW v1;
 
+--echo #
+--echo # Bug#54437 Extra rows with LEFT JOIN + semijoin (firstmatch
+--echo # and duplicates weedout)
+--echo #
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+insert into t1 values(1),(1);
+insert into t2 values(1),(1),(1),(1);
+insert into t3 values(2),(2);
 
+let $query=select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+eval explain $query;
+eval $query;
+
+drop table t1,t2,t3;
