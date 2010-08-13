@@ -1794,6 +1794,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "65535" },
 
+  {
+    CFG_DB_DICT_TRACE,
+    "DictTrace",
+    DB_TOKEN,
+    "Tracelevel for ndbd's dictionary",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "0",
+    "100" },
+
   /***************************************************************************
    * API
    ***************************************************************************/

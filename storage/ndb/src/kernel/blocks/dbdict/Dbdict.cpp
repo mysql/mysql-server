@@ -91,6 +91,8 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
 
+#include <NdbEnv.h>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -2264,6 +2266,13 @@ void Dbdict::initCommonData()
 
   c_outstanding_sub_startstop = 0;
   c_sub_startstop_lock.clear();
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  g_trace = 99;
+#else
+  g_trace = 0;
+#endif
+
 }//Dbdict::initCommonData()
 
 void Dbdict::initRecords() 
@@ -2794,6 +2803,18 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     while(objs.seize(ptr))
       new (ptr.p) DictObject();
     objs.release();
+  }
+
+  unsigned trace = 0;
+  char buf[100];
+  if (NdbEnv_GetEnv("DICT_TRACE", buf, sizeof(buf)))
+  {
+    jam();
+    g_trace = (unsigned)atoi(buf);
+  }
+  else if (ndb_mgm_get_int_parameter(p, CFG_DB_DICT_TRACE, &trace) == 0)
+  {
+    g_trace = trace;
   }
 }//execSIZEALT_REP()
 
@@ -4815,10 +4836,11 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     c_obj_hash.add(obj_ptr);
     tablePtr.p->m_obj_ptr_i = obj_ptr.i;
 
-#if defined VM_TRACE || defined ERROR_INSERT
-    ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
-	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
-#endif
+    if (g_trace)
+    {
+      ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
+               c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
+    }
   }
   parseP->tablePtr = tablePtr;
   
@@ -7361,7 +7383,7 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     decrease_ref_count(ptr.p->m_obj_ptr_i);
   }
 
-#if defined VM_TRACE || defined ERROR_INSERT
+  if (g_trace)
   // from a newer execDROP_TAB_REQ version
   {
     char buf[1024];
@@ -7370,7 +7392,6 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i,
              tablePtr.p->m_obj_ptr_i);
   }
-#endif
 
   if (DictTabInfo::isIndex(tablePtr.p->tableType))
   {
