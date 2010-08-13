@@ -91,6 +91,8 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
 
+#include <NdbEnv.h>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -2264,6 +2266,13 @@ void Dbdict::initCommonData()
 
   c_outstanding_sub_startstop = 0;
   c_sub_startstop_lock.clear();
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  g_trace = 99;
+#else
+  g_trace = 0;
+#endif
+
 }//Dbdict::initCommonData()
 
 void Dbdict::initRecords() 
@@ -2794,6 +2803,18 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     while(objs.seize(ptr))
       new (ptr.p) DictObject();
     objs.release();
+  }
+
+  unsigned trace = 0;
+  char buf[100];
+  if (NdbEnv_GetEnv("DICT_TRACE", buf, sizeof(buf)))
+  {
+    jam();
+    g_trace = (unsigned)atoi(buf);
+  }
+  else if (ndb_mgm_get_int_parameter(p, CFG_DB_DICT_TRACE, &trace) == 0)
+  {
+    g_trace = trace;
   }
 }//execSIZEALT_REP()
 
@@ -4321,10 +4342,29 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   {
     jam();
     char msg[128];
-    BaseString::snprintf(msg, sizeof(msg),
-                         "Failure to recreate object during restart, error %u"
-                         " Please follow instructions from \'perror --ndb %u\'"
-                         ,error.errorCode, error.errorCode);
+    if (error.errorObjectName[0] != 0)
+    {
+      jam();
+      BaseString::snprintf(msg, sizeof(msg),
+                           "Failure to recreate object %s (%u) during restart,"
+                           " error %u. Please follow instructions from"
+                           " \'perror --ndb %u\'",
+                           error.errorObjectName,
+                           c_restartRecord.activeTable, 
+                           error.errorCode, 
+                           error.errorCode);
+    }
+    else
+    {
+      jam();
+      BaseString::snprintf(msg, sizeof(msg),
+                           "Failure to recreate object %u during restart,"
+                           " error %u. Please follow instructions from"
+                           " \'perror --ndb %u\'",
+                           c_restartRecord.activeTable, 
+                           error.errorCode, 
+                           error.errorCode);
+    }
     progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
   }
   ndbrequire(!hasError(error));
@@ -4815,10 +4855,12 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     c_obj_hash.add(obj_ptr);
     tablePtr.p->m_obj_ptr_i = obj_ptr.i;
 
-#if defined VM_TRACE || defined ERROR_INSERT
-    ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
-	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
-#endif
+    if (g_trace)
+    {
+      g_eventLogger->info("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
+                          c_tableDesc.TableName, 
+                          tablePtr.i, tablePtr.p->m_obj_ptr_i);
+    }
   }
   parseP->tablePtr = tablePtr;
   
@@ -5725,6 +5767,8 @@ Dbdict::createTable_parse(Signal* signal, bool master,
         releaseTableObject(parseRecord.tablePtr.i, true);
       }
       setError(error, parseRecord);
+      BaseString::snprintf(error.errorObjectName, sizeof(error.errorObjectName),
+                           "%s", c_tableDesc.TableName);
       return;
     }
 
@@ -7361,16 +7405,15 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     decrease_ref_count(ptr.p->m_obj_ptr_i);
   }
 
-#if defined VM_TRACE || defined ERROR_INSERT
+  if (g_trace)
   // from a newer execDROP_TAB_REQ version
   {
     char buf[1024];
     Rope name(c_rope_pool, tablePtr.p->tableName);
     name.copy(buf);
-    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i,
-             tablePtr.p->m_obj_ptr_i);
+    g_eventLogger->info("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i,
+                        tablePtr.p->m_obj_ptr_i);
   }
-#endif
 
   if (DictTabInfo::isIndex(tablePtr.p->tableType))
   {
@@ -19600,14 +19643,15 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId))
   {
     jam();
-    setError(error, CreateFileRef::NoSuchFilegroup, __LINE__);
+    setError(error, CreateFileRef::NoSuchFilegroup, __LINE__, f.FileName);
     return;
   }
 
   if(fg_ptr.p->m_version != f.FilegroupVersion)
   {
     jam();
-    setError(error, CreateFileRef::InvalidFilegroupVersion, __LINE__);
+    setError(error, CreateFileRef::InvalidFilegroupVersion, __LINE__, 
+             f.FileName);
     return;
   }
 
@@ -19617,7 +19661,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     if(fg_ptr.p->m_type != DictTabInfo::Tablespace)
     {
       jam();
-      setError(error, CreateFileRef::InvalidFileType, __LINE__);
+      setError(error, CreateFileRef::InvalidFileType, __LINE__, f.FileName);
       return;
     }
     break;
@@ -19627,14 +19671,14 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     if(fg_ptr.p->m_type != DictTabInfo::LogfileGroup)
     {
       jam();
-      setError(error, CreateFileRef::InvalidFileType, __LINE__);
+      setError(error, CreateFileRef::InvalidFileType, __LINE__, f.FileName);
       return;
     }
     break;
   }
   default:
     jam();
-    setError(error, CreateFileRef::InvalidFileType, __LINE__);
+    setError(error, CreateFileRef::InvalidFileType, __LINE__, f.FileName);
     return;
   }
 
@@ -19643,7 +19687,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   if(get_object(f.FileName, len, hash) != 0)
   {
     jam();
-    setError(error, CreateFileRef::FilenameAlreadyExists, __LINE__);
+    setError(error, CreateFileRef::FilenameAlreadyExists, __LINE__, f.FileName);
     return;
   }
 
@@ -19654,7 +19698,8 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     if(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl)
     {
       jam();
-      setError(error, CreateFileRef::NotSupportedWhenDiskless, __LINE__);
+      setError(error, CreateFileRef::NotSupportedWhenDiskless, __LINE__, 
+               f.FileName);
       return;
     }
   }
@@ -19664,14 +19709,14 @@ Dbdict::createFile_parse(Signal* signal, bool master,
       f.FileSizeLo < fg_ptr.p->m_tablespace.m_extent_size)
   {
     jam();
-    setError(error, CreateFileRef::FileSizeTooSmall, __LINE__);
+    setError(error, CreateFileRef::FileSizeTooSmall, __LINE__, f.FileName);
     return;
   }
 
   if(!c_obj_pool.seize(obj_ptr))
   {
     jam();
-    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__, f.FileName);
     goto error;
   }
   new (obj_ptr.p) DictObject;
@@ -19679,7 +19724,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   if (! c_file_pool.seize(filePtr))
   {
     jam();
-    setError(error, CreateFileRef::OutOfFileRecords, __LINE__);
+    setError(error, CreateFileRef::OutOfFileRecords, __LINE__, f.FileName);
     goto error;
   }
 
@@ -19690,7 +19735,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     if(!name.assign(f.FileName, len, hash))
     {
       jam();
-      setError(error, CreateTableRef::OutOfStringBuffer, __LINE__);
+      setError(error, CreateTableRef::OutOfStringBuffer, __LINE__, f.FileName);
       goto error;
     }
   }
@@ -19703,7 +19748,8 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     if (objId == RNIL)
     {
       jam();
-      setError(error, CreateFilegroupRef::NoMoreObjectRecords, __LINE__);
+      setError(error, CreateFilegroupRef::NoMoreObjectRecords, __LINE__, 
+               f.FileName);
       goto error;
     }
     Uint32 version = getTableEntry(objId)->m_tableVersion;
@@ -19754,9 +19800,6 @@ Dbdict::createFile_parse(Signal* signal, bool master,
         extent_size - filePtr.p->m_file_size % extent_size;
       createFilePtr.p->m_warningFlags |= CreateFileConf::WarnDatafileRoundUp;
     }
-#if defined VM_TRACE || defined ERROR_INSERT
-    ndbout << "DD dict: file id:" << impl_req->file_id << " datafile bytes:" << filePtr.p->m_file_size << " warn:" << hex << createFilePtr.p->m_warningFlags << endl;
-#endif
   }
   if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
   {
@@ -19770,9 +19813,6 @@ Dbdict::createFile_parse(Signal* signal, bool master,
       filePtr.p->m_file_size *= page_size;
       createFilePtr.p->m_warningFlags |= CreateFileConf::WarnUndofileRoundDown;
     }
-#if defined VM_TRACE || defined ERROR_INSERT
-    ndbout << "DD dict: file id:" << impl_req->file_id << " undofile bytes:" << filePtr.p->m_file_size << " warn:" << hex << createFilePtr.p->m_warningFlags << endl;
-#endif
   }
   filePtr.p->m_path = obj_ptr.p->m_name;
   filePtr.p->m_obj_ptr_i = obj_ptr.i;
@@ -19828,11 +19868,21 @@ Dbdict::createFile_parse(Signal* signal, bool master,
 
   createFilePtr.p->m_parsed = true;
 
-#if defined VM_TRACE || defined ERROR_INSERT
-  ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d",
-           f.FileName, impl_req->file_id, filePtr.p->m_obj_ptr_i);
-#endif
 
+  if (g_trace)
+  {
+    g_eventLogger->info("Dbdict: create name=%s,id=%u,obj_ptr_i=%d,"
+                        "type=%s,bytes=%llu,warn=0x%x",
+                        f.FileName,
+                        impl_req->file_id,
+                        filePtr.p->m_obj_ptr_i,
+                        f.FileType == DictTabInfo::Datafile ? "datafile" :
+                        f.FileType == DictTabInfo::Undofile ? "undofile" :
+                        "<unknown>",
+                        filePtr.p->m_file_size,
+                        createFilePtr.p->m_warningFlags);
+  }
+  
   return;
 error:
   if (!filePtr.isNull())
@@ -22687,7 +22737,8 @@ Dbdict::setError(ErrorInfo& e,
                  Uint32 line,
                  Uint32 nodeId,
                  Uint32 status,
-                 Uint32 key)
+                 Uint32 key,
+                 const char * name)
 {
   D("setError" << V(code) << V(line) << V(nodeId) << V(e.errorCount));
 
@@ -22698,8 +22749,19 @@ Dbdict::setError(ErrorInfo& e,
     e.errorNodeId = nodeId ? nodeId : getOwnNodeId();
     e.errorStatus = status;
     e.errorKey = key;
+    BaseString::snprintf(e.errorObjectName, sizeof(e.errorObjectName), "%s", 
+                         name ? name : "");
   }
   e.errorCount++;
+}
+
+void
+Dbdict::setError(ErrorInfo& e, 
+                 Uint32 code,
+                 Uint32 line,
+                 const char * name)
+{
+  setError(e, code, line, 0, 0, 0, name);
 }
 
 void
