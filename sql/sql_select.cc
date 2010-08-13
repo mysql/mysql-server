@@ -258,9 +258,9 @@ void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
-static bool replace_where_subcondition(JOIN *join, Item **tree, 
-                                       Item *old_cond, Item *new_cond,
-                                       bool do_fix_fields);
+static bool replace_subcondition(JOIN *join, Item **tree, 
+                                 Item *old_cond, Item *new_cond,
+                                 bool do_fix_fields);
 static bool test_if_ref(Item *root_cond, 
                         Item_field *left_item,Item *right_item);
 
@@ -3917,8 +3917,7 @@ bool JOIN::flatten_subqueries()
   {
     Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
                    &conds : &((*subq)->embedding_join_nest->on_expr);
-    if (replace_where_subcondition(this, tree, *subq, new Item_int(1),
-                                   FALSE))
+    if (replace_subcondition(this, tree, *subq, new Item_int(1), FALSE))
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
  
@@ -3961,8 +3960,7 @@ skip_conversion:
     bool do_fix_fields= !(*subq)->substitution->fixed;
     Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
                    &conds : &((*subq)->embedding_join_nest->on_expr);
-    if (replace_where_subcondition(this, tree, *subq, substitute, 
-                                   do_fix_fields))
+    if (replace_subcondition(this, tree, *subq, substitute, do_fix_fields))
       DBUG_RETURN(TRUE);
     (*subq)->substitution= NULL;
      
@@ -3972,7 +3970,7 @@ skip_conversion:
                      &select_lex->prep_where :
                      &((*subq)->embedding_join_nest->prep_on_expr);
 
-      if (replace_where_subcondition(this, tree, *subq, substitute, 
+      if (replace_subcondition(this, tree, *subq, substitute, 
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
@@ -10240,8 +10238,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
         (tab->first_inner || tab_sj_strategy == SJ_OPT_FIRST_MATCH))
       goto no_join_cache;
     if ((options & SELECT_DESCRIBE) ||
-        ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache))) &&
-        !tab->cache->init())
+        ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache)) &&
+         !tab->cache->init()))
     {
       *icp_other_tables_ok= FALSE;
       return JOIN_CACHE::ALG_BNL | force_unlinked_cache;
@@ -10261,11 +10259,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL) &&
         (!(flags & HA_MRR_NO_ASSOCIATION) || cache_level > 6) &&
         ((options & SELECT_DESCRIBE) ||
-         (cache_level <= 6 && 
-          (tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache)) ||
-	  cache_level > 6 &&  
-          (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache))
-         ) && !tab->cache->init()))
+         (((cache_level <= 6 && 
+            (tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache))) ||
+           (cache_level > 6 &&  
+            (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache)))
+           ) && !tab->cache->init())))
     {
       if (cache_level <= 6)
         return JOIN_CACHE::ALG_BKA | force_unlinked_cache;
@@ -15564,49 +15562,6 @@ err:
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
-/**
-   @brief Replaces an expression destructively inside the expression tree of
-   the WHERE clase.
-
-   @note Because of current requirements for semijoin flattening, we do not
-   need to recurse here, hence this function will only examine the top-level
-   AND conditions. (see JOIN::prepare, comment above the line 
-   'if (do_materialize)'
-   
-   @param join The top-level query.
-   @param old_cond The expression to be replaced.
-   @param new_cond The expression to be substituted.
-   @param do_fix_fields If true, Item::fix_fields(THD*, Item**) is called for
-   the new expression.
-   @return <code>true</code> if there was an error, <code>false</code> if
-   successful.
-*/
-static bool replace_where_subcondition(JOIN *join, Item *old_cond, 
-                                       Item *new_cond, bool do_fix_fields)
-{
-  if (join->conds == old_cond) {
-    join->conds= new_cond;
-    if (do_fix_fields)
-      new_cond->fix_fields(join->thd, &join->conds);
-    return FALSE;
-  }
-  
-  if (join->conds->type() == Item::COND_ITEM) {
-    List_iterator<Item> li(*((Item_cond*)join->conds)->argument_list());
-    Item *item;
-    while ((item= li++))
-      if (item == old_cond) 
-      {
-        li.replace(new_cond);
-        if (do_fix_fields)
-          new_cond->fix_fields(join->thd, li.ref());
-        return FALSE;
-      }
-  }
-
-  return TRUE;
-}
-
 /*
   Create a temporary table to weed out duplicate rowid combinations
 
@@ -18609,53 +18564,62 @@ static bool test_if_ref(Item *root_cond,
 
 
 /**
-   @brief Replaces an expression destructively inside the expression tree of
-   the WHERE clase.
+   Destructively replaces a sub-condition inside a condition tree. The
+   parse tree is also altered.
 
    @note Because of current requirements for semijoin flattening, we do not
    need to recurse here, hence this function will only examine the top-level
    AND conditions. (see JOIN::prepare, comment starting with "Check if the 
-   subquery predicate can be executed via materialization".
+   subquery predicate can be executed via materialization".)
    
    @param join The top-level query.
-   @param old_cond The expression to be replaced.
-   @param new_cond The expression to be substituted.
+
+   @param tree Must be the handle to the top level condition. This is needed
+   when the top-level condition changes.
+
+   @param old_cond The condition to be replaced.
+
+   @param new_cond The condition to be substituted.
+
    @param do_fix_fields If true, Item::fix_fields(THD*, Item**) is called for
-   the new expression.
-   @return <code>true</code> if there was an error, <code>false</code> if
-   successful.
+   the new condition.
+
+   @return error status
+
+   @retval true If there was an error.
+   @retval false If successful.
 */
-static bool replace_where_subcondition(JOIN *join, Item **expr, 
-                                       Item *old_cond, Item *new_cond,
-                                       bool do_fix_fields)
+static bool replace_subcondition(JOIN *join, Item **tree, 
+                                 Item *old_cond, Item *new_cond,
+                                 bool do_fix_fields)
 {
-  //Item **expr= (emb_nest == (TABLE_LIST*)1)? &join->conds : &emb_nest->on_expr;
-  if (*expr == old_cond)
+  if (*tree == old_cond)
   {
-    *expr= new_cond;
-    if (do_fix_fields)
-      new_cond->fix_fields(join->thd, expr);
-    join->select_lex->where= *expr;
+    *tree= new_cond;
+    if (do_fix_fields && new_cond->fix_fields(join->thd, tree))
+      return TRUE;
+    join->select_lex->where= *tree;
     return FALSE;
   }
-  
-  if ((*expr)->type() == Item::COND_ITEM) 
+  else if ((*tree)->type() == Item::COND_ITEM) 
   {
-    List_iterator<Item> li(*((Item_cond*)(*expr))->argument_list());
+    List_iterator<Item> li(*((Item_cond*)(*tree))->argument_list());
     Item *item;
     while ((item= li++))
     {
       if (item == old_cond) 
       {
         li.replace(new_cond);
-        if (do_fix_fields)
-          new_cond->fix_fields(join->thd, li.ref());
+        if (do_fix_fields && new_cond->fix_fields(join->thd, li.ref()))
+          return TRUE;
         return FALSE;
       }
     }
   }
-  // If we came here it means there were an error during prerequisites check.
-  DBUG_ASSERT(0);
+  else
+    // If we came here it means there were an error during prerequisites check.
+    DBUG_ASSERT(FALSE);
+
   return TRUE;
 }
 
