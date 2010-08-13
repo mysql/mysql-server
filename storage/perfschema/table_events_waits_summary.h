@@ -144,58 +144,6 @@ private:
   pos_events_waits_summary_by_thread_by_event_name m_next_pos;
 };
 
-/** A row of PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME. */
-struct row_events_waits_summary_by_event_name
-{
-  /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /** Column COUNT_STAR. */
-  ulonglong m_count;
-  /** Column SUM_TIMER_WAIT. */
-  ulonglong m_sum;
-  /** Column MIN_TIMER_WAIT. */
-  ulonglong m_min;
-  /** Column AVG_TIMER_WAIT. */
-  ulonglong m_avg;
-  /** Column MAX_TIMER_WAIT. */
-  ulonglong m_max;
-};
-
-/** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME. */
-class table_events_waits_summary_by_event_name : public table_all_instr_class
-{
-public:
-  /** Table share */
-  static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
-  static int delete_all_rows();
-
-protected:
-  virtual void make_instr_row(PFS_instr_class *klass);
-
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
-                              bool read_all);
-
-  table_events_waits_summary_by_event_name();
-
-public:
-  ~table_events_waits_summary_by_event_name()
-  {}
-
-private:
-  /** Table share lock. */
-  static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
-
-  /** Current row. */
-  row_events_waits_summary_by_event_name m_row;
-};
-
 /** A row of PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_INSTANCE. */
 struct row_events_waits_summary_by_instance
 {

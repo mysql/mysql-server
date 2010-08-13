@@ -468,6 +468,7 @@ BEGIN
 END|
 DELIMITER ;|
 --echo "One unsafe warning should be issued in the following statement"
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
 SELECT fun_check_log_bin();
 --echo "SQL_LOG_BIN should be ON still"
 SHOW VARIABLES LIKE "SQL_LOG_BIN";
