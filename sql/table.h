@@ -43,7 +43,6 @@ class Security_context;
 struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-struct TABLE_LIST;
 class Field;
 
 /*
