@@ -733,4 +733,39 @@ ORDER BY f1 DESC LIMIT 5;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#55580: segfault in read_view_sees_trx_id
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=Innodb;
+CREATE TABLE t2 (a INT) ENGINE=Innodb;
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+connection con1;
+START TRANSACTION;
+SELECT * FROM t2 LOCK IN SHARE MODE;
+
+connection con2;
+START TRANSACTION;
+SELECT * FROM t1 LOCK IN SHARE MODE;
+
+connection con1;
+--send SELECT * FROM t1 FOR UPDATE
+
+connection con2;
+--echo # should not crash
+--error ER_LOCK_DEADLOCK
+SELECT * FROM t1 GROUP BY (SELECT a FROM t2 LIMIT 1 FOR UPDATE) + t1.a;
+
+connection default;
+disconnect con1;
+disconnect con2;
+
+DROP TABLE t1,t2;
+
+
 --echo End of 5.1 tests
