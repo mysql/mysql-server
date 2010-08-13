@@ -563,6 +563,7 @@ public:
 
   CArray<SchemaPageRecord> c_schemaPageRecordArray;
 
+  unsigned g_trace;
   DictTabInfo::Table c_tableDesc;
 
   /**
@@ -1268,6 +1269,7 @@ private:
     // for CreateTable
     Uint32 errorStatus;
     Uint32 errorKey;
+    char errorObjectName[MAX_TAB_NAME_SIZE];
     ErrorInfo() {
       errorCode = 0;
       errorLine = 0;
@@ -1275,7 +1277,7 @@ private:
       errorCount = 0;
       errorStatus = 0;
       errorKey = 0;
-
+      errorObjectName[0] = 0;
     }
 #ifdef VM_TRACE
     void print(NdbOut&) const;
@@ -1289,7 +1291,13 @@ private:
                 Uint32 line,
                 Uint32 nodeId = 0,
                 Uint32 status = 0,
-                Uint32 key = 0);
+                Uint32 key = 0,
+                const char * name = 0);
+
+  void setError(ErrorInfo&, 
+                Uint32 code,
+                Uint32 line,
+                const char * name);
 
   void setError(ErrorInfo&, const ErrorInfo&);
   void setError(ErrorInfo&, const ParseDictTabInfoRecord&);
