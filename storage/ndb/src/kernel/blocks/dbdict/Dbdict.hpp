@@ -563,6 +563,7 @@ public:
 
   CArray<SchemaPageRecord> c_schemaPageRecordArray;
 
+  unsigned g_trace;
   DictTabInfo::Table c_tableDesc;
 
   /**
