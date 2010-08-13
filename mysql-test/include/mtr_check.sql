@@ -1,6 +1,51 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
 delimiter ||;
 
 use mtr||
+
+CREATE DEFINER=root@localhost PROCEDURE check_testcase_perfschema()
+BEGIN
+  -- For tests tampering with performance_schema table structure
+  DECLARE CONTINUE HANDLER for SQLEXCEPTION
+  BEGIN
+  END;
+
+  -- Leave the instruments in the same state
+  SELECT * from performance_schema.SETUP_INSTRUMENTS
+    where enabled='NO' order by NAME;
+
+  -- Leave the consumers in the same state
+  SELECT * from performance_schema.SETUP_CONSUMERS
+    order by NAME;
+
+  -- Leave the actors setup in the same state
+  SELECT * from performance_schema.SETUP_ACTORS
+    order by USER, HOST;
+
+  -- Leave the objects setup in the same state
+  SELECT * from performance_schema.SETUP_OBJECTS
+    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+  -- Leave the core objects in the same state
+  SELECT * from performance_schema.OBJECTS
+    where enabled='YES' and OBJECT_SCHEMA in ('performance_schema', 'mysql')
+    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+
+END||
 
 --
 -- Procedure used to check if server has been properly
@@ -8,6 +53,8 @@ use mtr||
 --
 CREATE DEFINER=root@localhost PROCEDURE check_testcase()
 BEGIN
+
+  CALL check_testcase_perfschema();
 
   -- Dump all global variables except those
   -- that are supposed to change

@@ -160,7 +160,7 @@ static void prepare_record_for_error_message(int error, TABLE *table)
   /* Tell the engine about the new set. */
   table->file->column_bitmaps_signal();
   /* Read record that is identified by table->file->ref. */
-  (void) table->file->rnd_pos(table->record[1], table->file->ref);
+  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
   /* Copy the newly read columns into the new record. */
   for (field_p= table->field; (field= *field_p); field_p++)
     if (bitmap_is_set(&unique_map, field->field_index))
@@ -1261,7 +1261,7 @@ bool mysql_multi_update(THD *thd,
   {
     /* If we had a another error reported earlier then this will be ignored */
     (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-    (*result)->abort();
+    (*result)->abort_result_set();
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(res);
@@ -1863,7 +1863,7 @@ void multi_update::send_error(uint errcode,const char *err)
 }
 
 
-void multi_update::abort()
+void multi_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
@@ -1976,7 +1976,7 @@ int multi_update::do_updates()
     {
       if (thd->killed && trans_safe)
 	goto err;
-      if ((local_error=tmp_table->file->rnd_next(tmp_table->record[0])))
+      if ((local_error=tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
 	if (local_error == HA_ERR_END_OF_FILE)
 	  break;
@@ -1985,15 +1985,15 @@ int multi_update::do_updates()
 	goto err;
       }
 
-      /* call rnd_pos() using rowids from temporary table */
+      /* call ha_rnd_pos() using rowids from temporary table */
       check_opt_it.rewind();
       TABLE *tbl= table;
       uint field_num= 0;
       do
       {
         if((local_error=
-              tbl->file->rnd_pos(tbl->record[0],
-                                (uchar *) tmp_table->field[field_num]->ptr)))
+              tbl->file->ha_rnd_pos(tbl->record[0],
+                                    (uchar *) tmp_table->field[field_num]->ptr)))
           goto err;
         field_num++;
       } while((tbl= check_opt_it++));

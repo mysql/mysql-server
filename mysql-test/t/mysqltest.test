@@ -2419,6 +2419,11 @@ rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 cat_file $MYSQLTEST_VARDIR/tmp/testdir/file3.txt;
 
+# Test replace_result and that it does not affect next SQL stmt
+replace_result file prefix;
+list_files $MYSQLTEST_VARDIR/tmp/testdir;
+SELECT "bla bla file" as x;
+
 list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/file11.txt $MYSQLTEST_VARDIR/tmp/testdir file?.txt;
 remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir file?.txt;
 list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt $MYSQLTEST_VARDIR/tmp/testdir file*.txt;

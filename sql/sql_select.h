@@ -1588,11 +1588,6 @@ public:
   bool     first_record,full_join, no_field_update;
   bool	   group;          /**< If query contains GROUP BY clause */
   bool	   do_send_rows;
-  /**
-    TRUE when we want to resume nested loop iterations when
-    fetching data from a cursor
-  */
-  bool     resume_nested_loop;
   table_map const_table_map,found_const_table_map;
   /*
      Bitmap of all inner tables from outer joins
@@ -1816,7 +1811,6 @@ public:
     sort_and_group= 0;
     first_record= 0;
     do_send_rows= 1;
-    resume_nested_loop= FALSE;
     send_records= 0;
     found_records= 0;
     fetch_limit= HA_POS_ERROR;

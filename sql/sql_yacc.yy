@@ -51,6 +51,8 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
+#include "sql_alter_table.h"                   // Alter_table*_statement
+#include "sql_partition_admin.h"               // Alter_table_*_partition_statement
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -956,6 +958,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EVENTS_SYM
 %token  EVENT_SYM
 %token  EVERY_SYM                     /* SQL-2003-N */
+%token  EXCHANGE_SYM
 %token  EXECUTE_SYM                   /* SQL-2003-R */
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
@@ -1074,6 +1077,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_LOG_POS_SYM
 %token  MASTER_PASSWORD_SYM
 %token  MASTER_PORT_SYM
+%token  MASTER_RETRY_COUNT_SYM
 %token  MASTER_SERVER_ID_SYM
 %token  MASTER_SSL_CAPATH_SYM
 %token  MASTER_SSL_CA_SYM
@@ -1901,6 +1905,11 @@ master_def:
         | MASTER_CONNECT_RETRY_SYM EQ ulong_num
           {
             Lex->mi.connect_retry = $3;
+          }
+        | MASTER_RETRY_COUNT_SYM EQ ulong_num
+          {
+            Lex->mi.retry_count= $3;
+            Lex->mi.retry_count_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
           }
         | MASTER_DELAY_SYM EQ ulong_num
           {
@@ -6258,9 +6267,20 @@ alter:
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
+            DBUG_ASSERT(!lex->m_sql_cmd);
           }
           alter_commands
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            if (!lex->m_sql_cmd)
+            {
+              /* Create a generic ALTER TABLE statment. */
+              lex->m_sql_cmd= new (thd->mem_root) Alter_table_statement();
+              if (lex->m_sql_cmd == NULL)
+                MYSQL_YYABORT;
+            }
+          }
         | ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
@@ -6461,8 +6481,7 @@ alter_commands:
   From here we insert a number of commands to manage the partitions of a
   partitioned table such as adding partitions, dropping partitions,
   reorganising partitions in various manners. In future releases the list
-  will be longer and also include moving partitions to a
-  new table and so forth.
+  will be longer.
 */
         | add_partition_rule
         | DROP PARTITION_SYM alt_part_name_list
@@ -6526,8 +6545,36 @@ alter_commands:
             lex->sql_command= SQLCOM_TRUNCATE;
             lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
             lex->check_opt.init();
+            lex->query_tables->mdl_request.set_type(MDL_SHARED_NO_READ_WRITE);
+            lex->query_tables->lock_type= TL_WRITE;
           }
         | reorg_partition_rule
+        | EXCHANGE_SYM PARTITION_SYM alt_part_name_item
+          WITH TABLE_SYM table_ident have_partitioning
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            size_t dummy;
+            lex->select_lex.db=$6->db.str;
+            if (lex->select_lex.db == NULL &&
+                lex->copy_db_to(&lex->select_lex.db, &dummy))
+            {
+              MYSQL_YYABORT;
+            }
+            lex->name= $6->table;
+            lex->alter_info.flags|= ALTER_EXCHANGE_PARTITION;
+            if (!lex->select_lex.add_table_to_list(thd, $6, NULL,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_READ_NO_INSERT,
+                                                   MDL_SHARED_NO_WRITE))
+              MYSQL_YYABORT;
+            DBUG_ASSERT(!lex->m_sql_cmd);
+            lex->m_sql_cmd= new (thd->mem_root)
+                               Alter_table_exchange_partition_statement();
+            if (lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
+          }
+          opt_ignore
         ;
 
 remove_partitioning:
@@ -10832,7 +10879,7 @@ truncate:
             lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
             lex->select_lex.init_order();
             YYPS->m_lock_type= TL_WRITE;
-            YYPS->m_mdl_type= MDL_SHARED_WRITE;
+            YYPS->m_mdl_type= MDL_SHARED_NO_READ_WRITE;
           }
           table_name
           {}
@@ -11323,10 +11370,10 @@ flush_options:
             Lex->type|= REFRESH_TABLES;
             /*
               Set type of metadata and table locks for
-              FLUSH TABLES table_list WITH READ LOCK.
+              FLUSH TABLES table_list [WITH READ LOCK].
             */
             YYPS->m_lock_type= TL_READ_NO_INSERT;
-            YYPS->m_mdl_type= MDL_EXCLUSIVE;
+            YYPS->m_mdl_type= MDL_SHARED_HIGH_PRIO;
           }
           opt_table_list {}
           opt_with_read_lock {}
@@ -11336,7 +11383,13 @@ flush_options:
 opt_with_read_lock:
           /* empty */ {}
         | WITH READ_SYM LOCK_SYM
-          { Lex->type|= REFRESH_READ_LOCK; }
+          {
+            TABLE_LIST *tables= Lex->query_tables;
+            Lex->type|= REFRESH_READ_LOCK;
+            /* We acquire an X lock currently and then downgrade. */
+            for (; tables; tables= tables->next_global)
+              tables->mdl_request.set_type(MDL_EXCLUSIVE);
+          }
         ;
 
 flush_options_list:
@@ -12512,6 +12565,7 @@ keyword_sp:
         | EVENT_SYM                {}
         | EVENTS_SYM               {}
         | EVERY_SYM                {}
+        | EXCHANGE_SYM             {}
         | EXPANSION_SYM            {}
         | EXTENDED_SYM             {}
         | EXTENT_SIZE_SYM          {}
@@ -12562,6 +12616,7 @@ keyword_sp:
         | MASTER_PASSWORD_SYM      {}
         | MASTER_SERVER_ID_SYM     {}
         | MASTER_CONNECT_RETRY_SYM {}
+        | MASTER_RETRY_COUNT_SYM   {}
         | MASTER_DELAY_SYM         {}
         | MASTER_SSL_SYM           {}
         | MASTER_SSL_CA_SYM        {}

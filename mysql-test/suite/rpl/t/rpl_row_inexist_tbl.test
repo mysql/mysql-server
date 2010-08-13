@@ -32,6 +32,7 @@ connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 # see if we have a good error message:
 let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
+let $err= `SELECT SUBSTRING("$err" FROM 17)`;
 --echo Last_SQL_Error = $err
 
 --echo ==== Clean up ====
