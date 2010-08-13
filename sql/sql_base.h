@@ -103,15 +103,10 @@ bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 void close_data_files_and_morph_locks(THD *thd, const char *db,
                                       const char *table_name);
-void close_handle_and_leave_table_as_lock(TABLE *table);
 bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                   uint db_stat, uint prgflag,
                   uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
                   MEM_ROOT *mem_root);
-bool wait_for_tables(THD *thd);
-bool table_is_used(TABLE *table, bool wait_for_name_lock);
-TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
-void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
@@ -218,7 +213,6 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
-int abort_and_upgrade_lock_and_close_table(ALTER_PARTITION_PARAM_TYPE *lpt);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
@@ -254,8 +248,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);
-void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                               bool remove_from_locked_tables);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
