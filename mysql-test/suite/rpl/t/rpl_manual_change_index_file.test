@@ -60,6 +60,7 @@ call mtr.add_suppression('Got fatal error 1236 from master when reading data fro
 connection slave;
 source include/wait_for_slave_io_to_stop.inc;
 let $last_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $last_error= `SELECT SUBSTRING("$last_error" FROM 17)`;
 echo Last_IO_Error;
 echo $last_error;
 

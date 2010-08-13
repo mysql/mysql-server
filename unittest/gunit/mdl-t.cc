@@ -38,6 +38,26 @@ pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_open;
 uint    opt_debug_sync_timeout= 0;
 
+static mysql_mutex_t *current_mutex= NULL;
+extern "C"
+const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
+                           mysql_mutex_t *mutex, const char *msg)
+{
+  current_mutex= mutex;
+  return NULL;
+}
+
+extern "C"
+void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
+{
+  mysql_mutex_unlock(current_mutex);
+}
+
+extern "C" int thd_killed(const MYSQL_THD thd)
+{
+  return 0;
+}
+
 /*
   A mock error handler.
 */

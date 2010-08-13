@@ -167,7 +167,7 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   rr_sequential:
   --------------
     This is the most basic access method of a table using rnd_init,
-    rnd_next and rnd_end. No indexes are used.
+    ha_rnd_next and rnd_end. No indexes are used.
 */
 void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 		      SQL_SELECT *select,
@@ -362,7 +362,7 @@ static int rr_quick(READ_RECORD *info)
 
 static int rr_index_first(READ_RECORD *info)
 {
-  int tmp= info->file->index_first(info->record);
+  int tmp= info->file->ha_index_first(info->record);
   info->read_record= rr_index;
   if (tmp)
     tmp= rr_handle_error(info, tmp);
@@ -385,7 +385,7 @@ static int rr_index_first(READ_RECORD *info)
 
 static int rr_index_last(READ_RECORD *info)
 {
-  int tmp= info->file->index_last(info->record);
+  int tmp= info->file->ha_index_last(info->record);
   info->read_record= rr_index_desc;
   if (tmp)
     tmp= rr_handle_error(info, tmp);
@@ -411,7 +411,7 @@ static int rr_index_last(READ_RECORD *info)
 
 static int rr_index(READ_RECORD *info)
 {
-  int tmp= info->file->index_next(info->record);
+  int tmp= info->file->ha_index_next(info->record);
   if (tmp)
     tmp= rr_handle_error(info, tmp);
   return tmp;
@@ -436,7 +436,7 @@ static int rr_index(READ_RECORD *info)
 
 static int rr_index_desc(READ_RECORD *info)
 {
-  int tmp= info->file->index_prev(info->record);
+  int tmp= info->file->ha_index_prev(info->record);
   if (tmp)
     tmp= rr_handle_error(info, tmp);
   return tmp;
@@ -446,10 +446,10 @@ static int rr_index_desc(READ_RECORD *info)
 int rr_sequential(READ_RECORD *info)
 {
   int tmp;
-  while ((tmp=info->file->rnd_next(info->record)))
+  while ((tmp=info->file->ha_rnd_next(info->record)))
   {
     /*
-      rnd_next can return RECORD_DELETED for MyISAM when one thread is
+      ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
       reading and another deleting without locks.
     */
     if (info->thd->killed || (tmp != HA_ERR_RECORD_DELETED))
@@ -469,7 +469,7 @@ static int rr_from_tempfile(READ_RECORD *info)
   {
     if (my_b_read(info->io_cache,info->ref_pos,info->ref_length))
       return -1;					/* End of file */
-    if (!(tmp=info->file->rnd_pos(info->record,info->ref_pos)))
+    if (!(tmp=info->file->ha_rnd_pos(info->record,info->ref_pos)))
       break;
     /* The following is extremely unlikely to happen */
     if (tmp == HA_ERR_RECORD_DELETED ||
@@ -520,7 +520,7 @@ static int rr_from_pointers(READ_RECORD *info)
     cache_pos= info->cache_pos;
     info->cache_pos+= info->ref_length;
 
-    if (!(tmp=info->file->rnd_pos(info->record,cache_pos)))
+    if (!(tmp=info->file->ha_rnd_pos(info->record,cache_pos)))
       break;
 
     /* The following is extremely unlikely to happen */
@@ -653,7 +653,7 @@ static int rr_from_cache(READ_RECORD *info)
       record=uint3korr(position);
       position+=3;
       record_pos=info->cache+record*info->reclength;
-      if ((error=(int16) info->file->rnd_pos(record_pos,info->ref_pos)))
+      if ((error=(int16) info->file->ha_rnd_pos(record_pos,info->ref_pos)))
       {
 	record_pos[info->error_offset]=1;
 	shortstore(record_pos,error);

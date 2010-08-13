@@ -29,7 +29,6 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
-#include "lock.h"      // unlock_global_read_lock, mysql_unlock_tables
 #include "sql_cache.h"                          // query_cache_abort
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_time.h"                         // date_time_format_copy
@@ -491,10 +490,8 @@ THD::THD()
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
-   lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    binlog_unsafe_warning_flags(0),
-   stmt_accessed_table_flag(0),
    binlog_table_maps(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -625,7 +622,6 @@ THD::THD()
   randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
-  thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
   current_user_used= FALSE;
@@ -848,35 +844,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     }
   }
 
-  /*
-    If a continue handler is found, the error message will be cleared
-    by the stored procedures code.
-  */
-  if (!is_fatal_error && spcont &&
-      spcont->handle_condition(this, sql_errno, sqlstate, level, msg, &cond))
-  {
-    /*
-      Do not push any warnings, a handled error must be completely
-      silenced.
-    */
-    DBUG_RETURN(cond);
-  }
-
-  /* Un-handled conditions */
-
-  cond= raise_condition_no_handler(sql_errno, sqlstate, level, msg);
-  DBUG_RETURN(cond);
-}
-
-MYSQL_ERROR*
-THD::raise_condition_no_handler(uint sql_errno,
-                                const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
-                                const char* msg)
-{
-  MYSQL_ERROR *cond= NULL;
-  DBUG_ENTER("THD::raise_condition_no_handler");
-
   query_cache_abort(&query_cache_tls);
 
   /* FIXME: broken special case */
@@ -889,6 +856,7 @@ THD::raise_condition_no_handler(uint sql_errno,
   cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
+
 extern "C"
 void *thd_alloc(MYSQL_THD thd, unsigned int size)
 {
@@ -1114,7 +1082,6 @@ THD::~THD()
   }
 #endif
   stmt_map.reset();                     /* close all prepared statements */
-  DBUG_ASSERT(lock_info.n_cursors == 0);
   if (!cleanup_done)
     cleanup();
 
@@ -1741,9 +1708,9 @@ bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
   return res;
 }
 
-void select_send::abort()
+void select_send::abort_result_set()
 {
-  DBUG_ENTER("select_send::abort");
+  DBUG_ENTER("select_send::abort_result_set");
 
   if (is_result_set_started && thd->spcont)
   {
@@ -1817,12 +1784,6 @@ bool select_send::send_eof()
   */
   ha_release_temporary_latches(thd);
 
-  /* Unlock tables before sending packet to gain some speed */
-  if (thd->lock && ! thd->locked_tables_mode)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
-  }
   /* 
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
@@ -2596,7 +2557,6 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
   lex(lex_arg),
-  cursor(0),
   db(NULL),
   db_length(0)
 {
@@ -2618,7 +2578,6 @@ void Statement::set_statement(Statement *stmt)
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
   query_string=   stmt->query_string;
-  cursor=         stmt->cursor;
 }
 
 
