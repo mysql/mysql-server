@@ -93,8 +93,6 @@ void mysql_init_multi_delete(LEX *lex);
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 pthread_handler_t handle_bootstrap(void *arg);
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
-                          bool *write_to_binlog);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 void do_handle_bootstrap(THD *thd);
