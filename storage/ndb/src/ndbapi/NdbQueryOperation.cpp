@@ -239,7 +239,6 @@ private:
  * structures for correlating child and parent tuples.
  */
 class NdbResultStream {
-  friend bool NdbRootFragment::isEmpty() const;
 public:
 
   /** Outcome when asking for a new now from a scan.*/
@@ -311,6 +310,18 @@ public:
    */
   ScanRowResult getNextScanRow(Uint16 parentId);
 
+  /**
+   * Advance iterator in a lookup only query.
+   */
+  bool getNextLookupRow();
+
+  /** 
+   * Returns true if last row matching the current parent tuple has been 
+   * consumed.
+   */
+  bool isEmpty() const
+  { return m_iterState == Iter_finished; }
+
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
 
@@ -349,9 +360,6 @@ private:
    * getNextScanRow())*/
   Uint16 m_currentParentId;
   
-  /** This is the current row number (when iterating using getNextScanRow())*/
-  Uint16 m_currentRow; // FIXME: Use NdbReciver::m_current_row instead???
-
   /**
    * TupleSet contain two logically distinct set of information:
    *
@@ -424,7 +432,6 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 rootFr
   m_operation(operation),
   m_iterState(Iter_notStarted),
   m_currentParentId(tupleNotFound),
-  m_currentRow(tupleNotFound),
   m_tupleSet(NULL)
 {};
 
@@ -464,7 +471,6 @@ NdbResultStream::reset()
   // Root scan-operation need a ScanTabConf to complete
   m_rowCount = 0;
   m_iterState = Iter_notStarted;
-  m_currentRow = 0;
 
   clearParentChildMap();
 
@@ -491,6 +497,7 @@ NdbResultStream::setParentChildMap(Uint16 parentId,
 {
   assert (m_operation.getQueryDef().isScanQuery());
   assert (tupleNo < m_maxRows);
+  assert (tupleId != tupleNotFound);
   for (Uint32 i = 0; i < tupleNo; i++)
   {
     // Check that tuple id is unique.
@@ -515,14 +522,15 @@ NdbResultStream::findTupleWithParentId(Uint16 parentId)
   m_currentParentId = parentId;
 
   const Uint16 hash = (parentId % m_maxRows);
-  m_currentRow = m_tupleSet[hash].m_hash_head;
-  while (m_currentRow != tupleNotFound)
+  m_receiver.setCurrentRow(m_tupleSet[hash].m_hash_head);
+  while (m_receiver.getCurrentRow() != tupleNotFound)
   {
-    assert(m_currentRow < m_maxRows);
-    if (m_tupleSet[m_currentRow].m_parentId == parentId)
-      return m_currentRow;
+    assert(m_receiver.getCurrentRow() < m_maxRows);
+    if (m_tupleSet[m_receiver.getCurrentRow()].m_parentId == parentId)
+      return m_receiver.getCurrentRow();
 
-    m_currentRow = m_tupleSet[m_currentRow].m_hash_next;
+    m_receiver.setCurrentRow(m_tupleSet[m_receiver.getCurrentRow()]
+                             .m_hash_next);
   }
   return tupleNotFound;
 }
@@ -532,14 +540,15 @@ NdbResultStream::findNextTuple()
 {
   assert (m_operation.getQueryDef().isScanQuery());
 
-  while (m_currentRow != tupleNotFound)
+  while (m_receiver.getCurrentRow() != tupleNotFound)
   {
-    assert(m_currentRow < m_maxRows);
-    m_currentRow = m_tupleSet[m_currentRow].m_hash_next;
+    assert(m_receiver.getCurrentRow() < m_maxRows);
+    m_receiver.setCurrentRow(m_tupleSet[m_receiver.getCurrentRow()]
+                             .m_hash_next);
 
-    if (m_currentRow != tupleNotFound &&
-        m_tupleSet[m_currentRow].m_parentId == m_currentParentId)
-      return m_currentRow;
+    if (m_receiver.getCurrentRow() != tupleNotFound &&
+        m_tupleSet[m_receiver.getCurrentRow()].m_parentId == m_currentParentId)
+      return m_receiver.getCurrentRow();
   }
   return tupleNotFound;
 }
@@ -562,7 +571,9 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len)
      * parent and child until all tuples (for this batch and 
      * root fragment) have arrived.
      */
-    setParentChildMap(m_operation.getParentOperation()!=NULL ? correlData.getParentTupleId() : tupleNotFound,
+    setParentChildMap(m_operation.getParentOperation()==NULL ? 
+                      tupleNotFound :
+                      correlData.getParentTupleId(),
                       correlData.getTupleId(),
                       m_rowCount);
   }
@@ -584,9 +595,66 @@ NdbResultStream::handleBatchComplete()
   getReceiver().m_result_rows = getRowCount();
 }
 
+
+bool
+NdbResultStream::getNextLookupRow()
+{
+  assert(!m_operation.getQueryDef().isScanQuery());
+
+  switch (m_iterState)
+  {
+  
+  case Iter_notStarted:
+    // Get the first row, if there is one.
+    if (getRowCount() > 0)
+    {
+      assert(getRowCount() == 1);
+      assert(m_receiver.getCurrentRow() == 0);
+      for (Uint32 childNo = 0;  childNo < m_operation.getNoOfChildOperations();
+           childNo++)
+      {
+        const NdbQueryOperationImpl& child = 
+          m_operation.getChildOperation(childNo);
+      
+        // Check that there is a child tuple for each innner join child.
+        if (!child.getResultStream(m_rootFragNo).getNextLookupRow() &&
+            child.getQueryOperationDef().getMatchType() 
+            != NdbQueryOptions::MatchAll)
+        {
+          /* We have an inner join with no matching tuple. Therefore, 
+           * there will be now result for this operation.
+           */
+          m_iterState = Iter_finished;
+          return false;
+        }
+      }
+      m_iterState = Iter_stepSelf;
+    }
+    else
+    {
+      m_iterState = Iter_finished;
+    }
+    break;
+
+  case Iter_stepSelf:
+    // Since a lookup may return at most one row, we are done.
+    m_iterState = Iter_finished;
+    break;
+
+  case Iter_finished:
+    break;
+
+  default:
+    assert(false);
+  }
+  return m_iterState == Iter_stepSelf;
+} // NdbResultStream::getNextLookupRow()
+
+
 NdbResultStream::ScanRowResult
 NdbResultStream::getNextScanRow(Uint16 parentId)
 {
+  assert(m_operation.getQueryDef().isScanQuery());
   const bool isRoot = 
     m_operation.getQueryOperationDef().getQueryOperationIx() == 0;
 
@@ -610,14 +678,14 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       // Fetch first row for this stream
       if (isRoot)
       {
-        m_currentRow = 0;
-        if (getReceiver().m_result_rows == 0)
+        m_receiver.setCurrentRow(0);
+        if (getReceiver().hasResults())
         {
-          m_iterState = Iter_finished;
+          m_iterState = Iter_stepSelf;
         }
         else
         {
-          m_iterState = Iter_stepSelf;
+          m_iterState = Iter_finished;
         }
       }
       else
@@ -639,8 +707,8 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
       // Fetch next row for this stream
       if (isRoot)
       {
-        m_currentRow++;
-        if (m_currentRow >= getReceiver().m_result_rows)
+        m_receiver.setCurrentRow(m_receiver.getCurrentRow()+1);
+        if (!m_receiver.nextResult())
         {
           m_iterState = Iter_finished;
         }
@@ -666,7 +734,6 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
         return ScanRowResult_endOfBatch;
 #else
         // FIXME!!! (Handle left outer join properly.)
-        m_operation.nullifyResult();
         return ScanRowResult_endOfScan;
 #endif
       }
@@ -678,7 +745,8 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
     /* Call recursively for the children of this operation.*/
     while (childRowsOk && childNo < m_operation.getNoOfChildOperations())
     {
-      NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
+      const NdbQueryOperationImpl& child = 
+        m_operation.getChildOperation(childNo);
       
       /* If we fetched a new row for this operation, then we should get a
        * new row for each child also.
@@ -689,11 +757,13 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
           || child.getQueryOperationDef().hasScanDescendant())
       {
         switch(child.getResultStream(m_rootFragNo)
-               .getNextScanRow(getTupleId(m_currentRow)))
+               .getNextScanRow(getTupleId(m_receiver.getCurrentRow())))
         {
+
         case ScanRowResult_gotRow:
           childrenWithRows++;
           break;
+
         case ScanRowResult_endOfScan:
           if (child.getQueryOperationDef().getMatchType() 
               != NdbQueryOptions::MatchAll)
@@ -702,9 +772,11 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
             childRowsOk = false;
           }
           break;
+
         case ScanRowResult_endOfBatch:
           childRowsOk = false;
           break;
+
         default:
           assert(false);
         }
@@ -731,8 +803,6 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
 
     if (childRowsOk)
     {
-      getReceiver().setCurrentRow(m_currentRow);
-      m_operation.fetchRow(*this);
       return ScanRowResult_gotRow;
     }
   } // while(true)
@@ -784,15 +854,7 @@ bool NdbRootFragment::finalBatchReceived() const
 
 bool  NdbRootFragment::isEmpty() const
 { 
-  if (m_query->getQueryDef().isScanQuery())
-  {
-    return m_query->getQueryOperation(0U).getResultStream(m_fragNo)
-      .m_iterState == NdbResultStream::Iter_finished;
-  }
-  else
-  {
-    return !m_query->getQueryOperation(0U).getReceiver(m_fragNo).nextResult();
-  }
+  return m_query->getQueryOperation(0U).getResultStream(m_fragNo).isEmpty();
 }
 
 
@@ -1592,28 +1654,26 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
       }
     }
 
-    NdbQueryOperationImpl& root = getRoot();
-    NdbResultStream& rootStream = m_applFrags.getCurrent()->getResultStream(0);
-    bool gotRow = false;
+    const NdbRootFragment* const rootFrag = m_applFrags.getCurrent();
 
-    /* Make results from root operation available to the user.*/
-    if (m_queryDef.isScanQuery()) {
-      gotRow = (rootStream.getNextScanRow(tupleNotFound) 
-                == NdbResultStream::ScanRowResult_gotRow);
-
-      /* In case we are doing an ordered index scan, reorder the root fragments
-       * such that we get the next record from the right fragment.
+    if (!getRoot().passResultsToApp(rootFrag->getFragNo()))
+    {
+      assert(false);
+    }
+    if (m_queryDef.isScanQuery())
+    {
+      rootFrag->getResultStream(0).getNextScanRow(tupleNotFound);
+      /* In case we are doing an ordered index scan, reorder the root 
+       * fragments such that we get the next record from the right fragment.
        */
       m_applFrags.reorder();
     }
     else // Lookup query
     {
-      gotRow = root.fetchLookupResults();
+      rootFrag->getResultStream(0).getNextLookupRow();
     }
-
-    if (likely(gotRow))  // Row might have been eliminated by apply of inner join
-      return NdbQuery::NextResult_gotRow;
-  }
+    return NdbQuery::NextResult_gotRow;
+  } // while (m_state != EndOfData)
 
   assert (m_state == EndOfData);
   return NdbQuery::NextResult_scanComplete;
@@ -1698,6 +1758,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
     {
       /* Getting here means that either:
        *  - No results was returned (TCKEYREF)
+       *  - There was no matching row for an inner join.
        *  - or, the application called nextResult() twice for a lookup query.
        */
       m_state = EndOfData;
@@ -1708,10 +1769,9 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
     {
       /* Move fragment from receiver thread's container to application 
        *  thread's container.*/
+      assert(!frag->isEmpty());
       m_applFrags.add(*frag);
       assert(m_fullFrags.pop()==NULL); // Only one stream for lookups.
-      assert(m_applFrags.getCurrent()->getResultStream(0)
-             .getReceiver().hasResults());
       return FetchResult_ok;
     }
   } // if(m_queryDef.isScanQuery())
@@ -1724,6 +1784,8 @@ NdbQueryImpl::handleBatchComplete(Uint32 fragNo)
   for (Uint32 i = 0; i<getNoOfOperations(); i++) {
     m_operations[i].m_resultStreams[fragNo]->handleBatchComplete();
   }
+  // Find the first set of correlated rows.
+  m_operations[0].m_resultStreams[fragNo]->getNextScanRow(tupleNotFound);
 }
   
 void 
@@ -1742,7 +1804,7 @@ NdbQueryImpl::closeSingletonScans()
   /* nextResult() will later move it from m_fullFrags to m_applFrags
    * under mutex protection.
    */
-  if (getRoot().m_resultStreams[0]->getReceiver().hasResults()) {
+  if (getRoot().m_resultStreams[0]->getNextLookupRow()) {
     m_fullFrags.push(m_rootFrags[0]);
   }
 } //NdbQueryImpl::closeSingletonScans
@@ -3231,9 +3293,10 @@ NdbQueryOperationImpl::setResultRowRef (
 }
 
 void 
-NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
+NdbQueryOperationImpl::fetchRow(Uint32 rootFragNo)
 {
-  const char* buff = resultStream.getReceiver().get_row();
+  const NdbResultStream& resultStream = getResultStream(rootFragNo);
+  const char* buff = resultStream.getReceiver().peek_row();
   assert(buff!=NULL || (m_firstRecAttr==NULL && m_ndbRecord==NULL));
 
   m_isRowNull = false;
@@ -3274,11 +3337,11 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
 
 
 bool 
-NdbQueryOperationImpl::fetchLookupResults()
+NdbQueryOperationImpl::passResultsToApp(Uint32 rootFragNo)
 {
-  NdbResultStream& resultStream = *m_resultStreams[0];
+  const NdbResultStream& resultStream = getResultStream(rootFragNo);
 
-  if (resultStream.getRowCount() == 0)
+  if (resultStream.isEmpty())
   {
     /* This operation gave no result for the current parent tuple.*/
     nullifyResult();
@@ -3290,21 +3353,20 @@ NdbQueryOperationImpl::fetchLookupResults()
     for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
     {
       NdbQueryOperationImpl& child = getChildOperation(i);
-      bool nullRow = !child.fetchLookupResults();
+      bool nullRow = !child.passResultsToApp(rootFragNo);
       if (nullRow &&
           child.m_operationDef.getMatchType() != NdbQueryOptions::MatchAll)
       {
         // If a NULL row is returned from a child which is not outer joined, 
         // parent row may be eliminate also.
-        (void)resultStream.getReceiver().get_row();  // Get and throw 
         nullifyResult();
         return false;
       }
     }
-    fetchRow(resultStream);
+    fetchRow(rootFragNo);
     return true;
   }
-} //NdbQueryOperationImpl::fetchLookupResults
+} //NdbQueryOperationImpl::passResultsToApp
 
 void 
 NdbQueryOperationImpl::nullifyResult()
@@ -4199,8 +4261,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
      * under mutex protection.*/
     m_queryImpl.m_fullFrags.push(rootFrag);
     // Don't awake before we have data, or query batch completed.
-    ret = resultStream.getReceiver().hasResults() || 
-      m_queryImpl.isBatchComplete();
+    ret = !rootFrag.isEmpty() || m_queryImpl.isBatchComplete();
   }
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
