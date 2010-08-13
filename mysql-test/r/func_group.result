@@ -1724,7 +1724,6 @@ SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
 1
 1
 DROP TABLE t1;
-End of 6.0 tests
 #
 # Bug#55648: Server crash on MIX/MAX on maximum time value
 #
