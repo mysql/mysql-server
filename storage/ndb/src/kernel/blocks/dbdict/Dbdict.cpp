@@ -92,6 +92,7 @@
 #include <SLList.hpp>
 
 #include <signaldata/DumpStateOrd.hpp>
+#include <NdbEnv.h>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -1826,6 +1827,13 @@ void Dbdict::initCommonData()
 
   c_outstanding_sub_startstop = 0;
   c_sub_startstop_lock.clear();
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  g_trace = 99;
+#else
+  g_trace = 0;
+#endif
+
 }//Dbdict::initCommonData()
 
 void Dbdict::initRecords() 
@@ -2256,6 +2264,18 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     while(objs.seize(ptr))
       new (ptr.p) DictObject();
     objs.release();
+  }
+
+  unsigned trace = 0;
+  char buf[100];
+  if (NdbEnv_GetEnv("DICT_TRACE", buf, sizeof(buf)))
+  {
+    jam();
+    g_trace = (unsigned)atoi(buf);
+  }
+  else if (ndb_mgm_get_int_parameter(p, CFG_DB_DICT_TRACE, &trace) == 0)
+  {
+    g_trace = trace;
   }
 }//execSIZEALT_REP()
 
@@ -3061,8 +3081,9 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf), 
-			 "Unable to restart, fail while creating table %d"
+			 "Unable to restart, fail while creating table %s (%d)"
 			 " error: %d. Most likely change of configuration",
+                         c_tableDesc.TableName,
 			 c_readTableRecord.tableId,
 			 parseRecord.errorCode);
     progError(__LINE__, 
@@ -6668,7 +6689,6 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 
   if(checkExist){
     jam();
-    
     tabRequire(get_object(c_tableDesc.TableName, tableNameLength) == 0,
                CreateTableRef::TableAlreadyExist);
   }
@@ -6744,10 +6764,11 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     c_obj_hash.add(obj_ptr);
     tablePtr.p->m_obj_ptr_i = obj_ptr.i;
 
-#if defined VM_TRACE || defined ERROR_INSERT
-    ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
-	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
-#endif
+    if (g_trace)
+    {
+      ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
+               c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
+    }
   }
   parseP->tablePtr = tablePtr;
   tablePtr.p->tabState = TableRecord::DEFINING;
@@ -7712,7 +7733,7 @@ Dbdict::execDROP_TAB_REQ(Signal* signal){
     decrease_ref_count(ptr.p->m_obj_ptr_i);
   }
   
-#if defined VM_TRACE || defined ERROR_INSERT
+  if (g_trace)
   {
     char buf[1024];
     Rope name(c_rope_pool, tablePtr.p->tableName);
@@ -7720,7 +7741,6 @@ Dbdict::execDROP_TAB_REQ(Signal* signal){
     ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i, 
              tablePtr.p->m_obj_ptr_i);
   }
-#endif
 }
 
 #include <DebuggerNames.hpp>
