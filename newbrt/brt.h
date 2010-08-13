@@ -151,13 +151,6 @@ int toku_brt_cursor_get_both_range(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GE
 int toku_brt_cursor_get_both_range_reverse(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 
 
-typedef struct {
-    YDB_HEAVISIDE_FUNCTION h;
-    void *extra_h;
-    int r_h;
-    int direction;
-} *HEAVI_WRAPPER, HEAVI_WRAPPER_S;
-int toku_brt_cursor_heaviside(BRT_CURSOR cursor, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, HEAVI_WRAPPER wrapper);
 int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN);
 int toku_brt_cursor_close (BRT_CURSOR curs);
 BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c);
