@@ -4838,8 +4838,9 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 
     if (g_trace)
     {
-      ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
-               c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
+      g_eventLogger->info("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
+                          c_tableDesc.TableName, 
+                          tablePtr.i, tablePtr.p->m_obj_ptr_i);
     }
   }
   parseP->tablePtr = tablePtr;
@@ -7389,8 +7390,8 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     char buf[1024];
     Rope name(c_rope_pool, tablePtr.p->tableName);
     name.copy(buf);
-    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i,
-             tablePtr.p->m_obj_ptr_i);
+    g_eventLogger->info("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i,
+                        tablePtr.p->m_obj_ptr_i);
   }
 
   if (DictTabInfo::isIndex(tablePtr.p->tableType))
