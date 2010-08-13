@@ -39,12 +39,12 @@ noinst_HEADERS = ha_perfschema.h pfs_engine_table.h pfs.h pfs_server.h \
                 table_setup_instruments.h table_performance_timers.h \
                 table_setup_timers.h \
                 table_setup_consumers.h table_events_waits.h \
-		pfs_events_waits.h pfs_timer.h table_processlist.h \
+		pfs_events_waits.h pfs_timer.h table_threads.h \
 		table_sync_instances.h \
 		table_events_waits_summary.h pfs_stat.h \
-		table_all_instr.h \
+		table_ews_global_by_event_name.h table_all_instr.h \
 		table_file_instances.h table_file_summary.h \
-		table_setup_objects.h pfs_lock.h pfs_atomic.h
+		pfs_lock.h pfs_atomic.h
 
 PSE_SOURCES = ha_perfschema.cc pfs_engine_table.cc pfs.cc pfs_server.cc \
 		pfs_global.cc pfs_instr_class.cc pfs_instr.cc \
@@ -52,12 +52,12 @@ PSE_SOURCES = ha_perfschema.cc pfs_engine_table.cc pfs.cc pfs_server.cc \
                 table_setup_instruments.cc table_performance_timers.cc \
                 table_setup_timers.cc \
                 table_setup_consumers.cc table_events_waits.cc \
-		pfs_events_waits.cc pfs_timer.cc table_processlist.cc \
+		pfs_events_waits.cc pfs_timer.cc table_threads.cc \
 		table_sync_instances.cc \
 		table_events_waits_summary.cc \
-		table_all_instr.cc \
+		table_ews_global_by_event_name.cc table_all_instr.cc \
 		table_file_instances.cc table_file_summary.cc \
-		table_setup_objects.cc pfs_atomic.cc pfs_check.cc
+		pfs_atomic.cc pfs_check.cc
 
 EXTRA_LIBRARIES = libperfschema.a
 noinst_LIBRARIES = @plugin_perfschema_static_target@

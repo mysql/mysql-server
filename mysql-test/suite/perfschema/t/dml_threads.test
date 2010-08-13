@@ -19,43 +19,43 @@
 --source include/have_perfschema.inc
 
 --replace_column 1 # 2 # 3 #
-select * from performance_schema.PROCESSLIST
+select * from performance_schema.THREADS
   where name like 'Thread/%' limit 1;
 
-select * from performance_schema.PROCESSLIST
+select * from performance_schema.THREADS
   where name='FOO';
 
---replace_result '\'processlist' '\'PROCESSLIST'
+--replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.PROCESSLIST
+insert into performance_schema.THREADS
   set name='FOO', thread_id=1, id=2;
 
---replace_result '\'processlist' '\'PROCESSLIST'
+--replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.PROCESSLIST
+update performance_schema.THREADS
   set thread_id=12;
 
---replace_result '\'processlist' '\'PROCESSLIST'
+--replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.PROCESSLIST
+update performance_schema.THREADS
   set thread_id=12 where name like "FOO";
 
---replace_result '\'processlist' '\'PROCESSLIST'
+--replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.PROCESSLIST
+delete from performance_schema.THREADS
   where id=1;
 
---replace_result '\'processlist' '\'PROCESSLIST'
+--replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.PROCESSLIST;
+delete from performance_schema.THREADS;
 
---replace_result '\'processlist' '\'PROCESSLIST'
+--replace_result '\'threads' '\'THREADS'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.PROCESSLIST READ;
+LOCK TABLES performance_schema.THREADS READ;
 UNLOCK TABLES;
 
---replace_result '\'processlist' '\'PROCESSLIST'
+--replace_result '\'threads' '\'THREADS'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.PROCESSLIST WRITE;
+LOCK TABLES performance_schema.THREADS WRITE;
 UNLOCK TABLES;
 
