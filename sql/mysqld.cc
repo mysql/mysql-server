@@ -87,6 +87,7 @@
 #include <errmsg.h>
 #include "sp_rcontext.h"
 #include "sp_cache.h"
+#include "sql_reload.h"  // reload_acl_and_cache
 
 #ifdef HAVE_POLL_H
 #include <poll.h>
