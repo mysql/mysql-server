@@ -285,8 +285,8 @@ from t1
 join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t1.c and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Parent of 2 pushed join@1
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	Child of pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.b	1	Child of pushed join@1
 select *
 from t1
@@ -1174,10 +1174,10 @@ y.a=x.d and y.b=x.b and
 z.a=y.d and 
 t1.a = z.d and t1.b=z.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	16	Parent of 4 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	Child of pushed join@1
-1	SIMPLE	z	ref	PRIMARY	PRIMARY	4	test.y.d	1	Parent of 2 pushed join@2
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.z.d,test.z.b	1	Child of pushed join@2
+1	SIMPLE	z	ref	PRIMARY	PRIMARY	4	test.y.d	1	Child of pushed join@1
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.z.d,test.z.b	1	Child of pushed join@1
 select * from t1 x, t1 y, t1 z, t1 where 
 y.a=x.d and y.b=x.b and 
 z.a=y.d and 
@@ -2005,8 +2005,8 @@ explain
 select straight_join * 
 from t3 as X JOIN t3 as Y on X.b3 = Y.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	
-1	SIMPLE	Y	ref	b3	b3	4	test.X.b3	1	
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	4	test.X.b3	1	Child of pushed join@1
 select straight_join * 
 from t3 as X JOIN t3 as Y on X.b3 = Y.b3;
 a3	b3	c3	d3	a3	b3	c3	d3
@@ -2046,8 +2046,8 @@ select straight_join *
 from t3 as X JOIN t3 as Y on X.c3 = Y.c3
 where Y.d3 = 0x2f;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	X	ALL	c3,c3_2	NULL	NULL	NULL	7	
-1	SIMPLE	Y	ref	c3,c3_2	c3	5	test.X.c3	1	Using where with pushed condition
+1	SIMPLE	X	ALL	c3,c3_2	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	c3,c3_2	c3	5	test.X.c3	1	Child of pushed join@1; Using where with pushed condition
 select straight_join * 
 from t3 as X JOIN t3 as Y on X.c3 = Y.c3
 where Y.d3 = 0x2f;
@@ -2081,8 +2081,8 @@ select straight_join *
 from t3 as X JOIN t3 as Y on X.b3 = Y.b3
 where Y.d3 is not NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	
-1	SIMPLE	Y	ref	b3	b3	4	test.X.b3	1	Using where with pushed condition
+1	SIMPLE	X	ALL	b3	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	Y	ref	b3	b3	4	test.X.b3	1	Child of pushed join@1; Using where with pushed condition
 select straight_join * 
 from t3 as X JOIN t3 as Y on X.b3 = Y.b3
 where Y.d3 is not NULL;
@@ -2146,10 +2146,10 @@ JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3
 JOIN t3 as X2 on X2.b3 = Y1.b3
 JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	X1	ALL	b3,c3,c3_2	NULL	NULL	NULL	7	Parent of 2 pushed join@1
+1	SIMPLE	X1	ALL	b3,c3,c3_2	NULL	NULL	NULL	7	Parent of 4 pushed join@1
 1	SIMPLE	Y1	ref	b3	b3	9	test.X1.b3,test.X1.d3	1	Child of pushed join@1; Using where
-1	SIMPLE	X2	ref	b3,c3,c3_2	b3	4	test.X1.b3	1	Parent of 2 pushed join@2
-1	SIMPLE	Y2	ref	b3	b3	9	test.X2.c3,test.X1.c3	1	Child of pushed join@2; Using where
+1	SIMPLE	X2	ref	b3,c3,c3_2	b3	4	test.X1.b3	1	Child of pushed join@1
+1	SIMPLE	Y2	ref	b3	b3	9	test.X2.c3,test.X1.c3	1	Child of pushed join@1; Using where
 select straight_join * from
 t3 as X1
 JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3

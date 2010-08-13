@@ -565,7 +565,7 @@ public:
   { return m_magic == MAGIC; }
 
   /** Copy NdbRecAttr and/or NdbRecord results into appl. buffers */
-  void fetchRow(NdbResultStream& src);
+  void fetchRow(Uint32 rootFragNo);
 
   /** Set result for this operation and all its descendand child 
    *  operations to NULL.
@@ -647,13 +647,13 @@ private:
   /** Release resources after scan has returned last available result */
   void postFetchRelease();
 
-  /** Fetch results for lookup operation.
-   *  Recursively fetchRow() for 'this' operation and all its
-   *  descendant child operations.
+  /** 
+   *  Make results available to application, recursively fetchRow() for 'this' operation and all 
+   *  its descendant child operations. 
    *  Return true if a row was fetched, or false if a NULL row was
    *  produced.
    */
-  bool fetchLookupResults();
+  bool passResultsToApp(Uint32 rootFragNo);
 
   /** Count number of descendant operations (excluding the operation itself) */
   Int32 getNoOfDescendantOperations() const;
