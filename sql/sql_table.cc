@@ -1086,6 +1086,7 @@ static bool get_free_ddl_log_entry(DDL_LOG_MEMORY_ENTRY **active_entry,
   */
   used_entry->next_log_entry= first_used;
   used_entry->prev_log_entry= NULL;
+  used_entry->next_active_log_entry= NULL;
   global_ddl_log.first_used= used_entry;
   if (first_used)
     first_used->prev_log_entry= used_entry;
