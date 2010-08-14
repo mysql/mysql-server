@@ -13,78 +13,75 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef TABLE_PROCESSIST_H
-#define TABLE_PROCESSIST_H
+#ifndef TABLE_EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME_H
+#define TABLE_EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME_H
 
 /**
-  @file storage/perfschema/table_processlist.h
-  Table PROCESSLIST (declarations).
+  @file storage/perfschema/table_ews_global_by_event_name.h
+  Table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (declarations).
 */
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-
-struct PFS_thread;
+#include "pfs_instr_class.h"
+#include "pfs_instr.h"
+#include "table_all_instr.h"
 
 /**
   @addtogroup Performance_schema_tables
   @{
 */
 
-/** A row of PERFORMANCE_SCHEMA.PROCESSLIST. */
-struct row_processlist
+/** A row of PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME. */
+struct row_ews_global_by_event_name
 {
-  /** Column THREAD_ID. */
-  ulong m_thread_internal_id;
-  /** Column ID. */
-  ulong m_thread_id;
-  /** Column NAME. */
+  /** Column EVENT_NAME. */
   const char *m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
+  /** Column COUNT_STAR. */
+  ulonglong m_count;
+  /** Column SUM_TIMER_WAIT. */
+  ulonglong m_sum;
+  /** Column MIN_TIMER_WAIT. */
+  ulonglong m_min;
+  /** Column AVG_TIMER_WAIT. */
+  ulonglong m_avg;
+  /** Column MAX_TIMER_WAIT. */
+  ulonglong m_max;
 };
 
-/** Table PERFORMANCE_SCHEMA.PROCESSLIST. */
-class table_processlist : public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME. */
+class table_ews_global_by_event_name : public table_all_instr_class
 {
 public:
-  /** Table share. */
+  /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
-
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
+  static int delete_all_rows();
 
 protected:
+  virtual void make_instr_row(PFS_instr_class *klass);
+
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
 
-protected:
-  table_processlist();
+  table_ews_global_by_event_name();
 
 public:
-  ~table_processlist()
+  ~table_ews_global_by_event_name()
   {}
 
 private:
-  void make_row(PFS_thread *pfs);
-
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
 
   /** Current row. */
-  row_processlist m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
-  /** Current position. */
-  PFS_simple_index m_pos;
-  /** Next position. */
-  PFS_simple_index m_next_pos;
+  row_ews_global_by_event_name m_row;
 };
 
 /** @} */
