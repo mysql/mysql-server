@@ -501,7 +501,6 @@ static void handle_bootstrap_impl(THD *thd)
   char *query;
   int length;
   int rc;
-  const char* found_semicolon= NULL;
 
   DBUG_ENTER("handle_bootstrap");
 

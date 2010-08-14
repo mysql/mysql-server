@@ -80,25 +80,10 @@ void cleanup_events_waits_history_long(void)
   events_waits_history_long_array= NULL;
 }
 
-static void copy_events_waits(PFS_events_waits *dest,
-                              const PFS_events_waits *source)
+static inline void copy_events_waits(PFS_events_waits *dest,
+                                     const PFS_events_waits *source)
 {
-  /* m_wait_class must be the first member of PFS_events_waits. */
-  compile_time_assert(offsetof(PFS_events_waits, m_wait_class) == 0);
-
-  char* dest_body= (reinterpret_cast<char*> (dest)) + sizeof(events_waits_class);
-  const char* source_body= (reinterpret_cast<const char*> (source))
-    + sizeof(events_waits_class);
-
-  /* See comments in table_events_waits_common::make_row(). */
-
-  /* Signal readers they are about to read garbage ... */
-  dest->m_wait_class= NO_WAIT_CLASS;
-  /* ... that this can generate. */
-  memcpy(dest_body, source_body,
-         sizeof(PFS_events_waits) - sizeof(events_waits_class));
-  /* Signal readers the record is now clean again. */
-  dest->m_wait_class= source->m_wait_class;
+  memcpy(dest, source, sizeof(PFS_events_waits));
 }
 
 /**
@@ -116,9 +101,7 @@ void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait)
     causing a potential race condition.
     We are not testing for this and insert a possibly empty record,
     to make this thread (the writer) faster.
-    This is ok, the truncated data will have
-    wait->m_wait_class == NO_WAIT_CLASS,
-    which readers of m_waits_history will filter out.
+    This is ok, the readers of m_waits_history will filter this out.
   */
   copy_events_waits(&thread->m_waits_history[index], wait);
 
