@@ -47,12 +47,6 @@
   When reading, there is current position pointing at start (for reverse
   buffer, end) of the element that will be read next.
    ^^ why end for reverse? it's more logical to point at start 
-
-  One can peek at what's behind that element by using advance_ptr function.
-
-  TODO: will the reverse buffer store {tuple; rowid} or {rowid; tuple} pairs?
-    (why does it matter??? Read and write in the same order and then it
-    shouldn't matter.)
 */
 
 class SimpleBuffer
@@ -63,7 +57,7 @@ class SimpleBuffer
   uchar *write_pos;
   
   /*
-     1 <=> buffer grows/is filled/is read  from start to end
+     1 <=> buffer grows/is filled/is read from start to end
     -1 <=> everthing is done from end to start instead.
   */
   int direction;
@@ -141,10 +135,7 @@ public:
       DBUG_ASSERT(0); /* Attempt to grow buffer in wrong direction */
   }
   
-  /* */
-  void grow();
-
-  friend class PeekIterator;
+  //friend class PeekIterator;
   class PeekIterator
   {
     // if direction==1 : pointer to what to return next

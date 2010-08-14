@@ -17,6 +17,7 @@ set join_cache_level=6;
 explain
 select * from t1,t2 where t1.b=t2.c and d <= 100;
 
+--sorted_result
 select * from t1,t2 where t1.b=t2.c and d <= 100;
 set join_cache_level=default;
 
