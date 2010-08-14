@@ -14,17 +14,17 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file storage/perfschema/table_processlist.cc
-  Table PROCESSLIST (implementation).
+  @file storage/perfschema/table_threads.cc
+  Table THREADS (implementation).
 */
 
 #include "my_global.h"
 #include "my_pthread.h"
-#include "table_processlist.h"
+#include "table_threads.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 
-THR_LOCK table_processlist::m_table_lock;
+THR_LOCK table_threads::m_table_lock;
 
 static const TABLE_FIELD_TYPE field_types[]=
 {
@@ -46,15 +46,15 @@ static const TABLE_FIELD_TYPE field_types[]=
 };
 
 TABLE_FIELD_DEF
-table_processlist::m_field_def=
+table_threads::m_field_def=
 { 3, field_types };
 
 PFS_engine_table_share
-table_processlist::m_share=
+table_threads::m_share=
 {
-  { C_STRING_WITH_LEN("PROCESSLIST") },
+  { C_STRING_WITH_LEN("THREADS") },
   &pfs_readonly_acl,
-  &table_processlist::create,
+  &table_threads::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   1000, /* records */
@@ -64,23 +64,23 @@ table_processlist::m_share=
   false /* checked */
 };
 
-PFS_engine_table* table_processlist::create(void)
+PFS_engine_table* table_threads::create(void)
 {
-  return new table_processlist();
+  return new table_threads();
 }
 
-table_processlist::table_processlist()
+table_threads::table_threads()
   : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
-void table_processlist::reset_position(void)
+void table_threads::reset_position(void)
 {
   m_pos.m_index= 0;
   m_next_pos.m_index= 0;
 }
 
-int table_processlist::rnd_next(void)
+int table_threads::rnd_next(void)
 {
   PFS_thread *pfs;
 
@@ -100,7 +100,7 @@ int table_processlist::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_processlist::rnd_pos(const void *pos)
+int table_threads::rnd_pos(const void *pos)
 {
   PFS_thread *pfs;
 
@@ -116,7 +116,7 @@ int table_processlist::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_processlist::make_row(PFS_thread *pfs)
+void table_threads::make_row(PFS_thread *pfs)
 {
   pfs_lock lock;
   PFS_thread_class *safe_class;
@@ -139,10 +139,10 @@ void table_processlist::make_row(PFS_thread *pfs)
     m_row_exists= true;
 }
 
-int table_processlist::read_row_values(TABLE *table,
-                                       unsigned char *,
-                                       Field **fields,
-                                       bool read_all)
+int table_threads::read_row_values(TABLE *table,
+                                   unsigned char *,
+                                   Field **fields,
+                                   bool read_all)
 {
   Field *f;
 

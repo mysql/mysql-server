@@ -1743,7 +1743,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                           Field *return_value_fld)
 {
   ulonglong binlog_save_options;
-  bool need_binlog_call;
+  bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
