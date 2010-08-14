@@ -75,6 +75,7 @@ public:
 
   uchar *used_area() { return (direction == 1)? read_pos : write_pos; }
   size_t used_size();
+  bool is_empty() { return used_size() == 0; }
 
   /* Read-mode functions */
   void reset_for_reading();
@@ -277,6 +278,13 @@ private:
   bool do_rowid_fetch;
 
   bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
+  
+  /* 
+    TRUE <=> key buffer is exhausted (we need this because we may have a situation
+    where we've read everything from the key buffer but haven't finished with
+    scanning the last range)
+  */
+  bool key_eof;
 
   /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
   bool is_mrr_assoc;

@@ -563,8 +563,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     If the above call has scanned through all intervals in *seq, then
     adjust *buf to indicate that the remaining buffer space will not be used.
   */
-  if (dsmrr_eof) 
-    buf->end_of_used_area= rowid_buffer.end_of_space();
+//  if (dsmrr_eof) 
+//    buf->end_of_used_area= rowid_buffer.end_of_space();
 
   /*
      h->inited == INDEX may occur when 'range checked for each record' is
@@ -619,21 +619,18 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
   buffer. When the buffer is full or scan is completed, sort the buffer by 
   rowid and return.
   
-  The function assumes that rowids buffer is empty when it is invoked. 
-
-  New2:
-    we will need to scan either 
-     - the source sequence getting records
-     - use dsmrr_next_from_index..
-
   dsmrr_eof is set to indicate whether we've exhausted the list of ranges we're
-  scanning.
+  scanning. This function never returns HA_ERR_END_OF_FILE.
+
+  post-condition:
+   rowid buffer is not empty, or key source is exhausted.
 
   @param h  Table handler
 
   @retval 0      OK, the next portion of rowids is in the buffer,
                  properly ordered
   @retval other  Error
+  
 */
 
 int DsMrr_impl::dsmrr_fill_rowid_buffer()
@@ -642,9 +639,11 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
   int res;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_rowid_buffer");
   
+  DBUG_ASSERT(rowid_buffer.is_empty());
   rowid_buffer.reset_for_writing();
   identical_rowid_ptr= NULL;
-  if (do_sort_keys)
+
+  if (key_buffer.is_reverse())
     key_buffer.flip();
 
   while (rowid_buffer.have_space_for(rowid_buff_elem_size))
@@ -656,7 +655,6 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
 
     if (res)
       break;
-    
 
     KEY_MULTI_RANGE *curr_range= &h2->handler::mrr_cur_range;
     if (!do_sort_keys && /* If keys are sorted then this check is already done */
@@ -674,7 +672,9 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
 
   if (res && res != HA_ERR_END_OF_FILE)
     DBUG_RETURN(res); 
-  dsmrr_eof= test(res == HA_ERR_END_OF_FILE);
+
+  if (!do_sort_keys)
+    dsmrr_eof= test(res == HA_ERR_END_OF_FILE);
 
   /* Sort the buffer contents by rowid */
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
@@ -830,6 +830,10 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
 
     dsmrr_eof is set to indicate whether we've exhausted the list of ranges 
     we're scanning.
+
+  post-condition:
+   - key buffer is non-empty
+   - key buffer is empty and source range sequence is exhausted
 */
 
 void DsMrr_impl::dsmrr_fill_key_buffer()
@@ -838,12 +842,16 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
   KEY_MULTI_RANGE cur_range;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_key_buffer");
 
-  // reset the buffer for writing.
+  DBUG_ASSERT(!key_tuple_length || key_buffer.is_empty());
+
   if (key_tuple_length)
   {
-    if (do_rowid_fetch)
+    if (do_rowid_fetch && rowid_buffer.is_empty())
     {
-      /* Restore original buffer sizes */
+      /*
+        We're using two buffers and both of them are empty now. Restore the
+        original sizes
+      */
       rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 1);
       key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1);
     }
@@ -858,7 +866,6 @@ void DsMrr_impl::dsmrr_fill_key_buffer()
     if (!key_tuple_length)
     {
       /* This only happens when we've just started filling the buffer */
-      //DBUG_ASSERT(key_buffer.used_size() == 0);
       setup_buffer_sizes(&cur_range.start_key);
     }
 
@@ -991,21 +998,21 @@ check_record:
     }
 
     /* First, make sure we have a range at start of the buffer */
-
-    //psergey-todo: why would we re-fill it here in the case when
-    // we're doing rowid retrieval?
-    // - need to check if this is really happening.
-
-    if (!key_buffer.have_data(key_buff_elem_size))
+    if (key_buffer.is_empty())
     {
       if (dsmrr_eof)
       {
         res= HA_ERR_END_OF_FILE;
         goto end;
       }
+      /*
+        When rowid fetching is used, it controls all buffer refills. When we're
+        on our own, try refilling our buffer.
+      */
       if (!do_rowid_fetch)
         dsmrr_fill_key_buffer();
-      if (!key_buffer.have_data(key_buff_elem_size))
+
+      if (key_buffer.is_empty())
       {
         res= HA_ERR_END_OF_FILE;
         goto end;
@@ -1015,16 +1022,16 @@ check_record:
     if (do_rowid_fetch)
     {
       /*
-        At this point we're not using anything beyond what we've read from key
-        buffer. Shrik the key buffer and grow the rowid buffer.
+        At this point we're not using anything what we've read from key
+        buffer. Cut off unused key buffer space and give it to the rowid
+        buffer.
       */
-      uchar *unused_start;
-      uchar *unused_end;
+      uchar *unused_start, *unused_end;
       key_buffer.remove_unused_space(&unused_start, &unused_end);
       rowid_buffer.grow(unused_start, unused_end);
     }
 
-    /* Get the next range to scan*/
+    /* Get the next range to scan */
     cur_index_tuple= key_in_buf= key_buffer.read(key_size_in_keybuf);
     if (use_key_pointers)
       cur_index_tuple= *((uchar**)cur_index_tuple);
@@ -1119,20 +1126,41 @@ int DsMrr_impl::dsmrr_next(char **range_info)
 
   while (1)
   {
-    if (!rowid_buffer.have_data(1))
+    if (rowid_buffer.is_empty())
     {
-      if (dsmrr_eof)
-        return HA_ERR_END_OF_FILE;
+      if (do_sort_keys)
+      {
+        if (!key_buffer.is_empty() || in_index_range) 
+        {
+          /* There are some sorted keys left. Use them to get rowids */
+          if ((res= dsmrr_fill_rowid_buffer()))
+            return res; /* for fatal errors */
+        }
+        if (rowid_buffer.is_empty())
+        {
+          if (dsmrr_eof)
+            return HA_ERR_END_OF_FILE;
+          dsmrr_fill_key_buffer();
+          if ((res= dsmrr_fill_rowid_buffer()))
+            return res;
+        }
+      }
+      else
+      {
+        /* 
+          There is no buffer with sorted keys. If fill_rowid_buffer() haven't
+          reached eof condition before, try refilling the buffer.
+        */
+        if (dsmrr_eof)
+          return HA_ERR_END_OF_FILE;
 
-      if (do_sort_keys && key_buffer.used_size() == 0)
-        dsmrr_fill_key_buffer();
-
-      if ((res= dsmrr_fill_rowid_buffer()))
-        return res;
+        if ((res= dsmrr_fill_rowid_buffer()))
+          return res;
+      }
     }
    
     /* Return eof if there are no rowids in the buffer after re-fill attempt */
-    if (!rowid_buffer.have_data(1))
+    if (rowid_buffer.is_empty())
       return HA_ERR_END_OF_FILE;
 
     rowid= rowid_buffer.read(h->ref_length);
@@ -1145,10 +1173,6 @@ int DsMrr_impl::dsmrr_next(char **range_info)
       memcpy(range_info, range_id, sizeof(uchar*));
     }
     
-    //psergey2-note: the below isn't right- we won't want to skip over this 
-    // rowid because this (rowid, range_id) pair has nothing.. the next 
-    // identical rowids might have something.. (but we set identicals later,
-    // dont we?)
     if (h2->mrr_funcs.skip_record &&
 	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
       continue;
