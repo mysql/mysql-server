@@ -5162,7 +5162,7 @@ sub ddd_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "file ../sql/.libs/mysqld\n" .
+	       "file ../sql/mysqld\n" .
 	       "set args $str\n" .
 	       "break mysql_parse\n" .
 	       "commands 1\n" .

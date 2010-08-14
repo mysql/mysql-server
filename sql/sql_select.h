@@ -1923,7 +1923,7 @@ public:
   */
   JOIN_TAB *get_sort_by_join_tab()
   {
-    return (need_tmp || !sort_by_table || skip_sort_order ||
+    return (!sort_by_table || skip_sort_order ||
             ((group || tmp_table_param.sum_func_count) && !group_list)) ?
               NULL : join_tab+const_tables;
   }
