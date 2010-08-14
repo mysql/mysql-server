@@ -3266,7 +3266,7 @@ public:
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
-  Item_result result_type()
+  Item_result result_type() const
   {
     if (!example)
       return INT_RESULT;
