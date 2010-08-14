@@ -257,9 +257,9 @@ void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
-static bool replace_where_subcondition(JOIN *join, Item **tree, 
-                                       Item *old_cond, Item *new_cond,
-                                       bool do_fix_fields);
+static bool replace_subcondition(JOIN *join, Item **tree, 
+                                 Item *old_cond, Item *new_cond,
+                                 bool do_fix_fields);
 static bool test_if_ref(Item *root_cond, 
                         Item_field *left_item,Item *right_item);
 
@@ -1508,9 +1508,26 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         JOIN_TAB *jump_to= tab - 1;
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
-        if (!tab->emb_sj_nest)
-          jump_to= tab;         /// @todo fix this (BUG#51457)
-        tab_end->do_firstmatch= jump_to;
+        for (JOIN_TAB *j= tab; j <= tab_end; j++)
+        {
+          if (!j->emb_sj_nest)
+          {
+            /*
+              Let last non-correlated table be jump target for
+              subsequent inner tables.
+            */
+            jump_to= j;
+          }
+          else
+          {
+            /*
+              Assign jump target for last table in a consecutive range of 
+              inner tables.
+            */
+            if (j == tab_end || !(j+1)->emb_sj_nest)
+              j->do_firstmatch= jump_to;
+          }
+        }
         i+= pos->n_sj_tables;
         break;
       }
@@ -3867,8 +3884,7 @@ bool JOIN::flatten_subqueries()
   {
     Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
                    &conds : &((*subq)->embedding_join_nest->on_expr);
-    if (replace_where_subcondition(this, tree, *subq, new Item_int(1),
-                                   FALSE))
+    if (replace_subcondition(this, tree, *subq, new Item_int(1), FALSE))
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
  
@@ -3911,8 +3927,7 @@ skip_conversion:
     bool do_fix_fields= !(*subq)->substitution->fixed;
     Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
                    &conds : &((*subq)->embedding_join_nest->on_expr);
-    if (replace_where_subcondition(this, tree, *subq, substitute, 
-                                   do_fix_fields))
+    if (replace_subcondition(this, tree, *subq, substitute, do_fix_fields))
       DBUG_RETURN(TRUE);
     (*subq)->substitution= NULL;
      
@@ -3922,7 +3937,7 @@ skip_conversion:
                      &select_lex->prep_where :
                      &((*subq)->embedding_join_nest->prep_on_expr);
 
-      if (replace_where_subcondition(this, tree, *subq, substitute, 
+      if (replace_subcondition(this, tree, *subq, substitute, 
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
@@ -4888,8 +4903,7 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
         sjm->materialization_cost.convert_from_cost(subjoin_read_time);
         sjm->rows= subjoin_out_rows;
 
-        List<Item> &right_expr_list= 
-          sj_nest->sj_subq_pred->unit->first_select()->item_list;
+        List<Item> &inner_expr_list= sj_nest->nested_join->sj_inner_exprs;
         /*
           Adjust output cardinality estimates. If the subquery has form
 
@@ -4911,7 +4925,7 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
             JOIN_TAB *tab= join->best_positions[i].table;
             join->map2table[tab->table->tablenr]= tab;
           }
-          List_iterator<Item> it(right_expr_list);
+          List_iterator<Item> it(inner_expr_list);
           Item *item;
           table_map map= 0;
           while ((item= it++))
@@ -4930,7 +4944,7 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
         /*
           Calculate temporary table parameters and usage costs
         */
-        uint rowlen= get_tmp_table_rec_length(right_expr_list);
+        uint rowlen= get_tmp_table_rec_length(inner_expr_list);
         double lookup_cost;
         if (rowlen * subjoin_out_rows< join->thd->variables.max_heap_table_size)
           lookup_cost= HEAP_TEMPTABLE_LOOKUP_COST;
@@ -6601,7 +6615,7 @@ best_access_path(JOIN      *join,
     This isn't unlikely at all, but unlikely() cuts 6% CPU time on a 20-table
     search when s->keyuse==0, and has no cost when s->keyuse!=0.
   */
-  if (s->keyuse)
+  if (unlikely(s->keyuse != NULL))
   {                                            /* Use key if possible */
     TABLE *table= s->table;
     KEYUSE *keyuse;
@@ -7844,9 +7858,6 @@ best_extension_by_limited_search(JOIN      *join,
   THD *thd= join->thd;
   if (thd->killed)  // Abort
     DBUG_RETURN(TRUE);
-
-  DBUG_EXECUTE("opt", print_plan(join, idx, read_time, record_count, idx,
-                                 "SOFAR:"););
 
   /* 
      'join' is a partial plan with lower cost than the best plan so far,
@@ -9909,8 +9920,6 @@ pick_table_access_method(JOIN_TAB *tab)
 static uint make_join_orderinfo(JOIN *join)
 {
   JOIN_TAB *tab;
-  if (join->need_tmp)
-    return join->tables;
   tab= join->get_sort_by_join_tab();
   return tab ? tab-join->join_tab : join->tables;
 }
@@ -10196,8 +10205,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
         (tab->first_inner || tab_sj_strategy == SJ_OPT_FIRST_MATCH))
       goto no_join_cache;
     if ((options & SELECT_DESCRIBE) ||
-        ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache))) &&
-        !tab->cache->init())
+        ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache)) &&
+         !tab->cache->init()))
     {
       *icp_other_tables_ok= FALSE;
       return JOIN_CACHE::ALG_BNL | force_unlinked_cache;
@@ -10217,11 +10226,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL) &&
         (!(flags & HA_MRR_NO_ASSOCIATION) || cache_level > 6) &&
         ((options & SELECT_DESCRIBE) ||
-         (cache_level <= 6 && 
-          (tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache)) ||
-	  cache_level > 6 &&  
-          (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache))
-         ) && !tab->cache->init()))
+         (((cache_level <= 6 && 
+            (tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache))) ||
+           (cache_level > 6 &&  
+            (tab->cache= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache)))
+           ) && !tab->cache->init())))
     {
       if (cache_level <= 6)
         return JOIN_CACHE::ALG_BKA | force_unlinked_cache;
@@ -10792,15 +10801,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     if (tab->use_join_cache)
     {
       JOIN_TAB *sort_by_tab= join->get_sort_by_join_tab();
-      if (sort_by_tab && !join->need_tmp)
+      if (sort_by_tab)
       {
         join->need_tmp= 1;
         join->simple_order= join->simple_group= 0;
-        if (sort_by_tab->type == JT_NEXT)
-        {
-          sort_by_tab->type= JT_ALL;
-          sort_by_tab->read_first_record= join_init_read_record;
-        }
       }
       break;
     }
@@ -15525,49 +15529,6 @@ err:
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
-/**
-   @brief Replaces an expression destructively inside the expression tree of
-   the WHERE clase.
-
-   @note Because of current requirements for semijoin flattening, we do not
-   need to recurse here, hence this function will only examine the top-level
-   AND conditions. (see JOIN::prepare, comment above the line 
-   'if (do_materialize)'
-   
-   @param join The top-level query.
-   @param old_cond The expression to be replaced.
-   @param new_cond The expression to be substituted.
-   @param do_fix_fields If true, Item::fix_fields(THD*, Item**) is called for
-   the new expression.
-   @return <code>true</code> if there was an error, <code>false</code> if
-   successful.
-*/
-static bool replace_where_subcondition(JOIN *join, Item *old_cond, 
-                                       Item *new_cond, bool do_fix_fields)
-{
-  if (join->conds == old_cond) {
-    join->conds= new_cond;
-    if (do_fix_fields)
-      new_cond->fix_fields(join->thd, &join->conds);
-    return FALSE;
-  }
-  
-  if (join->conds->type() == Item::COND_ITEM) {
-    List_iterator<Item> li(*((Item_cond*)join->conds)->argument_list());
-    Item *item;
-    while ((item= li++))
-      if (item == old_cond) 
-      {
-        li.replace(new_cond);
-        if (do_fix_fields)
-          new_cond->fix_fields(join->thd, li.ref());
-        return FALSE;
-      }
-  }
-
-  return TRUE;
-}
-
 /*
   Create a temporary table to weed out duplicate rowid combinations
 
@@ -17204,7 +17165,16 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
         if (tab->table->reginfo.not_exists_optimize)
+        {
+          /*
+            When not_exists_optimizer is set and a matching row is found, the
+            outer row should be excluded from the result set: no need to
+            explore this record and other records of 'tab', so we return "no
+            records". But as we set 'found' above, evaluate_join_record() at
+            the upper level will not yield a NULL-complemented record.
+          */
           DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+        }
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -17375,40 +17345,28 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
     if (select_cond && !select_cond->val_int())
       DBUG_RETURN(NESTED_LOOP_OK);
   }
-  join_tab--;
+  join_tab= last_inner_tab;
   /*
-    The row complemented by nulls might be the first row
-    of embedding outer joins.
-    If so, perform the same actions as in the code
-    for the first regular outer join row above.
+    From the point of view of the rest of execution, this record matches
+    (it has been built and satisfies conditions, no need to do more evaluation
+    on it). See similar code in evaluate_join_record().
   */
-  for ( ; ; )
-  {
-    JOIN_TAB *first_unmatched= join_tab->first_unmatched;
-    if ((first_unmatched= first_unmatched->first_upper) &&
-        first_unmatched->last_inner != join_tab)
-      first_unmatched= 0;
-    join_tab->first_unmatched= first_unmatched;
-    if (!first_unmatched)
-      break;
-    first_unmatched->found= 1;
-    for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
-    {
-      if (tab->select_cond && !tab->select_cond->val_int())
-      {
-        join->return_tab= tab;
-        DBUG_RETURN(NESTED_LOOP_OK);
-      }
-    }
-  }
+  JOIN_TAB *first_unmatched= join_tab->first_unmatched->first_upper;
+  if (first_unmatched != NULL &&
+      first_unmatched->last_inner != join_tab)
+    first_unmatched= NULL;
+  join_tab->first_unmatched= first_unmatched;
   /*
     The row complemented by nulls satisfies all conditions
     attached to inner tables.
-    Send the row complemented by nulls to be joined with the
+    Finish evaluation of record and send it to be joined with
     remaining tables.
+    Note that evaluate_join_record will re-evaluate the condition attached
+    to the last inner table of the current outer join. This is not deemed to
+    have a significant performance impact.
   */
-  enum_nested_loop_state nls= (*join_tab->next_select)(join, join_tab+1, 0);
-  DBUG_RETURN(nls);
+  const enum_nested_loop_state rc= evaluate_join_record(join, join_tab, 0);
+  DBUG_RETURN(rc);
 }
 
 
@@ -17656,28 +17614,28 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
       Moving away from the current record. Unlock the row
       in the handler if it did not match the partial WHERE.
     */
-    if (tab->ref.has_record && tab->ref.use_count == 0)
+    if (table_ref->has_record && table_ref->use_count == 0)
     {
-      tab->read_record.file->unlock_row();
-      tab->ref.has_record= FALSE;
+      table->file->unlock_row();
+      table_ref->has_record= FALSE;
     }
     error= table->file->ha_index_read_map(table->record[0],
-                                          tab->ref.key_buff,
-                                          make_prev_keypart_map(tab->ref.key_parts),
+                                          table_ref->key_buff,
+                                          make_prev_keypart_map(table_ref->key_parts),
                                           HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
 
     if (! error)
     {
-      tab->ref.has_record= TRUE;
-      tab->ref.use_count= 1;
+      table_ref->has_record= TRUE;
+      table_ref->use_count= 1;
     }
   }
   else if (table->status == 0)
   {
-    DBUG_ASSERT(tab->ref.has_record);
-    tab->ref.use_count++;
+    DBUG_ASSERT(table_ref->has_record);
+    table_ref->use_count++;
   }
   table->null_row=0;
   return table->status ? -1 : 0;
@@ -18559,53 +18517,62 @@ static bool test_if_ref(Item *root_cond,
 
 
 /**
-   @brief Replaces an expression destructively inside the expression tree of
-   the WHERE clase.
+   Destructively replaces a sub-condition inside a condition tree. The
+   parse tree is also altered.
 
    @note Because of current requirements for semijoin flattening, we do not
    need to recurse here, hence this function will only examine the top-level
    AND conditions. (see JOIN::prepare, comment starting with "Check if the 
-   subquery predicate can be executed via materialization".
+   subquery predicate can be executed via materialization".)
    
    @param join The top-level query.
-   @param old_cond The expression to be replaced.
-   @param new_cond The expression to be substituted.
+
+   @param tree Must be the handle to the top level condition. This is needed
+   when the top-level condition changes.
+
+   @param old_cond The condition to be replaced.
+
+   @param new_cond The condition to be substituted.
+
    @param do_fix_fields If true, Item::fix_fields(THD*, Item**) is called for
-   the new expression.
-   @return <code>true</code> if there was an error, <code>false</code> if
-   successful.
+   the new condition.
+
+   @return error status
+
+   @retval true If there was an error.
+   @retval false If successful.
 */
-static bool replace_where_subcondition(JOIN *join, Item **expr, 
-                                       Item *old_cond, Item *new_cond,
-                                       bool do_fix_fields)
+static bool replace_subcondition(JOIN *join, Item **tree, 
+                                 Item *old_cond, Item *new_cond,
+                                 bool do_fix_fields)
 {
-  //Item **expr= (emb_nest == (TABLE_LIST*)1)? &join->conds : &emb_nest->on_expr;
-  if (*expr == old_cond)
+  if (*tree == old_cond)
   {
-    *expr= new_cond;
-    if (do_fix_fields)
-      new_cond->fix_fields(join->thd, expr);
-    join->select_lex->where= *expr;
+    *tree= new_cond;
+    if (do_fix_fields && new_cond->fix_fields(join->thd, tree))
+      return TRUE;
+    join->select_lex->where= *tree;
     return FALSE;
   }
-  
-  if ((*expr)->type() == Item::COND_ITEM) 
+  else if ((*tree)->type() == Item::COND_ITEM) 
   {
-    List_iterator<Item> li(*((Item_cond*)(*expr))->argument_list());
+    List_iterator<Item> li(*((Item_cond*)(*tree))->argument_list());
     Item *item;
     while ((item= li++))
     {
       if (item == old_cond) 
       {
         li.replace(new_cond);
-        if (do_fix_fields)
-          new_cond->fix_fields(join->thd, li.ref());
+        if (do_fix_fields && new_cond->fix_fields(join->thd, li.ref()))
+          return TRUE;
         return FALSE;
       }
     }
   }
-  // If we came here it means there were an error during prerequisites check.
-  DBUG_ASSERT(0);
+  else
+    // If we came here it means there were an error during prerequisites check.
+    DBUG_ASSERT(FALSE);
+
   return TRUE;
 }
 
