@@ -643,7 +643,7 @@ int DsMrr_impl::dsmrr_fill_rowid_buffer()
   rowid_buffer.reset_for_writing();
   identical_rowid_ptr= NULL;
 
-  if (key_buffer.is_reverse())
+  if (do_sort_keys && key_buffer.is_reverse())
     key_buffer.flip();
 
   while (rowid_buffer.have_space_for(rowid_buff_elem_size))
