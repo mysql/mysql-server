@@ -758,6 +758,10 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   key_buff_elem_size= key_size_in_keybuf + 
                       (int)is_mrr_assoc * sizeof(void*);
   
+  KEY *key_info= &h->table->key_info[keyno];
+  index_ranges_unique= test(key_info->flags & HA_NOSAME && 
+                            key_info->key_parts == 
+                              my_count_bits(sample_key->keypart_map));
   if (!do_rowid_fetch)
   {
     /* Give all space to key buffer. */
@@ -775,7 +779,6 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
   uint rowid_buf_elem_size= h->ref_length + 
                             (int)is_mrr_assoc * sizeof(char*);
   
-  KEY *key_info= &h->table->key_info[keyno];
   /*
     Use rec_per_key statistics as a basis to find out how many rowids 
     we'll get for each key value.
@@ -809,12 +812,7 @@ void DsMrr_impl::setup_buffer_sizes(key_range *sample_key)
 
   rowid_buffer_end= full_buf + bytes_for_rowids;
   rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end, 1);
-  key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1);
-
-  
-  index_ranges_unique= test(key_info->flags & HA_NOSAME && 
-                            key_info->key_parts == 
-                              my_count_bits(sample_key->keypart_map));
+  key_buffer.set_buffer_space(rowid_buffer_end, full_buf_end, -1); 
 }
 
 
