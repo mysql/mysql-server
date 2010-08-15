@@ -454,7 +454,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     in_index_range= FALSE;
     h->mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
     h->mrr_funcs= *seq_funcs;
-    keyno= h->active_index != MAX_KEY? h->active_index : h2->active_index;
+    keyno= (h->inited == handler::INDEX)? h->active_index : h2->active_index;
     dsmrr_fill_key_buffer();
     
     if (dsmrr_eof && !do_rowid_fetch)
