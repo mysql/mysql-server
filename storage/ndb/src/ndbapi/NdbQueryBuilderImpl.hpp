@@ -20,7 +20,7 @@
 #ifndef NdbQueryBuilderImpl_H
 #define NdbQueryBuilderImpl_H
 
-// Query-related error codes.
+/* Query-related error codes. */
 #define QRY_REQ_ARG_IS_NULL 4800
 #define QRY_TOO_FEW_KEY_VALUES 4801
 #define QRY_TOO_MANY_KEY_VALUES 4802
@@ -841,5 +841,5 @@ private:
 }; // class NdbConstOperandImpl
 
 
-#endif // __cplusplus
+#endif /* __cplusplus */
 #endif
