@@ -73,9 +73,10 @@ SET (SQL_SOURCE
                sql_bootstrap.cc
                sql_signal.cc mdl.cc
                sql_alloc_error_handler.cc
-               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc datadict.cc
+               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
+               datadict.cc
                sql_partition_admin.cc
-               sql_alter_table.cc
+               sql_admin.cc sql_alter.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 

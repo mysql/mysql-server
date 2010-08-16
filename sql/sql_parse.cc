@@ -50,6 +50,7 @@
                               // mysql_backup_table,
                               // mysql_restore_table
 #include "sql_truncate.h"     // mysql_truncate_table
+#include "sql_admin.h"        // mysql_assign_to_keycache
 #include "sql_connect.h"      // check_user,
                               // decrease_user_connections,
                               // thd_init_client_charset, check_mqh,
@@ -2941,81 +2942,6 @@ end_with_restore_list:
     res = mysql_checksum_table(thd, first_table, &lex->check_opt);
     break;
   }
-  case SQLCOM_REPAIR:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= mysql_repair_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, REPAIR and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-  case SQLCOM_CHECK:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL, all_tables,
-                           TRUE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res = mysql_check_table(thd, first_table, &lex->check_opt);
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-  case SQLCOM_ANALYZE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= mysql_analyze_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, ANALYZE and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-
-  case SQLCOM_OPTIMIZE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
-      mysql_recreate_table(thd, first_table) :
-      mysql_optimize_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, OPTIMIZE and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
   case SQLCOM_UPDATE:
   {
     ha_rows found= 0, updated= 0;
@@ -3236,23 +3162,6 @@ end_with_restore_list:
 
     break;
   }
-  case SQLCOM_TRUNCATE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_one_table_access(thd, DROP_ACL, all_tables))
-      goto error;
-    /*
-      Don't allow this within a transaction because we want to use
-      re-generate table
-    */
-    if (thd->in_active_multi_stmt_transaction())
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
-    if (! (res= mysql_truncate_table(thd, first_table)))
-      my_ok(thd);
-    break;
   case SQLCOM_DELETE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -4638,6 +4547,11 @@ create_sp_error:
     my_ok(thd, 1);
     break;
   }
+  case SQLCOM_ANALYZE:
+  case SQLCOM_CHECK:
+  case SQLCOM_OPTIMIZE:
+  case SQLCOM_REPAIR:
+  case SQLCOM_TRUNCATE:
   case SQLCOM_ALTER_TABLE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
