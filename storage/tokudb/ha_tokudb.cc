@@ -6641,20 +6641,38 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
         error = delete_or_rename_dictionary(share->table_name, NULL, table_arg->key_info[curr_index].name, true, txn, true);
         if (error) { goto cleanup; }
     }
+
 cleanup:
     if (txn) {
         if (error) {
             abort_txn(txn);
+            //
+            // reopen closed dictionaries
+            //
+            for (uint i = 0; i < num_of_keys; i++) {
+                int r;
+                uint curr_index = key_num[i];
+                if (share->key_file[curr_index] == NULL) {
+                    r = open_secondary_dictionary(
+                        &share->key_file[curr_index], 
+                        &table_share->key_info[curr_index],
+                        share->table_name,
+                        false, // 
+                        NULL
+                        );
+                    assert(!r);
+                }
+            }            
         }
         else {
             commit_txn(txn,0);
         }
     }
-        if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
-            sql_print_error("Could not drop indexes from table %s because \
+    if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
+        sql_print_error("Could not drop indexes from table %s because \
 another transaction has accessed the table. \
 To drop indexes, make sure no transactions touch the table.", share->table_name);
-        }
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
