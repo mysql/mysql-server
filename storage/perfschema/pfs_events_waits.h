@@ -97,7 +97,7 @@ struct PFS_events_waits
     - TRUNCATE EVENTS_WAITS_HISTORY
     - TRUNCATE EVENTS_WAITS_HISTORY_LONG
   */
-  volatile events_waits_class m_wait_class;
+  events_waits_class m_wait_class;
   /** Executing thread. */
   PFS_thread *m_thread;
   /** Instrument metadata. */

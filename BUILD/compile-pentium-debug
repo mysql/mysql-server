@@ -1,7 +1,6 @@
 #! /bin/sh
 
 path=`dirname $0`
-set -- "$@" --with-debug=full
 . "$path/SETUP.sh"
 
 extra_flags="$pentium_cflags $debug_cflags"
