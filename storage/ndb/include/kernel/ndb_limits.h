@@ -202,4 +202,12 @@
  */
 #define MAX_ATTRIBUTES_IN_TABLE_NDB_EVENTS_0 4096
 
+/**
+ * Max treenodes per request SPJ
+ *
+ * Currently limited by nodemask being shipped back inside 32-bit
+ *   word disguised as totalLen in ScanTabConf
+ */
+#define NDB_SPJ_MAX_TREE_NODES 32
+
 #endif
