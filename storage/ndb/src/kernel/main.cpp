@@ -95,7 +95,7 @@ const char *load_default_groups[]= { "mysql_cluster", "ndbd", 0 };
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname, NULL);
+  ndb_short_usage_sub(NULL);
   ndb_service_print_options("ndbd");
 }
 
@@ -131,7 +131,7 @@ real_main(int argc, char** argv)
   // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
-  ndb_opt_set_usage_funcs("ndbd", short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
 
 #ifndef DBUG_OFF

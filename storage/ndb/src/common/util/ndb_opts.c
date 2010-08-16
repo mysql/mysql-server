@@ -3,11 +3,10 @@
 
 #include <ndb_version.h>
 
-static const char* g_ndb_opt_progname= "ndbapi_program";
 
 static void default_ndb_opt_short(void)
 {
-  ndb_short_usage_sub(g_ndb_opt_progname,NULL);
+  ndb_short_usage_sub(NULL);
 }
 
 static void default_ndb_opt_usage(void)
@@ -24,21 +23,29 @@ static void default_ndb_opt_usage(void)
 static void (*g_ndb_opt_short_usage)(void)= default_ndb_opt_short;
 static void (*g_ndb_opt_usage)(void)= default_ndb_opt_usage;
 
-void ndb_opt_set_usage_funcs(const char* progname,
-                             void (*short_usage)(void),
+void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void))
 {
-  if(progname)
-    g_ndb_opt_progname= progname;
+  /* Check that the program name has been set already */
+  assert(my_progname);
+
   if(short_usage)
     g_ndb_opt_short_usage= short_usage;
   if(usage)
     g_ndb_opt_usage= usage;
 }
 
-void ndb_short_usage_sub(const char* progname, const char* extra)
+static inline
+const char* ndb_progname(void)
 {
-  printf("Usage: %s [OPTIONS]%s%s\n", progname,
+  if (my_progname)
+    return my_progname;
+  return "<unknown program>";
+}
+
+void ndb_short_usage_sub(const char* extra)
+{
+  printf("Usage: %s [OPTIONS]%s%s\n", ndb_progname(),
          (extra)?" ":"",
          (extra)?extra:"");
 }
