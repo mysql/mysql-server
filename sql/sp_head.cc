@@ -1743,7 +1743,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                           Field *return_value_fld)
 {
   ulonglong binlog_save_options;
-  bool need_binlog_call;
+  bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
@@ -1949,6 +1949,14 @@ err_with_cleanup:
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
   thd->spcont= octx;
+
+  /*
+    If not insided a procedure and a function printing warning
+    messsages.
+  */
+  if (need_binlog_call && 
+      thd->spcont == NULL && !thd->binlog_evt_union.do_union)
+    thd->issue_unsafe_warnings();
 
   DBUG_RETURN(err_status);
 }
@@ -2194,6 +2202,17 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   delete nctx;
   thd->spcont= save_spcont;
   thd->utime_after_lock= utime_before_sp_exec;
+
+  /*
+    If not insided a procedure and a function printing warning
+    messsages.
+  */ 
+  bool need_binlog_call= mysql_bin_log.is_open() &&
+                         (thd->variables.option_bits & OPTION_BIN_LOG) &&
+                         !thd->is_current_stmt_binlog_format_row();
+  if (need_binlog_call && thd->spcont == NULL &&
+      !thd->binlog_evt_union.do_union)
+    thd->issue_unsafe_warnings();
 
   DBUG_RETURN(err_status);
 }
