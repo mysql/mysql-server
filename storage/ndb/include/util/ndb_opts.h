@@ -120,7 +120,7 @@ enum ndb_std_options {
   NDB_STD_OPTIONS_LAST
 };
 
-void ndb_opt_set_usage_funcs(const char* my_progname,
+void ndb_opt_set_usage_funcs(const char* progname,
                              void (*short_usage)(void),
                              void (*usage)(void));
 my_bool
@@ -130,7 +130,7 @@ ndb_std_get_one_option(int optid,
 
 void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
                struct my_option *my_long_options);
-void ndb_short_usage_sub(const char* my_progname, const char* extra);
+void ndb_short_usage_sub(const char* progname, const char* extra);
 
 
 #ifdef __cplusplus

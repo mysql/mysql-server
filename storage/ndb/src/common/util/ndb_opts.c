@@ -24,21 +24,21 @@ static void default_ndb_opt_usage(void)
 static void (*g_ndb_opt_short_usage)(void)= default_ndb_opt_short;
 static void (*g_ndb_opt_usage)(void)= default_ndb_opt_usage;
 
-void ndb_opt_set_usage_funcs(const char* my_progname,
+void ndb_opt_set_usage_funcs(const char* progname,
                              void (*short_usage)(void),
                              void (*usage)(void))
 {
-  if(my_progname)
-    g_ndb_opt_progname= (char*)my_progname;
+  if(progname)
+    g_ndb_opt_progname= progname;
   if(short_usage)
     g_ndb_opt_short_usage= short_usage;
   if(usage)
     g_ndb_opt_usage= usage;
 }
 
-void ndb_short_usage_sub(const char* my_progname, const char* extra)
+void ndb_short_usage_sub(const char* progname, const char* extra)
 {
-  printf("Usage: %s [OPTIONS]%s%s\n", my_progname,
+  printf("Usage: %s [OPTIONS]%s%s\n", progname,
          (extra)?" ":"",
          (extra)?extra:"");
 }
