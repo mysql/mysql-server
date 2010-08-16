@@ -533,7 +533,8 @@ public:
    * @param rowCount Number of rows for this fragment, including all rows from 
    * descendant lookup operations.
    * @param receiver The receiver object that shall process the results.*/
-  bool execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, NdbReceiver* receiver); 
+  bool execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, Uint32 nodeMask,
+                        NdbReceiver* receiver); 
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }
