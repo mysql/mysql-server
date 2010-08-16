@@ -277,6 +277,7 @@ static void shuffle(int a[], int n) {
 }
 
 static int ascending_keys = 0;
+static int ascending_keys_poison = 0;
 static int descending_keys = 0;
 static int random_keys = 0;
 
@@ -288,7 +289,12 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     int nkeys = nrows * nrowsets;
     int *keys = toku_calloc(nkeys, sizeof (int)); assert(keys);
     for (int i = 0; i < nkeys; i++)
-        keys[i] = ascending_keys ? i : nkeys - i;
+        keys[i] = ascending_keys ? 2*i : nkeys - i;
+    if (ascending_keys_poison) {
+        if (verbose)
+            printf("poison %d %d %d\n", nrows*(nrowsets-1), keys[nrows*(nrowsets-1)], keys[nrows-1] -1);
+        keys[nrows*(nrowsets-1)] = keys[nrows-1] - 1;
+    }
     if (random_keys)
         shuffle(keys, nkeys);
 
@@ -384,6 +390,9 @@ int test_main (int argc, const char *argv[]) {
             descending_keys = 1;
         } else if (strcmp(argv[0],"--random") == 0) {
             random_keys = 1;
+        } else if (strcmp(argv[0], "--asc-poison") == 0) {
+            ascending_keys = 1;
+            ascending_keys_poison = 1;
 	} else if (argc!=1) {
             return usage(progname);
 	    exit(1);

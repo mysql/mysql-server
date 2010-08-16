@@ -1536,22 +1536,28 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER
         //bl_time_t after_sort = bl_time_now();
 
         if (result == 0) {
-            DBT akey = make_dbt(rows.data+rows.rows[0].off,  rows.rows[0].klen);
-            if (fs->have_sorted_output && compare(dest_db, &fs->prev_key, &akey)<0) {
-                // write everything to the same output.
+            DBT min_rowset_key = make_dbt(rows.data+rows.rows[0].off, rows.rows[0].klen);
+            if (fs->have_sorted_output && compare(dest_db, &fs->prev_key, &min_rowset_key) < 0) {
+                // write everything to the same output if the max key in the temp file (prev_key) is < min of the sorted rowset
                 result = write_rowset_to_file(bl, fs->sorted_output, rows);
-            } else {
-                FIDX sfile = FIDX_NULL;
-                result = extend_fileset(bl, fs, &sfile);
                 if (result == 0) {
-                    if (fs->have_sorted_output) {
-                        fs->have_sorted_output = FALSE;
-                        result = brtloader_fi_close(&bl->file_infos, fs->sorted_output);
-                    }
+                    // set the max key in the temp file to the max key in the sorted rowset
+                    result = toku_dbt_set(rows.rows[rows.n_rows-1].klen, rows.data + rows.rows[rows.n_rows-1].off, &fs->prev_key, NULL);
+                }
+            } else {
+                // write the sorted rowset into a new temp file
+                if (fs->have_sorted_output) {
+                    fs->have_sorted_output = FALSE;
+                    result = brtloader_fi_close(&bl->file_infos, fs->sorted_output);
+                }
+                if (result == 0) {
+                    FIDX sfile = FIDX_NULL;
+                    result = extend_fileset(bl, fs, &sfile);
                     if (result == 0) {
                         result = write_rowset_to_file(bl, sfile, rows);
                         if (result == 0) {
                             fs->have_sorted_output = TRUE; fs->sorted_output = sfile;
+                            // set the max key in the temp file to the max key in the sorted rowset
                             result = toku_dbt_set(rows.rows[rows.n_rows-1].klen, rows.data + rows.rows[rows.n_rows-1].off, &fs->prev_key, NULL);
                         }
                     }
