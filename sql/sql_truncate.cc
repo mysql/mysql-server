@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_truncate.h"
 #include "sql_priv.h"
 #include "transaction.h"
 #include "debug_sync.h"
@@ -25,6 +24,9 @@
 #include "sql_handler.h" // mysql_ha_rm_tables
 #include "datadict.h"    // dd_recreate_table()
 #include "lock.h"        // MYSQL_OPEN_TEMPORARY_ONLY
+#include "sql_acl.h"     // DROP_ACL
+#include "sql_parse.h"   // check_one_table_access()
+#include "sql_truncate.h"
 
 
 /*
@@ -242,6 +244,7 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
                                              MDL_ticket **ticket_downgrade)
 {
   TABLE *table= NULL;
+  handlerton *table_type;
   DBUG_ENTER("open_and_lock_table_for_truncate");
 
   DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
@@ -265,7 +268,8 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
                                             table_ref->table_name, FALSE)))
       DBUG_RETURN(TRUE);
 
-    *hton_can_recreate= ha_check_storage_engine_flag(table->s->db_type(),
+    table_type= table->s->db_type();
+    *hton_can_recreate= ha_check_storage_engine_flag(table_type,
                                                      HTON_CAN_RECREATE);
     table_ref->mdl_request.ticket= table->mdl_ticket;
   }
@@ -281,11 +285,25 @@ static bool open_and_lock_table_for_truncate(THD *thd, TABLE_LIST *table_ref,
                          MYSQL_OPEN_SKIP_TEMPORARY))
       DBUG_RETURN(TRUE);
 
-    if (dd_check_storage_engine_flag(thd, table_ref->db, table_ref->table_name,
-                                     HTON_CAN_RECREATE, hton_can_recreate))
+    if (dd_frm_storage_engine(thd, table_ref->db, table_ref->table_name,
+                              &table_type))
       DBUG_RETURN(TRUE);
+    *hton_can_recreate= ha_check_storage_engine_flag(table_type,
+                                                     HTON_CAN_RECREATE);
   }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    TODO: Add support for TRUNCATE PARTITION for NDB and other engines
+    supporting native partitioning.
+  */
+  if (thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION &&
+      table_type != partition_hton)
+  {
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+#endif
   DEBUG_SYNC(thd, "lock_table_for_truncate");
 
   if (*hton_can_recreate)
@@ -477,3 +495,27 @@ bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
   DBUG_RETURN(test(error));
 }
 
+
+bool Truncate_statement::execute(THD *thd)
+{
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  bool res= TRUE;
+  DBUG_ENTER("Truncate_statement::execute");
+
+  if (check_one_table_access(thd, DROP_ACL, first_table))
+    goto error;
+  /*
+    Don't allow this within a transaction because we want to use
+    re-generate table
+  */
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    goto error;
+  }
+  if (! (res= mysql_truncate_table(thd, first_table)))
+    my_ok(thd);
+error:
+  DBUG_RETURN(res);
+}
