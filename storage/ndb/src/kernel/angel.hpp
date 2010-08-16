@@ -19,7 +19,8 @@
 #include <util/BaseString.hpp>
 
 void
-angel_run(const BaseString& original_args,
+angel_run(const char* progname,
+          const BaseString& original_args,
           const char* connect_str,
           int force_nodeid,
           const char* bind_address,
