@@ -1714,3 +1714,14 @@ NULL	NULL	NULL	NULL	NULL
 drop table t1;
 #
 End of 5.1 tests
+#
+# Bug#55648: Server crash on MIX/MAX on maximum time value
+#
+CREATE TABLE t1(c1 TIME NOT NULL);
+INSERT INTO t1 VALUES('837:59:59');
+INSERT INTO t1 VALUES('838:59:59');
+SELECT MAX(c1) FROM t1;
+MAX(c1)
+838:59:59
+DROP TABLE t1;
+# End of the bug#55648
