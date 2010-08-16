@@ -477,6 +477,7 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_node_cnt = 0;
   requestP->m_cnt_active = 0;
   requestP->m_rows = 0;
+  requestP->m_active_nodes.clear();
   requestP->m_outstanding = 0;
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
@@ -762,6 +763,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_node_cnt = 0;
   requestP->m_cnt_active = 0;
   requestP->m_rows = 0;
+  requestP->m_active_nodes.clear();
   requestP->m_outstanding = 0;
   requestP->m_senderRef = senderRef;
   requestP->m_senderData = req->senderData;
@@ -994,6 +996,7 @@ Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
     ctx.m_node_list[ctx.m_cnt] = treeNodePtr;
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
     list.addLast(treeNodePtr);
+    treeNodePtr.p->m_node_no = ctx.m_cnt;
     return 0;
   }
   return DbspjErr::OutOfOperations;
@@ -1146,9 +1149,13 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       conf->transId2 = requestPtr.p->m_transId[1];
       conf->completedOps = requestPtr.p->m_rows;
       conf->fragmentCompleted = is_complete ? 1 : 0;
-      conf->total_len = 0; // Not supported...
+      conf->total_len = requestPtr.p->m_active_nodes.rep.data[0];
 
-      requestPtr.p->m_rows = 0; // reset for next batch
+      /**
+       * reset for next batch
+       */
+      requestPtr.p->m_rows = 0;
+      requestPtr.p->m_active_nodes.clear();
       sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGCONF, signal,
                  ScanFragConf::SignalLength, JBB);
     }
@@ -1222,6 +1229,13 @@ Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
    *   taken the cleanup "path" in batchComplete
    */
   ndbrequire(releaseScanBuffers(requestPtr, treeNodePtr) > 0);
+}
+
+void
+Dbspj::mark_has_more_rows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
+{
+  ndbassert(requestPtr.p->m_active_nodes.get(treeNodePtr.p->m_node_no) == false);
+  requestPtr.p->m_active_nodes.set(treeNodePtr.p->m_node_no);
 }
 
 void
@@ -3697,9 +3711,16 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   requestPtr.p->m_rows += rows;
   if (done)
   {
+    jam();
+
     ndbrequire(requestPtr.p->m_cnt_active);
     requestPtr.p->m_cnt_active --;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+  }
+  else
+  {
+    jam();
+    mark_has_more_rows(requestPtr, treeNodePtr);
   }
 
   if (treeNodePtr.p->m_scanfrag_data.m_rows_expecting ==
@@ -4731,6 +4752,11 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
       treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
       data.m_frags_complete = 0; // reset
     }
+    else
+    {
+      jam();
+      mark_has_more_rows(requestPtr, treeNodePtr);
+    }
   }
 
   if (data.m_frags_outstanding == 0 && 
@@ -4842,7 +4868,6 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
    */
   ndbrequire(data.m_frags_outstanding > 0);
 
-  requestPtr.p->m_cnt_active ++;
   requestPtr.p->m_outstanding++;
   ndbassert(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
 }

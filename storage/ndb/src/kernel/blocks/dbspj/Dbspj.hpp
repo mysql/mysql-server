@@ -658,6 +658,7 @@ public:
 
     Uint32 m_bits;
     Uint32 m_state;
+    Uint32 m_node_no;
     Uint32 m_batch_size;
     Uint32 m_parentPtrI;
     const Uint32 m_requestPtrI;
@@ -750,6 +751,7 @@ public:
     TreeNode_list::Head m_nodes;
     TreeNodeCursor_list::Head m_cursor_nodes;
     Uint32 m_cnt_active;       // No of "running" nodes
+    Bitmask<1> m_active_nodes; // Nodes which will return more data
     Uint32 m_rows;             // Rows accumulated in current batch
     Uint32 m_outstanding;      // Outstanding signals, when 0, batch is done
     Uint16 m_lookup_node_data[MAX_NDB_NODES];
@@ -937,6 +939,7 @@ private:
   void nodeFail_checkRequests(Signal*);
 
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
+  void mark_has_more_rows(Ptr<Request>, Ptr<TreeNode>);
 
   /**
    * Row buffering
