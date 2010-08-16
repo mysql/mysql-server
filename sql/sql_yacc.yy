@@ -51,6 +51,10 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
+#include "sql_alter_table.h"                   // Alter_table*_statement
+#include "sql_truncate.h"                      // Truncate_statement
+#include "sql_table_maintenance.h"             // Analyze/Check..._table_stmt
+#include "sql_partition_admin.h"               // Alter_table_*_partition_stmt
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -6172,9 +6176,20 @@ alter:
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
+            DBUG_ASSERT(!lex->m_stmt);
           }
           alter_commands
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            if (!lex->m_stmt)
+            {
+              /* Create a generic ALTER TABLE statment. */
+              lex->m_stmt= new (thd->mem_root) Alter_table_statement(lex);
+              if (lex->m_stmt == NULL)
+                MYSQL_YYABORT;
+            }
+          }
         | ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
@@ -6393,38 +6408,54 @@ alter_commands:
         | OPTIMIZE PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_OPTIMIZE;
-            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root)
+                          Alter_table_optimize_partition_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
           }
           opt_no_write_to_binlog
         | ANALYZE_SYM PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_ANALYZE;
-            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root)
+                          Alter_table_analyze_partition_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
           }
         | CHECK_SYM PARTITION_SYM all_or_alt_part_name_list
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_CHECK;
-            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->check_opt.init();
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root)
+                          Alter_table_check_partition_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
           }
           opt_mi_check_type
         | REPAIR PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_REPAIR;
-            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root)
+                          Alter_table_repair_partition_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
           }
           opt_mi_repair_type
         | COALESCE PARTITION_SYM opt_no_write_to_binlog real_ulong_num
@@ -6436,12 +6467,14 @@ alter_commands:
           }
         | TRUNCATE_SYM PARTITION_SYM all_or_alt_part_name_list
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_TRUNCATE;
-            lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
             lex->check_opt.init();
-            lex->query_tables->mdl_request.set_type(MDL_SHARED_NO_READ_WRITE);
-            lex->query_tables->lock_type= TL_WRITE;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root)
+                          Alter_table_truncate_partition_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
           }
         | reorg_partition_rule
         ;
@@ -6878,7 +6911,14 @@ repair:
             YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list opt_mi_repair_type
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX* lex= thd->lex;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root) Repair_table_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
+          }
         ;
 
 opt_mi_repair_type:
@@ -6909,7 +6949,14 @@ analyze:
             YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX* lex= thd->lex;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root) Analyze_table_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
+          }
         ;
 
 binlog_base64_event:
@@ -6937,7 +6984,14 @@ check:
             YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list opt_mi_check_type
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX* lex= thd->lex;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root) Check_table_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
+          }
         ;
 
 opt_mi_check_type:
@@ -6971,7 +7025,14 @@ optimize:
             YYPS->m_lock_type= TL_UNLOCK;
           }
           table_list
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX* lex= thd->lex;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root) Optimize_table_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
+          }
         ;
 
 opt_no_write_to_binlog:
@@ -10698,7 +10759,14 @@ truncate:
             YYPS->m_mdl_type= MDL_SHARED_NO_READ_WRITE;
           }
           table_name
-          {}
+          {
+            THD *thd= YYTHD;
+            LEX* lex= thd->lex;
+            DBUG_ASSERT(!lex->m_stmt);
+            lex->m_stmt= new (thd->mem_root) Truncate_statement(lex);
+            if (lex->m_stmt == NULL)
+              MYSQL_YYABORT;
+          }
         ;
 
 opt_table_sym:
