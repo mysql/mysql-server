@@ -50,7 +50,7 @@
                               // mysql_backup_table,
                               // mysql_restore_table
 #include "sql_truncate.h"     // mysql_truncate_table
-#include "sql_table_maintenance.h"   // mysql_assign_to_keycache
+#include "sql_admin.h"        // mysql_assign_to_keycache
 #include "sql_connect.h"      // check_user,
                               // decrease_user_connections,
                               // thd_init_client_charset, check_mqh,
