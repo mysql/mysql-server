@@ -101,7 +101,7 @@ static struct my_option my_long_options[] =
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(my_progname, NULL);
+  ndb_short_usage_sub(NULL);
 }
 
 static void usage()
@@ -162,7 +162,7 @@ static ndb_mgm_configuration* load_configuration();
 int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
