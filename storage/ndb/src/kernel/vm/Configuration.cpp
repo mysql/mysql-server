@@ -337,6 +337,16 @@ Configuration::fetch_configuration(){
 	      "StopOnError missing");
   }
 
+  /* Retrieve StopOnError start failure handling params if there are
+   * any.  Older MGMDs may not have them, so we use defaults.
+   */
+  _maxStartFailRetries = 3;
+  _startFailDelaySecs = 0;
+  ndb_mgm_get_int_parameter(&iter,
+                            CFG_DB_MAX_START_FAIL, &_maxStartFailRetries);
+  ndb_mgm_get_int_parameter(&iter,
+                            CFG_DB_START_FAIL_DELAY_SECS, &_startFailDelaySecs);
+  
   m_mgmds.clear();
   for(ndb_mgm_first(&iter); ndb_mgm_valid(&iter); ndb_mgm_next(&iter))
   {
@@ -630,6 +640,18 @@ Configuration::getConnectStringCopy() const {
   if(_connectString != 0)
     return strdup(_connectString);
   return 0;
+}
+
+Uint32
+Configuration::getMaxStartFailRetries() const 
+{
+  return _maxStartFailRetries;
+}
+
+Uint32
+Configuration::getStartFailRetryDelaySecs() const
+{
+  return _startFailDelaySecs;
 }
 
 const ndb_mgm_configuration_iterator * 

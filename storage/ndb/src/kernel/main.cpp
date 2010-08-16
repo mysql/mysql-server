@@ -383,23 +383,47 @@ int main(int argc, char** argv)
       }
     }
 
+    Uint32 restartDelaySecs = 0;
+
     if (!failed_startup_flag)
     {
       // Reset the counter for consecutive failed startups
       failed_startups = 0;
     }
-    else if (failed_startups >= MAX_FAILED_STARTUPS && !theConfig->stopOnError())
+    else if (!theConfig->stopOnError())
     {
-      /**
-       * Error shutdown && stopOnError()
+      if (theConfig->getMaxStartFailRetries() &&     // 0 == infinite
+          failed_startups >= theConfig->getMaxStartFailRetries())
+      {
+        /**
+         * Error shutdown && stopOnError()
+         */
+        g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
+                             "Not restarting", failed_startups);
+        reportShutdown(theConfig, error_exit, 0);
+        exit(0);
+      }
+      
+      g_eventLogger->info("Ndbd has failed %u consecutive startup attempts.  "
+                          "Will attempt restart again.", failed_startups);
+      
+      /* Failed in Startup, StopOnError == false and not too many
+       * retry attempts yet.  Determine from config whether we 
+       * should wait at all before restarting.
        */
-      g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
-                           "Not restarting", failed_startups);
-      reportShutdown(theConfig, error_exit, 0);
-      exit(0);
+      restartDelaySecs = theConfig->getStartFailRetryDelaySecs();
     }
+
     failed_startup_flag = false;
     reportShutdown(theConfig, error_exit, 1);
+    
+    if (restartDelaySecs)
+    {
+      g_eventLogger->info("Delaying Ndb restart for %u seconds.", 
+                          restartDelaySecs);
+      NdbSleep_SecSleep(restartDelaySecs);
+    }
+    
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
     theConfig->fetch_configuration();
   }
