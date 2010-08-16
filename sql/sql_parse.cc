@@ -50,6 +50,7 @@
                               // mysql_backup_table,
                               // mysql_restore_table
 #include "sql_truncate.h"     // mysql_truncate_table
+#include "sql_table_maintenance.h"   // mysql_assign_to_keycache
 #include "sql_connect.h"      // check_user,
                               // decrease_user_connections,
                               // thd_init_client_charset, check_mqh,
@@ -659,8 +660,7 @@ end:
     every child. Set 'db' for every child if not present.
 */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-static bool check_merge_table_access(THD *thd, char *db,
-                                     TABLE_LIST *table_list)
+bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
 {
   int error= 0;
 
@@ -2831,77 +2831,6 @@ end_with_restore_list:
   }
 #endif /* HAVE_REPLICATION */
 
-  case SQLCOM_ALTER_TABLE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    {
-      ulong priv=0;
-      ulong priv_needed= ALTER_ACL;
-      /*
-        Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
-        so we have to use a copy of this structure to make execution
-        prepared statement- safe. A shallow copy is enough as no memory
-        referenced from this structure will be modified.
-      */
-      HA_CREATE_INFO create_info(lex->create_info);
-      Alter_info alter_info(lex->alter_info, thd->mem_root);
-
-      if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-        goto error;
-      /*
-        We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
-        as for RENAME TO, as being done by SQLCOM_RENAME_TABLE
-      */
-      if (alter_info.flags & (ALTER_DROP_PARTITION | ALTER_RENAME))
-        priv_needed|= DROP_ACL;
-
-      /* Must be set in the parser */
-      DBUG_ASSERT(select_lex->db);
-      if (check_access(thd, priv_needed, first_table->db,
-                       &first_table->grant.privilege,
-                       &first_table->grant.m_internal,
-                       0, 0) ||
-          check_access(thd, INSERT_ACL | CREATE_ACL, select_lex->db,
-                       &priv,
-                       NULL, /* Do not use first_table->grant with select_lex->db */
-                       0, 0) ||
-	  check_merge_table_access(thd, first_table->db,
-				   create_info.merge_list.first))
-	goto error;				/* purecov: inspected */
-      if (check_grant(thd, priv_needed, all_tables, FALSE, UINT_MAX, FALSE))
-        goto error;
-      if (lex->name.str && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
-      { // Rename of table
-          TABLE_LIST tmp_table;
-          bzero((char*) &tmp_table,sizeof(tmp_table));
-          tmp_table.table_name= lex->name.str;
-          tmp_table.db=select_lex->db;
-          tmp_table.grant.privilege=priv;
-          if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, FALSE,
-              UINT_MAX, FALSE))
-            goto error;
-      }
-
-      /* Don't yet allow changing of symlinks with ALTER TABLE */
-      if (create_info.data_file_name)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
-                            "DATA DIRECTORY");
-      if (create_info.index_file_name)
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
-                            "INDEX DIRECTORY");
-      create_info.data_file_name= create_info.index_file_name= NULL;
-
-      thd->enable_slow_log= opt_log_slow_admin_statements;
-      res= mysql_alter_table(thd, select_lex->db, lex->name.str,
-                             &create_info,
-                             first_table,
-                             &alter_info,
-                             select_lex->order_list.elements,
-                             select_lex->order_list.first,
-                             lex->ignore);
-      break;
-    }
   case SQLCOM_RENAME_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3019,81 +2948,6 @@ end_with_restore_list:
       goto error; /* purecov: inspected */
 
     res = mysql_checksum_table(thd, first_table, &lex->check_opt);
-    break;
-  }
-  case SQLCOM_REPAIR:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= mysql_repair_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, REPAIR and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-  case SQLCOM_CHECK:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL, all_tables,
-                           TRUE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res = mysql_check_table(thd, first_table, &lex->check_opt);
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-  case SQLCOM_ANALYZE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= mysql_analyze_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, ANALYZE and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-
-  case SQLCOM_OPTIMIZE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
-      mysql_recreate_table(thd, first_table) :
-      mysql_optimize_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, OPTIMIZE and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
     break;
   }
   case SQLCOM_UPDATE:
@@ -3316,23 +3170,6 @@ end_with_restore_list:
 
     break;
   }
-  case SQLCOM_TRUNCATE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_one_table_access(thd, DROP_ACL, all_tables))
-      goto error;
-    /*
-      Don't allow this within a transaction because we want to use
-      re-generate table
-    */
-    if (thd->in_active_multi_stmt_transaction())
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
-    if (! (res= mysql_truncate_table(thd, first_table)))
-      my_ok(thd);
-    break;
   case SQLCOM_DELETE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -4718,6 +4555,14 @@ create_sp_error:
     my_ok(thd, 1);
     break;
   }
+  case SQLCOM_ANALYZE:
+  case SQLCOM_CHECK:
+  case SQLCOM_OPTIMIZE:
+  case SQLCOM_REPAIR:
+  case SQLCOM_TRUNCATE:
+  case SQLCOM_ALTER_TABLE:
+      DBUG_ASSERT(first_table == all_tables && first_table != 0);
+    /* fall through */
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
     DBUG_ASSERT(lex->m_stmt != NULL);
@@ -7853,6 +7698,7 @@ bool parse_sql(THD *thd,
 {
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
+  DBUG_ASSERT(thd->lex->m_stmt == NULL);
 
   MYSQL_QUERY_PARSE_START(thd->query());
   /* Backup creation context. */
