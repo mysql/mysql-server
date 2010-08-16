@@ -1570,125 +1570,6 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
-  enum enum_stmt_accessed_table
-  {
-    /*
-       If a transactional table is about to be read. Note that
-       a write implies a read.
-    */
-    STMT_READS_TRANS_TABLE= 0,
-    /*
-       If a transactional table is about to be updated.
-    */
-    STMT_WRITES_TRANS_TABLE,
-    /*
-       If a non-transactional table is about to be read. Note that
-       a write implies a read.
-    */
-    STMT_READS_NON_TRANS_TABLE,
-    /*
-       If a non-transactional table is about to be updated.
-    */
-    STMT_WRITES_NON_TRANS_TABLE,
-    /*
-       If a temporary transactional table is about to be read. Note
-       that a write implies a read.
-    */
-    STMT_READS_TEMP_TRANS_TABLE,
-    /*
-       If a temporary transactional table is about to be updated.
-    */
-    STMT_WRITES_TEMP_TRANS_TABLE,
-    /*
-       If a temporary non-transactional table is about to be read. Note
-      that a write implies a read.
-    */
-    STMT_READS_TEMP_NON_TRANS_TABLE,
-    /*
-       If a temporary non-transactional table is about to be updated.
-    */
-    STMT_WRITES_TEMP_NON_TRANS_TABLE,
-    /*
-      The last element of the enumeration. Please, if necessary add
-      anything before this.
-    */
-    STMT_ACCESS_TABLE_COUNT
-  };
-
-  /**
-    Sets the type of table that is about to be accessed while executing a
-    statement.
-
-    @param accessed_table Enumeration type that defines the type of table,
-                           e.g. temporary, transactional, non-transactional.
-  */
-  inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
-  {
-    DBUG_ENTER("THD::set_stmt_accessed_table");
-
-    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
-    stmt_accessed_table_flag |= (1U << accessed_table);
-
-    DBUG_VOID_RETURN;
-  }
-
-  /**
-    Checks if a type of table is about to be accessed while executing a
-    statement.
-
-    @param accessed_table Enumeration type that defines the type of table,
-                           e.g. temporary, transactional, non-transactional.
-
-    @return
-      @retval TRUE  if the type of the table is about to be accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
-  {
-    DBUG_ENTER("THD::stmt_accessed_table");
-
-    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
-
-    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
-  }
-
-  /**
-    Checks if a temporary table is about to be accessed while executing a
-    statement.
-
-    @return
-      @retval TRUE  if a temporary table is about to be accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_temp_table()
-  {
-    DBUG_ENTER("THD::stmt_accessed_temp_table");
-
-    DBUG_RETURN((stmt_accessed_table_flag &
-                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
-                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
-  }
-
-  /**
-    Checks if a temporary non-transactional table is about to be accessed
-    while executing a statement.
-
-    @return
-      @retval TRUE  if a temporary non-transactional table is about to be
-                    accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_non_trans_temp_table()
-  {
-    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
-
-    DBUG_RETURN((stmt_accessed_table_flag &
-                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
-  }
-
 private:
   /**
     Indicates the format in which the current statement will be
@@ -1699,24 +1580,8 @@ private:
   /**
     Bit field for the state of binlog warnings.
 
-    There are two groups of bits:
-
-    - The first Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types of
-      unsafeness that the current statement has.
-
-    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
-      of unsafeness that the current statement has issued warnings
-      for.
-
-    Hence, this variable must be big enough to hold
-    2*Lex::BINLOG_STMT_UNSAFE_COUNT bits.  This is asserted in @c
-    issue_unsafe_warnings().
-
-    The first and second groups of bits are set by @c
-    decide_logging_format() when it detects that a warning should be
-    issued.  The third group of bits is set from @c binlog_query()
-    when a warning is issued.  All bits are cleared at the end of the
-    top-level statement.
+    The first Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types of
+    unsafeness that the current statement has.
 
     This must be a member of THD and not of LEX, because warnings are
     detected and issued in different places (@c
@@ -1726,20 +1591,14 @@ private:
   */
   uint32 binlog_unsafe_warning_flags;
 
-  /**
-    Bit field that determines the type of tables that are about to be
-    be accessed while executing a statement.
-  */
-  uint32 stmt_accessed_table_flag;
-
-  void issue_unsafe_warnings();
-
   /*
     Number of outstanding table maps, i.e., table maps in the
     transaction cache.
   */
   uint binlog_table_maps;
 public:
+  void issue_unsafe_warnings();
+
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
   }

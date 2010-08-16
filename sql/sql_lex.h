@@ -1278,6 +1278,125 @@ public:
     DBUG_VOID_RETURN;
   }
 
+  enum enum_stmt_accessed_table
+  {
+    /*
+       If a transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_TRANS_TABLE= 0,
+    /*
+       If a transactional table is about to be updated.
+    */
+    STMT_WRITES_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_NON_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be updated.
+    */
+    STMT_WRITES_NON_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be read. Note
+       that a write implies a read.
+    */
+    STMT_READS_TEMP_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be read. Note
+      that a write implies a read.
+    */
+    STMT_READS_TEMP_NON_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    /*
+      The last element of the enumeration. Please, if necessary add
+      anything before this.
+    */
+    STMT_ACCESS_TABLE_COUNT
+  };
+               
+  /**
+    Sets the type of table that is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+  */
+  inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::set_stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+    stmt_accessed_table_flag |= (1U << accessed_table);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Checks if a type of table is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+
+    @return
+      @retval TRUE  if the type of the table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+
+    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
+  }
+
+  /**
+    Checks if a temporary table is about to be accessed while executing a
+    statement.
+
+    @return
+      @retval TRUE  if a temporary table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
+                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
+  /**
+    Checks if a temporary non-transactional table is about to be accessed
+    while executing a statement.
+
+    @return
+      @retval TRUE  if a temporary non-transactional table is about to be
+                    accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_non_trans_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
   /**
     true if the parsed tree contains references to stored procedures
     or functions, false otherwise
@@ -1319,6 +1438,12 @@ private:
     stored procedure has its own LEX object (but no own THD object).
   */
   uint32 binlog_stmt_flags;
+
+  /**
+    Bit field that determines the type of tables that are about to be
+    be accessed while executing a statement.
+  */
+  uint32 stmt_accessed_table_flag;
 };
 
 
