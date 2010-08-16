@@ -725,7 +725,7 @@ ALTER TABLE t REMOVE PARTITIONING;
 CREATE TABLE t2 LIKE t;
 INSERT INTO tp VALUES ("First in tp", '2000-01-02 03:04:25'), ("Zebra in tp", '0000-00-00 00:00:00'), ("Second in tp", '2010-01-01 05:12:24');
 INSERT INTO t VALUES ("First in t", '2000-01-02 03:04:25'), ("a test in t", '0000-00-00 00:00:00'), ("Echo in t", '2010-01-01 05:12:24');
-# tp_lock '1' t_lock 'READ' t2_lock 'READ' count '17'
+# tp_lock '0' t_lock 'READ' t2_lock 'READ' count '17'
 LOCK TABLE t READ, t2 READ;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -736,7 +736,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1100	Table 'tp' was not locked with LOCK TABLES
 UNLOCK TABLES;
-# tp_lock '1' t_lock 'WRITE' t2_lock 'READ' count '16'
+# tp_lock '0' t_lock 'WRITE' t2_lock 'READ' count '16'
 LOCK TABLE t WRITE, t2 READ;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -747,7 +747,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1100	Table 'tp' was not locked with LOCK TABLES
 UNLOCK TABLES;
-# tp_lock 'READ' t_lock '1' t2_lock 'READ' count '15'
+# tp_lock 'READ' t_lock '0' t2_lock 'READ' count '15'
 LOCK TABLE tp READ, t2 READ;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -780,7 +780,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1099	Table 'tp' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
-# tp_lock 'WRITE' t_lock '1' t2_lock 'READ' count '12'
+# tp_lock 'WRITE' t_lock '0' t2_lock 'READ' count '12'
 LOCK TABLE tp WRITE, t2 READ;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -812,7 +812,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1099	Table 't2' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
-# tp_lock '1' t_lock '1' t2_lock 'WRITE' count '9'
+# tp_lock '0' t_lock '0' t2_lock 'WRITE' count '9'
 LOCK TABLE t2 WRITE;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -823,7 +823,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1100	Table 'tp' was not locked with LOCK TABLES
 UNLOCK TABLES;
-# tp_lock '1' t_lock 'READ' t2_lock 'WRITE' count '8'
+# tp_lock '0' t_lock 'READ' t2_lock 'WRITE' count '8'
 LOCK TABLE t READ, t2 WRITE;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -834,7 +834,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1100	Table 'tp' was not locked with LOCK TABLES
 UNLOCK TABLES;
-# tp_lock '1' t_lock 'WRITE' t2_lock 'WRITE' count '7'
+# tp_lock '0' t_lock 'WRITE' t2_lock 'WRITE' count '7'
 LOCK TABLE t WRITE, t2 WRITE;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -845,7 +845,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1100	Table 'tp' was not locked with LOCK TABLES
 UNLOCK TABLES;
-# tp_lock 'READ' t_lock '1' t2_lock 'WRITE' count '6'
+# tp_lock 'READ' t_lock '0' t2_lock 'WRITE' count '6'
 LOCK TABLE tp READ, t2 WRITE;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
@@ -878,7 +878,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1099	Table 'tp' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
-# tp_lock 'WRITE' t_lock '1' t2_lock 'WRITE' count '3'
+# tp_lock 'WRITE' t_lock '0' t2_lock 'WRITE' count '3'
 LOCK TABLE tp WRITE, t2 WRITE;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW WARNINGS;
