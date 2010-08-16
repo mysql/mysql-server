@@ -27,7 +27,7 @@
 #include "sql_acl.h"                         // *_ACL
 #include "sp.h"                              // Sroutine_hash_entry
 #include "sql_parse.h"                       // check_table_access
-#include "sql_table_maintenance.h"
+#include "sql_admin.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)

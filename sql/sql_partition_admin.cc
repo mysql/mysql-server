@@ -18,7 +18,7 @@
 #include "sql_lex.h"                        // Sql_statement
 #include "sql_truncate.h"                   // mysql_truncate_table,
                                             // Truncate_statement
-#include "sql_table_maintenance.h"          // Analyze/Check/.._table_statement
+#include "sql_admin.h"                      // Analyze/Check/.._table_statement
 #include "sql_partition_admin.h"            // Alter_table_*_partition
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE
