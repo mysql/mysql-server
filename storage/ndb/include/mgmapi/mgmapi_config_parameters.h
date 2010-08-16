@@ -170,6 +170,9 @@
 
 #define CFG_DB_DICT_TRACE             608
 
+#define CFG_DB_MAX_START_FAIL         609 /* For StopOnError=0 */
+#define CFG_DB_START_FAIL_DELAY_SECS  610 /* For StopOnError=0 */
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 #define CFG_RESERVED_SEND_BUFFER_MEMORY 202
