@@ -1091,6 +1091,23 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
 #
+# Bug#32859 Character sets: no warning with non-fitting chariot wheel
+#
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
+INSERT INTO t1 (utf32) VALUES (0xc581);
+UPDATE t1 SET latin1 = utf32;
+Warnings:
+Warning	1366	Incorrect string value: '\x00\x00\xC5\x81' for column 'latin1' at row 1
+DELETE FROM t1;
+INSERT INTO t1 (utf32) VALUES (0x100cc);
+UPDATE t1 SET latin1 = utf32;
+Warnings:
+Warning	1366	Incorrect string value: '\x00\x01\x00\xCC' for column 'latin1' at row 1
+DROP TABLE t1;
+#
 # End of 5.5 tests
 #
 #
