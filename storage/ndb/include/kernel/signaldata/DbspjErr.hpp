@@ -36,6 +36,7 @@ struct DbspjErr
     ,InternalError = 20014
     ,OutOfRowMemory = 20015
     ,NodeFailure = 20016
+    ,InvalidTreeNodeCount = 20017
   };
 };
 

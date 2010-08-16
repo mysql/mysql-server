@@ -278,7 +278,9 @@ public:
     Uint32 m_scan_cnt;
     Signal* m_start_signal; // Argument to first node in tree
     SegmentedSectionPtr m_keyPtr;
-    Ptr<TreeNode> m_node_list[63];   // Used for resolving dependencies
+
+    // Used for resolving dependencies
+    Ptr<TreeNode> m_node_list[NDB_SPJ_MAX_TREE_NODES];
   };
 
   struct RowPage

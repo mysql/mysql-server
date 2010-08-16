@@ -820,7 +820,8 @@ Dbspj::build(Build_context& ctx,
   Uint32 loop = QueryTree::getNodeCnt(tmp0);
 
   DEBUG("::build()");
-  if (loop == 0)
+  err = DbspjErr::InvalidTreeNodeCount;
+  if (loop == 0 || loop > NDB_SPJ_MAX_TREE_NODES)
   {
     DEBUG_CRASH();
     goto error;
