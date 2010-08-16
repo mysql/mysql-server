@@ -923,7 +923,7 @@ enum enum_alter_table_change_level
 /**
   Temporary hack to enable a class bound forward declaration
   of the enum_alter_table_change_level enumeration. To be
-  removed once Alter_info is moved to the sql_alter_table.h
+  removed once Alter_info is moved to the sql_alter.h
   header.
 */
 class Alter_table_change_level
