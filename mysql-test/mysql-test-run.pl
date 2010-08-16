@@ -2888,6 +2888,15 @@ sub mysql_install_db {
   mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
 
+  # InnoDB arguments that affect file location and sizes may
+  # need to be given to the bootstrap process as well as the
+  # server process.
+  foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
+    if ($extra_opt =~ /--innodb/) {
+      mtr_add_arg($args, $extra_opt);
+    }
+  }
+
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
   # configure --disable-grant-options), mysqld will not recognize the
   # --bootstrap or --skip-grant-tables options.  The user can set
@@ -5232,7 +5241,7 @@ sub ddd_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "file $$exe\n" .
+	       "file ../sql/.libs/mysqld\n" .
 	       "set args $str\n" .
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
