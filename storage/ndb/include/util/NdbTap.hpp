@@ -37,5 +37,7 @@ int main(int argc, const char** argv){          \
 }                                               \
 int name##_test()
 
+/* tap.c needs my_print_stacktrace */
+#include <../../../mysys/stacktrace.c>
 
 #endif
