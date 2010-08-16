@@ -76,7 +76,7 @@ SET (SQL_SOURCE
                transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
                datadict.cc
                sql_partition_admin.cc
-               sql_table_maintenance.cc sql_alter_table.cc
+               sql_admin.cc sql_alter.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
