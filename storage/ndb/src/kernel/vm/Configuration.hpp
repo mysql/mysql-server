@@ -52,6 +52,10 @@ public:
   
   int getRestartOnErrorInsert() const;
   void setRestartOnErrorInsert(int);
+
+  Uint32 getMaxStartFailRetries() const;
+  
+  Uint32 getStartFailRetryDelaySecs() const;
   
   // Cluster configuration
   const char * programName() const;
@@ -88,6 +92,8 @@ private:
   Uint32 _lockPagesInMainMemory;
   Uint32 _timeBetweenWatchDogCheck;
   Uint32 _timeBetweenWatchDogCheckInitial;
+  Uint32 _maxStartFailRetries;
+  Uint32 _startFailDelaySecs;
 
   ndb_mgm_configuration * m_ownConfig;
   ndb_mgm_configuration * m_clusterConfig;

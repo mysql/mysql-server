@@ -203,6 +203,9 @@ static bool set_connection_priorities(Vector<ConfigInfo::ConfigRuleSection>&sect
 static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 			    struct InitConfigFileParser::Context &ctx, 
 			    const char * rule_data);
+static bool check_mutually_exclusive(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+                                     struct InitConfigFileParser::Context &ctx, 
+                                     const char * rule_data);
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
@@ -210,6 +213,7 @@ ConfigInfo::m_ConfigRules[] = {
   { add_node_connections, 0 },
   { set_connection_priorities, 0 },
   { check_node_vs_replicas, 0 },
+  { check_mutually_exclusive, 0 },
   { 0, 0 }
 };
 	  
@@ -1511,6 +1515,34 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
+
+  {
+    CFG_DB_MAX_START_FAIL,
+    "MaxStartFailRetries",
+    DB_TOKEN,
+    "Maximum retries when Ndbd fails in startup, requires StopOnError=0.  "
+    "0 is infinite.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "3",                      /* Default */
+    "0",                      /* Min */
+    STR_VALUE(MAX_INT_RNIL)   /* Max */
+  },
+
+  {
+    CFG_DB_START_FAIL_DELAY_SECS,
+    "StartFailRetryDelay",
+    DB_TOKEN,
+    "Delay in seconds after start failure prior to retry.  "
+    "Requires StopOnError= 0",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",                     /* Default */
+    "0",                     /* Min */
+    STR_VALUE(MAX_INT_RNIL)  /* Max */
+  },
 
   /***************************************************************************
    * API
@@ -4147,6 +4179,75 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	       "\n  Running arbitrator on the same host as a database node may"
 	       "\n  cause complete cluster shutdown in case of host failure.");
   }
+  return true;
+}
+
+static bool
+check_mutually_exclusive(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+                         struct InitConfigFileParser::Context &ctx, 
+                         const char * rule_data)
+{
+  /* This rule checks for configuration settings that are 
+   * mutually exclusive and rejects them
+   */
+
+  //ctx.m_userProperties.print(stderr);
+
+  Uint32 numNodes, n;
+  ctx.m_userProperties.get("NoOfNodes", &numNodes);
+  
+  for (n=0; n < numNodes; n++)
+  {
+    const Properties* nodeProperties;
+    if (!ctx.m_config->get("Node", n, &nodeProperties)) continue;
+
+    //nodeProperties->print(stderr);
+
+    const char* nodeType;
+    if (unlikely(!nodeProperties->get("Type", &nodeType)))
+    {
+      ctx.reportError("Missing nodeType for node %u", n);
+      return false;
+    }
+    
+    if (strcmp(nodeType,DB_TOKEN) == 0)
+    {
+      {
+        /* StopOnError related cross-checks */ 
+        Uint32 stopOnError;
+        Uint32 maxStartFailRetries;
+        Uint32 startFailRetryDelay;
+        
+        if (unlikely(!nodeProperties->get("StopOnError", &stopOnError)))
+        {
+          ctx.reportError("Missing StopOnError setting for node %u", n);
+          return false;
+        }
+        
+        if (unlikely(!nodeProperties->get("MaxStartFailRetries", &maxStartFailRetries)))
+        {
+          ctx.reportError("Missing MaxStartFailRetries setting");
+          return false;
+        }
+        
+        if (unlikely(!nodeProperties->get("StartFailRetryDelay", &startFailRetryDelay)))
+        {
+          ctx.reportError("Missing StartFailRetryDelay setting");
+          return false;
+        }
+    
+        if (unlikely(((stopOnError != 0) &&
+                      ((maxStartFailRetries != 3) ||
+                       (startFailRetryDelay != 0)))))
+        {
+          ctx.reportError("Non default settings for MaxStartFailRetries "
+                          "or StartFailRetryDelay with StopOnError != 0");
+          return false;
+        }
+      }
+    } /* DB_TOKEN */
+  } /* for nodes */
+
   return true;
 }
 
