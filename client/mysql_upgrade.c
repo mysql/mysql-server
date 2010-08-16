@@ -209,6 +209,9 @@ static void add_one_option(DYNAMIC_STRING* ds,
     case GET_STR:
       arg= argument;
       break;
+    case GET_BOOL:
+      arg= (*(my_bool *)opt->value) ? "1" : "0";
+      break;
     default:
       die("internal error at %s: %d",__FILE__, __LINE__);
     }

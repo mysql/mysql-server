@@ -213,6 +213,7 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 
+int init_longvar_from_file(long* var, IO_CACHE* f, long default_val);
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
