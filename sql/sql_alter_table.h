@@ -1,6 +1,4 @@
-#ifndef SQL_TRUNCATE_INCLUDED
-#define SQL_TRUNCATE_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,35 +13,54 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-class THD;
-struct TABLE_LIST;
-
-bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref);
+#ifndef SQL_ALTER_TABLE_H
+#define SQL_ALTER_TABLE_H
 
 /**
-  Truncate_statement represents the TRUNCATE statement.
+  Alter_table_common represents the common properties of the ALTER TABLE
+  statements.
+  @todo move Alter_info and other ALTER generic structures from Lex here.
 */
-class Truncate_statement : public Sql_statement
+class Alter_table_common : public Sql_statement
+{
+protected:
+  /**
+    Constructor.
+    @param lex the LEX structure for this statement.
+  */
+  Alter_table_common(LEX *lex)
+    : Sql_statement(lex)
+  {}
+
+  virtual ~Alter_table_common()
+  {}
+
+};
+
+/**
+  Alter_table_statement represents the generic ALTER TABLE statement.
+  @todo move Alter_info and other ALTER specific structures from Lex here.
+*/
+class Alter_table_statement : public Alter_table_common
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE statement.
     @param lex the LEX structure for this statement.
   */
-  Truncate_statement(LEX *lex)
-    : Sql_statement(lex)
+  Alter_table_statement(LEX *lex)
+    : Alter_table_common(lex)
   {}
 
-  ~Truncate_statement()
+  ~Alter_table_statement()
   {}
 
   /**
-    Execute a TRUNCATE statement at runtime.
+    Execute a ALTER TABLE statement at runtime.
     @param thd the current thread.
     @return false on success.
   */
   bool execute(THD *thd);
 };
-
 
 #endif
