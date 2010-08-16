@@ -132,7 +132,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			contributors.h sql_servers.h sql_signal.h records.h \
 			sql_prepare.h rpl_handler.h replication.h mdl.h \
 			sql_plist.h transaction.h sys_vars.h sql_truncate.h \
-			datadict.h
+			sql_table_maintenance.h datadict.h
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
@@ -150,7 +150,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			datadict.cc sql_profile.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
-			procedure.cc sql_test.cc sql_truncate.cc \
+			procedure.cc sql_test.cc sql_table_maintenance.cc \
+                        sql_truncate.cc \
 			log.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
 			discover.cc sql_time.cc opt_range.cc opt_sum.cc \
