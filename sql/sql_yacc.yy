@@ -51,9 +51,9 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
-#include "sql_alter_table.h"                   // Alter_table*_statement
+#include "sql_alter.h"                         // Alter_table*_statement
 #include "sql_truncate.h"                      // Truncate_statement
-#include "sql_table_maintenance.h"             // Analyze/Check..._table_stmt
+#include "sql_admin.h"                         // Analyze/Check..._table_stmt
 #include "sql_partition_admin.h"               // Alter_table_*_partition_stmt
 #include "sql_signal.h"
 #include "event_parse_data.h"

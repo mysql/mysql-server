@@ -18,14 +18,14 @@
                                             // check_one_table_access
 #include "sql_table.h"                      // mysql_alter_table, etc.
 #include "sql_lex.h"                        // Sql_statement
-#include "sql_alter_table.h"                // Alter_table_statement
+#include "sql_alter.h"                      // Alter_table_statement
 #include "sql_partition.h"                  // struct partition_info, etc.
 #include "sql_handler.h"                    // mysql_ha_rm_tables
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "sql_truncate.h"                   // mysql_truncate_table,
                                             // Truncate_statement
-#include "sql_table_maintenance.h"          // Analyze/Check/.._table_statement
+#include "sql_admin.h"                      // Analyze/Check/.._table_statement
 #include "sql_partition_admin.h"            // Alter_table_*_partition
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE

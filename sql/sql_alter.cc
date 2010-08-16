@@ -17,7 +17,7 @@
                                              // check_merge_table_access
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
-#include "sql_alter_table.h"
+#include "sql_alter.h"
 
 bool Alter_table_statement::execute(THD *thd)
 {
