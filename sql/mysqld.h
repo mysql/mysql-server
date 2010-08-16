@@ -175,7 +175,7 @@ extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
-extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
+extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern ulong server_id, concurrency;
@@ -207,7 +207,7 @@ extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
 extern I_List<THD> threads;
-extern scheduler_functions thread_scheduler;
+extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
 

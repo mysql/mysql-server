@@ -477,7 +477,7 @@ static my_bool win32_init_tcp_ip()
 {
   if (win32_have_tcpip())
   {
-    WORD wVersionRequested = MAKEWORD( 2, 0 );
+    WORD wVersionRequested = MAKEWORD( 2, 2 );
     WSADATA wsaData;
  	/* Be a good citizen: maybe another lib has already initialised
  		sockets, so dont clobber them unless necessary */
