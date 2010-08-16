@@ -3661,6 +3661,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (135, 4);
 fc_i_nt_5_suc (135, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3689,6 +3691,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (136, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3781,6 +3785,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (139, 4);
 fc_i_nt_5_suc (139, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3809,6 +3815,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (140, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3907,6 +3915,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (143, 4);
 fc_i_nt_5_suc (143, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3937,6 +3947,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (144, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4033,6 +4045,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (147, 4);
 fc_i_nt_5_suc (147, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4063,6 +4077,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (148, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4295,6 +4311,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (155, 4);
 fc_i_nt_5_suc (155, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4325,6 +4343,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (156, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4423,6 +4443,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (159, 4);
 fc_i_nt_5_suc (159, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4453,6 +4475,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (160, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4557,6 +4581,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (163, 4);
 fc_i_nt_5_suc (163, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4589,6 +4615,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (164, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4691,6 +4719,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SELECT fc_i_nt_5_suc (167, 4);
 fc_i_nt_5_suc (167, 4)
 fc_i_nt_5_suc
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4723,6 +4753,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (168, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5291,6 +5323,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (185, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',185),  NAME_CONST('in_stmt_id',1))
@@ -5329,6 +5363,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (186, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',186),  NAME_CONST('in_stmt_id',1))
@@ -5367,6 +5403,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (187, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',187),  NAME_CONST('in_stmt_id',1))
@@ -5407,6 +5445,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (188, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',188),  NAME_CONST('in_stmt_id',1))
@@ -5885,6 +5925,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (201, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',201),  NAME_CONST('in_stmt_id',1))
@@ -5925,6 +5967,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (202, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',202),  NAME_CONST('in_stmt_id',1))
@@ -5967,6 +6011,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (203, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',203),  NAME_CONST('in_stmt_id',1))
@@ -6007,6 +6053,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_nt_5_suc (204, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',204),  NAME_CONST('in_stmt_id',1))
