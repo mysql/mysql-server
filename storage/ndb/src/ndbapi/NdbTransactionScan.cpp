@@ -114,10 +114,12 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
     }
 
     int scanStatus = 0;
-    for(Uint32 i = 0; i<len; i += 3){
+    for(Uint32 i = 0; i<len; i += 4)
+    {
       Uint32 ptrI = * ops++;
       Uint32 tcPtrI = * ops++;
-      Uint32 info = * ops++;
+      Uint32 opCount = * ops++;
+      Uint32 totalLen = * ops++;
       
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
@@ -127,18 +129,14 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
         // Check if this is a linked operation.
         if(tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)
         {
-          Uint32 opCount = info;
           NdbQueryOperationImpl* queryOp = tOp->m_query_operation_impl;
           assert (&queryOp->getQuery() == m_scanningQuery);
 
-          if (queryOp->execSCAN_TABCONF(tcPtrI, opCount, tOp))
+          if (queryOp->execSCAN_TABCONF(tcPtrI, opCount, totalLen, tOp))
             scanStatus = 1; // We have result data, wakeup receiver
         }
         else
         {
-          Uint32 opCount  = ScanTabConf::getRows(info);
-          Uint32 totalLen = ScanTabConf::getLength(info);
-
           if (tcPtrI == RNIL && opCount == 0)
             theScanningOp->receiver_completed(tOp);
           else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))

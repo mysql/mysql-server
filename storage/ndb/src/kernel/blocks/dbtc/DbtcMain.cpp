@@ -11517,7 +11517,17 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   jam();
   Uint32* ops = signal->getDataPtrSend()+4;
   Uint32 op_count = scanPtr.p->m_queued_count;
-  if(4 + 3 * op_count > 25){
+
+  Uint32 words_per_op = 4;
+  const Uint32 ref = apiConnectptr.p->ndbapiBlockref;
+  if (!ndbd_4word_scan_tabconf(getNodeInfo(refToNode(ref)).m_version))
+  {
+    jam();
+    words_per_op = 3;
+  }
+
+  if (4 + words_per_op * op_count > 25)
+  {
     jam();
     ops += 21;
   }
@@ -11545,8 +11555,16 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       
       * ops++ = curr.p->m_apiPtr;
       * ops++ = done ? RNIL : curr.i;
-      * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
-      
+      if (likely(words_per_op == 4))
+      {
+        * ops++ = curr.p->m_ops;
+        * ops++ = curr.p->m_totalLen;
+      }
+      else
+      {
+        * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
+      }
+
       queued.remove(curr); 
       if(!done){
 	delivered.add(curr);
@@ -11581,17 +11599,20 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
     }
   }
   
-  if(4 + 3 * op_count > 25){
+  if (4 + words_per_op * op_count > 25)
+  {
     jam();
     LinearSectionPtr ptr[3];
     ptr[0].p = signal->getDataPtrSend()+25;
-    ptr[0].sz = 3 * op_count;
-    sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABCONF, signal, 
-	       ScanTabConf::SignalLength, JBB, ptr, 1);
-  } else {
+    ptr[0].sz = words_per_op * op_count;
+    sendSignal(ref, GSN_SCAN_TABCONF, signal, 
+               ScanTabConf::SignalLength, JBB, ptr, 1);
+  }
+  else 
+  {
     jam();
-    sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABCONF, signal, 
-	       ScanTabConf::SignalLength + 3 * op_count, JBB);
+    sendSignal(ref, GSN_SCAN_TABCONF, signal, 
+	       ScanTabConf::SignalLength + words_per_op * op_count, JBB);
   }
   scanPtr.p->m_queued_count = 0;
 

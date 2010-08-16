@@ -406,15 +406,10 @@ private:
       If RNIL, this means that this particular fragment is done scanning.
     */
     Uint32 tcPtrI;
-    /*
-      info encodes the number of rows and the length of the data sent in
-      TRANSID_AI signals.
-    */
-    Uint32 info;
-  };
 
-  static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 10; };
-  static Uint32 getRows(Uint32 opDataInfo) { return opDataInfo & 1023;}
+    Uint32 rows;
+    Uint32 len;
+  };
 };
 
 /**

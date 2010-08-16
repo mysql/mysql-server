@@ -4217,10 +4217,12 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
 bool
 NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI, 
                                         Uint32 rowCount,
+                                        Uint32 nodeMask,
                                         NdbReceiver* receiver)
 {
   if (traceSignals) {
-    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF()" << endl;
+    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF(rows: " << rowCount
+           << " nodeMask: H'" << hex << nodeMask << ")" << endl;
   }
   assert(checkMagicNumber());
   // For now, only the root operation may be a scan.
