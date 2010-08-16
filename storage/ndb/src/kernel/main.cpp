@@ -138,7 +138,8 @@ real_main(int argc, char** argv)
   opt_debug= "d:t:O,/tmp/ndbd.trace";
 #endif
 
-  // Save the original arguments for angel
+  // Save the original program name and arguments for angel
+  const char* progname = argv[0];
   BaseString original_args;
   for (int i = 0; i < argc; i++)
     original_args.appfmt("%s ", argv[i]);
@@ -184,7 +185,8 @@ real_main(int argc, char** argv)
              opt_allocated_nodeid);
   }
 
-  angel_run(original_args,
+  angel_run(progname,
+            original_args,
             opt_ndb_connectstring,
             opt_ndb_nodeid,
             opt_bind_address,
