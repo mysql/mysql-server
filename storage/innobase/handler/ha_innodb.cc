@@ -807,6 +807,20 @@ thd_lock_wait_timeout(
 	return(THDVAR((THD*) thd, lock_wait_timeout));
 }
 
+/******************************************************************//**
+Set the time waited for the lock for the current query. */
+extern "C" UNIV_INTERN
+void
+thd_set_lock_wait_time(
+/*===================*/
+	void*	thd,	/*!< in: thread handle (THD*) */
+	ulint	value)	/*!< in: time waited for the lock */
+{
+	if (thd) {
+		thd_storage_lock_wait((THD*)thd, value);
+	}
+}
+
 /********************************************************************//**
 Obtain the InnoDB transaction of a MySQL thread.
 @return	reference to transaction pointer */
