@@ -75,7 +75,7 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
   jamEntry();
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
   const Ndbinfo::ScanCursor* cursor =
-    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
 
   Ndbinfo::Ratelimit rl;
 
