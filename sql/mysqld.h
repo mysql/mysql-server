@@ -28,7 +28,7 @@ class THD;
 struct handlerton;
 class Time_zone;
 
-class scheduler_functions;
+struct scheduler_functions;
 
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
