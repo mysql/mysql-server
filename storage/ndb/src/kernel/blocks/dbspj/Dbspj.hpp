@@ -394,8 +394,7 @@ public:
      * This function is called on the *child* by the *parent* when *parent*
      *   has completed a batch
      */
-    void (Dbspj::*m_parent_batch_complete)(Signal*,Ptr<Request>,Ptr<TreeNode>,
-                                           Uint32 rowCount);
+    void (Dbspj::*m_parent_batch_complete)(Signal*,Ptr<Request>,Ptr<TreeNode>);
 
     /**
      * This function is called when getting a SCAN_NEXTREQ
@@ -431,22 +430,16 @@ public:
     Uint32 m_api_resultRef;
     Uint32 m_api_resultData;
     /**
-     * This is the number of rows that we will ask for in this batch. This is
-     * equal to the number of rows that we will receive for the parent operation
-     * (in this batch). Until this number can be decided, this field will
-     * be set to 'invalidRowCount'.
+     * This is the number of outstanding messages. When this number is zero
+     * and m_parent_batch_complete is true, we know that we have received
+     * all rows for this operation in this batch.
      */
-    Uint32 m_rows_requested;
+    Uint32 m_outstanding;
     /**
-     * This is the number of rows that we have received in this batch.
+     * If true, the parent operation has received all the rows it will get
+     * in this batch.
      */
-    Uint32 m_rows_received;
-    /**
-     * This is the number of TCKEYREF messages received in this batch. When
-     * all lookup requests have been responded to, m_rows_requested should equal
-     * m_rows_received + m_rows_refused.
-     */
-    Uint32 m_rows_refused;
+    bool m_parent_batch_complete;
     Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 4];
   };
 
@@ -928,8 +921,7 @@ private:
   Uint32 nodeFail(Signal*, Ptr<Request>, NdbNodeBitmask mask);
 
   Uint32 createNode(Build_context&, Ptr<Request>, Ptr<TreeNode> &);
-  void reportBatchComplete(Signal*, Ptr<Request>, Ptr<TreeNode>, 
-                           Uint32 rowCount);
+  void reportBatchComplete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void releaseScanBuffers(Ptr<Request> requestPtr);
   void releaseRequestBuffers(Ptr<Request> requestPtr, bool reset);
   void releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode>);
@@ -1036,8 +1028,7 @@ private:
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_parent_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
-  void lookup_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                    Uint32 rowCount);
+  void lookup_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 lookup_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
                                NdbNodeBitmask);
@@ -1064,8 +1055,7 @@ private:
   void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr &);
-  void scanFrag_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                      Uint32 rowCount);
+  void scanFrag_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
@@ -1090,8 +1080,7 @@ private:
   void scanIndex_batchComplete(Signal* signal);
   Uint32 scanIndex_findFrag(Local_ScanIndexFrag_list &, Ptr<ScanIndexFrag>&,
                             Uint32 fragId);
-  void scanIndex_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                       Uint32 rowCount);
+  void scanIndex_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanIndex_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);

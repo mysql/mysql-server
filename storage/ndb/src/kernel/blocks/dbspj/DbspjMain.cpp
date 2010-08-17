@@ -65,7 +65,6 @@
 
 const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr = { 0, RNIL };
 const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, 0 };
-static const Uint32 invalidRowCount = 0xffffffff;
 
 /** A noop for now.*/
 void Dbspj::execREAD_CONFIG_REQ(Signal* signal) 
@@ -1420,7 +1419,7 @@ Dbspj::releaseRequestBuffers(Ptr<Request> requestPtr, bool reset)
 
 void
 Dbspj::reportBatchComplete(Signal * signal, Ptr<Request> requestPtr, 
-                           Ptr<TreeNode> treeNodePtr, Uint32 rowCount)
+                           Ptr<TreeNode> treeNodePtr)
 {
   LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
   Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
@@ -1437,8 +1436,7 @@ Dbspj::reportBatchComplete(Signal * signal, Ptr<Request> requestPtr,
                  childPtr.p->m_info->m_parent_batch_complete !=0 );
       (this->*(childPtr.p->m_info->m_parent_batch_complete))(signal, 
                                                              requestPtr, 
-                                                             childPtr,
-                                                             rowCount);
+                                                             childPtr);
     }
   }
 }
@@ -2507,9 +2505,8 @@ Dbspj::lookup_build(Build_context& ctx,
     ctx.m_resultData = param->resultData;
     treeNodePtr.p->m_lookup_data.m_api_resultRef = ctx.m_resultRef;
     treeNodePtr.p->m_lookup_data.m_api_resultData = param->resultData;
-    treeNodePtr.p->m_lookup_data.m_rows_requested = invalidRowCount;
-    treeNodePtr.p->m_lookup_data.m_rows_received = 0;
-    treeNodePtr.p->m_lookup_data.m_rows_refused = 0;
+    treeNodePtr.p->m_lookup_data.m_outstanding = 0;
+    treeNodePtr.p->m_lookup_data.m_parent_batch_complete = false;
 
     /**
      * Parse stuff common lookup/scan-frag
@@ -2754,6 +2751,7 @@ Dbspj::lookup_send(Signal* signal,
 	     NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
              JBB, &handle);
 
+  treeNodePtr.p->m_lookup_data.m_outstanding += cnt;
   if (requestPtr.p->isLookup() && treeNodePtr.p->isLeaf())
   {
     jam();
@@ -2806,22 +2804,19 @@ Dbspj::lookup_execTRANSID_AI(Signal* signal,
   ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= 1);
   requestPtr.p->m_lookup_node_data[Tnode] -= 1;
 
-  treeNodePtr.p->m_lookup_data.m_rows_received++;
+  treeNodePtr.p->m_lookup_data.m_outstanding--;
 
   if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE
-      && treeNodePtr.p->m_lookup_data.m_rows_requested != invalidRowCount
-      && treeNodePtr.p->m_lookup_data.m_rows_requested == 
-      treeNodePtr.p->m_lookup_data.m_rows_received 
-      + treeNodePtr.p->m_lookup_data.m_rows_refused)
+      && treeNodePtr.p->m_lookup_data.m_parent_batch_complete
+      && treeNodePtr.p->m_lookup_data.m_outstanding == 0)
   {
     jam();
     // We have received all rows for this operation in this batch.
-    reportBatchComplete(signal, requestPtr, treeNodePtr, 
-                        treeNodePtr.p->m_lookup_data.m_rows_received);
+    reportBatchComplete(signal, requestPtr, treeNodePtr);
+
     // Prepare for next batch.
-    treeNodePtr.p->m_lookup_data.m_rows_requested = invalidRowCount;
-    treeNodePtr.p->m_lookup_data.m_rows_received = 0;
-    treeNodePtr.p->m_lookup_data.m_rows_refused = 0;
+    treeNodePtr.p->m_lookup_data.m_parent_batch_complete = false;
+    treeNodePtr.p->m_lookup_data.m_outstanding = 0;
   }
 
   checkBatchComplete(signal, requestPtr, 1);
@@ -2918,22 +2913,19 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
   ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= cnt);
   requestPtr.p->m_lookup_node_data[Tnode] -= cnt;
 
-  treeNodePtr.p->m_lookup_data.m_rows_refused++;
+  treeNodePtr.p->m_lookup_data.m_outstanding -= cnt;
 
   if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE
-      && treeNodePtr.p->m_lookup_data.m_rows_requested != invalidRowCount
-      && treeNodePtr.p->m_lookup_data.m_rows_requested == 
-      treeNodePtr.p->m_lookup_data.m_rows_received 
-      + treeNodePtr.p->m_lookup_data.m_rows_refused)
+      && treeNodePtr.p->m_lookup_data.m_parent_batch_complete
+      && treeNodePtr.p->m_lookup_data.m_outstanding == 0)
   {
     jam();
     // We have received all rows for this operation in this batch.
-    reportBatchComplete(signal, requestPtr, treeNodePtr, 
-                        treeNodePtr.p->m_lookup_data.m_rows_received);
+    reportBatchComplete(signal, requestPtr, treeNodePtr);
+
     // Prepare for next batch.
-    treeNodePtr.p->m_lookup_data.m_rows_requested = invalidRowCount;
-    treeNodePtr.p->m_lookup_data.m_rows_received = 0;
-    treeNodePtr.p->m_lookup_data.m_rows_refused = 0;
+    treeNodePtr.p->m_lookup_data.m_parent_batch_complete = false;
+    treeNodePtr.p->m_lookup_data.m_outstanding = 0;
   }
 
   checkBatchComplete(signal, requestPtr, cnt);
@@ -2956,6 +2948,21 @@ Dbspj::lookup_execLQHKEYCONF(Signal* signal,
 
   ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= 1);
   requestPtr.p->m_lookup_node_data[Tnode] -= 1;
+
+  treeNodePtr.p->m_lookup_data.m_outstanding--;
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE
+      && treeNodePtr.p->m_lookup_data.m_parent_batch_complete
+      && treeNodePtr.p->m_lookup_data.m_outstanding == 0)
+  {
+    jam();
+    // We have received all rows for this operation in this batch.
+    reportBatchComplete(signal, requestPtr, treeNodePtr);
+
+    // Prepare for next batch.
+    treeNodePtr.p->m_lookup_data.m_parent_batch_complete = false;
+    treeNodePtr.p->m_lookup_data.m_outstanding = 0;
+  }
 
   checkBatchComplete(signal, requestPtr, 1);
 }
@@ -3104,8 +3111,7 @@ Dbspj::lookup_parent_row(Signal* signal,
 void
 Dbspj::lookup_parent_batch_complete(Signal* signal,
                              Ptr<Request> requestPtr,
-                             Ptr<TreeNode> treeNodePtr,
-                             Uint32 rowCount)
+                             Ptr<TreeNode> treeNodePtr)
 {
   jam();
 
@@ -3119,18 +3125,18 @@ Dbspj::lookup_parent_batch_complete(Signal* signal,
    */
   ndbassert(treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE);
 
-  ndbassert(treeNodePtr.p->m_lookup_data.m_rows_requested == invalidRowCount);
-  treeNodePtr.p->m_lookup_data.m_rows_requested = rowCount;
-  if (treeNodePtr.p->m_lookup_data.m_rows_requested == 
-      treeNodePtr.p->m_lookup_data.m_rows_received + 
-      treeNodePtr.p->m_lookup_data.m_rows_refused)
+  ndbassert(!treeNodePtr.p->m_lookup_data.m_parent_batch_complete);
+  treeNodePtr.p->m_lookup_data.m_parent_batch_complete = true;
+  if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE
+      && treeNodePtr.p->m_lookup_data.m_outstanding == 0)
   {
-    // The batch is complete for this operation as well.
-    reportBatchComplete(signal, requestPtr, treeNodePtr, rowCount);
+    jam();
+    // We have received all rows for this operation in this batch.
+    reportBatchComplete(signal, requestPtr, treeNodePtr);
+
     // Prepare for next batch.
-    treeNodePtr.p->m_lookup_data.m_rows_requested = invalidRowCount;
-    treeNodePtr.p->m_lookup_data.m_rows_received = 0;
-    treeNodePtr.p->m_lookup_data.m_rows_refused = 0;
+    treeNodePtr.p->m_lookup_data.m_parent_batch_complete = false;
+    treeNodePtr.p->m_lookup_data.m_outstanding = 0;
   }
 }
 
@@ -3653,8 +3659,7 @@ Dbspj::scanFrag_execTRANSID_AI(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
     {
       jam();
-      reportBatchComplete(signal, requestPtr, treeNodePtr, 
-                          treeNodePtr.p->m_scanfrag_data.m_rows_received);
+      reportBatchComplete(signal, requestPtr, treeNodePtr);
     }
     
     checkBatchComplete(signal, requestPtr, 1);
@@ -3731,8 +3736,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
     {
       jam();
-      reportBatchComplete(signal, requestPtr, treeNodePtr, 
-                          treeNodePtr.p->m_scanfrag_data.m_rows_received);
+      reportBatchComplete(signal, requestPtr, treeNodePtr);
     }
 
     checkBatchComplete(signal, requestPtr, 1);
@@ -3788,8 +3792,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
 void
 Dbspj::scanFrag_parent_batch_complete(Signal* signal,
                                       Ptr<Request> requestPtr,
-                                      Ptr<TreeNode> treeNodePtr,
-                                      Uint32 rowCount)
+                                      Ptr<TreeNode> treeNodePtr)
 {
   jam();
   ndbrequire(false);
@@ -4442,8 +4445,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
        * We being a T_ONE_SHOT means that we're only be called
        *   with parent_row once, i.e batch is complete
        */
-      scanIndex_parent_batch_complete(signal, requestPtr, treeNodePtr, 
-                                      data.m_rows_received);
+      scanIndex_parent_batch_complete(signal, requestPtr, treeNodePtr);
     }
 
     return;
@@ -4492,8 +4494,7 @@ Dbspj::scanIndex_fixupBound(Ptr<ScanIndexFrag> fragPtr,
 void
 Dbspj::scanIndex_parent_batch_complete(Signal* signal,
                                        Ptr<Request> requestPtr,
-                                       Ptr<TreeNode> treeNodePtr,
-                                       Uint32 rowCount)
+                                       Ptr<TreeNode> treeNodePtr)
 {
   jam();
 
@@ -4698,8 +4699,7 @@ Dbspj::scanIndex_execTRANSID_AI(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
     {
       jam();
-      reportBatchComplete(signal, requestPtr, treeNodePtr, 
-                          data.m_rows_received);
+      reportBatchComplete(signal, requestPtr, treeNodePtr);
     }
     
     checkBatchComplete(signal, requestPtr, 1);
@@ -4769,8 +4769,7 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
     if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
     {
       jam();
-      reportBatchComplete(signal, requestPtr, treeNodePtr, 
-                          data.m_rows_received);
+      reportBatchComplete(signal, requestPtr, treeNodePtr);
     }
     
     checkBatchComplete(signal, requestPtr, 1);
