@@ -2813,7 +2813,7 @@ srv_purge_coordinator_thread(
 		ulint	batch_size = srv_purge_batch_size;
 		ulint	sleep_ms = ut_rnd_gen_ulint() % 10000;
 
-		if (srv_shutdown_state != 0 && srv_fast_shutdown) {
+		if (srv_shutdown_state != 0 && srv_fast_shutdown != 0) {
 			break;
 		}
 
@@ -2841,7 +2841,7 @@ srv_purge_coordinator_thread(
 					os_thread_sleep(sleep_ms);
 				}
 
-			} while (n_pages_purged > 0 && !srv_fast_shutdown);
+			} while (n_pages_purged > 0 && srv_fast_shutdown == 0);
 
 			++iterations;
 
@@ -2864,7 +2864,7 @@ srv_purge_coordinator_thread(
 				Force the coordinator thread to do the purge
 				tasks from the work queue. */
 				while (srv_get_task_queue_length() > 0
-				       && !srv_fast_shutdown) {
+				       && srv_fast_shutdown == 0) {
 					ut_a(srv_shutdown_state);
 					srv_task_execute();
 				}
@@ -2900,7 +2900,8 @@ srv_purge_coordinator_thread(
 
 			} while (trx_sys->rseg_history_len > 100
 				 && (srv_shutdown_state == 0
-				     || !srv_fast_shutdown));
+				     || (srv_shutdown_state > 0
+                                         && srv_fast_shutdown == 0)));
 		}
 	}
 
