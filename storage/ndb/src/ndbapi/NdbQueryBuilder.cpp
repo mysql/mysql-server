@@ -830,7 +830,10 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   returnErrIf(op==0, Err_MemoryAlloc);
 
   m_pimpl->m_operations.push_back(op);
-  op->markScanAncestors();
+
+  const Uint32 error = op->markScanAncestors();
+  returnErrIf(error!=0, error);
+
   return &op->m_interface;
 }
 
@@ -905,8 +908,15 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     }
   }
 
+  const int error = op->markScanAncestors();
+  if (unlikely(error))
+  { m_pimpl->setErrorCode(error);
+    delete op;
+    return NULL;
+  }
+
   m_pimpl->m_operations.push_back(op);
-  op->markScanAncestors();
+
   return &op->m_interface;
 }
 
@@ -1723,19 +1733,26 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
   return spjRef;
 }
 
-void NdbQueryOperationDefImpl::markScanAncestors()
+Uint32 NdbQueryOperationDefImpl::markScanAncestors()
 {
   // Verify that parent links have been established.
   assert(m_ix == 0 || m_parent != NULL);
-  NdbQueryOperationDefImpl* operation = this;
-  do
+  assert(isScanOperation());
+  NdbQueryOperationDefImpl* operation = getParentOperation();
+  while (operation != NULL)
   {
-    // FIXME: Set an error code instead.
-    assert(!operation->m_hasScanDescendant);
+    if (operation->m_hasScanDescendant)
+    {
+      return QRY_MULTIPLE_SCAN_BRANCHES;
+    }
     operation->m_hasScanDescendant = true;
+    if (operation->isScanOperation())
+    {
+      break;
+    }
     operation = operation->getParentOperation();
   }
-  while (operation != NULL && !operation->isScanOperation());
+  return 0;
 }
 
 /** This class is used for serializing sequences of 16 bit integers,

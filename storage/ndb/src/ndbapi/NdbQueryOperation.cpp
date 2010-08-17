@@ -754,7 +754,8 @@ NdbResultStream::getNextScanRow(Uint16 parentId)
        * get new rows for the child which has a scan desecendant (if there
        * is such a child.)*/
       if (m_iterState == Iter_stepSelf 
-          || child.getQueryOperationDef().hasScanDescendant())
+          || child.getQueryOperationDef().hasScanDescendant()
+          || child.getQueryOperationDef().isScanOperation())
       {
         switch(child.getResultStream(m_rootFragNo)
                .getNextScanRow(getTupleId(m_receiver.getCurrentRow())))
@@ -1246,7 +1247,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_scanTransaction(NULL),
   m_operations(0),
   m_countOperations(0),
-  m_scanCount(0),
   m_pendingFrags(0),
   m_rootFragCount(0),
   m_rootFrags(NULL),
