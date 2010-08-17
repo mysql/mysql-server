@@ -31,6 +31,27 @@
 
 #define SECTION(x) STATIC_CONST(x)
 
+template <typename T>
+inline
+T*
+cast_ptr(Uint32 * ptr)
+{
+  NDB_ASSERT_POD(T);
+  return new (ptr) T;
+}
+
+template <typename T>
+inline
+const T*
+cast_constptr(const Uint32 * ptr)
+{
+  NDB_ASSERT_POD(T);
+  return const_cast<const T*>(new (const_cast<Uint32*>(ptr)) T);
+}
+
+#define CAST_PTR(Y,X) cast_ptr<Y>(X)
+#define CAST_CONSTPTR(Y,X) cast_constptr<Y>(X)
+
 // defines for setter and getters on commonly used member data in signals
 
 #define GET_SET_SENDERDATA \

@@ -19,6 +19,11 @@
 #include "VMSignal.hpp"
 #include <string.h>
 
+Signal::Signal(int)
+{
+
+}
+
 Signal::Signal(){
   memset(&header, 0, sizeof(header));
   memset(theData, 0, sizeof(theData));
