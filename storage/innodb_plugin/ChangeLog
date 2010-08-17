@@ -1,3 +1,15 @@
+2010-08-03	The InnoDB Team
+
+	* include/ut0mem.h, ut/ut0mem.c:
+	Fix Bug #55627 segv in ut_free pars_lexer_close innobase_shutdown
+	innodb-use-sys-malloc=0
+
+2010-08-01	The InnoDB Team
+
+	* handler/ha_innodb.cc
+	Fix Bug #55382 Assignment with SELECT expressions takes unexpected
+	S locks in READ COMMITTED
+
 2010-07-27	The InnoDB Team
 
 	* include/mem0pool.h, mem/mem0mem.c, mem/mem0pool.c, srv/srv0start.c:
