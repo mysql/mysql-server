@@ -1543,7 +1543,7 @@ void
 trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 {
   SignalT<3> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  Signal &signal = * new (&signalT) Signal(0);
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;
@@ -1657,7 +1657,7 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
   }
 
   Uint64 sentinel[thr_send_page::HEADER_SIZE >> 1];
-  thr_send_page* sentinel_page = (thr_send_page*)sentinel;
+  thr_send_page* sentinel_page = new (&sentinel[0]) thr_send_page;
   sentinel_page->m_next = 0;
 
   struct thr_send_buffer tmp;
@@ -2598,7 +2598,7 @@ static void reportSignalStats(Uint32 self, Uint32 a_count, Uint32 a_size,
                               Uint32 b_count, Uint32 b_size)
 {
   SignalT<6> sT;
-  Signal *s= (Signal *)&sT;
+  Signal *s= new (&sT) Signal(0);
 
   memset(&s->header, 0, sizeof(s->header));
   s->header.theLength = 6;
@@ -3194,7 +3194,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   signalT.header.theSendersSignalId      = 0;
   signalT.header.theSignalId             = 0;
   signalT.header.theLength               = StopForCrash::SignalLength;
-  StopForCrash * const stopForCrash = (StopForCrash *)&signalT.theData[0];
+  StopForCrash * stopForCrash = CAST_PTR(StopForCrash, &signalT.theData[0]);
   stopForCrash->flags = 0;
 
   thr_job_queue *q = &(dstptr->m_jba);
@@ -3579,7 +3579,7 @@ ThreadConfig::doStart(NodeState::StartLevel startLevel)
   signalT.header.theSignalId             = 0;
   signalT.header.theLength               = StartOrd::SignalLength;
   
-  StartOrd * const  startOrd = (StartOrd *)&signalT.theData[0];
+  StartOrd * startOrd = CAST_PTR(StartOrd, &signalT.theData[0]);
   startOrd->restartInfo = 0;
   
   sendprioa(block2ThreadId(CMVMI, 0), &signalT.header, signalT.theData, 0);
