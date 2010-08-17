@@ -44,6 +44,7 @@ struct view {
   const char* sql;
 } views[] =
 {
+#if 0
   { "pools",
     "SELECT node_id, b.block_name, block_instance, pool_name, "
     "used, total, high, entry_size, cp1.param_name AS param_name1, "
@@ -56,6 +57,7 @@ struct view {
     "LEFT JOIN <NDBINFO_DB>.config_params cp3 ON p.config_param3 = cp3.param_number "
     "LEFT JOIN <NDBINFO_DB>.config_params cp4 ON p.config_param4 = cp4.param_number"
   },
+#endif
   { "transporters",
     "SELECT node_id, remote_node_id, "
     " CASE connection_status"
