@@ -2337,6 +2337,21 @@ where y.pk = 2;
 
 drop table t1;
 
+# Test scan-lookup-scan query (see http://lists.mysql.com/commits/115164)
+
+create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
+create index ix1 on t1(b,a);
+      
+insert into t1 values (0,1,10,20);
+insert into t1 values (1,2,20,30);
+insert into t1 values (2,3,30,40);
+      
+explain select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
+--sorted_result
+select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
+
+drop table t1;
+
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 
