@@ -16,12 +16,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <limits.h>
-#include <errno.h>
-
 #include "Ndbfs.hpp"
+
 #include "AsyncFile.hpp"
-#include "Filename.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
@@ -34,8 +31,6 @@
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <RefConvert.hpp>
-#include <NdbSleep.h>
-#include <NdbOut.hpp>
 #include <Configuration.hpp>
 
 VoidFs::VoidFs(Block_context & ctx) :

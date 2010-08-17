@@ -17,7 +17,6 @@
 #define AsyncIoThread_H
 
 #include <kernel_types.h>
-#include <Pool.hpp>
 #include "MemoryChannel.hpp"
 #include <signaldata/BuildIndxImpl.hpp>
 
