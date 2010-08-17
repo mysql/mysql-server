@@ -63,13 +63,14 @@ nobase_test_DATA = \
 	lib/My/SafeProcess.pm \
 	lib/My/File/Path.pm \
 	lib/My/SysInfo.pm \
+	lib/My/Suite.pm \
 	lib/My/CoreDump.pm \
 	lib/My/SafeProcess/Base.pm \
 	lib/My/SafeProcess/safe_process.pl
 
 SUBDIRS =	lib/My/SafeProcess
 
-EXTRA_DIST =	README \
+EXTRA_DIST =	README README.suites \
 		$(test_SCRIPTS) \
 		$(nobase_test_DATA)
 
@@ -101,7 +102,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb suite/ndb/t suite/ndb/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
-	suite/pbxt/t suite/pbxt/r \
+	suite/pbxt/t suite/pbxt/r suite/pbxt \
 	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
 	suite/innodb_plugin suite/innodb_plugin/t suite/innodb_plugin/r suite/innodb_plugin/include \
 	suite/percona \

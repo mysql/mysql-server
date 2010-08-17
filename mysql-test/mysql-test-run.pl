@@ -130,7 +130,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts,innodb,innodb_plugin,percona";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts,innodb,innodb_plugin,percona,ndb";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -256,6 +256,8 @@ my $exe_ndb_waiter;
 our $debug_compiled_binaries;
 
 our %mysqld_variables;
+
+our %suites;
 
 my $source_dist= 0;
 
@@ -711,6 +713,8 @@ sub run_test_server ($$$) {
 	  $next= splice(@$tests, $second_best, 1);
 	}
 
+        xterm_stat(scalar(@$tests));
+
 	if ($next) {
 	  #$next->print_test();
 	  $next->write_test($sock, 'TESTCASE');
@@ -807,7 +811,7 @@ sub run_worker ($) {
       # We need to gracefully shut down the servers to see any
       # Valgrind memory leak errors etc. since last server restart.
       if ($opt_warnings) {
-        stop_servers(all_servers());
+        stop_servers(reverse all_servers());
         if(check_warnings_post_shutdown($server)) {
           # Warnings appeared in log file(s) during final server shutdown.
           exit(1);
@@ -1595,7 +1599,7 @@ sub collect_mysqld_features {
   my $cmd= join(" ", $exe_mysqld, @$args);
   my $list= `$cmd`;
 
-  print "cmd: $cmd\n";
+  mtr_verbose("cmd: $cmd");
 
   foreach my $line (split('\n', $list))
   {
@@ -2493,7 +2497,7 @@ sub check_ndbcluster_support ($) {
 }
 
 
-sub ndbcluster_wait_started($$){
+sub ndbcluster_wait_started {
   my $cluster= shift;
   my $ndb_waiter_extra_opt= shift;
   my $path_waitlog= join('/', $opt_vardir, $cluster->name(), "ndb_waiter.log");
@@ -2661,7 +2665,7 @@ sub ndbd_start {
 
 
 sub ndbcluster_start ($) {
-  my $cluster= shift;
+  my ($cluster) = @_;
 
   mtr_verbose("ndbcluster_start '".$cluster->name()."'");
 
@@ -2680,6 +2684,109 @@ sub ndbcluster_start ($) {
   return 0;
 }
 
+
+sub mysql_server_start($) {
+  my ($mysqld, $tinfo) = @_;
+
+  if ( $mysqld->{proc} )
+  {
+    # Already started
+
+    # Write start of testcase to log file
+    mark_log($mysqld->value('#log-error'), $tinfo);
+
+    return;
+  }
+
+  my $datadir= $mysqld->value('datadir');
+  if (not $opt_start_dirty)
+  {
+
+    my @options= ('log-bin', 'relay-log');
+    foreach my $option_name ( @options )  {
+      next unless $mysqld->option($option_name);
+
+      my $file_name= $mysqld->value($option_name);
+      next unless
+        defined $file_name and
+          -e $file_name;
+
+      mtr_debug(" -removing '$file_name'");
+      unlink($file_name) or die ("unable to remove file '$file_name'");
+    }
+
+    if (-d $datadir ) {
+      preserve_error_log($mysqld);
+      mtr_verbose(" - removing '$datadir'");
+      rmtree($datadir);
+    }
+  }
+
+  my $mysqld_basedir= $mysqld->value('basedir');
+  if ( $basedir eq $mysqld_basedir )
+  {
+    if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
+    {
+      # Copy datadir from installed system db
+      for my $path ( "$opt_vardir", "$opt_vardir/..") {
+        my $install_db= "$path/install.db";
+        copytree($install_db, $datadir)
+          if -d $install_db;
+      }
+      mtr_error("Failed to copy system db to '$datadir'")
+        unless -d $datadir;
+    }
+  }
+  else
+  {
+    mysql_install_db($mysqld); # For versional testing
+
+    mtr_error("Failed to install system db to '$datadir'")
+      unless -d $datadir;
+
+  }
+  restore_error_log($mysqld);
+
+  # Create the servers tmpdir
+  my $tmpdir= $mysqld->value('tmpdir');
+  mkpath($tmpdir) unless -d $tmpdir;
+
+  # Write start of testcase to log file
+  mark_log($mysqld->value('#log-error'), $tinfo);
+
+  # Run <tname>-master.sh
+  if ($mysqld->option('#!run-master-sh') and
+     run_sh_script($tinfo->{master_sh}) )
+  {
+    $tinfo->{'comment'}= "Failed to execute '$tinfo->{master_sh}'";
+    return 1;
+  }
+
+  # Run <tname>-slave.sh
+  if ($mysqld->option('#!run-slave-sh') and
+      run_sh_script($tinfo->{slave_sh}))
+  {
+    $tinfo->{'comment'}= "Failed to execute '$tinfo->{slave_sh}'";
+    return 1;
+  }
+
+  if (!$opt_embedded_server)
+  {
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_start($mysqld,$extra_opts);
+
+    # Save this test case information, so next can examine it
+    $mysqld->{'started_tinfo'}= $tinfo;
+  }
+}
+
+sub mysql_server_wait {
+  my ($mysqld) = @_;
+
+  return not sleep_until_file_created($mysqld->value('pid-file'),
+                                      $opt_start_timeout,
+                                      $mysqld->{'proc'});
+}
 
 sub create_config_file_for_extern {
   my %opts=
@@ -3455,9 +3562,82 @@ sub restart_forced_by_test
 # Return timezone value of tinfo or default value
 sub timezone {
   my ($tinfo)= @_;
-  return $tinfo->{timezone} || "DEFAULT";
+  local $_ = $tinfo->{timezone};
+  return 'DEFAULT' unless defined $_;
+  s/\$\{(\w+)\}/envsubst($1)/ge;
+  s/\$(\w+)/envsubst($1)/ge;
+  $_;
 }
 
+sub mycnf_create {
+  my ($config) = @_;
+  my $res;
+
+  foreach my $group ($config->groups()) {
+    $res .= "[$group->{name}]\n";
+
+    foreach my $option ($group->options()) {
+      $res .= $option->name();
+      my $value= $option->value();
+      if (defined $value) {
+	$res .= "=$value";
+      }
+      $res .= "\n";
+    }
+    $res .= "\n";
+  }
+  $res;
+}
+
+sub config_files($) {
+  my ($tinfo) = @_;
+  (
+    'my.cnf' => \&mycnf_create,
+    $suites{$tinfo->{suite}}->config_files()
+  );
+}
+
+sub _like   { return $config ? $config->like($_[0]) : (); }
+sub mysqlds { return _like('mysqld\.'); }
+sub ndbds   { return _like('cluster_config\.ndbd\.');}
+sub ndb_mgmds { return _like('cluster_config\.ndb_mgmd\.'); }
+
+sub fix_servers($) {
+  my ($tinfo) = @_;
+  return () unless $config;
+  my %servers = (
+    qr/mysqld\./ => {
+      SORT => 300,
+      START => \&mysql_server_start,
+      WAIT => \&mysql_server_wait,
+    },
+    qr/mysql_cluster\./ => {
+      SORT => 200,
+      START => \&ndbcluster_start,
+      WAIT => \&ndbcluster_wait_started,
+    },
+    qr/cluster_config\.ndb_mgmd\./ => {
+      SORT => 210,
+      START => undef,
+    },
+    qr/cluster_config\.ndbd\./ => {
+      SORT => 220,
+      START => undef,
+    },
+    $suites{$tinfo->{suite}}->servers()
+  );
+  for ($config->groups()) {
+    while (my ($re,$prop) = each %servers) {
+      @$_{keys %$prop} = values %$prop if $_->{name} =~ /^$re/;
+    }
+  }
+}
+
+sub all_servers {
+  return unless $config;
+  ( sort { $a->{SORT} <=> $b->{SORT} }
+       grep { defined $_->{SORT} } $config->groups() );
+}
 
 # Storage for changed environment variables
 my %old_env;
@@ -3500,7 +3680,7 @@ sub run_testcase ($$) {
     if ( @restart != 0) {
       # Remember that we restarted for this test case (count restarts)
       $tinfo->{'restarted'}= 1;
-      stop_servers(@restart );
+      stop_servers(reverse @restart);
       if ($opt_warnings) {
         check_warnings_post_shutdown($server_socket);
       }
@@ -3536,7 +3716,6 @@ sub run_testcase ($$) {
 	   vardir          => $opt_vardir,
 	   tmpdir          => $opt_tmpdir,
 	   baseport        => $baseport,
-	   #hosts          => [ 'host1', 'host2' ],
 	   user            => $opt_user,
 	   password        => '',
 	   ssl             => $opt_ssl_supported,
@@ -3544,8 +3723,16 @@ sub run_testcase ($$) {
 	  }
 	);
 
-      # Write the new my.cnf
-      $config->save($path_config_file);
+      fix_servers($tinfo);
+
+      # Write config files:
+      my %config_files = config_files($tinfo);
+      while (my ($file, $generate) = each %config_files) {
+        my ($path) = "$opt_vardir/$file";
+        open (F, '>', $path) or die "Could not open '$path': $!";
+        print F &$generate($config);
+        close F;
+      }
 
       # Remember current config so a restart can occur when a test need
       # to use a different one
@@ -3688,7 +3875,7 @@ sub run_testcase ($$) {
             if ($opt_warnings) {
               # Checking error logs for warnings, so need to stop server
               # gracefully so that memory leaks etc. can be properly detected.
-              stop_servers(all_servers());
+              stop_servers(reverse all_servers());
               check_warnings_post_shutdown($server_socket);
               # Even if we got warnings here, we should not fail this
               # particular test, as the warnings may be caused by an earlier
@@ -3846,7 +4033,8 @@ sub run_testcase ($$) {
 # valuable debugging information even if there is no test failure recorded.
 sub _preserve_error_log_names {
   my ($mysqld)= @_;
-  my $error_log_file= $mysqld->value('#log-error');
+  my $error_log_file= $mysqld->if_exist('#log-error');
+  return unless $error_log_file and -r $error_log_file;
   my $error_log_dir= dirname($error_log_file);
   my $save_name= $error_log_dir ."/../". $mysqld->name() .".error.log";
   return ($error_log_file, $save_name);
@@ -3855,14 +4043,14 @@ sub _preserve_error_log_names {
 sub preserve_error_log {
   my ($mysqld)= @_;
   my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
-  my $res= rename($error_log_file, $save_name);
+  rename($error_log_file, $save_name) if $save_name;
   # Ignore any errors, as it's just a best-effort to keep the log if possible.
 }
 
 sub restore_error_log {
   my ($mysqld)= @_;
   my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
-  my $res= rename($save_name, $error_log_file);
+  rename($save_name, $error_log_file) if $save_name;
 }
 
 # Keep track of last position in mysqld error log where we scanned for
@@ -3906,6 +4094,8 @@ sub pre_write_errorlog {
 
 sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
+  
+  return unless $error_log;
 
   # Open the servers .err log file and read all lines
   # belonging to current test into @lines
@@ -3948,9 +4138,9 @@ sub get_log_from_proc ($$) {
   my ($proc, $name)= @_;
   my $srv_log= "";
 
-  foreach my $mysqld (mysqlds()) {
+  foreach my $mysqld (all_servers()) {
     if ($mysqld->{proc} eq $proc) {
-      my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
+      my @srv_lines= extract_server_log($mysqld->if_exist('#log-error'), $name);
       $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
       last;
     }
@@ -4029,13 +4219,14 @@ sub extract_warning_lines ($) {
   my @antipatterns =
     (
      qr/error .*connecting to master/,
+     qr/Plugin 'ndbcluster' will be forced to shutdown/,
      qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
      qr/InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal/,
      qr/Slave: Unknown table 't1' Error_code: 1051/,
      qr/Slave SQL:.*(Error_code: [[:digit:]]+|Query:.*)/,
      qr/slave SQL thread aborted/,
-     qr/unknown option '--loose-/,
-     qr/unknown variable 'loose-/,
+     qr/unknown option '--loose[-_]/,
+     qr/unknown variable 'loose[-_]/,
      qr/Now setting lower_case_table_names to [02]/,
      qr/Setting lower_case_table_names=2/,
      qr/You have forced lower_case_table_names to 0/,
@@ -4348,29 +4539,18 @@ sub clean_dir {
 
 
 sub clean_datadir {
-
   mtr_verbose("Cleaning datadirs...");
 
   if (started(all_servers()) != 0){
     mtr_error("Trying to clean datadir before all servers stopped");
   }
 
-  foreach my $cluster ( clusters() )
+  for (all_servers())
   {
-    my $cluster_dir= "$opt_vardir/".$cluster->{name};
-    mtr_verbose(" - removing '$cluster_dir'");
-    rmtree($cluster_dir);
-
-  }
-
-  foreach my $mysqld ( mysqlds() )
-  {
-    my $mysqld_dir= dirname($mysqld->value('datadir'));
-    preserve_error_log($mysqld);
-    if (-d $mysqld_dir ) {
-      mtr_verbose(" - removing '$mysqld_dir'");
-      rmtree($mysqld_dir);
-    }
+    preserve_error_log($_); # or at least, try to
+    my $dir= "$opt_vardir/".$_->{name};
+    mtr_verbose(" - removing '$dir'");
+    rmtree($dir);
   }
 
   # Remove all files in tmp and var/tmp
@@ -4393,17 +4573,6 @@ sub save_datadir_after_failure($$) {
 }
 
 
-sub remove_ndbfs_from_ndbd_datadir {
-  my ($ndbd_datadir)= @_;
-  # Remove the ndb_*_fs directory from ndbd.X/ dir
-  foreach my $ndbfs_dir ( glob("$ndbd_datadir/ndb_*_fs") )
-  {
-    next unless -d $ndbfs_dir; # Skip if not a directory
-    rmtree($ndbfs_dir);
-  }
-}
-
-
 sub after_failure ($) {
   my ($tinfo)= @_;
 
@@ -4420,31 +4589,18 @@ sub after_failure ($) {
 
   mkpath($save_dir) if ! -d $save_dir;
 
-  # Save the used my.cnf file
-  copy($path_config_file, $save_dir);
+  # Save the used config files
+  my %config_files = config_files($tinfo);
+  while (my ($file, $generate) = each %config_files) {
+    copy("$opt_vardir/$file", $save_dir);
+  }
 
   # Copy the tmp dir
   copytree("$opt_vardir/tmp/", "$save_dir/tmp/");
 
-  if ( clusters() ) {
-    foreach my $cluster ( clusters() ) {
-      my $cluster_dir= "$opt_vardir/".$cluster->{name};
-
-      # Remove the fileystem of each ndbd
-      foreach my $ndbd ( in_cluster($cluster, ndbds()) )
-      {
-        my $ndbd_datadir= $ndbd->value("DataDir");
-        remove_ndbfs_from_ndbd_datadir($ndbd_datadir);
-      }
-
-      save_datadir_after_failure($cluster_dir, $save_dir);
-    }
-  }
-  else {
-    foreach my $mysqld ( mysqlds() ) {
-      my $data_dir= $mysqld->value('datadir');
-      save_datadir_after_failure(dirname($data_dir), $save_dir);
-    }
+  foreach (all_servers()) {
+    my $dir= "$opt_vardir/".$_->{name};
+    save_datadir_after_failure($dir, $save_dir);
   }
 }
 
@@ -4582,8 +4738,8 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s--log-output=table,file");
   }
 
-  # Check if "extra_opt" contains skip-log-bin
-  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
+  # Check if "extra_opt" contains --log-bin
+  my $skip_binlog= not grep /^--(loose-)?log-bin/, @$extra_opts;
 
   # Indicate to mysqld it will be debugged in debugger
   if ( $glob_debugger )
@@ -4839,8 +4995,7 @@ sub server_need_restart {
     return 1;
   }
 
-  my $is_mysqld= grep ($server eq $_, mysqlds());
-  if ($is_mysqld)
+  if ($server->name() =~ /^mysqld\./)
   {
 
     # Check that running process was started with same options
@@ -4892,17 +5047,9 @@ sub servers_need_restart($) {
 
 
 
-#
-# Return list of specific servers
-#  - there is no servers in an empty config
-#
-sub _like   { return $config ? $config->like($_[0]) : (); }
-sub mysqlds { return _like('mysqld.'); }
-sub ndbds   { return _like('cluster_config.ndbd.');}
-sub ndb_mgmds { return _like('cluster_config.ndb_mgmd.'); }
-sub clusters  { return _like('mysql_cluster.'); }
-sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds() ); }
+############################################
 
+############################################
 
 #
 # Filter a list of servers and return only those that are part
@@ -4956,28 +5103,10 @@ sub get_extra_opts {
 sub stop_servers($$) {
   my (@servers)= @_;
 
-  if ( join('|', @servers) eq join('|', all_servers()) )
-  {
-    # All servers are going down, use some kind of order to
-    # avoid too many warnings in the log files
+  mtr_report("Restarting ", started(@servers));
 
-   mtr_report("Restarting all servers");
-
-    #  mysqld processes
-    My::SafeProcess::shutdown( $opt_shutdown_timeout, started(mysqlds()) );
-
-    # cluster processes
-    My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(ndbds(), ndb_mgmds()) );
-  }
-  else
-  {
-    mtr_report("Restarting ", started(@servers));
-
-     # Stop only some servers
-    My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(@servers) );
-  }
+  My::SafeProcess::shutdown($opt_shutdown_timeout,
+                             started(@servers));
 
   foreach my $server (@servers)
   {
@@ -5004,145 +5133,14 @@ sub stop_servers($$) {
 sub start_servers($) {
   my ($tinfo)= @_;
 
-  # Start clusters
-  foreach my $cluster ( clusters() )
-  {
-    ndbcluster_start($cluster);
+  for (all_servers()) {
+    $_->{START}->($_, $tinfo) if $_->{START};
   }
 
-  # Start mysqlds
-  foreach my $mysqld ( mysqlds() )
-  {
-    if ( $mysqld->{proc} )
-    {
-      # Already started
-
-      # Write start of testcase to log file
-      mark_log($mysqld->value('#log-error'), $tinfo);
-
-      next;
-    }
-
-    my $datadir= $mysqld->value('datadir');
-    if ($opt_start_dirty)
-    {
-      # Don't delete anything if starting dirty
-      ;
-    }
-    else
-    {
-
-      my @options= ('log-bin', 'relay-log');
-      foreach my $option_name ( @options )  {
-	next unless $mysqld->option($option_name);
-
-	my $file_name= $mysqld->value($option_name);
-	next unless
-	  defined $file_name and
-	    -e $file_name;
-
-	mtr_debug(" -removing '$file_name'");
-	unlink($file_name) or die ("unable to remove file '$file_name'");
-      }
-
-      if (-d $datadir ) {
-        preserve_error_log($mysqld);
-	mtr_verbose(" - removing '$datadir'");
-	rmtree($datadir);
-      }
-    }
-
-    my $mysqld_basedir= $mysqld->value('basedir');
-    if ( $basedir eq $mysqld_basedir )
-    {
-      if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
-      {
-	# Copy datadir from installed system db
-	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  my $install_db= "$path/install.db";
-	  copytree($install_db, $datadir)
-	    if -d $install_db;
-	}
-	mtr_error("Failed to copy system db to '$datadir'")
-	  unless -d $datadir;
-      }
-    }
-    else
-    {
-      mysql_install_db($mysqld); # For versional testing
-
-      mtr_error("Failed to install system db to '$datadir'")
-	unless -d $datadir;
-
-    }
-    restore_error_log($mysqld);
-
-    # Create the servers tmpdir
-    my $tmpdir= $mysqld->value('tmpdir');
-    mkpath($tmpdir) unless -d $tmpdir;
-
-    # Write start of testcase to log file
-    mark_log($mysqld->value('#log-error'), $tinfo);
-
-    # Run <tname>-master.sh
-    if ($mysqld->option('#!run-master-sh') and
-       run_sh_script($tinfo->{master_sh}) )
-    {
-      $tinfo->{'comment'}= "Failed to execute '$tinfo->{master_sh}'";
-      return 1;
-    }
-
-    # Run <tname>-slave.sh
-    if ($mysqld->option('#!run-slave-sh') and
-	run_sh_script($tinfo->{slave_sh}))
-    {
-      $tinfo->{'comment'}= "Failed to execute '$tinfo->{slave_sh}'";
-      return 1;
-    }
-
-    if (!$opt_embedded_server)
-    {
-      my $extra_opts= get_extra_opts($mysqld, $tinfo);
-      mysqld_start($mysqld,$extra_opts);
-
-      # Save this test case information, so next can examine it
-      $mysqld->{'started_tinfo'}= $tinfo;
-    }
-
-  }
-
-  # Wait for clusters to start
-  foreach my $cluster ( clusters() )
-  {
-    if (ndbcluster_wait_started($cluster, ""))
-    {
-      # failed to start
-      $tinfo->{'comment'}= "Start of '".$cluster->name()."' cluster failed";
-      return 1;
-    }
-  }
-
-  # Wait for mysqlds to start
-  foreach my $mysqld ( mysqlds() )
-  {
-    next if !started($mysqld);
-
-    if (sleep_until_file_created($mysqld->value('pid-file'),
-				 $opt_start_timeout,
-				 $mysqld->{'proc'}) == 0) {
-      $tinfo->{comment}=
-	"Failed to start ".$mysqld->name();
-
-      my $logfile= $mysqld->value('#log-error');
-      if ( defined $logfile and -f $logfile )
-      {
-        my @srv_lines= extract_server_log($logfile, $tinfo->{name});
-	$tinfo->{logfile}= "Server log is:\n" . join ("", @srv_lines);
-      }
-      else
-      {
-	$tinfo->{logfile}= "Could not open server logfile: '$logfile'";
-      }
+  for (all_servers()) {
+    next unless $_->{WAIT} and started($_);
+    if ($_->{WAIT}->($_)) {
+      $tinfo->{comment}= "Failed to start ".$_->name();
       return 1;
     }
   }
@@ -5404,13 +5402,7 @@ sub gdb_arguments {
   else
   {
     # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+    mtr_tofile($gdb_init_file, "set args $str\n");
   }
 
   if ( $opt_manual_gdb )
@@ -5468,13 +5460,7 @@ sub ddd_arguments {
   else
   {
     # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "file $$exe\n" .
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end");
+    mtr_tofile($gdb_init_file, "file $$exe\nset args $str\n");
   }
 
   if ( $opt_manual_ddd )
@@ -5855,4 +5841,26 @@ sub list_options ($) {
   }
 
   exit(1);
+}
+
+sub time_format($) {
+  sprintf '%d:%02d:%02d', $_[0]/3600, ($_[0]/60)%60, $_[0]%60;
+}
+
+my $num_tests;
+
+sub xterm_stat {
+  if (-t STDOUT and $ENV{TERM} =~ /xterm/) {
+    my ($left) = @_;
+
+    # 2.5 -> best by test
+    $num_tests = $left + 2.5 unless $num_tests;
+
+    my $done = $num_tests - $left;
+    my $spent = time - $^T;
+
+    printf "\e];mtr: spent %s on %d tests. %s (%d tests) left\a",
+           time_format($spent), $done,
+           time_format($spent/$done * $left), $left;
+  }
 }

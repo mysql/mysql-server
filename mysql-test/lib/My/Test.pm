@@ -20,6 +20,12 @@ sub new {
   return $self;
 }
 
+sub fullname {
+  my ($self)= @_;
+  $self->{name} . (defined $self->{combination}
+                   ? " '$self->{combination}'"
+                   : "")
+}
 
 #
 # Return a unique key that can be used to
