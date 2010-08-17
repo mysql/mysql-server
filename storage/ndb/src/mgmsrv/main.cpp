@@ -28,6 +28,7 @@
 #include <portlib/ndb_daemon.h>
 #include <NdbConfig.h>
 #include <NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 #include <ndb_version.h>
 #include <mgmapi_config_parameters.h>
 #include <NdbAutoPtr.hpp>
@@ -267,7 +268,12 @@ static int mgmd_main(int argc, char** argv)
       mgmd_exit(1);
     }
 
-    my_setwd(NdbConfig_get_path(0), MYF(0));
+    if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
+    {
+      g_eventLogger->warning("Cannot change directory to '%s', error: %d",
+                             NdbConfig_get_path(NULL), errno);
+      // Ignore error
+    }
 
     if (opts.daemon)
     {
