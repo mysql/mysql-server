@@ -365,7 +365,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        {
 	 Uint32* send= tSignal.getDataPtrSend();
 	 memcpy(send, theData, tSignal.getLength() << 2);
-	 ((SubGcpCompleteAck*)send)->rep.senderRef = 
+	 CAST_PTR(SubGcpCompleteAck, send)->rep.senderRef = 
 	   numberToRef(API_CLUSTERMGR, theOwnId);
 	 Uint32 ref= header->theSendersBlockRef;
 	 Uint32 aNodeId= refToNode(ref);

@@ -1341,8 +1341,8 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
 {
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
-  const Ndbinfo::ScanCursor* cursor =
-    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+  const Ndbinfo::ScanCursor* cursor = 
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
   Ndbinfo::Ratelimit rl;
 
   jamEntry();
