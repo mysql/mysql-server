@@ -161,7 +161,7 @@ int reportShutdown(class Configuration *config, int error_exit, int restart)
   get_int_property(info, "sphase", &sphase);
 
   Uint32 length, theData[25];
-  EventReport *rep = (EventReport *)theData;
+  EventReport *rep = CAST_PTR(EventReport, &theData[0]);
 
   rep->setNodeId(globalData.ownId);
   if (restart)

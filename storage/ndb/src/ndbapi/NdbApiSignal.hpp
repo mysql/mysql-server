@@ -37,9 +37,6 @@
 #include <TransporterDefinitions.hpp>
 #include "Ndb.hpp"
 
-#define CAST_PTR(X,Y) reinterpret_cast<X*>(Y)
-#define CAST_CONSTPTR(X,Y) reinterpret_cast<const X*>(Y)
-
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CreateTable.hpp>
@@ -121,29 +118,7 @@ private:
   /**
    * Only used when creating a signal in the api
    */
-  union {
-    Uint32 theData[25];
-    WaitGCPReq _WaitGCPReq;
-    GetTabInfoReq _GetTabInfoReq;
-    ListTablesReq _ListTablesReq;
-    CreateTableReq _CreateTableReq;
-    AlterTableReq _AlterTableReq;
-    CreateIndxReq _CreateIndxReq;
-    DropTableReq _DropTableReq;
-    DropIndxReq _DropIndxReq;
-    CreateFileReq _CreateFileReq;
-    CreateFilegroupReq _CreateFilegroupReq;
-    DropFilegroupReq _DropFilegroupReq;
-    DropFileReq _DropFileReq;
-    SubStartReq _SubStartReq;
-    SubStopReq _SubStopReq;
-    CreateEvntReq _CreateEvntReq;
-    DropEvntReq _DropEvntReq;
-    SubGcpCompleteAck _SubGcpCompleteAck;
-    ApiRegReq _ApiRegReq;
-    ApiRegConf _ApiRegConf;
-    ArbitSignalData _ArbitSignalData;
-  };
+  Uint32 theData[25];
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
 };

@@ -554,7 +554,7 @@ reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 errNo){
   signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
 
-  DisconnectRep * const  rep = (DisconnectRep *)&signal.theData[0];
+  DisconnectRep * rep = CAST_PTR(DisconnectRep, &signal.theData[0]);
   rep->nodeId = nodeId;
   rep->err = errNo;
 

@@ -386,7 +386,7 @@ void print_restart(FILE * output, Signal* signal, Uint32 aLevel);
 void FastScheduler::dumpSignalMemory(FILE * output)
 {
   SignalT<25> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  Signal * signal = new (&signalT) Signal(0);
   Uint32 ReadPtr[5];
   Uint32 tJob;
   Uint32 tLastJob;
@@ -420,8 +420,8 @@ void FastScheduler::dumpSignalMemory(FILE * output)
     else
       ReadPtr[tLevel]--;
     
-    theJobBuffers[tLevel].retrieveDump(&signal, ReadPtr[tLevel]);
-    print_restart(output, &signal, tLevel);
+    theJobBuffers[tLevel].retrieveDump(signal, ReadPtr[tLevel]);
+    print_restart(output, signal, tLevel);
     
     if (tJob == 0)
       tJob = 4095;
