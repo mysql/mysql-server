@@ -343,7 +343,7 @@ Configuration::setupConfiguration(){
     {
       _executeLockCPU.clear();
     }
-    if (mtthreads > _executeLockCPU.count())
+    if (globalData.isNdbMt && mtthreads > _executeLockCPU.count())
     {
       g_eventLogger->warning("MaxNoOfExecutionThreads (%u) > LockExecuteThreadToCPU "
                              "count (%u), this could cause contention",
