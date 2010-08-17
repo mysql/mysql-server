@@ -20,8 +20,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <NdbMem.h>
-
 /**
  * This is a casual hack to do static memory allocation
  * (needed by NDB)
@@ -31,6 +29,8 @@
 #include "../../../../zlib/inftrees.h"
 #include "../../../../zlib/inflate.h"
 #include "../../../../zlib/deflate.h"
+
+#include "../../../../mysys/mysys_priv.h"
 
 #include "azlib.h"
 
