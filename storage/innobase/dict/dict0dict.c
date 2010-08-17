@@ -2140,7 +2140,7 @@ dict_foreign_add_to_cache(
 				mem_heap_free(foreign->heap);
 			}
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			return(DB_FOREIGN_NO_INDEX);
 		}
 
 		for_in_cache->referenced_table = ref_table;
@@ -2184,7 +2184,7 @@ dict_foreign_add_to_cache(
 				mem_heap_free(foreign->heap);
 			}
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			return(DB_REFERENCING_NO_INDEX);
 		}
 
 		for_in_cache->foreign_table = for_table;
