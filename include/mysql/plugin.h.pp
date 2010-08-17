@@ -154,6 +154,7 @@ long long thd_test_options(const void* thd, long long test_options);
 int thd_sql_command(const void* thd);
 const char *thd_proc_info(void* thd, const char *info);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
+void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
