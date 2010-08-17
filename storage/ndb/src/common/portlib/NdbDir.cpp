@@ -332,6 +332,16 @@ loop:
   return true;
 }
 
+#ifdef _WIN32
+#include <direct.h> // chdir
+#endif
+
+int
+NdbDir::chdir(const char* path)
+{
+  return ::chdir(path);
+}
+
 
 #ifdef TEST_NDBDIR
 #include <NdbTap.hpp>
@@ -394,7 +404,7 @@ TAPTEST(DirIterator)
 
   // Build dir tree 
   build_tree(path);
-  // Test to iterate over filesa
+  // Test to iterate over files
   { 
     NdbDir::Iterator iter;
     CHECK(iter.open(path) == 0);
@@ -424,12 +434,29 @@ TAPTEST(DirIterator)
   CHECK(NdbDir::remove_recursive(path, true));
   CHECK(!gone(path));
 
-  // Remoe also the empty dir
+  // Remove also the empty dir
   CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
   // Remove non exisiting directory(again)
   CHECK(!NdbDir::remove_recursive(path));
+  CHECK(gone(path));
+
+  printf("Testing NdbDir::chdir...\n");
+  // Try chdir to the non existing dir, should fail
+  CHECK(NdbDir::chdir(path) != 0);
+
+  // Build dir tree
+  build_tree(path);
+
+  // Try chdir to the now existing dir, should work
+  CHECK(NdbDir::chdir(path) == 0);
+
+  // Try chdir to the root of tmpdir, should work
+  CHECK(NdbDir::chdir(tempdir.path()) == 0);
+
+  // Remove the dir tree again to leave clean
+  CHECK(NdbDir::remove_recursive(path));
   CHECK(gone(path));
 
   return 1; // OK

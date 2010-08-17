@@ -19,6 +19,7 @@
 #include <NdbEnv.h>
 #include <NdbConfig.h>
 #include <NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 #include <NdbAutoPtr.hpp>
 
 #include "vm/SimBlockList.hpp"
@@ -587,7 +588,12 @@ ndbd_run(bool foreground, int report_fd,
   theConfig->fetch_configuration(connect_str, force_nodeid, bind_address,
                                  allocated_nodeid);
 
-  my_setwd(NdbConfig_get_path(0), MYF(0));
+  if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
+  {
+    g_eventLogger->warning("Cannot change directory to '%s', error: %d",
+                           NdbConfig_get_path(NULL), errno);
+    // Ignore error
+  }
 
   if (get_multithreaded_config(globalEmulatorData))
     ndbd_exit(-1);
