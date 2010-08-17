@@ -2904,9 +2904,14 @@ NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
   {
     if(m_size+m_completedFrags < m_capacity)
     {
-      if(!frag.isEmpty())
+      // We have not yet received the first batch for each fragment.
+      if(frag.isEmpty() && frag.finalBatchReceived())
       {
-        // Frag is non-empty.
+        // This is the first and final batch for this fragment, and it is empty.
+        m_completedFrags++;
+      }
+      else
+      {
         int current = 0;
         // Insert the new frag such that the array remains sorted.
         while(current<m_size && compare(frag, *m_array[current])==1)
@@ -2920,12 +2925,6 @@ NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
         m_size++;
         assert(m_size <= m_capacity);
         assert(verifySortOrder());
-      }
-      else
-      {
-        // First batch is empty, therefore it should also be the final batch. 
-        assert(frag.finalBatchReceived());
-        m_completedFrags++;
       }
     }
     else
@@ -2948,9 +2947,6 @@ NdbQueryImpl::OrderedFragSet::getEmpty() const
 {
   // This method is not applicable to unordered scans.
   assert(m_ordering!=NdbQueryOptions::ScanOrdering_unordered);
-  // The first frag should be empty when calling this method.
-  assert(m_size==0 || m_array[0]->isEmpty());
-  assert(verifySortOrder());
   if(m_completedFrags==m_capacity)
   {
     assert(m_size==0);
