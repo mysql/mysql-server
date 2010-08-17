@@ -1131,12 +1131,19 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   m_error= 0;
 
   if(_line == NULL) {
+    ndbout_c("ERROR: Internal error at %s:%d.", __FILE__, __LINE__);
     m_error = -1;
-    DBUG_RETURN(false);
+    DBUG_RETURN(false); // Terminate gracefully
   }
 
-  char* line = my_strdup(_line,MYF(MY_WME));
-  My_auto_ptr<char> ptr(line);
+  char* line = strdup(_line);
+  if (line == NULL)
+  {
+    ndbout_c("ERROR: Memory allocation error at %s:%d.", __FILE__, __LINE__);
+    m_error = -1;
+    DBUG_RETURN(false); // Terminate gracefully
+  }
+  NdbAutoPtr<char> ap(line);
 
   int do_continue;
   do {
@@ -1157,6 +1164,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
       }
     }
   } while (do_continue);
+
   // if there is anything in the line proceed
   Vector<BaseString> command_list;
   split_args(line, command_list);
@@ -1477,8 +1485,14 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   }
 
   // Copy allAfterLog since strtok will modify it  
-  char* newAllAfterLog = my_strdup(allAfterLog,MYF(MY_WME));
-  My_auto_ptr<char> ap1(newAllAfterLog);
+  char* newAllAfterLog = strdup(allAfterLog);
+  if (newAllAfterLog == NULL)
+  {
+    ndbout_c("ERROR: Memory allocation error at %s:%d.", __FILE__, __LINE__);
+    return false; // Error parsing
+  }
+
+  NdbAutoPtr<char> ap1(newAllAfterLog);
   char* firstTokenAfterLog = strtok(newAllAfterLog, " ");
   for (unsigned int i = 0; i < strlen(firstTokenAfterLog); ++i) {
     firstTokenAfterLog[i] = toupper(firstTokenAfterLog[i]);
@@ -1852,15 +1866,22 @@ CommandInterpreter::executeClusterLog(char* parameters)
   int i;
   if (emptyString(parameters))
   {
-    ndbout << "Missing argument." << endl;
+    ndbout_c("ERROR: Missing argument(s).");
     m_error = -1;
     DBUG_VOID_RETURN;
   }
 
   enum ndb_mgm_event_severity severity = NDB_MGM_EVENT_SEVERITY_ALL;
     
-  char * tmpString = my_strdup(parameters,MYF(MY_WME));
-  My_auto_ptr<char> ap1(tmpString);
+  char * tmpString = strdup(parameters);
+  if (tmpString == NULL)
+  {
+    ndbout_c("ERROR: Memory allocation error at %s:%d.", __FILE__, __LINE__);
+    m_error = -1;
+    DBUG_VOID_RETURN;
+  }
+
+  NdbAutoPtr<char> ap1(tmpString);
   char * tmpPtr = 0;
   char * item = strtok_r(tmpString, " ", &tmpPtr);
   int enable;
@@ -2627,31 +2648,28 @@ CommandInterpreter::executeLogLevel(int processId, const char* parameters,
 int CommandInterpreter::executeError(int processId, 
 				      const char* parameters, bool /* all */) 
 {
-  int retval = 0;
-  if (emptyString(parameters)) {
-    ndbout << "Missing error number." << endl;
+  if (emptyString(parameters))
+  {
+    ndbout_c("ERROR: Missing error number.");
     return -1;
   }
 
-  // Copy parameters since strtok will modify it
-  char* newpar = my_strdup(parameters,MYF(MY_WME)); 
-  My_auto_ptr<char> ap1(newpar);
-  char* firstParameter = strtok(newpar, " ");
+  Vector<BaseString> args;
+  split_args(parameters, args);
+
+  if (args.size() >= 2)
+  {
+    ndbout << "ERROR: Too many arguments." << endl;
+    return -1;
+  }
 
   int errorNo;
-  if (! convert(firstParameter, errorNo)) {
-    ndbout << "Expected an integer." << endl;
+  if (! convert(args[0].c_str(), errorNo)) {
+    ndbout << "ERROR: Expected an integer." << endl;
     return -1;
   }
 
-  char* allAfterFirstParameter = strtok(NULL, "\0");
-  if (! emptyString(allAfterFirstParameter)) {
-    ndbout << "Nothing expected after error number." << endl;
-    return -1;
-  }
-
-  retval = ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, NULL);
-  return retval;
+  return ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, NULL);
 }
 
 //*****************************************************************************
@@ -2666,24 +2684,15 @@ CommandInterpreter::executeLog(int processId,
   if (! parseBlockSpecification(parameters, blocks)) {
     return -1;
   }
-  int len=1;
-  Uint32 i;
-  for(i=0; i<blocks.size(); i++) {
-    len += strlen(blocks[i]) + 1;
-  }
-  char * blockNames = (char*)my_malloc(len,MYF(MY_WME));
-  My_auto_ptr<char> ap1(blockNames);
-  
-  blockNames[0] = 0;
-  for(i=0; i<blocks.size(); i++) {
-    strcat(blockNames, blocks[i]);
-    strcat(blockNames, "|");
-  }
-  
+
+  BaseString block_names;
+  for (unsigned i = 0; i<blocks.size(); i++)
+    block_names.appfmt("%s|", blocks[i]);
+
   int result = ndb_mgm_log_signals(m_mgmsrv,
 				   processId, 
 				   NDB_MGM_SIGNAL_LOG_MODE_INOUT, 
-				   blockNames,
+				   block_names.c_str(),
 				   &reply);
   if (result != 0) {
     ndbout_c("Execute LOG on node %d failed.", processId);
