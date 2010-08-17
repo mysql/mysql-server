@@ -5640,8 +5640,18 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   for(Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
     masterGCPConf->lcpActive[i] = SYSFILE->lcpActive[i];
 
-  sendSignal(newMasterBlockref, GSN_MASTER_GCPCONF, signal, 
-             MasterGCPConf::SignalLength, JBB);
+  if (ERROR_INSERTED(7225))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    ndbrequire(refToNode(newMasterBlockref) == getOwnNodeId());
+    sendSignalWithDelay(newMasterBlockref, GSN_MASTER_GCPCONF, signal,
+                        500, MasterGCPConf::SignalLength);
+  }
+  else
+  {
+    sendSignal(newMasterBlockref, GSN_MASTER_GCPCONF, signal,
+               MasterGCPConf::SignalLength, JBB);
+  }
 
   if (ERROR_INSERTED(7182))
   {
@@ -5653,7 +5663,12 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     execGCP_TCFINISHED(signal);
   }
 
-  c_copyGCISlave.m_copyReason = CopyGCIReq::IDLE;
+  if (c_copyGCISlave.m_expectedNextWord != 0)
+  {
+    jam();
+    c_copyGCISlave.m_expectedNextWord = 0;
+    c_copyGCISlave.m_copyReason = CopyGCIReq::IDLE;
+  }
 }//Dbdih::execMASTER_GCPREQ()
 
 void Dbdih::execMASTER_GCPCONF(Signal* signal) 
@@ -16851,6 +16866,18 @@ void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
   signal->theData[5] = 1; /* AMOUNT OF PAGES */
   signal->theData[6] = 0; /* MEMORY PAGE = 0 SINCE COMMON STORED VARIABLE  */
   signal->theData[7] = 0;
+
+  if (ERROR_INSERTED(7224) && filePtr.i == crestartInfoFile[1])
+  {
+    jam();
+    SET_ERROR_INSERT_VALUE(7225);
+    sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal, 500, 8);
+
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, refToNode(cmasterdihref)),
+	       GSN_NDB_TAMPER, signal, 1, JBB);
+    return;
+  }
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 }//Dbdih::writeRestorableGci()
 

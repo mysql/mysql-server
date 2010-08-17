@@ -50,7 +50,7 @@ reportShutdown(const ndb_mgm_configuration* config,
          (!restart && !initial && !nostart));
 
   Uint32 length, theData[25];
-  EventReport *rep=(EventReport *) theData;
+  EventReport *rep= CAST_PTR(EventReport, &theData[0]);
 
   rep->setNodeId(nodeid);
   if (restart)
