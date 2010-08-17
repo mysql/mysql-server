@@ -984,7 +984,8 @@ bool Aggregator_distinct::add()
   {
     int error;
     copy_fields(tmp_table_param);
-    copy_funcs(tmp_table_param->items_to_copy);
+    if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
+      return TRUE;
 
     for (Field **field=table->field ; *field ; field++)
       if ((*field)->is_real_null(0))
@@ -3136,7 +3137,8 @@ bool Item_func_group_concat::add()
   if (always_null)
     return 0;
   copy_fields(tmp_table_param);
-  copy_funcs(tmp_table_param->items_to_copy);
+  if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
+    return TRUE;
 
   for (uint i= 0; i < arg_count_field; i++)
   {
