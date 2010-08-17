@@ -44,6 +44,7 @@
 #define QRY_SCAN_ORDER_ALREADY_SET 4820
 #define QRY_PARAMETER_HAS_WRONG_TYPE 4821
 #define QRY_CHAR_PARAMETER_TRUNCATED 4822
+#define QRY_MULTIPLE_SCAN_BRANCHES 4823
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -354,8 +355,10 @@ public:
   bool hasScanDescendant() const
   { return m_hasScanDescendant; }
 
-  /** Mark this operation and all its ancestors as having a scan decendant.*/
-  void markScanAncestors();
+  /** Mark lookup ancestors of this operation as having a scan decendant.
+   * @return Possible error code.
+   */
+  Uint32 markScanAncestors();
 
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 

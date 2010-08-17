@@ -342,10 +342,6 @@ private:
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
   Uint32 m_countOperations;             // #elements in above array
 
-  /** Shortcut to all scan operations in this query  */
-  NdbQueryOperationImpl* m_scans[NdbMaxPushedQueryOps];
-  Uint32 m_scanCount;
-
   /** Number of root fragments not yet completed within the current batch.*/
   Uint32 m_pendingFrags;
 
