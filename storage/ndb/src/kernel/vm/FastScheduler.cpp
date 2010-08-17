@@ -387,7 +387,7 @@ void print_restart(FILE * output, Signal* signal, Uint32 aLevel);
 void FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE * output)
 {
   SignalT<25> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  Signal * signal = new (&signalT) Signal(0);
   Uint32 ReadPtr[5];
   Uint32 tJob;
   Uint32 tLastJob;
@@ -424,10 +424,10 @@ void FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE * output)
     else
       ReadPtr[tLevel]--;
     
-    theJobBuffers[tLevel].retrieveDump(&signal, ReadPtr[tLevel]);
+    theJobBuffers[tLevel].retrieveDump(signal, ReadPtr[tLevel]);
     // strip instance bits since this in non-MT code
-    signal.header.theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
-    print_restart(output, &signal, tLevel);
+    signal->header.theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
+    print_restart(output, signal, tLevel);
     
     if (tJob == 0)
       tJob = 4095;

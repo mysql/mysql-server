@@ -2273,7 +2273,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    if (TattrNoOfWords <= 2) {
               if (TattrNoOfWords == 1) {
                 // arithmetic conversion if big-endian
-                TdataForUpdate[1] = (Uint32)*(Int64*)&TregMemBuffer[theRegister + 2];
+                Int64 * tmp = new (&TregMemBuffer[theRegister + 2]) Int64;
+                TdataForUpdate[1] = Uint32(* tmp);
                 TdataForUpdate[2] = 0;
               }
 	      if (TregType == 0) {
