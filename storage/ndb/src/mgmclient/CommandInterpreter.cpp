@@ -84,7 +84,7 @@ private:
    *   @return: true if correct syntax, otherwise false
    */
   bool parseBlockSpecification(const char* allAfterLog, 
-			       Vector<const char*>& blocks);
+			       Vector<BaseString>& blocks);
   
   /**
    *   A bunch of execute functions: Executes one of the commands
@@ -1476,7 +1476,7 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
 //*****************************************************************************
 bool 
 CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
-					    Vector<const char*>& blocks) 
+					    Vector<BaseString>& blocks)
 {
   // Parse: [BLOCK = {ALL|<blockName>+}]
 
@@ -1523,7 +1523,7 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
     all = true;
   }
   while (blockName != NULL) {
-    blocks.push_back(strdup(blockName));
+    blocks.push_back(blockName);
     blockName = strtok(NULL, " ");
   }
 
@@ -2680,14 +2680,14 @@ CommandInterpreter::executeLog(int processId,
 			       const char* parameters, bool all) 
 {
   struct ndb_mgm_reply reply;
-  Vector<const char *> blocks;
+  Vector<BaseString> blocks;
   if (! parseBlockSpecification(parameters, blocks)) {
     return -1;
   }
 
   BaseString block_names;
   for (unsigned i = 0; i<blocks.size(); i++)
-    block_names.appfmt("%s|", blocks[i]);
+    block_names.appfmt("%s|", blocks[i].c_str());
 
   int result = ndb_mgm_log_signals(m_mgmsrv,
 				   processId, 
