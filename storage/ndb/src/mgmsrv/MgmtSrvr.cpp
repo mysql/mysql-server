@@ -616,8 +616,6 @@ MgmtSrvr::start()
 void
 MgmtSrvr::setClusterLog(const Config* config)
 {
-  BaseString logdest;
-
   g_eventLogger->close();
 
   DBUG_ASSERT(_ownNodeId);
@@ -632,17 +630,20 @@ MgmtSrvr::setClusterLog(const Config* config)
   my_setwd(NdbConfig_get_path(0), MYF(0));
 
   // Get log destination from config
+  BaseString logdest;
   const char *value;
   if(iter.get(CFG_LOG_DESTINATION, &value) == 0){
     logdest.assign(value);
   }
 
+  bool logdest_configured = true;
   if(logdest.length() == 0 || logdest == "") {
     // No LogDestination set, use default settings
     char *clusterLog= NdbConfig_ClusterLogFileName(_ownNodeId);
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6",
 		   clusterLog);
     free(clusterLog);
+    logdest_configured = false;
   }
 
   int err= 0;
@@ -659,8 +660,11 @@ MgmtSrvr::setClusterLog(const Config* config)
     ndbout << endl;
   }
 
-  if (m_opts.non_interactive)
+  if (logdest_configured == false &&
+      m_opts.non_interactive)
+  {
     g_eventLogger->createConsoleHandler();
+  }
 
 #ifdef _WIN32
   /* Output to Windows event log */
