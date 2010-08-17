@@ -2312,7 +2312,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   
   Uint32 sz;
   SignalT<4> signalT;
-  Signal * signal = (Signal*)&signalT;
+  Signal * signal = new (&signalT) Signal(0);
   bzero(signal, sizeof(signalT));
   switch(attrId){
   case AttributeHeader::READ_LCP:
