@@ -4031,7 +4031,6 @@ bool mysql_create_table_no_lock(THD *thd,
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
-      create_info->table_existed= 1;		// Mark that table existed
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
@@ -4105,7 +4104,6 @@ bool mysql_create_table_no_lock(THD *thd,
   }
 
   thd_proc_info(thd, "creating table");
-  create_info->table_existed= 0;		// Mark that table is created
 
 #ifdef HAVE_READLINK
   {
@@ -4197,7 +4195,6 @@ warn:
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
-  create_info->table_existed= 1;		// Mark that table existed
   goto err;
 }
 
@@ -4461,11 +4458,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     non-temporary table.
   */
   DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
-              local_create_info.table_existed ||
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
-
   /*
     We have to write the query before we unlock the tables.
   */

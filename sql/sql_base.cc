@@ -2594,10 +2594,6 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
     is never opened. In both cases, metadata locks are always taken according
     to the lock strategy.
 
-    If the lock strategy is OTLS_DOWNGRADE_IF_EXISTS and opening the table
-    is successful, the exclusive metadata lock acquired by the caller
-    is downgraded to a shared lock.
-
   RETURN
     TRUE  Open failed. "action" parameter may contain type of action
           needed to remedy problem before retrying again.
@@ -3040,15 +3036,6 @@ retry_share:
   }
 
   mysql_mutex_unlock(&LOCK_open);
-
-  /*
-    In CREATE TABLE .. If NOT EXISTS .. SELECT we have found that
-    table exists now we should downgrade our exclusive metadata
-    lock on this table to SW metadata lock.
-  */
-  if (table_list->lock_strategy == TABLE_LIST::OTLS_DOWNGRADE_IF_EXISTS &&
-      !(flags & MYSQL_OPEN_HAS_MDL_LOCK))
-    mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_WRITE);
 
   table->mdl_ticket= mdl_ticket;
 
