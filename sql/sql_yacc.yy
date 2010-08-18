@@ -3881,17 +3881,26 @@ create2a:
           create3 {}
         |  opt_partitioning
            create_select ')'
-           { Select->set_braces(1);}
+           {
+             Select->set_braces(1);
+             Lex->create_select_start_with_brace= TRUE;
+           }
            union_opt {}
         ;
 
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
-          { Select->set_braces(0);}
+          {
+            Select->set_braces(0);
+            Lex->create_select_start_with_brace= FALSE;
+          }
           union_clause {}
         | opt_duplicate opt_as '(' create_select ')'
-          { Select->set_braces(1);}
+          {
+            Select->set_braces(1);
+            Lex->create_select_start_with_brace= TRUE;
+          }
           union_opt {}
         ;
 
@@ -4516,6 +4525,19 @@ create_select:
             lex->current_select->table_list.save_and_clear(&lex->save_list);
             mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
+
+            if (lex->sql_command == SQLCOM_CREATE_TABLE &&
+                (lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS))
+            {
+              Lex_input_stream *lip= YYLIP;
+
+              if (lex->spcont)
+                lex->create_select_pos= lip->get_tok_start() -
+                  lex->sphead->m_tmp_query;
+              else
+                lex->create_select_pos= lip->get_tok_start() - lip->get_buf();
+              lex->create_select_in_comment= (lip->in_comment == DISCARD_COMMENT);
+            }
           }
           select_options select_item_list
           {
