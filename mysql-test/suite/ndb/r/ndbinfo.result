@@ -14,7 +14,6 @@ CREATE TEMPORARY TABLE `t1` (
 ERROR HY000: Table storage engine 'ndbinfo' does not support the create option 'TEMPORARY'
 
 
-
 USE ndbinfo;
 
 SHOW CREATE TABLE ndb$tables;
@@ -228,11 +227,4 @@ ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 ## 6) Table with autoincrement not supported
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 ERROR 42000: The used table type doesn't support AUTO_INCREMENT columns
-
-select count(*) from blocks;
-count(*)
-20
-select count(*) from blocks;
-count(*)
-20
 
