@@ -301,11 +301,10 @@ my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
-  char *end_ptr;
-  if (!(res= val_str(&str_value)))
-    return 0;                                   // NULL or EOM
 
-  end_ptr= (char*) res->ptr()+ res->length();
+  if (!(res= val_str(&str_value)))
+    return NULL;
+
   if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
@@ -5932,7 +5931,8 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
       a subselect (they use their own cache).
     */
     if (const_item() &&
-        !(item->basic_const_item() || item->type() == Item::FIELD_ITEM ||
+        !(basic_const_item() || item->basic_const_item() ||
+          item->type() == Item::FIELD_ITEM ||
           item->type() == SUBSELECT_ITEM ||
            /*
              Do not cache GET_USER_VAR() function as its const_item() may
@@ -7511,13 +7511,13 @@ String *Item_cache_datetime::val_str(String *str)
       if (cached_field_type == MYSQL_TYPE_TIME)
       {
         ulonglong time= int_value;
-        DBUG_ASSERT(time < TIME_MAX_VALUE);
+        DBUG_ASSERT(time <= TIME_MAX_VALUE);
         set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
         ltime.second= time % 100;
         time/= 100;
         ltime.minute= time % 100;
         time/= 100;
-        ltime.hour= time % 100;
+        ltime.hour= time;
       }
       else
       {

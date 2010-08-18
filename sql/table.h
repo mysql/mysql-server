@@ -43,7 +43,6 @@ class Security_context;
 struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-struct TABLE_LIST;
 class Field;
 
 /*
@@ -629,7 +628,7 @@ struct TABLE_SHARE
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
   bool auto_partitioned;
-  const char *partition_info_str;
+  char *partition_info_str;
   uint  partition_info_str_len;
   uint  partition_info_buffer_size;
   handlerton *default_part_db_type;
