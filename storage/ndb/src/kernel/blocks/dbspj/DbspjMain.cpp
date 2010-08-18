@@ -4638,6 +4638,7 @@ Dbspj::scanIndex_send(Signal* signal,
       ndbrequire(dupSection(tmp, attrInfoPtrI)); // TODO handle error
       attrInfoPtrI = tmp;
     }
+    fragPtr.p->reset_ranges();
     
     getSection(handle.m_ptr[0], attrInfoPtrI);
     getSection(handle.m_ptr[1], keyInfoPtrI);
@@ -4682,6 +4683,14 @@ Dbspj::scanIndex_send(Signal* signal,
     i++;
     fragPtr.p->m_state = 0; // running
     data.m_frags_outstanding++;
+  }
+
+  if (release == false)
+  {
+    jam();
+    // only supported for now...
+    ndbrequire(treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL);
+    releaseSection(keyInfoPtrI);
   }
 
   if (fragPtr.i == RNIL)
