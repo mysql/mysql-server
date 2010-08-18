@@ -1230,6 +1230,14 @@ Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
    */
 
   /**
+   * This recursive function will register nodes to be notified
+   *   about SCAN_NEXTREQ.
+   *
+   * Clear it first, so that nodes won't end up in it several times...
+   */
+  requestPtr.p->m_cursor_nodes.init();
+
+  /**
    * Needs to be atleast 1 active otherwise we should have
    *   taken the cleanup "path" in batchComplete
    */
@@ -1247,6 +1255,15 @@ void
 Dbspj::registerCursor(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
 {
   Local_TreeNodeCursor_list list(m_treenode_pool, requestPtr.p->m_cursor_nodes);
+#ifdef VM_TRACE
+  {
+    Ptr<TreeNode> nodePtr;
+    for (list.first(nodePtr); !nodePtr.isNull(); list.next(nodePtr))
+    {
+      ndbrequire(nodePtr.i != treeNodePtr.i);
+    }
+  }
+#endif
   list.add(treeNodePtr);
 }
 
