@@ -2031,6 +2031,12 @@ create:
                                                    TL_OPTION_UPDATING,
                                                    TL_WRITE, MDL_EXCLUSIVE))
               MYSQL_YYABORT;
+            /*
+              For CREATE TABLE, an non-existing table is not an error.
+              Instruct open_tables() to just take an MDL lock if the
+              table does not exist.
+            */
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
@@ -14034,6 +14040,7 @@ view_tail:
                                                    TL_IGNORE,
                                                    MDL_EXCLUSIVE))
               MYSQL_YYABORT;
+            lex->query_tables->open_strategy= TABLE_LIST::OPEN_STUB;
           }
           view_list_opt AS view_select
         ;

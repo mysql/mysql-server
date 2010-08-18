@@ -1001,7 +1001,6 @@ typedef struct st_ha_create_information
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
   enum enum_ha_unused unused1;
-  bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
