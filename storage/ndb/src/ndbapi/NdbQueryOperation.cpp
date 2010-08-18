@@ -4121,7 +4121,6 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len){
 
       /* nextResult() will later move it from m_fullFrags to m_applFrags
        * under mutex protection.*/
-      assert(!rootFrag->isEmpty());
       m_queryImpl.m_fullFrags.push(*rootFrag);
       // Wake up appl thread when we have data, or entire query batch completed.
       ret = true;
