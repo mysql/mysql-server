@@ -76,7 +76,7 @@
 Event_queue *Events::event_queue;
 Event_scheduler *Events::scheduler;
 Event_db_repository *Events::db_repository;
-uint Events::opt_event_scheduler= Events::EVENTS_OFF;
+ulong Events::opt_event_scheduler= Events::EVENTS_OFF;
 mysql_mutex_t Events::LOCK_event_metadata;
 bool Events::check_system_tables_error= FALSE;
 
