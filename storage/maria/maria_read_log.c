@@ -211,7 +211,10 @@ static struct my_option my_long_options[] =
     "will not be applied", &opt_end_lsn, &opt_end_lsn,
     0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
-   (uchar **) &opt_silent, (uchar **) &opt_silent, 0,
+   &opt_silent, &opt_silent, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print more information during apply/undo phase",
+   &maria_recovery_verbose, &maria_recovery_verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files. Multiple paths can be specified, "
    "separated by "

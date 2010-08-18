@@ -3167,6 +3167,8 @@ static LSN parse_checkpoint_record(LSN lsn)
     return LSN_ERROR;
   next_dirty_page_in_pool= dirty_pages_pool;
   minimum_rec_lsn_of_dirty_pages= LSN_MAX;
+  if (maria_recovery_verbose)
+    tprint(tracef, "Table_id  Is_index       Page_id    Rec_lsn\n");
   for (i= 0; i < nb_dirty_pages ; i++)
   {
     pgcache_page_no_t page_id;
@@ -3183,6 +3185,9 @@ static LSN parse_checkpoint_record(LSN lsn)
     if (new_page((is_index << 16) | table_id,
                  page_id, rec_lsn, next_dirty_page_in_pool++))
       return LSN_ERROR;
+    if (maria_recovery_verbose)
+      tprint(tracef, "%8u  %8u  %12lu    %u,0x%lx\n", (uint) table_id,
+             (uint) is_index, (ulong) page_id, LSN_IN_PARTS(rec_lsn));
     set_if_smaller(minimum_rec_lsn_of_dirty_pages, rec_lsn);
   }
   /* after that, there will be no insert/delete into the hash */

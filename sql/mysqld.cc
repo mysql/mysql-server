@@ -9309,6 +9309,8 @@ bool is_secure_file_path(char *path)
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
+  DBUG_ENTER("fix_paths");
+
   convert_dirname(mysql_home,mysql_home,NullS);
   /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home,mysql_home,MYF(0));
@@ -9353,12 +9355,12 @@ static int fix_paths(void)
   charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
-    return 1;
+    DBUG_RETURN(1);
 #ifdef HAVE_REPLICATION
   if (!slave_load_tmpdir)
   {
     if (!(slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE))))
-      return 1;
+      DBUG_RETURN(1);
   }
 #endif /* HAVE_REPLICATION */
   /*
@@ -9379,7 +9381,7 @@ static int fix_paths(void)
       if (my_realpath(buff, opt_secure_file_priv, 0))
       {
         sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
-        return 1;
+        DBUG_RETURN(1);
       }
       secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
       convert_dirname(secure_file_real_path, buff, NullS);
@@ -9387,7 +9389,7 @@ static int fix_paths(void)
       opt_secure_file_priv= secure_file_real_path;
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
