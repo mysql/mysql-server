@@ -800,6 +800,15 @@ CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 
+
+--echo #
+--echo # Bug#45263 utf32_general_ci, bad effects around CREATE TABLE AS SELECT
+--echo #
+SET collation_connection=utf32_general_ci;
+CREATE TABLE t1 AS SELECT HEX(0x00) AS my_col;
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
