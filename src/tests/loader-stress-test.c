@@ -14,7 +14,7 @@
 
 DB_ENV *env;
 enum {MAX_NAME=128};
-enum {MAX_DBS=256};
+enum {MAX_DBS=1024};
 int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
