@@ -109,6 +109,11 @@ void az_free(voidpf opaque, voidpf address)
     VALGRIND_MAKE_MEM_NOACCESS(r->mem,r->size);
 }
 
+#ifdef _WIN32
+/* Windows doesn't define ENOTSUP, define it same as Solaris */
+#define ENOTSUP 48
+#endif
+
 #ifndef HAVE_POSIX_MEMALIGN
 static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
 {
