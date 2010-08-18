@@ -54,7 +54,7 @@ PASSWORD '',
 PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
-select * from mysql.servers;
+select * from mysql.servers order by Server_name;
 Server_name	Host	Db	Username	Password	Port	Socket	Wrapper	Owner
 server_one	127.0.0.1	first_db	root		SLAVE_PORT		mysql	root
 server_two	127.0.0.1	second_db	root		SLAVE_PORT		mysql	root
@@ -154,7 +154,7 @@ id	name
 drop table federated.t1;
 drop server 'server_one';
 drop server 'server_two';
-select * from mysql.servers;
+select * from mysql.servers order by Server_name;
 Server_name	Host	Db	Username	Password	Port	Socket	Wrapper	Owner
 drop table first_db.t1;
 drop table second_db.t1;
@@ -254,6 +254,8 @@ password '', socket '', owner '', port 3306);
 drop server 's1';
 # End of 5.1 tests
 use test;
+create table t1(a int);
+insert into t1 values (1);
 create procedure p1 ()
 begin
 DECLARE v INT DEFAULT 0;
@@ -268,11 +270,13 @@ ALTER SERVER s OPTIONS (USER 'Remote');
 DROP SERVER s;
 SET v = v + 1;
 END WHILE;
+select a into @a from t1; # Just reset warnings
 END//
 use test;
 call p1();
 call p1();
 drop procedure p1;
+drop table t1;
 drop server if exists s;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE federated;

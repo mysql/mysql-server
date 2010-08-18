@@ -47,7 +47,7 @@ ENGINE = MYISAM
 PARTITION p1 VALUES LESS THAN (20),
 PARTITION p2 VALUES LESS THAN (100),
 PARTITION p3 VALUES LESS THAN MAXVALUE ) */;
-SET DEBUG_SYNC= 'open_tables_acquire_upgradable_mdl SIGNAL removing_partitions WAIT_FOR waiting_for_alter';
+SET DEBUG_SYNC= 'alter_table_before_open_tables SIGNAL removing_partitions WAIT_FOR waiting_for_alter';
 SET DEBUG_SYNC= 'alter_table_before_rename_result_table WAIT_FOR delete_done';
 ALTER TABLE t2 REMOVE PARTITIONING;
 # Con default

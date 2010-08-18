@@ -103,15 +103,10 @@ bool reopen_table(TABLE *table);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 void close_data_files_and_morph_locks(THD *thd, const char *db,
                                       const char *table_name);
-void close_handle_and_leave_table_as_lock(TABLE *table);
 bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                   uint db_stat, uint prgflag,
                   uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
                   MEM_ROOT *mem_root);
-bool wait_for_tables(THD *thd);
-bool table_is_used(TABLE *table, bool wait_for_name_lock);
-TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
-void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
@@ -203,8 +198,9 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 		COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
-void wait_for_condition(THD *thd, mysql_mutex_t *mutex,
-                        mysql_cond_t *cond);
+bool lock_table_names(THD *thd, TABLE_LIST *table_list,
+                      TABLE_LIST *table_list_end, ulong lock_wait_timeout,
+                      uint flags);
 bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
 /* open_and_lock_tables with optional derived handling */
@@ -217,7 +213,6 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
-int abort_and_upgrade_lock_and_close_table(ALTER_PARTITION_PARAM_TYPE *lpt);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
@@ -239,6 +234,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
                                  Open_tables_backup *backup);
 void close_system_tables(THD *thd, Open_tables_backup *backup);
+void close_mysql_tables(THD *thd);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
 void close_log_table(THD *thd, Open_tables_backup *backup);
@@ -252,8 +248,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);
-void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                               bool remove_from_locked_tables);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
@@ -480,8 +474,6 @@ public:
     return m_start_of_statement_svp;
   }
 
-  MDL_request *get_global_mdl_request(THD *thd);
-
   inline ulong get_timeout() const
   {
     return m_timeout;
@@ -498,11 +490,6 @@ private:
   */
   TABLE_LIST *m_failed_table;
   MDL_ticket *m_start_of_statement_svp;
-  /**
-    Request object for global intention exclusive lock which is acquired during
-    opening tables for statements which take upgradable shared metadata locks.
-  */
-  MDL_request *m_global_mdl_request;
   /**
     Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
     tables or to the "lock_wait_timeout" system variable for regular tables.
