@@ -3113,7 +3113,6 @@ sub install_db ($$) {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
-  mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
@@ -3126,6 +3125,15 @@ sub install_db ($$) {
 
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
+
+  # InnoDB arguments that affect file location and sizes may
+  # need to be given to the bootstrap process as well as the
+  # server process.
+  foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
+    if ($extra_opt =~ /--innodb/) {
+      mtr_add_arg($args, $extra_opt);
+    }
+  }
 
   # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
   # configure --disable-grant-options), mysqld will not recognize the
@@ -3925,11 +3933,6 @@ sub mysqld_arguments ($$$$) {
 		$prefix);
 
     mtr_add_arg($args, "%s--local-infile", $prefix);
-
-    if ( $idx > 0 or !$use_innodb)
-    {
-      mtr_add_arg($args, "%s--loose-skip-innodb", $prefix);
-    }
 
     my $cluster= $clusters->[$mysqld->{'cluster'}];
     if ( $cluster->{'pid'} ||           # Cluster is started

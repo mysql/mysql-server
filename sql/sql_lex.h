@@ -919,6 +919,24 @@ enum enum_alter_table_change_level
   ALTER_TABLE_INDEX_CHANGED= 2
 };
 
+
+/**
+  Temporary hack to enable a class bound forward declaration
+  of the enum_alter_table_change_level enumeration. To be
+  removed once Alter_info is moved to the sql_alter.h
+  header.
+*/
+class Alter_table_change_level
+{
+private:
+  typedef enum enum_alter_table_change_level enum_type;
+  enum_type value;
+public:
+  void operator = (enum_type v) { value = v; }
+  operator enum_type () { return value; }
+};
+
+
 /**
   @brief Parsing data for CREATE or ALTER TABLE.
 
@@ -1276,6 +1294,125 @@ public:
     DBUG_VOID_RETURN;
   }
 
+  enum enum_stmt_accessed_table
+  {
+    /*
+       If a transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_TRANS_TABLE= 0,
+    /*
+       If a transactional table is about to be updated.
+    */
+    STMT_WRITES_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be read. Note that
+       a write implies a read.
+    */
+    STMT_READS_NON_TRANS_TABLE,
+    /*
+       If a non-transactional table is about to be updated.
+    */
+    STMT_WRITES_NON_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be read. Note
+       that a write implies a read.
+    */
+    STMT_READS_TEMP_TRANS_TABLE,
+    /*
+       If a temporary transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be read. Note
+      that a write implies a read.
+    */
+    STMT_READS_TEMP_NON_TRANS_TABLE,
+    /*
+       If a temporary non-transactional table is about to be updated.
+    */
+    STMT_WRITES_TEMP_NON_TRANS_TABLE,
+    /*
+      The last element of the enumeration. Please, if necessary add
+      anything before this.
+    */
+    STMT_ACCESS_TABLE_COUNT
+  };
+               
+  /**
+    Sets the type of table that is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+  */
+  inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::set_stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+    stmt_accessed_table_flag |= (1U << accessed_table);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Checks if a type of table is about to be accessed while executing a
+    statement.
+
+    @param accessed_table Enumeration type that defines the type of table,
+                           e.g. temporary, transactional, non-transactional.
+
+    @return
+      @retval TRUE  if the type of the table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
+  {
+    DBUG_ENTER("THD::stmt_accessed_table");
+
+    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+
+    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
+  }
+
+  /**
+    Checks if a temporary table is about to be accessed while executing a
+    statement.
+
+    @return
+      @retval TRUE  if a temporary table is about to be accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
+                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
+  /**
+    Checks if a temporary non-transactional table is about to be accessed
+    while executing a statement.
+
+    @return
+      @retval TRUE  if a temporary non-transactional table is about to be
+                    accessed
+      @retval FALSE otherwise
+  */
+  inline bool stmt_accessed_non_trans_temp_table()
+  {
+    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
+
+    DBUG_RETURN((stmt_accessed_table_flag &
+                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
+                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
+  }
+
   /**
     true if the parsed tree contains references to stored procedures
     or functions, false otherwise
@@ -1317,6 +1454,12 @@ private:
     stored procedure has its own LEX object (but no own THD object).
   */
   uint32 binlog_stmt_flags;
+
+  /**
+    Bit field that determines the type of tables that are about to be
+    be accessed while executing a statement.
+  */
+  uint32 stmt_accessed_table_flag;
 };
 
 
@@ -1392,9 +1535,9 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, const char *buff, unsigned int length);
+  bool init(THD *thd, char *buff, unsigned int length);
 
-  void reset(const char *buff, unsigned int length);
+  void reset(char *buff, unsigned int length);
 
   /**
     Set the echo mode.
@@ -1507,6 +1650,20 @@ public:
       m_cpp_ptr += n;
     }
     m_ptr += n;
+  }
+
+  /**
+    Puts a character back into the stream, canceling
+    the effect of the last yyGet() or yySkip().
+    Note that the echo mode should not change between calls
+    to unput, get, or skip from the stream.
+  */
+  char *yyUnput(char ch)
+  {
+    *--m_ptr= ch;
+    if (m_echo)
+      m_cpp_ptr--;
+    return m_ptr;
   }
 
   /**
@@ -1666,7 +1823,7 @@ public:
 
 private:
   /** Pointer to the current position in the raw input stream. */
-  const char *m_ptr;
+  char *m_ptr;
 
   /** Starting position of the last token parsed, in the raw buffer. */
   const char *m_tok_start;
@@ -2348,7 +2505,7 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, const char *buff, unsigned int length)
+  bool init(THD *thd, char *buff, unsigned int length)
   {
     return m_lip.init(thd, buff, length);
   }
@@ -2359,7 +2516,7 @@ public:
   Lex_input_stream m_lip;
   Yacc_state m_yacc;
 
-  void reset(const char *found_semicolon, unsigned int length)
+  void reset(char *found_semicolon, unsigned int length)
   {
     m_lip.reset(found_semicolon, length);
     m_yacc.reset();

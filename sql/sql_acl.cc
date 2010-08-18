@@ -27,7 +27,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "sql_acl.h"         // MYSQL_DB_FIELD_COUNT, ACL_ACCESS
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "key.h"             // key_copy, key_cmp_if_same, key_restore
 #include "sql_show.h"        // append_identifier
 #include "sql_table.h"                         // build_table_filename
@@ -678,16 +678,15 @@ my_bool acl_reload(THD *thd)
     To avoid deadlocks we should obtain table locks before
     obtaining acl_cache->lock mutex.
   */
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "host";
-  tables[1].alias= tables[1].table_name= (char*) "user";
-  tables[2].alias= tables[2].table_name= (char*) "db";
-  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("host"), "host", TL_READ);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_READ);
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"), "db", TL_READ);
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-  init_mdl_requests(tables);
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -731,9 +730,7 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
-  trans_commit_implicit(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
+  close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -1586,6 +1583,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   /* Buffer should be extended when password length is extended. */
   char buff[512];
   ulong query_length;
+  bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   DBUG_ENTER("change_password");
@@ -1615,9 +1613,16 @@ bool change_password(THD *thd, const char *host, const char *user,
       DBUG_RETURN(0);
   }
 #endif
-
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(1);
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
 
   mysql_mutex_lock(&acl_cache->lock);
   ACL_USER *acl_user;
@@ -1653,7 +1658,13 @@ bool change_password(THD *thd, const char *host, const char *user,
                               FALSE, FALSE, FALSE, 0);
   }
 end:
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
+
+  /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+
   DBUG_RETURN(result);
 }
 
@@ -1924,9 +1935,8 @@ static bool test_if_create_new_users(THD *thd)
   {
     TABLE_LIST tl;
     ulong db_access;
-    bzero((char*) &tl,sizeof(tl));
-    tl.db=	   (char*) "mysql";
-    tl.table_name=  (char*) "user";
+    tl.init_one_table(C_STRING_WITH_LEN("mysql"),
+                      C_STRING_WITH_LEN("user"), "user", TL_WRITE);
     create_new_users= 1;
 
     db_access=acl_get(sctx->host, sctx->ip,
@@ -3062,7 +3072,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
 
-      if (open_and_lock_tables(thd, table_list, TRUE, 0))
+      if (open_normal_and_derived_tables(thd, table_list, 0))
         DBUG_RETURN(TRUE);
 
       while ((column = column_iter++))
@@ -3084,7 +3094,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           DBUG_RETURN(TRUE);
         column_priv|= column->rights;
       }
-      close_thread_tables(thd);
+      close_mysql_tables(thd);
     }
     else
     {
@@ -3116,20 +3126,18 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   /* open the mysql.tables_priv and mysql.columns_priv tables */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name= (char*) "user";
-  tables[1].alias=tables[1].table_name= (char*) "tables_priv";
-  tables[2].alias=tables[2].table_name= (char*) "columns_priv";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_WRITE);
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
   /* Don't open column table if we don't need it ! */
-  tables[1].next_local=
-    tables[1].next_global= ((column_priv ||
-			     (revoke_grant &&
-			      ((rights & COL_ACLS) || columns.elements)))
-			    ? tables+2 : 0);
-  tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
-  init_mdl_requests(tables);
+  if (column_priv || (revoke_grant && ((rights & COL_ACLS) || columns.elements)))
+    tables[1].next_local= tables[1].next_global= tables+2;
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3176,7 +3184,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->lex->sql_command= backup.sql_command;
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
-    close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3363,13 +3370,11 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   /* open the mysql.user and mysql.procs_priv tables */
 
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name= (char*) "user";
-  tables[1].alias=tables[1].table_name= (char*) "procs_priv";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("procs_priv"), "procs_priv", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=(char*) "mysql";
-  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3404,7 +3409,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// Should never happen
-    close_thread_tables(thd);
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3520,13 +3524,11 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   /* open the mysql.user and mysql.db tables */
-  bzero((char*) &tables,sizeof(tables));
-  tables[0].alias=tables[0].table_name=(char*) "user";
-  tables[1].alias=tables[1].table_name=(char*) "db";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"), "db", TL_WRITE);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type=tables[1].lock_type=TL_WRITE;
-  tables[0].db=tables[1].db=(char*) "mysql";
-  init_mdl_requests(tables);
 
   /*
     This statement will be replicated as a statement, even when using
@@ -3561,7 +3563,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
-    close_thread_tables(thd);			/* purecov: deadcode */
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -3621,7 +3622,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
 
   if (!result)
     my_ok(thd);
@@ -3882,10 +3882,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, &table, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {
-    close_thread_tables(thd);
     DBUG_RETURN(TRUE);
-  }
 
   mysql_rwlock_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -3907,7 +3904,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   mysql_rwlock_unlock(&LOCK_grant);
 
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -3939,14 +3936,14 @@ my_bool grant_reload(THD *thd)
   if (!initialized)
     DBUG_RETURN(0);
 
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "tables_priv";
-  tables[1].alias= tables[1].table_name= (char*) "columns_priv";
-  tables[0].db= tables[1].db= (char *) "mysql";
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_READ);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_READ);
   tables[0].next_local= tables[0].next_global= tables+1;
-  tables[0].lock_type= tables[1].lock_type= TL_READ;
   tables[0].open_type= tables[1].open_type= OT_BASE_ONLY;
-  init_mdl_requests(tables);
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -3978,9 +3975,7 @@ my_bool grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   mysql_rwlock_unlock(&LOCK_grant);
-  trans_commit_implicit(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
+  close_mysql_tables(thd);
 
   /*
     It is OK failing to load procs_priv table because we may be
@@ -5218,22 +5213,23 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     DBUG_RETURN(-1);
   }
 
-  bzero((char*) tables, GRANT_TABLES*sizeof(*tables));
-  tables->alias= tables->table_name= (char*) "user";
-  (tables+1)->alias= (tables+1)->table_name= (char*) "db";
-  (tables+2)->alias= (tables+2)->table_name= (char*) "tables_priv";
-  (tables+3)->alias= (tables+3)->table_name= (char*) "columns_priv";
-  (tables+4)->alias= (tables+4)->table_name= (char*) "procs_priv";
+  tables->init_one_table(C_STRING_WITH_LEN("mysql"),
+                         C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+  (tables+1)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("db"), "db", TL_WRITE);
+  (tables+2)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("tables_priv"),
+                             "tables_priv", TL_WRITE);
+  (tables+3)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("columns_priv"),
+                             "columns_priv", TL_WRITE);
+  (tables+4)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                             C_STRING_WITH_LEN("procs_priv"),
+                             "procs_priv", TL_WRITE);
   tables->next_local= tables->next_global= tables+1;
   (tables+1)->next_local= (tables+1)->next_global= tables+2;
   (tables+2)->next_local= (tables+2)->next_global= tables+3;
   (tables+3)->next_local= (tables+3)->next_global= tables+4;
-  tables->lock_type= (tables+1)->lock_type=
-    (tables+2)->lock_type= (tables+3)->lock_type= 
-    (tables+4)->lock_type= TL_WRITE;
-  tables->db= (tables+1)->db= (tables+2)->db= 
-    (tables+3)->db= (tables+4)->db= (char*) "mysql";
-  init_mdl_requests(tables);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -5257,7 +5253,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {						// This should never happen
-    close_thread_tables(thd);
     DBUG_RETURN(-1);
   }
 
@@ -5831,7 +5826,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  ulong sql_mode;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
@@ -5880,7 +5874,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     }
 
     some_users_created= TRUE;
-    sql_mode= thd->variables.sql_mode;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
       append_user(&wrong_users, user_name);
@@ -5897,7 +5890,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -5982,7 +5974,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -6079,7 +6070,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6277,8 +6267,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
-
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -6425,7 +6413,6 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   mysql_mutex_unlock(&acl_cache->lock);
   mysql_rwlock_unlock(&LOCK_grant);
-  close_thread_tables(thd);
 
   thd->pop_internal_handler();
   /* Restore the state of binlog format */

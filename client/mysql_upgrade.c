@@ -209,6 +209,9 @@ static void add_one_option(DYNAMIC_STRING* ds,
     case GET_STR:
       arg= argument;
       break;
+    case GET_BOOL:
+      arg= (*(my_bool *)opt->value) ? "1" : "0";
+      break;
     default:
       die("internal error at %s: %d",__FILE__, __LINE__);
     }
@@ -596,7 +599,10 @@ static int upgrade_already_done(void)
 
   my_fclose(in, MYF(0));
 
-  return (strncmp(buf, MYSQL_SERVER_VERSION,
+  if (!res)
+    return 0; /* Could not read from file => not sure */
+
+  return (strncmp(res, MYSQL_SERVER_VERSION,
                   sizeof(MYSQL_SERVER_VERSION)-1)==0);
 }
 
