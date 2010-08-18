@@ -114,7 +114,7 @@ extern bool volatile shutdown_in_progress;
 
 #define TC_HEURISTIC_RECOVER_COMMIT   1
 #define TC_HEURISTIC_RECOVER_ROLLBACK 2
-extern uint tc_heuristic_recover;
+extern ulong tc_heuristic_recover;
 
 typedef struct st_user_var_events
 {
@@ -426,13 +426,13 @@ typedef struct system_variables
   ulong log_warnings;
   ulong group_concat_max_len;
 
-  uint binlog_format; ///< binlog format for this thd (see enum_binlog_format)
+  ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   my_bool binlog_direct_non_trans_update;
   my_bool sql_log_bin;
-  uint completion_type;
-  uint query_cache_type;
-  uint tx_isolation;
-  uint updatable_views_with_limit;
+  ulong completion_type;
+  ulong query_cache_type;
+  ulong tx_isolation;
+  ulong updatable_views_with_limit;
   uint max_user_connections;
   /**
     In slave thread we need to know in behalf of which
@@ -1501,7 +1501,7 @@ public:
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
-  
+
   thr_lock_type update_lock_default;
   Delayed_insert *di;
 
