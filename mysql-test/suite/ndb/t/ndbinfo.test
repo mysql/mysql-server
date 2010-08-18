@@ -11,21 +11,7 @@ CREATE TEMPORARY TABLE `t1` (
   `dummy` INT UNSIGNED
 ) ENGINE=NDBINFO;
 
-if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
-{
-  # Check if ndbinfo.sql exists
-  --source have_ndbinfo.inc
-
-  # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
-  --disable_warnings
-  --disable_query_log
-  --disable_result_log
-  set @ndbinfo_skip_version_check=1;
-  source $NDBINFO_SQL;
-  --enable_result_log
-  --enable_query_log
-  --enable_warnings
-}
+--source ndbinfo_create.inc
 
 USE ndbinfo;
 
@@ -153,23 +139,4 @@ CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
 --error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 
-
-#
-# Bug#54316 mysqldump and restore ndbinfo fails
-# - caused by "blocks" and "config_params" table being truncated
-#   when restoriung a dump without any data. Hack mysqldump
-#   to not include ndbinfo database in --all-databases or
-#   when explicitly given on command line
-#
-let $dump_file = $MYSQLTEST_VARDIR/tmp/ndbinfo_dump.sql;
-select count(*) from blocks;
---exec $MYSQL_DUMP --no-data --databases test ndbinfo > $dump_file
---exec $MYSQL test < $dump_file
-select count(*) from blocks;
-
-if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
-{
-  --disable_query_log
-  DROP DATABASE ndbinfo;
-  --enable_query_log
-}
+--source ndbinfo_drop.inc

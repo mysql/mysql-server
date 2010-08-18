@@ -3860,13 +3860,15 @@ is_ndbinfo(MYSQL* mysql, const char* dbname)
   {
     MYSQL_RES *res;
     MYSQL_ROW row;
+    char buf[32], query[64];
+
+    my_snprintf(query, sizeof(query),
+                "SHOW VARIABLES LIKE %s",
+                quote_for_like("ndbinfo_version", buf));
 
     checked_ndbinfo = 1;
 
-    if (mysql_query_with_error_report(mysql,
-                                      &res,
-                                      "SHOW VARIABLES LIKE "
-                                      "\"ndbinfo_version\""))
+    if (mysql_query_with_error_report(mysql, &res, query))
       return 0;
 
     if (!(row= mysql_fetch_row(res)))
