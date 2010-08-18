@@ -1439,8 +1439,6 @@ int lex_one_token(void *arg, void *yythd)
           }
           else
           {
-            const char* version_mark= lip->get_ptr() - 1;
-            DBUG_ASSERT(*version_mark == '!');
             /*
               Patch and skip the conditional comment to avoid it
               being propagated infinitely (eg. to a slave).
@@ -1449,7 +1447,6 @@ int lex_one_token(void *arg, void *yythd)
             comment_closed= ! consume_comment(lip, 1);
             if (! comment_closed)
             {
-              DBUG_ASSERT(pcom == version_mark);
               *pcom= '!';
             }
             /* version allowed to have one level of comment inside. */
