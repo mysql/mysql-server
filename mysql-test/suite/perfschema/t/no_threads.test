@@ -45,10 +45,10 @@ show variables like "performance_schema_max_thread%";
 
 # Verification : in this main thread
 
-select count(*) from performance_schema.PROCESSLIST
+select count(*) from performance_schema.THREADS
   where name like "thread/sql/main";
 
-select count(*) from performance_schema.PROCESSLIST
+select count(*) from performance_schema.THREADS
   where name like "thread/sql/OneConnection";
 
 select event_name, operation,
@@ -64,6 +64,8 @@ select event_name, operation,
   from performance_schema.EVENTS_WAITS_HISTORY_LONG;
 
 # Cleanup
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
 
 drop table test.t1;
 

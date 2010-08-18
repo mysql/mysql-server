@@ -80,6 +80,32 @@ disconnect con1;
 SET DEBUG_SYNC= "RESET";
 
 
+--echo #
+--echo # Bug#53757 assert in mysql_truncate_by_delete
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1(a INT) Engine=InnoDB;
+CREATE TABLE t2(id INT);
+INSERT INTO t1 VALUES (1), (2);
+
+connect (con1, localhost, root);
+INSERT INTO t2 VALUES(connection_id());
+SET DEBUG_SYNC= "open_and_process_table SIGNAL opening WAIT_FOR killed";
+--echo # Sending: (not reaped since connection is killed later)
+--send TRUNCATE t1
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR opening";
+SELECT ((@id := id) - id) FROM t2; 
+KILL @id;
+SET DEBUG_SYNC= "now SIGNAL killed";
+DROP TABLE t1, t2;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

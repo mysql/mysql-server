@@ -1487,7 +1487,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	goto err;
       if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
       {
-	if (table->file->rnd_pos(table->record[1],table->file->dup_ref))
+	if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
 	  goto err;
       }
       else
@@ -1508,9 +1508,9 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	  }
 	}
 	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
-	if ((error=(table->file->index_read_idx_map(table->record[1],key_nr,
-                                                    (uchar*) key, HA_WHOLE_KEY,
-                                                    HA_READ_KEY_EXACT))))
+	if ((error=(table->file->ha_index_read_idx_map(table->record[1],key_nr,
+                                                       (uchar*) key, HA_WHOLE_KEY,
+                                                       HA_READ_KEY_EXACT))))
 	  goto err;
       }
       if (info->handle_duplicates == DUP_UPDATE)
@@ -1862,7 +1862,10 @@ public:
     while ((row=rows.get()))
       delete row;
     if (table)
+    {
       close_thread_tables(&thd);
+      thd.mdl_context.release_transactional_locks();
+    }
     mysql_mutex_lock(&LOCK_thread_count);
     mysql_mutex_destroy(&mutex);
     mysql_cond_destroy(&cond);
@@ -2414,6 +2417,8 @@ bool Delayed_insert::open_and_lock_table()
   }
   if (!(table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
   {
+    /* To rollback InnoDB statement transaction. */
+    trans_rollback_stmt(&thd);
     my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
              table_list.table_name);
     return TRUE;
@@ -2480,12 +2485,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
       goto err;
     }
 
-    /*
-      Open table requires an initialized lex in case the table is
-      partitioned. The .frm file contains a partial SQL string which is
-      parsed using a lex, that depends on initialized thd->lex.
-    */
-    lex_start(thd);
     thd->lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
     /*
       Statement-based replication of INSERT DELAYED has problems with RAND()
@@ -2619,28 +2618,11 @@ pthread_handler_t handle_delayed_insert(void *arg)
     }
 
   err:
-    /*
-      mysql_lock_tables() can potentially start a transaction and write
-      a table map. In the event of an error, that transaction has to be
-      rolled back.  We only need to roll back a potential statement
-      transaction, since real transactions are rolled back in
-      close_thread_tables().
-
-      TODO: This is not true any more, table maps are generated on the
-      first call to ha_*_row() instead. Remove code that are used to
-      cover for the case outlined above.
-     */
-    trans_rollback_stmt(thd);
-
     DBUG_LEAVE;
   }
 
-  /*
-    di should be unlinked from the thread handler list and have no active
-    clients
-  */
-
   close_thread_tables(thd);			// Free the table
+  thd->mdl_context.release_transactional_locks();
   di->table=0;
   thd->killed= THD::KILL_CONNECTION;	        // If error
   mysql_cond_broadcast(&di->cond_client);       // Safety
@@ -2648,6 +2630,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
   mysql_mutex_lock(&LOCK_delayed_create);       // Because of delayed_get_table
   mysql_mutex_lock(&LOCK_delayed_insert);
+  /*
+    di should be unlinked from the thread handler list and have no active
+    clients
+  */
   delete di;
   mysql_mutex_unlock(&LOCK_delayed_insert);
   mysql_mutex_unlock(&LOCK_delayed_create);
@@ -3057,6 +3043,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     we are fixing fields from insert list.
   */
   lex->current_select= &lex->select_lex;
+
+  /* Errors during check_insert_fields() should not be ignored. */
+  lex->current_select->no_error= FALSE;
   res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
@@ -3413,9 +3402,9 @@ bool select_insert::send_eof()
   DBUG_RETURN(0);
 }
 
-void select_insert::abort() {
+void select_insert::abort_result_set() {
 
-  DBUG_ENTER("select_insert::abort");
+  DBUG_ENTER("select_insert::abort_result_set");
   /*
     If the creation of the table failed (due to a syntax error, for
     example), no table will have been opened and therefore 'table'
@@ -3592,17 +3581,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                     create_info, alter_info, 0,
                                     select_field_count))
     {
-      if (create_info->table_existed)
-      {
-        /*
-          This means that someone created table underneath server
-          or it was created via different mysqld front-end to the
-          cluster. We don't have much options but throw an error.
-        */
-        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
-        DBUG_RETURN(0);
-      }
-
       DBUG_EXECUTE_IF("sleep_create_select_before_open", my_sleep(6000000););
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
@@ -3720,15 +3698,13 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
       TABLE const *const table = *tables;
       if (thd->is_current_stmt_binlog_format_row()  &&
-          !table->s->tmp_table &&
-          !ptr->get_create_info()->table_existed)
+          !table->s->tmp_table)
       {
         if (int error= ptr->binlog_show_create_table(tables, count))
           return error;
       }
       return 0;
     }
-
     select_create *ptr;
     TABLE_LIST *create_table;
     TABLE_LIST *select_tables;
@@ -3751,34 +3727,15 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     thd->binlog_start_trans_and_stmt();
   }
 
+  DBUG_ASSERT(create_table->table == NULL);
+
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
 
-  if (create_table->table)
-  {
-    /* Table already exists and was open at open_and_lock_tables() stage. */
-    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-    {
-      /* Mark that table existed */
-      create_info->table_existed= 1;
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                          create_table->table_name);
-      if (thd->is_current_stmt_binlog_format_row())
-        binlog_show_create_table(&(create_table->table), 1);
-      table= create_table->table;
-    }
-    else
-    {
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_table->table_name);
-      DBUG_RETURN(-1);
-    }
-  }
-  else
-    if (!(table= create_table_from_items(thd, create_info, create_table,
-                                         alter_info, &values,
-                                         &extra_lock, hook_ptr)))
-      /* abort() deletes table */
-      DBUG_RETURN(-1);
+  if (!(table= create_table_from_items(thd, create_info, create_table,
+                                       alter_info, &values,
+                                       &extra_lock, hook_ptr)))
+    /* abort() deletes table */
+    DBUG_RETURN(-1);
 
   if (extra_lock)
   {
@@ -3898,10 +3855,6 @@ void select_create::send_error(uint errcode,const char *err)
              ("Current table (at 0x%lu) %s a temporary (or non-existant) table",
               (ulong) table,
               table && !table->s->tmp_table ? "is NOT" : "is"));
-  DBUG_PRINT("info",
-             ("Table %s prior to executing this statement",
-              get_create_info()->table_existed ? "existed" : "did not exist"));
-
   /*
     This will execute any rollbacks that are necessary before writing
     the transcation cache.
@@ -3952,9 +3905,9 @@ bool select_create::send_eof()
 }
 
 
-void select_create::abort()
+void select_create::abort_result_set()
 {
-  DBUG_ENTER("select_create::abort");
+  DBUG_ENTER("select_create::abort_result_set");
 
   /*
     In select_insert::abort() we roll back the statement, including
@@ -3972,7 +3925,7 @@ void select_create::abort()
     log state.
   */
   tmp_disable_binlog(thd);
-  select_insert::abort();
+  select_insert::abort_result_set();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
@@ -3990,8 +3943,7 @@ void select_create::abort()
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     table->auto_increment_field_not_null= FALSE;
-    if (!create_info->table_existed)
-      drop_open_table(thd, table, create_table->db, create_table->table_name);
+    drop_open_table(thd, table, create_table->db, create_table->table_name);
     table=0;                                    // Safety
   }
   DBUG_VOID_RETURN;
