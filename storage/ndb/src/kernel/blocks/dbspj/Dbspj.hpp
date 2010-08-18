@@ -453,17 +453,20 @@ public:
   struct ScanIndexFrag
   {
     void init(Uint32 fid) { 
-      m_rangePtrI = RNIL; 
       m_ref = 0; 
       m_fragId = fid; 
-      m_range_builder.m_range_cnt = 0;
-      m_range_builder.m_range_size = 0;
       m_state = Uint16(~0);
+      reset_ranges();
     }
     Uint32 m_magic;
     Uint16 m_fragId;
     Uint16 m_state;
     Uint32 m_ref;
+
+    void reset_ranges() {
+      m_rangePtrI = RNIL;
+      m_range_builder.m_range_cnt = m_range_builder.m_range_size = 0;
+    }
     struct RangeBuilder 
     {
       Uint16 m_range_size;
