@@ -16,9 +16,7 @@
  *
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <ndb_global.h>
 
 /**
  * This is a casual hack to do static memory allocation
@@ -30,9 +28,9 @@
 #include "../../../../zlib/inflate.h"
 #include "../../../../zlib/deflate.h"
 
-#include "../../../../mysys/mysys_priv.h"
+#include <util/azlib.h>
 
-#include "azlib.h"
+#include <my_sys.h>
 
 #ifdef HAVE_VALGRIND
 #include <valgrind/memcheck.h>
