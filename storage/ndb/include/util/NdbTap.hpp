@@ -38,6 +38,7 @@ int main(int argc, const char** argv){          \
 int name##_test()
 
 /* tap.c needs my_print_stacktrace */
+#undef DONT_DEFINE_VOID // stacktrace.c turns off VOID redefinition if needed
 #include <../../../mysys/stacktrace.c>
 
 #endif
