@@ -491,7 +491,6 @@ public:
     Uint32 m_rows_expecting; // Sum(ScanFragConf)
     Uint32 m_scanCookie;
     Uint32 m_fragCount;
-    Uint32 m_currentFragmentPtrI;
     ScanIndexFrag_list::HeadPOD m_fragments; // ScanFrag states
     union 
     {

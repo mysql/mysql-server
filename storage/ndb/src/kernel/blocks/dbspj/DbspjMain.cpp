@@ -4215,7 +4215,6 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     jam();
     goto error1;
   }
-  data.m_currentFragmentPtrI = fragPtr.i;
 
   if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
   {
@@ -4604,7 +4603,7 @@ Dbspj::scanIndex_send(Signal* signal,
     }
   }
 
-  m_scanindexfrag_pool.getPtr(fragPtr, data.m_currentFragmentPtrI);
+  list.first(fragPtr);
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
     jam();
@@ -4692,13 +4691,6 @@ Dbspj::scanIndex_send(Signal* signal,
     ndbrequire(treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL);
     releaseSection(keyInfoPtrI);
   }
-
-  if (fragPtr.i == RNIL)
-  {
-    jam();
-    list.first(fragPtr);
-  }
-  data.m_currentFragmentPtrI = fragPtr.i;
 
   if (data.m_frags_outstanding == 0)
   {
@@ -4876,8 +4868,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   req->batch_size_bytes = org->batch_size_bytes/cnt;
   
   Ptr<ScanIndexFrag> fragPtr;
-  m_scanindexfrag_pool.getPtr(fragPtr, data.m_currentFragmentPtrI);
   Local_ScanIndexFrag_list list(m_scanindexfrag_pool, data.m_fragments);
+  list.first(fragPtr);
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
     jam();
@@ -4911,13 +4903,6 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
       ndbrequire(false);
     }
   }
-  
-  if (fragPtr.i == RNIL)
-  {
-    jam();
-    list.first(fragPtr);
-  }
-  data.m_currentFragmentPtrI = fragPtr.i;
   
   /**
    * cursor should not have been positioned here...
