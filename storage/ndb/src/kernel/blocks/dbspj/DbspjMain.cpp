@@ -4846,8 +4846,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   req->closeFlag = 0;
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
-  req->batch_size_rows = org->batch_size_rows;
-  req->batch_size_bytes = org->batch_size_bytes;
+  req->batch_size_rows = MAX(1, org->batch_size_rows/cnt);
+  req->batch_size_bytes = org->batch_size_bytes/cnt;
   
   Ptr<ScanIndexFrag> fragPtr;
   m_scanindexfrag_pool.getPtr(fragPtr, data.m_currentFragmentPtrI);
