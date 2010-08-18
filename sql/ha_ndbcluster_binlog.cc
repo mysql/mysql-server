@@ -556,6 +556,52 @@ static int ndbcluster_reset_logs(THD *thd)
 }
 
 /*
+  Setup THD object
+  'Inspired' from ha_ndbcluster.cc : ndb_util_thread_func
+*/
+static THD *
+setup_thd(char * stackptr)
+{
+  DBUG_ENTER("setup_thd");
+  THD * thd= new THD; /* note that contructor of THD uses DBUG_ */
+  if (thd == 0)
+  {
+    DBUG_RETURN(0);
+  }
+  THD_CHECK_SENTRY(thd);
+
+  thd->thread_id= 0;
+  thd->thread_stack= stackptr; /* remember where our stack is */
+  if (thd->store_globals())
+  {
+    thd->cleanup();
+    delete thd;
+    DBUG_RETURN(0);
+  }
+
+  lex_start(thd);
+
+  thd->init_for_queries();
+  thd->command= COM_DAEMON;
+  thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+  thd->version= refresh_version;
+  thd->main_security_ctx.host_or_ip= "";
+  thd->client_capabilities= 0;
+  thd->main_security_ctx.master_access= ~0;
+  thd->main_security_ctx.priv_user= 0;
+  thd->lex->start_transaction_opt= 0;
+
+  CHARSET_INFO *charset_connection= get_charset_by_csname("utf8",
+                                                          MY_CS_PRIMARY,
+                                                          MYF(MY_WME));
+  thd->variables.character_set_client= charset_connection;
+  thd->variables.character_set_results= charset_connection;
+  thd->variables.collation_connection= charset_connection;
+  thd->update_charset();
+  DBUG_RETURN(thd);
+}
+
+/*
   Called from MYSQL_BIN_LOG::purge_logs in log.cc when the binlog "file"
   is removed
 */
@@ -563,11 +609,32 @@ static int ndbcluster_reset_logs(THD *thd)
 static int
 ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 {
-  if (!ndb_binlog_running || thd->slave_thread)
-    return 0;
-
+  THD * save_thd= thd;
   DBUG_ENTER("ndbcluster_binlog_index_purge_file");
   DBUG_PRINT("enter", ("file: %s", file));
+
+  if (!ndb_binlog_running || (thd && thd->slave_thread))
+    DBUG_RETURN(0);
+
+  /**
+   * This function really really needs a THD object,
+   *   new/delete one if not available...yuck!
+   */
+  if (thd == 0)
+  {
+    if ((thd = setup_thd((char*)&save_thd)) == 0)
+    {
+      /**
+       * TODO return proper error code here,
+       * BUT! return code is not (currently) checked in
+       *      log.cc : purge_index_entry() so we settle for warning printout
+       */
+      sql_print_warning("NDB: Unable to purge "
+                        NDB_REP_DB "." NDB_REP_TABLE
+                        " File=%s (failed to setup thd)", file);
+      DBUG_RETURN(0);
+    }
+  }
 
   char buf[1024];
   char *end= strmov(strmov(strmov(buf,
@@ -584,6 +651,12 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
       is a consistant behavior
     */
     thd->main_da.reset_diagnostics_area();
+  }
+
+  if (save_thd == 0)
+  {
+    thd->cleanup();
+    delete thd;
   }
 
   DBUG_RETURN(0);
@@ -941,10 +1014,12 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
                                   void *arg)
 {
   DBUG_ENTER("ndbcluster_binlog_func");
+  int res= 0;
   switch(fn)
   {
   case BFN_RESET_LOGS:
-    DBUG_RETURN(ndbcluster_reset_logs(thd));
+    res= ndbcluster_reset_logs(thd);
+    break;
   case BFN_RESET_SLAVE:
     ndbcluster_reset_slave(thd);
     break;
@@ -952,19 +1027,19 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
     ndbcluster_binlog_wait(thd);
     break;
   case BFN_BINLOG_END:
-    ndbcluster_binlog_end(thd);
+    res= ndbcluster_binlog_end(thd);
     break;
   case BFN_BINLOG_PURGE_FILE:
-    ndbcluster_binlog_index_purge_file(thd, (const char *)arg);
+    res= ndbcluster_binlog_index_purge_file(thd, (const char *)arg);
     break;
   case BFN_GLOBAL_SCHEMA_LOCK:
-    DBUG_RETURN(ndbcluster_global_schema_lock(thd, *(int*)arg, 1));
+    res= ndbcluster_global_schema_lock(thd, *(int*)arg, 1);
     break;
   case BFN_GLOBAL_SCHEMA_UNLOCK:
-    ndbcluster_global_schema_unlock(thd);
+    res= ndbcluster_global_schema_unlock(thd);
     break;
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 Ndbcluster_global_schema_lock_guard::Ndbcluster_global_schema_lock_guard(THD *thd)
   : m_thd(thd), m_lock(0)
