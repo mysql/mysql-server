@@ -1154,7 +1154,6 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
        * reset for next batch
        */
       requestPtr.p->m_rows = 0;
-      requestPtr.p->m_active_nodes.clear();
 #ifdef DEBUG_SCAN_FRAGREQ
   ndbout_c("Dbspj::sendConf() sending SCAN_FRAGCONF ");
   printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
@@ -1245,10 +1244,20 @@ Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
 }
 
 void
-Dbspj::mark_has_more_rows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
+Dbspj::mark_active(Ptr<Request> requestPtr, 
+                   Ptr<TreeNode> treeNodePtr,
+                   bool value)
 {
-  ndbassert(requestPtr.p->m_active_nodes.get(treeNodePtr.p->m_node_no) == false);
-  requestPtr.p->m_active_nodes.set(treeNodePtr.p->m_node_no);
+  Uint32 bit = treeNodePtr.p->m_node_no;
+  if (value)
+  {
+    ndbassert(requestPtr.p->m_active_nodes.get(bit) == false);
+  }
+  else
+  {
+    ndbassert(requestPtr.p->m_active_nodes.get(bit) == true);
+  }
+  requestPtr.p->m_active_nodes.set(bit, value);
 }
 
 void
@@ -1597,6 +1606,7 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
 void
 Dbspj::cleanup(Ptr<Request> requestPtr)
 {
+  ndbrequire(requestPtr.p->m_active_nodes.isclear());
   {
     Ptr<TreeNode> nodePtr;
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
@@ -3594,6 +3604,7 @@ Dbspj::scanFrag_send(Signal* signal,
 
   requestPtr.p->m_outstanding++;
   requestPtr.p->m_cnt_active ++;
+  mark_active(requestPtr, treeNodePtr, true);
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
 
   ScanFragReq* req = reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
@@ -3757,11 +3768,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     ndbrequire(requestPtr.p->m_cnt_active);
     requestPtr.p->m_cnt_active --;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
-  }
-  else
-  {
-    jam();
-    mark_has_more_rows(requestPtr, treeNodePtr);
+    mark_active(requestPtr, treeNodePtr, false);
   }
 
   if (treeNodePtr.p->m_scanfrag_data.m_rows_expecting ==
@@ -4701,6 +4708,7 @@ Dbspj::scanIndex_send(Signal* signal,
 
   requestPtr.p->m_cnt_active ++;
   requestPtr.p->m_outstanding++;
+  mark_active(requestPtr, treeNodePtr, true);
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
 }
                       
@@ -4792,12 +4800,8 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
       ndbrequire(requestPtr.p->m_cnt_active);
       requestPtr.p->m_cnt_active --;
       treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+      mark_active(requestPtr, treeNodePtr, false);
       data.m_frags_complete = 0; // reset
-    }
-    else
-    {
-      jam();
-      mark_has_more_rows(requestPtr, treeNodePtr);
     }
   }
 

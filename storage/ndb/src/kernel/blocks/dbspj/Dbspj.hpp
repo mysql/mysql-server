@@ -933,7 +933,7 @@ private:
   void nodeFail_checkRequests(Signal*);
 
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
-  void mark_has_more_rows(Ptr<Request>, Ptr<TreeNode>);
+  void mark_active(Ptr<Request>, Ptr<TreeNode>, bool value);
 
   /**
    * Row buffering
