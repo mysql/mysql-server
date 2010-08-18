@@ -315,7 +315,8 @@ Note	1051	Unknown table 't2'
 CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
 INSERT INTO t1 VALUES (4,4);
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 SELECT * from t2;
 a	b
 TRUNCATE table t2;
@@ -335,11 +336,13 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 INSERT INTO t1 values (8,8);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 COMMIT;
 INSERT INTO t1 values (9,9);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
@@ -363,11 +366,13 @@ a	b
 10	10
 INSERT INTO t2 values (100,100);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 COMMIT;
 INSERT INTO t2 values (101,101);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Warnings:
+Note	1050	Table 't2' already exists
 ROLLBACK;
 SELECT * from t2;
 a	b
@@ -412,9 +417,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (101,101)
-master-bin.000001	#	Query	#	#	ROLLBACK
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1,t2
 reset master;
 create table t1 (a int) engine=innodb;

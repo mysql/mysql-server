@@ -2590,13 +2590,7 @@ case SQLCOM_PREPARE:
     }
 #endif
 
-    /* Set strategies: reset default or 'prepared' values. */
-    create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-    create_table->lock_strategy= TABLE_LIST::OTLS_DOWNGRADE_IF_EXISTS;
-
-    /*
-      Close any open handlers for the table
-    */
+    /* Close any open handlers for the table. */
     mysql_ha_rm_tables(thd, create_table);
 
     if (select_lex->item_list.elements)		// With select
@@ -2656,44 +2650,25 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
-      {
-        /* Base table and temporary table are not in the same name space. */
-        create_table->open_type= OT_BASE_ONLY;
-      }
-
       if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
-        /*
-          Is table which we are changing used somewhere in other parts
-          of query
-        */
-        if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        /* The table already exists */
+        if (create_table->table)
         {
-          TABLE_LIST *duplicate;
-          if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
+          if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
-            update_non_unique_table_error(create_table, "CREATE", duplicate);
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                ER_TABLE_EXISTS_ERROR,
+                                ER(ER_TABLE_EXISTS_ERROR),
+                                create_info.alias);
+            my_ok(thd);
+          }
+          else
+          {
+            my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_info.alias);
             res= 1;
-            goto end_with_restore_list;
           }
-        }
-        /* If we create merge table, we have to test tables in merge, too */
-        if (create_info.used_fields & HA_CREATE_USED_UNION)
-        {
-          TABLE_LIST *tab;
-          for (tab= create_info.merge_list.first;
-               tab;
-               tab= tab->next_local)
-          {
-            TABLE_LIST *duplicate;
-            if ((duplicate= unique_table(thd, tab, select_tables, 0)))
-            {
-              update_non_unique_table_error(tab, "CREATE", duplicate);
-              res= 1;
-              goto end_with_restore_list;
-            }
-          }
+          goto end_with_restore_list;
         }
 
         /*
@@ -2726,7 +2701,7 @@ case SQLCOM_PREPARE:
           res= handle_select(thd, lex, result, 0);
           delete result;
         }
-        
+
         lex->link_first_table_back(create_table, link_to_local);
       }
     }
@@ -7319,7 +7294,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
 
   if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
     create_table->open_type= OT_TEMPORARY_ONLY;
-  else if (!lex->select_lex.item_list.elements)
+  else
     create_table->open_type= OT_BASE_ONLY;
 
   if (!lex->select_lex.item_list.elements)
