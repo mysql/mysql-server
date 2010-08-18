@@ -124,6 +124,9 @@ printSCANFRAGNEXTREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 r
   
   fprintf(output, " Close scan: %u\n", sig->closeFlag);
 
+  fprintf(output, " batch_size_rows: %u\n", sig->batch_size_rows);
+  fprintf(output, " batch_size_bytes: %u\n", sig->batch_size_bytes);
+
   return false;
 }
 

@@ -1155,6 +1155,12 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
        */
       requestPtr.p->m_rows = 0;
       requestPtr.p->m_active_nodes.clear();
+#ifdef DEBUG_SCAN_FRAGREQ
+  ndbout_c("Dbspj::sendConf() sending SCAN_FRAGCONF ");
+  printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
+                     conf->total_len,
+                     DBLQH);
+#endif
       sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGCONF, signal,
                  ScanFragConf::SignalLength, JBB);
     }
@@ -1746,6 +1752,13 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
 
   const ScanFragConf* conf = reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
 
+#ifdef DEBUG_SCAN_FRAGREQ
+  ndbout_c("Dbspj::execSCAN_FRAGCONF() receiveing SCAN_FRAGCONF ");
+  printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
+                     conf->total_len,
+                     DBLQH);
+#endif
+
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, conf->senderData);
   Ptr<Request> requestPtr;
@@ -1762,6 +1775,12 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
 {
   jamEntry();
   const ScanFragNextReq * req = (ScanFragNextReq*)&signal->theData[0];
+
+  DEBUG("Incomming SCAN_NEXTREQ");
+#ifdef DEBUG_SCAN_FRAGREQ
+  printSCANNEXTREQ(stdout, &signal->theData[0], ScanFragNextReq:: SignalLength,
+                   DBLQH);
+#endif
 
   Request key;
   key.m_transId[0] = req->transId1;
@@ -3817,9 +3836,13 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   req->batch_size_rows = org->batch_size_rows;
   req->batch_size_bytes = org->batch_size_bytes;
 
-  DEBUG("scanFrag_execSCAN_NEXTREQ to: " << treeNodePtr.p->m_send.m_ref
+  DEBUG("scanFrag_execSCAN_NEXTREQ to: " << hex << treeNodePtr.p->m_send.m_ref
         << ", senderData: " << req->senderData);
-  
+#ifdef DEBUG_SCAN_FRAGREQ
+  printSCANNEXTREQ(stdout, &signal->theData[0], ScanFragNextReq:: SignalLength,
+                   DBLQH);
+#endif
+
   sendSignal(treeNodePtr.p->m_send.m_ref, 
              GSN_SCAN_NEXTREQ, 
              signal, 
@@ -4838,6 +4861,16 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
 
       i++;
       data.m_frags_outstanding++;
+
+      DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex 
+            << treeNodePtr.p->m_send.m_ref
+            << ", senderData: " << req->senderData);
+
+#ifdef DEBUG_SCAN_FRAGREQ
+      printSCANNEXTREQ(stdout, &signal->theData[0], 
+                       ScanFragNextReq:: SignalLength, DBLQH);
+#endif
+
       sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal, 
                  ScanFragNextReq::SignalLength, 
                  JBB);
