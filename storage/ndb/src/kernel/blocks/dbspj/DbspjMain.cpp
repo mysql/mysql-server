@@ -4563,8 +4563,9 @@ Dbspj::scanIndex_send(Signal* signal,
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    ndbrequire(data.m_fragCount > data.m_frags_complete);
-    cnt = data.m_fragCount - data.m_frags_complete;
+    ndbrequire(data.m_frags_complete == 0);
+    ndbrequire(data.m_fragCount > 0);
+    cnt = data.m_fragCount;
     bs_rows /= cnt;
     bs_bytes /= cnt;
 
