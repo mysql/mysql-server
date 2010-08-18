@@ -385,11 +385,11 @@ static void test_loader(DB **dbs)
     gettimeofday(&start, 0);
 
     // close the loader
-    printf("%9.6fs closing\n", elapsed_time());
+    if ( verbose ) printf("%9.6fs closing\n", elapsed_time());
     if (footprint_print) printf("%s:%d Hiwater=%ld water=%ld\n", __FILE__, __LINE__, hiwater, water);
     r = loader->close(loader);
     if (footprint_print) printf("%s:%d Hiwater=%ld water=%ld (extra hiwater=%ldM)\n", __FILE__, __LINE__, hiwater, water, (hiwater-hiwater_start)/(1024*1024));
-    printf("%9.6fs done\n",    elapsed_time());
+    if ( verbose ) printf("%9.6fs done\n",    elapsed_time());
     CKERR2s(r,0,TOKUDB_CANCELED);
 
     if (r==0) {
@@ -602,7 +602,7 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-y")==0) {
             ALLOW_DUPS = 1;
         } else if (strcmp(argv[0], "-s")==0) {
-	    printf("\nTesting loader with size_factor=1\n");
+	    //printf("\nTesting loader with size_factor=1\n");
 	    db_env_set_loader_size_factor(1);            
 	} else if (strcmp(argv[0], "-b")==0) {
 	    argc--; argv++;
