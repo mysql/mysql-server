@@ -21,7 +21,7 @@
 #include "sql_locale.h"
 #include "sql_plugin.h"
 #include "sql_parse.h"          // check_table_access
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "key.h"                                // key_copy
 #include "sql_show.h"           // remove_status_vars, add_status_vars
 #include "strfunc.h"            // find_set
@@ -1453,8 +1453,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
+  close_mysql_tables(new_thd);
 end:
-  close_thread_tables(new_thd);
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD, 0);
   DBUG_VOID_RETURN;

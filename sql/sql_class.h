@@ -38,7 +38,7 @@
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                     THR_LOCK_INFO, THR_LOCK_OWNER */
+                                     THR_LOCK_INFO */
 
 
 class Reprepare_observer;
@@ -723,7 +723,6 @@ public:
     ENGINE INNODB STATUS.
   */
   LEX_STRING query_string;
-  Server_side_cursor *cursor;
 
   inline char *query() { return query_string.str; }
   inline uint32 query_length() { return query_string.length; }
@@ -1416,9 +1415,6 @@ public:
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
-  THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
-  THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
-                                        // the lock_id of a cursor.
   /**
     Protects THD data accessed from other threads:
     - thd->query and thd->query_length (used by SHOW ENGINE
@@ -1570,125 +1566,6 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
-  enum enum_stmt_accessed_table
-  {
-    /*
-       If a transactional table is about to be read. Note that
-       a write implies a read.
-    */
-    STMT_READS_TRANS_TABLE= 0,
-    /*
-       If a transactional table is about to be updated.
-    */
-    STMT_WRITES_TRANS_TABLE,
-    /*
-       If a non-transactional table is about to be read. Note that
-       a write implies a read.
-    */
-    STMT_READS_NON_TRANS_TABLE,
-    /*
-       If a non-transactional table is about to be updated.
-    */
-    STMT_WRITES_NON_TRANS_TABLE,
-    /*
-       If a temporary transactional table is about to be read. Note
-       that a write implies a read.
-    */
-    STMT_READS_TEMP_TRANS_TABLE,
-    /*
-       If a temporary transactional table is about to be updated.
-    */
-    STMT_WRITES_TEMP_TRANS_TABLE,
-    /*
-       If a temporary non-transactional table is about to be read. Note
-      that a write implies a read.
-    */
-    STMT_READS_TEMP_NON_TRANS_TABLE,
-    /*
-       If a temporary non-transactional table is about to be updated.
-    */
-    STMT_WRITES_TEMP_NON_TRANS_TABLE,
-    /*
-      The last element of the enumeration. Please, if necessary add
-      anything before this.
-    */
-    STMT_ACCESS_TABLE_COUNT
-  };
-
-  /**
-    Sets the type of table that is about to be accessed while executing a
-    statement.
-
-    @param accessed_table Enumeration type that defines the type of table,
-                           e.g. temporary, transactional, non-transactional.
-  */
-  inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table)
-  {
-    DBUG_ENTER("THD::set_stmt_accessed_table");
-
-    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
-    stmt_accessed_table_flag |= (1U << accessed_table);
-
-    DBUG_VOID_RETURN;
-  }
-
-  /**
-    Checks if a type of table is about to be accessed while executing a
-    statement.
-
-    @param accessed_table Enumeration type that defines the type of table,
-                           e.g. temporary, transactional, non-transactional.
-
-    @return
-      @retval TRUE  if the type of the table is about to be accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table)
-  {
-    DBUG_ENTER("THD::stmt_accessed_table");
-
-    DBUG_ASSERT(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
-
-    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
-  }
-
-  /**
-    Checks if a temporary table is about to be accessed while executing a
-    statement.
-
-    @return
-      @retval TRUE  if a temporary table is about to be accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_temp_table()
-  {
-    DBUG_ENTER("THD::stmt_accessed_temp_table");
-
-    DBUG_RETURN((stmt_accessed_table_flag &
-                ((1U << STMT_READS_TEMP_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_TRANS_TABLE) |
-                 (1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
-  }
-
-  /**
-    Checks if a temporary non-transactional table is about to be accessed
-    while executing a statement.
-
-    @return
-      @retval TRUE  if a temporary non-transactional table is about to be
-                    accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_non_trans_temp_table()
-  {
-    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
-
-    DBUG_RETURN((stmt_accessed_table_flag &
-                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
-  }
-
 private:
   /**
     Indicates the format in which the current statement will be
@@ -1699,24 +1576,8 @@ private:
   /**
     Bit field for the state of binlog warnings.
 
-    There are two groups of bits:
-
-    - The first Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types of
-      unsafeness that the current statement has.
-
-    - The following Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types
-      of unsafeness that the current statement has issued warnings
-      for.
-
-    Hence, this variable must be big enough to hold
-    2*Lex::BINLOG_STMT_UNSAFE_COUNT bits.  This is asserted in @c
-    issue_unsafe_warnings().
-
-    The first and second groups of bits are set by @c
-    decide_logging_format() when it detects that a warning should be
-    issued.  The third group of bits is set from @c binlog_query()
-    when a warning is issued.  All bits are cleared at the end of the
-    top-level statement.
+    The first Lex::BINLOG_STMT_UNSAFE_COUNT bits list all types of
+    unsafeness that the current statement has.
 
     This must be a member of THD and not of LEX, because warnings are
     detected and issued in different places (@c
@@ -1726,20 +1587,14 @@ private:
   */
   uint32 binlog_unsafe_warning_flags;
 
-  /**
-    Bit field that determines the type of tables that are about to be
-    be accessed while executing a statement.
-  */
-  uint32 stmt_accessed_table_flag;
-
-  void issue_unsafe_warnings();
-
   /*
     Number of outstanding table maps, i.e., table maps in the
     transaction cache.
   */
   uint binlog_table_maps;
 public:
+  void issue_unsafe_warnings();
+
   uint get_binlog_table_maps() const {
     return binlog_table_maps;
   }
@@ -2804,23 +2659,6 @@ private:
                   MYSQL_ERROR::enum_warning_level level,
                   const char* msg);
 
-  /**
-    Raise a generic SQL condition, without activation any SQL condition
-    handlers.
-    This method is necessary to support the RESIGNAL statement,
-    which is allowed to bypass SQL exception handlers.
-    @param sql_errno the condition error number
-    @param sqlstate the condition SQLSTATE
-    @param level the condition level
-    @param msg the condition message text
-    @return The condition raised, or NULL
-  */
-  MYSQL_ERROR*
-  raise_condition_no_handler(uint sql_errno,
-                             const char* sqlstate,
-                             MYSQL_ERROR::enum_warning_level level,
-                             const char* msg);
-
 public:
   /** Overloaded to guard query/query_length fields */
   virtual void set_statement(Statement *stmt);
@@ -2991,7 +2829,7 @@ public:
     @retval TRUE      error, an error message is set
   */
   virtual bool check_simple_select() const;
-  virtual void abort() {}
+  virtual void abort_result_set() {}
   /*
     Cleanup instance of this class for next execution of a prepared
     statement/stored procedure.
@@ -3034,7 +2872,7 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
-  void abort();
+  void abort_result_set();
   virtual void cleanup();
 };
 
@@ -3126,7 +2964,7 @@ class select_insert :public select_result_interceptor {
   virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
 };
@@ -3162,7 +3000,7 @@ public:
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
-  void abort();
+  virtual void abort_result_set();
   virtual bool can_rollback_data() { return 1; }
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
@@ -3496,7 +3334,7 @@ public:
   {
     return deleted;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 
@@ -3547,7 +3385,7 @@ public:
   {
     return updated;
   }
-  virtual void abort();
+  virtual void abort_result_set();
 };
 
 class my_var : public Sql_alloc  {

@@ -19,14 +19,16 @@
 --source include/have_perfschema.inc
 
 -- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.PROCESSLIST add column foo integer;
+alter table performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  add column foo integer;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
-truncate table performance_schema.PROCESSLIST;
-
--- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.PROCESSLIST ADD INDEX test_index(ID);
+truncate table performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
 
 -- error ER_DBACCESS_DENIED_ERROR
-CREATE UNIQUE INDEX test_index ON performance_schema.PROCESSLIST(ID);
+ALTER TABLE performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  ADD INDEX test_index(EVENT_NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME(EVENT_NAME);
 

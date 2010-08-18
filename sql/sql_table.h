@@ -20,7 +20,6 @@
 #include "my_sys.h"                             // pthread_mutex_t
 
 class Alter_info;
-class Alter_info;
 class Create_field;
 struct TABLE_LIST;
 class THD;
@@ -28,11 +27,12 @@ struct TABLE;
 struct handlerton;
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
+typedef struct st_key KEY;
 typedef struct st_key_cache KEY_CACHE;
-typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_order ORDER;
+class Alter_table_change_level;
 
 enum ddl_log_entry_code
 {
@@ -139,12 +139,23 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
                                 bool tmp_table, uint select_field_count);
-
+bool mysql_prepare_alter_table(THD *thd, TABLE *table,
+                               HA_CREATE_INFO *create_info,
+                               Alter_info *alter_info);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
                        uint order_num, ORDER *order, bool ignore);
+bool mysql_compare_tables(TABLE *table,
+                          Alter_info *alter_info,
+                          HA_CREATE_INFO *create_info,
+                          uint order_num,
+                          Alter_table_change_level *need_copy_table,
+                          KEY **key_info_buffer,
+                          uint **index_drop_buffer, uint *index_drop_count,
+                          uint **index_add_buffer, uint *index_add_count,
+                          uint *candidate_key_count);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
@@ -158,19 +169,6 @@ bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);
-bool mysql_check_table(THD* thd, TABLE_LIST* table_list,
-                       HA_CHECK_OPT* check_opt);
-bool mysql_repair_table(THD* thd, TABLE_LIST* table_list,
-                        HA_CHECK_OPT* check_opt);
-bool mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
-                         HA_CHECK_OPT* check_opt);
-bool mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
-                          HA_CHECK_OPT* check_opt);
-bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
-                              LEX_STRING *key_cache_name);
-bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
-int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
-                             KEY_CACHE *dst_cache);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
@@ -210,7 +208,6 @@ uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
 
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
-extern int creating_table;    // How many mysql_create_table() are running
 extern mysql_mutex_t LOCK_gdl;
 
 #endif /* SQL_TABLE_INCLUDED */
