@@ -433,8 +433,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
 
   lex->link_first_table_back(view, link_to_local);
-  view->open_strategy= TABLE_LIST::OPEN_STUB;
-  view->lock_strategy= TABLE_LIST::OTLS_NONE;
   view->open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
