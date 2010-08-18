@@ -4729,6 +4729,17 @@ SHOW STATUS LIKE '%Handler_read_rnd_next';
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#54568: create view cause Assertion failed: 0, 
+--echo # file .\item_subselect.cc, line 836
+--echo #
+EXPLAIN SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+DESCRIBE SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+--echo # None of the below should crash
+CREATE VIEW v1 AS SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
+CREATE VIEW v2 AS SELECT 1 LIKE '%' ESCAPE ( 1 IN ( SELECT 1 ) );
+DROP VIEW v1, v2;
+
 --echo End of 5.1 tests.
 
 #
@@ -4940,6 +4951,41 @@ DROP TABLE t1,t2;
 --enable_result_log
 
 --echo End of 5.1 tests
+ 
+--echo #
+--echo # BUG#50257: Missing info in REF column of the EXPLAIN 
+--echo #            lines for subselects
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+--echo
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+--echo
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+
+--echo
+DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#52317: Assertion failing in Field_varstring::store() 
+--echo # 	    at field.cc:6833
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INTEGER, KEY k(i));
+INSERT INTO t2 VALUES (1), (2);
+
+EXPLAIN  
+SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo End of 5.5 tests.
 
 --echo #
 --echo # BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 
@@ -5048,4 +5094,33 @@ SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
  SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
 );
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#53236 Segfault in DTCollation::set(DTCollation&)
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_varchar VARCHAR(1),
+  PRIMARY KEY (pk)
+)
+;
+
+INSERT INTO t1 (col_varchar) 
+VALUES
+('w'),
+('m')
+;
+
+SELECT  table1.pk
+FROM ( t1 AS table1 JOIN t1 AS table2 ON (table1.col_varchar =
+                                          table2.col_varchar) ) 
+WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
+                           SUBQUERY1_t1.pk AS SUBQUERY1_field2
+                    FROM ( t1 AS SUBQUERY1_t1 JOIN t1 AS SUBQUERY1_t2
+                           ON (SUBQUERY1_t2.col_varchar =
+                               SUBQUERY1_t1.col_varchar) ) ) 
+;
+
+drop table t1;
 
