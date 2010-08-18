@@ -688,7 +688,7 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
  Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads
+ one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
