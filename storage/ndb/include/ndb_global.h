@@ -43,8 +43,6 @@
 #define DIR_SEPARATOR "/"
 #endif
 
-#include <my_global.h>
-
 #if ! (NDB_SIZEOF_CHAR == SIZEOF_CHAR)
 #error "Invalid define for Uint8"
 #endif
@@ -56,8 +54,6 @@
 #if ! (NDB_SIZEOF_LONG_LONG == SIZEOF_LONG_LONG)
 #error "Invalid define for Uint64"
 #endif
-
-#include <my_alarm.h>
 
 #ifdef _AIX
 #undef _H_STRINGS
@@ -80,16 +76,6 @@
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif
-
-#ifdef HAVE_SYS_STAT_H
-  #if defined(__cplusplus) && defined(_APP32_64BIT_OFF_T) && defined(_INCLUDE_AES_SOURCE)
-    #undef _INCLUDE_AES_SOURCE
-    #include <sys/stat.h>
-    #define _INCLUDE_AES_SOURCE
-  #else
-    #include <sys/stat.h>
-  #endif
 #endif
 
 #ifdef HAVE_SYS_RESOURCE_H
