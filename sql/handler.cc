@@ -4034,8 +4034,8 @@ int ha_binlog_end(THD* thd)
 int ha_binlog_index_purge_file(THD *thd, const char *file)
 {
   binlog_func_st bfn= {BFN_BINLOG_PURGE_FILE, (void *)file};
-  binlog_func_foreach(thd, &bfn);
-  if (thd->main_da.is_error())
+  int res= binlog_func_foreach(thd, &bfn);
+  if (res || (thd && thd->main_da.is_error()))
     return 1;
   return 0;
 }
