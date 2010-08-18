@@ -70,7 +70,9 @@ Cached_item::~Cached_item() {}
 */
 
 Cached_item_str::Cached_item_str(THD *thd, Item *arg)
-  :item(arg), value(min(arg->max_length, thd->variables.max_sort_length))
+  :item(arg),
+   value_max_length(min(arg->max_length, thd->variables.max_sort_length)),
+   value(value_max_length)
 {}
 
 bool Cached_item_str::cmp(void)
@@ -80,7 +82,7 @@ bool Cached_item_str::cmp(void)
 
   DBUG_ENTER("Cached_item_str::cmp");
   if ((res=item->val_str(&tmp_value)))
-    res->length(min(res->length(), value.alloced_length()));
+    res->length(min(res->length(), value_max_length));
   DBUG_PRINT("info", ("old: %s, new: %s",
                       value.c_ptr_safe(), res ? res->c_ptr_safe() : ""));
   if (null_value != item->null_value)
