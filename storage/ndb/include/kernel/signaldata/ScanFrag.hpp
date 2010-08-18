@@ -42,6 +42,7 @@ public:
   STATIC_CONST( KeyInfoSectionNum = 1 );
   
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
+  friend bool printSCAN_FRAGCONF(FILE *, const Uint32*, Uint32, Uint16);
   
 public:
   enum ReorgFlag
