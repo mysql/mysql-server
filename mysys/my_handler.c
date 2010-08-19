@@ -269,7 +269,6 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
-        break;
       }
       break;
     case HA_KEYTYPE_INT8:

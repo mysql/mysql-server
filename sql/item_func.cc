@@ -2243,6 +2243,8 @@ void Item_func_min_max::fix_length_and_dec()
     max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
                                                              decimals, decimals,
                                                              unsigned_flag);
+  else if (cmp_type == REAL_RESULT)
+    max_length= float_length(decimals);
   cached_field_type= agg_field_type(args, arg_count);
 }
 
@@ -4715,6 +4717,7 @@ bool Item_func_get_user_var::set_value(THD *thd,
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(thd->lex->exchange);
   if (Item::fix_fields(thd, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return TRUE;
@@ -4724,7 +4727,9 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  entry->collation.set(thd->variables.collation_database);
+  entry->collation.set(thd->lex->exchange->cs ? 
+                       thd->lex->exchange->cs :
+                       thd->variables.collation_database);
   entry->update_query_id= thd->query_id;
   return FALSE;
 }

@@ -2740,6 +2740,7 @@ public:
 class Cached_item_str :public Cached_item
 {
   Item *item;
+  uint32 value_max_length;
   String value,tmp_value;
 public:
   Cached_item_str(THD *thd, Item *arg);

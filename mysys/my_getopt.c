@@ -30,7 +30,7 @@ my_error_reporter my_getopt_error_reporter= &default_reporter;
 
 static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
-		   char **ffname);
+		   const char **ffname);
 my_bool getopt_compare_strings(const char *s,
 			       const char *t,
 			       uint length);
@@ -115,8 +115,8 @@ int handle_options(int *argc, char ***argv,
   uint opt_found, argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
-  char **pos, **pos_end, *optend, *UNINIT_VAR(prev_found),
-       *opt_str, key_name[FN_REFLEN];
+  char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
+  const char *UNINIT_VAR(prev_found);
   const struct my_option *optp;
   void *value;
   int error, i;
@@ -225,7 +225,6 @@ int handle_options(int *argc, char ***argv,
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option
 	*/
-        LINT_INIT(prev_found);
 	optp= longopts;
 	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
 	{
@@ -709,10 +708,10 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
 static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
-		   char **ffname)
+		   const char **ffname)
 {
   uint count;
-  struct my_option *opt= (struct my_option *) *opt_res;
+  const struct my_option *opt= *opt_res;
 
   for (count= 0; opt->name; opt++)
   {
@@ -723,8 +722,9 @@ static int findopt(char *optpat, uint length,
 	return 1;
       if (!count)
       {
+        /* We only need to know one prev */
 	count= 1;
-	*ffname= (char *) opt->name;	/* We only need to know one prev */
+	*ffname= opt->name;
       }
       else if (strcmp(*ffname, opt->name))
       {

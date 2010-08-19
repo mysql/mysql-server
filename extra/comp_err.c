@@ -639,9 +639,9 @@ static struct message *find_message(struct errors *err, const char *lang,
 static ha_checksum checksum_format_specifier(const char* msg)
 {
   ha_checksum chksum= 0;
-  const char* p= msg;
-  const char* start= 0;
-  int num_format_specifiers= 0;
+  const uchar* p= (const uchar*) msg;
+  const uchar* start= NULL;
+  uint32 num_format_specifiers= 0;
   while (*p)
   {
 
@@ -831,7 +831,6 @@ static struct message *parse_message_string(struct message *new_message,
 static struct errors *parse_error_string(char *str, int er_count)
 {
   struct errors *new_error;
-  char *start;
   DBUG_ENTER("parse_error_string");
   DBUG_PRINT("enter", ("str: %s", str));
 
@@ -842,7 +841,6 @@ static struct errors *parse_error_string(char *str, int er_count)
     DBUG_RETURN(0);				/* OOM: Fatal error */
 
   /* getting the error name */
-  start= str;
   str= skip_delimiters(str);
 
   if (!(new_error->er_name= get_word(&str)))

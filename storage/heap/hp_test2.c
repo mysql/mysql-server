@@ -406,7 +406,7 @@ int main(int argc, char *argv[])
   bmove(record2,record,reclength);
   if (heap_rsame(file,record,-1) || heap_rsame(file,record2,2))
     goto err;
-  if (bcmp(record2,record,reclength))
+  if (memcmp(record2,record,reclength))
   {
     puts("heap_rsame didn't find right record");
     goto end;
@@ -415,7 +415,7 @@ int main(int argc, char *argv[])
   puts("- Test of read through position");
   if (heap_rrnd(file,record,position))
     goto err;
-  if (bcmp(record3,record,reclength))
+  if (memcmp(record3,record,reclength))
   {
     puts("heap_frnd didn't find right record");
     goto end;

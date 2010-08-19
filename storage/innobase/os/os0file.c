@@ -3974,6 +3974,9 @@ os_aio_simulated_handle(
 	ulint		n;
 	ulint		i;
 
+	/* Fix compiler warning */
+	*consecutive_ios = NULL;
+
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 
 restart:

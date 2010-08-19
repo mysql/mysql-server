@@ -648,7 +648,7 @@ static REPLACE *init_replace(char * *from, char * *to,uint count,
     for (i=1 ; i <= found_sets ; i++)
     {
       pos=from[found_set[i-1].table_offset];
-      rep_str[i].found= (my_bool) (!bcmp(pos,"\\^",3) ? 2 : 1);
+      rep_str[i].found= (my_bool) (!memcmp(pos,"\\^",3) ? 2 : 1);
       rep_str[i].replace_string=to_array[found_set[i-1].table_offset];
       rep_str[i].to_offset=found_set[i-1].found_offset-start_at_word(pos);
       rep_str[i].from_offset=found_set[i-1].found_offset-replace_len(pos)+
@@ -776,8 +776,8 @@ static void copy_bits(REP_SET *to,REP_SET *from)
 
 static int cmp_bits(REP_SET *set1,REP_SET *set2)
 {
-  return bcmp((uchar*) set1->bits,(uchar*) set2->bits,
-	      sizeof(uint) * set1->size_of_bits);
+  return memcmp(set1->bits, set2->bits,
+                sizeof(uint) * set1->size_of_bits);
 }
 
 
@@ -849,14 +849,14 @@ static short find_found(FOUND_SET *found_set,uint table_offset,
 
 static uint start_at_word(char * pos)
 {
-  return (((!bcmp(pos,"\\b",2) && pos[2]) || !bcmp(pos,"\\^",2)) ? 1 : 0);
+  return (((!memcmp(pos,"\\b",2) && pos[2]) || !memcmp(pos,"\\^",2)) ? 1 : 0);
 }
 
 static uint end_of_word(char * pos)
 {
   char * end=strend(pos);
-  return ((end > pos+2 && !bcmp(end-2,"\\b",2)) ||
-	  (end >= pos+2 && !bcmp(end-2,"\\$",2))) ?
+  return ((end > pos+2 && !memcmp(end-2,"\\b",2)) ||
+	  (end >= pos+2 && !memcmp(end-2,"\\$",2))) ?
 	    1 : 0;
 }
 
