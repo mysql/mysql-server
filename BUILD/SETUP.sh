@@ -90,22 +90,19 @@ SSL_LIBRARY=--with-ssl
 
 if [ "x$warning_mode" != "xpedantic" ]; then
 # Both C and C++ warnings
-  warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W"
-  warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
-  warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label -Wunused-value -Wunused-variable"
+  warnings="-Wall -Wextra -Wunused -Wwrite-strings"
 
 # For more warnings, uncomment the following line
-# warnings="$global_warnings -Wshadow"
+# warnings="$warnings -Wshadow"
 
 # C warnings
-  c_warnings="$warnings -Wunused-parameter"
+  c_warnings="$warnings"
 # C++ warnings
-  cxx_warnings="$warnings"
+  cxx_warnings="$warnings -Wno-unused-parameter"
 # cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
-  cxx_warnings="$cxx_warnings -Wreorder"
   cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
 # Added unless --with-debug=full
-  debug_extra_cflags="-O0 -g3 -gdwarf-2" #1 -Wuninitialized"
+  debug_extra_cflags="-O0 -g3 -gdwarf-2"
 else
   warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
   c_warnings="$warnings"

@@ -86,7 +86,9 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
 
 #if BACKTRACE_DEMANGLE
 
-char __attribute__ ((weak)) *my_demangle(const char *mangled_name, int *status)
+char __attribute__ ((weak)) *
+my_demangle(const char *mangled_name __attribute__((unused)),
+            int *status __attribute__((unused)))
 {
   return NULL;
 }

@@ -1455,6 +1455,22 @@ FROM INFORMATION_SCHEMA.COLUMNS
 WHERE INFORMATION_SCHEMA.COLUMNS.TABLE_NAME = 'variables';
 DROP TABLE variables;
 
+--echo #
+--echo # Bug #53814: NUMERIC_PRECISION for unsigned bigint field is 19, 
+--echo # should be 20
+--echo #
+
+CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
+
+SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
+  FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
+
+INSERT INTO ubig VALUES (0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+SELECT length(CAST(b AS CHAR)) FROM ubig;
+
+DROP TABLE ubig;
+
+
 --echo End of 5.1 tests.
 
 # Wait till all disconnects are completed
