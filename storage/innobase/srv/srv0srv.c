@@ -1588,6 +1588,18 @@ srv_suspend_mysql_thread(
 		row_mysql_unfreeze_data_dictionary(trx);
 		break;
 	case RW_X_LATCH:
+		/* There should never be a lock wait when the
+		dictionary latch is reserved in X mode.  Dictionary
+		transactions should only acquire locks on dictionary
+		tables, not other tables. All access to dictionary
+		tables should be covered by dictionary
+		transactions. */
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: dict X latch held in "
+		      "srv_suspend_mysql_thread\n", stderr);
+		/* This should never occur. This incorrect handling
+		was added in the early development of
+		ha_innobase::add_index() in InnoDB Plugin 1.0. */
 		/* Release fast index creation latch */
 		row_mysql_unlock_data_dictionary(trx);
 		break;
@@ -1607,6 +1619,9 @@ srv_suspend_mysql_thread(
 		row_mysql_freeze_data_dictionary(trx);
 		break;
 	case RW_X_LATCH:
+		/* This should never occur. This incorrect handling
+		was added in the early development of
+		ha_innobase::add_index() in InnoDB Plugin 1.0. */
 		row_mysql_lock_data_dictionary(trx);
 		break;
 	}
