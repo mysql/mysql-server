@@ -50,6 +50,7 @@ static struct NdbCondition * g_ndb_thread_condition = 0;
 
 #ifdef NDB_SHM_TRANSPORTER
 int g_ndb_shm_signum= 0;
+#include <signal.h>
 #endif
 
 static int f_high_prio_set = 0;
