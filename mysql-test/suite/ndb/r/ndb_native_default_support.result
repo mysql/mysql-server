@@ -1410,4 +1410,33 @@ i	j	f	d	d2	ch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	newOne
 10	10	10	10	10	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	2008-11-16 08:13:32	Comment field default
 11	6	6.6	8.8	0	mmm	63636300000000000000000000000000000000	646464	NULL	NULL	2008-12-18 17:41:20	Comment field default
 drop table t1;
-End of ndb native default support test
+Bug#55121 error 839 'Illegal null attribute' from NDB for fields with default value
+Ensure that Ndb handler doesn't expect native defaults for Blobs.
+CREATE TABLE t1 (
+fid smallint(6) unsigned NOT NULL DEFAULT '0',
+f01 text NOT NULL,
+f02 varchar(255) NOT NULL DEFAULT '',
+f03 text NOT NULL DEFAULT '',
+PRIMARY KEY (fid)
+) engine=ndb;
+Warnings:
+Warning	1101	BLOB/TEXT column 'f03' can't have a default value
+show warnings;
+Level	Code	Message
+Warning	1101	BLOB/TEXT column 'f03' can't have a default value
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fid` smallint(6) unsigned NOT NULL DEFAULT '0',
+  `f01` text NOT NULL,
+  `f02` varchar(255) NOT NULL DEFAULT '',
+  `f03` text NOT NULL,
+  PRIMARY KEY (`fid`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+insert into t1(fid) value(100);
+Warnings:
+Warning	1364	Field 'f01' doesn't have a default value
+select fid, isnull(f01), isnull(f02), isnull(f03) from t1;
+fid	isnull(f01)	isnull(f02)	isnull(f03)
+100	0	0	0
+drop table t1;
