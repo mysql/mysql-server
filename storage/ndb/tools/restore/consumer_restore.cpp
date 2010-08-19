@@ -784,10 +784,10 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
   m_ndb->setSchemaName("def");
 
   NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
-  const NdbDictionary::Table *ndbtab= dict->getTable(Ndb_apply_table);
+  const NdbDictionary::Table *ndbtab= dict->getTable(NDB_APPLY_TABLE);
   if (!ndbtab)
   {
-    err << Ndb_apply_table << ": "
+    err << NDB_APPLY_TABLE << ": "
 	<< dict->getNdbError() << endl;
     return false;
   }
@@ -808,7 +808,7 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
   }
   if (apply_table_format == 0)
   {
-    err << Ndb_apply_table << " has wrong format\n";
+    err << NDB_APPLY_TABLE << " has wrong format\n";
     return false;
   }
 
@@ -827,14 +827,14 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
   NdbTransaction * trans= m_ndb->startTransaction();
   if (!trans)
   {
-    err << Ndb_apply_table << ": "
+    err << NDB_APPLY_TABLE << ": "
 	<< m_ndb->getNdbError() << endl;
     return false;
   }
   NdbOperation * op= trans->getNdbOperation(ndbtab);
   if (!op)
   {
-    err << Ndb_apply_table << ": "
+    err << NDB_APPLY_TABLE << ": "
 	<< trans->getNdbError() << endl;
     goto err;
   }
@@ -842,7 +842,7 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
       op->equal(0u, (const char *)&server_id, sizeof(server_id)) ||
       op->setValue(1u, (const char *)&epoch, sizeof(epoch)))
   {
-    err << Ndb_apply_table << ": "
+    err << NDB_APPLY_TABLE << ": "
 	<< op->getNdbError() << endl;
     goto err;
   }
@@ -851,13 +851,13 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
        op->setValue(3u, (const char *)&zero, sizeof(zero)) ||
        op->setValue(4u, (const char *)&zero, sizeof(zero))))
   {
-    err << Ndb_apply_table << ": "
+    err << NDB_APPLY_TABLE << ": "
 	<< op->getNdbError() << endl;
     goto err;
   }
   if (trans->execute(NdbTransaction::Commit))
   {
-    err << Ndb_apply_table << ": "
+    err << NDB_APPLY_TABLE << ": "
 	<< trans->getNdbError() << endl;
     goto err;
   }
