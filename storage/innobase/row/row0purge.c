@@ -625,8 +625,6 @@ row_purge_parse_undo_rec(
 
 	ut_ad(node && thr);
 
-	trx = thr_get_trx(thr);
-
 	ptr = trx_undo_rec_get_pars(
 		undo_rec, &type, &cmpl_info, updated_extern,
 		&undo_no, &table_id);
@@ -686,6 +684,8 @@ err_exit:
 
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
 				       node->heap);
+
+	trx = thr_get_trx(thr);
 
 	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
 					     roll_ptr, info_bits, trx,
