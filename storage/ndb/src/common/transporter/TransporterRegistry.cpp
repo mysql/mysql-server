@@ -36,6 +36,7 @@
 #ifdef NDB_SHM_TRANSPORTER
 #include "SHM_Transporter.hpp"
 extern int g_ndb_shm_signum;
+#include <signal.h>
 #endif
 
 #include "NdbOut.hpp"
@@ -1399,7 +1400,7 @@ TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
   ioStates[nodeId] = state;
 }
 
-static void * 
+extern "C" void *
 run_start_clients_C(void * me)
 {
   ((TransporterRegistry*) me)->start_clients_thread();
