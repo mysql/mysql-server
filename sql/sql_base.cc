@@ -59,42 +59,13 @@
 #endif
 
 
-/**
-  This internal handler is used to trap internally
-  errors that can occur when executing open table
-  during the prelocking phase.
-*/
-class Prelock_error_handler : public Internal_error_handler
-{
-public:
-  Prelock_error_handler()
-    : m_handled_errors(0), m_unhandled_errors(0)
-  {}
-
-  virtual ~Prelock_error_handler() {}
-
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
-                                const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
-
-  bool safely_trapped_errors();
-
-private:
-  int m_handled_errors;
-  int m_unhandled_errors;
-};
-
-
 bool
-Prelock_error_handler::handle_condition(THD *,
-                                        uint sql_errno,
-                                        const char*,
-                                        MYSQL_ERROR::enum_warning_level,
-                                        const char*,
-                                        MYSQL_ERROR ** cond_hdl)
+No_such_table_error_handler::handle_condition(THD *,
+                                              uint sql_errno,
+                                              const char*,
+                                              MYSQL_ERROR::enum_warning_level,
+                                              const char*,
+                                              MYSQL_ERROR ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_NO_SUCH_TABLE)
@@ -108,7 +79,7 @@ Prelock_error_handler::handle_condition(THD *,
 }
 
 
-bool Prelock_error_handler::safely_trapped_errors()
+bool No_such_table_error_handler::safely_trapped_errors()
 {
   /*
     If m_unhandled_errors != 0, something else, unanticipated, happened,
@@ -4353,11 +4324,11 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
       The real failure will occur when/if a statement attempts to use
       that table.
     */
-    Prelock_error_handler prelock_handler;
-    thd->push_internal_handler(& prelock_handler);
+    No_such_table_error_handler no_such_table_handler;
+    thd->push_internal_handler(&no_such_table_handler);
     error= open_table(thd, tables, new_frm_mem, ot_ctx);
     thd->pop_internal_handler();
-    safe_to_ignore_table= prelock_handler.safely_trapped_errors();
+    safe_to_ignore_table= no_such_table_handler.safely_trapped_errors();
   }
   else
     error= open_table(thd, tables, new_frm_mem, ot_ctx);

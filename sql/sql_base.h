@@ -526,4 +526,34 @@ private:
 };
 
 
+/**
+  This internal handler is used to trap ER_NO_SUCH_TABLE.
+*/
+
+class No_such_table_error_handler : public Internal_error_handler
+{
+public:
+  No_such_table_error_handler()
+    : m_handled_errors(0), m_unhandled_errors(0)
+  {}
+
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl);
+
+  /**
+    Returns TRUE if one or more ER_NO_SUCH_TABLE errors have been
+    trapped and no other errors have been seen. FALSE otherwise.
+  */
+  bool safely_trapped_errors();
+
+private:
+  int m_handled_errors;
+  int m_unhandled_errors;
+};
+
+
 #endif /* SQL_BASE_INCLUDED */
