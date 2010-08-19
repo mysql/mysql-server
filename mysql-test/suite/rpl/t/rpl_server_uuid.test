@@ -13,6 +13,8 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
+call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
 

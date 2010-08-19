@@ -104,6 +104,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
 --echo ---- Sync slave and verify that there is no error ----
 sync_with_master;
 let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+let $err= `SELECT SUBSTRING("$err" FROM 17)`;
 --echo Last_SQL_Error = '$err' (expected no error)
 SELECT * FROM t1;
 
@@ -154,6 +155,7 @@ if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRIC
 # error.
 sync_with_master;
 let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+let $err= `SELECT SUBSTRING("$err" FROM 17)`;
 --echo Last_SQL_Error = $err (expected no error)
 SELECT * FROM t1;
 

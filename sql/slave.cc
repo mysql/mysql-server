@@ -485,7 +485,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     DBUG_PRINT("info",("Flushing relay log and master info file."));
     if (current_thd)
       thd_proc_info(current_thd, "Flushing relay log and master info files.");
-    if (flush_master_info(mi, TRUE /* flush relay log */))
+    if (flush_master_info(mi, TRUE /* flush relay log */, FALSE))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     if (my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
@@ -1003,6 +1003,25 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   DBUG_RETURN(1);
 }
 
+int init_longvar_from_file(long* var, IO_CACHE* f, long default_val)
+{
+  char buf[32];
+  DBUG_ENTER("init_longvar_from_file");
+
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    *var = atol(buf);
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
 {
   char buf[16];
@@ -1159,6 +1178,14 @@ String *get_slave_uuid(THD *thd, String *value)
     return NULL;
 }
 
+/**
+  Set user variables after connecting to the master.
+
+  @param  mysql MYSQL to request uuid from master.
+  @param  mi    Master_info to set master_uuid
+
+  @return 0: Success, 1: Fatal error, 2: Network error.
+ */
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
 {
   char query[256];
@@ -1176,13 +1203,20 @@ err:
   if (mysql_errno(mysql) && is_network_error(mysql_errno(mysql)))
   {
     mi->report(WARNING_LEVEL, mysql_errno(mysql),
-               "init-command:'%s' failed with error: %s", mysql_error(mysql));
+               "The initialization command '%s' failed with the following"
+               " error: '%s'.", query, mysql_error(mysql));
     ret= 2;
   }
   else
   {
+    char errmsg[512];
+    const char *errmsg_fmt=
+      "The slave I/O thread stops because a fatal error is encountered "
+      "when it tries to send query to master(query: %s).";
+
+    my_sprintf(errmsg, (errmsg, errmsg_fmt, query));
     mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
-               query);
+               errmsg);
     ret= 1;
   }
   mysql_free_result(mysql_store_result(mysql));
@@ -1231,8 +1265,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     else
     {
       if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[1]))
-        sql_print_warning("Master's UUID has changed, its old UUID is %s, "
-                          "the new one is %s", mi->master_uuid, master_row[1]);
+        sql_print_warning("The master's UUID has changed, although this should"
+                          " not happen unless you have changed it manually."
+                          " The old UUID was %s.",
+                          mi->master_uuid);
       strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
       mi->master_uuid[UUID_LENGTH]= 0;
     }
@@ -1250,7 +1286,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     {
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered "
-        "when it try to get the value of SERVER_UUID variable from master.";
+        "when it tries to get the value of SERVER_UUID variable from master.";
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                  errmsg);
       ret= 1;
@@ -1849,7 +1885,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, TRUE))
         sql_print_error("Failed to flush master info file");
       delete ev;
     }
@@ -2023,6 +2059,8 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Master_UUID", UUID_LENGTH));
+  field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
+                                           MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("SQL_Remaining_Delay", 8, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
@@ -2143,11 +2181,30 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Last_IO_Errno
     protocol->store(mi->last_error().number);
     // Last_IO_Error
-    protocol->store(mi->last_error().message, &my_charset_bin);
+    if (*mi->last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->last_error().message, &my_charset_bin);
     // Last_SQL_Errno
     protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
-    protocol->store(mi->rli.last_error().message, &my_charset_bin);
+    if (*mi->rli.last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->rli.last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->rli.last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->rli.last_error().message, &my_charset_bin);
+
     // Replicate_Ignore_Server_Ids
     {
       char buff[FN_REFLEN];
@@ -2175,6 +2232,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Master_Server_id
     protocol->store((uint32) mi->master_id);
     protocol->store(mi->master_uuid, &my_charset_bin);
+    // Master_Retry_Count
+    protocol->store((ulonglong) mi->retry_count);
     // SQL_Delay
     protocol->store((uint32) mi->rli.get_sql_delay());
     // SQL_Remaining_Delay
@@ -2953,11 +3012,11 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   @details Terminates current connection to master, sleeps for
   @c mi->connect_retry msecs and initiates new connection with
   @c safe_reconnect(). Variable pointed by @c retry_count is increased -
-  if it exceeds @c master_retry_count then connection is not re-established
+  if it exceeds @c mi->retry_count then connection is not re-established
   and function signals error.
   Unless @c suppres_warnings is TRUE, a warning is put in the server error log
   when reconnecting. The warning message and messages used to report errors
-  are taken from @c messages array. In case @c master_retry_count is exceeded,
+  are taken from @c messages array. In case @c mi->retry_count is exceeded,
   no messages are added to the log.
 
   @param[in]     thd                 Thread context.
@@ -2985,7 +3044,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   end_server(mysql);
   if ((*retry_count)++)
   {
-    if (*retry_count > master_retry_count)
+    if (*retry_count > mi->retry_count)
       return 1;                             // Don't retry forever
     safe_sleep(thd, mi->connect_retry, (CHECK_KILLED_FUNC) io_slave_killed,
                (void *) mi);
@@ -3323,7 +3382,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
         goto err;
       }
 
-      if (flush_master_info(mi, 1))
+      if (flush_master_info(mi, TRUE, TRUE))
       {
         sql_print_error("Failed to flush master info file");
         goto err;
@@ -4644,7 +4703,7 @@ static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi)
 
   IMPLEMENTATION
     Try to connect until successful or slave killed or we have retried
-    master_retry_count times
+    mi->retry_count times
 */
 
 static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
@@ -4699,15 +4758,15 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                  " - retry-time: %d  retries: %lu",
                  (reconnect ? "reconnecting" : "connecting"),
                  mi->user, mi->host, mi->port,
-                 mi->connect_retry, master_retry_count);
+                 mi->connect_retry, mi->retry_count);
     }
     /*
       By default we try forever. The reason is that failure will trigger
-      master election, so if the user did not set master_retry_count we
+      master election, so if the user did not set mi->retry_count we
       do not want to have election triggered on the first failure to
       connect
     */
-    if (++err_count == master_retry_count)
+    if (++err_count == mi->retry_count)
     {
       slave_was_killed=1;
       if (reconnect)
@@ -4751,7 +4810,7 @@ replication resumed in log '%s' at position %s", mi->user,
 
   IMPLEMENTATION
     Try to connect until successful or slave killed or we have retried
-    master_retry_count times
+    mi->retry_count times
 */
 
 static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,

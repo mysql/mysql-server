@@ -3896,7 +3896,9 @@ bool mysql_unpack_partition(THD *thd,
   thd->lex= &lex;
   thd->variables.character_set_client= system_charset_info;
 
-  Parser_state parser_state(thd, part_buf, part_info_len);
+  Parser_state parser_state;
+  if (parser_state.init(thd, part_buf, part_info_len))
+    goto end;
 
   lex_start(thd);
   *work_part_info_used= false;

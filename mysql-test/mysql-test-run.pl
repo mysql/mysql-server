@@ -129,7 +129,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,innodb";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,innodb,innodb_plugin";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -2076,6 +2076,15 @@ sub environment_setup {
                         "$path_client_bindir/myisampack",
                         "$basedir/storage/myisam/myisampack",
                         "$basedir/myisam/myisampack"));
+
+  # ----------------------------------------------------
+  # mysqlhotcopy
+  # ----------------------------------------------------
+  my $mysqlhotcopy=
+    mtr_pl_maybe_exists("$basedir/scripts/mysqlhotcopy");
+  # Since mysqltest interprets the real path as "false" in an if,
+  # use 1 ("true") to indicate "not exists" so it can be tested for
+  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
 
   # ----------------------------------------------------
   # perror
@@ -4783,7 +4792,12 @@ sub start_servers($) {
 
       # Save this test case information, so next can examine it
       $mysqld->{'started_tinfo'}= $tinfo;
-      mtr_milli_sleep(500);
+
+      # Wait until server's uuid is generated. This avoids that master and
+      # slave generate the same UUID sporadically.
+      sleep_until_file_created("$datadir/auto.cnf", $opt_start_timeout,
+                               $mysqld->{'proc'});
+
     }
 
   }

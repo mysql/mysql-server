@@ -31,13 +31,23 @@ void *my_malloc(size_t size, myf my_flags)
 
   if (!size)
     size=1;					/* Safety */
-  if ((point = (char*)malloc(size)) == NULL)
+
+  point= (char *) malloc(size);
+  DBUG_EXECUTE_IF("simulate_out_of_memory",
+                  {
+                    free(point);
+                    point= NULL;
+                  });
+
+  if (point == NULL)
   {
     my_errno=errno;
     if (my_flags & MY_FAE)
       error_handler_hook=fatal_error_handler_hook;
     if (my_flags & (MY_FAE+MY_WME))
       my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH),size);
+    DBUG_EXECUTE_IF("simulate_out_of_memory",
+                    DBUG_SET("-d,simulate_out_of_memory"););
     if (my_flags & MY_FAE)
       exit(1);
   }

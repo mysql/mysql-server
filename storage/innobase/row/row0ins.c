@@ -1114,7 +1114,8 @@ static
 ulint
 row_ins_set_shared_rec_lock(
 /*========================*/
-				/* out: DB_SUCCESS or error code */
+				/* out: DB_SUCCESS, DB_SUCCESS_LOCKED_REC,
+				or error code */
 	ulint		type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
 				LOCK_REC_NOT_GAP type lock */
 	rec_t*		rec,	/* in: record */
@@ -1145,7 +1146,8 @@ static
 ulint
 row_ins_set_exclusive_rec_lock(
 /*===========================*/
-				/* out: DB_SUCCESS or error code */
+				/* out: DB_SUCCESS, DB_SUCCESS_LOCKED_REC,
+				or error code */
 	ulint		type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
 				LOCK_REC_NOT_GAP type lock */
 	rec_t*		rec,	/* in: record */
@@ -1195,9 +1197,7 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
-	rec_t*		rec;
 	btr_pcur_t	pcur;
-	ibool		moved;
 	int		cmp;
 	ulint		err;
 	ulint		i;
@@ -1328,12 +1328,12 @@ run_again:
 
 	/* Scan index records and check if there is a matching record */
 
-	for (;;) {
-		rec = btr_pcur_get_rec(&pcur);
+	do {
+		rec_t*	rec = btr_pcur_get_rec(&pcur);
 
 		if (page_rec_is_infimum(rec)) {
 
-			goto next_rec;
+			continue;
 		}
 
 		offsets = rec_get_offsets(rec, check_index,
@@ -1343,12 +1343,13 @@ run_again:
 
 			err = row_ins_set_shared_rec_lock(
 				LOCK_ORDINARY, rec, check_index, offsets, thr);
-			if (err != DB_SUCCESS) {
-
-				break;
+			switch (err) {
+			case DB_SUCCESS_LOCKED_REC:
+			case DB_SUCCESS:
+				continue;
+			default:
+				goto end_scan;
 			}
-
-			goto next_rec;
 		}
 
 		cmp = cmp_dtuple_rec(entry, rec, offsets);
@@ -1359,9 +1360,12 @@ run_again:
 				err = row_ins_set_shared_rec_lock(
 					LOCK_ORDINARY, rec, check_index,
 					offsets, thr);
-				if (err != DB_SUCCESS) {
-
+				switch (err) {
+				case DB_SUCCESS_LOCKED_REC:
+				case DB_SUCCESS:
 					break;
+				default:
+					goto end_scan;
 				}
 			} else {
 				/* Found a matching record. Lock only
@@ -1372,15 +1376,18 @@ run_again:
 					LOCK_REC_NOT_GAP, rec, check_index,
 					offsets, thr);
 
-				if (err != DB_SUCCESS) {
-
+				switch (err) {
+				case DB_SUCCESS_LOCKED_REC:
+				case DB_SUCCESS:
 					break;
+				default:
+					goto end_scan;
 				}
 
 				if (check_ref) {
 					err = DB_SUCCESS;
 
-					break;
+					goto end_scan;
 				} else if (foreign->type != 0) {
 					/* There is an ON UPDATE or ON DELETE
 					condition: check them in a separate
@@ -1406,7 +1413,7 @@ run_again:
 							err = DB_FOREIGN_DUPLICATE_KEY;
 						}
 
-						break;
+						goto end_scan;
 					}
 				} else {
 					row_ins_foreign_report_err(
@@ -1414,48 +1421,39 @@ run_again:
 						thr, foreign, rec, entry);
 
 					err = DB_ROW_IS_REFERENCED;
-					break;
+					goto end_scan;
 				}
 			}
-		}
+		} else {
+			ut_a(cmp < 0);
 
-		if (cmp < 0) {
 			err = row_ins_set_shared_rec_lock(
 				LOCK_GAP, rec, check_index, offsets, thr);
-			if (err != DB_SUCCESS) {
-
-				break;
+			switch (err) {
+			case DB_SUCCESS_LOCKED_REC:
+			case DB_SUCCESS:
+				if (check_ref) {
+					err = DB_NO_REFERENCED_ROW;
+					row_ins_foreign_report_add_err(
+						trx, foreign, rec, entry);
+				} else {
+					err = DB_SUCCESS;
+				}
 			}
 
-			if (check_ref) {
-				err = DB_NO_REFERENCED_ROW;
-				row_ins_foreign_report_add_err(
-					trx, foreign, rec, entry);
-			} else {
-				err = DB_SUCCESS;
-			}
-
-			break;
+			goto end_scan;
 		}
+	} while (btr_pcur_move_to_next(&pcur, &mtr));
 
-		ut_a(cmp == 0);
-next_rec:
-		moved = btr_pcur_move_to_next(&pcur, &mtr);
-
-		if (!moved) {
-			if (check_ref) {
-				rec = btr_pcur_get_rec(&pcur);
-				row_ins_foreign_report_add_err(
-					trx, foreign, rec, entry);
-				err = DB_NO_REFERENCED_ROW;
-			} else {
-				err = DB_SUCCESS;
-			}
-
-			break;
-		}
+	if (check_ref) {
+		row_ins_foreign_report_add_err(
+			trx, foreign, btr_pcur_get_rec(&pcur), entry);
+		err = DB_NO_REFERENCED_ROW;
+	} else {
+		err = DB_SUCCESS;
 	}
 
+end_scan:
 	btr_pcur_close(&pcur);
 
 	mtr_commit(&mtr);
@@ -1641,10 +1639,8 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		i;
 	int		cmp;
 	ulint		n_fields_cmp;
-	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ulint		err		= DB_SUCCESS;
-	ibool		moved;
 	unsigned	allow_duplicates;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
@@ -1680,12 +1676,12 @@ row_ins_scan_sec_index_for_duplicate(
 
 	/* Scan index records and check if there is a duplicate */
 
-	for (;;) {
-		rec = btr_pcur_get_rec(&pcur);
+	do {
+		rec_t*	rec = btr_pcur_get_rec(&pcur);
 
 		if (page_rec_is_infimum(rec)) {
 
-			goto next_rec;
+			continue;
 		}
 
 		offsets = rec_get_offsets(rec, index, offsets,
@@ -1706,14 +1702,18 @@ row_ins_scan_sec_index_for_duplicate(
 				LOCK_ORDINARY, rec, index, offsets, thr);
 		}
 
-		if (err != DB_SUCCESS) {
-
+		switch (err) {
+		case DB_SUCCESS_LOCKED_REC:
+			err = DB_SUCCESS;
+		case DB_SUCCESS:
 			break;
+		default:
+			goto end_scan;
 		}
 
 		if (page_rec_is_supremum(rec)) {
 
-			goto next_rec;
+			continue;
 		}
 
 		cmp = cmp_dtuple_rec(entry, rec, offsets);
@@ -1725,23 +1725,15 @@ row_ins_scan_sec_index_for_duplicate(
 
 				thr_get_trx(thr)->error_info = index;
 
-				break;
+				goto end_scan;
 			}
+		} else {
+			ut_a(cmp < 0);
+			goto end_scan;
 		}
+	} while (btr_pcur_move_to_next(&pcur, &mtr));
 
-		if (cmp < 0) {
-			break;
-		}
-
-		ut_a(cmp == 0);
-next_rec:
-		moved = btr_pcur_move_to_next(&pcur, &mtr);
-
-		if (!moved) {
-			break;
-		}
-	}
-
+end_scan:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -1837,7 +1829,11 @@ row_ins_duplicate_error_in_clust(
 					cursor->index, offsets, thr);
 			}
 
-			if (err != DB_SUCCESS) {
+			switch (err) {
+			case DB_SUCCESS_LOCKED_REC:
+			case DB_SUCCESS:
+				break;
+			default:
 				goto func_exit;
 			}
 
@@ -1875,7 +1871,11 @@ row_ins_duplicate_error_in_clust(
 					cursor->index, offsets, thr);
 			}
 
-			if (err != DB_SUCCESS) {
+			switch (err) {
+			case DB_SUCCESS_LOCKED_REC:
+			case DB_SUCCESS:
+				break;
+			default:
 				goto func_exit;
 			}
 

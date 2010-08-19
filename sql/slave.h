@@ -177,10 +177,6 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       Master_info* mi,
                        bool high_priority);
 
-/* If fd is -1, dump to NET */
-int mysql_table_dump(THD* thd, const char* db,
-		     const char* tbl_name, int fd = -1);
-
 /* retrieve table from master and copy to slave*/
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 		       Master_info* mi, MYSQL* mysql, bool overwrite);
@@ -213,6 +209,7 @@ void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 void rotate_relay_log(Master_info* mi);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 
+int init_longvar_from_file(long* var, IO_CACHE* f, long default_val);
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,

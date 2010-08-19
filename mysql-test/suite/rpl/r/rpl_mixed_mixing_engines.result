@@ -633,6 +633,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_4)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_4)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> NeT-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> NeT-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -640,6 +644,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_4)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_4)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> NeT-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> NeT-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -652,6 +660,14 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> NeT-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> NeT-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -661,6 +677,14 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> NeT-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> TeN-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -671,6 +695,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_3)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> TeN-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> TeN-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -678,6 +706,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_3)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> TeN-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> TeN-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -692,6 +724,12 @@ master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> TeN-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> TeN-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -703,6 +741,12 @@ master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> TeN-func << -e-e-e-e-e-e-e-e-e-e-e-
 
 
@@ -11875,12 +11919,18 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11925,12 +11975,24 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 T CT R1 R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
+master-bin.000001	#	Query	#	#	SAVEPOINT s1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11965,12 +12027,20 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12011,6 +12081,9 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B tN CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -12021,6 +12094,9 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12051,12 +12127,18 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12096,6 +12178,9 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -12105,6 +12190,9 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B N CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-

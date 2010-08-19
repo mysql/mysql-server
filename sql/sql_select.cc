@@ -255,15 +255,15 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
       setup_tables_done_option changed for next rexecution
     */
     res= mysql_select(thd, &select_lex->ref_pointer_array,
-		      (TABLE_LIST*) select_lex->table_list.first,
+		      select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
 		      select_lex->where,
 		      select_lex->order_list.elements +
 		      select_lex->group_list.elements,
-		      (ORDER*) select_lex->order_list.first,
-		      (ORDER*) select_lex->group_list.first,
+		      select_lex->order_list.first,
+		      select_lex->group_list.first,
 		      select_lex->having,
-		      (ORDER*) lex->proc_list.first,
+		      lex->proc_list.first,
 		      select_lex->options | thd->options |
                       setup_tables_done_option,
 		      result, unit, select_lex);
@@ -564,13 +564,21 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       Item *item= *ord->item;
       /*
-        Disregard sort order if there's only "{VAR}CHAR(0) NOT NULL" fields
-        there. Such fields don't contain any data to sort.
+        Disregard sort order if there's only 
+        zero length NOT NULL fields (e.g. {VAR}CHAR(0) NOT NULL") or
+        zero length NOT NULL string functions there.
+        Such tuples don't contain any data to sort.
       */
       if (!real_order &&
-          (item->type() != Item::FIELD_ITEM ||
-           ((Item_field *) item)->field->maybe_null() ||
-           ((Item_field *) item)->field->sort_length()))
+           /* Not a zero length NOT NULL field */
+          ((item->type() != Item::FIELD_ITEM ||
+            ((Item_field *) item)->field->maybe_null() ||
+            ((Item_field *) item)->field->sort_length()) &&
+           /* AND not a zero length NOT NULL string function. */
+           (item->type() != Item::FUNC_ITEM ||
+            item->maybe_null ||
+            item->result_type() != STRING_RESULT ||
+            item->max_length)))
         real_order= TRUE;
 
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
@@ -2709,31 +2717,53 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     /* 
        Build transitive closure for relation 'to be dependent on'.
        This will speed up the plan search for many cases with outer joins,
-       as well as allow us to catch illegal cross references/
+       as well as allow us to catch illegal cross references.
        Warshall's algorithm is used to build the transitive closure.
-       As we use bitmaps to represent the relation the complexity
-       of the algorithm is O((number of tables)^2). 
+       As we may restart the outer loop upto 'table_count' times, the
+       complexity of the algorithm is O((number of tables)^3).
+       However, most of the iterations will be shortcircuited when
+       there are no pedendencies to propogate.
     */
-    for (i= 0, s= stat ; i < table_count ; i++, s++)
+    for (i= 0 ; i < table_count ; i++)
     {
-      for (uint j= 0 ; j < table_count ; j++)
+      uint j;
+      table= stat[i].table;
+
+      if (!table->reginfo.join_tab->dependent)
+        continue;
+
+      /* Add my dependencies to other tables depending on me */
+      for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
-        table= stat[j].table;
         if (s->dependent & table->map)
+        {
+          table_map was_dependent= s->dependent;
           s->dependent |= table->reginfo.join_tab->dependent;
+          /*
+            If we change dependencies for a table we already have
+            processed: Redo dependency propagation from this table.
+          */
+          if (i > j && s->dependent != was_dependent)
+          {
+            i = j-1;
+            break;
+          }
+        }
       }
-      if (outer_join & s->table->map)
-        s->table->maybe_null= 1;
     }
-    /* Catch illegal cross references for outer joins */
+
     for (i= 0, s= stat ; i < table_count ; i++, s++)
     {
+      /* Catch illegal cross references for outer joins */
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         goto error;
       }
+
+      if (outer_join & s->table->map)
+        s->table->maybe_null= 1;
       s->key_dependent= s->dependent;
     }
   }
@@ -7208,7 +7238,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->with_subselect)
+      if (order->item[0]->with_subselect && 
+          !(join->select_lex->options & SELECT_DESCRIBE))
         order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
       continue;					// skip const item
@@ -8704,6 +8735,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
+  bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   DBUG_ENTER("simplify_joins");
 
   /* 
@@ -8814,7 +8846,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     if (prev_table)
     {
       /* The order of tables is reverse: prev_table follows table */
-      if (prev_table->straight)
+      if (prev_table->straight || straight_join)
         prev_table->dep_tables|= used_tables;
       if (prev_table->on_expr)
       {
@@ -13400,6 +13432,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint nr;
     key_map keys;
     uint best_key_parts= 0;
+    uint saved_best_key_parts= 0;
     int best_key_direction= 0;
     ha_rows best_records= 0;
     double read_time;
@@ -13560,6 +13593,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             {
               best_key= nr;
               best_key_parts= keyinfo->key_parts;
+              saved_best_key_parts= used_key_parts;
               best_records= quick_records;
               is_best_covering= is_covering;
               best_key_direction= direction; 
@@ -13646,8 +13680,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           */
         }
       }
-      used_key_parts= best_key_parts;
       order_direction= best_key_direction;
+      /*
+        saved_best_key_parts is actual number of used keyparts found by the
+        test_if_order_by_key function. It could differ from keyinfo->key_parts,
+        thus we have to restore it in case of desc order as it affects
+        QUICK_SELECT_DESC behaviour.
+      */
+      used_key_parts= (order_direction == -1) ?
+        saved_best_key_parts :  best_key_parts;
     }
     else
       DBUG_RETURN(0); 
@@ -16793,15 +16834,15 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     thd->lex->current_select= first;
     unit->set_limit(unit->global_parameters);
     res= mysql_select(thd, &first->ref_pointer_array,
-			(TABLE_LIST*) first->table_list.first,
+			first->table_list.first,
 			first->with_wild, first->item_list,
 			first->where,
 			first->order_list.elements +
 			first->group_list.elements,
-			(ORDER*) first->order_list.first,
-			(ORDER*) first->group_list.first,
+			first->order_list.first,
+			first->group_list.first,
 			first->having,
-			(ORDER*) thd->lex->proc_list.first,
+			thd->lex->proc_list.first,
 			first->options | thd->options | SELECT_DESCRIBE,
 			result, unit, first);
   }
@@ -17088,7 +17129,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (group_list.elements)
   {
     str->append(STRING_WITH_LEN(" group by "));
-    print_order(str, (ORDER *) group_list.first, query_type);
+    print_order(str, group_list.first, query_type);
     switch (olap)
     {
       case CUBE_TYPE:
@@ -17119,7 +17160,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (order_list.elements)
   {
     str->append(STRING_WITH_LEN(" order by "));
-    print_order(str, (ORDER *) order_list.first, query_type);
+    print_order(str, order_list.first, query_type);
   }
 
   // limit

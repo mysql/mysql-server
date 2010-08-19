@@ -4,6 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
 
