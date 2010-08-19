@@ -2374,6 +2374,7 @@ void Item_func_between::print(String *str, enum_query_type query_type)
 void
 Item_func_ifnull::fix_length_and_dec()
 {
+  uint32 char_length;
   agg_result_type(&hybrid_type, args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
@@ -2381,20 +2382,21 @@ Item_func_ifnull::fix_length_and_dec()
 
   if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) 
   {
-    int len0= args[0]->max_length - args[0]->decimals
+    int len0= args[0]->max_char_length() - args[0]->decimals
       - (args[0]->unsigned_flag ? 0 : 1);
 
-    int len1= args[1]->max_length - args[1]->decimals
+    int len1= args[1]->max_char_length() - args[1]->decimals
       - (args[1]->unsigned_flag ? 0 : 1);
 
-    max_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
+    char_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
   }
   else
-    max_length= max(args[0]->max_length, args[1]->max_length);
+    char_length= max(args[0]->max_char_length(), args[1]->max_char_length());
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    agg_arg_charsets_for_comparison(collation, args, arg_count);
+    if (agg_arg_charsets_for_comparison(collation, args, arg_count))
+      return;
     break;
   case DECIMAL_RESULT:
   case REAL_RESULT:
@@ -2406,6 +2408,7 @@ Item_func_ifnull::fix_length_and_dec()
   default:
     DBUG_ASSERT(0);
   }
+  fix_char_length(char_length);
   cached_field_type= agg_field_type(args, 2);
 }
 
@@ -2579,6 +2582,7 @@ Item_func_if::fix_length_and_dec()
     cached_field_type= agg_field_type(args + 1, 2);
   }
 
+  uint32 char_length;
   if ((cached_result_type == DECIMAL_RESULT )
       || (cached_result_type == INT_RESULT))
   {
@@ -2588,10 +2592,11 @@ Item_func_if::fix_length_and_dec()
     int len2= args[2]->max_length - args[2]->decimals
       - (args[2]->unsigned_flag ? 0 : 1);
 
-    max_length=max(len1, len2) + decimals + (unsigned_flag ? 0 : 1);
+    char_length= max(len1, len2) + decimals + (unsigned_flag ? 0 : 1);
   }
   else
-    max_length= max(args[1]->max_length, args[2]->max_length);
+    char_length= max(args[1]->max_char_length(), args[2]->max_char_length());
+  fix_char_length(char_length);
 }
 
 
@@ -2901,7 +2906,7 @@ bool Item_func_case::fix_fields(THD *thd, Item **ref)
 
 void Item_func_case::agg_str_lengths(Item* arg)
 {
-  set_if_bigger(max_length, arg->max_length);
+  fix_char_length(max(max_char_length(), arg->max_char_length()));
   set_if_bigger(decimals, arg->decimals);
   unsigned_flag= unsigned_flag && arg->unsigned_flag;
 }
@@ -3129,9 +3134,10 @@ void Item_func_coalesce::fix_length_and_dec()
   agg_result_type(&hybrid_type, args, arg_count);
   switch (hybrid_type) {
   case STRING_RESULT:
-    count_only_length();
     decimals= NOT_FIXED_DEC;
-    agg_arg_charsets_for_string_result(collation, args, arg_count);
+    if (agg_arg_charsets_for_string_result(collation, args, arg_count))
+      return;
+    count_only_length();
     break;
   case DECIMAL_RESULT:
     count_decimal_length();
