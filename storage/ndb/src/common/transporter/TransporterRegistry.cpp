@@ -1828,7 +1828,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 }
 
 #ifdef NDB_SHM_TRANSPORTER
-static
+extern "C"
 RETSIGTYPE 
 shm_sig_handler(int signo)
 {
