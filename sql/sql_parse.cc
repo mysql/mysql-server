@@ -50,6 +50,7 @@
                               // mysql_backup_table,
                               // mysql_restore_table
 #include "sql_truncate.h"     // mysql_truncate_table
+#include "sql_admin.h"        // mysql_assign_to_keycache
 #include "sql_connect.h"      // check_user,
                               // decrease_user_connections,
                               // thd_init_client_charset, check_mqh,
@@ -2581,13 +2582,7 @@ case SQLCOM_PREPARE:
     }
 #endif
 
-    /* Set strategies: reset default or 'prepared' values. */
-    create_table->open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
-    create_table->lock_strategy= TABLE_LIST::OTLS_DOWNGRADE_IF_EXISTS;
-
-    /*
-      Close any open handlers for the table
-    */
+    /* Close any open handlers for the table. */
     mysql_ha_rm_tables(thd, create_table);
 
     if (select_lex->item_list.elements)		// With select
@@ -2647,44 +2642,25 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
-      {
-        /* Base table and temporary table are not in the same name space. */
-        create_table->open_type= OT_BASE_ONLY;
-      }
-
       if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
-        /*
-          Is table which we are changing used somewhere in other parts
-          of query
-        */
-        if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        /* The table already exists */
+        if (create_table->table)
         {
-          TABLE_LIST *duplicate;
-          if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
+          if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
-            update_non_unique_table_error(create_table, "CREATE", duplicate);
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                ER_TABLE_EXISTS_ERROR,
+                                ER(ER_TABLE_EXISTS_ERROR),
+                                create_info.alias);
+            my_ok(thd);
+          }
+          else
+          {
+            my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_info.alias);
             res= 1;
-            goto end_with_restore_list;
           }
-        }
-        /* If we create merge table, we have to test tables in merge, too */
-        if (create_info.used_fields & HA_CREATE_USED_UNION)
-        {
-          TABLE_LIST *tab;
-          for (tab= create_info.merge_list.first;
-               tab;
-               tab= tab->next_local)
-          {
-            TABLE_LIST *duplicate;
-            if ((duplicate= unique_table(thd, tab, select_tables, 0)))
-            {
-              update_non_unique_table_error(tab, "CREATE", duplicate);
-              res= 1;
-              goto end_with_restore_list;
-            }
-          }
+          goto end_with_restore_list;
         }
 
         /*
@@ -2717,7 +2693,7 @@ case SQLCOM_PREPARE:
           res= handle_select(thd, lex, result, 0);
           delete result;
         }
-        
+
         lex->link_first_table_back(create_table, link_to_local);
       }
     }
@@ -2941,81 +2917,6 @@ end_with_restore_list:
     res = mysql_checksum_table(thd, first_table, &lex->check_opt);
     break;
   }
-  case SQLCOM_REPAIR:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= mysql_repair_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, REPAIR and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-  case SQLCOM_CHECK:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL, all_tables,
-                           TRUE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res = mysql_check_table(thd, first_table, &lex->check_opt);
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-  case SQLCOM_ANALYZE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= mysql_analyze_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, ANALYZE and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
-
-  case SQLCOM_OPTIMIZE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
-      goto error; /* purecov: inspected */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-    res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
-      mysql_recreate_table(thd, first_table) :
-      mysql_optimize_table(thd, first_table, &lex->check_opt);
-    /* ! we write after unlocking the table */
-    if (!res && !lex->no_write_to_binlog)
-    {
-      /*
-        Presumably, OPTIMIZE and binlog writing doesn't require synchronization
-      */
-      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-    }
-    select_lex->table_list.first= first_table;
-    lex->query_tables=all_tables;
-    break;
-  }
   case SQLCOM_UPDATE:
   {
     ha_rows found= 0, updated= 0;
@@ -3236,23 +3137,6 @@ end_with_restore_list:
 
     break;
   }
-  case SQLCOM_TRUNCATE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_one_table_access(thd, DROP_ACL, all_tables))
-      goto error;
-    /*
-      Don't allow this within a transaction because we want to use
-      re-generate table
-    */
-    if (thd->in_active_multi_stmt_transaction())
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
-    if (! (res= mysql_truncate_table(thd, first_table)))
-      my_ok(thd);
-    break;
   case SQLCOM_DELETE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -4638,6 +4522,11 @@ create_sp_error:
     my_ok(thd, 1);
     break;
   }
+  case SQLCOM_ANALYZE:
+  case SQLCOM_CHECK:
+  case SQLCOM_OPTIMIZE:
+  case SQLCOM_REPAIR:
+  case SQLCOM_TRUNCATE:
   case SQLCOM_ALTER_TABLE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
@@ -7402,7 +7291,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
 
   if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
     create_table->open_type= OT_TEMPORARY_ONLY;
-  else if (!lex->select_lex.item_list.elements)
+  else
     create_table->open_type= OT_BASE_ONLY;
 
   if (!lex->select_lex.item_list.elements)
