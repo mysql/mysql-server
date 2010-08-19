@@ -116,6 +116,7 @@ test_main(int argc, char *const argv[]) {
     DB_TXN *txn;
     {
         r = db_env_create(&env, 0);                                   CKERR(r);
+	r = env->set_redzone(env, 0);                                 CKERR(r);
 	r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 	env->set_errfile(env, stderr);
 	r=env->txn_begin(env, 0, &txn, 0);                            CKERR(r);
