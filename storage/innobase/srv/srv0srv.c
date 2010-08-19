@@ -2863,8 +2863,8 @@ srv_purge_coordinator_thread(
 				exit when they detect a change in state.
 				Force the coordinator thread to do the purge
 				tasks from the work queue. */
-				while (srv_get_task_queue_length() > 0
-				       && srv_fast_shutdown == 0) {
+				while (srv_get_task_queue_length() > 0) {
+
 					ut_a(srv_shutdown_state);
 					srv_task_execute();
 				}
@@ -2899,13 +2899,13 @@ srv_purge_coordinator_thread(
 				}
 
 			} while (trx_sys->rseg_history_len > 100
-				 && (srv_shutdown_state == 0
-				     || (srv_shutdown_state > 0
-                                         && srv_fast_shutdown == 0)));
+				 && srv_shutdown_state == SRV_SHUTDOWN_NONE
+				 && srv_fast_shutdown == 0);
 		}
 	}
 
-	/* The task queue should be empty. */
+	/* The task queue should always be empty, independent of fast
+	shutdown state. */
 	ut_a(srv_get_task_queue_length() == 0);
 
 	/* Ensure that all the worker threads quit. */
